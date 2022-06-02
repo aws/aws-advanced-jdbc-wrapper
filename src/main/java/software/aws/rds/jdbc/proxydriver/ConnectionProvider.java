@@ -16,6 +16,10 @@ import java.util.Properties;
  * Implement this interface in order to handle physical connection creation process.
  */
 public interface ConnectionProvider {
+
+    //TODO: separate two different connection cases: 1) connect with complete jdbc connection string, 2) connect with just a host name
+    // Need to add another connect()
+
     /**
      * Called once per connection that needs to be created.
      *

@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.util.DriverInfo;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
+import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
 public class Driver implements java.sql.Driver {
 
@@ -50,15 +51,8 @@ public class Driver implements java.sql.Driver {
             return null;
         }
 
-        Connection connection = driver.connect(driverUrl, info);
-
-        if(connection == null) {
-            return null;
-        }
-
         Properties props = parseProperties(url, info);
-        //connection = new ConnectionWrapper(hostSpecs, props, url);
-        return connection;
+        return new ConnectionWrapper(new DriverConnectionProvider(driver), props, driverUrl);
     }
 
     @Override

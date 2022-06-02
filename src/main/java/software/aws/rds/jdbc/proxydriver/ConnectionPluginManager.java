@@ -7,11 +7,11 @@
 package software.aws.rds.jdbc.proxydriver;
 
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
-import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
+import javax.sql.DataSource;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -43,8 +43,18 @@ public class ConnectionPluginManager {
     protected Properties props = new Properties();
     protected ArrayList<ConnectionPlugin> plugins;
     protected CurrentConnectionProvider currentConnectionProvider;
+    protected final ConnectionProvider connectionProvider;
 
-    public ConnectionPluginManager() {
+    public ConnectionPluginManager(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
+    }
+
+    public ConnectionPluginManager(java.sql.Driver targetDriver) {
+        this.connectionProvider = new DriverConnectionProvider(targetDriver);
+    }
+
+    public ConnectionPluginManager(DataSource targetDataSource) {
+        this.connectionProvider = new DataSourceConnectionProvider(targetDataSource);
     }
 
     /**
@@ -81,8 +91,9 @@ public class ConnectionPluginManager {
 
         if (!StringUtils.isNullOrEmpty(factoryClazzNames)) {
             try {
-                ConnectionPluginFactory[] factories = WrapperUtils.<ConnectionPluginFactory>loadClasses(
+                ConnectionPluginFactory[] factories = WrapperUtils.loadClasses(
                                 factoryClazzNames,
+                                ConnectionPluginFactory.class,
                                 "Unable to load connection plugin factory '%s'.")
                         .toArray(new ConnectionPluginFactory[0]);
 
@@ -90,8 +101,8 @@ public class ConnectionPluginManager {
 
                 this.plugins = new ArrayList<>(factories.length + 1);
 
-                for (int i = 0; i < factories.length; i++) {
-                    this.plugins.add(factories[i].getInstance(
+                for (ConnectionPluginFactory factory : factories) {
+                    this.plugins.add(factory.getInstance(
                             this.currentConnectionProvider,
                             this.props));
                 }
@@ -105,10 +116,9 @@ public class ConnectionPluginManager {
 
         // add default connection plugin to the tail
 
-        this.plugins.add(new DefaultConnectionPluginFactory()
-                .getInstance(
-                        this.currentConnectionProvider,
-                        this.props));
+        ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
+                this.currentConnectionProvider, this.connectionProvider);
+        this.plugins.add(defaultPlugin);
     }
 
     public void openInitialConnection(HostSpec[] hostSpecs, Properties props, String url)
@@ -117,9 +127,7 @@ public class ConnectionPluginManager {
         try {
             openInitialConnectionOneLevel(0,
                     hostSpecs, props, url,
-                    () -> {
-                        return null;
-                    });
+                    () -> null);
         } catch (SQLException ex) {
             throw ex;
         } catch (RuntimeException ex) {
@@ -197,11 +205,10 @@ public class ConnectionPluginManager {
             // not last plugin
             // execute a function that redirects JDBC method to a next plugin in chain
             final int nextPluginIndex = pluginIndex;
-            func = () -> {
-                return executeOneLevel(nextPluginIndex, methodInvokeOn, methodName, executeSqlFunc, args);
-            };
+            func = () -> executeOneLevel(nextPluginIndex, methodInvokeOn, methodName, executeSqlFunc, args);
         }
 
+        //noinspection unchecked
         return (T) plugin.execute(methodInvokeOn, methodName, func, args);
     }
 
