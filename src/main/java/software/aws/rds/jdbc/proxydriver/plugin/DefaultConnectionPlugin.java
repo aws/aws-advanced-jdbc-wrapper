@@ -7,6 +7,7 @@
 package software.aws.rds.jdbc.proxydriver.plugin;
 
 import software.aws.rds.jdbc.proxydriver.*;
+import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
@@ -32,10 +33,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     protected final ConnectionProvider connectionProvider;
     protected final CurrentConnectionProvider currentConnectionProvider;
-
-    public DefaultConnectionPlugin(CurrentConnectionProvider currentConnectionProvider) {
-        this(currentConnectionProvider, new BasicConnectionProvider());
-    }
 
     public DefaultConnectionPlugin(CurrentConnectionProvider currentConnectionProvider,
                                    ConnectionProvider connectionProvider) {
@@ -84,10 +81,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     public void openInitialConnection(HostSpec[] hostSpecs, Properties props, String url,
                                       Callable<Void> openInitialConnectionFunc) throws Exception {
 
-        if (hostSpecs == null || hostSpecs.length == 0) {
-            throw new IllegalArgumentException("hostSpecs");
-        }
-
         if (this.currentConnectionProvider.getCurrentConnection() != null) {
             // Connection has already opened by a prior plugin in a plugin chain
             // Execution of openInitialConnectionFunc can be skipped since this plugin is guaranteed
@@ -96,7 +89,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
         }
 
         Connection conn = this.connectionProvider.connect(hostSpecs, props, url);
-        this.currentConnectionProvider.setCurrentConnection(conn, hostSpecs[0]);
+        this.currentConnectionProvider.setCurrentConnection(conn, null);
 
         // Execution of openInitialConnectionFunc can be skipped since this plugin is guaranteed the
         // last one in the plugin chain

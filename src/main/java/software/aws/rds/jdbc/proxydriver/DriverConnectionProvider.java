@@ -13,10 +13,16 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 /**
- * This class is a basic implementation of IConnectionProvider interface. It creates and returns an
+ * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and returns an
  * instance of PgConnection.
  */
-public class BasicConnectionProvider implements ConnectionProvider {
+public class DriverConnectionProvider implements ConnectionProvider {
+
+    private java.sql.Driver driver;
+
+    public DriverConnectionProvider(java.sql.Driver driver) {
+        this.driver = driver;
+    }
 
     /**
      * Called to create a connection.
@@ -30,8 +36,6 @@ public class BasicConnectionProvider implements ConnectionProvider {
     @Override
     public Connection connect(HostSpec[] hostSpecs, Properties props, @Nullable String url)
             throws SQLException {
-        //TODO
-        //return new PgConnection(hostSpecs, props, url == null ? "" : url);
-        return null;
+        return this.driver.connect(url, props);
     }
 }

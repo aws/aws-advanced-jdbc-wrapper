@@ -28,12 +28,14 @@ public class DataSourceTests {
 
         Properties targetDataSourceProps = new Properties();
         targetDataSourceProps.setProperty("serverName", TestSettings.mysqlServerName);
+        targetDataSourceProps.setProperty("databaseName", TestSettings.mysqlDatabase);
         ds.setTargetDataSourceProperties(targetDataSourceProps);
 
         Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
 
         assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 
@@ -48,12 +50,13 @@ public class DataSourceTests {
         }
 
         ProxyDriverDataSource ds = new ProxyDriverDataSource();
-        ds.setJdbcUrl("jdbc:mysql://" + TestSettings.mysqlServerName + "/");
+        ds.setJdbcUrl("jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase);
 
         Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
 
         assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 
@@ -81,6 +84,7 @@ public class DataSourceTests {
 
         assertTrue(conn instanceof org.postgresql.PGConnection);
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 
@@ -102,6 +106,7 @@ public class DataSourceTests {
 
         assertTrue(conn instanceof org.postgresql.PGConnection);
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 }

@@ -53,7 +53,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean next() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.next",
                 () -> this.resultSet.next());
@@ -61,7 +61,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void close() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.close",
                 () -> {
@@ -72,7 +72,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean wasNull() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.wasNull",
                 () -> this.resultSet.wasNull());
@@ -80,269 +80,299 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public String getString(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getString",
-                () -> this.resultSet.getString(columnIndex));
+                () -> this.resultSet.getString(columnIndex),
+                columnIndex);
     }
 
     @Override
     public boolean getBoolean(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBoolean",
-                () -> this.resultSet.getBoolean(columnIndex));
+                () -> this.resultSet.getBoolean(columnIndex),
+                columnIndex);
     }
 
     @Override
     public byte getByte(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getByte",
-                () -> this.resultSet.getByte(columnIndex));
+                () -> this.resultSet.getByte(columnIndex),
+                columnIndex);
     }
 
     @Override
     public short getShort(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getShort",
-                () -> this.resultSet.getShort(columnIndex));
+                () -> this.resultSet.getShort(columnIndex),
+                columnIndex);
     }
 
     @Override
     public int getInt(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getInt",
-                () -> this.resultSet.getInt(columnIndex));
+                () -> this.resultSet.getInt(columnIndex),
+                columnIndex);
     }
 
     @Override
     public long getLong(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getLong",
-                () -> this.resultSet.getLong(columnIndex));
+                () -> this.resultSet.getLong(columnIndex),
+                columnIndex);
     }
 
     @Override
     public float getFloat(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getFloat",
-                () -> this.resultSet.getFloat(columnIndex));
+                () -> this.resultSet.getFloat(columnIndex),
+                columnIndex);
     }
 
     @Override
     public double getDouble(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getDouble",
-                () -> this.resultSet.getDouble(columnIndex));
+                () -> this.resultSet.getDouble(columnIndex),
+                columnIndex);
     }
 
     @Override
+    @Deprecated
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBigDecimal",
-                () -> this.resultSet.getBigDecimal(columnIndex, scale));
+                () -> this.resultSet.getBigDecimal(columnIndex, scale),
+                columnIndex, scale);
     }
 
     @Override
     public byte[] getBytes(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBytes",
-                () -> this.resultSet.getBytes(columnIndex));
+                () -> this.resultSet.getBytes(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Date getDate(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getDate",
-                () -> this.resultSet.getDate(columnIndex));
+                () -> this.resultSet.getDate(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Time getTime(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTime",
-                () -> this.resultSet.getTime(columnIndex));
+                () -> this.resultSet.getTime(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTimestamp",
-                () -> this.resultSet.getTimestamp(columnIndex));
+                () -> this.resultSet.getTimestamp(columnIndex),
+                columnIndex);
     }
 
     @Override
     public InputStream getAsciiStream(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getAsciiStream",
-                () -> this.resultSet.getAsciiStream(columnIndex));
+                () -> this.resultSet.getAsciiStream(columnIndex),
+                columnIndex);
     }
 
     @Override
     @Deprecated
-    @SuppressWarnings("deprecation")
     public InputStream getUnicodeStream(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getUnicodeStream",
-                () -> this.resultSet.getUnicodeStream(columnIndex));
+                () -> this.resultSet.getUnicodeStream(columnIndex),
+                columnIndex);
     }
 
     @Override
     public InputStream getBinaryStream(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBinaryStream",
-                () -> this.resultSet.getBinaryStream(columnIndex));
+                () -> this.resultSet.getBinaryStream(columnIndex),
+                columnIndex);
     }
 
     @Override
     public String getString(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getString",
-                () -> this.resultSet.getString(columnLabel));
+                () -> this.resultSet.getString(columnLabel),
+                columnLabel);
     }
 
     @Override
     public boolean getBoolean(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBoolean",
-                () -> this.resultSet.getBoolean(columnLabel));
+                () -> this.resultSet.getBoolean(columnLabel),
+                columnLabel);
     }
 
     @Override
     public byte getByte(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getByte",
-                () -> this.resultSet.getByte(columnLabel));
+                () -> this.resultSet.getByte(columnLabel),
+                columnLabel);
     }
 
     @Override
     public short getShort(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getShort",
-                () -> this.resultSet.getShort(columnLabel));
+                () -> this.resultSet.getShort(columnLabel),
+                columnLabel);
     }
 
     @Override
     public int getInt(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getInt",
-                () -> this.resultSet.getInt(columnLabel));
+                () -> this.resultSet.getInt(columnLabel),
+                columnLabel);
     }
 
     @Override
     public long getLong(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getLong",
-                () -> this.resultSet.getLong(columnLabel));
+                () -> this.resultSet.getLong(columnLabel),
+                columnLabel);
     }
 
     @Override
     public float getFloat(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getFloat",
-                () -> this.resultSet.getFloat(columnLabel));
+                () -> this.resultSet.getFloat(columnLabel),
+                columnLabel);
     }
 
     @Override
     public double getDouble(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getDouble",
-                () -> this.resultSet.getDouble(columnLabel));
+                () -> this.resultSet.getDouble(columnLabel),
+                columnLabel);
     }
 
     @Override
     @Deprecated
-    @SuppressWarnings("deprecation")
     public BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBigDecimal",
-                () -> this.resultSet.getBigDecimal(columnLabel, scale));
+                () -> this.resultSet.getBigDecimal(columnLabel, scale),
+                columnLabel, scale);
     }
 
     @Override
     public byte[] getBytes(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBytes",
-                () -> this.resultSet.getBytes(columnLabel));
+                () -> this.resultSet.getBytes(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Date getDate(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getDate",
-                () -> this.resultSet.getDate(columnLabel));
+                () -> this.resultSet.getDate(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Time getTime(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTime",
-                () -> this.resultSet.getTime(columnLabel));
+                () -> this.resultSet.getTime(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Timestamp getTimestamp(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTimestamp",
-                () -> this.resultSet.getTimestamp(columnLabel));
+                () -> this.resultSet.getTimestamp(columnLabel),
+                columnLabel);
     }
 
     @Override
     public InputStream getAsciiStream(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getAsciiStream",
-                () -> this.resultSet.getAsciiStream(columnLabel));
+                () -> this.resultSet.getAsciiStream(columnLabel),
+                columnLabel);
     }
 
     @Override
     @Deprecated
-    @SuppressWarnings("deprecation")
     public InputStream getUnicodeStream(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getUnicodeStream",
-                () -> this.resultSet.getUnicodeStream(columnLabel));
+                () -> this.resultSet.getUnicodeStream(columnLabel),
+                columnLabel);
     }
 
     @Override
     public InputStream getBinaryStream(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBinaryStream",
-                () -> this.resultSet.getBinaryStream(columnLabel));
+                () -> this.resultSet.getBinaryStream(columnLabel),
+                columnLabel);
     }
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getWarnings",
                 () -> this.resultSet.getWarnings());
@@ -350,7 +380,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void clearWarnings() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.clearWarnings",
                 () -> {
@@ -361,7 +391,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public String getCursorName() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getCursorName",
                 () -> this.resultSet.getCursorName());
@@ -369,7 +399,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getMetaData",
                 () -> this.resultSet.getMetaData());
@@ -377,63 +407,70 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getObject",
-                () -> this.resultSet.getObject(columnIndex));
+                () -> this.resultSet.getObject(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Object getObject(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getObject",
-                () -> this.resultSet.getObject(columnLabel));
+                () -> this.resultSet.getObject(columnLabel),
+                columnLabel);
     }
 
     @Override
     public int findColumn(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.findColumn",
-                () -> this.resultSet.findColumn(columnLabel));
+                () -> this.resultSet.findColumn(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Reader getCharacterStream(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getCharacterStream",
-                () -> this.resultSet.getCharacterStream(columnIndex));
+                () -> this.resultSet.getCharacterStream(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Reader getCharacterStream(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getCharacterStream",
-                () -> this.resultSet.getCharacterStream(columnLabel));
+                () -> this.resultSet.getCharacterStream(columnLabel),
+                columnLabel);
     }
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBigDecimal",
-                () -> this.resultSet.getBigDecimal(columnIndex));
+                () -> this.resultSet.getBigDecimal(columnIndex),
+                columnIndex);
     }
 
     @Override
     public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBigDecimal",
-                () -> this.resultSet.getBigDecimal(columnLabel));
+                () -> this.resultSet.getBigDecimal(columnLabel),
+                columnLabel);
     }
 
     @Override
     public boolean isBeforeFirst() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.isBeforeFirst",
                 () -> this.resultSet.isBeforeFirst());
@@ -441,7 +478,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean isAfterLast() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.isAfterLast",
                 () -> this.resultSet.isAfterLast());
@@ -449,7 +486,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean isFirst() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.isFirst",
                 () -> this.resultSet.isFirst());
@@ -457,7 +494,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean isLast() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.isLast",
                 () -> this.resultSet.isLast());
@@ -465,7 +502,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void beforeFirst() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.beforeFirst",
                 () -> {
@@ -476,7 +513,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void afterLast() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.afterLast",
                 () -> {
@@ -487,7 +524,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean first() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.first",
                 () -> this.resultSet.first());
@@ -495,7 +532,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean last() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.last",
                 () -> this.resultSet.last());
@@ -503,7 +540,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public int getRow() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getRow",
                 () -> this.resultSet.getRow());
@@ -511,23 +548,25 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean absolute(int row) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.absolute",
-                () -> this.resultSet.absolute(row));
+                () -> this.resultSet.absolute(row),
+                row);
     }
 
     @Override
     public boolean relative(int rows) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.relative",
-                () -> this.resultSet.relative(rows));
+                () -> this.resultSet.relative(rows),
+                rows);
     }
 
     @Override
     public boolean previous() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.previous",
                 () -> this.resultSet.previous());
@@ -535,7 +574,8 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public int getFetchDirection() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        //noinspection MagicConstant
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getFetchDirection",
                 () -> this.resultSet.getFetchDirection());
@@ -543,18 +583,19 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void setFetchDirection(int direction) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.setFetchDirection",
                 () -> {
                     this.resultSet.setFetchDirection(direction);
                     return null;
-                });
+                },
+                direction);
     }
 
     @Override
     public int getFetchSize() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getFetchSize",
                 () -> this.resultSet.getFetchSize());
@@ -562,18 +603,20 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.setFetchSize",
                 () -> {
                     this.resultSet.setFetchSize(rows);
                     return null;
-                });
+                },
+                rows);
     }
 
     @Override
     public int getType() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        //noinspection MagicConstant
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getType",
                 () -> this.resultSet.getType());
@@ -581,7 +624,8 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public int getConcurrency() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        //noinspection MagicConstant
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getConcurrency",
                 () -> this.resultSet.getConcurrency());
@@ -589,7 +633,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean rowUpdated() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.rowUpdated",
                 () -> this.resultSet.rowUpdated());
@@ -597,7 +641,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean rowInserted() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.rowInserted",
                 () -> this.resultSet.rowInserted());
@@ -605,7 +649,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean rowDeleted() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.rowDeleted",
                 () -> this.resultSet.rowDeleted());
@@ -613,427 +657,465 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void updateNull(int columnIndex) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNull",
                 () -> {
                     this.resultSet.updateNull(columnIndex);
                     return null;
-                });
+                },
+                columnIndex);
     }
 
     @Override
     public void updateBoolean(int columnIndex, boolean x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBoolean",
                 () -> {
                     this.resultSet.updateBoolean(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateByte(int columnIndex, byte x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateByte",
                 () -> {
                     this.resultSet.updateByte(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateShort(int columnIndex, short x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateShort",
                 () -> {
                     this.resultSet.updateShort(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateInt(int columnIndex, int x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateInt",
                 () -> {
                     this.resultSet.updateInt(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateLong(int columnIndex, long x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateLong",
                 () -> {
                     this.resultSet.updateLong(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateFloat(int columnIndex, float x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateFloat",
                 () -> {
                     this.resultSet.updateFloat(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateDouble(int columnIndex, double x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDouble",
                 () -> {
                     this.resultSet.updateDouble(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateBigDecimal(int columnIndex, BigDecimal x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBigDecimal",
                 () -> {
                     this.resultSet.updateBigDecimal(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateString(int columnIndex, String x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateString",
                 () -> {
                     this.resultSet.updateString(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateBytes(int columnIndex, byte[] x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBytes",
                 () -> {
                     this.resultSet.updateBytes(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateDate(int columnIndex, Date x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDate",
                 () -> {
                     this.resultSet.updateDate(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateTime(int columnIndex, Time x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTime",
                 () -> {
                     this.resultSet.updateTime(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateTimestamp(int columnIndex, Timestamp x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTimestamp",
                 () -> {
                     this.resultSet.updateTimestamp(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, int length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
                 () -> {
                     this.resultSet.updateAsciiStream(columnIndex, x, length);
                     return null;
-                });
+                },
+                columnIndex, x, length);
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, int length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
                 () -> {
                     this.resultSet.updateBinaryStream(columnIndex, x, length);
                     return null;
-                });
+                },
+                columnIndex, x, length);
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, int length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
                 () -> {
                     this.resultSet.updateCharacterStream(columnIndex, x, length);
                     return null;
-                });
+                },
+                columnIndex, x, length);
     }
 
     @Override
     public void updateObject(int columnIndex, Object x, int scaleOrLength) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnIndex, x, scaleOrLength);
                     return null;
-                });
+                },
+                columnIndex, x, scaleOrLength);
     }
 
     @Override
     public void updateObject(int columnIndex, Object x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateNull(String columnLabel) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNull",
                 () -> {
                     this.resultSet.updateNull(columnLabel);
                     return null;
-                });
+                },
+                columnLabel);
     }
 
     @Override
     public void updateBoolean(String columnLabel, boolean x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBoolean",
                 () -> {
                     this.resultSet.updateBoolean(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateByte(String columnLabel, byte x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateByte",
                 () -> {
                     this.resultSet.updateByte(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateShort(String columnLabel, short x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateShort",
                 () -> {
                     this.resultSet.updateShort(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateInt(String columnLabel, int x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateInt",
                 () -> {
                     this.resultSet.updateInt(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateLong(String columnLabel, long x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateLong",
                 () -> {
                     this.resultSet.updateLong(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateFloat(String columnLabel, float x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateFloat",
                 () -> {
                     this.resultSet.updateFloat(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateDouble(String columnLabel, double x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDouble",
                 () -> {
                     this.resultSet.updateDouble(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateBigDecimal(String columnLabel, BigDecimal x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBigDecimal",
                 () -> {
                     this.resultSet.updateBigDecimal(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateString(String columnLabel, String x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateString",
                 () -> {
                     this.resultSet.updateString(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateBytes(String columnLabel, byte[] x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBytes",
                 () -> {
                     this.resultSet.updateBytes(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateDate(String columnLabel, Date x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDate",
                 () -> {
                     this.resultSet.updateDate(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateTime(String columnLabel, Time x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTime",
                 () -> {
                     this.resultSet.updateTime(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateTimestamp(String columnLabel, Timestamp x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTimestamp",
                 () -> {
                     this.resultSet.updateTimestamp(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, int length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
                 () -> {
                     this.resultSet.updateAsciiStream(columnLabel, x, length);
                     return null;
-                });
+                },
+                columnLabel, x, length);
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, int length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
                 () -> {
                     this.resultSet.updateBinaryStream(columnLabel, x, length);
                     return null;
-                });
+                },
+                columnLabel, x, length);
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, int length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
                 () -> {
                     this.resultSet.updateCharacterStream(columnLabel, reader, length);
                     return null;
-                });
+                },
+                columnLabel, reader, length);
     }
 
     @Override
     public void updateObject(String columnLabel, Object x, int scaleOrLength) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnLabel, x, scaleOrLength);
                     return null;
-                });
+                },
+                columnLabel, x, scaleOrLength);
     }
 
     @Override
     public void updateObject(String columnLabel, Object x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void insertRow() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.insertRow",
                 () -> {
@@ -1044,7 +1126,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void updateRow() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRow",
                 () -> {
@@ -1055,7 +1137,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void deleteRow() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.deleteRow",
                 () -> {
@@ -1066,7 +1148,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void refreshRow() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.refreshRow",
                 () -> {
@@ -1077,7 +1159,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void cancelRowUpdates() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.cancelRowUpdates",
                 () -> {
@@ -1088,7 +1170,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void moveToInsertRow() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.moveToInsertRow",
                 () -> {
@@ -1099,7 +1181,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void moveToCurrentRow() throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.moveToCurrentRow",
                 () -> {
@@ -1110,7 +1192,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public Statement getStatement() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getStatement",
                 () -> this.resultSet.getStatement());
@@ -1118,277 +1200,308 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getObject",
-                () -> this.resultSet.getObject(columnIndex, map));
+                () -> this.resultSet.getObject(columnIndex, map),
+                columnIndex, map);
     }
 
     @Override
     public Ref getRef(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getRef",
-                () -> this.resultSet.getRef(columnIndex));
+                () -> this.resultSet.getRef(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Blob getBlob(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBlob",
-                () -> this.resultSet.getBlob(columnIndex));
+                () -> this.resultSet.getBlob(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Clob getClob(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getClob",
-                () -> this.resultSet.getClob(columnIndex));
+                () -> this.resultSet.getClob(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Array getArray(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getArray",
-                () -> this.resultSet.getArray(columnIndex));
+                () -> this.resultSet.getArray(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getObject",
-                () -> this.resultSet.getObject(columnLabel, map));
+                () -> this.resultSet.getObject(columnLabel, map),
+                columnLabel, map);
     }
 
     @Override
     public Ref getRef(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getRef",
-                () -> this.resultSet.getRef(columnLabel));
+                () -> this.resultSet.getRef(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Blob getBlob(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getBlob",
-                () -> this.resultSet.getBlob(columnLabel));
+                () -> this.resultSet.getBlob(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Clob getClob(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getClob",
-                () -> this.resultSet.getClob(columnLabel));
+                () -> this.resultSet.getClob(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Array getArray(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getArray",
-                () -> this.resultSet.getArray(columnLabel));
+                () -> this.resultSet.getArray(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Date getDate(int columnIndex, Calendar cal) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getDate",
-                () -> this.resultSet.getDate(columnIndex, cal));
+                () -> this.resultSet.getDate(columnIndex, cal),
+                columnIndex, cal);
     }
 
     @Override
     public Date getDate(String columnLabel, Calendar cal) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getDate",
-                () -> this.resultSet.getDate(columnLabel, cal));
+                () -> this.resultSet.getDate(columnLabel, cal),
+                columnLabel, cal);
     }
 
     @Override
     public Time getTime(int columnIndex, Calendar cal) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTime",
-                () -> this.resultSet.getTime(columnIndex, cal));
+                () -> this.resultSet.getTime(columnIndex, cal),
+                columnIndex, cal);
     }
 
     @Override
     public Time getTime(String columnLabel, Calendar cal) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTime",
-                () -> this.resultSet.getTime(columnLabel, cal));
+                () -> this.resultSet.getTime(columnLabel, cal),
+                columnLabel, cal);
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex, Calendar cal) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTimestamp",
-                () -> this.resultSet.getTimestamp(columnIndex, cal));
+                () -> this.resultSet.getTimestamp(columnIndex, cal),
+                columnIndex, cal);
     }
 
     @Override
     public Timestamp getTimestamp(String columnLabel, Calendar cal) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getTimestamp",
-                () -> this.resultSet.getTimestamp(columnLabel, cal));
+                () -> this.resultSet.getTimestamp(columnLabel, cal),
+                columnLabel, cal);
     }
 
     @Override
     public URL getURL(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getURL",
-                () -> this.resultSet.getURL(columnIndex));
+                () -> this.resultSet.getURL(columnIndex),
+                columnIndex);
     }
 
     @Override
     public URL getURL(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getURL",
-                () -> this.resultSet.getURL(columnLabel));
+                () -> this.resultSet.getURL(columnLabel),
+                columnLabel);
     }
 
     @Override
     public void updateRef(int columnIndex, Ref x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRef",
                 () -> {
                     this.resultSet.updateRef(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateRef(String columnLabel, Ref x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRef",
                 () -> {
                     this.resultSet.updateRef(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateBlob(int columnIndex, Blob x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
                 () -> {
                     this.resultSet.updateBlob(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateBlob(String columnLabel, Blob x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
                 () -> {
                     this.resultSet.updateBlob(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateClob(int columnIndex, Clob x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
                 () -> {
                     this.resultSet.updateClob(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateClob(String columnLabel, Clob x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
                 () -> {
                     this.resultSet.updateClob(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateArray(int columnIndex, Array x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateArray",
                 () -> {
                     this.resultSet.updateArray(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateArray(String columnLabel, Array x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateArray",
                 () -> {
                     this.resultSet.updateArray(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public RowId getRowId(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getRowId",
-                () -> this.resultSet.getRowId(columnIndex));
+                () -> this.resultSet.getRowId(columnIndex),
+                columnIndex);
     }
 
     @Override
     public RowId getRowId(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getRowId",
-                () -> this.resultSet.getRowId(columnLabel));
+                () -> this.resultSet.getRowId(columnLabel),
+                columnLabel);
     }
 
     @Override
     public void updateRowId(int columnIndex, RowId x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRowId",
                 () -> {
                     this.resultSet.updateRowId(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateRowId(String columnLabel, RowId x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRowId",
                 () -> {
                     this.resultSet.updateRowId(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public int getHoldability() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        //noinspection MagicConstant
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getHoldability",
                 () -> this.resultSet.getHoldability());
@@ -1396,7 +1509,7 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public boolean isClosed() throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.isClosed",
                 () -> this.resultSet.isClosed());
@@ -1404,509 +1517,559 @@ public class ResultSetWrapper implements ResultSet {
 
     @Override
     public void updateNString(int columnIndex, String nString) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNString",
                 () -> {
                     this.resultSet.updateNString(columnIndex, nString);
                     return null;
-                });
+                },
+                columnIndex, nString);
     }
 
     @Override
     public void updateNString(String columnLabel, String nString) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNString",
                 () -> {
                     this.resultSet.updateNString(columnLabel, nString);
                     return null;
-                });
+                },
+                columnLabel, nString);
     }
 
     @Override
     public void updateNClob(int columnIndex, NClob nClob) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
                 () -> {
                     this.resultSet.updateNClob(columnIndex, nClob);
                     return null;
-                });
+                },
+                columnIndex, nClob);
     }
 
     @Override
     public void updateNClob(String columnLabel, NClob nClob) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
                 () -> {
                     this.resultSet.updateNClob(columnLabel, nClob);
                     return null;
-                });
+                },
+                columnLabel, nClob);
     }
 
     @Override
     public NClob getNClob(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getNClob",
-                () -> this.resultSet.getNClob(columnIndex));
+                () -> this.resultSet.getNClob(columnIndex),
+                columnIndex);
     }
 
     @Override
     public NClob getNClob(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getNClob",
-                () -> this.resultSet.getNClob(columnLabel));
+                () -> this.resultSet.getNClob(columnLabel),
+                columnLabel);
     }
 
     @Override
     public SQLXML getSQLXML(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        //noinspection SpellCheckingInspection
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getSQLXML",
-                () -> this.resultSet.getSQLXML(columnIndex));
+                () -> this.resultSet.getSQLXML(columnIndex),
+                columnIndex);
     }
 
     @Override
     public SQLXML getSQLXML(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        //noinspection SpellCheckingInspection
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getSQLXML",
-                () -> this.resultSet.getSQLXML(columnLabel));
+                () -> this.resultSet.getSQLXML(columnLabel),
+                columnLabel);
     }
 
     @Override
     public void updateSQLXML(int columnIndex, SQLXML xmlObject) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateSQLXML",
                 () -> {
                     this.resultSet.updateSQLXML(columnIndex, xmlObject);
                     return null;
-                });
+                },
+                columnIndex, xmlObject);
     }
 
     @Override
     public void updateSQLXML(String columnLabel, SQLXML xmlObject) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateSQLXML",
                 () -> {
                     this.resultSet.updateSQLXML(columnLabel, xmlObject);
                     return null;
-                });
+                },
+                columnLabel, xmlObject);
     }
 
     @Override
     public String getNString(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getNString",
-                () -> this.resultSet.getNString(columnIndex));
+                () -> this.resultSet.getNString(columnIndex),
+                columnIndex);
     }
 
     @Override
     public String getNString(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getNString",
-                () -> this.resultSet.getNString(columnLabel));
+                () -> this.resultSet.getNString(columnLabel),
+                columnLabel);
     }
 
     @Override
     public Reader getNCharacterStream(int columnIndex) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getNCharacterStream",
-                () -> this.resultSet.getNCharacterStream(columnIndex));
+                () -> this.resultSet.getNCharacterStream(columnIndex),
+                columnIndex);
     }
 
     @Override
     public Reader getNCharacterStream(String columnLabel) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getNCharacterStream",
-                () -> this.resultSet.getNCharacterStream(columnLabel));
+                () -> this.resultSet.getNCharacterStream(columnLabel),
+                columnLabel);
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
                 () -> {
                     this.resultSet.updateNCharacterStream(columnIndex, x, length);
                     return null;
-                });
+                },
+                columnIndex, x, length);
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
                 () -> {
                     this.resultSet.updateNCharacterStream(columnLabel, reader, length);
                     return null;
-                });
+                },
+                columnLabel, reader, length);
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
                 () -> {
                     this.resultSet.updateAsciiStream(columnIndex, x, length);
                     return null;
-                });
+                },
+                columnIndex, x, length);
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
                 () -> {
                     this.resultSet.updateBinaryStream(columnIndex, x, length);
                     return null;
-                });
+                },
+                columnIndex, x, length);
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
                 () -> {
                     this.resultSet.updateCharacterStream(columnIndex, x, length);
                     return null;
-                });
+                },
+                columnIndex, x, length);
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
                 () -> {
                     this.resultSet.updateAsciiStream(columnLabel, x, length);
                     return null;
-                });
+                },
+                columnLabel, x, length);
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
                 () -> {
                     this.resultSet.updateBinaryStream(columnLabel, x, length);
                     return null;
-                });
+                },
+                columnLabel, x, length);
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
                 () -> {
                     this.resultSet.updateCharacterStream(columnLabel, reader, length);
                     return null;
-                });
+                },
+                columnLabel, reader, length);
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
                 () -> {
                     this.resultSet.updateBlob(columnIndex, inputStream, length);
                     return null;
-                });
+                },
+                columnIndex, inputStream, length);
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
                 () -> {
                     this.resultSet.updateBlob(columnLabel, inputStream, length);
                     return null;
-                });
+                },
+                columnLabel, inputStream, length);
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
                 () -> {
                     this.resultSet.updateClob(columnIndex, reader, length);
                     return null;
-                });
+                },
+                columnIndex, reader, length);
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
                 () -> {
                     this.resultSet.updateClob(columnLabel, reader, length);
                     return null;
-                });
+                },
+                columnLabel, reader, length);
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
                 () -> {
                     this.resultSet.updateNClob(columnIndex, reader, length);
                     return null;
-                });
+                },
+                columnIndex, reader, length);
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
                 () -> {
                     this.resultSet.updateNClob(columnLabel, reader, length);
                     return null;
-                });
+                },
+                columnLabel, reader, length);
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
                 () -> {
                     this.resultSet.updateNCharacterStream(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
                 () -> {
                     this.resultSet.updateNCharacterStream(columnLabel, reader);
                     return null;
-                });
+                },
+                columnLabel, reader);
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
                 () -> {
                     this.resultSet.updateAsciiStream(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
                 () -> {
                     this.resultSet.updateBinaryStream(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
                 () -> {
                     this.resultSet.updateCharacterStream(columnIndex, x);
                     return null;
-                });
+                },
+                columnIndex, x);
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
                 () -> {
                     this.resultSet.updateAsciiStream(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
                 () -> {
                     this.resultSet.updateBinaryStream(columnLabel, x);
                     return null;
-                });
+                },
+                columnLabel, x);
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
                 () -> {
                     this.resultSet.updateCharacterStream(columnLabel, reader);
                     return null;
-                });
+                },
+                columnLabel, reader);
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
                 () -> {
                     this.resultSet.updateBlob(columnIndex, inputStream);
                     return null;
-                });
+                },
+                columnIndex, inputStream);
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
                 () -> {
                     this.resultSet.updateBlob(columnLabel, inputStream);
                     return null;
-                });
+                },
+                columnLabel, inputStream);
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
                 () -> {
                     this.resultSet.updateClob(columnIndex, reader);
                     return null;
-                });
+                },
+                columnIndex, reader);
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
                 () -> {
                     this.resultSet.updateClob(columnLabel, reader);
                     return null;
-                });
+                },
+                columnLabel, reader);
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
                 () -> {
                     this.resultSet.updateNClob(columnIndex, reader);
                     return null;
-                });
+                },
+                columnIndex, reader);
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
                 () -> {
                     this.resultSet.updateNClob(columnLabel, reader);
                     return null;
-                });
+                },
+                columnLabel, reader);
     }
 
     @Override
     public <T> T getObject(int columnIndex, Class<T> type) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getObject",
-                () -> this.resultSet.getObject(columnIndex, type));
+                () -> this.resultSet.getObject(columnIndex, type),
+                columnIndex, type);
     }
 
     @Override
     public <T> T getObject(String columnLabel, Class<T> type) throws SQLException {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.getObject",
-                () -> this.resultSet.getObject(columnLabel, type));
+                () -> this.resultSet.getObject(columnLabel, type),
+                columnLabel, type);
     }
 
     @Override
     public void updateObject(int columnIndex, Object x, SQLType targetSqlType, int scaleOrLength)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnIndex, x, targetSqlType, scaleOrLength);
                     return null;
-                });
+                },
+                columnIndex, x, targetSqlType, scaleOrLength);
     }
 
     @Override
     public void updateObject(String columnLabel, Object x, SQLType targetSqlType,
                              int scaleOrLength) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnLabel, x, targetSqlType, scaleOrLength);
                     return null;
-                });
+                },
+                columnLabel, x, targetSqlType, scaleOrLength);
     }
 
     @Override
     public void updateObject(int columnIndex, Object x, SQLType targetSqlType) throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnIndex, x, targetSqlType);
                     return null;
-                });
+                },
+                columnIndex, x, targetSqlType);
     }
 
     @Override
     public void updateObject(String columnLabel, Object x, SQLType targetSqlType)
             throws SQLException {
-        WrapperUtils.executeWithPlugins(this.pluginManager,
+        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
                 () -> {
                     this.resultSet.updateObject(columnLabel, x, targetSqlType);
                     return null;
-                });
+                },
+                columnLabel, x, targetSqlType);
     }
 
     @Override
@@ -1918,15 +2081,4 @@ public class ResultSetWrapper implements ResultSet {
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
         return this.resultSet.isWrapperFor(iface);
     }
-
-    @Override
-    public boolean equals(Object obj) {
-        return this.resultSet.equals(obj);
-    }
-
-    @Override
-    public int hashCode() {
-        return this.resultSet.hashCode();
-    }
-
 }

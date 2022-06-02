@@ -10,6 +10,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.wrapper.*;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -33,8 +34,28 @@ public class WrapperUtils {
     private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache = new ConcurrentHashMap<>();
 
     public static synchronized <T> T executeWithPlugins(ConnectionPluginManager pluginManager,
-                                                        Class<?> methodInvokeOn, String methodName,
-                                                        Callable<T> executeSqlFunc, Object... args) throws SQLException {
+                                                                     Class<?> methodInvokeOn, String methodName,
+                                                                     Callable<T> executeSqlFunc, Object... args) {
+
+        Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
+
+        T result;
+        try {
+            result = pluginManager.execute_SQLException(
+                    methodInvokeOn,
+                    methodName,
+                    executeSqlFunc,
+                    argsCopy);
+            result = wrapWithProxyIfNeeded(result, pluginManager);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return result;
+    }
+
+    public static synchronized <T> T executeWithPlugins_SQLException(ConnectionPluginManager pluginManager,
+                                                                     Class<?> methodInvokeOn, String methodName,
+                                                                     Callable<T> executeSqlFunc, Object... args) throws SQLException {
 
         Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
 
@@ -77,6 +98,7 @@ public class WrapperUtils {
         return result;
     }
 
+    @SuppressWarnings("unchecked")
     protected static @Nullable <T> T wrapWithProxyIfNeeded(@Nullable T toProxy,
                                                            ConnectionPluginManager pluginManager) {
         if (toProxy == null) {
@@ -125,8 +147,8 @@ public class WrapperUtils {
 
     /**
      * This class is a proxy for objects created through the proxied connection (for example,
-     * {@link java.sql.Statement} and
-     * {@link java.sql.ResultSet}. Similarly to ClusterAwareConnectionProxy, this proxy class
+     * {@link java.sql.Statement} and {@link java.sql.ResultSet}).
+     * Similarly to ClusterAwareConnectionProxy, this proxy class
      * monitors the underlying object
      * for communications exceptions and initiates failover when required.
      */
@@ -134,8 +156,8 @@ public class WrapperUtils {
         static final String METHOD_EQUALS = "equals";
         static final String METHOD_HASH_CODE = "hashCode";
 
-        Object invocationTarget;
-        ConnectionPluginManager pluginManager;
+        final Object invocationTarget;
+        final ConnectionPluginManager pluginManager;
 
         Proxy(ConnectionPluginManager pluginManager, Object invocationTarget) {
             this.pluginManager = pluginManager;
@@ -282,18 +304,17 @@ public class WrapperUtils {
         return implementedInterfaces;
     }
 
-    public static <T> List<T> loadClasses(String extensionClassNames, String errorMessage) throws InstantiationException {
+    public static <T> List<T> loadClasses(final String extensionClassNames, final Class<T> clazz, final String errorMessage)
+            throws InstantiationException {
 
         List<T> instances = new LinkedList<>();
         List<String> interceptorsToCreate = split(extensionClassNames, ",", true);
         String className = null;
 
         try {
-            for (int i = 0, s = interceptorsToCreate.size(); i < s; i++) {
-                className = interceptorsToCreate.get(i);
-                @SuppressWarnings("unchecked")
-                T instance = (T) Class.forName(className).newInstance();
-
+            for (String value : interceptorsToCreate) {
+                className = value;
+                T instance = createInstance(className, clazz);
                 instances.add(instance);
             }
 
@@ -329,11 +350,36 @@ public class WrapperUtils {
         }
 
         String[] tokens = stringToSplit.split(delimiter, -1);
-        Stream<String> tokensStream = Arrays.asList(tokens).stream();
+        Stream<String> tokensStream = Arrays.stream(tokens);
         if (trim) {
             tokensStream = tokensStream.map(String::trim);
         }
         return tokensStream.collect(Collectors.toList());
+    }
+
+    public static <T> T createInstance(final String className, final Class<T> clazz, final Object... args)
+            throws InstantiationException
+    {
+        if (StringUtils.isNullOrEmpty(className)) {
+            throw new IllegalArgumentException("className");
+        }
+
+        try {
+            Class<?> loaded = Class.forName(className);
+            if (args.length == 0) {
+                return clazz.cast(loaded.newInstance());
+            }
+
+            Class<?>[] argClasses = new Class<?>[args.length];
+            for (int i = 0; i < args.length; i++) {
+                argClasses[i] = args[i].getClass();
+            }
+            Constructor<?> constructor = loaded.getConstructor(argClasses);
+            return clazz.cast(constructor.newInstance(args));
+        }
+        catch (Exception e) {
+            throw new InstantiationException("Can't initialize class " + className);
+        }
     }
 
 }

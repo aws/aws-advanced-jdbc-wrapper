@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.util.TestSettings;
+import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -24,7 +25,7 @@ public class HikariTests {
         }
 
         HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl("aws-proxy-jdbc:mysql://" + TestSettings.mysqlServerName + "/");
+        ds.setJdbcUrl("aws-proxy-jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase);
         ds.setUsername(TestSettings.mysqlUser);
         ds.setPassword(TestSettings.mysqlPassword);
 
@@ -33,8 +34,11 @@ public class HikariTests {
         assertTrue(conn instanceof HikariProxyConnection);
         HikariProxyConnection hikariConn = (HikariProxyConnection)conn;
 
-        assertTrue(hikariConn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+        assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
+        ConnectionWrapper connWrapper = (ConnectionWrapper)hikariConn.unwrap(Connection.class);
+        assertTrue(connWrapper.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 
@@ -53,6 +57,7 @@ public class HikariTests {
         ds.setUsername(TestSettings.mysqlUser);
         ds.setPassword(TestSettings.mysqlPassword);
         ds.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
+
         Properties targetDataSourceProps = new Properties();
         targetDataSourceProps.setProperty("serverName", TestSettings.mysqlServerName);
         targetDataSourceProps.setProperty("databaseName", TestSettings.mysqlDatabase);
@@ -63,8 +68,11 @@ public class HikariTests {
         assertTrue(conn instanceof HikariProxyConnection);
         HikariProxyConnection hikariConn = (HikariProxyConnection)conn;
 
-        assertTrue(hikariConn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+        assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
+        ConnectionWrapper connWrapper = (ConnectionWrapper)hikariConn.unwrap(Connection.class);
+        assertTrue(connWrapper.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 }

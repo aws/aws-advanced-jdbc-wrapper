@@ -2,6 +2,7 @@ package software.aws.rds.jdbc.proxydriver;
 
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.util.TestSettings;
+import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -31,8 +32,10 @@ public class PostgresTests {
                 "aws-proxy-jdbc:postgresql://" + TestSettings.postgresqlServerName + "/" + TestSettings.postgresqlDatabase,
                 props);
 
-        assertTrue(conn instanceof org.postgresql.PGConnection);
+        assertTrue(conn instanceof ConnectionWrapper);
+        assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 }

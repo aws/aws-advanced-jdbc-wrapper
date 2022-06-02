@@ -33,7 +33,7 @@ public class SpringTests {
 
         JdbcTemplate jdbcTemplate = new JdbcTemplate(mysqlDataSource());
 
-        int rnd = new Random().nextInt();
+        int rnd = new Random().nextInt(100);
         int result = jdbcTemplate.queryForObject("SELECT " + rnd, Integer.class);
         assertEquals(rnd, result);
     }
@@ -46,7 +46,7 @@ public class SpringTests {
         dataSource.setPassword(TestSettings.mysqlPassword);
 
         Properties props = new Properties();
-        //props.setProperty("proxyDriverLoggerLevel", "ALL");
+        props.setProperty("proxyDriverLoggerLevel", "ALL");
         dataSource.setConnectionProperties(props);
 
         return dataSource;

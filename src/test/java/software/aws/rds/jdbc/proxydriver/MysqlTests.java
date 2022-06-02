@@ -2,6 +2,7 @@ package software.aws.rds.jdbc.proxydriver;
 
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.util.TestSettings;
+import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -26,10 +27,14 @@ public class MysqlTests {
         props.setProperty("user", TestSettings.mysqlUser);
         props.setProperty("password", TestSettings.mysqlPassword);
 
-        Connection conn = DriverManager.getConnection("aws-proxy-jdbc:mysql://" + TestSettings.mysqlServerName + "/", props);
+        Connection conn = DriverManager.getConnection(
+                "aws-proxy-jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase,
+                props);
 
-        assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
+        assertTrue(conn instanceof ConnectionWrapper);
+        assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
 
+        assertTrue(conn.isValid(10));
         conn.close();
     }
 }
