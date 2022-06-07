@@ -32,7 +32,9 @@ public class SQLTypeWrapper implements SQLType {
 
     @Override
     public String getName() {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                this.pluginManager,
                 this.sqlTypeClass,
                 "SQLType.getName",
                 () -> this.sqlType.getName());
@@ -40,7 +42,9 @@ public class SQLTypeWrapper implements SQLType {
 
     @Override
     public String getVendor() {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                this.pluginManager,
                 this.sqlTypeClass,
                 "SQLType.getVendor",
                 () -> this.sqlType.getVendor());
@@ -48,7 +52,9 @@ public class SQLTypeWrapper implements SQLType {
 
     @Override
     public Integer getVendorTypeNumber() {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Integer.class,
+                this.pluginManager,
                 this.sqlTypeClass,
                 "SQLType.getVendorTypeNumber",
                 () -> this.sqlType.getVendorTypeNumber());

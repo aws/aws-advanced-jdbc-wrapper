@@ -11,216 +11,136 @@ import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.wrapper.*;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLClientInfoException;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class WrapperUtils {
 
     private static final ConcurrentMap<Class<?>, Class<?>[]> getImplementedInterfacesCache = new ConcurrentHashMap<>();
     private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache = new ConcurrentHashMap<>();
 
-    public static synchronized <T> T executeWithPlugins(ConnectionPluginManager pluginManager,
-                                                                     Class<?> methodInvokeOn, String methodName,
-                                                                     Callable<T> executeSqlFunc, Object... args) {
+    private static final Map<Class<?>, Class<?>> availableWrappers = new HashMap<Class<?>, Class<?>>() {{
+        put(Connection.class, ConnectionWrapper.class);
+        put(CallableStatement.class, CallableStatementWrapper.class);
+        put(PreparedStatement.class, PreparedStatementWrapper.class);
+        put(Statement.class, StatementWrapper.class);
+        put(ResultSet.class, ResultSetWrapper.class);
+        put(Array.class, ArrayWrapper.class);
+        put(Blob.class, BlobWrapper.class);
+        put(NClob.class, NClobWrapper.class);
+        put(Clob.class, ClobWrapper.class);
+        put(Ref.class, RefWrapper.class);
+        put(Struct.class, StructWrapper.class);
+        put(Savepoint.class, SavepointWrapper.class);
+        put(DatabaseMetaData.class, DatabaseMetaDataWrapper.class);
+        put(ParameterMetaData.class, ParameterMetaDataWrapper.class);
+        put(ResultSetMetaData.class, ResultSetMetaDataWrapper.class);
+        put(SQLData.class, SQLDataWrapper.class);
+        put(SQLInput.class, SQLInputWrapper.class);
+        put(SQLOutput.class, SQLOutputWrapper.class);
+        put(SQLType.class, SQLTypeWrapper.class);
+    }};
+
+    //TODO: choose a better name to distinguish runWithPlugins and executeWithPlugins
+    public static synchronized void runWithPlugins(
+            final ConnectionPluginManager pluginManager,
+            final Class<?> methodInvokeOn,
+            final String methodName,
+            final Callable<Void> executeSqlFunc,
+            Object... args) {
+
+        executeWithPlugins(Void.TYPE, pluginManager, methodInvokeOn, methodName, executeSqlFunc, args);
+    }
+
+    public static synchronized <E extends Exception> void runWithPlugins(
+            final Class<E> exceptionClass,
+            final ConnectionPluginManager pluginManager,
+            final Class<?> methodInvokeOn,
+            final String methodName,
+            final Callable<Void> executeSqlFunc,
+            Object... args)
+            throws E {
+
+        executeWithPlugins(Void.TYPE, exceptionClass, pluginManager, methodInvokeOn, methodName, executeSqlFunc, args);
+    }
+
+    public static synchronized <T> T executeWithPlugins(
+            final Class<T> resultClass,
+            final ConnectionPluginManager pluginManager,
+            final Class<?> methodInvokeOn,
+            final String methodName,
+            final Callable<T> executeSqlFunc,
+            Object... args) {
 
         Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
 
-        T result;
         try {
-            result = pluginManager.execute_SQLException(
+            T result = pluginManager.execute(
                     methodInvokeOn,
                     methodName,
                     executeSqlFunc,
                     argsCopy);
-            result = wrapWithProxyIfNeeded(result, pluginManager);
+            return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return result;
     }
 
-    public static synchronized <T> T executeWithPlugins_SQLException(ConnectionPluginManager pluginManager,
-                                                                     Class<?> methodInvokeOn, String methodName,
-                                                                     Callable<T> executeSqlFunc, Object... args) throws SQLException {
+    public static synchronized <T, E extends Exception> T executeWithPlugins(
+            final Class<T> resultClass,
+            final Class<E> exceptionClass,
+            final ConnectionPluginManager pluginManager,
+            final Class<?> methodInvokeOn,
+            final String methodName,
+            final Callable<T> executeSqlFunc,
+            Object... args) throws E {
 
         Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
 
-        T result;
         try {
-            result = pluginManager.execute_SQLException(
+            T result = pluginManager.execute(
                     methodInvokeOn,
                     methodName,
                     executeSqlFunc,
                     argsCopy);
-            result = wrapWithProxyIfNeeded(result, pluginManager);
-        } catch (SQLException e) {
-            throw e;
+            return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
         } catch (Exception e) {
+            if (exceptionClass.isInstance(e)) {
+                throw exceptionClass.cast(e);
+            }
             throw new RuntimeException(e);
         }
-        return result;
     }
 
-    public static synchronized <T> T executeWithPlugins_SQLClientInfoException(
-            ConnectionPluginManager pluginManager,
-            Class<?> methodInvokeOn, String methodName,
-            Callable<T> executeSqlFunc, Object... args) throws SQLClientInfoException {
+    protected static @Nullable <T> T wrapWithProxyIfNeeded(
+            final Class<T> resultClass,
+            @Nullable T toProxy,
+            final ConnectionPluginManager pluginManager)
+            throws InstantiationException {
 
-        Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
-
-        T result;
-        try {
-            result = pluginManager.execute_SQLClientInfoException(
-                    methodInvokeOn,
-                    methodName,
-                    executeSqlFunc,
-                    argsCopy);
-            result = wrapWithProxyIfNeeded(result, pluginManager);
-        } catch (SQLClientInfoException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return result;
-    }
-
-    @SuppressWarnings("unchecked")
-    protected static @Nullable <T> T wrapWithProxyIfNeeded(@Nullable T toProxy,
-                                                           ConnectionPluginManager pluginManager) {
         if (toProxy == null) {
             return null;
         }
 
-        if (toProxy instanceof ConnectionWrapper
-                || toProxy instanceof CallableStatementWrapper
-                || toProxy instanceof PreparedStatementWrapper
-                || toProxy instanceof StatementWrapper
-                || toProxy instanceof ResultSetWrapper) {
+        // Exceptional case
+        if (toProxy instanceof RowId || toProxy instanceof SQLXML) {
             return toProxy;
         }
 
-        if (toProxy instanceof Connection) {
-            throw new UnsupportedOperationException("Shouldn't be here");
+        Class<?> wrapperClass = availableWrappers.get(resultClass);
+
+        if (wrapperClass != null) {
+            return createInstance(wrapperClass, resultClass, toProxy, pluginManager);
         }
 
-        if (toProxy instanceof CallableStatement) {
-            return (T) new CallableStatementWrapper((CallableStatement) toProxy, pluginManager);
+        if (isJdbcInterface(toProxy.getClass())) {
+            throw new RuntimeException("No wrapper class exists for " + toProxy.getClass().getName());
         }
 
-        if (toProxy instanceof PreparedStatement) {
-            return (T) new PreparedStatementWrapper((PreparedStatement) toProxy, pluginManager);
-        }
-
-        if (toProxy instanceof Statement) {
-            return (T) new StatementWrapper((Statement) toProxy, pluginManager);
-        }
-
-        if (toProxy instanceof ResultSet) {
-            return (T) new ResultSetWrapper((ResultSet) toProxy, pluginManager);
-        }
-
-        if (!isJdbcInterface(toProxy.getClass())) {
-            return toProxy;
-        }
-
-        // Add more custom wrapper support here
-
-        Class<?> toProxyClass = toProxy.getClass();
-        return (T) java.lang.reflect.Proxy.newProxyInstance(toProxyClass.getClassLoader(),
-                getImplementedInterfaces(toProxyClass),
-                new WrapperUtils.Proxy(pluginManager, toProxy));
-    }
-
-    /**
-     * This class is a proxy for objects created through the proxied connection (for example,
-     * {@link java.sql.Statement} and {@link java.sql.ResultSet}).
-     * Similarly to ClusterAwareConnectionProxy, this proxy class
-     * monitors the underlying object
-     * for communications exceptions and initiates failover when required.
-     */
-    public static class Proxy implements InvocationHandler {
-        static final String METHOD_EQUALS = "equals";
-        static final String METHOD_HASH_CODE = "hashCode";
-
-        final Object invocationTarget;
-        final ConnectionPluginManager pluginManager;
-
-        Proxy(ConnectionPluginManager pluginManager, Object invocationTarget) {
-            this.pluginManager = pluginManager;
-            this.invocationTarget = invocationTarget;
-        }
-
-        public @Nullable Object invoke(Object proxy, Method method, @Nullable Object[] args)
-                throws Throwable {
-            if (METHOD_EQUALS.equals(method.getName()) && args != null && args[0] != null) {
-                return args[0].equals(this);
-            }
-
-            if (METHOD_HASH_CODE.equals(method.getName())) {
-                return this.hashCode();
-            }
-
-            synchronized (WrapperUtils.Proxy.this) {
-                Object result;
-                Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
-
-                try {
-                    result = this.pluginManager.execute(
-                            this.invocationTarget.getClass(),
-                            method.getName(),
-                            () -> method.invoke(this.invocationTarget, args),
-                            argsCopy);
-                    result = wrapWithProxyIfNeeded(method.getReturnType(), result);
-                } catch (InvocationTargetException e) {
-                    throw e.getTargetException() == null ? e : e.getTargetException();
-                } catch (IllegalStateException e) {
-                    throw e.getCause() == null ? e : e.getCause();
-                }
-
-                return result;
-            }
-        }
-
-        protected @Nullable Object wrapWithProxyIfNeeded(Class<?> returnType,
-                                                         @Nullable Object toProxy) {
-            if (toProxy == null) {
-                return null;
-            }
-
-            if (toProxy instanceof ConnectionWrapper
-                    || toProxy instanceof CallableStatementWrapper
-                    || toProxy instanceof PreparedStatementWrapper
-                    || toProxy instanceof StatementWrapper
-                    || toProxy instanceof ResultSetWrapper) {
-                return toProxy;
-            }
-
-            // Add custom wrapper support here
-
-            if (!isJdbcInterface(returnType)) {
-                return toProxy;
-            }
-
-            Class<?> toProxyClass = toProxy.getClass();
-            return java.lang.reflect.Proxy.newProxyInstance(toProxyClass.getClassLoader(),
-                    getImplementedInterfaces(toProxyClass),
-                    new WrapperUtils.Proxy(this.pluginManager, toProxy));
-        }
-
+        return toProxy;
     }
 
     /**
@@ -308,7 +228,7 @@ public class WrapperUtils {
             throws InstantiationException {
 
         List<T> instances = new LinkedList<>();
-        List<String> interceptorsToCreate = split(extensionClassNames, ",", true);
+        List<String> interceptorsToCreate = StringUtils.split(extensionClassNames, ",", true);
         String className = null;
 
         try {
@@ -325,61 +245,54 @@ public class WrapperUtils {
         return instances;
     }
 
-    /**
-     * Splits stringToSplit into a list, using the given delimiter
-     *
-     * @param stringToSplit
-     *            the string to split
-     * @param delimiter
-     *            the string to split on
-     * @param trim
-     *            should the split strings be whitespace trimmed?
-     *
-     * @return the list of strings, split by delimiter
-     *
-     * @throws IllegalArgumentException
-     *             if an error occurs
-     */
-    public static List<String> split(String stringToSplit, String delimiter, boolean trim) {
-        if (stringToSplit == null) {
-            return new ArrayList<>();
+    public static <T> T createInstance(final Class<?> classToInstantiate, final Class<T> resultClass, final Object... args)
+            throws InstantiationException {
+
+        if (classToInstantiate == null) {
+            throw new IllegalArgumentException("classToInstantiate");
         }
 
-        if (delimiter == null) {
-            throw new IllegalArgumentException();
-        }
-
-        String[] tokens = stringToSplit.split(delimiter, -1);
-        Stream<String> tokensStream = Arrays.stream(tokens);
-        if (trim) {
-            tokensStream = tokensStream.map(String::trim);
-        }
-        return tokensStream.collect(Collectors.toList());
-    }
-
-    public static <T> T createInstance(final String className, final Class<T> clazz, final Object... args)
-            throws InstantiationException
-    {
-        if (StringUtils.isNullOrEmpty(className)) {
-            throw new IllegalArgumentException("className");
+        if (resultClass == null) {
+            throw new IllegalArgumentException("resultClass");
         }
 
         try {
-            Class<?> loaded = Class.forName(className);
             if (args.length == 0) {
-                return clazz.cast(loaded.newInstance());
+                return resultClass.cast(classToInstantiate.newInstance());
             }
 
             Class<?>[] argClasses = new Class<?>[args.length];
             for (int i = 0; i < args.length; i++) {
                 argClasses[i] = args[i].getClass();
             }
-            Constructor<?> constructor = loaded.getConstructor(argClasses);
-            return clazz.cast(constructor.newInstance(args));
+            Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
+            return resultClass.cast(constructor.newInstance(args));
+        }
+        catch (Exception e) {
+            throw new InstantiationException("Can't initialize class " + classToInstantiate.getName());
+        }
+    }
+
+    public static <T> T createInstance(final String className, final Class<T> resultClass, final Object... args)
+            throws InstantiationException {
+
+        if (StringUtils.isNullOrEmpty(className)) {
+            throw new IllegalArgumentException("className");
+        }
+
+        if (resultClass == null) {
+            throw new IllegalArgumentException("resultClass");
+        }
+
+        Class<?> loaded;
+        try {
+            loaded = Class.forName(className);
         }
         catch (Exception e) {
             throw new InstantiationException("Can't initialize class " + className);
         }
+
+        return createInstance(loaded, resultClass, args);
     }
 
 }

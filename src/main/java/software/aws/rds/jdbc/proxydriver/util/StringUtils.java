@@ -12,6 +12,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class StringUtils {
 
@@ -47,4 +52,35 @@ public class StringUtils {
         return s == null || s.equals("");
     }
 
+    /**
+     * Splits stringToSplit into a list, using the given delimiter
+     *
+     * @param stringToSplit
+     *            the string to split
+     * @param delimiter
+     *            the string to split on
+     * @param trim
+     *            should the split strings be whitespace trimmed?
+     *
+     * @return the list of strings, split by delimiter
+     *
+     * @throws IllegalArgumentException
+     *             if an error occurs
+     */
+    public static List<String> split(String stringToSplit, String delimiter, boolean trim) {
+        if (stringToSplit == null) {
+            return new ArrayList<>();
+        }
+
+        if (delimiter == null) {
+            throw new IllegalArgumentException();
+        }
+
+        String[] tokens = stringToSplit.split(delimiter, -1);
+        Stream<String> tokensStream = Arrays.stream(tokens);
+        if (trim) {
+            tokensStream = tokensStream.map(String::trim);
+        }
+        return tokensStream.collect(Collectors.toList());
+    }
 }

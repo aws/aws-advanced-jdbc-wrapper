@@ -38,7 +38,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public long length() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.length",
                 () -> this.nclob.length());
@@ -46,7 +49,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public String getSubString(long pos, int length) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.getSubString",
                 () -> this.nclob.getSubString(pos, length),
@@ -55,7 +61,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public Reader getCharacterStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Reader.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.getCharacterStream",
                 () -> this.nclob.getCharacterStream());
@@ -63,7 +72,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public InputStream getAsciiStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                InputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.getAsciiStream",
                 () -> this.nclob.getAsciiStream());
@@ -71,7 +83,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public long position(String searchStr, long start) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.position",
                 () -> this.nclob.position(searchStr, start),
@@ -80,7 +95,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public long position(Clob searchStr, long start) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.position",
                 () -> this.nclob.position(searchStr, start),
@@ -89,7 +107,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public int setString(long pos, String str) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.setString",
                 () -> this.nclob.setString(pos, str),
@@ -98,7 +119,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public int setString(long pos, String str, int offset, int len) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.setString",
                 () -> this.nclob.setString(pos, str, offset, len),
@@ -107,7 +131,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public OutputStream setAsciiStream(long pos) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                OutputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.setAsciiStream",
                 () -> this.nclob.setAsciiStream(pos),
@@ -116,7 +143,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public Writer setCharacterStream(long pos) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Writer.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.setCharacterStream",
                 () -> this.nclob.setCharacterStream(pos),
@@ -125,7 +155,9 @@ public class NClobWrapper implements NClob {
 
     @Override
     public void truncate(long len) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.truncate",
                 () -> {
@@ -137,7 +169,9 @@ public class NClobWrapper implements NClob {
 
     @Override
     public void free() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.free",
                 () -> {
@@ -148,7 +182,10 @@ public class NClobWrapper implements NClob {
 
     @Override
     public Reader getCharacterStream(long pos, long length) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Reader.class,
+                SQLException.class,
+                this.pluginManager,
                 this.nclobClass,
                 "NClob.getCharacterStream",
                 () -> this.nclob.getCharacterStream(pos, length),

@@ -6,7 +6,6 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.ConnectionProvider;
 import software.aws.rds.jdbc.proxydriver.CurrentConnectionProvider;
@@ -14,7 +13,6 @@ import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
-import javax.sql.DataSource;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -73,7 +71,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Statement createStatement() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Statement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStatement",
                 () -> this.currentConnection.createStatement());
@@ -81,7 +82,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                PreparedStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
                 () -> this.currentConnection.prepareStatement(sql),
@@ -90,7 +94,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public CallableStatement prepareCall(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                CallableStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareCall",
                 () -> this.currentConnection.prepareCall(sql),
@@ -99,7 +106,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public String nativeSQL(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.nativeSQL",
                 () -> this.currentConnection.nativeSQL(sql),
@@ -108,7 +118,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public boolean getAutoCommit() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getAutoCommit",
                 () -> this.currentConnection.getAutoCommit());
@@ -116,7 +129,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setAutoCommit",
                 () -> {
@@ -128,7 +143,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void commit() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.commit",
                 () -> {
@@ -139,7 +156,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void rollback() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.rollback",
                 () -> {
@@ -150,7 +169,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void close() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.close",
                 () -> {
@@ -161,7 +182,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public boolean isClosed() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.isClosed",
                 () -> this.currentConnection.isClosed());
@@ -169,7 +193,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                DatabaseMetaData.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getMetaData",
                 () -> this.currentConnection.getMetaData());
@@ -177,7 +204,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public boolean isReadOnly() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.isReadOnly",
                 () -> this.currentConnection.isReadOnly());
@@ -185,7 +215,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setReadOnly",
                 () -> {
@@ -197,7 +229,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public String getCatalog() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getCatalog",
                 () -> this.currentConnection.getCatalog());
@@ -205,7 +240,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setCatalog(String catalog) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setCatalog",
                 () -> {
@@ -218,7 +255,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     @Override
     public int getTransactionIsolation() throws SQLException {
         //noinspection MagicConstant
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getTransactionIsolation",
                 () -> this.currentConnection.getTransactionIsolation());
@@ -226,7 +266,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setTransactionIsolation(int level) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setTransactionIsolation",
                 () -> {
@@ -238,7 +280,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public synchronized SQLWarning getWarnings() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                SQLWarning.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getWarnings",
                 () -> this.currentConnection.getWarnings());
@@ -246,7 +291,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public synchronized void clearWarnings() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.clearWarnings",
                 () -> {
@@ -258,7 +305,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Statement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStatement",
                 () -> this.currentConnection.createStatement(resultSetType, resultSetConcurrency),
@@ -268,7 +318,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType,
                                               int resultSetConcurrency) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                PreparedStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
                 () -> this.currentConnection.prepareStatement(sql, resultSetType, resultSetConcurrency),
@@ -278,7 +331,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                CallableStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareCall",
                 () -> this.currentConnection.prepareCall(sql, resultSetType, resultSetConcurrency),
@@ -287,7 +343,11 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Map<String, Class<?>> getTypeMap() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        //noinspection unchecked
+        return WrapperUtils.executeWithPlugins(
+                Map.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getTypeMap",
                 () -> this.currentConnection.getTypeMap());
@@ -295,7 +355,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setTypeMap",
                 () -> {
@@ -307,7 +369,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public int getHoldability() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getHoldability",
                 () -> this.currentConnection.getHoldability());
@@ -315,7 +380,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setHoldability(int holdability) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setHoldability",
                 () -> {
@@ -327,7 +394,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Savepoint setSavepoint() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Savepoint.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setSavepoint",
                 () -> this.currentConnection.setSavepoint());
@@ -335,7 +405,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Savepoint setSavepoint(String name) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Savepoint.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setSavepoint",
                 () -> this.currentConnection.setSavepoint(name),
@@ -344,7 +417,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void rollback(Savepoint savepoint) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.rollback",
                 () -> {
@@ -356,7 +431,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void releaseSavepoint(Savepoint savepoint) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.releaseSavepoint",
                 () -> {
@@ -369,7 +446,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency,
                                      int resultSetHoldability) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Statement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStatement",
                 () -> this.currentConnection.createStatement(
@@ -380,7 +460,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType,
                                               int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                PreparedStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
                 () -> this.currentConnection.prepareStatement(
@@ -391,7 +474,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency,
                                          int resultSetHoldability) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                CallableStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareCall",
                 () -> this.currentConnection.prepareCall(
@@ -401,7 +487,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                PreparedStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
                 () -> this.currentConnection.prepareStatement(sql, autoGeneratedKeys),
@@ -410,7 +499,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                PreparedStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
                 () -> this.currentConnection.prepareStatement(sql, columnIndexes),
@@ -419,7 +511,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                PreparedStatement.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
                 () -> this.currentConnection.prepareStatement(sql, columnNames),
@@ -428,7 +523,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Clob createClob() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Clob.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createClob",
                 () -> this.currentConnection.createClob());
@@ -436,7 +534,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Blob createBlob() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Blob.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createBlob",
                 () -> this.currentConnection.createBlob());
@@ -444,7 +545,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public NClob createNClob() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                NClob.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createNClob",
                 () -> this.currentConnection.createNClob());
@@ -452,7 +556,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public SQLXML createSQLXML() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                SQLXML.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createSQLXML",
                 () -> this.currentConnection.createSQLXML());
@@ -460,7 +567,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public boolean isValid(int timeout) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.isValid",
                 () -> this.currentConnection.isValid(timeout),
@@ -469,7 +579,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setClientInfo(String name, String value) throws SQLClientInfoException {
-        WrapperUtils.executeWithPlugins_SQLClientInfoException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLClientInfoException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setClientInfo",
                 () -> {
@@ -481,7 +593,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public String getClientInfo(String name) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getClientInfo",
                 () -> this.currentConnection.getClientInfo(name),
@@ -490,7 +605,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Properties getClientInfo() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Properties.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getClientInfo",
                 () -> this.currentConnection.getClientInfo());
@@ -498,7 +616,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setClientInfo(Properties properties) throws SQLClientInfoException {
-        WrapperUtils.executeWithPlugins_SQLClientInfoException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLClientInfoException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setClientInfo",
                 () -> {
@@ -510,7 +630,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Array createArrayOf(String typeName, Object[] elements) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Array.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createArrayOf",
                 () -> this.currentConnection.createArrayOf(typeName, elements),
@@ -519,7 +642,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Struct.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStruct",
                 () -> this.currentConnection.createStruct(typeName, attributes),
@@ -528,7 +654,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public String getSchema() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getSchema",
                 () -> this.currentConnection.getSchema());
@@ -536,7 +665,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setSchema(String schema) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setSchema",
                 () -> {
@@ -548,7 +679,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void abort(Executor executor) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.abort",
                 () -> {
@@ -560,7 +693,9 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setNetworkTimeout",
                 () -> {
@@ -572,7 +707,10 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
 
     @Override
     public int getNetworkTimeout() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getNetworkTimeout",
                 () -> this.currentConnection.getNetworkTimeout());

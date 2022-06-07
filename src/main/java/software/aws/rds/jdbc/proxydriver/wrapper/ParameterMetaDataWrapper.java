@@ -33,7 +33,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     @Override
     public int getParameterCount() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.getParameterCount",
                 () -> this.parameterMetaData.getParameterCount());
@@ -42,7 +45,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
     @SuppressWarnings("MagicConstant")
     @Override
     public int isNullable(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.isNullable",
                 () -> this.parameterMetaData.isNullable(param),
@@ -51,7 +57,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     @Override
     public boolean isSigned(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.isSigned",
                 () -> this.parameterMetaData.isSigned(param),
@@ -60,7 +69,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     @Override
     public int getPrecision(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.getPrecision",
                 () -> this.parameterMetaData.getPrecision(param),
@@ -69,7 +81,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     @Override
     public int getScale(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.getScale",
                 () -> this.parameterMetaData.getScale(param),
@@ -78,7 +93,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     @Override
     public int getParameterType(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.getParameterType",
                 () -> this.parameterMetaData.getParameterType(param),
@@ -87,7 +105,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     @Override
     public String getParameterTypeName(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.getParameterTypeName",
                 () -> this.parameterMetaData.getParameterTypeName(param),
@@ -96,7 +117,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     @Override
     public String getParameterClassName(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.getParameterClassName",
                 () -> this.parameterMetaData.getParameterClassName(param),
@@ -106,7 +130,10 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
     @SuppressWarnings("MagicConstant")
     @Override
     public int getParameterMode(int param) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.parameterMetaDataClass,
                 "ParameterMetaData.getParameterMode",
                 () -> this.parameterMetaData.getParameterMode(param),

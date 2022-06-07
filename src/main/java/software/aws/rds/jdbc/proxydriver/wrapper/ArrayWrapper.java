@@ -35,7 +35,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public String getBaseTypeName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getBaseTypeName",
                 () -> this.array.getBaseTypeName());
@@ -43,7 +46,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public int getBaseType() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getBaseType",
                 () -> this.array.getBaseType());
@@ -51,7 +57,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public Object getArray() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getArray",
                 () -> this.array.getArray());
@@ -59,7 +68,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public Object getArray(Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getArray",
                 () -> this.array.getArray());
@@ -67,7 +79,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public Object getArray(long index, int count) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getArray",
                 () -> this.array.getArray());
@@ -75,7 +90,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public Object getArray(long index, int count, Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getArray",
                 () -> this.array.getArray());
@@ -83,7 +101,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public ResultSet getResultSet() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getResultSet",
                 () -> this.array.getResultSet());
@@ -91,7 +112,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public ResultSet getResultSet(Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getResultSet",
                 () -> this.array.getResultSet());
@@ -99,7 +123,10 @@ public class ArrayWrapper implements Array {
 
     @Override
     public ResultSet getResultSet(long index, int count) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getResultSet",
                 () -> this.array.getResultSet());
@@ -107,15 +134,21 @@ public class ArrayWrapper implements Array {
 
     @Override
     public ResultSet getResultSet(long index, int count, Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.getResultSet",
-                () -> this.array.getResultSet());
+                () -> this.array.getResultSet(index, count, map),
+                index, count, map);
     }
 
     @Override
     public void free() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.arrayClass,
                 "Array.free",
                 () -> {

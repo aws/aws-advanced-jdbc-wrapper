@@ -34,7 +34,10 @@ public class StructWrapper implements Struct {
 
     @Override
     public String getSQLTypeName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.structClass,
                 "Struct.getSQLTypeName",
                 () -> this.struct.getSQLTypeName());
@@ -42,7 +45,10 @@ public class StructWrapper implements Struct {
 
     @Override
     public Object[] getAttributes() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object[].class,
+                SQLException.class,
+                this.pluginManager,
                 this.structClass,
                 "Struct.getAttributes",
                 () -> this.struct.getAttributes());
@@ -50,7 +56,10 @@ public class StructWrapper implements Struct {
 
     @Override
     public Object[] getAttributes(Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object[].class,
+                SQLException.class,
+                this.pluginManager,
                 this.structClass,
                 "Struct.getAttributes",
                 () -> this.struct.getAttributes(map),

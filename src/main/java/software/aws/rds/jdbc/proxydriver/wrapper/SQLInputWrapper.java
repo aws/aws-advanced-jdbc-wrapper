@@ -36,7 +36,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public String readString() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readString",
                 () -> this.sqlInput.readString());
@@ -44,7 +47,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public boolean readBoolean() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readBoolean",
                 () -> this.sqlInput.readBoolean());
@@ -52,7 +58,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public byte readByte() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                byte.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readByte",
                 () -> this.sqlInput.readByte());
@@ -60,7 +69,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public short readShort() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                short.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readShort",
                 () -> this.sqlInput.readShort());
@@ -68,7 +80,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public int readInt() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readInt",
                 () -> this.sqlInput.readInt());
@@ -76,7 +91,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public long readLong() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readLong",
                 () -> this.sqlInput.readLong());
@@ -84,7 +102,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public float readFloat() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                float.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readFloat",
                 () -> this.sqlInput.readFloat());
@@ -92,7 +113,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public double readDouble() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                double.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readDouble",
                 () -> this.sqlInput.readDouble());
@@ -100,7 +124,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public BigDecimal readBigDecimal() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                BigDecimal.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readBigDecimal",
                 () -> this.sqlInput.readBigDecimal());
@@ -108,7 +135,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public byte[] readBytes() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                byte[].class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readBytes",
                 () -> this.sqlInput.readBytes());
@@ -116,7 +146,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Date readDate() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Date.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readDate",
                 () -> this.sqlInput.readDate());
@@ -124,7 +157,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Time readTime() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Time.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readTime",
                 () -> this.sqlInput.readTime());
@@ -132,7 +168,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Timestamp readTimestamp() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Timestamp.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readTimestamp",
                 () -> this.sqlInput.readTimestamp());
@@ -140,7 +179,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Reader readCharacterStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Reader.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readCharacterStream",
                 () -> this.sqlInput.readCharacterStream());
@@ -148,7 +190,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public InputStream readAsciiStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                InputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readAsciiStream",
                 () -> this.sqlInput.readAsciiStream());
@@ -156,7 +201,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public InputStream readBinaryStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                InputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readBinaryStream",
                 () -> this.sqlInput.readBinaryStream());
@@ -164,7 +212,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Object readObject() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readObject",
                 () -> this.sqlInput.readObject());
@@ -172,7 +223,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Ref readRef() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Ref.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readRef",
                 () -> this.sqlInput.readRef());
@@ -180,7 +234,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Blob readBlob() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Blob.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readBlob",
                 () -> this.sqlInput.readBlob());
@@ -188,7 +245,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Clob readClob() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Clob.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readClob",
                 () -> this.sqlInput.readClob());
@@ -196,7 +256,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public Array readArray() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Array.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readArray",
                 () -> this.sqlInput.readArray());
@@ -204,7 +267,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public boolean wasNull() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.wasNull",
                 () -> this.sqlInput.wasNull());
@@ -212,7 +278,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public URL readURL() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                URL.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readURL",
                 () -> this.sqlInput.readURL());
@@ -220,7 +289,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public NClob readNClob() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                NClob.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readNClob",
                 () -> this.sqlInput.readNClob());
@@ -228,7 +300,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public String readNString() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readNString",
                 () -> this.sqlInput.readNString());
@@ -236,7 +311,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public SQLXML readSQLXML() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                SQLXML.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readSQLXML",
                 () -> this.sqlInput.readSQLXML());
@@ -244,7 +322,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public RowId readRowId() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                RowId.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readRowId",
                 () -> this.sqlInput.readRowId());
@@ -252,7 +333,10 @@ public class SQLInputWrapper implements SQLInput {
 
     @Override
     public <T> T readObject(Class<T> type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                type,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlInputClass,
                 "SQLInput.readString",
                 () -> this.sqlInput.readObject(type),
