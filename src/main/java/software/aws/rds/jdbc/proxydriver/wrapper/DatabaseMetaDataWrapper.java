@@ -26,7 +26,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean allProceduresAreCallable() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.allProceduresAreCallable",
                 () -> this.databaseMetaData.allProceduresAreCallable());
@@ -34,7 +37,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean allTablesAreSelectable() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.allTablesAreSelectable",
                 () -> this.databaseMetaData.allTablesAreSelectable());
@@ -42,7 +48,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getURL() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getURL",
                 () -> this.databaseMetaData.getURL());
@@ -50,7 +59,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getUserName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getUserName",
                 () -> this.databaseMetaData.getUserName());
@@ -58,7 +70,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean isReadOnly() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.isReadOnly",
                 () -> this.databaseMetaData.isReadOnly());
@@ -66,7 +81,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean nullsAreSortedHigh() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.nullsAreSortedHigh",
                 () -> this.databaseMetaData.nullsAreSortedHigh());
@@ -74,7 +92,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean nullsAreSortedLow() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.nullsAreSortedLow",
                 () -> this.databaseMetaData.nullsAreSortedLow());
@@ -82,7 +103,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean nullsAreSortedAtStart() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.nullsAreSortedAtStart",
                 () -> this.databaseMetaData.nullsAreSortedAtStart());
@@ -90,7 +114,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean nullsAreSortedAtEnd() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.nullsAreSortedAtEnd",
                 () -> this.databaseMetaData.nullsAreSortedAtEnd());
@@ -98,7 +125,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getDatabaseProductName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDatabaseProductName",
                 () -> this.databaseMetaData.getDatabaseProductName());
@@ -106,7 +136,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getDatabaseProductVersion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDatabaseProductVersion",
                 () -> this.databaseMetaData.getDatabaseProductVersion());
@@ -114,7 +147,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getDriverName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDriverName",
                 () -> this.databaseMetaData.getDriverName());
@@ -122,7 +158,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getDriverVersion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDriverVersion",
                 () -> this.databaseMetaData.getDriverVersion());
@@ -130,7 +169,9 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getDriverMajorVersion() {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDriverMajorVersion",
                 () -> this.databaseMetaData.getDriverMajorVersion());
@@ -138,7 +179,9 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getDriverMinorVersion() {
-        return WrapperUtils.executeWithPlugins(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDriverMinorVersion",
                 () -> this.databaseMetaData.getDriverMinorVersion());
@@ -146,7 +189,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean usesLocalFiles() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.usesLocalFiles",
                 () -> this.databaseMetaData.usesLocalFiles());
@@ -154,7 +200,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean usesLocalFilePerTable() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.usesLocalFilePerTable",
                 () -> this.databaseMetaData.usesLocalFilePerTable());
@@ -162,7 +211,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsMixedCaseIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsMixedCaseIdentifiers",
                 () -> this.databaseMetaData.supportsMixedCaseIdentifiers());
@@ -170,7 +222,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean storesUpperCaseIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.storesUpperCaseIdentifiers",
                 () -> this.databaseMetaData.storesUpperCaseIdentifiers());
@@ -178,7 +233,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean storesLowerCaseIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.storesLowerCaseIdentifiers",
                 () -> this.databaseMetaData.storesLowerCaseIdentifiers());
@@ -186,7 +244,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean storesMixedCaseIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.storesMixedCaseIdentifiers",
                 () -> this.databaseMetaData.storesMixedCaseIdentifiers());
@@ -194,7 +255,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsMixedCaseQuotedIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsMixedCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.supportsMixedCaseQuotedIdentifiers());
@@ -202,7 +266,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean storesUpperCaseQuotedIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.storesUpperCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.storesUpperCaseQuotedIdentifiers());
@@ -210,7 +277,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean storesLowerCaseQuotedIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.storesLowerCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.storesLowerCaseQuotedIdentifiers());
@@ -218,7 +288,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean storesMixedCaseQuotedIdentifiers() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.storesMixedCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.storesMixedCaseQuotedIdentifiers());
@@ -226,7 +299,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getIdentifierQuoteString() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getIdentifierQuoteString",
                 () -> this.databaseMetaData.getIdentifierQuoteString());
@@ -234,7 +310,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getSQLKeywords() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSQLKeywords",
                 () -> this.databaseMetaData.getSQLKeywords());
@@ -242,7 +321,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getNumericFunctions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getNumericFunctions",
                 () -> this.databaseMetaData.getNumericFunctions());
@@ -250,7 +332,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getStringFunctions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getStringFunctions",
                 () -> this.databaseMetaData.getStringFunctions());
@@ -258,7 +343,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getSystemFunctions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSystemFunctions",
                 () -> this.databaseMetaData.getSystemFunctions());
@@ -266,7 +354,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getTimeDateFunctions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getTimeDateFunctions",
                 () -> this.databaseMetaData.getTimeDateFunctions());
@@ -274,7 +365,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getSearchStringEscape() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSearchStringEscape",
                 () -> this.databaseMetaData.getSearchStringEscape());
@@ -282,7 +376,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getExtraNameCharacters() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getExtraNameCharacters",
                 () -> this.databaseMetaData.getExtraNameCharacters());
@@ -290,7 +387,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsAlterTableWithAddColumn() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsAlterTableWithAddColumn",
                 () -> this.databaseMetaData.supportsAlterTableWithAddColumn());
@@ -298,7 +398,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsAlterTableWithDropColumn() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsAlterTableWithDropColumn",
                 () -> this.databaseMetaData.supportsAlterTableWithDropColumn());
@@ -306,7 +409,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsColumnAliasing() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsColumnAliasing",
                 () -> this.databaseMetaData.supportsColumnAliasing());
@@ -314,7 +420,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean nullPlusNonNullIsNull() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.nullPlusNonNullIsNull",
                 () -> this.databaseMetaData.nullPlusNonNullIsNull());
@@ -322,7 +431,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsConvert() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsConvert",
                 () -> this.databaseMetaData.supportsConvert());
@@ -330,7 +442,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsConvert(int fromType, int toType) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsConvert",
                 () -> this.databaseMetaData.supportsConvert(fromType, toType),
@@ -339,7 +454,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsTableCorrelationNames() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsTableCorrelationNames",
                 () -> this.databaseMetaData.supportsTableCorrelationNames());
@@ -347,7 +465,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsDifferentTableCorrelationNames() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsDifferentTableCorrelationNames",
                 () -> this.databaseMetaData.supportsDifferentTableCorrelationNames());
@@ -355,7 +476,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsExpressionsInOrderBy() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsExpressionsInOrderBy",
                 () -> this.databaseMetaData.supportsExpressionsInOrderBy());
@@ -363,7 +487,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsOrderByUnrelated() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsOrderByUnrelated",
                 () -> this.databaseMetaData.supportsOrderByUnrelated());
@@ -371,7 +498,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsGroupBy() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsGroupBy",
                 () -> this.databaseMetaData.supportsGroupBy());
@@ -379,7 +509,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsGroupByUnrelated() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsGroupByUnrelated",
                 () -> this.databaseMetaData.supportsGroupByUnrelated());
@@ -387,7 +520,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsGroupByBeyondSelect() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsGroupByBeyondSelect",
                 () -> this.databaseMetaData.supportsGroupByBeyondSelect());
@@ -395,7 +531,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsLikeEscapeClause() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsLikeEscapeClause",
                 () -> this.databaseMetaData.supportsLikeEscapeClause());
@@ -403,7 +542,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsMultipleResultSets() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsMultipleResultSets",
                 () -> this.databaseMetaData.supportsMultipleResultSets());
@@ -411,7 +553,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsMultipleTransactions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsMultipleTransactions",
                 () -> this.databaseMetaData.supportsMultipleTransactions());
@@ -419,7 +564,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsNonNullableColumns() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsNonNullableColumns",
                 () -> this.databaseMetaData.supportsNonNullableColumns());
@@ -427,7 +575,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsMinimumSQLGrammar() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsMinimumSQLGrammar",
                 () -> this.databaseMetaData.supportsMinimumSQLGrammar());
@@ -435,7 +586,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsCoreSQLGrammar() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsCoreSQLGrammar",
                 () -> this.databaseMetaData.supportsCoreSQLGrammar());
@@ -443,7 +597,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsExtendedSQLGrammar() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsExtendedSQLGrammar",
                 () -> this.databaseMetaData.supportsExtendedSQLGrammar());
@@ -451,7 +608,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsANSI92EntryLevelSQL() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsANSI92EntryLevelSQL",
                 () -> this.databaseMetaData.supportsANSI92EntryLevelSQL());
@@ -459,7 +619,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsANSI92IntermediateSQL() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsANSI92IntermediateSQL",
                 () -> this.databaseMetaData.supportsANSI92IntermediateSQL());
@@ -467,7 +630,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsANSI92FullSQL() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsANSI92FullSQL",
                 () -> this.databaseMetaData.supportsANSI92FullSQL());
@@ -475,7 +641,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsIntegrityEnhancementFacility() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsIntegrityEnhancementFacility",
                 () -> this.databaseMetaData.supportsIntegrityEnhancementFacility());
@@ -483,7 +652,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsOuterJoins() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsOuterJoins",
                 () -> this.databaseMetaData.supportsOuterJoins());
@@ -491,7 +663,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsFullOuterJoins() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsFullOuterJoins",
                 () -> this.databaseMetaData.supportsFullOuterJoins());
@@ -499,7 +674,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsLimitedOuterJoins() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsLimitedOuterJoins",
                 () -> this.databaseMetaData.supportsLimitedOuterJoins());
@@ -507,7 +685,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getSchemaTerm() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSchemaTerm",
                 () -> this.databaseMetaData.getSchemaTerm());
@@ -515,7 +696,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getProcedureTerm() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getProcedureTerm",
                 () -> this.databaseMetaData.getProcedureTerm());
@@ -523,7 +707,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getCatalogTerm() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getCatalogTerm",
                 () -> this.databaseMetaData.getCatalogTerm());
@@ -531,7 +718,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean isCatalogAtStart() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.isCatalogAtStart",
                 () -> this.databaseMetaData.isCatalogAtStart());
@@ -539,7 +729,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public String getCatalogSeparator() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getCatalogSeparator",
                 () -> this.databaseMetaData.getCatalogSeparator());
@@ -547,7 +740,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsSchemasInDataManipulation() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSchemasInDataManipulation",
                 () -> this.databaseMetaData.supportsSchemasInDataManipulation());
@@ -555,7 +751,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsSchemasInProcedureCalls() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSchemasInProcedureCalls",
                 () -> this.databaseMetaData.supportsSchemasInProcedureCalls());
@@ -563,7 +762,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsSchemasInTableDefinitions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSchemasInTableDefinitions",
                 () -> this.databaseMetaData.supportsSchemasInTableDefinitions());
@@ -571,7 +773,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsSchemasInIndexDefinitions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSchemasInIndexDefinitions",
                 () -> this.databaseMetaData.supportsSchemasInIndexDefinitions());
@@ -579,7 +784,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsSchemasInPrivilegeDefinitions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSchemasInPrivilegeDefinitions",
                 () -> this.databaseMetaData.supportsSchemasInPrivilegeDefinitions());
@@ -587,7 +795,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsCatalogsInDataManipulation() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsCatalogsInDataManipulation",
                 () -> this.databaseMetaData.supportsCatalogsInDataManipulation());
@@ -595,7 +806,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsCatalogsInProcedureCalls() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsCatalogsInProcedureCalls",
                 () -> this.databaseMetaData.supportsCatalogsInProcedureCalls());
@@ -603,7 +817,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsCatalogsInTableDefinitions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsCatalogsInTableDefinitions",
                 () -> this.databaseMetaData.supportsCatalogsInTableDefinitions());
@@ -611,7 +828,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsCatalogsInIndexDefinitions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsCatalogsInIndexDefinitions",
                 () -> this.databaseMetaData.supportsCatalogsInIndexDefinitions());
@@ -619,7 +839,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsCatalogsInPrivilegeDefinitions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsCatalogsInPrivilegeDefinitions",
                 () -> this.databaseMetaData.supportsCatalogsInPrivilegeDefinitions());
@@ -627,7 +850,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsPositionedDelete() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsPositionedDelete",
                 () -> this.databaseMetaData.supportsPositionedDelete());
@@ -635,7 +861,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsPositionedUpdate() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsPositionedUpdate",
                 () -> this.databaseMetaData.supportsPositionedUpdate());
@@ -643,7 +872,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsSelectForUpdate() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSelectForUpdate",
                 () -> this.databaseMetaData.supportsSelectForUpdate());
@@ -651,7 +883,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsStoredProcedures() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsStoredProcedures",
                 () -> this.databaseMetaData.supportsStoredProcedures());
@@ -660,7 +895,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean supportsSubqueriesInComparisons() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSubqueriesInComparisons",
                 () -> this.databaseMetaData.supportsSubqueriesInComparisons());
@@ -669,7 +907,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean supportsSubqueriesInExists() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSubqueriesInExists",
                 () -> this.databaseMetaData.supportsSubqueriesInExists());
@@ -678,7 +919,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean supportsSubqueriesInIns() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSubqueriesInIns",
                 () -> this.databaseMetaData.supportsSubqueriesInIns());
@@ -687,7 +931,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean supportsSubqueriesInQuantifieds() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSubqueriesInQuantifieds",
                 () -> this.databaseMetaData.supportsSubqueriesInQuantifieds());
@@ -696,7 +943,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean supportsCorrelatedSubqueries() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsCorrelatedSubqueries",
                 () -> this.databaseMetaData.supportsCorrelatedSubqueries());
@@ -704,7 +954,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsUnion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsUnion",
                 () -> this.databaseMetaData.supportsUnion());
@@ -712,7 +965,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsUnionAll() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsUnionAll",
                 () -> this.databaseMetaData.supportsUnionAll());
@@ -720,7 +976,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsOpenCursorsAcrossCommit() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsOpenCursorsAcrossCommit",
                 () -> this.databaseMetaData.supportsOpenCursorsAcrossCommit());
@@ -728,7 +987,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsOpenCursorsAcrossRollback() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsOpenCursorsAcrossRollback",
                 () -> this.databaseMetaData.supportsOpenCursorsAcrossRollback());
@@ -736,7 +998,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsOpenStatementsAcrossCommit() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsOpenStatementsAcrossCommit",
                 () -> this.databaseMetaData.supportsOpenStatementsAcrossCommit());
@@ -744,7 +1009,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsOpenStatementsAcrossRollback() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsOpenStatementsAcrossRollback",
                 () -> this.databaseMetaData.supportsOpenStatementsAcrossRollback());
@@ -752,7 +1020,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxBinaryLiteralLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxBinaryLiteralLength",
                 () -> this.databaseMetaData.getMaxBinaryLiteralLength());
@@ -760,7 +1031,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxCharLiteralLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxCharLiteralLength",
                 () -> this.databaseMetaData.getMaxCharLiteralLength());
@@ -768,7 +1042,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxColumnNameLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxColumnNameLength",
                 () -> this.databaseMetaData.getMaxColumnNameLength());
@@ -776,7 +1053,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxColumnsInGroupBy() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxColumnsInGroupBy",
                 () -> this.databaseMetaData.getMaxColumnsInGroupBy());
@@ -784,7 +1064,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxColumnsInIndex() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxColumnsInIndex",
                 () -> this.databaseMetaData.getMaxColumnsInIndex());
@@ -792,7 +1075,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxColumnsInOrderBy() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxColumnsInOrderBy",
                 () -> this.databaseMetaData.getMaxColumnsInOrderBy());
@@ -800,7 +1086,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxColumnsInSelect() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxColumnsInSelect",
                 () -> this.databaseMetaData.getMaxColumnsInSelect());
@@ -808,7 +1097,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxColumnsInTable() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxColumnsInTable",
                 () -> this.databaseMetaData.getMaxColumnsInTable());
@@ -816,7 +1108,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxConnections() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxConnections",
                 () -> this.databaseMetaData.getMaxConnections());
@@ -824,7 +1119,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxCursorNameLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxCursorNameLength",
                 () -> this.databaseMetaData.getMaxCursorNameLength());
@@ -832,7 +1130,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxIndexLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxIndexLength",
                 () -> this.databaseMetaData.getMaxIndexLength());
@@ -840,7 +1141,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxSchemaNameLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxSchemaNameLength",
                 () -> this.databaseMetaData.getMaxSchemaNameLength());
@@ -848,7 +1152,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxProcedureNameLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxProcedureNameLength",
                 () -> this.databaseMetaData.getMaxProcedureNameLength());
@@ -856,7 +1163,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxCatalogNameLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxCatalogNameLength",
                 () -> this.databaseMetaData.getMaxCatalogNameLength());
@@ -864,7 +1174,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxRowSize() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxRowSize",
                 () -> this.databaseMetaData.getMaxRowSize());
@@ -872,7 +1185,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean doesMaxRowSizeIncludeBlobs() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.doesMaxRowSizeIncludeBlobs",
                 () -> this.databaseMetaData.doesMaxRowSizeIncludeBlobs());
@@ -880,7 +1196,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxStatementLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxStatementLength",
                 () -> this.databaseMetaData.getMaxStatementLength());
@@ -888,7 +1207,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxStatements() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxStatements",
                 () -> this.databaseMetaData.getMaxStatements());
@@ -896,7 +1218,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxTableNameLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxTableNameLength",
                 () -> this.databaseMetaData.getMaxTableNameLength());
@@ -904,7 +1229,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxTablesInSelect() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxTablesInSelect",
                 () -> this.databaseMetaData.getMaxTablesInSelect());
@@ -912,7 +1240,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getMaxUserNameLength() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxUserNameLength",
                 () -> this.databaseMetaData.getMaxUserNameLength());
@@ -920,7 +1251,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getDefaultTransactionIsolation() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDefaultTransactionIsolation",
                 () -> this.databaseMetaData.getDefaultTransactionIsolation());
@@ -928,7 +1262,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsTransactions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsTransactions",
                 () -> this.databaseMetaData.supportsTransactions());
@@ -936,7 +1273,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsTransactionIsolationLevel(int level) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsTransactionIsolationLevel",
                 () -> this.databaseMetaData.supportsTransactionIsolationLevel(level),
@@ -945,7 +1285,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsDataDefinitionAndDataManipulationTransactions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsDataDefinitionAndDataManipulationTransactions",
                 () -> this.databaseMetaData.supportsDataDefinitionAndDataManipulationTransactions());
@@ -953,7 +1296,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsDataManipulationTransactionsOnly() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsDataManipulationTransactionsOnly",
                 () -> this.databaseMetaData.supportsDataManipulationTransactionsOnly());
@@ -961,7 +1307,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean dataDefinitionCausesTransactionCommit() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.dataDefinitionCausesTransactionCommit",
                 () -> this.databaseMetaData.dataDefinitionCausesTransactionCommit());
@@ -969,7 +1318,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean dataDefinitionIgnoredInTransactions() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.dataDefinitionIgnoredInTransactions",
                 () -> this.databaseMetaData.dataDefinitionIgnoredInTransactions());
@@ -977,7 +1329,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getProcedures",
                 () -> this.databaseMetaData.getProcedures(catalog, schemaPattern, procedureNamePattern),
@@ -986,7 +1341,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getProcedureColumns(String catalog, String schemaPattern, String procedureNamePattern, String columnNamePattern) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getProcedureColumns",
                 () -> this.databaseMetaData.getProcedureColumns(catalog, schemaPattern, procedureNamePattern, columnNamePattern),
@@ -995,7 +1353,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getTables(String catalog, String schemaPattern, String tableNamePattern, String[] types) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getTables",
                 () -> this.databaseMetaData.getTables(catalog, schemaPattern, tableNamePattern, types),
@@ -1004,7 +1365,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getSchemas() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSchemas",
                 () -> this.databaseMetaData.getSchemas());
@@ -1012,7 +1376,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getCatalogs() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getCatalogs",
                 () -> this.databaseMetaData.getCatalogs());
@@ -1020,7 +1387,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getTableTypes() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getTableTypes",
                 () -> this.databaseMetaData.getTableTypes());
@@ -1028,7 +1398,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getColumns",
                 () -> this.databaseMetaData.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern),
@@ -1037,7 +1410,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getColumnPrivileges(String catalog, String schema, String table, String columnNamePattern) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getColumnPrivileges",
                 () -> this.databaseMetaData.getColumnPrivileges(catalog, schema, table, columnNamePattern),
@@ -1046,7 +1422,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableNamePattern) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getTablePrivileges",
                 () -> this.databaseMetaData.getTablePrivileges(catalog, schemaPattern, tableNamePattern),
@@ -1055,7 +1434,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getBestRowIdentifier(String catalog, String schema, String table, int scope, boolean nullable) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getBestRowIdentifier",
                 () -> this.databaseMetaData.getBestRowIdentifier(catalog, schema, table, scope, nullable),
@@ -1064,7 +1446,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getVersionColumns(String catalog, String schema, String table) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getVersionColumns",
                 () -> this.databaseMetaData.getVersionColumns(catalog, schema, table),
@@ -1073,7 +1458,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getPrimaryKeys",
                 () -> this.databaseMetaData.getPrimaryKeys(catalog, schema, table),
@@ -1082,7 +1470,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getImportedKeys(String catalog, String schema, String table) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getImportedKeys",
                 () -> this.databaseMetaData.getImportedKeys(catalog, schema, table),
@@ -1091,7 +1482,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getExportedKeys(String catalog, String schema, String table) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getExportedKeys",
                 () -> this.databaseMetaData.getExportedKeys(catalog, schema, table),
@@ -1102,7 +1496,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     public ResultSet getCrossReference(String parentCatalog, String parentSchema, String parentTable,
                                        String foreignCatalog, String foreignSchema, String foreignTable)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getCrossReference",
                 () -> this.databaseMetaData.getCrossReference(
@@ -1112,7 +1509,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getTypeInfo() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getTypeInfo",
                 () -> this.databaseMetaData.getTypeInfo());
@@ -1121,7 +1521,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @Override
     public ResultSet getIndexInfo(String catalog, String schema, String table, boolean unique, boolean approximate)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getIndexInfo",
                 () -> this.databaseMetaData.getIndexInfo(catalog, schema, table, unique, approximate),
@@ -1130,7 +1533,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsResultSetType(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsResultSetType",
                 () -> this.databaseMetaData.supportsResultSetType(type),
@@ -1139,7 +1545,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsResultSetConcurrency(int type, int concurrency) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsResultSetConcurrency",
                 () -> this.databaseMetaData.supportsResultSetConcurrency(type, concurrency),
@@ -1148,7 +1557,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean ownUpdatesAreVisible(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.ownUpdatesAreVisible",
                 () -> this.databaseMetaData.ownUpdatesAreVisible(type),
@@ -1157,7 +1569,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean ownDeletesAreVisible(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.ownDeletesAreVisible",
                 () -> this.databaseMetaData.ownDeletesAreVisible(type),
@@ -1166,7 +1581,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean ownInsertsAreVisible(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.ownInsertsAreVisible",
                 () -> this.databaseMetaData.ownInsertsAreVisible(type),
@@ -1175,7 +1593,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean othersUpdatesAreVisible(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.othersUpdatesAreVisible",
                 () -> this.databaseMetaData.othersUpdatesAreVisible(type),
@@ -1184,7 +1605,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean othersDeletesAreVisible(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.othersDeletesAreVisible",
                 () -> this.databaseMetaData.othersDeletesAreVisible(type),
@@ -1193,7 +1617,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean othersInsertsAreVisible(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.othersInsertsAreVisible",
                 () -> this.databaseMetaData.othersInsertsAreVisible(type),
@@ -1202,7 +1629,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean updatesAreDetected(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.updatesAreDetected",
                 () -> this.databaseMetaData.updatesAreDetected(type),
@@ -1211,7 +1641,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean deletesAreDetected(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.deletesAreDetected",
                 () -> this.databaseMetaData.deletesAreDetected(type),
@@ -1220,7 +1653,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean insertsAreDetected(int type) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.insertsAreDetected",
                 () -> this.databaseMetaData.insertsAreDetected(type),
@@ -1229,7 +1665,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsBatchUpdates() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsBatchUpdates",
                 () -> this.databaseMetaData.supportsBatchUpdates());
@@ -1238,7 +1677,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @Override
     public ResultSet getUDTs(String catalog, String schemaPattern, String typeNamePattern, int[] types)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getUDTs",
                 () -> this.databaseMetaData.getUDTs(catalog, schemaPattern, typeNamePattern, types),
@@ -1247,7 +1689,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public Connection getConnection() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Connection.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getConnection",
                 () -> this.databaseMetaData.getConnection());
@@ -1256,7 +1701,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean supportsSavepoints() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsSavepoints",
                 () -> this.databaseMetaData.supportsSavepoints());
@@ -1264,7 +1712,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsNamedParameters() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsNamedParameters",
                 () -> this.databaseMetaData.supportsNamedParameters());
@@ -1272,7 +1723,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsMultipleOpenResults() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsMultipleOpenResults",
                 () -> this.databaseMetaData.supportsMultipleOpenResults());
@@ -1280,7 +1734,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsGetGeneratedKeys() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsGetGeneratedKeys",
                 () -> this.databaseMetaData.supportsGetGeneratedKeys());
@@ -1288,7 +1745,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getSuperTypes(String catalog, String schemaPattern, String typeNamePattern) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSuperTypes",
                 () -> this.databaseMetaData.getSuperTypes(catalog, schemaPattern, typeNamePattern),
@@ -1298,7 +1758,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @Override
     public ResultSet getSuperTables(String catalog, String schemaPattern, String tableNamePattern)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSuperTables",
                 () -> this.databaseMetaData.getSuperTables(catalog, schemaPattern, tableNamePattern),
@@ -1309,7 +1772,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     public ResultSet getAttributes(String catalog, String schemaPattern, String typeNamePattern,
                                    String attributeNamePattern)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getAttributes",
                 () -> this.databaseMetaData.getAttributes(
@@ -1319,7 +1785,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsResultSetHoldability(int holdability) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsResultSetHoldability",
                 () -> this.databaseMetaData.supportsResultSetHoldability(holdability),
@@ -1328,7 +1797,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getResultSetHoldability() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getResultSetHoldability",
                 () -> this.databaseMetaData.getResultSetHoldability());
@@ -1336,7 +1808,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getDatabaseMajorVersion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDatabaseMajorVersion",
                 () -> this.databaseMetaData.getDatabaseMajorVersion());
@@ -1344,7 +1819,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getDatabaseMinorVersion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getDatabaseMinorVersion",
                 () -> this.databaseMetaData.getDatabaseMinorVersion());
@@ -1352,7 +1830,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getJDBCMajorVersion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getJDBCMajorVersion",
                 () -> this.databaseMetaData.getJDBCMajorVersion());
@@ -1360,7 +1841,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public int getJDBCMinorVersion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getJDBCMinorVersion",
                 () -> this.databaseMetaData.getJDBCMinorVersion());
@@ -1369,7 +1853,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @SuppressWarnings("MagicConstant")
     @Override
     public int getSQLStateType() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSQLStateType",
                 () -> this.databaseMetaData.getSQLStateType());
@@ -1377,7 +1864,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean locatorsUpdateCopy() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.locatorsUpdateCopy",
                 () -> this.databaseMetaData.locatorsUpdateCopy());
@@ -1385,7 +1875,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsStatementPooling() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsStatementPooling",
                 () -> this.databaseMetaData.supportsStatementPooling());
@@ -1393,7 +1886,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public RowIdLifetime getRowIdLifetime() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                RowIdLifetime.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getRowIdLifetime",
                 () -> this.databaseMetaData.getRowIdLifetime());
@@ -1401,7 +1897,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getSchemas",
                 () -> this.databaseMetaData.getSchemas(catalog, schemaPattern),
@@ -1410,7 +1909,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsStoredFunctionsUsingCallSyntax() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsStoredFunctionsUsingCallSyntax",
                 () -> this.databaseMetaData.supportsStoredFunctionsUsingCallSyntax());
@@ -1418,7 +1920,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean autoCommitFailureClosesAllResultSets() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.autoCommitFailureClosesAllResultSets",
                 () -> this.databaseMetaData.autoCommitFailureClosesAllResultSets());
@@ -1426,7 +1931,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public ResultSet getClientInfoProperties() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getClientInfoProperties",
                 () -> this.databaseMetaData.getClientInfoProperties());
@@ -1435,7 +1943,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     @Override
     public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getFunctions",
                 () -> this.databaseMetaData.getFunctions(catalog, schemaPattern, functionNamePattern),
@@ -1446,7 +1957,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     public ResultSet getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern,
                                         String columnNamePattern)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getFunctionColumns",
                 () -> this.databaseMetaData.getFunctionColumns(
@@ -1458,7 +1972,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
     public ResultSet getPseudoColumns(String catalog, String schemaPattern, String tableNamePattern,
                                       String columnNamePattern)
             throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getPseudoColumns",
                 () -> this.databaseMetaData.getPseudoColumns(
@@ -1468,7 +1985,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean generatedKeyAlwaysReturned() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.generatedKeyAlwaysReturned",
                 () -> this.databaseMetaData.generatedKeyAlwaysReturned());
@@ -1476,7 +1996,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public long getMaxLogicalLobSize() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.getMaxLogicalLobSize",
                 () -> this.databaseMetaData.getMaxLogicalLobSize());
@@ -1484,7 +2007,10 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     @Override
     public boolean supportsRefCursors() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.databaseMetaDataClass,
                 "DatabaseMetaData.supportsRefCursors",
                 () -> this.databaseMetaData.supportsRefCursors());

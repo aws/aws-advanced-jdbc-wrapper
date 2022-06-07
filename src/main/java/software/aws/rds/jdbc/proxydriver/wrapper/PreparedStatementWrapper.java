@@ -55,7 +55,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public ResultSet executeQuery() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeQuery",
                 () -> this.statement.executeQuery());
@@ -63,7 +66,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int executeUpdate() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeUpdate",
                 () -> this.statement.executeUpdate());
@@ -71,7 +77,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setNull(int parameterIndex, int sqlType) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNull",
                 () -> {
@@ -83,7 +91,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBoolean(int parameterIndex, boolean x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBoolean",
                 () -> {
@@ -95,7 +105,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setByte(int parameterIndex, byte x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setByte",
                 () -> {
@@ -107,7 +119,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setShort(int parameterIndex, short x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setShort",
                 () -> {
@@ -119,7 +133,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setInt(int parameterIndex, int x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setInt",
                 () -> {
@@ -131,7 +147,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setLong(int parameterIndex, long x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setLong",
                 () -> {
@@ -143,7 +161,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setFloat(int parameterIndex, float x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setFloat",
                 () -> {
@@ -155,7 +175,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setDouble(int parameterIndex, double x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setDouble",
                 () -> {
@@ -167,7 +189,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBigDecimal",
                 () -> {
@@ -179,7 +203,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setString(int parameterIndex, String x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setString",
                 () -> {
@@ -191,7 +217,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBytes(int parameterIndex, byte[] x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBytes",
                 () -> {
@@ -203,7 +231,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setDate(int parameterIndex, Date x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setDate",
                 () -> {
@@ -215,7 +245,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setTime(int parameterIndex, Time x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTime",
                 () -> {
@@ -227,7 +259,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTimestamp",
                 () -> {
@@ -239,20 +273,24 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setAsciiStream",
                 () -> {
-                    this.statement.setAsciiStream(parameterIndex, x);
+                    this.statement.setAsciiStream(parameterIndex, x, length);
                     return null;
                 },
-                parameterIndex, x);
+                parameterIndex, x, length);
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setUnicodeStream",
                 () -> {
@@ -264,7 +302,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBinaryStream",
                 () -> {
@@ -276,7 +316,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void clearParameters() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.clearParameters",
                 () -> {
@@ -287,7 +329,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
                 () -> {
@@ -299,7 +343,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setObject(int parameterIndex, Object x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
                 () -> {
@@ -311,7 +357,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean execute() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.execute",
                 () -> this.statement.execute());
@@ -319,7 +368,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void addBatch() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.addBatch",
                 () -> {
@@ -331,7 +382,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, int length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCharacterStream",
                 () -> {
@@ -343,7 +396,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setRef(int parameterIndex, Ref x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setRef",
                 () -> {
@@ -355,7 +410,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBlob(int parameterIndex, Blob x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBlob",
                 () -> {
@@ -367,7 +424,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setClob(int parameterIndex, Clob x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setClob",
                 () -> {
@@ -379,7 +438,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setArray(int parameterIndex, Array x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setArray",
                 () -> {
@@ -391,7 +452,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSetMetaData.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getMetaData",
                 () -> this.statement.getMetaData());
@@ -399,7 +463,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setDate",
                 () -> {
@@ -411,7 +477,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTime",
                 () -> {
@@ -423,7 +491,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTimestamp",
                 () -> {
@@ -435,7 +505,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNull",
                 () -> {
@@ -447,7 +519,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setURL(int parameterIndex, URL x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setURL",
                 () -> {
@@ -459,7 +533,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public ParameterMetaData getParameterMetaData() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ParameterMetaData.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getParameterMetaData",
                 () -> this.statement.getParameterMetaData());
@@ -467,7 +544,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setRowId(int parameterIndex, RowId x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setRowId",
                 () -> {
@@ -479,7 +558,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setNString(int parameterIndex, String value) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNString",
                 () -> {
@@ -492,7 +573,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNCharacterStream",
                 () -> {
@@ -504,7 +587,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setNClob(int parameterIndex, NClob value) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNClob",
                 () -> {
@@ -516,7 +601,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setClob",
                 () -> {
@@ -529,7 +616,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBlob",
                 () -> {
@@ -541,7 +630,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNClob",
                 () -> {
@@ -554,7 +645,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @Override
     public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
         //noinspection SpellCheckingInspection
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setSQLXML",
                 () -> {
@@ -567,7 +660,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @Override
     public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength)
             throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
                 () -> {
@@ -579,7 +674,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setAsciiStream",
                 () -> {
@@ -591,7 +688,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBinaryStream",
                 () -> {
@@ -604,7 +703,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, long length)
             throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCharacterStream",
                 () -> {
@@ -616,7 +717,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setAsciiStream",
                 () -> {
@@ -628,7 +731,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBinaryStream",
                 () -> {
@@ -640,7 +745,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCharacterStream",
                 () -> {
@@ -652,7 +759,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNCharacterStream",
                 () -> {
@@ -664,7 +773,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setClob(int parameterIndex, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setClob",
                 () -> {
@@ -676,7 +787,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBlob",
                 () -> {
@@ -688,7 +801,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setNClob(int parameterIndex, Reader reader) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNClob",
                 () -> {
@@ -701,7 +816,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @Override
     public void setObject(int parameterIndex, Object x, SQLType targetSqlType, int scaleOrLength)
             throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
                 () -> {
@@ -713,7 +830,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setObject(int parameterIndex, Object x, SQLType targetSqlType) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
                 () -> {
@@ -725,7 +844,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public long executeLargeUpdate() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeLargeUpdate",
                 () -> this.statement.executeLargeUpdate());
@@ -733,7 +855,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeQuery",
                 () -> this.statement.executeQuery(sql),
@@ -742,7 +867,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql),
@@ -751,7 +879,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void close() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.close",
                 () -> {
@@ -762,7 +892,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int getMaxFieldSize() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getMaxFieldSize",
                 () -> this.statement.getMaxFieldSize());
@@ -770,7 +903,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setMaxFieldSize(int max) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setMaxFieldSize",
                 () -> {
@@ -782,7 +917,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int getMaxRows() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getMaxRows",
                 () -> this.statement.getMaxRows());
@@ -790,7 +928,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setMaxRows(int max) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setMaxRows",
                 () -> {
@@ -802,7 +942,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setEscapeProcessing(boolean enable) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setEscapeProcessing",
                 () -> {
@@ -814,7 +956,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int getQueryTimeout() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getQueryTimeout",
                 () -> this.statement.getQueryTimeout());
@@ -822,7 +967,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setQueryTimeout(int seconds) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setQueryTimeout",
                 () -> {
@@ -834,7 +981,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void cancel() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.cancel",
                 () -> {
@@ -845,7 +994,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                SQLWarning.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getWarnings",
                 () -> this.statement.getWarnings());
@@ -853,7 +1005,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void clearWarnings() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.clearWarnings",
                 () -> {
@@ -864,7 +1018,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setCursorName(String name) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCursorName",
                 () -> {
@@ -876,7 +1032,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.execute",
                 () -> this.statement.execute(sql),
@@ -885,7 +1044,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public ResultSet getResultSet() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getResultSet",
                 () -> this.statement.getResultSet());
@@ -893,7 +1055,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int getUpdateCount() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getUpdateCount",
                 () -> this.statement.getUpdateCount());
@@ -901,7 +1066,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean getMoreResults() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getMoreResults",
                 () -> this.statement.getMoreResults());
@@ -910,7 +1078,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @SuppressWarnings("MagicConstant")
     @Override
     public int getFetchDirection() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getFetchDirection",
                 () -> this.statement.getFetchDirection());
@@ -918,7 +1089,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setFetchDirection(int direction) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setFetchDirection",
                 () -> {
@@ -930,7 +1103,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int getFetchSize() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getFetchSize",
                 () -> this.statement.getFetchSize());
@@ -938,7 +1114,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setFetchSize",
                 () -> {
@@ -951,7 +1129,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @SuppressWarnings("MagicConstant")
     @Override
     public int getResultSetConcurrency() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getResultSetConcurrency",
                 () -> this.statement.getResultSetConcurrency());
@@ -960,7 +1141,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @SuppressWarnings("MagicConstant")
     @Override
     public int getResultSetType() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getResultSetType",
                 () -> this.statement.getResultSetType());
@@ -968,7 +1152,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void addBatch(String sql) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.addBatch",
                 () -> {
@@ -980,7 +1166,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void clearBatch() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.clearBatch",
                 () -> {
@@ -991,7 +1179,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int[] executeBatch() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int[].class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeBatch",
                 () -> this.statement.executeBatch());
@@ -999,7 +1190,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public Connection getConnection() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Connection.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getConnection",
                 () -> this.statement.getConnection());
@@ -1007,7 +1201,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean getMoreResults(int current) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getMoreResults",
                 () -> this.statement.getMoreResults(current),
@@ -1016,7 +1213,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public ResultSet getGeneratedKeys() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getGeneratedKeys",
                 () -> this.statement.getGeneratedKeys());
@@ -1024,7 +1224,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, autoGeneratedKeys),
@@ -1033,7 +1236,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnIndexes),
@@ -1042,7 +1248,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int executeUpdate(String sql, String[] columnNames) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnNames),
@@ -1051,7 +1260,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.execute",
                 () -> this.statement.execute(sql, autoGeneratedKeys),
@@ -1060,7 +1272,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean execute(String sql, int[] columnIndexes) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.execute",
                 () -> this.statement.execute(sql, columnIndexes),
@@ -1069,7 +1284,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean execute(String sql, String[] columnNames) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.execute",
                 () -> this.statement.execute(sql, columnNames),
@@ -1078,7 +1296,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public int getResultSetHoldability() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.getResultSetHoldability",
                 () -> this.statement.getResultSetHoldability());
@@ -1086,7 +1307,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean isClosed() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.isClosed",
                 () -> this.statement.isClosed());
@@ -1095,7 +1319,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean isPoolable() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.isPoolable",
                 () -> this.statement.isPoolable());
@@ -1104,7 +1331,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public void setPoolable(boolean poolable) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setPoolable",
                 () -> {
@@ -1116,7 +1345,9 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public void closeOnCompletion() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.closeOnCompletion",
                 () -> {
@@ -1127,7 +1358,10 @@ public class PreparedStatementWrapper implements PreparedStatement {
 
     @Override
     public boolean isCloseOnCompletion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.isCloseOnCompletion",
                 () -> this.statement.isCloseOnCompletion());

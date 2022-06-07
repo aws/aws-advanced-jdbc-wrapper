@@ -12,7 +12,6 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
 import javax.sql.DataSource;
-import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -20,6 +19,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -186,9 +186,8 @@ public class ConnectionPluginManager {
         do {
             plugin = this.plugins.get(pluginIndex);
             Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-            isSubscribed =
-                    pluginSubscribedMethods.contains(ALL_METHODS) || pluginSubscribedMethods.contains(
-                            methodName);
+            isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
+                            || pluginSubscribedMethods.contains(methodName);
             pluginIndex++;
         } while (!isSubscribed && pluginIndex <= this.plugins.size() - 1);
 
@@ -197,8 +196,7 @@ public class ConnectionPluginManager {
             // last plugin in the plugin chain
             // execute actual JDBC method inside this plugin
             if (!isSubscribed) {
-                throw new Exception(
-                        "Default connection plugin should handle all methods."); // shouldn't be here
+                throw new Exception("Default connection plugin should handle all methods."); // shouldn't be here
             }
             func = executeSqlFunc;
         } else {
@@ -218,38 +216,6 @@ public class ConnectionPluginManager {
                          Object[] args) throws Exception {
 
         return executeOneLevel(0, methodInvokeOn, methodName, executeSqlFunc, args);
-    }
-
-    public <T> T execute_SQLException(Class<?> methodInvokeOn,
-                                      String methodName,
-                                      Callable<T> executeSqlFunc,
-                                      Object[] args) throws SQLException {
-
-        try {
-            return executeOneLevel(0, methodInvokeOn, methodName, executeSqlFunc, args);
-        } catch (SQLException ex) {
-            throw ex;
-        } catch (RuntimeException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new SQLException(ex.getMessage(), SqlState.UNKNOWN_STATE.getCode(), ex);
-        }
-    }
-
-    public <T> T execute_SQLClientInfoException(Class<?> methodInvokeOn,
-                                                String methodName,
-                                                Callable<T> executeSqlFunc,
-                                                Object[] args) throws SQLClientInfoException {
-
-        try {
-            return executeOneLevel(0, methodInvokeOn, methodName, executeSqlFunc, args);
-        } catch (SQLClientInfoException ex) {
-            throw ex;
-        } catch (RuntimeException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
     }
 
     /**

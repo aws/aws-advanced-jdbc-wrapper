@@ -35,7 +35,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public long length() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.length",
                 () -> this.blob.length());
@@ -43,7 +46,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public byte[] getBytes(long pos, int length) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                byte[].class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.getBytes",
                 () -> this.blob.getBytes(pos, length),
@@ -52,7 +58,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public InputStream getBinaryStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                InputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.getBinaryStream",
                 () -> this.blob.getBinaryStream());
@@ -60,7 +69,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public long position(byte[] pattern, long start) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.position",
                 () -> this.blob.position(pattern, start),
@@ -69,7 +81,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public long position(Blob pattern, long start) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.position",
                 () -> this.blob.position(pattern, start),
@@ -78,7 +93,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public int setBytes(long pos, byte[] bytes) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.setBytes",
                 () -> this.blob.setBytes(pos, bytes),
@@ -87,7 +105,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public int setBytes(long pos, byte[] bytes, int offset, int len) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.setBytes",
                 () -> this.blob.setBytes(pos, bytes, offset, len),
@@ -96,7 +117,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public OutputStream setBinaryStream(long pos) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                OutputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.setBinaryStream",
                 () -> this.blob.setBinaryStream(pos),
@@ -105,7 +129,9 @@ public class BlobWrapper implements Blob {
 
     @Override
     public void truncate(long len) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.truncate",
                 () -> {
@@ -117,7 +143,9 @@ public class BlobWrapper implements Blob {
 
     @Override
     public void free() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.free",
                 () -> {
@@ -128,7 +156,10 @@ public class BlobWrapper implements Blob {
 
     @Override
     public InputStream getBinaryStream(long pos, long length) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                InputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.blobClass,
                 "Blob.getBinaryStream",
                 () -> this.blob.getBinaryStream(pos, length),

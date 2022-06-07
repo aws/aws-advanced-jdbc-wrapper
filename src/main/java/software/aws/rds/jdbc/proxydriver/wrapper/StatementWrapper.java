@@ -36,7 +36,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.executeQuery",
                 () -> this.statement.executeQuery(sql),
@@ -45,7 +48,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql),
@@ -54,7 +60,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void close() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.close",
                 () -> {
@@ -65,7 +73,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int getMaxFieldSize() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getMaxFieldSize",
                 () -> this.statement.getMaxFieldSize());
@@ -73,7 +84,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void setMaxFieldSize(int max) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setMaxFieldSize",
                 () -> {
@@ -85,7 +98,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int getMaxRows() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getMaxRows",
                 () -> this.statement.getMaxRows());
@@ -93,7 +109,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void setMaxRows(int max) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setMaxRows",
                 () -> {
@@ -105,7 +123,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void setEscapeProcessing(boolean enable) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setEscapeProcessing",
                 () -> {
@@ -117,7 +137,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int getQueryTimeout() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getQueryTimeout",
                 () -> this.statement.getQueryTimeout());
@@ -125,7 +148,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void setQueryTimeout(int seconds) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setQueryTimeout",
                 () -> {
@@ -137,7 +162,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void cancel() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.cancel",
                 () -> {
@@ -148,7 +175,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                SQLWarning.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getWarnings",
                 () -> this.statement.getWarnings());
@@ -156,7 +186,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void clearWarnings() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.clearWarnings",
                 () -> {
@@ -167,7 +199,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void setCursorName(String name) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setCursorName",
                 () -> {
@@ -179,7 +213,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.execute",
                 () -> this.statement.execute(sql),
@@ -188,7 +225,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public ResultSet getResultSet() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getResultSet",
                 () -> this.statement.getResultSet());
@@ -196,7 +236,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int getUpdateCount() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getUpdateCount",
                 () -> this.statement.getUpdateCount());
@@ -204,7 +247,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean getMoreResults() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getMoreResults",
                 () -> this.statement.getMoreResults());
@@ -213,7 +259,10 @@ public class StatementWrapper implements Statement {
     @Override
     public int getFetchDirection() throws SQLException {
         //noinspection MagicConstant
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getFetchDirection",
                 () -> this.statement.getFetchDirection());
@@ -221,7 +270,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void setFetchDirection(int direction) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setFetchDirection",
                 () -> {
@@ -233,7 +284,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int getFetchSize() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getFetchSize",
                 () -> this.statement.getFetchSize());
@@ -241,7 +295,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setFetchSize",
                 () -> {
@@ -254,7 +310,10 @@ public class StatementWrapper implements Statement {
     @Override
     public int getResultSetConcurrency() throws SQLException {
         //noinspection MagicConstant
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getResultSetConcurrency",
                 () -> this.statement.getResultSetConcurrency());
@@ -263,7 +322,10 @@ public class StatementWrapper implements Statement {
     @Override
     public int getResultSetType() throws SQLException {
         //noinspection MagicConstant
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getResultSetType",
                 () -> this.statement.getResultSetType());
@@ -271,7 +333,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void addBatch(String sql) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.addBatch",
                 () -> {
@@ -283,7 +347,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void clearBatch() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.clearBatch",
                 () -> {
@@ -294,7 +360,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int[] executeBatch() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int[].class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.executeBatch",
                 () -> this.statement.executeBatch());
@@ -302,7 +371,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public Connection getConnection() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Connection.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getConnection",
                 () -> this.statement.getConnection());
@@ -310,7 +382,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean getMoreResults(int current) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getMoreResults",
                 () -> this.statement.getMoreResults(current),
@@ -319,7 +394,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public ResultSet getGeneratedKeys() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                ResultSet.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getGeneratedKeys",
                 () -> this.statement.getGeneratedKeys());
@@ -327,7 +405,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, autoGeneratedKeys),
@@ -336,7 +417,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnIndexes),
@@ -345,7 +429,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int executeUpdate(String sql, String[] columnNames) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnNames),
@@ -354,7 +441,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.execute",
                 () -> this.statement.execute(sql, autoGeneratedKeys),
@@ -363,7 +453,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean execute(String sql, int[] columnIndexes) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.execute",
                 () -> this.statement.execute(sql, columnIndexes),
@@ -372,7 +465,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean execute(String sql, String[] columnNames) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.execute",
                 () -> this.statement.execute(sql, columnNames),
@@ -381,7 +477,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public int getResultSetHoldability() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.getResultSetHoldability",
                 () -> this.statement.getResultSetHoldability());
@@ -389,7 +488,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean isClosed() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.isClosed",
                 () -> this.statement.isClosed());
@@ -398,7 +500,10 @@ public class StatementWrapper implements Statement {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public boolean isPoolable() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.isPoolable",
                 () -> this.statement.isPoolable());
@@ -407,7 +512,9 @@ public class StatementWrapper implements Statement {
     @SuppressWarnings("SpellCheckingInspection")
     @Override
     public void setPoolable(boolean poolable) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.setPoolable",
                 () -> {
@@ -419,7 +526,9 @@ public class StatementWrapper implements Statement {
 
     @Override
     public void closeOnCompletion() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.closeOnCompletion",
                 () -> {
@@ -430,7 +539,10 @@ public class StatementWrapper implements Statement {
 
     @Override
     public boolean isCloseOnCompletion() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                boolean.class,
+                SQLException.class,
+                this.pluginManager,
                 this.statementClass,
                 "Statement.isCloseOnCompletion",
                 () -> this.statement.isCloseOnCompletion());

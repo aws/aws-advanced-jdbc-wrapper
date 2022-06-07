@@ -34,7 +34,10 @@ public class RefWrapper implements Ref {
 
     @Override
     public String getBaseTypeName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.refClass,
                 "Ref.getBaseTypeName",
                 () -> this.ref.getBaseTypeName());
@@ -42,7 +45,10 @@ public class RefWrapper implements Ref {
 
     @Override
     public Object getObject(Map<String, Class<?>> map) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object.class,
+                SQLException.class,
+                this.pluginManager,
                 this.refClass,
                 "Ref.getObject",
                 () -> this.ref.getObject(map),
@@ -51,7 +57,10 @@ public class RefWrapper implements Ref {
 
     @Override
     public Object getObject() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Object.class,
+                SQLException.class,
+                this.pluginManager,
                 this.refClass,
                 "Ref.getObject",
                 () -> this.ref.getObject());
@@ -59,7 +68,9 @@ public class RefWrapper implements Ref {
 
     @Override
     public void setObject(Object value) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.refClass,
                 "Ref.setObject",
                 () -> {

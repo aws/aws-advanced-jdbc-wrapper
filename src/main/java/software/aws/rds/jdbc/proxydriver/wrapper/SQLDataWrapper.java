@@ -32,7 +32,10 @@ public class SQLDataWrapper implements SQLData {
 
     @Override
     public String getSQLTypeName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.sqlDataClass,
                 "SQLData.getSQLTypeName",
                 () -> this.sqlData.getSQLTypeName());
@@ -40,7 +43,9 @@ public class SQLDataWrapper implements SQLData {
 
     @Override
     public void readSQL(SQLInput stream, String typeName) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlDataClass,
                 "SQLData.readSQL",
                 () -> {
@@ -52,7 +57,9 @@ public class SQLDataWrapper implements SQLData {
 
     @Override
     public void writeSQL(SQLOutput stream) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlDataClass,
                 "SQLData.writeSQL",
                 () -> {

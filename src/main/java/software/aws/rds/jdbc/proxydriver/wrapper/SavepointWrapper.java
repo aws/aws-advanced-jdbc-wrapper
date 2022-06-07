@@ -33,7 +33,10 @@ public class SavepointWrapper implements Savepoint {
 
     @Override
     public int getSavepointId() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.savepointClass,
                 "Savepoint.getSavepointId",
                 () -> this.savepoint.getSavepointId());
@@ -41,7 +44,10 @@ public class SavepointWrapper implements Savepoint {
 
     @Override
     public String getSavepointName() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.savepointClass,
                 "Savepoint.getSavepointName",
                 () -> this.savepoint.getSavepointName());

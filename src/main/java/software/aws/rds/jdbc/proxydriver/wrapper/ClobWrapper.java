@@ -15,6 +15,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.sql.Clob;
 import java.sql.SQLException;
+import java.sql.Time;
 
 public class ClobWrapper implements Clob {
 
@@ -37,7 +38,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public long length() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.length",
                 () -> this.clob.length());
@@ -45,7 +49,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public String getSubString(long pos, int length) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                String.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.getSubString",
                 () -> this.clob.getSubString(pos, length),
@@ -54,7 +61,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public Reader getCharacterStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Reader.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.getCharacterStream",
                 () -> this.clob.getCharacterStream());
@@ -62,7 +72,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public InputStream getAsciiStream() throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                InputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.getAsciiStream",
                 () -> this.clob.getAsciiStream());
@@ -70,7 +83,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public long position(String searchStr, long start) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.position",
                 () -> this.clob.position(searchStr, start),
@@ -79,7 +95,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public long position(Clob searchStr, long start) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                long.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.position",
                 () -> this.clob.position(searchStr, start),
@@ -88,7 +107,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public int setString(long pos, String str) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.setString",
                 () -> this.clob.setString(pos, str),
@@ -97,7 +119,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public int setString(long pos, String str, int offset, int len) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                int.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.setString",
                 () -> this.clob.setString(pos, str, offset, len),
@@ -106,7 +131,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public OutputStream setAsciiStream(long pos) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                OutputStream.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.setAsciiStream",
                 () -> this.clob.setAsciiStream(pos),
@@ -115,7 +143,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public Writer setCharacterStream(long pos) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Writer.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.setCharacterStream",
                 () -> this.clob.setCharacterStream(pos),
@@ -124,7 +155,9 @@ public class ClobWrapper implements Clob {
 
     @Override
     public void truncate(long len) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.truncate",
                 () -> {
@@ -136,7 +169,9 @@ public class ClobWrapper implements Clob {
 
     @Override
     public void free() throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.free",
                 () -> {
@@ -147,7 +182,10 @@ public class ClobWrapper implements Clob {
 
     @Override
     public Reader getCharacterStream(long pos, long length) throws SQLException {
-        return WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        return WrapperUtils.executeWithPlugins(
+                Reader.class,
+                SQLException.class,
+                this.pluginManager,
                 this.clobClass,
                 "Clob.getCharacterStream",
                 () -> this.clob.getCharacterStream(pos, length),

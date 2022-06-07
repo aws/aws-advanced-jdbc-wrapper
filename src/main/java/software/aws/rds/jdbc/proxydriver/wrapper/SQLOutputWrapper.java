@@ -36,7 +36,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeString(String x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeString",
                 () -> {
@@ -48,7 +50,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeBoolean(boolean x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBoolean",
                 () -> {
@@ -60,7 +64,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeByte(byte x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeByte",
                 () -> {
@@ -72,7 +78,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeShort(short x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeShort",
                 () -> {
@@ -84,7 +92,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeInt(int x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeInt",
                 () -> {
@@ -96,7 +106,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeLong(long x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeLong",
                 () -> {
@@ -108,7 +120,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeFloat(float x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeFloat",
                 () -> {
@@ -120,7 +134,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeDouble(double x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeDouble",
                 () -> {
@@ -132,7 +148,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeBigDecimal(BigDecimal x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBigDecimal",
                 () -> {
@@ -144,7 +162,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeBytes(byte[] x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBytes",
                 () -> {
@@ -156,7 +176,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeDate(Date x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeDate",
                 () -> {
@@ -168,7 +190,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeTime(Time x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeTime",
                 () -> {
@@ -180,7 +204,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeTimestamp(Timestamp x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeTimestamp",
                 () -> {
@@ -192,7 +218,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeCharacterStream(Reader x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeCharacterStream",
                 () -> {
@@ -204,7 +232,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeAsciiStream(InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeAsciiStream",
                 () -> {
@@ -216,7 +246,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeBinaryStream(InputStream x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBinaryStream",
                 () -> {
@@ -228,7 +260,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeObject(SQLData x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeObject",
                 () -> {
@@ -240,7 +274,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeRef(Ref x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeRef",
                 () -> {
@@ -252,7 +288,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeBlob(Blob x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBlob",
                 () -> {
@@ -264,7 +302,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeClob(Clob x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeClob",
                 () -> {
@@ -276,7 +316,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeStruct(Struct x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeStruct",
                 () -> {
@@ -288,7 +330,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeArray(Array x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeArray",
                 () -> {
@@ -300,7 +344,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeURL(URL x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeURL",
                 () -> {
@@ -312,7 +358,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeNString(String x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeNString",
                 () -> {
@@ -324,7 +372,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeNClob(NClob x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeNClob",
                 () -> {
@@ -336,7 +386,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeRowId(RowId x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeRowId",
                 () -> {
@@ -348,7 +400,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeSQLXML(SQLXML x) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeSQLXML",
                 () -> {
@@ -360,7 +414,9 @@ public class SQLOutputWrapper implements SQLOutput {
 
     @Override
     public void writeObject(Object x, SQLType targetSqlType) throws SQLException {
-        WrapperUtils.executeWithPlugins_SQLException(this.pluginManager,
+        WrapperUtils.runWithPlugins(
+                SQLException.class,
+                this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeObject",
                 () -> {
