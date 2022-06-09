@@ -52,7 +52,7 @@ public class Driver implements java.sql.Driver {
         }
 
         Properties props = parseProperties(url, info);
-        return new ConnectionWrapper(new DriverConnectionProvider(driver), props, driverUrl);
+        return new ConnectionWrapper(props, driverUrl, new DriverConnectionProvider(driver));
     }
 
     @Override
@@ -81,8 +81,22 @@ public class Driver implements java.sql.Driver {
             urlArgs = url.substring(qPos + 1);
         }
 
-        String[] args = urlArgs.split("&");
         Properties propertiesFromUrl = new Properties();
+
+        //TODO: allow user to disable database parsing
+        int protocolPos = urlServer.indexOf("//");
+        if(protocolPos != -1) {
+            protocolPos += 2;
+        }
+        int dPos = urlServer.indexOf("/", protocolPos);
+        if(dPos != -1) {
+            String database = urlServer.substring(dPos + 1);
+            if(!database.isEmpty()) {
+                propertiesFromUrl.setProperty("database", database);
+            }
+        }
+
+        String[] args = urlArgs.split("&");
 
         for (String token : args) {
             if (token.isEmpty()) {

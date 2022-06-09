@@ -71,7 +71,7 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
             }
             PropertyUtils.applyProperties(targetDataSource, props);
 
-            return new ConnectionWrapper(new DataSourceConnectionProvider(targetDataSource), props, this.jdbcUrl);
+            return new ConnectionWrapper(props, this.jdbcUrl, new DataSourceConnectionProvider(targetDataSource));
 
         } else {
 
@@ -81,23 +81,23 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
                 throw new SQLException("Can't find a suitable driver for " + this.jdbcUrl);
             }
 
-            return new ConnectionWrapper(new DriverConnectionProvider(targetDriver), props, this.jdbcUrl);
+            return new ConnectionWrapper(props, this.jdbcUrl, new DriverConnectionProvider(targetDriver));
         }
     }
 
-    public void setTargetDataSourceClassName(String dataSourceClassName) {
+    public void setTargetDataSourceClassName(@Nullable String dataSourceClassName) {
         this.targetDataSourceClassName = dataSourceClassName;
     }
 
-    public String getTargetDataSourceClassName() {
+    public @Nullable String getTargetDataSourceClassName() {
         return this.targetDataSourceClassName;
     }
 
-    public void setJdbcUrl(String url) {
+    public void setJdbcUrl(@Nullable String url) {
         this.jdbcUrl = url;
     }
 
-    public String getJdbcUrl() {
+    public @Nullable String getJdbcUrl() {
         return this.jdbcUrl;
     }
 
