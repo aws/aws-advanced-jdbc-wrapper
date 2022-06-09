@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
