@@ -145,7 +145,12 @@ public class WrapperUtils {
         Class<?> wrapperClass = availableWrappers.get(resultClass);
 
         if (wrapperClass != null) {
-            return createInstance(wrapperClass, resultClass, toProxy, pluginManager);
+            return createInstance(
+                    wrapperClass,
+                    resultClass,
+                    new Class<?>[] { resultClass, ConnectionPluginManager.class },
+                    toProxy,
+                    pluginManager);
         }
 
         if (isJdbcInterface(toProxy.getClass())) {
@@ -257,7 +262,10 @@ public class WrapperUtils {
         return instances;
     }
 
-    public static <T> T createInstance(final Class<?> classToInstantiate, final Class<T> resultClass, final Object... args)
+    public static <T> T createInstance(final Class<?> classToInstantiate,
+                                       final Class<T> resultClass,
+                                       final Class<?>[] constructorArgClasses,
+                                       final Object... args)
             throws InstantiationException {
 
         if (classToInstantiate == null) {
@@ -273,9 +281,12 @@ public class WrapperUtils {
                 return resultClass.cast(classToInstantiate.newInstance());
             }
 
-            Class<?>[] argClasses = new Class<?>[args.length];
-            for (int i = 0; i < args.length; i++) {
-                argClasses[i] = args[i].getClass();
+            Class<?>[] argClasses = constructorArgClasses;
+            if(argClasses == null) {
+                argClasses = new Class<?>[args.length];
+                for (int i = 0; i < args.length; i++) {
+                    argClasses[i] = args[i].getClass();
+                }
             }
             Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
             return resultClass.cast(constructor.newInstance(args));
@@ -304,7 +315,7 @@ public class WrapperUtils {
             throw new InstantiationException("Can't initialize class " + className);
         }
 
-        return createInstance(loaded, resultClass, args);
+        return createInstance(loaded, resultClass, null, args);
     }
 
 }
