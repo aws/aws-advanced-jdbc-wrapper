@@ -48,10 +48,7 @@ public class SQLDataWrapper implements SQLData {
                 this.pluginManager,
                 this.sqlDataClass,
                 "SQLData.readSQL",
-                () -> {
-                    this.sqlData.readSQL(stream, typeName);
-                    return null;
-                },
+                () -> this.sqlData.readSQL(stream, typeName),
                 stream, typeName);
     }
 
@@ -62,10 +59,7 @@ public class SQLDataWrapper implements SQLData {
                 this.pluginManager,
                 this.sqlDataClass,
                 "SQLData.writeSQL",
-                () -> {
-                    this.sqlData.writeSQL(stream);
-                    return null;
-                },
+                () -> this.sqlData.writeSQL(stream),
                 stream);
     }
 }

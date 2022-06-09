@@ -41,10 +41,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeString",
-                () -> {
-                    this.sqlOutput.writeString(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeString(x),
                 x);
     }
 
@@ -55,10 +52,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBoolean",
-                () -> {
-                    this.sqlOutput.writeBoolean(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeBoolean(x),
                 x);
     }
 
@@ -69,10 +63,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeByte",
-                () -> {
-                    this.sqlOutput.writeByte(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeByte(x),
                 x);
     }
 
@@ -83,10 +74,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeShort",
-                () -> {
-                    this.sqlOutput.writeShort(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeShort(x),
                 x);
     }
 
@@ -97,10 +85,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeInt",
-                () -> {
-                    this.sqlOutput.writeInt(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeInt(x),
                 x);
     }
 
@@ -111,10 +96,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeLong",
-                () -> {
-                    this.sqlOutput.writeLong(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeLong(x),
                 x);
     }
 
@@ -125,10 +107,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeFloat",
-                () -> {
-                    this.sqlOutput.writeFloat(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeFloat(x),
                 x);
     }
 
@@ -139,10 +118,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeDouble",
-                () -> {
-                    this.sqlOutput.writeDouble(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeDouble(x),
                 x);
     }
 
@@ -153,10 +129,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBigDecimal",
-                () -> {
-                    this.sqlOutput.writeBigDecimal(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeBigDecimal(x),
                 x);
     }
 
@@ -167,10 +140,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBytes",
-                () -> {
-                    this.sqlOutput.writeBytes(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeBytes(x),
                 x);
     }
 
@@ -181,10 +151,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeDate",
-                () -> {
-                    this.sqlOutput.writeDate(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeDate(x),
                 x);
     }
 
@@ -195,10 +162,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeTime",
-                () -> {
-                    this.sqlOutput.writeTime(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeTime(x),
                 x);
     }
 
@@ -209,10 +173,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeTimestamp",
-                () -> {
-                    this.sqlOutput.writeTimestamp(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeTimestamp(x),
                 x);
     }
 
@@ -223,10 +184,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeCharacterStream",
-                () -> {
-                    this.sqlOutput.writeCharacterStream(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeCharacterStream(x),
                 x);
     }
 
@@ -237,10 +195,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeAsciiStream",
-                () -> {
-                    this.sqlOutput.writeAsciiStream(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeAsciiStream(x),
                 x);
     }
 
@@ -251,10 +206,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBinaryStream",
-                () -> {
-                    this.sqlOutput.writeBinaryStream(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeBinaryStream(x),
                 x);
     }
 
@@ -265,10 +217,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeObject",
-                () -> {
-                    this.sqlOutput.writeObject(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeObject(x),
                 x);
     }
 
@@ -279,10 +228,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeRef",
-                () -> {
-                    this.sqlOutput.writeRef(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeRef(x),
                 x);
     }
 
@@ -293,10 +239,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeBlob",
-                () -> {
-                    this.sqlOutput.writeBlob(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeBlob(x),
                 x);
     }
 
@@ -307,10 +250,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeClob",
-                () -> {
-                    this.sqlOutput.writeClob(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeClob(x),
                 x);
     }
 
@@ -321,10 +261,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeStruct",
-                () -> {
-                    this.sqlOutput.writeStruct(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeStruct(x),
                 x);
     }
 
@@ -335,10 +272,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeArray",
-                () -> {
-                    this.sqlOutput.writeArray(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeArray(x),
                 x);
     }
 
@@ -349,10 +283,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeURL",
-                () -> {
-                    this.sqlOutput.writeURL(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeURL(x),
                 x);
     }
 
@@ -363,10 +294,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeNString",
-                () -> {
-                    this.sqlOutput.writeNString(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeNString(x),
                 x);
     }
 
@@ -377,10 +305,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeNClob",
-                () -> {
-                    this.sqlOutput.writeNClob(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeNClob(x),
                 x);
     }
 
@@ -391,10 +316,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeRowId",
-                () -> {
-                    this.sqlOutput.writeRowId(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeRowId(x),
                 x);
     }
 
@@ -405,10 +327,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeSQLXML",
-                () -> {
-                    this.sqlOutput.writeSQLXML(x);
-                    return null;
-                },
+                () -> this.sqlOutput.writeSQLXML(x),
                 x);
     }
 
@@ -419,10 +338,7 @@ public class SQLOutputWrapper implements SQLOutput {
                 this.pluginManager,
                 this.sqlOutputClass,
                 "SQLOutput.writeObject",
-                () -> {
-                    this.sqlOutput.writeObject(x, targetSqlType);
-                    return null;
-                },
+                () -> this.sqlOutput.writeObject(x, targetSqlType),
                 x, targetSqlType);
     }
 }

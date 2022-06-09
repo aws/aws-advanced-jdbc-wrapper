@@ -160,10 +160,7 @@ public class NClobWrapper implements NClob {
                 this.pluginManager,
                 this.nclobClass,
                 "NClob.truncate",
-                () -> {
-                    this.nclob.truncate(len);
-                    return null;
-                },
+                () -> this.nclob.truncate(len),
                 len);
     }
 
@@ -174,10 +171,7 @@ public class NClobWrapper implements NClob {
                 this.pluginManager,
                 this.nclobClass,
                 "NClob.free",
-                () -> {
-                    this.nclob.free();
-                    return null;
-                });
+                () -> this.nclob.free());
     }
 
     @Override

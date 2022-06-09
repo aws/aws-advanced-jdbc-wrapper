@@ -69,10 +69,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.close",
-                () -> {
-                    this.resultSet.close();
-                    return null;
-                });
+                () -> this.resultSet.close());
     }
 
     @Override
@@ -492,10 +489,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.clearWarnings",
-                () -> {
-                    this.resultSet.clearWarnings();
-                    return null;
-                });
+                () -> this.resultSet.clearWarnings());
     }
 
     @Override
@@ -655,10 +649,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.beforeFirst",
-                () -> {
-                    this.resultSet.beforeFirst();
-                    return null;
-                });
+                () -> this.resultSet.beforeFirst());
     }
 
     @Override
@@ -668,10 +659,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.afterLast",
-                () -> {
-                    this.resultSet.afterLast();
-                    return null;
-                });
+                () -> this.resultSet.afterLast());
     }
 
     @Override
@@ -761,10 +749,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.setFetchDirection",
-                () -> {
-                    this.resultSet.setFetchDirection(direction);
-                    return null;
-                },
+                () -> this.resultSet.setFetchDirection(direction),
                 direction);
     }
 
@@ -786,10 +771,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.setFetchSize",
-                () -> {
-                    this.resultSet.setFetchSize(rows);
-                    return null;
-                },
+                () -> this.resultSet.setFetchSize(rows),
                 rows);
     }
 
@@ -857,10 +839,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNull",
-                () -> {
-                    this.resultSet.updateNull(columnIndex);
-                    return null;
-                },
+                () -> this.resultSet.updateNull(columnIndex),
                 columnIndex);
     }
 
@@ -871,10 +850,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBoolean",
-                () -> {
-                    this.resultSet.updateBoolean(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBoolean(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -885,10 +861,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateByte",
-                () -> {
-                    this.resultSet.updateByte(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateByte(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -899,10 +872,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateShort",
-                () -> {
-                    this.resultSet.updateShort(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateShort(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -913,10 +883,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateInt",
-                () -> {
-                    this.resultSet.updateInt(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateInt(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -927,10 +894,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateLong",
-                () -> {
-                    this.resultSet.updateLong(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateLong(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -941,10 +905,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateFloat",
-                () -> {
-                    this.resultSet.updateFloat(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateFloat(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -955,10 +916,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDouble",
-                () -> {
-                    this.resultSet.updateDouble(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateDouble(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -969,10 +927,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBigDecimal",
-                () -> {
-                    this.resultSet.updateBigDecimal(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBigDecimal(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -983,10 +938,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateString",
-                () -> {
-                    this.resultSet.updateString(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateString(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -997,10 +949,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBytes",
-                () -> {
-                    this.resultSet.updateBytes(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBytes(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1011,10 +960,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDate",
-                () -> {
-                    this.resultSet.updateDate(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateDate(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1025,10 +971,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTime",
-                () -> {
-                    this.resultSet.updateTime(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateTime(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1039,10 +982,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTimestamp",
-                () -> {
-                    this.resultSet.updateTimestamp(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateTimestamp(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1053,10 +993,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
-                () -> {
-                    this.resultSet.updateAsciiStream(columnIndex, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateAsciiStream(columnIndex, x, length),
                 columnIndex, x, length);
     }
 
@@ -1067,10 +1004,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
-                () -> {
-                    this.resultSet.updateBinaryStream(columnIndex, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateBinaryStream(columnIndex, x, length),
                 columnIndex, x, length);
     }
 
@@ -1081,10 +1015,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
-                () -> {
-                    this.resultSet.updateCharacterStream(columnIndex, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateCharacterStream(columnIndex, x, length),
                 columnIndex, x, length);
     }
 
@@ -1095,10 +1026,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnIndex, x, scaleOrLength);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnIndex, x, scaleOrLength),
                 columnIndex, x, scaleOrLength);
     }
 
@@ -1109,10 +1037,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1123,10 +1048,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNull",
-                () -> {
-                    this.resultSet.updateNull(columnLabel);
-                    return null;
-                },
+                () -> this.resultSet.updateNull(columnLabel),
                 columnLabel);
     }
 
@@ -1137,10 +1059,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBoolean",
-                () -> {
-                    this.resultSet.updateBoolean(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBoolean(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1151,10 +1070,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateByte",
-                () -> {
-                    this.resultSet.updateByte(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateByte(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1165,10 +1081,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateShort",
-                () -> {
-                    this.resultSet.updateShort(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateShort(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1179,10 +1092,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateInt",
-                () -> {
-                    this.resultSet.updateInt(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateInt(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1193,10 +1103,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateLong",
-                () -> {
-                    this.resultSet.updateLong(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateLong(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1207,10 +1114,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateFloat",
-                () -> {
-                    this.resultSet.updateFloat(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateFloat(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1221,10 +1125,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDouble",
-                () -> {
-                    this.resultSet.updateDouble(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateDouble(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1235,10 +1136,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBigDecimal",
-                () -> {
-                    this.resultSet.updateBigDecimal(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBigDecimal(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1249,10 +1147,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateString",
-                () -> {
-                    this.resultSet.updateString(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateString(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1263,10 +1158,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBytes",
-                () -> {
-                    this.resultSet.updateBytes(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBytes(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1277,10 +1169,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateDate",
-                () -> {
-                    this.resultSet.updateDate(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateDate(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1291,10 +1180,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTime",
-                () -> {
-                    this.resultSet.updateTime(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateTime(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1305,10 +1191,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateTimestamp",
-                () -> {
-                    this.resultSet.updateTimestamp(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateTimestamp(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1319,10 +1202,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
-                () -> {
-                    this.resultSet.updateAsciiStream(columnLabel, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateAsciiStream(columnLabel, x, length),
                 columnLabel, x, length);
     }
 
@@ -1334,10 +1214,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
-                () -> {
-                    this.resultSet.updateBinaryStream(columnLabel, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateBinaryStream(columnLabel, x, length),
                 columnLabel, x, length);
     }
 
@@ -1349,10 +1226,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
-                () -> {
-                    this.resultSet.updateCharacterStream(columnLabel, reader, length);
-                    return null;
-                },
+                () -> this.resultSet.updateCharacterStream(columnLabel, reader, length),
                 columnLabel, reader, length);
     }
 
@@ -1363,10 +1237,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnLabel, x, scaleOrLength);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnLabel, x, scaleOrLength),
                 columnLabel, x, scaleOrLength);
     }
 
@@ -1377,10 +1248,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1391,10 +1259,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.insertRow",
-                () -> {
-                    this.resultSet.insertRow();
-                    return null;
-                });
+                () -> this.resultSet.insertRow());
     }
 
     @Override
@@ -1404,10 +1269,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRow",
-                () -> {
-                    this.resultSet.updateRow();
-                    return null;
-                });
+                () -> this.resultSet.updateRow());
     }
 
     @Override
@@ -1417,10 +1279,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.deleteRow",
-                () -> {
-                    this.resultSet.deleteRow();
-                    return null;
-                });
+                () -> this.resultSet.deleteRow());
     }
 
     @Override
@@ -1430,10 +1289,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.refreshRow",
-                () -> {
-                    this.resultSet.refreshRow();
-                    return null;
-                });
+                () -> this.resultSet.refreshRow());
     }
 
     @Override
@@ -1443,10 +1299,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.cancelRowUpdates",
-                () -> {
-                    this.resultSet.cancelRowUpdates();
-                    return null;
-                });
+                () -> this.resultSet.cancelRowUpdates());
     }
 
     @Override
@@ -1456,10 +1309,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.moveToInsertRow",
-                () -> {
-                    this.resultSet.moveToInsertRow();
-                    return null;
-                });
+                () -> this.resultSet.moveToInsertRow());
     }
 
     @Override
@@ -1469,10 +1319,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.moveToCurrentRow",
-                () -> {
-                    this.resultSet.moveToCurrentRow();
-                    return null;
-                });
+                () -> this.resultSet.moveToCurrentRow());
     }
 
     @Override
@@ -1709,10 +1556,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRef",
-                () -> {
-                    this.resultSet.updateRef(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateRef(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1723,10 +1567,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRef",
-                () -> {
-                    this.resultSet.updateRef(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateRef(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1737,10 +1578,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
-                () -> {
-                    this.resultSet.updateBlob(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBlob(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1751,10 +1589,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
-                () -> {
-                    this.resultSet.updateBlob(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBlob(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1765,10 +1600,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
-                () -> {
-                    this.resultSet.updateClob(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateClob(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1779,10 +1611,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
-                () -> {
-                    this.resultSet.updateClob(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateClob(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1793,10 +1622,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateArray",
-                () -> {
-                    this.resultSet.updateArray(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateArray(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1807,10 +1633,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateArray",
-                () -> {
-                    this.resultSet.updateArray(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateArray(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1845,10 +1668,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRowId",
-                () -> {
-                    this.resultSet.updateRowId(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateRowId(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -1859,10 +1679,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateRowId",
-                () -> {
-                    this.resultSet.updateRowId(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateRowId(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -1896,10 +1713,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNString",
-                () -> {
-                    this.resultSet.updateNString(columnIndex, nString);
-                    return null;
-                },
+                () -> this.resultSet.updateNString(columnIndex, nString),
                 columnIndex, nString);
     }
 
@@ -1910,10 +1724,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNString",
-                () -> {
-                    this.resultSet.updateNString(columnLabel, nString);
-                    return null;
-                },
+                () -> this.resultSet.updateNString(columnLabel, nString),
                 columnLabel, nString);
     }
 
@@ -1924,10 +1735,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
-                () -> {
-                    this.resultSet.updateNClob(columnIndex, nClob);
-                    return null;
-                },
+                () -> this.resultSet.updateNClob(columnIndex, nClob),
                 columnIndex, nClob);
     }
 
@@ -1938,10 +1746,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
-                () -> {
-                    this.resultSet.updateNClob(columnLabel, nClob);
-                    return null;
-                },
+                () -> this.resultSet.updateNClob(columnLabel, nClob),
                 columnLabel, nClob);
     }
 
@@ -2002,10 +1807,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateSQLXML",
-                () -> {
-                    this.resultSet.updateSQLXML(columnIndex, xmlObject);
-                    return null;
-                },
+                () -> this.resultSet.updateSQLXML(columnIndex, xmlObject),
                 columnIndex, xmlObject);
     }
 
@@ -2016,10 +1818,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateSQLXML",
-                () -> {
-                    this.resultSet.updateSQLXML(columnLabel, xmlObject);
-                    return null;
-                },
+                () -> this.resultSet.updateSQLXML(columnLabel, xmlObject),
                 columnLabel, xmlObject);
     }
 
@@ -2078,10 +1877,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
-                () -> {
-                    this.resultSet.updateNCharacterStream(columnIndex, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateNCharacterStream(columnIndex, x, length),
                 columnIndex, x, length);
     }
 
@@ -2093,10 +1889,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
-                () -> {
-                    this.resultSet.updateNCharacterStream(columnLabel, reader, length);
-                    return null;
-                },
+                () -> this.resultSet.updateNCharacterStream(columnLabel, reader, length),
                 columnLabel, reader, length);
     }
 
@@ -2107,10 +1900,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
-                () -> {
-                    this.resultSet.updateAsciiStream(columnIndex, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateAsciiStream(columnIndex, x, length),
                 columnIndex, x, length);
     }
 
@@ -2121,10 +1911,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
-                () -> {
-                    this.resultSet.updateBinaryStream(columnIndex, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateBinaryStream(columnIndex, x, length),
                 columnIndex, x, length);
     }
 
@@ -2135,10 +1922,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
-                () -> {
-                    this.resultSet.updateCharacterStream(columnIndex, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateCharacterStream(columnIndex, x, length),
                 columnIndex, x, length);
     }
 
@@ -2150,10 +1934,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
-                () -> {
-                    this.resultSet.updateAsciiStream(columnLabel, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateAsciiStream(columnLabel, x, length),
                 columnLabel, x, length);
     }
 
@@ -2165,10 +1946,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
-                () -> {
-                    this.resultSet.updateBinaryStream(columnLabel, x, length);
-                    return null;
-                },
+                () -> this.resultSet.updateBinaryStream(columnLabel, x, length),
                 columnLabel, x, length);
     }
 
@@ -2180,10 +1958,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
-                () -> {
-                    this.resultSet.updateCharacterStream(columnLabel, reader, length);
-                    return null;
-                },
+                () -> this.resultSet.updateCharacterStream(columnLabel, reader, length),
                 columnLabel, reader, length);
     }
 
@@ -2195,10 +1970,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
-                () -> {
-                    this.resultSet.updateBlob(columnIndex, inputStream, length);
-                    return null;
-                },
+                () -> this.resultSet.updateBlob(columnIndex, inputStream, length),
                 columnIndex, inputStream, length);
     }
 
@@ -2210,10 +1982,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
-                () -> {
-                    this.resultSet.updateBlob(columnLabel, inputStream, length);
-                    return null;
-                },
+                () -> this.resultSet.updateBlob(columnLabel, inputStream, length),
                 columnLabel, inputStream, length);
     }
 
@@ -2224,10 +1993,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
-                () -> {
-                    this.resultSet.updateClob(columnIndex, reader, length);
-                    return null;
-                },
+                () -> this.resultSet.updateClob(columnIndex, reader, length),
                 columnIndex, reader, length);
     }
 
@@ -2238,10 +2004,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
-                () -> {
-                    this.resultSet.updateClob(columnLabel, reader, length);
-                    return null;
-                },
+                () -> this.resultSet.updateClob(columnLabel, reader, length),
                 columnLabel, reader, length);
     }
 
@@ -2252,10 +2015,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
-                () -> {
-                    this.resultSet.updateNClob(columnIndex, reader, length);
-                    return null;
-                },
+                () -> this.resultSet.updateNClob(columnIndex, reader, length),
                 columnIndex, reader, length);
     }
 
@@ -2266,10 +2026,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
-                () -> {
-                    this.resultSet.updateNClob(columnLabel, reader, length);
-                    return null;
-                },
+                () -> this.resultSet.updateNClob(columnLabel, reader, length),
                 columnLabel, reader, length);
     }
 
@@ -2280,10 +2037,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
-                () -> {
-                    this.resultSet.updateNCharacterStream(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateNCharacterStream(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -2294,10 +2048,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNCharacterStream",
-                () -> {
-                    this.resultSet.updateNCharacterStream(columnLabel, reader);
-                    return null;
-                },
+                () -> this.resultSet.updateNCharacterStream(columnLabel, reader),
                 columnLabel, reader);
     }
 
@@ -2308,10 +2059,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
-                () -> {
-                    this.resultSet.updateAsciiStream(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateAsciiStream(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -2322,10 +2070,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
-                () -> {
-                    this.resultSet.updateBinaryStream(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBinaryStream(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -2336,10 +2081,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
-                () -> {
-                    this.resultSet.updateCharacterStream(columnIndex, x);
-                    return null;
-                },
+                () -> this.resultSet.updateCharacterStream(columnIndex, x),
                 columnIndex, x);
     }
 
@@ -2350,10 +2092,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateAsciiStream",
-                () -> {
-                    this.resultSet.updateAsciiStream(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateAsciiStream(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -2364,10 +2103,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBinaryStream",
-                () -> {
-                    this.resultSet.updateBinaryStream(columnLabel, x);
-                    return null;
-                },
+                () -> this.resultSet.updateBinaryStream(columnLabel, x),
                 columnLabel, x);
     }
 
@@ -2378,10 +2114,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateCharacterStream",
-                () -> {
-                    this.resultSet.updateCharacterStream(columnLabel, reader);
-                    return null;
-                },
+                () -> this.resultSet.updateCharacterStream(columnLabel, reader),
                 columnLabel, reader);
     }
 
@@ -2392,10 +2125,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
-                () -> {
-                    this.resultSet.updateBlob(columnIndex, inputStream);
-                    return null;
-                },
+                () -> this.resultSet.updateBlob(columnIndex, inputStream),
                 columnIndex, inputStream);
     }
 
@@ -2406,10 +2136,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateBlob",
-                () -> {
-                    this.resultSet.updateBlob(columnLabel, inputStream);
-                    return null;
-                },
+                () -> this.resultSet.updateBlob(columnLabel, inputStream),
                 columnLabel, inputStream);
     }
 
@@ -2420,10 +2147,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
-                () -> {
-                    this.resultSet.updateClob(columnIndex, reader);
-                    return null;
-                },
+                () -> this.resultSet.updateClob(columnIndex, reader),
                 columnIndex, reader);
     }
 
@@ -2434,10 +2158,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateClob",
-                () -> {
-                    this.resultSet.updateClob(columnLabel, reader);
-                    return null;
-                },
+                () -> this.resultSet.updateClob(columnLabel, reader),
                 columnLabel, reader);
     }
 
@@ -2448,10 +2169,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
-                () -> {
-                    this.resultSet.updateNClob(columnIndex, reader);
-                    return null;
-                },
+                () -> this.resultSet.updateNClob(columnIndex, reader),
                 columnIndex, reader);
     }
 
@@ -2462,10 +2180,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateNClob",
-                () -> {
-                    this.resultSet.updateNClob(columnLabel, reader);
-                    return null;
-                },
+                () -> this.resultSet.updateNClob(columnLabel, reader),
                 columnLabel, reader);
     }
 
@@ -2501,10 +2216,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnIndex, x, targetSqlType, scaleOrLength);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnIndex, x, targetSqlType, scaleOrLength),
                 columnIndex, x, targetSqlType, scaleOrLength);
     }
 
@@ -2516,10 +2228,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnLabel, x, targetSqlType, scaleOrLength);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnLabel, x, targetSqlType, scaleOrLength),
                 columnLabel, x, targetSqlType, scaleOrLength);
     }
 
@@ -2530,10 +2239,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnIndex, x, targetSqlType);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnIndex, x, targetSqlType),
                 columnIndex, x, targetSqlType);
     }
 
@@ -2545,10 +2251,7 @@ public class ResultSetWrapper implements ResultSet {
                 this.pluginManager,
                 this.resultSetClass,
                 "ResultSet.updateObject",
-                () -> {
-                    this.resultSet.updateObject(columnLabel, x, targetSqlType);
-                    return null;
-                },
+                () -> this.resultSet.updateObject(columnLabel, x, targetSqlType),
                 columnLabel, x, targetSqlType);
     }
 

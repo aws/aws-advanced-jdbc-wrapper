@@ -151,9 +151,6 @@ public class ArrayWrapper implements Array {
                 this.pluginManager,
                 this.arrayClass,
                 "Array.free",
-                () -> {
-                    this.array.free();
-                    return null;
-                });
+                () -> this.array.free());
     }
 }

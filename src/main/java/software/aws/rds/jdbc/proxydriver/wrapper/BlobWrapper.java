@@ -134,10 +134,7 @@ public class BlobWrapper implements Blob {
                 this.pluginManager,
                 this.blobClass,
                 "Blob.truncate",
-                () -> {
-                    this.blob.truncate(len);
-                    return null;
-                },
+                () -> this.blob.truncate(len),
                 len);
     }
 
@@ -148,10 +145,7 @@ public class BlobWrapper implements Blob {
                 this.pluginManager,
                 this.blobClass,
                 "Blob.free",
-                () -> {
-                    this.blob.free();
-                    return null;
-                });
+                () -> this.blob.free());
     }
 
     @Override

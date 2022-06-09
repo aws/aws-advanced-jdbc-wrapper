@@ -32,6 +32,7 @@ import java.util.logging.Logger;
 public class ConnectionPluginManager {
 
     protected static final String DEFAULT_PLUGIN_FACTORIES = "";
+    //TODO: use weak pointers
     protected static final Queue<ConnectionPluginManager> instances = new ConcurrentLinkedQueue<>();
 
     private static final transient Logger LOGGER =
@@ -57,13 +58,8 @@ public class ConnectionPluginManager {
     }
 
     /**
-     * Release all dangling resources for all connection plugin managers.
+     * This constructor is for testing purposes only
      */
-    public static void releaseAllResources() {
-        instances.forEach(ConnectionPluginManager::releaseResources);
-    }
-
-    // For testing purposes only
     ConnectionPluginManager(ConnectionProvider connectionProvider,
                             Properties props,
                             ArrayList<ConnectionPlugin> plugins) {
@@ -71,6 +67,13 @@ public class ConnectionPluginManager {
         this.props = props;
         this.plugins = plugins;
         instances.add(this);
+    }
+
+    /**
+     * Release all dangling resources for all connection plugin managers.
+     */
+    public static void releaseAllResources() {
+        instances.forEach(ConnectionPluginManager::releaseResources);
     }
 
     /**
@@ -88,6 +91,7 @@ public class ConnectionPluginManager {
      */
     public void init(CurrentConnectionProvider currentConnectionProvider, Properties props)
             throws SQLException {
+
         instances.add(this);
         this.currentConnectionProvider = currentConnectionProvider;
         this.props = props;
@@ -131,11 +135,9 @@ public class ConnectionPluginManager {
     }
 
     protected <T, E extends Exception> T executeWithSubscribedPlugins(
-            final Class<T> resultClass,
-            final Class<E> exceptionClass,
             final String methodName,
             final PluginPipeline<T, E> pluginPipeline,
-            final Callable<T> executeSqlFunc) throws E {
+            final JdbcCallable<T, E> executeSqlFunc) throws E {
 
         if (pluginPipeline == null) {
             throw new IllegalArgumentException("pluginPipeline");
@@ -145,7 +147,7 @@ public class ConnectionPluginManager {
             throw new IllegalArgumentException("executeSqlFunc");
         }
 
-        Callable<T> func = executeSqlFunc;
+        JdbcCallable<T, E> func = executeSqlFunc;
 
         for (int i = this.plugins.size() - 1; i >= 0; i--) {
             ConnectionPlugin plugin = this.plugins.get(i);
@@ -154,35 +156,26 @@ public class ConnectionPluginManager {
                     || pluginSubscribedMethods.contains(methodName);
 
             if (isSubscribed) {
-                final Callable<T> finalFunc = func;
-                final Callable<T> nextLevelFunc = () -> pluginPipeline.call(plugin, finalFunc);
+                final JdbcCallable<T, E> finalFunc = func;
+                final JdbcCallable<T, E> nextLevelFunc = () -> pluginPipeline.call(plugin, finalFunc);
                 func = nextLevelFunc;
             }
         }
 
-        try {
-            return func.call();
-        } catch(Exception e) {
-            if (exceptionClass.isInstance(e)) {
-                throw exceptionClass.cast(e);
-            }
-            throw new RuntimeException(e);
-        }
+        return func.call();
     }
 
-    public <T> T execute(
+    public <T, E extends Exception> T execute(
             final Class<T> resultType,
+            final Class<E> exceptionClass,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final Callable<T> executeSqlFunc,
-            final Object[] args) throws Exception {
+            final JdbcCallable<T, E> executeSqlFunc,
+            final Object[] args) throws E {
 
-        //noinspection unchecked
         return executeWithSubscribedPlugins(
-                resultType,
-                Exception.class,
                 methodName,
-                (plugin, func) -> (T) plugin.execute(methodInvokeOn, methodName, func, args),
+                (plugin, func) -> plugin.execute(resultType, exceptionClass, methodInvokeOn, methodName, func, args),
                 executeSqlFunc);
     }
 
@@ -191,15 +184,19 @@ public class ConnectionPluginManager {
             final Properties props,
             final String url) throws SQLException {
 
-        executeWithSubscribedPlugins(
-                Void.TYPE,
-                SQLException.class,
-                "openInitialConnection",
-                (plugin, func) -> {
-                    plugin.openInitialConnection(hostSpecs, props, url, func);
-                    return null;
-                },
-                () -> null);
+        try {
+            executeWithSubscribedPlugins(
+                    "openInitialConnection",
+                    (PluginPipeline<Void, Exception>) (plugin, func) -> {
+                        plugin.openInitialConnection(hostSpecs, props, url, func);
+                        return null;
+                    },
+                    () -> null);
+        } catch (SQLException | RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     /**
@@ -217,7 +214,7 @@ public class ConnectionPluginManager {
     }
 
     private interface PluginPipeline<T, E extends Exception> {
-        T call(final ConnectionPlugin plugin, Callable<T> func) throws Exception;
+        T call(final ConnectionPlugin plugin, JdbcCallable<T, E> func) throws E;
     }
 }
 

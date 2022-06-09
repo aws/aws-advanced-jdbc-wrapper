@@ -11,6 +11,7 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -53,33 +54,24 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     @Override
-    public Object execute(Class<?> methodInvokeOn, String methodName, Callable<?> executeSqlFunc,
-                          Object[] args) throws Exception {
-        try {
-            return executeSqlFunc.call();
-        } catch (InvocationTargetException invocationTargetException) {
-            Throwable targetException = invocationTargetException.getTargetException();
-            LOGGER.log(
-                    Level.FINEST,
-                    String.format("method=%s, exception: ", methodName),
-                    targetException);
+    public <T, E extends Exception> T execute(
+            Class<T> resultClass,
+            Class<E> exceptionClass,
+            Class<?> methodInvokeOn,
+            String methodName,
+            JdbcCallable<T, E> executeSqlFunc,
+            Object[] args) throws E {
 
-            if (targetException instanceof Error) {
-                throw (Error) targetException;
-            }
-            throw (Exception) targetException;
-        } catch (Exception ex) {
-            LOGGER.log(
-                    Level.FINEST,
-                    String.format("method=%s, exception: ", methodName),
-                    ex);
-            throw ex;
-        }
+        LOGGER.log(Level.FINEST, String.format("method=%s", methodName));
+        return executeSqlFunc.call();
     }
 
     @Override
-    public void openInitialConnection(HostSpec[] hostSpecs, Properties props, String url,
-                                      Callable<Void> openInitialConnectionFunc) throws Exception {
+    public void openInitialConnection(
+            HostSpec[] hostSpecs,
+            Properties props,
+            String url,
+            JdbcCallable<Void, Exception> openInitialConnectionFunc) throws Exception {
 
         if (this.currentConnectionProvider.getCurrentConnection() != null) {
             // Connection has already opened by a prior plugin in a plugin chain

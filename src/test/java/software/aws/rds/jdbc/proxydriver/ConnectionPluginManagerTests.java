@@ -34,7 +34,7 @@ public class ConnectionPluginManagerTests {
 
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        Object result = target.execute(String.class, Connection.class, "testJdbcCall_A",
+        Object result = target.execute(String.class, Exception.class, Connection.class, "testJdbcCall_A",
                 () -> {
                     calls.add("targetCall");
                     return "resulTestValue";
@@ -70,7 +70,7 @@ public class ConnectionPluginManagerTests {
 
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        Object result = target.execute(String.class, Connection.class, "testJdbcCall_B",
+        Object result = target.execute(String.class, Exception.class, Connection.class, "testJdbcCall_B",
                 () -> {
                     calls.add("targetCall");
                     return "resulTestValue";
@@ -104,7 +104,7 @@ public class ConnectionPluginManagerTests {
 
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        Object result = target.execute(String.class, Connection.class, "testJdbcCall_C",
+        Object result = target.execute(String.class, Exception.class, Connection.class, "testJdbcCall_C",
                 () -> {
                     calls.add("targetCall");
                     return "resulTestValue";
@@ -203,7 +203,7 @@ public class ConnectionPluginManagerTests {
         ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        Exception ex = assertThrows(RuntimeException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
+        Exception ex = assertThrows(SQLException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
         assertTrue(ex.getCause() instanceof IllegalArgumentException);
 
         assertEquals(2, calls.size());
@@ -226,7 +226,7 @@ public class ConnectionPluginManagerTests {
         ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        Exception ex = assertThrows(RuntimeException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
+        Exception ex = assertThrows(SQLException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
         assertTrue(ex.getCause() instanceof IllegalArgumentException);
 
         assertEquals(5, calls.size());
