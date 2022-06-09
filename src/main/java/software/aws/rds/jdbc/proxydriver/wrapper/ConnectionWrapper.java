@@ -37,8 +37,8 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     protected Connection currentConnection;
     protected Class<?> currentConnectionClass;
     protected HostSpec hostSpec;
-    protected HostSpec[] hostSpecs;
-    protected ConnectionPluginManager pluginManager;
+    protected final HostSpec[] hostSpecs;
+    protected final ConnectionPluginManager pluginManager;
 
     public ConnectionWrapper(ConnectionProvider connectionProvider, Properties props, String url)
             throws SQLException {
