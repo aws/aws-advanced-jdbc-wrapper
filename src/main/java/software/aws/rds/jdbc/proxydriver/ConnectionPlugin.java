@@ -6,10 +6,10 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Callable;
 
 /**
  * Interface for connection plugins. This class implements ways to execute a JDBC method
@@ -26,11 +26,12 @@ public interface ConnectionPlugin {
             JdbcCallable<T, E> jdbcMethodFunc,
             Object[] jdbcMethodArgs) throws E;
 
-    void openInitialConnection(
-            HostSpec[] hostSpecs,
+    Connection connect(
+            String driverProtocol,
+            HostSpec hostSpec,
             Properties props,
-            String url,
-            JdbcCallable<Void, Exception> openInitialConnectionFunc) throws Exception;
+            boolean isInitialConnection,
+            JdbcCallable<Connection, SQLException> connectFunc) throws SQLException;
 
     void releaseResources();
 }

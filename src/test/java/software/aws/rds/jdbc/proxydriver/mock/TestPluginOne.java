@@ -4,12 +4,12 @@ import software.aws.rds.jdbc.proxydriver.ConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Callable;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -60,15 +60,17 @@ public class TestPluginOne implements ConnectionPlugin {
     }
 
     @Override
-    public void openInitialConnection(
-            HostSpec[] hostSpecs,
+    public Connection connect(
+            String driverProtocol,
+            HostSpec hostSpec,
             Properties props,
-            String url,
-            JdbcCallable<Void, Exception> openInitialConnectionFunc) throws Exception {
+            boolean isInitialConnection,
+            JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
         this.calls.add(this.getClass().getSimpleName() + ":before");
-        openInitialConnectionFunc.call();
+        Connection result = connectFunc.call();
         this.calls.add(this.getClass().getSimpleName() + ":after");
+        return result;
     }
 
     @Override

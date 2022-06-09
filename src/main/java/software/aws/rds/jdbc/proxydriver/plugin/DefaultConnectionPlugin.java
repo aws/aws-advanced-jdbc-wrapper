@@ -32,8 +32,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     private static final Set<String> subscribedMethods =
             Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*", "openInitialConnection")));
 
-    protected final ConnectionProvider connectionProvider;
-    protected final CurrentConnectionProvider currentConnectionProvider;
+    private final ConnectionProvider connectionProvider;
+    private final CurrentConnectionProvider currentConnectionProvider;
 
     public DefaultConnectionPlugin(CurrentConnectionProvider currentConnectionProvider,
                                    ConnectionProvider connectionProvider) {
@@ -62,29 +62,23 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
             JdbcCallable<T, E> jdbcMethodFunc,
             Object[] jdbcMethodArgs) throws E {
 
-        LOGGER.log(Level.FINEST, String.format("method=%s", methodName));
+        LOGGER.log(Level.FINEST, String.format("Executing method %s", methodName));
         return jdbcMethodFunc.call();
     }
 
     @Override
-    public void openInitialConnection(
-            HostSpec[] hostSpecs,
+    public Connection connect(
+            String driverProtocol,
+            HostSpec hostSpec,
             Properties props,
-            String url,
-            JdbcCallable<Void, Exception> openInitialConnectionFunc) throws Exception {
+            boolean isInitialConnection,
+            JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
-        if (this.currentConnectionProvider.getCurrentConnection() != null) {
-            // Connection has already opened by a prior plugin in a plugin chain
-            // Execution of openInitialConnectionFunc can be skipped since this plugin is guaranteed
-            // the last one in the plugin chain
-            return;
-        }
+        Connection conn = this.connectionProvider.connect(driverProtocol, hostSpec, props);
 
-        Connection conn = this.connectionProvider.connect(hostSpecs, props, url);
-        this.currentConnectionProvider.setCurrentConnection(conn, null);
+        // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be omitted.
 
-        // Execution of openInitialConnectionFunc can be skipped since this plugin is guaranteed the
-        // last one in the plugin chain
+        return conn;
     }
 
     @Override

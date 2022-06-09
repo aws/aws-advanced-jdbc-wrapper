@@ -119,30 +119,33 @@ public class ConnectionPluginManagerTests {
     }
 
     @Test
-    public void testOpenInitialConnection() throws Exception {
+    public void testConnect() throws Exception {
+
+        Connection expectedConnection = mock(Connection.class);
 
         ArrayList<String> calls = new ArrayList<>();
 
         ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
         testPlugins.add(new TestPluginOne(calls));
         testPlugins.add(new TestPluginTwo(calls));
-        testPlugins.add(new TestPluginThree(calls));
+        testPlugins.add(new TestPluginThree(calls, expectedConnection));
 
         Properties testProperties = new Properties();
         ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        target.openInitialConnection(new HostSpec[0], testProperties, "any");
+        Connection conn = target.connect("any", new HostSpec("anyHost"), testProperties, true);
 
+        assertEquals(expectedConnection, conn);
         assertEquals(4, calls.size());
         assertEquals("TestPluginOne:before", calls.get(0));
         assertEquals("TestPluginThree:before", calls.get(1));
-        assertEquals("TestPluginThree:after", calls.get(2));
+        assertEquals("TestPluginThree:connection", calls.get(2));
         assertEquals("TestPluginOne:after", calls.get(3));
     }
 
     @Test
-    public void testOpenInitialConnectionWithSQLExceptionBefore() {
+    public void testConnectWithSQLExceptionBefore() {
 
         ArrayList<String> calls = new ArrayList<>();
 
@@ -150,13 +153,13 @@ public class ConnectionPluginManagerTests {
         testPlugins.add(new TestPluginOne(calls));
         testPlugins.add(new TestPluginTwo(calls));
         testPlugins.add(new TestPluginThrowException(calls, SQLException.class, true));
-        testPlugins.add(new TestPluginThree(calls));
+        testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
         Properties testProperties = new Properties();
         ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        assertThrows(SQLException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
+        assertThrows(SQLException.class, () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
         assertEquals(2, calls.size());
         assertEquals("TestPluginOne:before", calls.get(0));
@@ -164,7 +167,7 @@ public class ConnectionPluginManagerTests {
     }
 
     @Test
-    public void testOpenInitialConnectionWithSQLExceptionAfter() {
+    public void testConnectWithSQLExceptionAfter() {
 
         ArrayList<String> calls = new ArrayList<>();
 
@@ -172,24 +175,24 @@ public class ConnectionPluginManagerTests {
         testPlugins.add(new TestPluginOne(calls));
         testPlugins.add(new TestPluginTwo(calls));
         testPlugins.add(new TestPluginThrowException(calls, SQLException.class, false));
-        testPlugins.add(new TestPluginThree(calls));
+        testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
         Properties testProperties = new Properties();
         ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        assertThrows(SQLException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
+        assertThrows(SQLException.class, () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
         assertEquals(5, calls.size());
         assertEquals("TestPluginOne:before", calls.get(0));
         assertEquals("TestPluginThrowException:before", calls.get(1));
         assertEquals("TestPluginThree:before", calls.get(2));
-        assertEquals("TestPluginThree:after", calls.get(3));
+        assertEquals("TestPluginThree:connection", calls.get(3));
         assertEquals("TestPluginThrowException:after", calls.get(4));
     }
 
     @Test
-    public void testOpenInitialConnectionWithUnexpectedExceptionBefore() {
+    public void testConnectWithUnexpectedExceptionBefore() {
 
         ArrayList<String> calls = new ArrayList<>();
 
@@ -197,14 +200,13 @@ public class ConnectionPluginManagerTests {
         testPlugins.add(new TestPluginOne(calls));
         testPlugins.add(new TestPluginTwo(calls));
         testPlugins.add(new TestPluginThrowException(calls, IllegalArgumentException.class, true));
-        testPlugins.add(new TestPluginThree(calls));
+        testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
         Properties testProperties = new Properties();
         ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        Exception ex = assertThrows(SQLException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
-        assertTrue(ex.getCause() instanceof IllegalArgumentException);
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
         assertEquals(2, calls.size());
         assertEquals("TestPluginOne:before", calls.get(0));
@@ -212,7 +214,7 @@ public class ConnectionPluginManagerTests {
     }
 
     @Test
-    public void testOpenInitialConnectionWithUnexpectedExceptionAfter() {
+    public void testConnectWithUnexpectedExceptionAfter() {
 
         ArrayList<String> calls = new ArrayList<>();
 
@@ -220,20 +222,19 @@ public class ConnectionPluginManagerTests {
         testPlugins.add(new TestPluginOne(calls));
         testPlugins.add(new TestPluginTwo(calls));
         testPlugins.add(new TestPluginThrowException(calls, IllegalArgumentException.class, false));
-        testPlugins.add(new TestPluginThree(calls));
+        testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
         Properties testProperties = new Properties();
         ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
         ConnectionPluginManager target = new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
 
-        Exception ex = assertThrows(SQLException.class, () ->target.openInitialConnection(new HostSpec[0], testProperties, "any"));
-        assertTrue(ex.getCause() instanceof IllegalArgumentException);
+        Exception ex = assertThrows(IllegalArgumentException.class, () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
         assertEquals(5, calls.size());
         assertEquals("TestPluginOne:before", calls.get(0));
         assertEquals("TestPluginThrowException:before", calls.get(1));
         assertEquals("TestPluginThree:before", calls.get(2));
-        assertEquals("TestPluginThree:after", calls.get(3));
+        assertEquals("TestPluginThree:connection", calls.get(3));
         assertEquals("TestPluginThrowException:after", calls.get(4));
     }
 }
