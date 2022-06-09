@@ -14,7 +14,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
-public class PluginManagerTests {
+public class ConnectionPluginManagerTests {
 
     @Test
     public void testExecuteJdbcCallA() throws Exception {
@@ -142,7 +142,7 @@ public class PluginManagerTests {
     }
 
     @Test
-    public void testOpenInitialConnectionWithSQLExceptionBefore() throws Exception {
+    public void testOpenInitialConnectionWithSQLExceptionBefore() {
 
         ArrayList<String> calls = new ArrayList<>();
 
@@ -164,7 +164,7 @@ public class PluginManagerTests {
     }
 
     @Test
-    public void testOpenInitialConnectionWithSQLExceptionAfter() throws Exception {
+    public void testOpenInitialConnectionWithSQLExceptionAfter() {
 
         ArrayList<String> calls = new ArrayList<>();
 
@@ -189,7 +189,7 @@ public class PluginManagerTests {
     }
 
     @Test
-    public void testOpenInitialConnectionWithUnexpectedExceptionBefore() throws Exception {
+    public void testOpenInitialConnectionWithUnexpectedExceptionBefore() {
 
         ArrayList<String> calls = new ArrayList<>();
 
@@ -212,7 +212,7 @@ public class PluginManagerTests {
     }
 
     @Test
-    public void testOpenInitialConnectionWithUnexpectedExceptionAfter() throws Exception {
+    public void testOpenInitialConnectionWithUnexpectedExceptionAfter() {
 
         ArrayList<String> calls = new ArrayList<>();
 
