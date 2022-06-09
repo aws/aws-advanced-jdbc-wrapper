@@ -8,12 +8,13 @@ package software.aws.rds.jdbc.proxydriver.util;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
+import software.aws.rds.jdbc.proxydriver.JdbcCallable;
+import software.aws.rds.jdbc.proxydriver.JdbcRunnable;
 import software.aws.rds.jdbc.proxydriver.wrapper.*;
 
 import java.lang.reflect.Constructor;
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -49,22 +50,30 @@ public class WrapperUtils {
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final Callable<Void> executeSqlFunc,
+            final JdbcRunnable<RuntimeException> executeSqlFunc,
             Object... args) {
 
-        executeWithPlugins(Void.TYPE, pluginManager, methodInvokeOn, methodName, executeSqlFunc, args);
+        executeWithPlugins(Void.TYPE, RuntimeException.class, pluginManager, methodInvokeOn, methodName,
+                () -> {
+                    executeSqlFunc.call();
+                    return null;
+                }, args);
     }
 
+    //TODO: think about synchronized in this class; they might need to be moved to wrapper classes
     public static synchronized <E extends Exception> void runWithPlugins(
             final Class<E> exceptionClass,
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final Callable<Void> executeSqlFunc,
-            Object... args)
-            throws E {
+            final JdbcRunnable<E> executeSqlFunc,
+            Object... args) throws E {
 
-        executeWithPlugins(Void.TYPE, exceptionClass, pluginManager, methodInvokeOn, methodName, executeSqlFunc, args);
+        executeWithPlugins(Void.TYPE, exceptionClass, pluginManager, methodInvokeOn, methodName,
+                () -> {
+                    executeSqlFunc.call();
+                    return null;
+                }, args);
     }
 
     public static synchronized <T> T executeWithPlugins(
@@ -72,20 +81,22 @@ public class WrapperUtils {
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final Callable<T> executeSqlFunc,
+            final JdbcCallable<T, RuntimeException> executeSqlFunc,
             Object... args) {
 
         Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
 
+        T result = pluginManager.execute(
+                resultClass,
+                RuntimeException.class,
+                methodInvokeOn,
+                methodName,
+                executeSqlFunc,
+                argsCopy);
+
         try {
-            T result = pluginManager.execute(
-                    resultClass,
-                    methodInvokeOn,
-                    methodName,
-                    executeSqlFunc,
-                    argsCopy);
             return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
-        } catch (Exception e) {
+        } catch (InstantiationException e) {
             throw new RuntimeException(e);
         }
     }
@@ -96,23 +107,22 @@ public class WrapperUtils {
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final Callable<T> executeSqlFunc,
+            final JdbcCallable<T, E> executeSqlFunc,
             Object... args) throws E {
 
         Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
 
+        T result = pluginManager.execute(
+                resultClass,
+                exceptionClass,
+                methodInvokeOn,
+                methodName,
+                executeSqlFunc,
+                argsCopy);
+
         try {
-            T result = pluginManager.execute(
-                    resultClass,
-                    methodInvokeOn,
-                    methodName,
-                    executeSqlFunc,
-                    argsCopy);
             return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
-        } catch (Exception e) {
-            if (exceptionClass.isInstance(e)) {
-                throw exceptionClass.cast(e);
-            }
+        } catch (InstantiationException e) {
             throw new RuntimeException(e);
         }
     }
@@ -154,8 +164,8 @@ public class WrapperUtils {
     public static boolean isJdbcPackage(@Nullable String packageName) {
         return packageName != null
                 && (packageName.startsWith("java.sql")
-                || packageName.startsWith("javax.sql")
-                || packageName.startsWith("org.postgresql"));
+                    || packageName.startsWith("javax.sql")
+                    || packageName.startsWith("org.postgresql"));
     }
 
     /**

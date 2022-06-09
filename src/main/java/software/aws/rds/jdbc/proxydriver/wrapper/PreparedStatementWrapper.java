@@ -82,10 +82,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNull",
-                () -> {
-                    this.statement.setNull(parameterIndex, sqlType);
-                    return null;
-                },
+                () -> this.statement.setNull(parameterIndex, sqlType),
                 parameterIndex, sqlType);
     }
 
@@ -96,10 +93,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBoolean",
-                () -> {
-                    this.statement.setBoolean(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBoolean(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -110,10 +104,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setByte",
-                () -> {
-                    this.statement.setByte(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setByte(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -124,10 +115,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setShort",
-                () -> {
-                    this.statement.setShort(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setShort(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -138,10 +126,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setInt",
-                () -> {
-                    this.statement.setInt(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setInt(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -152,10 +137,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setLong",
-                () -> {
-                    this.statement.setLong(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setLong(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -166,10 +148,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setFloat",
-                () -> {
-                    this.statement.setFloat(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setFloat(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -180,10 +159,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setDouble",
-                () -> {
-                    this.statement.setDouble(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setDouble(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -194,10 +170,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBigDecimal",
-                () -> {
-                    this.statement.setBigDecimal(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBigDecimal(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -208,10 +181,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setString",
-                () -> {
-                    this.statement.setString(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setString(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -222,10 +192,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBytes",
-                () -> {
-                    this.statement.setBytes(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBytes(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -236,10 +203,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setDate",
-                () -> {
-                    this.statement.setDate(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setDate(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -250,10 +214,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTime",
-                () -> {
-                    this.statement.setTime(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setTime(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -264,10 +225,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTimestamp",
-                () -> {
-                    this.statement.setTimestamp(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setTimestamp(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -278,10 +236,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -293,10 +248,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setUnicodeStream",
-                () -> {
-                    this.statement.setUnicodeStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setUnicodeStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -307,10 +259,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -321,10 +270,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.clearParameters",
-                () -> {
-                    this.statement.clearParameters();
-                    return null;
-                });
+                () -> this.statement.clearParameters());
     }
 
     @Override
@@ -334,10 +280,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType),
                 parameterIndex, x, targetSqlType);
     }
 
@@ -348,10 +291,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -373,10 +313,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.addBatch",
-                () -> {
-                    this.statement.addBatch();
-                    return null;
-                });
+                () -> this.statement.addBatch());
     }
 
     @Override
@@ -387,10 +324,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -401,10 +335,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setRef",
-                () -> {
-                    this.statement.setRef(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setRef(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -415,10 +346,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -429,10 +357,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -443,10 +368,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setArray",
-                () -> {
-                    this.statement.setArray(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setArray(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -468,10 +390,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setDate",
-                () -> {
-                    this.statement.setDate(parameterIndex, x, cal);
-                    return null;
-                },
+                () -> this.statement.setDate(parameterIndex, x, cal),
                 parameterIndex, x, cal);
     }
 
@@ -482,10 +401,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTime",
-                () -> {
-                    this.statement.setTime(parameterIndex, x, cal);
-                    return null;
-                },
+                () -> this.statement.setTime(parameterIndex, x, cal),
                 parameterIndex, x, cal);
     }
 
@@ -496,10 +412,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setTimestamp",
-                () -> {
-                    this.statement.setTimestamp(parameterIndex, x, cal);
-                    return null;
-                },
+                () -> this.statement.setTimestamp(parameterIndex, x, cal),
                 parameterIndex, x, cal);
     }
 
@@ -510,10 +423,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNull",
-                () -> {
-                    this.statement.setNull(parameterIndex, sqlType, typeName);
-                    return null;
-                },
+                () -> this.statement.setNull(parameterIndex, sqlType, typeName),
                 parameterIndex, sqlType, typeName);
     }
 
@@ -524,10 +434,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setURL",
-                () -> {
-                    this.statement.setURL(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setURL(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -549,10 +456,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setRowId",
-                () -> {
-                    this.statement.setRowId(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setRowId(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -563,10 +467,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNString",
-                () -> {
-                    this.statement.setNString(parameterIndex, value);
-                    return null;
-                },
+                () -> this.statement.setNString(parameterIndex, value),
                 parameterIndex, value);
     }
 
@@ -578,10 +479,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNCharacterStream",
-                () -> {
-                    this.statement.setNCharacterStream(parameterIndex, value, length);
-                    return null;
-                },
+                () -> this.statement.setNCharacterStream(parameterIndex, value, length),
                 parameterIndex, value, length);
     }
 
@@ -592,10 +490,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterIndex, value);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterIndex, value),
                 parameterIndex, value);
     }
 
@@ -606,10 +501,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -621,10 +513,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterIndex, inputStream, length);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterIndex, inputStream, length),
                 parameterIndex, inputStream, length);
     }
 
@@ -635,10 +524,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -650,10 +536,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setSQLXML",
-                () -> {
-                    this.statement.setSQLXML(parameterIndex, xmlObject);
-                    return null;
-                },
+                () -> this.statement.setSQLXML(parameterIndex, xmlObject),
                 parameterIndex, xmlObject);
     }
 
@@ -665,10 +548,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
                 parameterIndex, x, targetSqlType, scaleOrLength);
     }
 
@@ -679,10 +559,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -693,10 +570,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -708,10 +582,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -722,10 +593,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -736,10 +604,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -750,10 +615,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterIndex, reader);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterIndex, reader),
                 parameterIndex, reader);
     }
 
@@ -764,10 +626,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNCharacterStream",
-                () -> {
-                    this.statement.setNCharacterStream(parameterIndex, value);
-                    return null;
-                },
+                () -> this.statement.setNCharacterStream(parameterIndex, value),
                 parameterIndex, value);
     }
 
@@ -778,10 +637,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterIndex, reader);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterIndex, reader),
                 parameterIndex, reader);
     }
 
@@ -792,10 +648,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterIndex, inputStream);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterIndex, inputStream),
                 parameterIndex, inputStream);
     }
 
@@ -806,10 +659,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterIndex, reader);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterIndex, reader),
                 parameterIndex, reader);
     }
 
@@ -821,10 +671,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
                 parameterIndex, x, targetSqlType, scaleOrLength);
     }
 
@@ -835,10 +682,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType),
                 parameterIndex, x, targetSqlType);
     }
 
@@ -884,10 +728,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.close",
-                () -> {
-                    this.statement.close();
-                    return null;
-                });
+                () -> this.statement.close());
     }
 
     @Override
@@ -908,10 +749,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setMaxFieldSize",
-                () -> {
-                    this.statement.setMaxFieldSize(max);
-                    return null;
-                },
+                () -> this.statement.setMaxFieldSize(max),
                 max);
     }
 
@@ -933,10 +771,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setMaxRows",
-                () -> {
-                    this.statement.setMaxRows(max);
-                    return null;
-                },
+                () -> this.statement.setMaxRows(max),
                 max);
     }
 
@@ -947,10 +782,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setEscapeProcessing",
-                () -> {
-                    this.statement.setEscapeProcessing(enable);
-                    return null;
-                },
+                () -> this.statement.setEscapeProcessing(enable),
                 enable);
     }
 
@@ -972,10 +804,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setQueryTimeout",
-                () -> {
-                    this.statement.setQueryTimeout(seconds);
-                    return null;
-                },
+                () -> this.statement.setQueryTimeout(seconds),
                 seconds);
     }
 
@@ -986,10 +815,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.cancel",
-                () -> {
-                    this.statement.cancel();
-                    return null;
-                });
+                () -> this.statement.cancel());
     }
 
     @Override
@@ -1010,10 +836,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.clearWarnings",
-                () -> {
-                    this.statement.clearWarnings();
-                    return null;
-                });
+                () -> this.statement.clearWarnings());
     }
 
     @Override
@@ -1023,10 +846,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setCursorName",
-                () -> {
-                    this.statement.setCursorName(name);
-                    return null;
-                },
+                () -> this.statement.setCursorName(name),
                 name);
     }
 
@@ -1094,10 +914,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setFetchDirection",
-                () -> {
-                    this.statement.setFetchDirection(direction);
-                    return null;
-                },
+                () -> this.statement.setFetchDirection(direction),
                 direction);
     }
 
@@ -1119,10 +936,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setFetchSize",
-                () -> {
-                    this.statement.setFetchSize(rows);
-                    return null;
-                },
+                () -> this.statement.setFetchSize(rows),
                 rows);
     }
 
@@ -1157,10 +971,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.addBatch",
-                () -> {
-                    this.statement.addBatch(sql);
-                    return null;
-                },
+                () -> this.statement.addBatch(sql),
                 sql);
     }
 
@@ -1171,10 +982,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.clearBatch",
-                () -> {
-                    this.statement.clearBatch();
-                    return null;
-                });
+                () -> this.statement.clearBatch());
     }
 
     @Override
@@ -1336,10 +1144,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.setPoolable",
-                () -> {
-                    this.statement.setPoolable(poolable);
-                    return null;
-                },
+                () -> this.statement.setPoolable(poolable),
                 poolable);
     }
 
@@ -1350,10 +1155,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
                 this.pluginManager,
                 this.statementClass,
                 "PreparedStatement.closeOnCompletion",
-                () -> {
-                    this.statement.closeOnCompletion();
-                    return null;
-                });
+                () -> this.statement.closeOnCompletion());
     }
 
     @Override

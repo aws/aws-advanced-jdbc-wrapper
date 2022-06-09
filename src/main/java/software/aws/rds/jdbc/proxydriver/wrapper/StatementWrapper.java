@@ -65,10 +65,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.close",
-                () -> {
-                    this.statement.close();
-                    return null;
-                });
+                () -> this.statement.close());
     }
 
     @Override
@@ -89,10 +86,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setMaxFieldSize",
-                () -> {
-                    this.statement.setMaxFieldSize(max);
-                    return null;
-                },
+                () -> this.statement.setMaxFieldSize(max),
                 max);
     }
 
@@ -114,10 +108,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setMaxRows",
-                () -> {
-                    this.statement.setMaxRows(max);
-                    return null;
-                },
+                () -> this.statement.setMaxRows(max),
                 max);
     }
 
@@ -128,10 +119,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setEscapeProcessing",
-                () -> {
-                    this.statement.setEscapeProcessing(enable);
-                    return null;
-                },
+                () -> this.statement.setEscapeProcessing(enable),
                 enable);
     }
 
@@ -153,10 +141,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setQueryTimeout",
-                () -> {
-                    this.statement.setQueryTimeout(seconds);
-                    return null;
-                },
+                () -> this.statement.setQueryTimeout(seconds),
                 seconds);
     }
 
@@ -167,10 +152,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.cancel",
-                () -> {
-                    this.statement.cancel();
-                    return null;
-                });
+                () -> this.statement.cancel());
     }
 
     @Override
@@ -191,10 +173,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.clearWarnings",
-                () -> {
-                    this.statement.clearWarnings();
-                    return null;
-                });
+                () -> this.statement.clearWarnings());
     }
 
     @Override
@@ -204,10 +183,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setCursorName",
-                () -> {
-                    this.statement.setCursorName(name);
-                    return null;
-                },
+                () -> this.statement.setCursorName(name),
                 name);
     }
 
@@ -275,10 +251,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setFetchDirection",
-                () -> {
-                    this.statement.setFetchDirection(direction);
-                    return null;
-                },
+                () -> this.statement.setFetchDirection(direction),
                 direction);
     }
 
@@ -300,10 +273,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setFetchSize",
-                () -> {
-                    this.statement.setFetchSize(rows);
-                    return null;
-                },
+                () -> this.statement.setFetchSize(rows),
                 rows);
     }
 
@@ -338,10 +308,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.addBatch",
-                () -> {
-                    this.statement.addBatch(sql);
-                    return null;
-                },
+                () -> this.statement.addBatch(sql),
                 sql);
     }
 
@@ -352,10 +319,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.clearBatch",
-                () -> {
-                    this.statement.clearBatch();
-                    return null;
-                });
+                () -> this.statement.clearBatch());
     }
 
     @Override
@@ -517,10 +481,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.setPoolable",
-                () -> {
-                    this.statement.setPoolable(poolable);
-                    return null;
-                },
+                () -> this.statement.setPoolable(poolable),
                 poolable);
     }
 
@@ -531,10 +492,7 @@ public class StatementWrapper implements Statement {
                 this.pluginManager,
                 this.statementClass,
                 "Statement.closeOnCompletion",
-                () -> {
-                    this.statement.closeOnCompletion();
-                    return null;
-                });
+                () -> this.statement.closeOnCompletion());
     }
 
     @Override

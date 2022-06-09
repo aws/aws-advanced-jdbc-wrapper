@@ -2,6 +2,7 @@ package software.aws.rds.jdbc.proxydriver.mock;
 
 import software.aws.rds.jdbc.proxydriver.ConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
+import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -31,16 +32,40 @@ public class TestPluginOne implements ConnectionPlugin {
     }
 
     @Override
-    public Object execute(Class<?> methodInvokeOn, String methodName, Callable<?> executeSqlFunc, Object[] args) throws Exception {
+    public <T, E extends Exception> T execute(
+            Class<T> resultClass,
+            Class<E> exceptionClass,
+            Class<?> methodInvokeOn,
+            String methodName,
+            JdbcCallable<T, E> executeSqlFunc,
+            Object[] args) throws E {
+
         this.calls.add(this.getClass().getSimpleName() + ":before");
-        Object result = executeSqlFunc.call();
+
+        T result;
+        try {
+            result = executeSqlFunc.call();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            if (exceptionClass.isInstance(e)) {
+                throw exceptionClass.cast(e);
+            }
+            throw new RuntimeException(e);
+        }
+
         this.calls.add(this.getClass().getSimpleName() + ":after");
+
         return result;
     }
 
     @Override
-    public void openInitialConnection(HostSpec[] hostSpecs, Properties props, String url, Callable<Void> openInitialConnectionFunc)
-            throws Exception {
+    public void openInitialConnection(
+            HostSpec[] hostSpecs,
+            Properties props,
+            String url,
+            JdbcCallable<Void, Exception> openInitialConnectionFunc) throws Exception {
+
         this.calls.add(this.getClass().getSimpleName() + ":before");
         openInitialConnectionFunc.call();
         this.calls.add(this.getClass().getSimpleName() + ":after");

@@ -73,10 +73,7 @@ public class RefWrapper implements Ref {
                 this.pluginManager,
                 this.refClass,
                 "Ref.setObject",
-                () -> {
-                    this.ref.setObject(value);
-                    return null;
-                },
+                () -> this.ref.setObject(value),
                 value);
     }
 }

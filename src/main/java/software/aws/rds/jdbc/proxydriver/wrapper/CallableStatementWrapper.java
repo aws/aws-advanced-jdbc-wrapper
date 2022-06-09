@@ -62,10 +62,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterIndex, sqlType);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterIndex, sqlType),
                 parameterIndex, sqlType);
     }
 
@@ -76,10 +73,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterIndex, sqlType, scale);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterIndex, sqlType, scale),
                 parameterIndex, sqlType, scale);
     }
 
@@ -379,10 +373,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterIndex, sqlType, typeName);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterIndex, sqlType, typeName),
                 parameterIndex, sqlType, typeName);
     }
 
@@ -393,10 +384,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterName, sqlType);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterName, sqlType),
                 parameterName, sqlType);
     }
 
@@ -408,10 +396,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterName, sqlType, scale);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterName, sqlType, scale),
                 parameterName, sqlType, scale);
     }
 
@@ -423,10 +408,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterName, sqlType, typeName);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterName, sqlType, typeName),
                 parameterName, sqlType, typeName);
     }
 
@@ -449,10 +431,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setURL",
-                () -> {
-                    this.statement.setURL(parameterName, val);
-                    return null;
-                },
+                () -> this.statement.setURL(parameterName, val),
                 parameterName, val);
     }
 
@@ -463,10 +442,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNull",
-                () -> {
-                    this.statement.setNull(parameterName, sqlType);
-                    return null;
-                },
+                () -> this.statement.setNull(parameterName, sqlType),
                 parameterName, sqlType);
     }
 
@@ -477,10 +453,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBoolean",
-                () -> {
-                    this.statement.setBoolean(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setBoolean(parameterName, x),
                 parameterName, x);
     }
 
@@ -491,10 +464,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setByte",
-                () -> {
-                    this.statement.setByte(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setByte(parameterName, x),
                 parameterName, x);
     }
 
@@ -505,10 +475,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setShort",
-                () -> {
-                    this.statement.setShort(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setShort(parameterName, x),
                 parameterName, x);
     }
 
@@ -519,10 +486,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setInt",
-                () -> {
-                    this.statement.setInt(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setInt(parameterName, x),
                 parameterName, x);
     }
 
@@ -533,10 +497,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setLong",
-                () -> {
-                    this.statement.setLong(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setLong(parameterName, x),
                 parameterName, x);
     }
 
@@ -547,10 +508,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setFloat",
-                () -> {
-                    this.statement.setFloat(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setFloat(parameterName, x),
                 parameterName, x);
     }
 
@@ -561,10 +519,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setDouble",
-                () -> {
-                    this.statement.setDouble(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setDouble(parameterName, x),
                 parameterName, x);
     }
 
@@ -575,10 +530,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBigDecimal",
-                () -> {
-                    this.statement.setBigDecimal(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setBigDecimal(parameterName, x),
                 parameterName, x);
     }
 
@@ -589,10 +541,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setString",
-                () -> {
-                    this.statement.setString(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setString(parameterName, x),
                 parameterName, x);
     }
 
@@ -603,10 +552,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBytes",
-                () -> {
-                    this.statement.setBytes(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setBytes(parameterName, x),
                 parameterName, x);
     }
 
@@ -617,10 +563,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setDate",
-                () -> {
-                    this.statement.setDate(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setDate(parameterName, x),
                 parameterName, x);
     }
 
@@ -631,10 +574,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTime",
-                () -> {
-                    this.statement.setTime(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setTime(parameterName, x),
                 parameterName, x);
     }
 
@@ -645,10 +585,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTimestamp",
-                () -> {
-                    this.statement.setTimestamp(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setTimestamp(parameterName, x),
                 parameterName, x);
     }
 
@@ -659,10 +596,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterName, x, length);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterName, x, length),
                 parameterName, x, length);
     }
 
@@ -673,10 +607,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterName, x, length);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterName, x, length),
                 parameterName, x, length);
     }
 
@@ -688,10 +619,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterName, x, targetSqlType, scale);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterName, x, targetSqlType, scale),
                 parameterName, x, targetSqlType, scale);
     }
 
@@ -702,10 +630,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterName, x, targetSqlType);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterName, x, targetSqlType),
                 parameterName, x, targetSqlType);
     }
 
@@ -716,10 +641,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterName, x),
                 parameterName, x);
     }
 
@@ -731,10 +653,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterName, reader, length);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterName, reader, length),
                 parameterName, reader, length);
     }
 
@@ -745,10 +664,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setDate",
-                () -> {
-                    this.statement.setDate(parameterName, x, cal);
-                    return null;
-                },
+                () -> this.statement.setDate(parameterName, x, cal),
                 parameterName, x, cal);
     }
 
@@ -759,10 +675,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTime",
-                () -> {
-                    this.statement.setTime(parameterName, x, cal);
-                    return null;
-                },
+                () -> this.statement.setTime(parameterName, x, cal),
                 parameterName, x, cal);
     }
 
@@ -773,10 +686,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTimestamp",
-                () -> {
-                    this.statement.setTimestamp(parameterName, x, cal);
-                    return null;
-                },
+                () -> this.statement.setTimestamp(parameterName, x, cal),
                 parameterName, x, cal);
     }
 
@@ -787,10 +697,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNull",
-                () -> {
-                    this.statement.setNull(parameterName, sqlType, typeName);
-                    return null;
-                },
+                () -> this.statement.setNull(parameterName, sqlType, typeName),
                 parameterName, sqlType, typeName);
     }
 
@@ -1101,10 +1008,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setRowId",
-                () -> {
-                    this.statement.setRowId(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setRowId(parameterName, x),
                 parameterName, x);
     }
 
@@ -1115,10 +1019,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNString",
-                () -> {
-                    this.statement.setNString(parameterName, value);
-                    return null;
-                },
+                () -> this.statement.setNString(parameterName, value),
                 parameterName, value);
     }
 
@@ -1130,10 +1031,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNCharacterStream",
-                () -> {
-                    this.statement.setNCharacterStream(parameterName, value, length);
-                    return null;
-                },
+                () -> this.statement.setNCharacterStream(parameterName, value, length),
                 parameterName, value, length);
     }
 
@@ -1144,10 +1042,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterName, value);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterName, value),
                 parameterName, value);
     }
 
@@ -1158,10 +1053,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterName, reader, length);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterName, reader, length),
                 parameterName, reader, length);
     }
 
@@ -1173,10 +1065,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterName, inputStream, length);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterName, inputStream, length),
                 parameterName, inputStream, length);
     }
 
@@ -1187,10 +1076,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterName, reader, length);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterName, reader, length),
                 parameterName, reader, length);
     }
 
@@ -1226,10 +1112,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setSQLXML",
-                () -> {
-                    this.statement.setSQLXML(parameterName, xmlObject);
-                    return null;
-                },
+                () -> this.statement.setSQLXML(parameterName, xmlObject),
                 parameterName, xmlObject);
     }
 
@@ -1338,10 +1221,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterName, x),
                 parameterName, x);
     }
 
@@ -1352,10 +1232,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterName, x),
                 parameterName, x);
     }
 
@@ -1366,10 +1243,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterName, x, length);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterName, x, length),
                 parameterName, x, length);
     }
 
@@ -1381,10 +1255,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterName, x, length);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterName, x, length),
                 parameterName, x, length);
     }
 
@@ -1396,10 +1267,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterName, reader, length);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterName, reader, length),
                 parameterName, reader, length);
     }
 
@@ -1410,10 +1278,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterName, x),
                 parameterName, x);
     }
 
@@ -1424,10 +1289,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterName, x);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterName, x),
                 parameterName, x);
     }
 
@@ -1438,10 +1300,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterName, reader);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterName, reader),
                 parameterName, reader);
     }
 
@@ -1452,10 +1311,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNCharacterStream",
-                () -> {
-                    this.statement.setNCharacterStream(parameterName, value);
-                    return null;
-                },
+                () -> this.statement.setNCharacterStream(parameterName, value),
                 parameterName, value);
     }
 
@@ -1466,10 +1322,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterName, reader);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterName, reader),
                 parameterName, reader);
     }
 
@@ -1480,10 +1333,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterName, inputStream);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterName, inputStream),
                 parameterName, inputStream);
     }
 
@@ -1494,10 +1344,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterName, reader);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterName, reader),
                 parameterName, reader);
     }
 
@@ -1533,10 +1380,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterName, x, targetSqlType, scaleOrLength);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterName, x, targetSqlType, scaleOrLength),
                 parameterName, x, targetSqlType, scaleOrLength);
     }
 
@@ -1547,10 +1391,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterName, x, targetSqlType);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterName, x, targetSqlType),
                 parameterName, x, targetSqlType);
     }
 
@@ -1561,10 +1402,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterIndex, sqlType);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterIndex, sqlType),
                 parameterIndex, sqlType);
     }
 
@@ -1576,10 +1414,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterIndex, sqlType, scale);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterIndex, sqlType, scale),
                 parameterIndex, sqlType, scale);
     }
 
@@ -1591,10 +1426,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterIndex, sqlType, typeName);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterIndex, sqlType, typeName),
                 parameterIndex, sqlType, typeName);
     }
 
@@ -1605,10 +1437,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterName, sqlType);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterName, sqlType),
                 parameterName, sqlType);
     }
 
@@ -1620,10 +1449,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterName, sqlType, scale);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterName, sqlType, scale),
                 parameterName, sqlType, scale);
     }
 
@@ -1635,10 +1461,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.registerOutParameter",
-                () -> {
-                    this.statement.registerOutParameter(parameterName, sqlType, typeName);
-                    return null;
-                },
+                () -> this.statement.registerOutParameter(parameterName, sqlType, typeName),
                 parameterName, sqlType, typeName);
     }
 
@@ -1671,10 +1494,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNull",
-                () -> {
-                    this.statement.setNull(parameterIndex, sqlType);
-                    return null;
-                },
+                () -> this.statement.setNull(parameterIndex, sqlType),
                 parameterIndex, sqlType);
     }
 
@@ -1685,10 +1505,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBoolean",
-                () -> {
-                    this.statement.setBoolean(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBoolean(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1699,10 +1516,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setByte",
-                () -> {
-                    this.statement.setByte(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setByte(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1713,10 +1527,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setShort",
-                () -> {
-                    this.statement.setShort(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setShort(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1727,10 +1538,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setInt",
-                () -> {
-                    this.statement.setInt(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setInt(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1741,10 +1549,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setLong",
-                () -> {
-                    this.statement.setLong(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setLong(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1755,10 +1560,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setFloat",
-                () -> {
-                    this.statement.setFloat(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setFloat(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1769,10 +1571,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setDouble",
-                () -> {
-                    this.statement.setDouble(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setDouble(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1783,10 +1582,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBigDecimal",
-                () -> {
-                    this.statement.setBigDecimal(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBigDecimal(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1797,10 +1593,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setString",
-                () -> {
-                    this.statement.setString(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setString(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1811,10 +1604,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBytes",
-                () -> {
-                    this.statement.setBytes(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBytes(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1825,10 +1615,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setDate",
-                () -> {
-                    this.statement.setDate(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setDate(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1839,10 +1626,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTime",
-                () -> {
-                    this.statement.setTime(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setTime(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1853,10 +1637,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTimestamp",
-                () -> {
-                    this.statement.setTimestamp(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setTimestamp(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1867,10 +1648,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -1882,10 +1660,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setUnicodeStream",
-                () -> {
-                    this.statement.setUnicodeStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setUnicodeStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -1896,10 +1671,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -1910,10 +1682,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.clearParameters",
-                () -> {
-                    this.statement.clearParameters();
-                    return null;
-                });
+                () -> this.statement.clearParameters());
     }
 
     @Override
@@ -1923,10 +1692,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType),
                 parameterIndex, x, targetSqlType);
     }
 
@@ -1937,10 +1703,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -1962,10 +1725,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.addBatch",
-                () -> {
-                    this.statement.addBatch();
-                    return null;
-                });
+                () -> this.statement.addBatch());
     }
 
     @Override
@@ -1976,10 +1736,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -1990,10 +1747,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setRef",
-                () -> {
-                    this.statement.setRef(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setRef(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2004,10 +1758,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2018,10 +1769,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2032,10 +1780,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setArray",
-                () -> {
-                    this.statement.setArray(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setArray(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2057,10 +1802,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setDate",
-                () -> {
-                    this.statement.setDate(parameterIndex, x, cal);
-                    return null;
-                },
+                () -> this.statement.setDate(parameterIndex, x, cal),
                 parameterIndex, x, cal);
     }
 
@@ -2071,10 +1813,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTime",
-                () -> {
-                    this.statement.setTime(parameterIndex, x, cal);
-                    return null;
-                },
+                () -> this.statement.setTime(parameterIndex, x, cal),
                 parameterIndex, x, cal);
     }
 
@@ -2085,10 +1824,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setTimestamp",
-                () -> {
-                    this.statement.setTimestamp(parameterIndex, x, cal);
-                    return null;
-                },
+                () -> this.statement.setTimestamp(parameterIndex, x, cal),
                 parameterIndex, x, cal);
     }
 
@@ -2099,10 +1835,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNull",
-                () -> {
-                    this.statement.setNull(parameterIndex, sqlType, typeName);
-                    return null;
-                },
+                () -> this.statement.setNull(parameterIndex, sqlType, typeName),
                 parameterIndex, sqlType, typeName);
     }
 
@@ -2113,10 +1846,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setURL",
-                () -> {
-                    this.statement.setURL(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setURL(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2138,10 +1868,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setRowId",
-                () -> {
-                    this.statement.setRowId(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setRowId(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2152,10 +1879,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNString",
-                () -> {
-                    this.statement.setNString(parameterIndex, value);
-                    return null;
-                },
+                () -> this.statement.setNString(parameterIndex, value),
                 parameterIndex, value);
     }
 
@@ -2167,10 +1891,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNCharacterStream",
-                () -> {
-                    this.statement.setNCharacterStream(parameterIndex, value, length);
-                    return null;
-                },
+                () -> this.statement.setNCharacterStream(parameterIndex, value, length),
                 parameterIndex, value, length);
     }
 
@@ -2181,10 +1902,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterIndex, value);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterIndex, value),
                 parameterIndex, value);
     }
 
@@ -2195,10 +1913,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -2210,10 +1925,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterIndex, inputStream, length);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterIndex, inputStream, length),
                 parameterIndex, inputStream, length);
     }
 
@@ -2224,10 +1936,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -2239,10 +1948,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setSQLXML",
-                () -> {
-                    this.statement.setSQLXML(parameterIndex, xmlObject);
-                    return null;
-                },
+                () -> this.statement.setSQLXML(parameterIndex, xmlObject),
                 parameterIndex, xmlObject);
     }
 
@@ -2254,10 +1960,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
                 parameterIndex, x, targetSqlType, scaleOrLength);
     }
 
@@ -2268,10 +1971,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -2282,10 +1982,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterIndex, x, length);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterIndex, x, length),
                 parameterIndex, x, length);
     }
 
@@ -2297,10 +1994,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterIndex, reader, length);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterIndex, reader, length),
                 parameterIndex, reader, length);
     }
 
@@ -2311,10 +2005,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setAsciiStream",
-                () -> {
-                    this.statement.setAsciiStream(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setAsciiStream(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2325,10 +2016,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBinaryStream",
-                () -> {
-                    this.statement.setBinaryStream(parameterIndex, x);
-                    return null;
-                },
+                () -> this.statement.setBinaryStream(parameterIndex, x),
                 parameterIndex, x);
     }
 
@@ -2339,10 +2027,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setCharacterStream",
-                () -> {
-                    this.statement.setCharacterStream(parameterIndex, reader);
-                    return null;
-                },
+                () -> this.statement.setCharacterStream(parameterIndex, reader),
                 parameterIndex, reader);
     }
 
@@ -2353,10 +2038,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNCharacterStream",
-                () -> {
-                    this.statement.setNCharacterStream(parameterIndex, value);
-                    return null;
-                },
+                () -> this.statement.setNCharacterStream(parameterIndex, value),
                 parameterIndex, value);
     }
 
@@ -2367,10 +2049,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setClob",
-                () -> {
-                    this.statement.setClob(parameterIndex, reader);
-                    return null;
-                },
+                () -> this.statement.setClob(parameterIndex, reader),
                 parameterIndex, reader);
     }
 
@@ -2381,10 +2060,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setBlob",
-                () -> {
-                    this.statement.setBlob(parameterIndex, inputStream);
-                    return null;
-                },
+                () -> this.statement.setBlob(parameterIndex, inputStream),
                 parameterIndex, inputStream);
     }
 
@@ -2395,10 +2071,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setNClob",
-                () -> {
-                    this.statement.setNClob(parameterIndex, reader);
-                    return null;
-                },
+                () -> this.statement.setNClob(parameterIndex, reader),
                 parameterIndex, reader);
     }
 
@@ -2410,10 +2083,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
                 parameterIndex, x, targetSqlType, scaleOrLength);
     }
 
@@ -2424,10 +2094,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setObject",
-                () -> {
-                    this.statement.setObject(parameterIndex, x, targetSqlType);
-                    return null;
-                },
+                () -> this.statement.setObject(parameterIndex, x, targetSqlType),
                 parameterIndex, x, targetSqlType);
     }
 
@@ -2473,10 +2140,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.close",
-                () -> {
-                    this.statement.close();
-                    return null;
-                });
+                () -> this.statement.close());
     }
 
     @Override
@@ -2497,10 +2161,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setMaxFieldSize",
-                () -> {
-                    this.statement.setMaxFieldSize(max);
-                    return null;
-                },
+                () -> this.statement.setMaxFieldSize(max),
                 max);
     }
 
@@ -2522,10 +2183,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setMaxRows",
-                () -> {
-                    this.statement.setMaxRows(max);
-                    return null;
-                },
+                () -> this.statement.setMaxRows(max),
                 max);
     }
 
@@ -2536,10 +2194,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setEscapeProcessing",
-                () -> {
-                    this.statement.setEscapeProcessing(enable);
-                    return null;
-                },
+                () -> this.statement.setEscapeProcessing(enable),
                 enable);
     }
 
@@ -2561,10 +2216,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setQueryTimeout",
-                () -> {
-                    this.statement.setQueryTimeout(seconds);
-                    return null;
-                },
+                () -> this.statement.setQueryTimeout(seconds),
                 seconds);
     }
 
@@ -2575,10 +2227,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.cancel",
-                () -> {
-                    this.statement.cancel();
-                    return null;
-                });
+                () -> this.statement.cancel());
     }
 
     @Override
@@ -2599,10 +2248,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.clearWarnings",
-                () -> {
-                    this.statement.clearWarnings();
-                    return null;
-                });
+                () -> this.statement.clearWarnings());
     }
 
     @Override
@@ -2612,10 +2258,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setCursorName",
-                () -> {
-                    this.statement.setCursorName(name);
-                    return null;
-                },
+                () -> this.statement.setCursorName(name),
                 name);
     }
 
@@ -2683,10 +2326,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setFetchDirection",
-                () -> {
-                    this.statement.setFetchDirection(direction);
-                    return null;
-                },
+                () -> this.statement.setFetchDirection(direction),
                 direction);
     }
 
@@ -2708,10 +2348,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setFetchSize",
-                () -> {
-                    this.statement.setFetchSize(rows);
-                    return null;
-                },
+                () -> this.statement.setFetchSize(rows),
                 rows);
     }
 
@@ -2746,10 +2383,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.addBatch",
-                () -> {
-                    this.statement.addBatch(sql);
-                    return null;
-                },
+                () -> this.statement.addBatch(sql),
                 sql);
     }
 
@@ -2760,10 +2394,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.clearBatch",
-                () -> {
-                    this.statement.clearBatch();
-                    return null;
-                });
+                () -> this.statement.clearBatch());
     }
 
     @Override
@@ -2925,10 +2556,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.setPoolable",
-                () -> {
-                    this.statement.setPoolable(poolable);
-                    return null;
-                },
+                () -> this.statement.setPoolable(poolable),
                 poolable);
     }
 
@@ -2939,10 +2567,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 this.pluginManager,
                 this.statementClass,
                 "CallableStatement.closeOnCompletion",
-                () -> {
-                    this.statement.closeOnCompletion();
-                    return null;
-                });
+                () -> this.statement.closeOnCompletion());
     }
 
     @Override

@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -17,12 +18,19 @@ import java.util.concurrent.Callable;
 public interface ConnectionPlugin {
     Set<String> getSubscribedMethods();
 
-    Object execute(Class<?> methodInvokeOn, String methodName, Callable<?> executeSqlFunc,
-                   Object[] args)
-            throws Exception;
+    <T, E extends Exception> T execute(
+            Class<T> resultClass,
+            Class<E> exceptionClass,
+            Class<?> methodInvokeOn,
+            String methodName,
+            JdbcCallable<T, E> executeSqlFunc,
+            Object[] args) throws E;
 
-    void openInitialConnection(HostSpec[] hostSpecs, Properties props, String url,
-                               Callable<Void> openInitialConnectionFunc) throws Exception;
+    void openInitialConnection(
+            HostSpec[] hostSpecs,
+            Properties props,
+            String url,
+            JdbcCallable<Void, Exception> openInitialConnectionFunc) throws Exception;
 
     void releaseResources();
 }

@@ -134,10 +134,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setAutoCommit",
-                () -> {
-                    this.currentConnection.setAutoCommit(autoCommit);
-                    return null;
-                },
+                () -> this.currentConnection.setAutoCommit(autoCommit),
                 autoCommit);
     }
 
@@ -148,10 +145,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.commit",
-                () -> {
-                    this.currentConnection.commit();
-                    return null;
-                });
+                () -> this.currentConnection.commit());
     }
 
     @Override
@@ -161,10 +155,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.rollback",
-                () -> {
-                    this.currentConnection.rollback();
-                    return null;
-                });
+                () -> this.currentConnection.rollback());
     }
 
     @Override
@@ -174,10 +165,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.close",
-                () -> {
-                    this.currentConnection.close();
-                    return null;
-                });
+                () -> this.currentConnection.close());
     }
 
     @Override
@@ -220,10 +208,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setReadOnly",
-                () -> {
-                    this.currentConnection.setReadOnly(readOnly);
-                    return null;
-                },
+                () -> this.currentConnection.setReadOnly(readOnly),
                 readOnly);
     }
 
@@ -245,10 +230,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setCatalog",
-                () -> {
-                    this.currentConnection.setCatalog(catalog);
-                    return null;
-                },
+                () -> this.currentConnection.setCatalog(catalog),
                 catalog);
     }
 
@@ -271,10 +253,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setTransactionIsolation",
-                () -> {
-                    this.currentConnection.setTransactionIsolation(level);
-                    return null;
-                },
+                () -> this.currentConnection.setTransactionIsolation(level),
                 level);
     }
 
@@ -296,10 +275,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.clearWarnings",
-                () -> {
-                    this.currentConnection.clearWarnings();
-                    return null;
-                });
+                () -> this.currentConnection.clearWarnings());
     }
 
     @Override
@@ -360,10 +336,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setTypeMap",
-                () -> {
-                    this.currentConnection.setTypeMap(map);
-                    return null;
-                },
+                () -> this.currentConnection.setTypeMap(map),
                 map);
     }
 
@@ -385,10 +358,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setHoldability",
-                () -> {
-                    this.currentConnection.setHoldability(holdability);
-                    return null;
-                },
+                () -> this.currentConnection.setHoldability(holdability),
                 holdability);
     }
 
@@ -422,10 +392,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.rollback",
-                () -> {
-                    this.currentConnection.rollback(savepoint);
-                    return null;
-                },
+                () -> this.currentConnection.rollback(savepoint),
                 savepoint);
     }
 
@@ -436,10 +403,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.releaseSavepoint",
-                () -> {
-                    this.currentConnection.releaseSavepoint(savepoint);
-                    return null;
-                },
+                () -> this.currentConnection.releaseSavepoint(savepoint),
                 savepoint);
     }
 
@@ -584,10 +548,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setClientInfo",
-                () -> {
-                    this.currentConnection.setClientInfo(name, value);
-                    return null;
-                },
+                () -> this.currentConnection.setClientInfo(name, value),
                 name, value);
     }
 
@@ -621,10 +582,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setClientInfo",
-                () -> {
-                    this.currentConnection.setClientInfo(properties);
-                    return null;
-                },
+                () -> this.currentConnection.setClientInfo(properties),
                 properties);
     }
 
@@ -670,10 +628,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setSchema",
-                () -> {
-                    this.currentConnection.setSchema(schema);
-                    return null;
-                },
+                () -> this.currentConnection.setSchema(schema),
                 schema);
     }
 
@@ -684,10 +639,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.abort",
-                () -> {
-                    this.currentConnection.abort(executor);
-                    return null;
-                },
+                () -> this.currentConnection.abort(executor),
                 executor);
     }
 
@@ -698,10 +650,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setNetworkTimeout",
-                () -> {
-                    this.currentConnection.setNetworkTimeout(executor, milliseconds);
-                    return null;
-                },
+                () -> this.currentConnection.setNetworkTimeout(executor, milliseconds),
                 executor, milliseconds);
     }
 

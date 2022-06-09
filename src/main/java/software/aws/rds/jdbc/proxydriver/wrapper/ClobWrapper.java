@@ -160,10 +160,7 @@ public class ClobWrapper implements Clob {
                 this.pluginManager,
                 this.clobClass,
                 "Clob.truncate",
-                () -> {
-                    this.clob.truncate(len);
-                    return null;
-                },
+                () -> this.clob.truncate(len),
                 len);
     }
 
@@ -174,10 +171,7 @@ public class ClobWrapper implements Clob {
                 this.pluginManager,
                 this.clobClass,
                 "Clob.free",
-                () -> {
-                    this.clob.free();
-                    return null;
-                });
+                () -> this.clob.free());
     }
 
     @Override
