@@ -79,6 +79,7 @@ public class WrapperUtils {
 
         try {
             T result = pluginManager.execute(
+                    resultClass,
                     methodInvokeOn,
                     methodName,
                     executeSqlFunc,
@@ -102,6 +103,7 @@ public class WrapperUtils {
 
         try {
             T result = pluginManager.execute(
+                    resultClass,
                     methodInvokeOn,
                     methodName,
                     executeSqlFunc,

@@ -1,7 +1,7 @@
-package software.aws.rds.jdbc.proxydriver;
+package integration;
 
 import org.junit.jupiter.api.Test;
-import software.aws.rds.jdbc.proxydriver.util.TestSettings;
+import integration.util.TestSettings;
 import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;
@@ -11,28 +11,29 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class MysqlTests {
+public class PostgresTests {
 
     @Test
-    public void testOpenConnection() throws SQLException, ClassNotFoundException {
+    public void testOpenConnection() throws SQLException {
 
-        // Make sure that MySql driver class is loaded and registered at DriverManager
-        Class.forName("com.mysql.cj.jdbc.Driver");
+        if(!org.postgresql.Driver.isRegistered()) {
+            org.postgresql.Driver.register();
+        }
 
         if(!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
             software.aws.rds.jdbc.proxydriver.Driver.register();
         }
 
         Properties props = new Properties();
-        props.setProperty("user", TestSettings.mysqlUser);
-        props.setProperty("password", TestSettings.mysqlPassword);
+        props.setProperty("user", TestSettings.postgresqlUser);
+        props.setProperty("password", TestSettings.postgresqlPassword);
 
         Connection conn = DriverManager.getConnection(
-                "aws-proxy-jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase,
+                "aws-proxy-jdbc:postgresql://" + TestSettings.postgresqlServerName + "/" + TestSettings.postgresqlDatabase,
                 props);
 
         assertTrue(conn instanceof ConnectionWrapper);
-        assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+        assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
 
         assertTrue(conn.isValid(10));
         conn.close();

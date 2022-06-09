@@ -1,8 +1,8 @@
-package software.aws.rds.jdbc.proxydriver;
+package integration;
 
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource;
-import software.aws.rds.jdbc.proxydriver.util.TestSettings;
+import integration.util.TestSettings;
 
 import java.sql.Connection;
 import java.sql.SQLException;

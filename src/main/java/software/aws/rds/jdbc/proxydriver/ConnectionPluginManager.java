@@ -19,7 +19,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -62,6 +61,16 @@ public class ConnectionPluginManager {
      */
     public static void releaseAllResources() {
         instances.forEach(ConnectionPluginManager::releaseResources);
+    }
+
+    // For testing purposes only
+    ConnectionPluginManager(ConnectionProvider connectionProvider,
+                            Properties props,
+                            ArrayList<ConnectionPlugin> plugins) {
+        this.connectionProvider = connectionProvider;
+        this.props = props;
+        this.plugins = plugins;
+        instances.add(this);
     }
 
     /**
@@ -121,101 +130,76 @@ public class ConnectionPluginManager {
         this.plugins.add(defaultPlugin);
     }
 
-    public void openInitialConnection(HostSpec[] hostSpecs, Properties props, String url)
-            throws SQLException {
+    protected <T, E extends Exception> T executeWithSubscribedPlugins(
+            final Class<T> resultClass,
+            final Class<E> exceptionClass,
+            final String methodName,
+            final PluginPipeline<T, E> pluginPipeline,
+            final Callable<T> executeSqlFunc) throws E {
+
+        if (pluginPipeline == null) {
+            throw new IllegalArgumentException("pluginPipeline");
+        }
+
+        if (executeSqlFunc == null) {
+            throw new IllegalArgumentException("executeSqlFunc");
+        }
+
+        Callable<T> func = executeSqlFunc;
+
+        for (int i = this.plugins.size() - 1; i >= 0; i--) {
+            ConnectionPlugin plugin = this.plugins.get(i);
+            Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+            boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
+                    || pluginSubscribedMethods.contains(methodName);
+
+            if (isSubscribed) {
+                final Callable<T> finalFunc = func;
+                final Callable<T> nextLevelFunc = () -> pluginPipeline.call(plugin, finalFunc);
+                func = nextLevelFunc;
+            }
+        }
 
         try {
-            openInitialConnectionOneLevel(0,
-                    hostSpecs, props, url,
-                    () -> null);
-        } catch (SQLException ex) {
-            throw ex;
-        } catch (RuntimeException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new SQLException(ex.getMessage(), SqlState.UNKNOWN_STATE.getCode(), ex);
+            return func.call();
+        } catch(Exception e) {
+            if (exceptionClass.isInstance(e)) {
+                throw exceptionClass.cast(e);
+            }
+            throw new RuntimeException(e);
         }
     }
 
-    protected void openInitialConnectionOneLevel(int pluginIndex,
-                                                 HostSpec[] hostSpecs, Properties props, String url,
-                                                 Callable<Void> openInitialConnectionFunc) throws Exception {
-
-        ConnectionPlugin plugin;
-        boolean isSubscribed;
-
-        do {
-            plugin = this.plugins.get(pluginIndex);
-            Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-            isSubscribed = pluginSubscribedMethods.contains(OPEN_INITIAL_CONNECTION_METHOD);
-            pluginIndex++;
-        } while (!isSubscribed && pluginIndex <= this.plugins.size() - 1);
-
-        Callable<Void> func;
-        if (pluginIndex == this.plugins.size()) {
-            // last plugin in the plugin chain
-            // execute actual openInitialConnection() on this plugin
-            if (!isSubscribed) {
-                throw new Exception(
-                        "Default connection plugin should handle all methods."); // shouldn't be here
-            }
-            func = openInitialConnectionFunc;
-        } else {
-            // not last plugin
-            // execute a function that redirects to a next plugin in chain
-            final int nextPluginIndex = pluginIndex;
-            func = () -> {
-                openInitialConnectionOneLevel(nextPluginIndex, hostSpecs, props, url,
-                        openInitialConnectionFunc);
-                return null;
-            };
-        }
-
-        plugin.openInitialConnection(hostSpecs, props, url, func);
-    }
-
-    protected <T> T executeOneLevel(int pluginIndex,
-                                    Class<?> methodInvokeOn,
-                                    String methodName,
-                                    Callable<T> executeSqlFunc,
-                                    Object[] args) throws Exception {
-
-        ConnectionPlugin plugin;
-        boolean isSubscribed;
-
-        do {
-            plugin = this.plugins.get(pluginIndex);
-            Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-            isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
-                            || pluginSubscribedMethods.contains(methodName);
-            pluginIndex++;
-        } while (!isSubscribed && pluginIndex <= this.plugins.size() - 1);
-
-        Callable<T> func;
-        if (pluginIndex == this.plugins.size()) {
-            // last plugin in the plugin chain
-            // execute actual JDBC method inside this plugin
-            if (!isSubscribed) {
-                throw new Exception("Default connection plugin should handle all methods."); // shouldn't be here
-            }
-            func = executeSqlFunc;
-        } else {
-            // not last plugin
-            // execute a function that redirects JDBC method to a next plugin in chain
-            final int nextPluginIndex = pluginIndex;
-            func = () -> executeOneLevel(nextPluginIndex, methodInvokeOn, methodName, executeSqlFunc, args);
-        }
+    public <T> T execute(
+            final Class<T> resultType,
+            final Class<?> methodInvokeOn,
+            final String methodName,
+            final Callable<T> executeSqlFunc,
+            final Object[] args) throws Exception {
 
         //noinspection unchecked
-        return (T) plugin.execute(methodInvokeOn, methodName, func, args);
+        return executeWithSubscribedPlugins(
+                resultType,
+                Exception.class,
+                methodName,
+                (plugin, func) -> (T) plugin.execute(methodInvokeOn, methodName, func, args),
+                executeSqlFunc);
     }
 
-    public <T> T execute(Class<?> methodInvokeOn,
-                         String methodName,
-                         Callable<T> executeSqlFunc,
-                         Object[] args) throws Exception {
+    public void openInitialConnection(
+            final HostSpec[] hostSpecs,
+            final Properties props,
+            final String url) throws SQLException {
 
-        return executeOneLevel(0, methodInvokeOn, methodName, executeSqlFunc, args);
+        executeWithSubscribedPlugins(
+                Void.TYPE,
+                SQLException.class,
+                "openInitialConnection",
+                (plugin, func) -> {
+                    plugin.openInitialConnection(hostSpecs, props, url, func);
+                    return null;
+                },
+                () -> null);
     }
 
     /**
@@ -230,6 +214,10 @@ public class ConnectionPluginManager {
         // perform any
         // last tasks before shutting down.
         this.plugins.forEach(ConnectionPlugin::releaseResources);
+    }
+
+    private interface PluginPipeline<T, E extends Exception> {
+        T call(final ConnectionPlugin plugin, Callable<T> func) throws Exception;
     }
 }
 
