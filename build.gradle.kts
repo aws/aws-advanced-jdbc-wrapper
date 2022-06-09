@@ -20,6 +20,7 @@ dependencies {
     testImplementation("mysql:mysql-connector-java:8.0.+")
     testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
+    testImplementation("org.mockito:mockito-inline:4.+")
 }
 
 tasks.getByName<Test>("test") {

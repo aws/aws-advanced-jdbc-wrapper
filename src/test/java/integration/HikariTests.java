@@ -1,9 +1,9 @@
-package software.aws.rds.jdbc.proxydriver;
+package integration;
 
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
 import org.junit.jupiter.api.Test;
-import software.aws.rds.jdbc.proxydriver.util.TestSettings;
+import integration.util.TestSettings;
 import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
 import java.sql.Connection;

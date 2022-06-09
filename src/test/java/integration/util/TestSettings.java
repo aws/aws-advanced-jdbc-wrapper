@@ -1,4 +1,4 @@
-package software.aws.rds.jdbc.proxydriver.util;
+package integration.util;
 
 public class TestSettings {
     public static final String mysqlServerName = System.getProperty("mysqlServerName");
