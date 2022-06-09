@@ -30,7 +30,7 @@ public class TestPluginThrowException extends TestPluginOne {
             Class<?> methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
-            Object[] args) throws E {
+            Object[] jdbcMethodArgs) throws E {
 
         this.calls.add(this.getClass().getSimpleName() + ":before");
         if(this.isBefore) {

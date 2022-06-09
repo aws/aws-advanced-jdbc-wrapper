@@ -24,7 +24,7 @@ public interface ConnectionPlugin {
             Class<?> methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
-            Object[] args) throws E;
+            Object[] jdbcMethodArgs) throws E;
 
     void openInitialConnection(
             HostSpec[] hostSpecs,

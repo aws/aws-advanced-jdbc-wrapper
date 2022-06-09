@@ -60,7 +60,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
             Class<?> methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
-            Object[] args) throws E {
+            Object[] jdbcMethodArgs) throws E {
 
         LOGGER.log(Level.FINEST, String.format("method=%s", methodName));
         return jdbcMethodFunc.call();

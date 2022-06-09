@@ -38,7 +38,7 @@ public class TestPluginOne implements ConnectionPlugin {
             Class<?> methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
-            Object[] args) throws E {
+            Object[] jdbcMethodArgs) throws E {
 
         this.calls.add(this.getClass().getSimpleName() + ":before");
 
