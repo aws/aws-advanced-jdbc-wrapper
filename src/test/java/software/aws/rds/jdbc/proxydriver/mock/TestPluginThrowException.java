@@ -29,8 +29,8 @@ public class TestPluginThrowException extends TestPluginOne {
             Class<E> exceptionClass,
             Class<?> methodInvokeOn,
             String methodName,
-            JdbcCallable<T, E> executeSqlFunc,
-            Object[] args) throws E {
+            JdbcCallable<T, E> jdbcMethodFunc,
+            Object[] jdbcMethodArgs) throws E {
 
         this.calls.add(this.getClass().getSimpleName() + ":before");
         if(this.isBefore) {
@@ -41,7 +41,7 @@ public class TestPluginThrowException extends TestPluginOne {
             }
         }
 
-        T result = executeSqlFunc.call();
+        T result = jdbcMethodFunc.call();
 
         this.calls.add(this.getClass().getSimpleName() + ":after");
         //noinspection ConstantConditions

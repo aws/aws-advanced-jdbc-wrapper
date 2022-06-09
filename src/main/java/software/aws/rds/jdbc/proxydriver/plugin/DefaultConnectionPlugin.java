@@ -59,11 +59,11 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
             Class<E> exceptionClass,
             Class<?> methodInvokeOn,
             String methodName,
-            JdbcCallable<T, E> executeSqlFunc,
-            Object[] args) throws E {
+            JdbcCallable<T, E> jdbcMethodFunc,
+            Object[] jdbcMethodArgs) throws E {
 
         LOGGER.log(Level.FINEST, String.format("method=%s", methodName));
-        return executeSqlFunc.call();
+        return jdbcMethodFunc.call();
     }
 
     @Override

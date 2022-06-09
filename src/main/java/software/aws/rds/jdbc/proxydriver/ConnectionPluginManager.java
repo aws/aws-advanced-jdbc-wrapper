@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -137,17 +136,17 @@ public class ConnectionPluginManager {
     protected <T, E extends Exception> T executeWithSubscribedPlugins(
             final String methodName,
             final PluginPipeline<T, E> pluginPipeline,
-            final JdbcCallable<T, E> executeSqlFunc) throws E {
+            final JdbcCallable<T, E> jdbcMethodFunc) throws E {
 
         if (pluginPipeline == null) {
             throw new IllegalArgumentException("pluginPipeline");
         }
 
-        if (executeSqlFunc == null) {
-            throw new IllegalArgumentException("executeSqlFunc");
+        if (jdbcMethodFunc == null) {
+            throw new IllegalArgumentException("jdbcMethodFunc");
         }
 
-        JdbcCallable<T, E> func = executeSqlFunc;
+        JdbcCallable<T, E> func = jdbcMethodFunc;
 
         for (int i = this.plugins.size() - 1; i >= 0; i--) {
             ConnectionPlugin plugin = this.plugins.get(i);
@@ -170,13 +169,13 @@ public class ConnectionPluginManager {
             final Class<E> exceptionClass,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final JdbcCallable<T, E> executeSqlFunc,
-            final Object[] args) throws E {
+            final JdbcCallable<T, E> jdbcMethodFunc,
+            final Object[] jdbcMethodArgs) throws E {
 
         return executeWithSubscribedPlugins(
                 methodName,
-                (plugin, func) -> plugin.execute(resultType, exceptionClass, methodInvokeOn, methodName, func, args),
-                executeSqlFunc);
+                (plugin, func) -> plugin.execute(resultType, exceptionClass, methodInvokeOn, methodName, func, jdbcMethodArgs),
+                jdbcMethodFunc);
     }
 
     public void openInitialConnection(
