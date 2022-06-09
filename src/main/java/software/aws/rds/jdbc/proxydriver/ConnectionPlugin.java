@@ -23,7 +23,7 @@ public interface ConnectionPlugin {
             Class<E> exceptionClass,
             Class<?> methodInvokeOn,
             String methodName,
-            JdbcCallable<T, E> executeSqlFunc,
+            JdbcCallable<T, E> jdbcMethodFunc,
             Object[] args) throws E;
 
     void openInitialConnection(

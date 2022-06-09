@@ -50,14 +50,14 @@ public class WrapperUtils {
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final JdbcRunnable<RuntimeException> executeSqlFunc,
-            Object... args) {
+            final JdbcRunnable<RuntimeException> jdbcMethodFunc,
+            Object... jdbcMethodArgs) {
 
         executeWithPlugins(Void.TYPE, RuntimeException.class, pluginManager, methodInvokeOn, methodName,
                 () -> {
-                    executeSqlFunc.call();
+                    jdbcMethodFunc.call();
                     return null;
-                }, args);
+                }, jdbcMethodArgs);
     }
 
     //TODO: think about synchronized in this class; they might need to be moved to wrapper classes
@@ -66,14 +66,14 @@ public class WrapperUtils {
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final JdbcRunnable<E> executeSqlFunc,
-            Object... args) throws E {
+            final JdbcRunnable<E> jdbcMethodFunc,
+            Object... jdbcMethodArgs) throws E {
 
         executeWithPlugins(Void.TYPE, exceptionClass, pluginManager, methodInvokeOn, methodName,
                 () -> {
-                    executeSqlFunc.call();
+                    jdbcMethodFunc.call();
                     return null;
-                }, args);
+                }, jdbcMethodArgs);
     }
 
     public static synchronized <T> T executeWithPlugins(
@@ -81,17 +81,17 @@ public class WrapperUtils {
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final JdbcCallable<T, RuntimeException> executeSqlFunc,
-            Object... args) {
+            final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
+            Object... jdbcMethodArgs) {
 
-        Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
+        Object[] argsCopy = jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
         T result = pluginManager.execute(
                 resultClass,
                 RuntimeException.class,
                 methodInvokeOn,
                 methodName,
-                executeSqlFunc,
+                jdbcMethodFunc,
                 argsCopy);
 
         try {
@@ -107,17 +107,17 @@ public class WrapperUtils {
             final ConnectionPluginManager pluginManager,
             final Class<?> methodInvokeOn,
             final String methodName,
-            final JdbcCallable<T, E> executeSqlFunc,
-            Object... args) throws E {
+            final JdbcCallable<T, E> jdbcMethodFunc,
+            Object... jdbcMethodArgs) throws E {
 
-        Object[] argsCopy = args == null ? null : Arrays.copyOf(args, args.length);
+        Object[] argsCopy = jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
         T result = pluginManager.execute(
                 resultClass,
                 exceptionClass,
                 methodInvokeOn,
                 methodName,
-                executeSqlFunc,
+                jdbcMethodFunc,
                 argsCopy);
 
         try {
@@ -265,7 +265,7 @@ public class WrapperUtils {
     public static <T> T createInstance(final Class<?> classToInstantiate,
                                        final Class<T> resultClass,
                                        final Class<?>[] constructorArgClasses,
-                                       final Object... args)
+                                       final Object... constructorArgs)
             throws InstantiationException {
 
         if (classToInstantiate == null) {
@@ -277,26 +277,26 @@ public class WrapperUtils {
         }
 
         try {
-            if (args.length == 0) {
+            if (constructorArgs.length == 0) {
                 return resultClass.cast(classToInstantiate.newInstance());
             }
 
             Class<?>[] argClasses = constructorArgClasses;
             if(argClasses == null) {
-                argClasses = new Class<?>[args.length];
-                for (int i = 0; i < args.length; i++) {
-                    argClasses[i] = args[i].getClass();
+                argClasses = new Class<?>[constructorArgs.length];
+                for (int i = 0; i < constructorArgs.length; i++) {
+                    argClasses[i] = constructorArgs[i].getClass();
                 }
             }
             Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
-            return resultClass.cast(constructor.newInstance(args));
+            return resultClass.cast(constructor.newInstance(constructorArgs));
         }
         catch (Exception e) {
             throw new InstantiationException("Can't initialize class " + classToInstantiate.getName());
         }
     }
 
-    public static <T> T createInstance(final String className, final Class<T> resultClass, final Object... args)
+    public static <T> T createInstance(final String className, final Class<T> resultClass, final Object... constructorArgs)
             throws InstantiationException {
 
         if (StringUtils.isNullOrEmpty(className)) {
@@ -315,7 +315,7 @@ public class WrapperUtils {
             throw new InstantiationException("Can't initialize class " + className);
         }
 
-        return createInstance(loaded, resultClass, null, args);
+        return createInstance(loaded, resultClass, null, constructorArgs);
     }
 
 }

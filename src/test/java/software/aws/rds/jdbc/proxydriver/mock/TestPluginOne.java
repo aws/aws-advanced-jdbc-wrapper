@@ -37,14 +37,14 @@ public class TestPluginOne implements ConnectionPlugin {
             Class<E> exceptionClass,
             Class<?> methodInvokeOn,
             String methodName,
-            JdbcCallable<T, E> executeSqlFunc,
+            JdbcCallable<T, E> jdbcMethodFunc,
             Object[] args) throws E {
 
         this.calls.add(this.getClass().getSimpleName() + ":before");
 
         T result;
         try {
-            result = executeSqlFunc.call();
+            result = jdbcMethodFunc.call();
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
