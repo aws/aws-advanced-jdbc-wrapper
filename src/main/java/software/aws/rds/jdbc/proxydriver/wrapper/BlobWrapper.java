@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -17,19 +18,10 @@ import java.sql.SQLException;
 public class BlobWrapper implements Blob {
 
     protected Blob blob;
-    protected Class<?> blobClass;
     protected ConnectionPluginManager pluginManager;
 
-    public BlobWrapper(Blob blob, ConnectionPluginManager pluginManager) {
-        if (blob == null) {
-            throw new IllegalArgumentException("blob");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public BlobWrapper(@NonNull Blob blob, @NonNull ConnectionPluginManager pluginManager) {
         this.blob = blob;
-        this.blobClass = this.blob.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -39,7 +31,7 @@ public class BlobWrapper implements Blob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.length",
                 () -> this.blob.length());
     }
@@ -50,7 +42,7 @@ public class BlobWrapper implements Blob {
                 byte[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.getBytes",
                 () -> this.blob.getBytes(pos, length),
                 pos, length);
@@ -62,7 +54,7 @@ public class BlobWrapper implements Blob {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.getBinaryStream",
                 () -> this.blob.getBinaryStream());
     }
@@ -73,7 +65,7 @@ public class BlobWrapper implements Blob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.position",
                 () -> this.blob.position(pattern, start),
                 pattern, start);
@@ -85,7 +77,7 @@ public class BlobWrapper implements Blob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.position",
                 () -> this.blob.position(pattern, start),
                 pattern, start);
@@ -97,7 +89,7 @@ public class BlobWrapper implements Blob {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.setBytes",
                 () -> this.blob.setBytes(pos, bytes),
                 pos, bytes);
@@ -109,7 +101,7 @@ public class BlobWrapper implements Blob {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.setBytes",
                 () -> this.blob.setBytes(pos, bytes, offset, len),
                 pos, bytes, offset, len);
@@ -121,7 +113,7 @@ public class BlobWrapper implements Blob {
                 OutputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.setBinaryStream",
                 () -> this.blob.setBinaryStream(pos),
                 pos);
@@ -132,7 +124,7 @@ public class BlobWrapper implements Blob {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.truncate",
                 () -> this.blob.truncate(len),
                 len);
@@ -143,7 +135,7 @@ public class BlobWrapper implements Blob {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.free",
                 () -> this.blob.free());
     }
@@ -154,7 +146,7 @@ public class BlobWrapper implements Blob {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.blobClass,
+                this.blob,
                 "Blob.getBinaryStream",
                 () -> this.blob.getBinaryStream(pos, length),
                 pos, length);

@@ -6,6 +6,7 @@ import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Properties;
 
@@ -17,9 +18,7 @@ public class TestPluginThree extends TestPluginOne {
         super();
         this.calls = calls;
 
-        this.subscribedMethods = new HashSet<>();
-        this.subscribedMethods.add("testJdbcCall_A");
-        this.subscribedMethods.add("connect");
+        this.subscribedMethods = new HashSet<>(Arrays.asList("testJdbcCall_A", "connect"));
     }
 
     public TestPluginThree(ArrayList<String> calls, Connection connection) {

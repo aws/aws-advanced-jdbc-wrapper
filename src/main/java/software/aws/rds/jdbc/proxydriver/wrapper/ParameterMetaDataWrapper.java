@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -15,19 +16,11 @@ import java.sql.SQLException;
 public class ParameterMetaDataWrapper implements ParameterMetaData {
 
     protected ParameterMetaData parameterMetaData;
-    protected Class<?> parameterMetaDataClass;
     protected ConnectionPluginManager pluginManager;
 
-    public ParameterMetaDataWrapper(ParameterMetaData parameterMetaData, ConnectionPluginManager pluginManager) {
-        if (parameterMetaData == null) {
-            throw new IllegalArgumentException("parameterMetaData");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public ParameterMetaDataWrapper(@NonNull ParameterMetaData parameterMetaData,
+                                    @NonNull ConnectionPluginManager pluginManager) {
         this.parameterMetaData = parameterMetaData;
-        this.parameterMetaDataClass = this.parameterMetaData.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -37,7 +30,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.getParameterCount",
                 () -> this.parameterMetaData.getParameterCount());
     }
@@ -49,7 +42,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.isNullable",
                 () -> this.parameterMetaData.isNullable(param),
                 param);
@@ -61,7 +54,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.isSigned",
                 () -> this.parameterMetaData.isSigned(param),
                 param);
@@ -73,7 +66,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.getPrecision",
                 () -> this.parameterMetaData.getPrecision(param),
                 param);
@@ -85,7 +78,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.getScale",
                 () -> this.parameterMetaData.getScale(param),
                 param);
@@ -97,7 +90,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.getParameterType",
                 () -> this.parameterMetaData.getParameterType(param),
                 param);
@@ -109,7 +102,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.getParameterTypeName",
                 () -> this.parameterMetaData.getParameterTypeName(param),
                 param);
@@ -121,7 +114,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.getParameterClassName",
                 () -> this.parameterMetaData.getParameterClassName(param),
                 param);
@@ -134,7 +127,7 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.parameterMetaDataClass,
+                this.parameterMetaData,
                 "ParameterMetaData.getParameterMode",
                 () -> this.parameterMetaData.getParameterMode(param),
                 param);

@@ -54,7 +54,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     public <T, E extends Exception> T execute(
             Class<T> resultClass,
             Class<E> exceptionClass,
-            Class<?> methodInvokeOn,
+            Object methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
             Object[] jdbcMethodArgs) throws E {

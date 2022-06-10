@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -18,19 +19,10 @@ import java.sql.Statement;
 public class StatementWrapper implements Statement {
 
     protected Statement statement;
-    protected Class<?> statementClass;
     protected ConnectionPluginManager pluginManager;
 
-    public StatementWrapper(Statement statement, ConnectionPluginManager pluginManager) {
-        if (statement == null) {
-            throw new IllegalArgumentException("statement");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public StatementWrapper(@NonNull Statement statement, @NonNull ConnectionPluginManager pluginManager) {
         this.statement = statement;
-        this.statementClass = this.statement.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -40,7 +32,7 @@ public class StatementWrapper implements Statement {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.executeQuery",
                 () -> this.statement.executeQuery(sql),
                 sql);
@@ -52,7 +44,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql),
                 sql);
@@ -63,7 +55,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.close",
                 () -> this.statement.close());
     }
@@ -74,7 +66,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getMaxFieldSize",
                 () -> this.statement.getMaxFieldSize());
     }
@@ -84,7 +76,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setMaxFieldSize",
                 () -> this.statement.setMaxFieldSize(max),
                 max);
@@ -96,7 +88,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getMaxRows",
                 () -> this.statement.getMaxRows());
     }
@@ -106,7 +98,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setMaxRows",
                 () -> this.statement.setMaxRows(max),
                 max);
@@ -117,7 +109,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setEscapeProcessing",
                 () -> this.statement.setEscapeProcessing(enable),
                 enable);
@@ -129,7 +121,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getQueryTimeout",
                 () -> this.statement.getQueryTimeout());
     }
@@ -139,7 +131,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setQueryTimeout",
                 () -> this.statement.setQueryTimeout(seconds),
                 seconds);
@@ -150,7 +142,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.cancel",
                 () -> this.statement.cancel());
     }
@@ -161,7 +153,7 @@ public class StatementWrapper implements Statement {
                 SQLWarning.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getWarnings",
                 () -> this.statement.getWarnings());
     }
@@ -171,7 +163,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.clearWarnings",
                 () -> this.statement.clearWarnings());
     }
@@ -181,7 +173,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setCursorName",
                 () -> this.statement.setCursorName(name),
                 name);
@@ -193,7 +185,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.execute",
                 () -> this.statement.execute(sql),
                 sql);
@@ -205,7 +197,7 @@ public class StatementWrapper implements Statement {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getResultSet",
                 () -> this.statement.getResultSet());
     }
@@ -216,7 +208,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getUpdateCount",
                 () -> this.statement.getUpdateCount());
     }
@@ -227,7 +219,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getMoreResults",
                 () -> this.statement.getMoreResults());
     }
@@ -239,7 +231,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getFetchDirection",
                 () -> this.statement.getFetchDirection());
     }
@@ -249,7 +241,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setFetchDirection",
                 () -> this.statement.setFetchDirection(direction),
                 direction);
@@ -261,7 +253,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getFetchSize",
                 () -> this.statement.getFetchSize());
     }
@@ -271,7 +263,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setFetchSize",
                 () -> this.statement.setFetchSize(rows),
                 rows);
@@ -284,7 +276,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getResultSetConcurrency",
                 () -> this.statement.getResultSetConcurrency());
     }
@@ -296,7 +288,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getResultSetType",
                 () -> this.statement.getResultSetType());
     }
@@ -306,7 +298,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.addBatch",
                 () -> this.statement.addBatch(sql),
                 sql);
@@ -317,7 +309,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.clearBatch",
                 () -> this.statement.clearBatch());
     }
@@ -328,7 +320,7 @@ public class StatementWrapper implements Statement {
                 int[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.executeBatch",
                 () -> this.statement.executeBatch());
     }
@@ -339,7 +331,7 @@ public class StatementWrapper implements Statement {
                 Connection.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getConnection",
                 () -> this.statement.getConnection());
     }
@@ -350,7 +342,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getMoreResults",
                 () -> this.statement.getMoreResults(current),
                 current);
@@ -362,7 +354,7 @@ public class StatementWrapper implements Statement {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getGeneratedKeys",
                 () -> this.statement.getGeneratedKeys());
     }
@@ -373,7 +365,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, autoGeneratedKeys),
                 sql, autoGeneratedKeys);
@@ -385,7 +377,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnIndexes),
                 sql, columnIndexes);
@@ -397,7 +389,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnNames),
                 sql, columnNames);
@@ -409,7 +401,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.execute",
                 () -> this.statement.execute(sql, autoGeneratedKeys),
                 sql, autoGeneratedKeys);
@@ -421,7 +413,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.execute",
                 () -> this.statement.execute(sql, columnIndexes),
                 sql, columnIndexes);
@@ -433,7 +425,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.execute",
                 () -> this.statement.execute(sql, columnNames),
                 sql, columnNames);
@@ -445,7 +437,7 @@ public class StatementWrapper implements Statement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.getResultSetHoldability",
                 () -> this.statement.getResultSetHoldability());
     }
@@ -456,7 +448,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.isClosed",
                 () -> this.statement.isClosed());
     }
@@ -468,7 +460,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.isPoolable",
                 () -> this.statement.isPoolable());
     }
@@ -479,7 +471,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.setPoolable",
                 () -> this.statement.setPoolable(poolable),
                 poolable);
@@ -490,7 +482,7 @@ public class StatementWrapper implements Statement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.closeOnCompletion",
                 () -> this.statement.closeOnCompletion());
     }
@@ -501,7 +493,7 @@ public class StatementWrapper implements Statement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "Statement.isCloseOnCompletion",
                 () -> this.statement.isCloseOnCompletion());
     }

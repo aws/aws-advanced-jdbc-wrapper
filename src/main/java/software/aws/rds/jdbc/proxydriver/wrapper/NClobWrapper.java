@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -20,19 +21,10 @@ import java.sql.SQLException;
 public class NClobWrapper implements NClob {
 
     protected NClob nclob;
-    protected Class<?> nclobClass;
     protected ConnectionPluginManager pluginManager;
 
-    public NClobWrapper(NClob nclob, ConnectionPluginManager pluginManager) {
-        if (nclob == null) {
-            throw new IllegalArgumentException("nclob");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public NClobWrapper(@NonNull NClob nclob, @NonNull ConnectionPluginManager pluginManager) {
         this.nclob = nclob;
-        this.nclobClass = this.nclob.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -42,7 +34,7 @@ public class NClobWrapper implements NClob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.length",
                 () -> this.nclob.length());
     }
@@ -53,7 +45,7 @@ public class NClobWrapper implements NClob {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.getSubString",
                 () -> this.nclob.getSubString(pos, length),
                 pos, length);
@@ -65,7 +57,7 @@ public class NClobWrapper implements NClob {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.getCharacterStream",
                 () -> this.nclob.getCharacterStream());
     }
@@ -76,7 +68,7 @@ public class NClobWrapper implements NClob {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.getAsciiStream",
                 () -> this.nclob.getAsciiStream());
     }
@@ -87,7 +79,7 @@ public class NClobWrapper implements NClob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.position",
                 () -> this.nclob.position(searchStr, start),
                 searchStr, start);
@@ -99,7 +91,7 @@ public class NClobWrapper implements NClob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.position",
                 () -> this.nclob.position(searchStr, start),
                 searchStr, start);
@@ -111,7 +103,7 @@ public class NClobWrapper implements NClob {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.setString",
                 () -> this.nclob.setString(pos, str),
                 pos, str);
@@ -123,7 +115,7 @@ public class NClobWrapper implements NClob {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.setString",
                 () -> this.nclob.setString(pos, str, offset, len),
                 pos, str, offset, len);
@@ -135,7 +127,7 @@ public class NClobWrapper implements NClob {
                 OutputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.setAsciiStream",
                 () -> this.nclob.setAsciiStream(pos),
                 pos);
@@ -147,7 +139,7 @@ public class NClobWrapper implements NClob {
                 Writer.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.setCharacterStream",
                 () -> this.nclob.setCharacterStream(pos),
                 pos);
@@ -158,7 +150,7 @@ public class NClobWrapper implements NClob {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.truncate",
                 () -> this.nclob.truncate(len),
                 len);
@@ -169,7 +161,7 @@ public class NClobWrapper implements NClob {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.free",
                 () -> this.nclob.free());
     }
@@ -180,7 +172,7 @@ public class NClobWrapper implements NClob {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.nclobClass,
+                this.nclob,
                 "NClob.getCharacterStream",
                 () -> this.nclob.getCharacterStream(pos, length),
                 pos, length);

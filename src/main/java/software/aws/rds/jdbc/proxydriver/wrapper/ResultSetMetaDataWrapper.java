@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -15,19 +16,11 @@ import java.sql.SQLException;
 public class ResultSetMetaDataWrapper implements ResultSetMetaData {
 
     protected ResultSetMetaData resultSetMetaData;
-    protected Class<?> resultSetMetaDataClass;
     protected ConnectionPluginManager pluginManager;
 
-    public ResultSetMetaDataWrapper(ResultSetMetaData resultSetMetaData, ConnectionPluginManager pluginManager) {
-        if (resultSetMetaData == null) {
-            throw new IllegalArgumentException("resultSetMetaData");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public ResultSetMetaDataWrapper(@NonNull ResultSetMetaData resultSetMetaData,
+                                    @NonNull ConnectionPluginManager pluginManager) {
         this.resultSetMetaData = resultSetMetaData;
-        this.resultSetMetaDataClass = this.resultSetMetaData.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -37,7 +30,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getColumnCount",
                 () -> this.resultSetMetaData.getColumnCount());
     }
@@ -48,7 +41,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isAutoIncrement",
                 () -> this.resultSetMetaData.isAutoIncrement(column),
                 column);
@@ -60,7 +53,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isCaseSensitive",
                 () -> this.resultSetMetaData.isCaseSensitive(column),
                 column);
@@ -72,7 +65,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isSearchable",
                 () -> this.resultSetMetaData.isSearchable(column),
                 column);
@@ -84,7 +77,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isCurrency",
                 () -> this.resultSetMetaData.isCurrency(column),
                 column);
@@ -97,7 +90,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isNullable",
                 () -> this.resultSetMetaData.isNullable(column),
                 column);
@@ -109,7 +102,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isSigned",
                 () -> this.resultSetMetaData.isSigned(column),
                 column);
@@ -121,7 +114,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getColumnDisplaySize",
                 () -> this.resultSetMetaData.getColumnDisplaySize(column),
                 column);
@@ -133,7 +126,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getColumnLabel",
                 () -> this.resultSetMetaData.getColumnLabel(column),
                 column);
@@ -145,7 +138,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getColumnName",
                 () -> this.resultSetMetaData.getColumnName(column),
                 column);
@@ -157,7 +150,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getSchemaName",
                 () -> this.resultSetMetaData.getSchemaName(column),
                 column);
@@ -169,7 +162,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getPrecision",
                 () -> this.resultSetMetaData.getPrecision(column),
                 column);
@@ -181,7 +174,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getScale",
                 () -> this.resultSetMetaData.getScale(column),
                 column);
@@ -193,7 +186,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getTableName",
                 () -> this.resultSetMetaData.getTableName(column),
                 column);
@@ -205,7 +198,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getCatalogName",
                 () -> this.resultSetMetaData.getCatalogName(column),
                 column);
@@ -217,7 +210,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getColumnType",
                 () -> this.resultSetMetaData.getColumnType(column),
                 column);
@@ -229,7 +222,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getColumnTypeName",
                 () -> this.resultSetMetaData.getColumnTypeName(column),
                 column);
@@ -241,7 +234,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isReadOnly",
                 () -> this.resultSetMetaData.isReadOnly(column),
                 column);
@@ -253,7 +246,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isWritable",
                 () -> this.resultSetMetaData.isWritable(column),
                 column);
@@ -265,7 +258,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.isDefinitelyWritable",
                 () -> this.resultSetMetaData.isDefinitelyWritable(column),
                 column);
@@ -277,7 +270,7 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetMetaDataClass,
+                this.resultSetMetaData,
                 "ResultSetMetaData.getColumnClassName",
                 () -> this.resultSetMetaData.getColumnClassName(column),
                 column);

@@ -34,9 +34,6 @@ import java.util.concurrent.Executor;
 
 public class ConnectionWrapper implements Connection {
 
-    //TODO: how to update these values? Or, should we rid of these variables and replace them with this.pluginService.getCurrentConnection() ?
-    protected Class<?> currentConnectionClass;
-
     protected ConnectionPluginManager pluginManager;
     protected PluginService pluginService;
     protected HostListProviderService hostListProviderService;
@@ -102,8 +99,6 @@ public class ConnectionWrapper implements Connection {
 
             this.pluginService.setCurrentConnection(conn, this.pluginService.getCurrentHostSpec());
         }
-
-        this.currentConnectionClass = this.pluginService.getCurrentConnection().getClass();
     }
 
     protected String getProtocol(String url) {
@@ -120,7 +115,7 @@ public class ConnectionWrapper implements Connection {
                 Statement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createStatement",
                 () -> this.pluginService.getCurrentConnection().createStatement());
     }
@@ -131,7 +126,7 @@ public class ConnectionWrapper implements Connection {
                 PreparedStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareStatement",
                 () -> this.pluginService.getCurrentConnection().prepareStatement(sql),
                 sql);
@@ -143,7 +138,7 @@ public class ConnectionWrapper implements Connection {
                 CallableStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareCall",
                 () -> this.pluginService.getCurrentConnection().prepareCall(sql),
                 sql);
@@ -155,7 +150,7 @@ public class ConnectionWrapper implements Connection {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.nativeSQL",
                 () -> this.pluginService.getCurrentConnection().nativeSQL(sql),
                 sql);
@@ -167,7 +162,7 @@ public class ConnectionWrapper implements Connection {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getAutoCommit",
                 () -> this.pluginService.getCurrentConnection().getAutoCommit());
     }
@@ -177,7 +172,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setAutoCommit",
                 () -> this.pluginService.getCurrentConnection().setAutoCommit(autoCommit),
                 autoCommit);
@@ -188,7 +183,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.commit",
                 () -> this.pluginService.getCurrentConnection().commit());
     }
@@ -198,7 +193,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.rollback",
                 () -> this.pluginService.getCurrentConnection().rollback());
     }
@@ -208,7 +203,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.close",
                 () -> this.pluginService.getCurrentConnection().close());
     }
@@ -219,7 +214,7 @@ public class ConnectionWrapper implements Connection {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.isClosed",
                 () -> this.pluginService.getCurrentConnection().isClosed());
     }
@@ -230,7 +225,7 @@ public class ConnectionWrapper implements Connection {
                 DatabaseMetaData.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getMetaData",
                 () -> this.pluginService.getCurrentConnection().getMetaData());
     }
@@ -241,7 +236,7 @@ public class ConnectionWrapper implements Connection {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.isReadOnly",
                 () -> this.pluginService.getCurrentConnection().isReadOnly());
     }
@@ -251,7 +246,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setReadOnly",
                 () -> this.pluginService.getCurrentConnection().setReadOnly(readOnly),
                 readOnly);
@@ -263,7 +258,7 @@ public class ConnectionWrapper implements Connection {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getCatalog",
                 () -> this.pluginService.getCurrentConnection().getCatalog());
     }
@@ -273,7 +268,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setCatalog",
                 () -> this.pluginService.getCurrentConnection().setCatalog(catalog),
                 catalog);
@@ -286,7 +281,7 @@ public class ConnectionWrapper implements Connection {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getTransactionIsolation",
                 () -> this.pluginService.getCurrentConnection().getTransactionIsolation());
     }
@@ -296,7 +291,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setTransactionIsolation",
                 () -> this.pluginService.getCurrentConnection().setTransactionIsolation(level),
                 level);
@@ -308,7 +303,7 @@ public class ConnectionWrapper implements Connection {
                 SQLWarning.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getWarnings",
                 () -> this.pluginService.getCurrentConnection().getWarnings());
     }
@@ -318,7 +313,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.clearWarnings",
                 () -> this.pluginService.getCurrentConnection().clearWarnings());
     }
@@ -330,7 +325,7 @@ public class ConnectionWrapper implements Connection {
                 Statement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createStatement",
                 () -> this.pluginService.getCurrentConnection().createStatement(resultSetType, resultSetConcurrency),
                 resultSetType, resultSetConcurrency);
@@ -343,7 +338,7 @@ public class ConnectionWrapper implements Connection {
                 PreparedStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareStatement",
                 () -> this.pluginService.getCurrentConnection().prepareStatement(sql, resultSetType, resultSetConcurrency),
                 sql, resultSetType, resultSetConcurrency);
@@ -356,7 +351,7 @@ public class ConnectionWrapper implements Connection {
                 CallableStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareCall",
                 () -> this.pluginService.getCurrentConnection().prepareCall(sql, resultSetType, resultSetConcurrency),
                 sql, resultSetType, resultSetConcurrency);
@@ -369,7 +364,7 @@ public class ConnectionWrapper implements Connection {
                 Map.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getTypeMap",
                 () -> this.pluginService.getCurrentConnection().getTypeMap());
     }
@@ -379,7 +374,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setTypeMap",
                 () -> this.pluginService.getCurrentConnection().setTypeMap(map),
                 map);
@@ -391,7 +386,7 @@ public class ConnectionWrapper implements Connection {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getHoldability",
                 () -> this.pluginService.getCurrentConnection().getHoldability());
     }
@@ -401,7 +396,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setHoldability",
                 () -> this.pluginService.getCurrentConnection().setHoldability(holdability),
                 holdability);
@@ -413,7 +408,7 @@ public class ConnectionWrapper implements Connection {
                 Savepoint.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setSavepoint",
                 () -> this.pluginService.getCurrentConnection().setSavepoint());
     }
@@ -424,7 +419,7 @@ public class ConnectionWrapper implements Connection {
                 Savepoint.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setSavepoint",
                 () -> this.pluginService.getCurrentConnection().setSavepoint(name),
                 name);
@@ -435,7 +430,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.rollback",
                 () -> this.pluginService.getCurrentConnection().rollback(savepoint),
                 savepoint);
@@ -446,7 +441,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.releaseSavepoint",
                 () -> this.pluginService.getCurrentConnection().releaseSavepoint(savepoint),
                 savepoint);
@@ -459,7 +454,7 @@ public class ConnectionWrapper implements Connection {
                 Statement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createStatement",
                 () -> this.pluginService.getCurrentConnection().createStatement(
                         resultSetType, resultSetConcurrency, resultSetHoldability),
@@ -473,7 +468,7 @@ public class ConnectionWrapper implements Connection {
                 PreparedStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareStatement",
                 () -> this.pluginService.getCurrentConnection().prepareStatement(
                         sql, resultSetType, resultSetConcurrency, resultSetHoldability),
@@ -487,7 +482,7 @@ public class ConnectionWrapper implements Connection {
                 CallableStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareCall",
                 () -> this.pluginService.getCurrentConnection().prepareCall(
                         sql, resultSetType, resultSetConcurrency, resultSetHoldability),
@@ -500,7 +495,7 @@ public class ConnectionWrapper implements Connection {
                 PreparedStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareStatement",
                 () -> this.pluginService.getCurrentConnection().prepareStatement(sql, autoGeneratedKeys),
                 sql, autoGeneratedKeys);
@@ -512,7 +507,7 @@ public class ConnectionWrapper implements Connection {
                 PreparedStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareStatement",
                 () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnIndexes),
                 sql, columnIndexes);
@@ -524,7 +519,7 @@ public class ConnectionWrapper implements Connection {
                 PreparedStatement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.prepareStatement",
                 () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnNames),
                 sql, columnNames);
@@ -536,7 +531,7 @@ public class ConnectionWrapper implements Connection {
                 Clob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createClob",
                 () -> this.pluginService.getCurrentConnection().createClob());
     }
@@ -547,7 +542,7 @@ public class ConnectionWrapper implements Connection {
                 Blob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createBlob",
                 () -> this.pluginService.getCurrentConnection().createBlob());
     }
@@ -558,7 +553,7 @@ public class ConnectionWrapper implements Connection {
                 NClob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createNClob",
                 () -> this.pluginService.getCurrentConnection().createNClob());
     }
@@ -569,7 +564,7 @@ public class ConnectionWrapper implements Connection {
                 SQLXML.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createSQLXML",
                 () -> this.pluginService.getCurrentConnection().createSQLXML());
     }
@@ -580,7 +575,7 @@ public class ConnectionWrapper implements Connection {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.isValid",
                 () -> this.pluginService.getCurrentConnection().isValid(timeout),
                 timeout);
@@ -591,7 +586,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLClientInfoException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setClientInfo",
                 () -> this.pluginService.getCurrentConnection().setClientInfo(name, value),
                 name, value);
@@ -603,7 +598,7 @@ public class ConnectionWrapper implements Connection {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getClientInfo",
                 () -> this.pluginService.getCurrentConnection().getClientInfo(name),
                 name);
@@ -615,7 +610,7 @@ public class ConnectionWrapper implements Connection {
                 Properties.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getClientInfo",
                 () -> this.pluginService.getCurrentConnection().getClientInfo());
     }
@@ -625,7 +620,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLClientInfoException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setClientInfo",
                 () -> this.pluginService.getCurrentConnection().setClientInfo(properties),
                 properties);
@@ -637,7 +632,7 @@ public class ConnectionWrapper implements Connection {
                 Array.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createArrayOf",
                 () -> this.pluginService.getCurrentConnection().createArrayOf(typeName, elements),
                 typeName, elements);
@@ -649,7 +644,7 @@ public class ConnectionWrapper implements Connection {
                 Struct.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.createStruct",
                 () -> this.pluginService.getCurrentConnection().createStruct(typeName, attributes),
                 typeName, attributes);
@@ -661,7 +656,7 @@ public class ConnectionWrapper implements Connection {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getSchema",
                 () -> this.pluginService.getCurrentConnection().getSchema());
     }
@@ -671,7 +666,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setSchema",
                 () -> this.pluginService.getCurrentConnection().setSchema(schema),
                 schema);
@@ -682,7 +677,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.abort",
                 () -> this.pluginService.getCurrentConnection().abort(executor),
                 executor);
@@ -693,7 +688,7 @@ public class ConnectionWrapper implements Connection {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.setNetworkTimeout",
                 () -> this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds),
                 executor, milliseconds);
@@ -705,7 +700,7 @@ public class ConnectionWrapper implements Connection {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.currentConnectionClass,
+                this.pluginService.getCurrentConnection(),
                 "Connection.getNetworkTimeout",
                 () -> this.pluginService.getCurrentConnection().getNetworkTimeout());
     }

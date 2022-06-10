@@ -6,6 +6,8 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -13,26 +15,28 @@ import java.util.Properties;
 public class PluginServiceImpl implements PluginService, HostListProviderService {
 
     protected final ConnectionPluginManager pluginManager;
-    protected HostSpec hostSpec;
     protected HostSpec[] hostSpecs;
+    protected Connection currentConnection;
+    protected HostSpec currentHostSpec;
 
-    public PluginServiceImpl(ConnectionPluginManager pluginManager) {
+    public PluginServiceImpl(@NonNull ConnectionPluginManager pluginManager) {
         this.pluginManager = pluginManager;
     }
 
     @Override
     public Connection getCurrentConnection() {
-        return null;
+        return this.currentConnection;
     }
 
     @Override
     public HostSpec getCurrentHostSpec() {
-        return null;
+        return this.currentHostSpec;
     }
 
     @Override
-    public void setCurrentConnection(Connection connection, HostSpec hostSpec) {
-
+    public void setCurrentConnection(final @NonNull Connection connection, final @NonNull HostSpec hostSpec) {
+        this.currentConnection = connection;
+        this.currentHostSpec = hostSpec;
     }
 
     @Override
