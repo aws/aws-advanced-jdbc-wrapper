@@ -7,10 +7,7 @@ import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -23,8 +20,7 @@ public class TestPluginOne implements ConnectionPlugin {
     public TestPluginOne(ArrayList<String> calls) {
         this.calls = calls;
 
-        this.subscribedMethods = new HashSet<>();
-        this.subscribedMethods.add("*");
+        this.subscribedMethods = new HashSet<>(Arrays.asList("*"));
     }
 
     @Override
@@ -36,7 +32,7 @@ public class TestPluginOne implements ConnectionPlugin {
     public <T, E extends Exception> T execute(
             Class<T> resultClass,
             Class<E> exceptionClass,
-            Class<?> methodInvokeOn,
+            Object methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
             Object[] jdbcMethodArgs) throws E {

@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -14,19 +15,10 @@ import java.sql.SQLType;
 public class SQLTypeWrapper implements SQLType {
 
     protected SQLType sqlType;
-    protected Class<?> sqlTypeClass;
     protected ConnectionPluginManager pluginManager;
 
-    public SQLTypeWrapper(SQLType sqlType, ConnectionPluginManager pluginManager) {
-        if (sqlType == null) {
-            throw new IllegalArgumentException("sqlType");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public SQLTypeWrapper(@NonNull SQLType sqlType, @NonNull ConnectionPluginManager pluginManager) {
         this.sqlType = sqlType;
-        this.sqlTypeClass = this.sqlType.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -35,7 +27,7 @@ public class SQLTypeWrapper implements SQLType {
         return WrapperUtils.executeWithPlugins(
                 String.class,
                 this.pluginManager,
-                this.sqlTypeClass,
+                this.sqlType,
                 "SQLType.getName",
                 () -> this.sqlType.getName());
     }
@@ -45,7 +37,7 @@ public class SQLTypeWrapper implements SQLType {
         return WrapperUtils.executeWithPlugins(
                 String.class,
                 this.pluginManager,
-                this.sqlTypeClass,
+                this.sqlType,
                 "SQLType.getVendor",
                 () -> this.sqlType.getVendor());
     }
@@ -55,7 +47,7 @@ public class SQLTypeWrapper implements SQLType {
         return WrapperUtils.executeWithPlugins(
                 Integer.class,
                 this.pluginManager,
-                this.sqlTypeClass,
+                this.sqlType,
                 "SQLType.getVendorTypeNumber",
                 () -> this.sqlType.getVendorTypeNumber());
     }

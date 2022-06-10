@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -14,19 +15,10 @@ import java.sql.*;
 public class SQLDataWrapper implements SQLData {
 
     protected SQLData sqlData;
-    protected Class<?> sqlDataClass;
     protected ConnectionPluginManager pluginManager;
 
-    public SQLDataWrapper(SQLData sqlData, ConnectionPluginManager pluginManager) {
-        if (sqlData == null) {
-            throw new IllegalArgumentException("sqlData");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public SQLDataWrapper(@NonNull SQLData sqlData, @NonNull ConnectionPluginManager pluginManager) {
         this.sqlData = sqlData;
-        this.sqlDataClass = this.sqlData.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -36,7 +28,7 @@ public class SQLDataWrapper implements SQLData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlDataClass,
+                this.sqlData,
                 "SQLData.getSQLTypeName",
                 () -> this.sqlData.getSQLTypeName());
     }
@@ -46,7 +38,7 @@ public class SQLDataWrapper implements SQLData {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlDataClass,
+                this.sqlData,
                 "SQLData.readSQL",
                 () -> this.sqlData.readSQL(stream, typeName),
                 stream, typeName);
@@ -57,7 +49,7 @@ public class SQLDataWrapper implements SQLData {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlDataClass,
+                this.sqlData,
                 "SQLData.writeSQL",
                 () -> this.sqlData.writeSQL(stream),
                 stream);

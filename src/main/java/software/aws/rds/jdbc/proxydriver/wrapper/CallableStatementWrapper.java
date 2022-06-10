@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -38,20 +39,11 @@ import java.util.Map;
 public class CallableStatementWrapper implements CallableStatement {
 
     protected CallableStatement statement;
-    protected Class<?> statementClass;
     protected ConnectionPluginManager pluginManager;
 
-    public CallableStatementWrapper(CallableStatement statement,
-                                    ConnectionPluginManager pluginManager) {
-        if (statement == null) {
-            throw new IllegalArgumentException("statement");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public CallableStatementWrapper(@NonNull CallableStatement statement,
+                                    @NonNull ConnectionPluginManager pluginManager) {
         this.statement = statement;
-        this.statementClass = this.statement.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -60,7 +52,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterIndex, sqlType),
                 parameterIndex, sqlType);
@@ -71,7 +63,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterIndex, sqlType, scale),
                 parameterIndex, sqlType, scale);
@@ -83,7 +75,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.wasNull",
                 () -> this.statement.wasNull());
     }
@@ -94,7 +86,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getString",
                 () -> this.statement.getString(parameterIndex),
                 parameterIndex);
@@ -106,7 +98,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBoolean",
                 () -> this.statement.getBoolean(parameterIndex),
                 parameterIndex);
@@ -118,7 +110,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 byte.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getByte",
                 () -> this.statement.getByte(parameterIndex),
                 parameterIndex);
@@ -130,7 +122,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 short.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getShort",
                 () -> this.statement.getShort(parameterIndex),
                 parameterIndex);
@@ -142,7 +134,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getInt",
                 () -> this.statement.getInt(parameterIndex),
                 parameterIndex);
@@ -154,7 +146,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getLong",
                 () -> this.statement.getLong(parameterIndex),
                 parameterIndex);
@@ -166,7 +158,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 float.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getFloat",
                 () -> this.statement.getFloat(parameterIndex),
                 parameterIndex);
@@ -178,7 +170,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 double.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getDouble",
                 () -> this.statement.getDouble(parameterIndex),
                 parameterIndex);
@@ -191,7 +183,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBigDecimal",
                 () -> this.statement.getBigDecimal(parameterIndex, scale),
                 parameterIndex, scale);
@@ -203,7 +195,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 byte[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBytes",
                 () -> this.statement.getBytes(parameterIndex),
                 parameterIndex);
@@ -215,7 +207,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getDate",
                 () -> this.statement.getDate(parameterIndex),
                 parameterIndex);
@@ -227,7 +219,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTime",
                 () -> this.statement.getTime(parameterIndex),
                 parameterIndex);
@@ -239,7 +231,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTimestamp",
                 () -> this.statement.getTimestamp(parameterIndex),
                 parameterIndex);
@@ -251,7 +243,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getObject",
                 () -> this.statement.getObject(parameterIndex),
                 parameterIndex);
@@ -263,7 +255,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBigDecimal",
                 () -> this.statement.getBigDecimal(parameterIndex),
                 parameterIndex);
@@ -275,7 +267,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getObject",
                 () -> this.statement.getObject(parameterIndex, map),
                 parameterIndex, map);
@@ -287,7 +279,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Ref.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getRef",
                 () -> this.statement.getRef(parameterIndex),
                 parameterIndex);
@@ -299,7 +291,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Blob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBlob",
                 () -> this.statement.getBlob(parameterIndex),
                 parameterIndex);
@@ -311,7 +303,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Clob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getClob",
                 () -> this.statement.getClob(parameterIndex),
                 parameterIndex);
@@ -323,7 +315,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Array.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getArray",
                 () -> this.statement.getArray(parameterIndex),
                 parameterIndex);
@@ -335,7 +327,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getDate",
                 () -> this.statement.getDate(parameterIndex, cal),
                 parameterIndex, cal);
@@ -347,7 +339,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTime",
                 () -> this.statement.getTime(parameterIndex, cal),
                 parameterIndex, cal);
@@ -359,7 +351,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTimestamp",
                 () -> this.statement.getTimestamp(parameterIndex, cal),
                 parameterIndex, cal);
@@ -371,7 +363,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterIndex, sqlType, typeName),
                 parameterIndex, sqlType, typeName);
@@ -382,7 +374,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterName, sqlType),
                 parameterName, sqlType);
@@ -394,7 +386,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterName, sqlType, scale),
                 parameterName, sqlType, scale);
@@ -406,7 +398,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterName, sqlType, typeName),
                 parameterName, sqlType, typeName);
@@ -418,7 +410,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 URL.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getURL",
                 () -> this.statement.getURL(parameterIndex),
                 parameterIndex);
@@ -429,7 +421,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setURL",
                 () -> this.statement.setURL(parameterName, val),
                 parameterName, val);
@@ -440,7 +432,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNull",
                 () -> this.statement.setNull(parameterName, sqlType),
                 parameterName, sqlType);
@@ -451,7 +443,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBoolean",
                 () -> this.statement.setBoolean(parameterName, x),
                 parameterName, x);
@@ -462,7 +454,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setByte",
                 () -> this.statement.setByte(parameterName, x),
                 parameterName, x);
@@ -473,7 +465,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setShort",
                 () -> this.statement.setShort(parameterName, x),
                 parameterName, x);
@@ -484,7 +476,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setInt",
                 () -> this.statement.setInt(parameterName, x),
                 parameterName, x);
@@ -495,7 +487,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setLong",
                 () -> this.statement.setLong(parameterName, x),
                 parameterName, x);
@@ -506,7 +498,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setFloat",
                 () -> this.statement.setFloat(parameterName, x),
                 parameterName, x);
@@ -517,7 +509,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setDouble",
                 () -> this.statement.setDouble(parameterName, x),
                 parameterName, x);
@@ -528,7 +520,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBigDecimal",
                 () -> this.statement.setBigDecimal(parameterName, x),
                 parameterName, x);
@@ -539,7 +531,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setString",
                 () -> this.statement.setString(parameterName, x),
                 parameterName, x);
@@ -550,7 +542,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBytes",
                 () -> this.statement.setBytes(parameterName, x),
                 parameterName, x);
@@ -561,7 +553,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setDate",
                 () -> this.statement.setDate(parameterName, x),
                 parameterName, x);
@@ -572,7 +564,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTime",
                 () -> this.statement.setTime(parameterName, x),
                 parameterName, x);
@@ -583,7 +575,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTimestamp",
                 () -> this.statement.setTimestamp(parameterName, x),
                 parameterName, x);
@@ -594,7 +586,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setAsciiStream",
                 () -> this.statement.setAsciiStream(parameterName, x, length),
                 parameterName, x, length);
@@ -605,7 +597,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBinaryStream",
                 () -> this.statement.setBinaryStream(parameterName, x, length),
                 parameterName, x, length);
@@ -617,7 +609,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterName, x, targetSqlType, scale),
                 parameterName, x, targetSqlType, scale);
@@ -628,7 +620,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterName, x, targetSqlType),
                 parameterName, x, targetSqlType);
@@ -639,7 +631,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterName, x),
                 parameterName, x);
@@ -651,7 +643,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setCharacterStream",
                 () -> this.statement.setCharacterStream(parameterName, reader, length),
                 parameterName, reader, length);
@@ -662,7 +654,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setDate",
                 () -> this.statement.setDate(parameterName, x, cal),
                 parameterName, x, cal);
@@ -673,7 +665,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTime",
                 () -> this.statement.setTime(parameterName, x, cal),
                 parameterName, x, cal);
@@ -684,7 +676,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTimestamp",
                 () -> this.statement.setTimestamp(parameterName, x, cal),
                 parameterName, x, cal);
@@ -695,7 +687,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNull",
                 () -> this.statement.setNull(parameterName, sqlType, typeName),
                 parameterName, sqlType, typeName);
@@ -707,7 +699,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getString",
                 () -> this.statement.getString(parameterName),
                 parameterName);
@@ -719,7 +711,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBoolean",
                 () -> this.statement.getBoolean(parameterName),
                 parameterName);
@@ -731,7 +723,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 byte.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getByte",
                 () -> this.statement.getByte(parameterName),
                 parameterName);
@@ -743,7 +735,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 short.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getShort",
                 () -> this.statement.getShort(parameterName),
                 parameterName);
@@ -755,7 +747,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getInt",
                 () -> this.statement.getInt(parameterName),
                 parameterName);
@@ -767,7 +759,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getLong",
                 () -> this.statement.getLong(parameterName),
                 parameterName);
@@ -779,7 +771,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 float.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getFloat",
                 () -> this.statement.getFloat(parameterName),
                 parameterName);
@@ -791,7 +783,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 double.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getDouble",
                 () -> this.statement.getDouble(parameterName),
                 parameterName);
@@ -803,7 +795,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 byte[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBytes",
                 () -> this.statement.getBytes(parameterName),
                 parameterName);
@@ -815,7 +807,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getDate",
                 () -> this.statement.getDate(parameterName),
                 parameterName);
@@ -827,7 +819,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTime",
                 () -> this.statement.getTime(parameterName),
                 parameterName);
@@ -839,7 +831,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTimestamp",
                 () -> this.statement.getTimestamp(parameterName),
                 parameterName);
@@ -851,7 +843,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getObject",
                 () -> this.statement.getObject(parameterName),
                 parameterName);
@@ -863,7 +855,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBigDecimal",
                 () -> this.statement.getBigDecimal(parameterName),
                 parameterName);
@@ -875,7 +867,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getObject",
                 () -> this.statement.getObject(parameterName, map),
                 parameterName, map);
@@ -887,7 +879,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Ref.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getRef",
                 () -> this.statement.getRef(parameterName),
                 parameterName);
@@ -899,7 +891,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Blob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getBlob",
                 () -> this.statement.getBlob(parameterName),
                 parameterName);
@@ -911,7 +903,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Clob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getClob",
                 () -> this.statement.getClob(parameterName),
                 parameterName);
@@ -923,7 +915,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Array.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getArray",
                 () -> this.statement.getArray(parameterName),
                 parameterName);
@@ -935,7 +927,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getDate",
                 () -> this.statement.getDate(parameterName, cal),
                 parameterName, cal);
@@ -947,7 +939,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTime",
                 () -> this.statement.getTime(parameterName, cal),
                 parameterName, cal);
@@ -959,7 +951,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getTimestamp",
                 () -> this.statement.getTimestamp(parameterName, cal),
                 parameterName, cal);
@@ -971,7 +963,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 URL.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getURL",
                 () -> this.statement.getURL(parameterName),
                 parameterName);
@@ -983,7 +975,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 RowId.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getRowId",
                 () -> this.statement.getRowId(parameterIndex),
                 parameterIndex);
@@ -995,7 +987,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 RowId.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getRowId",
                 () -> this.statement.getRowId(parameterName),
                 parameterName);
@@ -1006,7 +998,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setRowId",
                 () -> this.statement.setRowId(parameterName, x),
                 parameterName, x);
@@ -1017,7 +1009,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNString",
                 () -> this.statement.setNString(parameterName, value),
                 parameterName, value);
@@ -1029,7 +1021,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNCharacterStream",
                 () -> this.statement.setNCharacterStream(parameterName, value, length),
                 parameterName, value, length);
@@ -1040,7 +1032,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNClob",
                 () -> this.statement.setNClob(parameterName, value),
                 parameterName, value);
@@ -1051,7 +1043,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setClob",
                 () -> this.statement.setClob(parameterName, reader, length),
                 parameterName, reader, length);
@@ -1063,7 +1055,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBlob",
                 () -> this.statement.setBlob(parameterName, inputStream, length),
                 parameterName, inputStream, length);
@@ -1074,7 +1066,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNClob",
                 () -> this.statement.setNClob(parameterName, reader, length),
                 parameterName, reader, length);
@@ -1086,7 +1078,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 NClob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getNClob",
                 () -> this.statement.getNClob(parameterIndex),
                 parameterIndex);
@@ -1098,7 +1090,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 NClob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getNClob",
                 () -> this.statement.getNClob(parameterName),
                 parameterName);
@@ -1110,7 +1102,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setSQLXML",
                 () -> this.statement.setSQLXML(parameterName, xmlObject),
                 parameterName, xmlObject);
@@ -1123,7 +1115,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 SQLXML.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getSQLXML",
                 () -> this.statement.getSQLXML(parameterIndex),
                 parameterIndex);
@@ -1136,7 +1128,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 SQLXML.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getSQLXML",
                 () -> this.statement.getSQLXML(parameterName),
                 parameterName);
@@ -1148,7 +1140,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getNString",
                 () -> this.statement.getNString(parameterIndex),
                 parameterIndex);
@@ -1160,7 +1152,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getNString",
                 () -> this.statement.getNString(parameterName),
                 parameterName);
@@ -1172,7 +1164,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getNCharacterStream",
                 () -> this.statement.getNCharacterStream(parameterIndex),
                 parameterIndex);
@@ -1184,7 +1176,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getNCharacterStream",
                 () -> this.statement.getNCharacterStream(parameterName),
                 parameterName);
@@ -1196,7 +1188,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getCharacterStream",
                 () -> this.statement.getCharacterStream(parameterIndex),
                 parameterIndex);
@@ -1208,7 +1200,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getCharacterStream",
                 () -> this.statement.getCharacterStream(parameterName),
                 parameterName);
@@ -1219,7 +1211,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBlob",
                 () -> this.statement.setBlob(parameterName, x),
                 parameterName, x);
@@ -1230,7 +1222,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setClob",
                 () -> this.statement.setClob(parameterName, x),
                 parameterName, x);
@@ -1241,7 +1233,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setAsciiStream",
                 () -> this.statement.setAsciiStream(parameterName, x, length),
                 parameterName, x, length);
@@ -1253,7 +1245,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBinaryStream",
                 () -> this.statement.setBinaryStream(parameterName, x, length),
                 parameterName, x, length);
@@ -1265,7 +1257,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setCharacterStream",
                 () -> this.statement.setCharacterStream(parameterName, reader, length),
                 parameterName, reader, length);
@@ -1276,7 +1268,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setAsciiStream",
                 () -> this.statement.setAsciiStream(parameterName, x),
                 parameterName, x);
@@ -1287,7 +1279,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBinaryStream",
                 () -> this.statement.setBinaryStream(parameterName, x),
                 parameterName, x);
@@ -1298,7 +1290,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setCharacterStream",
                 () -> this.statement.setCharacterStream(parameterName, reader),
                 parameterName, reader);
@@ -1309,7 +1301,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNCharacterStream",
                 () -> this.statement.setNCharacterStream(parameterName, value),
                 parameterName, value);
@@ -1320,7 +1312,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setClob",
                 () -> this.statement.setClob(parameterName, reader),
                 parameterName, reader);
@@ -1331,7 +1323,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBlob",
                 () -> this.statement.setBlob(parameterName, inputStream),
                 parameterName, inputStream);
@@ -1342,7 +1334,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNClob",
                 () -> this.statement.setNClob(parameterName, reader),
                 parameterName, reader);
@@ -1354,7 +1346,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 type,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getObject",
                 () -> this.statement.getObject(parameterIndex, type),
                 parameterIndex, type);
@@ -1366,7 +1358,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 type,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getObject",
                 () -> this.statement.getObject(parameterName, type),
                 parameterName, type);
@@ -1378,7 +1370,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterName, x, targetSqlType, scaleOrLength),
                 parameterName, x, targetSqlType, scaleOrLength);
@@ -1389,7 +1381,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterName, x, targetSqlType),
                 parameterName, x, targetSqlType);
@@ -1400,7 +1392,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterIndex, sqlType),
                 parameterIndex, sqlType);
@@ -1412,7 +1404,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterIndex, sqlType, scale),
                 parameterIndex, sqlType, scale);
@@ -1424,7 +1416,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterIndex, sqlType, typeName),
                 parameterIndex, sqlType, typeName);
@@ -1435,7 +1427,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterName, sqlType),
                 parameterName, sqlType);
@@ -1447,7 +1439,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterName, sqlType, scale),
                 parameterName, sqlType, scale);
@@ -1459,7 +1451,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.registerOutParameter",
                 () -> this.statement.registerOutParameter(parameterName, sqlType, typeName),
                 parameterName, sqlType, typeName);
@@ -1471,7 +1463,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeQuery",
                 () -> this.statement.executeQuery());
     }
@@ -1482,7 +1474,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeUpdate",
                 () -> this.statement.executeUpdate());
     }
@@ -1492,7 +1484,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNull",
                 () -> this.statement.setNull(parameterIndex, sqlType),
                 parameterIndex, sqlType);
@@ -1503,7 +1495,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBoolean",
                 () -> this.statement.setBoolean(parameterIndex, x),
                 parameterIndex, x);
@@ -1514,7 +1506,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setByte",
                 () -> this.statement.setByte(parameterIndex, x),
                 parameterIndex, x);
@@ -1525,7 +1517,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setShort",
                 () -> this.statement.setShort(parameterIndex, x),
                 parameterIndex, x);
@@ -1536,7 +1528,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setInt",
                 () -> this.statement.setInt(parameterIndex, x),
                 parameterIndex, x);
@@ -1547,7 +1539,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setLong",
                 () -> this.statement.setLong(parameterIndex, x),
                 parameterIndex, x);
@@ -1558,7 +1550,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setFloat",
                 () -> this.statement.setFloat(parameterIndex, x),
                 parameterIndex, x);
@@ -1569,7 +1561,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setDouble",
                 () -> this.statement.setDouble(parameterIndex, x),
                 parameterIndex, x);
@@ -1580,7 +1572,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBigDecimal",
                 () -> this.statement.setBigDecimal(parameterIndex, x),
                 parameterIndex, x);
@@ -1591,7 +1583,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setString",
                 () -> this.statement.setString(parameterIndex, x),
                 parameterIndex, x);
@@ -1602,7 +1594,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBytes",
                 () -> this.statement.setBytes(parameterIndex, x),
                 parameterIndex, x);
@@ -1613,7 +1605,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setDate",
                 () -> this.statement.setDate(parameterIndex, x),
                 parameterIndex, x);
@@ -1624,7 +1616,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTime",
                 () -> this.statement.setTime(parameterIndex, x),
                 parameterIndex, x);
@@ -1635,7 +1627,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTimestamp",
                 () -> this.statement.setTimestamp(parameterIndex, x),
                 parameterIndex, x);
@@ -1646,7 +1638,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setAsciiStream",
                 () -> this.statement.setAsciiStream(parameterIndex, x, length),
                 parameterIndex, x, length);
@@ -1658,7 +1650,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setUnicodeStream",
                 () -> this.statement.setUnicodeStream(parameterIndex, x, length),
                 parameterIndex, x, length);
@@ -1669,7 +1661,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBinaryStream",
                 () -> this.statement.setBinaryStream(parameterIndex, x, length),
                 parameterIndex, x, length);
@@ -1680,7 +1672,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.clearParameters",
                 () -> this.statement.clearParameters());
     }
@@ -1690,7 +1682,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterIndex, x, targetSqlType),
                 parameterIndex, x, targetSqlType);
@@ -1701,7 +1693,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterIndex, x),
                 parameterIndex, x);
@@ -1713,7 +1705,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.execute",
                 () -> this.statement.execute());
     }
@@ -1723,7 +1715,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.addBatch",
                 () -> this.statement.addBatch());
     }
@@ -1734,7 +1726,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setCharacterStream",
                 () -> this.statement.setCharacterStream(parameterIndex, reader, length),
                 parameterIndex, reader, length);
@@ -1745,7 +1737,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setRef",
                 () -> this.statement.setRef(parameterIndex, x),
                 parameterIndex, x);
@@ -1756,7 +1748,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBlob",
                 () -> this.statement.setBlob(parameterIndex, x),
                 parameterIndex, x);
@@ -1767,7 +1759,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setClob",
                 () -> this.statement.setClob(parameterIndex, x),
                 parameterIndex, x);
@@ -1778,7 +1770,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setArray",
                 () -> this.statement.setArray(parameterIndex, x),
                 parameterIndex, x);
@@ -1790,7 +1782,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 ResultSetMetaData.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getMetaData",
                 () -> this.statement.getMetaData());
     }
@@ -1800,7 +1792,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setDate",
                 () -> this.statement.setDate(parameterIndex, x, cal),
                 parameterIndex, x, cal);
@@ -1811,7 +1803,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTime",
                 () -> this.statement.setTime(parameterIndex, x, cal),
                 parameterIndex, x, cal);
@@ -1822,7 +1814,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setTimestamp",
                 () -> this.statement.setTimestamp(parameterIndex, x, cal),
                 parameterIndex, x, cal);
@@ -1833,7 +1825,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNull",
                 () -> this.statement.setNull(parameterIndex, sqlType, typeName),
                 parameterIndex, sqlType, typeName);
@@ -1844,7 +1836,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setURL",
                 () -> this.statement.setURL(parameterIndex, x),
                 parameterIndex, x);
@@ -1856,7 +1848,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 ParameterMetaData.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getParameterMetaData",
                 () -> this.statement.getParameterMetaData());
     }
@@ -1866,7 +1858,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setRowId",
                 () -> this.statement.setRowId(parameterIndex, x),
                 parameterIndex, x);
@@ -1877,7 +1869,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNString",
                 () -> this.statement.setNString(parameterIndex, value),
                 parameterIndex, value);
@@ -1889,7 +1881,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNCharacterStream",
                 () -> this.statement.setNCharacterStream(parameterIndex, value, length),
                 parameterIndex, value, length);
@@ -1900,7 +1892,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNClob",
                 () -> this.statement.setNClob(parameterIndex, value),
                 parameterIndex, value);
@@ -1911,7 +1903,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setClob",
                 () -> this.statement.setClob(parameterIndex, reader, length),
                 parameterIndex, reader, length);
@@ -1923,7 +1915,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBlob",
                 () -> this.statement.setBlob(parameterIndex, inputStream, length),
                 parameterIndex, inputStream, length);
@@ -1934,7 +1926,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNClob",
                 () -> this.statement.setNClob(parameterIndex, reader, length),
                 parameterIndex, reader, length);
@@ -1946,7 +1938,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setSQLXML",
                 () -> this.statement.setSQLXML(parameterIndex, xmlObject),
                 parameterIndex, xmlObject);
@@ -1958,7 +1950,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
                 parameterIndex, x, targetSqlType, scaleOrLength);
@@ -1969,7 +1961,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setAsciiStream",
                 () -> this.statement.setAsciiStream(parameterIndex, x, length),
                 parameterIndex, x, length);
@@ -1980,7 +1972,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBinaryStream",
                 () -> this.statement.setBinaryStream(parameterIndex, x, length),
                 parameterIndex, x, length);
@@ -1992,7 +1984,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setCharacterStream",
                 () -> this.statement.setCharacterStream(parameterIndex, reader, length),
                 parameterIndex, reader, length);
@@ -2003,7 +1995,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setAsciiStream",
                 () -> this.statement.setAsciiStream(parameterIndex, x),
                 parameterIndex, x);
@@ -2014,7 +2006,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBinaryStream",
                 () -> this.statement.setBinaryStream(parameterIndex, x),
                 parameterIndex, x);
@@ -2025,7 +2017,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setCharacterStream",
                 () -> this.statement.setCharacterStream(parameterIndex, reader),
                 parameterIndex, reader);
@@ -2036,7 +2028,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNCharacterStream",
                 () -> this.statement.setNCharacterStream(parameterIndex, value),
                 parameterIndex, value);
@@ -2047,7 +2039,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setClob",
                 () -> this.statement.setClob(parameterIndex, reader),
                 parameterIndex, reader);
@@ -2058,7 +2050,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setBlob",
                 () -> this.statement.setBlob(parameterIndex, inputStream),
                 parameterIndex, inputStream);
@@ -2069,7 +2061,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setNClob",
                 () -> this.statement.setNClob(parameterIndex, reader),
                 parameterIndex, reader);
@@ -2081,7 +2073,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterIndex, x, targetSqlType, scaleOrLength),
                 parameterIndex, x, targetSqlType, scaleOrLength);
@@ -2092,7 +2084,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setObject",
                 () -> this.statement.setObject(parameterIndex, x, targetSqlType),
                 parameterIndex, x, targetSqlType);
@@ -2104,7 +2096,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeLargeUpdate",
                 () -> this.statement.executeLargeUpdate());
     }
@@ -2115,7 +2107,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeQuery",
                 () -> this.statement.executeQuery(sql),
                 sql);
@@ -2127,7 +2119,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql),
                 sql);
@@ -2138,7 +2130,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.close",
                 () -> this.statement.close());
     }
@@ -2149,7 +2141,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getMaxFieldSize",
                 () -> this.statement.getMaxFieldSize());
     }
@@ -2159,7 +2151,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setMaxFieldSize",
                 () -> this.statement.setMaxFieldSize(max),
                 max);
@@ -2171,7 +2163,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getMaxRows",
                 () -> this.statement.getMaxRows());
     }
@@ -2181,7 +2173,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setMaxRows",
                 () -> this.statement.setMaxRows(max),
                 max);
@@ -2192,7 +2184,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setEscapeProcessing",
                 () -> this.statement.setEscapeProcessing(enable),
                 enable);
@@ -2204,7 +2196,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getQueryTimeout",
                 () -> this.statement.getQueryTimeout());
     }
@@ -2214,7 +2206,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setQueryTimeout",
                 () -> this.statement.setQueryTimeout(seconds),
                 seconds);
@@ -2225,7 +2217,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.cancel",
                 () -> this.statement.cancel());
     }
@@ -2236,7 +2228,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 SQLWarning.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getWarnings",
                 () -> this.statement.getWarnings());
     }
@@ -2246,7 +2238,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.clearWarnings",
                 () -> this.statement.clearWarnings());
     }
@@ -2256,7 +2248,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setCursorName",
                 () -> this.statement.setCursorName(name),
                 name);
@@ -2268,7 +2260,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.execute",
                 () -> this.statement.execute(sql),
                 sql);
@@ -2280,7 +2272,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getResultSet",
                 () -> this.statement.getResultSet());
     }
@@ -2291,7 +2283,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getUpdateCount",
                 () -> this.statement.getUpdateCount());
     }
@@ -2302,7 +2294,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getMoreResults",
                 () -> this.statement.getMoreResults());
     }
@@ -2314,7 +2306,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getFetchDirection",
                 () -> this.statement.getFetchDirection());
     }
@@ -2324,7 +2316,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setFetchDirection",
                 () -> this.statement.setFetchDirection(direction),
                 direction);
@@ -2336,7 +2328,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getFetchSize",
                 () -> this.statement.getFetchSize());
     }
@@ -2346,7 +2338,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setFetchSize",
                 () -> this.statement.setFetchSize(rows),
                 rows);
@@ -2359,7 +2351,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getResultSetConcurrency",
                 () -> this.statement.getResultSetConcurrency());
     }
@@ -2371,7 +2363,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getResultSetType",
                 () -> this.statement.getResultSetType());
     }
@@ -2381,7 +2373,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.addBatch",
                 () -> this.statement.addBatch(sql),
                 sql);
@@ -2392,7 +2384,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.clearBatch",
                 () -> this.statement.clearBatch());
     }
@@ -2403,7 +2395,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeBatch",
                 () -> this.statement.executeBatch());
     }
@@ -2414,7 +2406,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 Connection.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getConnection",
                 () -> this.statement.getConnection());
     }
@@ -2425,7 +2417,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getMoreResults",
                 () -> this.statement.getMoreResults(current),
                 current);
@@ -2437,7 +2429,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getGeneratedKeys",
                 () -> this.statement.getGeneratedKeys());
     }
@@ -2448,7 +2440,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, autoGeneratedKeys),
                 sql, autoGeneratedKeys);
@@ -2460,7 +2452,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnIndexes),
                 sql, columnIndexes);
@@ -2472,7 +2464,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.executeUpdate",
                 () -> this.statement.executeUpdate(sql, columnNames),
                 sql, columnNames);
@@ -2484,7 +2476,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.execute",
                 () -> this.statement.execute(sql, autoGeneratedKeys),
                 sql, autoGeneratedKeys);
@@ -2496,7 +2488,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.execute",
                 () -> this.statement.execute(sql, columnIndexes),
                 sql, columnIndexes);
@@ -2508,7 +2500,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.execute",
                 () -> this.statement.execute(sql, columnNames),
                 sql, columnNames);
@@ -2520,7 +2512,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.getResultSetHoldability",
                 () -> this.statement.getResultSetHoldability());
     }
@@ -2531,7 +2523,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.isClosed",
                 () -> this.statement.isClosed());
     }
@@ -2543,7 +2535,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.isPoolable",
                 () -> this.statement.isPoolable());
     }
@@ -2554,7 +2546,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.setPoolable",
                 () -> this.statement.setPoolable(poolable),
                 poolable);
@@ -2565,7 +2557,7 @@ public class CallableStatementWrapper implements CallableStatement {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.closeOnCompletion",
                 () -> this.statement.closeOnCompletion());
     }
@@ -2576,7 +2568,7 @@ public class CallableStatementWrapper implements CallableStatement {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.statementClass,
+                this.statement,
                 "CallableStatement.isCloseOnCompletion",
                 () -> this.statement.isCloseOnCompletion());
     }

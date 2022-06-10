@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -17,19 +18,10 @@ import java.util.Map;
 public class ArrayWrapper implements Array {
 
     protected Array array;
-    protected Class<?> arrayClass;
     protected ConnectionPluginManager pluginManager;
 
-    public ArrayWrapper(Array array, ConnectionPluginManager pluginManager) {
-        if (array == null) {
-            throw new IllegalArgumentException("array");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public ArrayWrapper(@NonNull Array array, @NonNull ConnectionPluginManager pluginManager) {
         this.array = array;
-        this.arrayClass = this.array.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -39,7 +31,7 @@ public class ArrayWrapper implements Array {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getBaseTypeName",
                 () -> this.array.getBaseTypeName());
     }
@@ -50,7 +42,7 @@ public class ArrayWrapper implements Array {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getBaseType",
                 () -> this.array.getBaseType());
     }
@@ -61,7 +53,7 @@ public class ArrayWrapper implements Array {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getArray",
                 () -> this.array.getArray());
     }
@@ -72,7 +64,7 @@ public class ArrayWrapper implements Array {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getArray",
                 () -> this.array.getArray());
     }
@@ -83,7 +75,7 @@ public class ArrayWrapper implements Array {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getArray",
                 () -> this.array.getArray());
     }
@@ -94,7 +86,7 @@ public class ArrayWrapper implements Array {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getArray",
                 () -> this.array.getArray());
     }
@@ -105,7 +97,7 @@ public class ArrayWrapper implements Array {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getResultSet",
                 () -> this.array.getResultSet());
     }
@@ -116,7 +108,7 @@ public class ArrayWrapper implements Array {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getResultSet",
                 () -> this.array.getResultSet());
     }
@@ -127,7 +119,7 @@ public class ArrayWrapper implements Array {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getResultSet",
                 () -> this.array.getResultSet());
     }
@@ -138,7 +130,7 @@ public class ArrayWrapper implements Array {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.getResultSet",
                 () -> this.array.getResultSet(index, count, map),
                 index, count, map);
@@ -149,7 +141,7 @@ public class ArrayWrapper implements Array {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.arrayClass,
+                this.array,
                 "Array.free",
                 () -> this.array.free());
     }

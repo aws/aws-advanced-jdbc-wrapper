@@ -22,7 +22,7 @@ public interface ConnectionPlugin {
     <T, E extends Exception> T execute(
             final Class<T> resultClass,
             final Class<E> exceptionClass,
-            final Class<?> methodInvokeOn, //TODO: consider replace it with a target object reference
+            final Object methodInvokeOn,
             final String methodName,
             final JdbcCallable<T, E> jdbcMethodFunc,
             final Object[] jdbcMethodArgs) throws E;

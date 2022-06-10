@@ -168,7 +168,7 @@ public class ConnectionPluginManager {
     public <T, E extends Exception> T execute(
             final Class<T> resultType,
             final Class<E> exceptionClass,
-            final Class<?> methodInvokeOn,
+            final Object methodInvokeOn,
             final String methodName,
             final JdbcCallable<T, E> jdbcMethodFunc,
             final Object[] jdbcMethodArgs) throws E {

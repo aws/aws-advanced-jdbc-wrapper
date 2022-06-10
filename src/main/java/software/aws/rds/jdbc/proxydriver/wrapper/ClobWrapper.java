@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -20,19 +21,10 @@ import java.sql.Time;
 public class ClobWrapper implements Clob {
 
     protected Clob clob;
-    protected Class<?> clobClass;
     protected ConnectionPluginManager pluginManager;
 
-    public ClobWrapper(Clob clob, ConnectionPluginManager pluginManager) {
-        if (clob == null) {
-            throw new IllegalArgumentException("clob");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public ClobWrapper(@NonNull Clob clob, @NonNull ConnectionPluginManager pluginManager) {
         this.clob = clob;
-        this.clobClass = this.clob.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -42,7 +34,7 @@ public class ClobWrapper implements Clob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.length",
                 () -> this.clob.length());
     }
@@ -53,7 +45,7 @@ public class ClobWrapper implements Clob {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.getSubString",
                 () -> this.clob.getSubString(pos, length),
                 pos, length);
@@ -65,7 +57,7 @@ public class ClobWrapper implements Clob {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.getCharacterStream",
                 () -> this.clob.getCharacterStream());
     }
@@ -76,7 +68,7 @@ public class ClobWrapper implements Clob {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.getAsciiStream",
                 () -> this.clob.getAsciiStream());
     }
@@ -87,7 +79,7 @@ public class ClobWrapper implements Clob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.position",
                 () -> this.clob.position(searchStr, start),
                 searchStr, start);
@@ -99,7 +91,7 @@ public class ClobWrapper implements Clob {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.position",
                 () -> this.clob.position(searchStr, start),
                 searchStr, start);
@@ -111,7 +103,7 @@ public class ClobWrapper implements Clob {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.setString",
                 () -> this.clob.setString(pos, str),
                 pos, str);
@@ -123,7 +115,7 @@ public class ClobWrapper implements Clob {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.setString",
                 () -> this.clob.setString(pos, str, offset, len),
                 pos, str, offset, len);
@@ -135,7 +127,7 @@ public class ClobWrapper implements Clob {
                 OutputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.setAsciiStream",
                 () -> this.clob.setAsciiStream(pos),
                 pos);
@@ -147,7 +139,7 @@ public class ClobWrapper implements Clob {
                 Writer.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.setCharacterStream",
                 () -> this.clob.setCharacterStream(pos),
                 pos);
@@ -158,7 +150,7 @@ public class ClobWrapper implements Clob {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.truncate",
                 () -> this.clob.truncate(len),
                 len);
@@ -169,7 +161,7 @@ public class ClobWrapper implements Clob {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.free",
                 () -> this.clob.free());
     }
@@ -180,7 +172,7 @@ public class ClobWrapper implements Clob {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.clobClass,
+                this.clob,
                 "Clob.getCharacterStream",
                 () -> this.clob.getCharacterStream(pos, length),
                 pos, length);

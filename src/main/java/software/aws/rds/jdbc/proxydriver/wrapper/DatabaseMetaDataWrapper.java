@@ -1,5 +1,6 @@
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -8,19 +9,11 @@ import java.sql.*;
 public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
     protected DatabaseMetaData databaseMetaData;
-    protected Class<?> databaseMetaDataClass;
     protected ConnectionPluginManager pluginManager;
 
-    public DatabaseMetaDataWrapper(DatabaseMetaData databaseMetaData, ConnectionPluginManager pluginManager) {
-        if (databaseMetaData == null) {
-            throw new IllegalArgumentException("databaseMetaData");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public DatabaseMetaDataWrapper(@NonNull DatabaseMetaData databaseMetaData,
+                                   @NonNull ConnectionPluginManager pluginManager) {
         this.databaseMetaData = databaseMetaData;
-        this.databaseMetaDataClass = this.databaseMetaData.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -30,7 +23,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.allProceduresAreCallable",
                 () -> this.databaseMetaData.allProceduresAreCallable());
     }
@@ -41,7 +34,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.allTablesAreSelectable",
                 () -> this.databaseMetaData.allTablesAreSelectable());
     }
@@ -52,7 +45,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getURL",
                 () -> this.databaseMetaData.getURL());
     }
@@ -63,7 +56,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getUserName",
                 () -> this.databaseMetaData.getUserName());
     }
@@ -74,7 +67,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.isReadOnly",
                 () -> this.databaseMetaData.isReadOnly());
     }
@@ -85,7 +78,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.nullsAreSortedHigh",
                 () -> this.databaseMetaData.nullsAreSortedHigh());
     }
@@ -96,7 +89,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.nullsAreSortedLow",
                 () -> this.databaseMetaData.nullsAreSortedLow());
     }
@@ -107,7 +100,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.nullsAreSortedAtStart",
                 () -> this.databaseMetaData.nullsAreSortedAtStart());
     }
@@ -118,7 +111,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.nullsAreSortedAtEnd",
                 () -> this.databaseMetaData.nullsAreSortedAtEnd());
     }
@@ -129,7 +122,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDatabaseProductName",
                 () -> this.databaseMetaData.getDatabaseProductName());
     }
@@ -140,7 +133,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDatabaseProductVersion",
                 () -> this.databaseMetaData.getDatabaseProductVersion());
     }
@@ -151,7 +144,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDriverName",
                 () -> this.databaseMetaData.getDriverName());
     }
@@ -162,7 +155,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDriverVersion",
                 () -> this.databaseMetaData.getDriverVersion());
     }
@@ -172,7 +165,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         return WrapperUtils.executeWithPlugins(
                 int.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDriverMajorVersion",
                 () -> this.databaseMetaData.getDriverMajorVersion());
     }
@@ -182,7 +175,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         return WrapperUtils.executeWithPlugins(
                 int.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDriverMinorVersion",
                 () -> this.databaseMetaData.getDriverMinorVersion());
     }
@@ -193,7 +186,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.usesLocalFiles",
                 () -> this.databaseMetaData.usesLocalFiles());
     }
@@ -204,7 +197,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.usesLocalFilePerTable",
                 () -> this.databaseMetaData.usesLocalFilePerTable());
     }
@@ -215,7 +208,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsMixedCaseIdentifiers",
                 () -> this.databaseMetaData.supportsMixedCaseIdentifiers());
     }
@@ -226,7 +219,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.storesUpperCaseIdentifiers",
                 () -> this.databaseMetaData.storesUpperCaseIdentifiers());
     }
@@ -237,7 +230,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.storesLowerCaseIdentifiers",
                 () -> this.databaseMetaData.storesLowerCaseIdentifiers());
     }
@@ -248,7 +241,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.storesMixedCaseIdentifiers",
                 () -> this.databaseMetaData.storesMixedCaseIdentifiers());
     }
@@ -259,7 +252,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsMixedCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.supportsMixedCaseQuotedIdentifiers());
     }
@@ -270,7 +263,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.storesUpperCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.storesUpperCaseQuotedIdentifiers());
     }
@@ -281,7 +274,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.storesLowerCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.storesLowerCaseQuotedIdentifiers());
     }
@@ -292,7 +285,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.storesMixedCaseQuotedIdentifiers",
                 () -> this.databaseMetaData.storesMixedCaseQuotedIdentifiers());
     }
@@ -303,7 +296,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getIdentifierQuoteString",
                 () -> this.databaseMetaData.getIdentifierQuoteString());
     }
@@ -314,7 +307,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSQLKeywords",
                 () -> this.databaseMetaData.getSQLKeywords());
     }
@@ -325,7 +318,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getNumericFunctions",
                 () -> this.databaseMetaData.getNumericFunctions());
     }
@@ -336,7 +329,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getStringFunctions",
                 () -> this.databaseMetaData.getStringFunctions());
     }
@@ -347,7 +340,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSystemFunctions",
                 () -> this.databaseMetaData.getSystemFunctions());
     }
@@ -358,7 +351,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getTimeDateFunctions",
                 () -> this.databaseMetaData.getTimeDateFunctions());
     }
@@ -369,7 +362,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSearchStringEscape",
                 () -> this.databaseMetaData.getSearchStringEscape());
     }
@@ -380,7 +373,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getExtraNameCharacters",
                 () -> this.databaseMetaData.getExtraNameCharacters());
     }
@@ -391,7 +384,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsAlterTableWithAddColumn",
                 () -> this.databaseMetaData.supportsAlterTableWithAddColumn());
     }
@@ -402,7 +395,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsAlterTableWithDropColumn",
                 () -> this.databaseMetaData.supportsAlterTableWithDropColumn());
     }
@@ -413,7 +406,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsColumnAliasing",
                 () -> this.databaseMetaData.supportsColumnAliasing());
     }
@@ -424,7 +417,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.nullPlusNonNullIsNull",
                 () -> this.databaseMetaData.nullPlusNonNullIsNull());
     }
@@ -435,7 +428,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsConvert",
                 () -> this.databaseMetaData.supportsConvert());
     }
@@ -446,7 +439,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsConvert",
                 () -> this.databaseMetaData.supportsConvert(fromType, toType),
                 fromType, toType);
@@ -458,7 +451,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsTableCorrelationNames",
                 () -> this.databaseMetaData.supportsTableCorrelationNames());
     }
@@ -469,7 +462,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsDifferentTableCorrelationNames",
                 () -> this.databaseMetaData.supportsDifferentTableCorrelationNames());
     }
@@ -480,7 +473,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsExpressionsInOrderBy",
                 () -> this.databaseMetaData.supportsExpressionsInOrderBy());
     }
@@ -491,7 +484,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsOrderByUnrelated",
                 () -> this.databaseMetaData.supportsOrderByUnrelated());
     }
@@ -502,7 +495,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsGroupBy",
                 () -> this.databaseMetaData.supportsGroupBy());
     }
@@ -513,7 +506,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsGroupByUnrelated",
                 () -> this.databaseMetaData.supportsGroupByUnrelated());
     }
@@ -524,7 +517,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsGroupByBeyondSelect",
                 () -> this.databaseMetaData.supportsGroupByBeyondSelect());
     }
@@ -535,7 +528,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsLikeEscapeClause",
                 () -> this.databaseMetaData.supportsLikeEscapeClause());
     }
@@ -546,7 +539,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsMultipleResultSets",
                 () -> this.databaseMetaData.supportsMultipleResultSets());
     }
@@ -557,7 +550,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsMultipleTransactions",
                 () -> this.databaseMetaData.supportsMultipleTransactions());
     }
@@ -568,7 +561,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsNonNullableColumns",
                 () -> this.databaseMetaData.supportsNonNullableColumns());
     }
@@ -579,7 +572,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsMinimumSQLGrammar",
                 () -> this.databaseMetaData.supportsMinimumSQLGrammar());
     }
@@ -590,7 +583,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsCoreSQLGrammar",
                 () -> this.databaseMetaData.supportsCoreSQLGrammar());
     }
@@ -601,7 +594,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsExtendedSQLGrammar",
                 () -> this.databaseMetaData.supportsExtendedSQLGrammar());
     }
@@ -612,7 +605,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsANSI92EntryLevelSQL",
                 () -> this.databaseMetaData.supportsANSI92EntryLevelSQL());
     }
@@ -623,7 +616,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsANSI92IntermediateSQL",
                 () -> this.databaseMetaData.supportsANSI92IntermediateSQL());
     }
@@ -634,7 +627,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsANSI92FullSQL",
                 () -> this.databaseMetaData.supportsANSI92FullSQL());
     }
@@ -645,7 +638,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsIntegrityEnhancementFacility",
                 () -> this.databaseMetaData.supportsIntegrityEnhancementFacility());
     }
@@ -656,7 +649,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsOuterJoins",
                 () -> this.databaseMetaData.supportsOuterJoins());
     }
@@ -667,7 +660,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsFullOuterJoins",
                 () -> this.databaseMetaData.supportsFullOuterJoins());
     }
@@ -678,7 +671,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsLimitedOuterJoins",
                 () -> this.databaseMetaData.supportsLimitedOuterJoins());
     }
@@ -689,7 +682,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSchemaTerm",
                 () -> this.databaseMetaData.getSchemaTerm());
     }
@@ -700,7 +693,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getProcedureTerm",
                 () -> this.databaseMetaData.getProcedureTerm());
     }
@@ -711,7 +704,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getCatalogTerm",
                 () -> this.databaseMetaData.getCatalogTerm());
     }
@@ -722,7 +715,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.isCatalogAtStart",
                 () -> this.databaseMetaData.isCatalogAtStart());
     }
@@ -733,7 +726,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getCatalogSeparator",
                 () -> this.databaseMetaData.getCatalogSeparator());
     }
@@ -744,7 +737,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSchemasInDataManipulation",
                 () -> this.databaseMetaData.supportsSchemasInDataManipulation());
     }
@@ -755,7 +748,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSchemasInProcedureCalls",
                 () -> this.databaseMetaData.supportsSchemasInProcedureCalls());
     }
@@ -766,7 +759,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSchemasInTableDefinitions",
                 () -> this.databaseMetaData.supportsSchemasInTableDefinitions());
     }
@@ -777,7 +770,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSchemasInIndexDefinitions",
                 () -> this.databaseMetaData.supportsSchemasInIndexDefinitions());
     }
@@ -788,7 +781,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSchemasInPrivilegeDefinitions",
                 () -> this.databaseMetaData.supportsSchemasInPrivilegeDefinitions());
     }
@@ -799,7 +792,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsCatalogsInDataManipulation",
                 () -> this.databaseMetaData.supportsCatalogsInDataManipulation());
     }
@@ -810,7 +803,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsCatalogsInProcedureCalls",
                 () -> this.databaseMetaData.supportsCatalogsInProcedureCalls());
     }
@@ -821,7 +814,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsCatalogsInTableDefinitions",
                 () -> this.databaseMetaData.supportsCatalogsInTableDefinitions());
     }
@@ -832,7 +825,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsCatalogsInIndexDefinitions",
                 () -> this.databaseMetaData.supportsCatalogsInIndexDefinitions());
     }
@@ -843,7 +836,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsCatalogsInPrivilegeDefinitions",
                 () -> this.databaseMetaData.supportsCatalogsInPrivilegeDefinitions());
     }
@@ -854,7 +847,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsPositionedDelete",
                 () -> this.databaseMetaData.supportsPositionedDelete());
     }
@@ -865,7 +858,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsPositionedUpdate",
                 () -> this.databaseMetaData.supportsPositionedUpdate());
     }
@@ -876,7 +869,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSelectForUpdate",
                 () -> this.databaseMetaData.supportsSelectForUpdate());
     }
@@ -887,7 +880,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsStoredProcedures",
                 () -> this.databaseMetaData.supportsStoredProcedures());
     }
@@ -899,7 +892,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSubqueriesInComparisons",
                 () -> this.databaseMetaData.supportsSubqueriesInComparisons());
     }
@@ -911,7 +904,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSubqueriesInExists",
                 () -> this.databaseMetaData.supportsSubqueriesInExists());
     }
@@ -923,7 +916,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSubqueriesInIns",
                 () -> this.databaseMetaData.supportsSubqueriesInIns());
     }
@@ -935,7 +928,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSubqueriesInQuantifieds",
                 () -> this.databaseMetaData.supportsSubqueriesInQuantifieds());
     }
@@ -947,7 +940,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsCorrelatedSubqueries",
                 () -> this.databaseMetaData.supportsCorrelatedSubqueries());
     }
@@ -958,7 +951,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsUnion",
                 () -> this.databaseMetaData.supportsUnion());
     }
@@ -969,7 +962,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsUnionAll",
                 () -> this.databaseMetaData.supportsUnionAll());
     }
@@ -980,7 +973,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsOpenCursorsAcrossCommit",
                 () -> this.databaseMetaData.supportsOpenCursorsAcrossCommit());
     }
@@ -991,7 +984,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsOpenCursorsAcrossRollback",
                 () -> this.databaseMetaData.supportsOpenCursorsAcrossRollback());
     }
@@ -1002,7 +995,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsOpenStatementsAcrossCommit",
                 () -> this.databaseMetaData.supportsOpenStatementsAcrossCommit());
     }
@@ -1013,7 +1006,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsOpenStatementsAcrossRollback",
                 () -> this.databaseMetaData.supportsOpenStatementsAcrossRollback());
     }
@@ -1024,7 +1017,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxBinaryLiteralLength",
                 () -> this.databaseMetaData.getMaxBinaryLiteralLength());
     }
@@ -1035,7 +1028,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxCharLiteralLength",
                 () -> this.databaseMetaData.getMaxCharLiteralLength());
     }
@@ -1046,7 +1039,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxColumnNameLength",
                 () -> this.databaseMetaData.getMaxColumnNameLength());
     }
@@ -1057,7 +1050,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxColumnsInGroupBy",
                 () -> this.databaseMetaData.getMaxColumnsInGroupBy());
     }
@@ -1068,7 +1061,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxColumnsInIndex",
                 () -> this.databaseMetaData.getMaxColumnsInIndex());
     }
@@ -1079,7 +1072,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxColumnsInOrderBy",
                 () -> this.databaseMetaData.getMaxColumnsInOrderBy());
     }
@@ -1090,7 +1083,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxColumnsInSelect",
                 () -> this.databaseMetaData.getMaxColumnsInSelect());
     }
@@ -1101,7 +1094,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxColumnsInTable",
                 () -> this.databaseMetaData.getMaxColumnsInTable());
     }
@@ -1112,7 +1105,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxConnections",
                 () -> this.databaseMetaData.getMaxConnections());
     }
@@ -1123,7 +1116,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxCursorNameLength",
                 () -> this.databaseMetaData.getMaxCursorNameLength());
     }
@@ -1134,7 +1127,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxIndexLength",
                 () -> this.databaseMetaData.getMaxIndexLength());
     }
@@ -1145,7 +1138,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxSchemaNameLength",
                 () -> this.databaseMetaData.getMaxSchemaNameLength());
     }
@@ -1156,7 +1149,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxProcedureNameLength",
                 () -> this.databaseMetaData.getMaxProcedureNameLength());
     }
@@ -1167,7 +1160,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxCatalogNameLength",
                 () -> this.databaseMetaData.getMaxCatalogNameLength());
     }
@@ -1178,7 +1171,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxRowSize",
                 () -> this.databaseMetaData.getMaxRowSize());
     }
@@ -1189,7 +1182,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.doesMaxRowSizeIncludeBlobs",
                 () -> this.databaseMetaData.doesMaxRowSizeIncludeBlobs());
     }
@@ -1200,7 +1193,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxStatementLength",
                 () -> this.databaseMetaData.getMaxStatementLength());
     }
@@ -1211,7 +1204,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxStatements",
                 () -> this.databaseMetaData.getMaxStatements());
     }
@@ -1222,7 +1215,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxTableNameLength",
                 () -> this.databaseMetaData.getMaxTableNameLength());
     }
@@ -1233,7 +1226,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxTablesInSelect",
                 () -> this.databaseMetaData.getMaxTablesInSelect());
     }
@@ -1244,7 +1237,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxUserNameLength",
                 () -> this.databaseMetaData.getMaxUserNameLength());
     }
@@ -1255,7 +1248,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDefaultTransactionIsolation",
                 () -> this.databaseMetaData.getDefaultTransactionIsolation());
     }
@@ -1266,7 +1259,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsTransactions",
                 () -> this.databaseMetaData.supportsTransactions());
     }
@@ -1277,7 +1270,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsTransactionIsolationLevel",
                 () -> this.databaseMetaData.supportsTransactionIsolationLevel(level),
                 level);
@@ -1289,7 +1282,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsDataDefinitionAndDataManipulationTransactions",
                 () -> this.databaseMetaData.supportsDataDefinitionAndDataManipulationTransactions());
     }
@@ -1300,7 +1293,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsDataManipulationTransactionsOnly",
                 () -> this.databaseMetaData.supportsDataManipulationTransactionsOnly());
     }
@@ -1311,7 +1304,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.dataDefinitionCausesTransactionCommit",
                 () -> this.databaseMetaData.dataDefinitionCausesTransactionCommit());
     }
@@ -1322,7 +1315,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.dataDefinitionIgnoredInTransactions",
                 () -> this.databaseMetaData.dataDefinitionIgnoredInTransactions());
     }
@@ -1333,7 +1326,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getProcedures",
                 () -> this.databaseMetaData.getProcedures(catalog, schemaPattern, procedureNamePattern),
                 catalog, schemaPattern, procedureNamePattern);
@@ -1345,7 +1338,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getProcedureColumns",
                 () -> this.databaseMetaData.getProcedureColumns(catalog, schemaPattern, procedureNamePattern, columnNamePattern),
                 catalog, schemaPattern, procedureNamePattern, columnNamePattern);
@@ -1357,7 +1350,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getTables",
                 () -> this.databaseMetaData.getTables(catalog, schemaPattern, tableNamePattern, types),
                 catalog, schemaPattern, tableNamePattern, types);
@@ -1369,7 +1362,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSchemas",
                 () -> this.databaseMetaData.getSchemas());
     }
@@ -1380,7 +1373,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getCatalogs",
                 () -> this.databaseMetaData.getCatalogs());
     }
@@ -1391,7 +1384,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getTableTypes",
                 () -> this.databaseMetaData.getTableTypes());
     }
@@ -1402,7 +1395,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getColumns",
                 () -> this.databaseMetaData.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern),
                 catalog, schemaPattern, tableNamePattern, columnNamePattern);
@@ -1414,7 +1407,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getColumnPrivileges",
                 () -> this.databaseMetaData.getColumnPrivileges(catalog, schema, table, columnNamePattern),
                 catalog, schema, table, columnNamePattern);
@@ -1426,7 +1419,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getTablePrivileges",
                 () -> this.databaseMetaData.getTablePrivileges(catalog, schemaPattern, tableNamePattern),
                 catalog, schemaPattern, tableNamePattern);
@@ -1438,7 +1431,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getBestRowIdentifier",
                 () -> this.databaseMetaData.getBestRowIdentifier(catalog, schema, table, scope, nullable),
                 catalog, schema, table, scope, nullable);
@@ -1450,7 +1443,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getVersionColumns",
                 () -> this.databaseMetaData.getVersionColumns(catalog, schema, table),
                 catalog, schema, table);
@@ -1462,7 +1455,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getPrimaryKeys",
                 () -> this.databaseMetaData.getPrimaryKeys(catalog, schema, table),
                 catalog, schema, table);
@@ -1474,7 +1467,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getImportedKeys",
                 () -> this.databaseMetaData.getImportedKeys(catalog, schema, table),
                 catalog, schema, table);
@@ -1486,7 +1479,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getExportedKeys",
                 () -> this.databaseMetaData.getExportedKeys(catalog, schema, table),
                 catalog, schema, table);
@@ -1500,7 +1493,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getCrossReference",
                 () -> this.databaseMetaData.getCrossReference(
                         parentCatalog, parentSchema, parentTable, foreignCatalog, foreignSchema, foreignTable),
@@ -1513,7 +1506,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getTypeInfo",
                 () -> this.databaseMetaData.getTypeInfo());
     }
@@ -1525,7 +1518,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getIndexInfo",
                 () -> this.databaseMetaData.getIndexInfo(catalog, schema, table, unique, approximate),
                 catalog, schema, table, unique, approximate);
@@ -1537,7 +1530,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsResultSetType",
                 () -> this.databaseMetaData.supportsResultSetType(type),
                 type);
@@ -1549,7 +1542,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsResultSetConcurrency",
                 () -> this.databaseMetaData.supportsResultSetConcurrency(type, concurrency),
                 type, concurrency);
@@ -1561,7 +1554,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.ownUpdatesAreVisible",
                 () -> this.databaseMetaData.ownUpdatesAreVisible(type),
                 type);
@@ -1573,7 +1566,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.ownDeletesAreVisible",
                 () -> this.databaseMetaData.ownDeletesAreVisible(type),
                 type);
@@ -1585,7 +1578,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.ownInsertsAreVisible",
                 () -> this.databaseMetaData.ownInsertsAreVisible(type),
                 type);
@@ -1597,7 +1590,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.othersUpdatesAreVisible",
                 () -> this.databaseMetaData.othersUpdatesAreVisible(type),
                 type);
@@ -1609,7 +1602,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.othersDeletesAreVisible",
                 () -> this.databaseMetaData.othersDeletesAreVisible(type),
                 type);
@@ -1621,7 +1614,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.othersInsertsAreVisible",
                 () -> this.databaseMetaData.othersInsertsAreVisible(type),
                 type);
@@ -1633,7 +1626,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.updatesAreDetected",
                 () -> this.databaseMetaData.updatesAreDetected(type),
                 type);
@@ -1645,7 +1638,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.deletesAreDetected",
                 () -> this.databaseMetaData.deletesAreDetected(type),
                 type);
@@ -1657,7 +1650,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.insertsAreDetected",
                 () -> this.databaseMetaData.insertsAreDetected(type),
                 type);
@@ -1669,7 +1662,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsBatchUpdates",
                 () -> this.databaseMetaData.supportsBatchUpdates());
     }
@@ -1681,7 +1674,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getUDTs",
                 () -> this.databaseMetaData.getUDTs(catalog, schemaPattern, typeNamePattern, types),
                 catalog, schemaPattern, typeNamePattern, types);
@@ -1693,7 +1686,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 Connection.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getConnection",
                 () -> this.databaseMetaData.getConnection());
     }
@@ -1705,7 +1698,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsSavepoints",
                 () -> this.databaseMetaData.supportsSavepoints());
     }
@@ -1716,7 +1709,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsNamedParameters",
                 () -> this.databaseMetaData.supportsNamedParameters());
     }
@@ -1727,7 +1720,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsMultipleOpenResults",
                 () -> this.databaseMetaData.supportsMultipleOpenResults());
     }
@@ -1738,7 +1731,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsGetGeneratedKeys",
                 () -> this.databaseMetaData.supportsGetGeneratedKeys());
     }
@@ -1749,7 +1742,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSuperTypes",
                 () -> this.databaseMetaData.getSuperTypes(catalog, schemaPattern, typeNamePattern),
                 catalog, schemaPattern, typeNamePattern);
@@ -1762,7 +1755,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSuperTables",
                 () -> this.databaseMetaData.getSuperTables(catalog, schemaPattern, tableNamePattern),
                 catalog, schemaPattern, tableNamePattern);
@@ -1776,7 +1769,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getAttributes",
                 () -> this.databaseMetaData.getAttributes(
                         catalog, schemaPattern, typeNamePattern, attributeNamePattern),
@@ -1789,7 +1782,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsResultSetHoldability",
                 () -> this.databaseMetaData.supportsResultSetHoldability(holdability),
                 holdability);
@@ -1801,7 +1794,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getResultSetHoldability",
                 () -> this.databaseMetaData.getResultSetHoldability());
     }
@@ -1812,7 +1805,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDatabaseMajorVersion",
                 () -> this.databaseMetaData.getDatabaseMajorVersion());
     }
@@ -1823,7 +1816,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getDatabaseMinorVersion",
                 () -> this.databaseMetaData.getDatabaseMinorVersion());
     }
@@ -1834,7 +1827,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getJDBCMajorVersion",
                 () -> this.databaseMetaData.getJDBCMajorVersion());
     }
@@ -1845,7 +1838,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getJDBCMinorVersion",
                 () -> this.databaseMetaData.getJDBCMinorVersion());
     }
@@ -1857,7 +1850,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSQLStateType",
                 () -> this.databaseMetaData.getSQLStateType());
     }
@@ -1868,7 +1861,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.locatorsUpdateCopy",
                 () -> this.databaseMetaData.locatorsUpdateCopy());
     }
@@ -1879,7 +1872,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsStatementPooling",
                 () -> this.databaseMetaData.supportsStatementPooling());
     }
@@ -1890,7 +1883,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 RowIdLifetime.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getRowIdLifetime",
                 () -> this.databaseMetaData.getRowIdLifetime());
     }
@@ -1901,7 +1894,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getSchemas",
                 () -> this.databaseMetaData.getSchemas(catalog, schemaPattern),
                 catalog, schemaPattern);
@@ -1913,7 +1906,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsStoredFunctionsUsingCallSyntax",
                 () -> this.databaseMetaData.supportsStoredFunctionsUsingCallSyntax());
     }
@@ -1924,7 +1917,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.autoCommitFailureClosesAllResultSets",
                 () -> this.databaseMetaData.autoCommitFailureClosesAllResultSets());
     }
@@ -1935,7 +1928,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getClientInfoProperties",
                 () -> this.databaseMetaData.getClientInfoProperties());
     }
@@ -1947,7 +1940,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getFunctions",
                 () -> this.databaseMetaData.getFunctions(catalog, schemaPattern, functionNamePattern),
                 catalog, schemaPattern, functionNamePattern);
@@ -1961,7 +1954,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getFunctionColumns",
                 () -> this.databaseMetaData.getFunctionColumns(
                         catalog, schemaPattern, functionNamePattern, columnNamePattern),
@@ -1976,7 +1969,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 ResultSet.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getPseudoColumns",
                 () -> this.databaseMetaData.getPseudoColumns(
                         catalog, schemaPattern, tableNamePattern, columnNamePattern),
@@ -1989,7 +1982,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.generatedKeyAlwaysReturned",
                 () -> this.databaseMetaData.generatedKeyAlwaysReturned());
     }
@@ -2000,7 +1993,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.getMaxLogicalLobSize",
                 () -> this.databaseMetaData.getMaxLogicalLobSize());
     }
@@ -2011,7 +2004,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.databaseMetaDataClass,
+                this.databaseMetaData,
                 "DatabaseMetaData.supportsRefCursors",
                 () -> this.databaseMetaData.supportsRefCursors());
     }
