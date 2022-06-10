@@ -1,5 +1,6 @@
 package integration;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import integration.util.TestSettings;
 import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
@@ -11,6 +12,7 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled
 public class MysqlTests {
 
     @Test

@@ -1,5 +1,6 @@
 package integration;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource;
 import integration.util.TestSettings;
@@ -10,6 +11,7 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled
 public class DataSourceTests {
 
     @Test
