@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -16,19 +17,10 @@ import java.util.Map;
 public class StructWrapper implements Struct {
 
     protected Struct struct;
-    protected Class<?> structClass;
     protected ConnectionPluginManager pluginManager;
 
-    public StructWrapper(Struct struct, ConnectionPluginManager pluginManager) {
-        if (struct == null) {
-            throw new IllegalArgumentException("struct");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public StructWrapper(@NonNull Struct struct, @NonNull ConnectionPluginManager pluginManager) {
         this.struct = struct;
-        this.structClass = this.struct.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -38,7 +30,7 @@ public class StructWrapper implements Struct {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.structClass,
+                this.struct,
                 "Struct.getSQLTypeName",
                 () -> this.struct.getSQLTypeName());
     }
@@ -49,7 +41,7 @@ public class StructWrapper implements Struct {
                 Object[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.structClass,
+                this.struct,
                 "Struct.getAttributes",
                 () -> this.struct.getAttributes());
     }
@@ -60,7 +52,7 @@ public class StructWrapper implements Struct {
                 Object[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.structClass,
+                this.struct,
                 "Struct.getAttributes",
                 () -> this.struct.getAttributes(map),
                 map);

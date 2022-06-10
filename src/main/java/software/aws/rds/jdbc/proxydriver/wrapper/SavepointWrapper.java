@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -15,19 +16,10 @@ import java.sql.Savepoint;
 public class SavepointWrapper implements Savepoint {
 
     protected Savepoint savepoint;
-    protected Class<?> savepointClass;
     protected ConnectionPluginManager pluginManager;
 
-    public SavepointWrapper(Savepoint savepoint, ConnectionPluginManager pluginManager) {
-        if (savepoint == null) {
-            throw new IllegalArgumentException("savepoint");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public SavepointWrapper(@NonNull Savepoint savepoint, @NonNull ConnectionPluginManager pluginManager) {
         this.savepoint = savepoint;
-        this.savepointClass = this.savepoint.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -37,7 +29,7 @@ public class SavepointWrapper implements Savepoint {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.savepointClass,
+                this.savepoint,
                 "Savepoint.getSavepointId",
                 () -> this.savepoint.getSavepointId());
     }
@@ -48,7 +40,7 @@ public class SavepointWrapper implements Savepoint {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.savepointClass,
+                this.savepoint,
                 "Savepoint.getSavepointName",
                 () -> this.savepoint.getSavepointName());
     }

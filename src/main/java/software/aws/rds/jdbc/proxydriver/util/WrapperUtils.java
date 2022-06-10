@@ -48,7 +48,7 @@ public class WrapperUtils {
     //TODO: choose a better name to distinguish runWithPlugins and executeWithPlugins
     public static synchronized void runWithPlugins(
             final ConnectionPluginManager pluginManager,
-            final Class<?> methodInvokeOn,
+            final Object methodInvokeOn,
             final String methodName,
             final JdbcRunnable<RuntimeException> jdbcMethodFunc,
             Object... jdbcMethodArgs) {
@@ -64,7 +64,7 @@ public class WrapperUtils {
     public static synchronized <E extends Exception> void runWithPlugins(
             final Class<E> exceptionClass,
             final ConnectionPluginManager pluginManager,
-            final Class<?> methodInvokeOn,
+            final Object methodInvokeOn,
             final String methodName,
             final JdbcRunnable<E> jdbcMethodFunc,
             Object... jdbcMethodArgs) throws E {
@@ -79,7 +79,7 @@ public class WrapperUtils {
     public static synchronized <T> T executeWithPlugins(
             final Class<T> resultClass,
             final ConnectionPluginManager pluginManager,
-            final Class<?> methodInvokeOn,
+            final Object methodInvokeOn,
             final String methodName,
             final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
             Object... jdbcMethodArgs) {
@@ -105,7 +105,7 @@ public class WrapperUtils {
             final Class<T> resultClass,
             final Class<E> exceptionClass,
             final ConnectionPluginManager pluginManager,
-            final Class<?> methodInvokeOn,
+            final Object methodInvokeOn,
             final String methodName,
             final JdbcCallable<T, E> jdbcMethodFunc,
             Object... jdbcMethodArgs) throws E {

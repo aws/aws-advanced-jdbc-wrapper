@@ -1,15 +1,13 @@
 package software.aws.rds.jdbc.proxydriver.mock;
 
 import software.aws.rds.jdbc.proxydriver.ConnectionPlugin;
+import software.aws.rds.jdbc.proxydriver.HostListProviderService;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -22,8 +20,7 @@ public class TestPluginOne implements ConnectionPlugin {
     public TestPluginOne(ArrayList<String> calls) {
         this.calls = calls;
 
-        this.subscribedMethods = new HashSet<>();
-        this.subscribedMethods.add("*");
+        this.subscribedMethods = new HashSet<>(Arrays.asList("*"));
     }
 
     @Override
@@ -35,7 +32,7 @@ public class TestPluginOne implements ConnectionPlugin {
     public <T, E extends Exception> T execute(
             Class<T> resultClass,
             Class<E> exceptionClass,
-            Class<?> methodInvokeOn,
+            Object methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
             Object[] jdbcMethodArgs) throws E {
@@ -71,6 +68,17 @@ public class TestPluginOne implements ConnectionPlugin {
         Connection result = connectFunc.call();
         this.calls.add(this.getClass().getSimpleName() + ":after");
         return result;
+    }
+
+    @Override
+    public void initHostProvider(
+            String driverProtocol,
+            String initialUrl,
+            Properties props,
+            HostListProviderService hostListProviderService,
+            JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+
+        // do nothing
     }
 
     @Override

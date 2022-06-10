@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -16,19 +17,10 @@ import java.util.Map;
 public class RefWrapper implements Ref {
 
     protected Ref ref;
-    protected Class<?> refClass;
     protected ConnectionPluginManager pluginManager;
 
-    public RefWrapper(Ref ref, ConnectionPluginManager pluginManager) {
-        if (ref == null) {
-            throw new IllegalArgumentException("ref");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public RefWrapper(@NonNull Ref ref, @NonNull ConnectionPluginManager pluginManager) {
         this.ref = ref;
-        this.refClass = this.ref.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -38,7 +30,7 @@ public class RefWrapper implements Ref {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.refClass,
+                this.ref,
                 "Ref.getBaseTypeName",
                 () -> this.ref.getBaseTypeName());
     }
@@ -49,7 +41,7 @@ public class RefWrapper implements Ref {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.refClass,
+                this.ref,
                 "Ref.getObject",
                 () -> this.ref.getObject(map),
                 map);
@@ -61,7 +53,7 @@ public class RefWrapper implements Ref {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.refClass,
+                this.ref,
                 "Ref.getObject",
                 () -> this.ref.getObject());
     }
@@ -71,7 +63,7 @@ public class RefWrapper implements Ref {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.refClass,
+                this.ref,
                 "Ref.setObject",
                 () -> this.ref.setObject(value),
                 value);

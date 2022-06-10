@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -18,19 +19,10 @@ import java.sql.*;
 public class SQLInputWrapper implements SQLInput {
 
     protected SQLInput sqlInput;
-    protected Class<?> sqlInputClass;
     protected ConnectionPluginManager pluginManager;
 
-    public SQLInputWrapper(SQLInput sqlInput, ConnectionPluginManager pluginManager) {
-        if (sqlInput == null) {
-            throw new IllegalArgumentException("sqlInput");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public SQLInputWrapper(@NonNull SQLInput sqlInput, @NonNull ConnectionPluginManager pluginManager) {
         this.sqlInput = sqlInput;
-        this.sqlInputClass = this.sqlInput.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -40,7 +32,7 @@ public class SQLInputWrapper implements SQLInput {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readString",
                 () -> this.sqlInput.readString());
     }
@@ -51,7 +43,7 @@ public class SQLInputWrapper implements SQLInput {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readBoolean",
                 () -> this.sqlInput.readBoolean());
     }
@@ -62,7 +54,7 @@ public class SQLInputWrapper implements SQLInput {
                 byte.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readByte",
                 () -> this.sqlInput.readByte());
     }
@@ -73,7 +65,7 @@ public class SQLInputWrapper implements SQLInput {
                 short.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readShort",
                 () -> this.sqlInput.readShort());
     }
@@ -84,7 +76,7 @@ public class SQLInputWrapper implements SQLInput {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readInt",
                 () -> this.sqlInput.readInt());
     }
@@ -95,7 +87,7 @@ public class SQLInputWrapper implements SQLInput {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readLong",
                 () -> this.sqlInput.readLong());
     }
@@ -106,7 +98,7 @@ public class SQLInputWrapper implements SQLInput {
                 float.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readFloat",
                 () -> this.sqlInput.readFloat());
     }
@@ -117,7 +109,7 @@ public class SQLInputWrapper implements SQLInput {
                 double.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readDouble",
                 () -> this.sqlInput.readDouble());
     }
@@ -128,7 +120,7 @@ public class SQLInputWrapper implements SQLInput {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readBigDecimal",
                 () -> this.sqlInput.readBigDecimal());
     }
@@ -139,7 +131,7 @@ public class SQLInputWrapper implements SQLInput {
                 byte[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readBytes",
                 () -> this.sqlInput.readBytes());
     }
@@ -150,7 +142,7 @@ public class SQLInputWrapper implements SQLInput {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readDate",
                 () -> this.sqlInput.readDate());
     }
@@ -161,7 +153,7 @@ public class SQLInputWrapper implements SQLInput {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readTime",
                 () -> this.sqlInput.readTime());
     }
@@ -172,7 +164,7 @@ public class SQLInputWrapper implements SQLInput {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readTimestamp",
                 () -> this.sqlInput.readTimestamp());
     }
@@ -183,7 +175,7 @@ public class SQLInputWrapper implements SQLInput {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readCharacterStream",
                 () -> this.sqlInput.readCharacterStream());
     }
@@ -194,7 +186,7 @@ public class SQLInputWrapper implements SQLInput {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readAsciiStream",
                 () -> this.sqlInput.readAsciiStream());
     }
@@ -205,7 +197,7 @@ public class SQLInputWrapper implements SQLInput {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readBinaryStream",
                 () -> this.sqlInput.readBinaryStream());
     }
@@ -216,7 +208,7 @@ public class SQLInputWrapper implements SQLInput {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readObject",
                 () -> this.sqlInput.readObject());
     }
@@ -227,7 +219,7 @@ public class SQLInputWrapper implements SQLInput {
                 Ref.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readRef",
                 () -> this.sqlInput.readRef());
     }
@@ -238,7 +230,7 @@ public class SQLInputWrapper implements SQLInput {
                 Blob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readBlob",
                 () -> this.sqlInput.readBlob());
     }
@@ -249,7 +241,7 @@ public class SQLInputWrapper implements SQLInput {
                 Clob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readClob",
                 () -> this.sqlInput.readClob());
     }
@@ -260,7 +252,7 @@ public class SQLInputWrapper implements SQLInput {
                 Array.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readArray",
                 () -> this.sqlInput.readArray());
     }
@@ -271,7 +263,7 @@ public class SQLInputWrapper implements SQLInput {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.wasNull",
                 () -> this.sqlInput.wasNull());
     }
@@ -282,7 +274,7 @@ public class SQLInputWrapper implements SQLInput {
                 URL.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readURL",
                 () -> this.sqlInput.readURL());
     }
@@ -293,7 +285,7 @@ public class SQLInputWrapper implements SQLInput {
                 NClob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readNClob",
                 () -> this.sqlInput.readNClob());
     }
@@ -304,7 +296,7 @@ public class SQLInputWrapper implements SQLInput {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readNString",
                 () -> this.sqlInput.readNString());
     }
@@ -315,7 +307,7 @@ public class SQLInputWrapper implements SQLInput {
                 SQLXML.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readSQLXML",
                 () -> this.sqlInput.readSQLXML());
     }
@@ -326,7 +318,7 @@ public class SQLInputWrapper implements SQLInput {
                 RowId.class,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readRowId",
                 () -> this.sqlInput.readRowId());
     }
@@ -337,7 +329,7 @@ public class SQLInputWrapper implements SQLInput {
                 type,
                 SQLException.class,
                 this.pluginManager,
-                this.sqlInputClass,
+                this.sqlInput,
                 "SQLInput.readString",
                 () -> this.sqlInput.readObject(type),
                 type);

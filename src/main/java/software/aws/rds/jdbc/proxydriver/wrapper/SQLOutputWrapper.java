@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -18,19 +19,10 @@ import java.sql.*;
 public class SQLOutputWrapper implements SQLOutput {
 
     protected SQLOutput sqlOutput;
-    protected Class<?> sqlOutputClass;
     protected ConnectionPluginManager pluginManager;
 
-    public SQLOutputWrapper(SQLOutput sqlOutput, ConnectionPluginManager pluginManager) {
-        if (sqlOutput == null) {
-            throw new IllegalArgumentException("sqlOutput");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public SQLOutputWrapper(@NonNull SQLOutput sqlOutput, @NonNull ConnectionPluginManager pluginManager) {
         this.sqlOutput = sqlOutput;
-        this.sqlOutputClass = this.sqlOutput.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -39,7 +31,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeString",
                 () -> this.sqlOutput.writeString(x),
                 x);
@@ -50,7 +42,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeBoolean",
                 () -> this.sqlOutput.writeBoolean(x),
                 x);
@@ -61,7 +53,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeByte",
                 () -> this.sqlOutput.writeByte(x),
                 x);
@@ -72,7 +64,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeShort",
                 () -> this.sqlOutput.writeShort(x),
                 x);
@@ -83,7 +75,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeInt",
                 () -> this.sqlOutput.writeInt(x),
                 x);
@@ -94,7 +86,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeLong",
                 () -> this.sqlOutput.writeLong(x),
                 x);
@@ -105,7 +97,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeFloat",
                 () -> this.sqlOutput.writeFloat(x),
                 x);
@@ -116,7 +108,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeDouble",
                 () -> this.sqlOutput.writeDouble(x),
                 x);
@@ -127,7 +119,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeBigDecimal",
                 () -> this.sqlOutput.writeBigDecimal(x),
                 x);
@@ -138,7 +130,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeBytes",
                 () -> this.sqlOutput.writeBytes(x),
                 x);
@@ -149,7 +141,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeDate",
                 () -> this.sqlOutput.writeDate(x),
                 x);
@@ -160,7 +152,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeTime",
                 () -> this.sqlOutput.writeTime(x),
                 x);
@@ -171,7 +163,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeTimestamp",
                 () -> this.sqlOutput.writeTimestamp(x),
                 x);
@@ -182,7 +174,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeCharacterStream",
                 () -> this.sqlOutput.writeCharacterStream(x),
                 x);
@@ -193,7 +185,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeAsciiStream",
                 () -> this.sqlOutput.writeAsciiStream(x),
                 x);
@@ -204,7 +196,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeBinaryStream",
                 () -> this.sqlOutput.writeBinaryStream(x),
                 x);
@@ -215,7 +207,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeObject",
                 () -> this.sqlOutput.writeObject(x),
                 x);
@@ -226,7 +218,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeRef",
                 () -> this.sqlOutput.writeRef(x),
                 x);
@@ -237,7 +229,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeBlob",
                 () -> this.sqlOutput.writeBlob(x),
                 x);
@@ -248,7 +240,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeClob",
                 () -> this.sqlOutput.writeClob(x),
                 x);
@@ -259,7 +251,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeStruct",
                 () -> this.sqlOutput.writeStruct(x),
                 x);
@@ -270,7 +262,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeArray",
                 () -> this.sqlOutput.writeArray(x),
                 x);
@@ -281,7 +273,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeURL",
                 () -> this.sqlOutput.writeURL(x),
                 x);
@@ -292,7 +284,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeNString",
                 () -> this.sqlOutput.writeNString(x),
                 x);
@@ -303,7 +295,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeNClob",
                 () -> this.sqlOutput.writeNClob(x),
                 x);
@@ -314,7 +306,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeRowId",
                 () -> this.sqlOutput.writeRowId(x),
                 x);
@@ -325,7 +317,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeSQLXML",
                 () -> this.sqlOutput.writeSQLXML(x),
                 x);
@@ -336,7 +328,7 @@ public class SQLOutputWrapper implements SQLOutput {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.sqlOutputClass,
+                this.sqlOutput,
                 "SQLOutput.writeObject",
                 () -> this.sqlOutput.writeObject(x, targetSqlType),
                 x, targetSqlType);

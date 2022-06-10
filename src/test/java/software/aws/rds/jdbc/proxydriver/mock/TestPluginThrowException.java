@@ -6,6 +6,7 @@ import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Properties;
 
@@ -20,15 +21,14 @@ public class TestPluginThrowException extends TestPluginOne {
         this.exceptionClass = exceptionClass;
         this.isBefore = isBefore;
 
-        this.subscribedMethods = new HashSet<>();
-        this.subscribedMethods.add("*");
+        this.subscribedMethods = new HashSet<>(Arrays.asList("*"));
     }
 
     @Override
     public <T, E extends Exception> T execute(
             Class<T> resultClass,
             Class<E> exceptionClass,
-            Class<?> methodInvokeOn,
+            Object methodInvokeOn,
             String methodName,
             JdbcCallable<T, E> jdbcMethodFunc,
             Object[] jdbcMethodArgs) throws E {

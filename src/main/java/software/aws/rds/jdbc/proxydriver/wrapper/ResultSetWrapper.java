@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
@@ -35,19 +36,11 @@ import java.util.Map;
 public class ResultSetWrapper implements ResultSet {
 
     protected ResultSet resultSet;
-    protected Class<?> resultSetClass;
     protected ConnectionPluginManager pluginManager;
 
-    public ResultSetWrapper(ResultSet resultSet, ConnectionPluginManager pluginManager) {
-        if (resultSet == null) {
-            throw new IllegalArgumentException("resultSet");
-        }
-        if (pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
-        }
-
+    public ResultSetWrapper(@NonNull ResultSet resultSet,
+                            @NonNull ConnectionPluginManager pluginManager) {
         this.resultSet = resultSet;
-        this.resultSetClass = this.resultSet.getClass();
         this.pluginManager = pluginManager;
     }
 
@@ -57,7 +50,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.next",
                 () -> this.resultSet.next());
     }
@@ -67,7 +60,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.close",
                 () -> this.resultSet.close());
     }
@@ -78,7 +71,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.wasNull",
                 () -> this.resultSet.wasNull());
     }
@@ -89,7 +82,7 @@ public class ResultSetWrapper implements ResultSet {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getString",
                 () -> this.resultSet.getString(columnIndex),
                 columnIndex);
@@ -101,7 +94,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBoolean",
                 () -> this.resultSet.getBoolean(columnIndex),
                 columnIndex);
@@ -113,7 +106,7 @@ public class ResultSetWrapper implements ResultSet {
                 byte.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getByte",
                 () -> this.resultSet.getByte(columnIndex),
                 columnIndex);
@@ -125,7 +118,7 @@ public class ResultSetWrapper implements ResultSet {
                 short.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getShort",
                 () -> this.resultSet.getShort(columnIndex),
                 columnIndex);
@@ -137,7 +130,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getInt",
                 () -> this.resultSet.getInt(columnIndex),
                 columnIndex);
@@ -149,7 +142,7 @@ public class ResultSetWrapper implements ResultSet {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getLong",
                 () -> this.resultSet.getLong(columnIndex),
                 columnIndex);
@@ -161,7 +154,7 @@ public class ResultSetWrapper implements ResultSet {
                 float.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getFloat",
                 () -> this.resultSet.getFloat(columnIndex),
                 columnIndex);
@@ -173,7 +166,7 @@ public class ResultSetWrapper implements ResultSet {
                 double.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getDouble",
                 () -> this.resultSet.getDouble(columnIndex),
                 columnIndex);
@@ -186,7 +179,7 @@ public class ResultSetWrapper implements ResultSet {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBigDecimal",
                 () -> this.resultSet.getBigDecimal(columnIndex, scale),
                 columnIndex, scale);
@@ -198,7 +191,7 @@ public class ResultSetWrapper implements ResultSet {
                 byte[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBytes",
                 () -> this.resultSet.getBytes(columnIndex),
                 columnIndex);
@@ -210,7 +203,7 @@ public class ResultSetWrapper implements ResultSet {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getDate",
                 () -> this.resultSet.getDate(columnIndex),
                 columnIndex);
@@ -222,7 +215,7 @@ public class ResultSetWrapper implements ResultSet {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTime",
                 () -> this.resultSet.getTime(columnIndex),
                 columnIndex);
@@ -234,7 +227,7 @@ public class ResultSetWrapper implements ResultSet {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTimestamp",
                 () -> this.resultSet.getTimestamp(columnIndex),
                 columnIndex);
@@ -246,7 +239,7 @@ public class ResultSetWrapper implements ResultSet {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getAsciiStream",
                 () -> this.resultSet.getAsciiStream(columnIndex),
                 columnIndex);
@@ -259,7 +252,7 @@ public class ResultSetWrapper implements ResultSet {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getUnicodeStream",
                 () -> this.resultSet.getUnicodeStream(columnIndex),
                 columnIndex);
@@ -271,7 +264,7 @@ public class ResultSetWrapper implements ResultSet {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBinaryStream",
                 () -> this.resultSet.getBinaryStream(columnIndex),
                 columnIndex);
@@ -283,7 +276,7 @@ public class ResultSetWrapper implements ResultSet {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getString",
                 () -> this.resultSet.getString(columnLabel),
                 columnLabel);
@@ -295,7 +288,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBoolean",
                 () -> this.resultSet.getBoolean(columnLabel),
                 columnLabel);
@@ -307,7 +300,7 @@ public class ResultSetWrapper implements ResultSet {
                 byte.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getByte",
                 () -> this.resultSet.getByte(columnLabel),
                 columnLabel);
@@ -319,7 +312,7 @@ public class ResultSetWrapper implements ResultSet {
                 short.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getShort",
                 () -> this.resultSet.getShort(columnLabel),
                 columnLabel);
@@ -331,7 +324,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getInt",
                 () -> this.resultSet.getInt(columnLabel),
                 columnLabel);
@@ -343,7 +336,7 @@ public class ResultSetWrapper implements ResultSet {
                 long.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getLong",
                 () -> this.resultSet.getLong(columnLabel),
                 columnLabel);
@@ -355,7 +348,7 @@ public class ResultSetWrapper implements ResultSet {
                 float.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getFloat",
                 () -> this.resultSet.getFloat(columnLabel),
                 columnLabel);
@@ -367,7 +360,7 @@ public class ResultSetWrapper implements ResultSet {
                 double.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getDouble",
                 () -> this.resultSet.getDouble(columnLabel),
                 columnLabel);
@@ -380,7 +373,7 @@ public class ResultSetWrapper implements ResultSet {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBigDecimal",
                 () -> this.resultSet.getBigDecimal(columnLabel, scale),
                 columnLabel, scale);
@@ -392,7 +385,7 @@ public class ResultSetWrapper implements ResultSet {
                 byte[].class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBytes",
                 () -> this.resultSet.getBytes(columnLabel),
                 columnLabel);
@@ -404,7 +397,7 @@ public class ResultSetWrapper implements ResultSet {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getDate",
                 () -> this.resultSet.getDate(columnLabel),
                 columnLabel);
@@ -416,7 +409,7 @@ public class ResultSetWrapper implements ResultSet {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTime",
                 () -> this.resultSet.getTime(columnLabel),
                 columnLabel);
@@ -428,7 +421,7 @@ public class ResultSetWrapper implements ResultSet {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTimestamp",
                 () -> this.resultSet.getTimestamp(columnLabel),
                 columnLabel);
@@ -440,7 +433,7 @@ public class ResultSetWrapper implements ResultSet {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getAsciiStream",
                 () -> this.resultSet.getAsciiStream(columnLabel),
                 columnLabel);
@@ -453,7 +446,7 @@ public class ResultSetWrapper implements ResultSet {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getUnicodeStream",
                 () -> this.resultSet.getUnicodeStream(columnLabel),
                 columnLabel);
@@ -465,7 +458,7 @@ public class ResultSetWrapper implements ResultSet {
                 InputStream.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBinaryStream",
                 () -> this.resultSet.getBinaryStream(columnLabel),
                 columnLabel);
@@ -477,7 +470,7 @@ public class ResultSetWrapper implements ResultSet {
                 SQLWarning.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getWarnings",
                 () -> this.resultSet.getWarnings());
     }
@@ -487,7 +480,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.clearWarnings",
                 () -> this.resultSet.clearWarnings());
     }
@@ -498,7 +491,7 @@ public class ResultSetWrapper implements ResultSet {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getCursorName",
                 () -> this.resultSet.getCursorName());
     }
@@ -509,7 +502,7 @@ public class ResultSetWrapper implements ResultSet {
                 ResultSetMetaData.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getMetaData",
                 () -> this.resultSet.getMetaData());
     }
@@ -520,7 +513,7 @@ public class ResultSetWrapper implements ResultSet {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getObject",
                 () -> this.resultSet.getObject(columnIndex),
                 columnIndex);
@@ -532,7 +525,7 @@ public class ResultSetWrapper implements ResultSet {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getObject",
                 () -> this.resultSet.getObject(columnLabel),
                 columnLabel);
@@ -544,7 +537,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.findColumn",
                 () -> this.resultSet.findColumn(columnLabel),
                 columnLabel);
@@ -556,7 +549,7 @@ public class ResultSetWrapper implements ResultSet {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getCharacterStream",
                 () -> this.resultSet.getCharacterStream(columnIndex),
                 columnIndex);
@@ -568,7 +561,7 @@ public class ResultSetWrapper implements ResultSet {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getCharacterStream",
                 () -> this.resultSet.getCharacterStream(columnLabel),
                 columnLabel);
@@ -580,7 +573,7 @@ public class ResultSetWrapper implements ResultSet {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBigDecimal",
                 () -> this.resultSet.getBigDecimal(columnIndex),
                 columnIndex);
@@ -592,7 +585,7 @@ public class ResultSetWrapper implements ResultSet {
                 BigDecimal.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBigDecimal",
                 () -> this.resultSet.getBigDecimal(columnLabel),
                 columnLabel);
@@ -604,7 +597,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.isBeforeFirst",
                 () -> this.resultSet.isBeforeFirst());
     }
@@ -615,7 +608,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.isAfterLast",
                 () -> this.resultSet.isAfterLast());
     }
@@ -626,7 +619,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.isFirst",
                 () -> this.resultSet.isFirst());
     }
@@ -637,7 +630,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.isLast",
                 () -> this.resultSet.isLast());
     }
@@ -647,7 +640,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.beforeFirst",
                 () -> this.resultSet.beforeFirst());
     }
@@ -657,7 +650,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.afterLast",
                 () -> this.resultSet.afterLast());
     }
@@ -668,7 +661,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.first",
                 () -> this.resultSet.first());
     }
@@ -679,7 +672,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.last",
                 () -> this.resultSet.last());
     }
@@ -690,7 +683,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getRow",
                 () -> this.resultSet.getRow());
     }
@@ -701,7 +694,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.absolute",
                 () -> this.resultSet.absolute(row),
                 row);
@@ -713,7 +706,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.relative",
                 () -> this.resultSet.relative(rows),
                 rows);
@@ -725,7 +718,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.previous",
                 () -> this.resultSet.previous());
     }
@@ -737,7 +730,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getFetchDirection",
                 () -> this.resultSet.getFetchDirection());
     }
@@ -747,7 +740,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.setFetchDirection",
                 () -> this.resultSet.setFetchDirection(direction),
                 direction);
@@ -759,7 +752,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getFetchSize",
                 () -> this.resultSet.getFetchSize());
     }
@@ -769,7 +762,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.setFetchSize",
                 () -> this.resultSet.setFetchSize(rows),
                 rows);
@@ -782,7 +775,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getType",
                 () -> this.resultSet.getType());
     }
@@ -794,7 +787,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getConcurrency",
                 () -> this.resultSet.getConcurrency());
     }
@@ -805,7 +798,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.rowUpdated",
                 () -> this.resultSet.rowUpdated());
     }
@@ -816,7 +809,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.rowInserted",
                 () -> this.resultSet.rowInserted());
     }
@@ -827,7 +820,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.rowDeleted",
                 () -> this.resultSet.rowDeleted());
     }
@@ -837,7 +830,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNull",
                 () -> this.resultSet.updateNull(columnIndex),
                 columnIndex);
@@ -848,7 +841,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBoolean",
                 () -> this.resultSet.updateBoolean(columnIndex, x),
                 columnIndex, x);
@@ -859,7 +852,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateByte",
                 () -> this.resultSet.updateByte(columnIndex, x),
                 columnIndex, x);
@@ -870,7 +863,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateShort",
                 () -> this.resultSet.updateShort(columnIndex, x),
                 columnIndex, x);
@@ -881,7 +874,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateInt",
                 () -> this.resultSet.updateInt(columnIndex, x),
                 columnIndex, x);
@@ -892,7 +885,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateLong",
                 () -> this.resultSet.updateLong(columnIndex, x),
                 columnIndex, x);
@@ -903,7 +896,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateFloat",
                 () -> this.resultSet.updateFloat(columnIndex, x),
                 columnIndex, x);
@@ -914,7 +907,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateDouble",
                 () -> this.resultSet.updateDouble(columnIndex, x),
                 columnIndex, x);
@@ -925,7 +918,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBigDecimal",
                 () -> this.resultSet.updateBigDecimal(columnIndex, x),
                 columnIndex, x);
@@ -936,7 +929,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateString",
                 () -> this.resultSet.updateString(columnIndex, x),
                 columnIndex, x);
@@ -947,7 +940,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBytes",
                 () -> this.resultSet.updateBytes(columnIndex, x),
                 columnIndex, x);
@@ -958,7 +951,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateDate",
                 () -> this.resultSet.updateDate(columnIndex, x),
                 columnIndex, x);
@@ -969,7 +962,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateTime",
                 () -> this.resultSet.updateTime(columnIndex, x),
                 columnIndex, x);
@@ -980,7 +973,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateTimestamp",
                 () -> this.resultSet.updateTimestamp(columnIndex, x),
                 columnIndex, x);
@@ -991,7 +984,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateAsciiStream",
                 () -> this.resultSet.updateAsciiStream(columnIndex, x, length),
                 columnIndex, x, length);
@@ -1002,7 +995,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBinaryStream",
                 () -> this.resultSet.updateBinaryStream(columnIndex, x, length),
                 columnIndex, x, length);
@@ -1013,7 +1006,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateCharacterStream",
                 () -> this.resultSet.updateCharacterStream(columnIndex, x, length),
                 columnIndex, x, length);
@@ -1024,7 +1017,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnIndex, x, scaleOrLength),
                 columnIndex, x, scaleOrLength);
@@ -1035,7 +1028,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnIndex, x),
                 columnIndex, x);
@@ -1046,7 +1039,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNull",
                 () -> this.resultSet.updateNull(columnLabel),
                 columnLabel);
@@ -1057,7 +1050,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBoolean",
                 () -> this.resultSet.updateBoolean(columnLabel, x),
                 columnLabel, x);
@@ -1068,7 +1061,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateByte",
                 () -> this.resultSet.updateByte(columnLabel, x),
                 columnLabel, x);
@@ -1079,7 +1072,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateShort",
                 () -> this.resultSet.updateShort(columnLabel, x),
                 columnLabel, x);
@@ -1090,7 +1083,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateInt",
                 () -> this.resultSet.updateInt(columnLabel, x),
                 columnLabel, x);
@@ -1101,7 +1094,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateLong",
                 () -> this.resultSet.updateLong(columnLabel, x),
                 columnLabel, x);
@@ -1112,7 +1105,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateFloat",
                 () -> this.resultSet.updateFloat(columnLabel, x),
                 columnLabel, x);
@@ -1123,7 +1116,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateDouble",
                 () -> this.resultSet.updateDouble(columnLabel, x),
                 columnLabel, x);
@@ -1134,7 +1127,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBigDecimal",
                 () -> this.resultSet.updateBigDecimal(columnLabel, x),
                 columnLabel, x);
@@ -1145,7 +1138,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateString",
                 () -> this.resultSet.updateString(columnLabel, x),
                 columnLabel, x);
@@ -1156,7 +1149,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBytes",
                 () -> this.resultSet.updateBytes(columnLabel, x),
                 columnLabel, x);
@@ -1167,7 +1160,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateDate",
                 () -> this.resultSet.updateDate(columnLabel, x),
                 columnLabel, x);
@@ -1178,7 +1171,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateTime",
                 () -> this.resultSet.updateTime(columnLabel, x),
                 columnLabel, x);
@@ -1189,7 +1182,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateTimestamp",
                 () -> this.resultSet.updateTimestamp(columnLabel, x),
                 columnLabel, x);
@@ -1200,7 +1193,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateAsciiStream",
                 () -> this.resultSet.updateAsciiStream(columnLabel, x, length),
                 columnLabel, x, length);
@@ -1212,7 +1205,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBinaryStream",
                 () -> this.resultSet.updateBinaryStream(columnLabel, x, length),
                 columnLabel, x, length);
@@ -1224,7 +1217,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateCharacterStream",
                 () -> this.resultSet.updateCharacterStream(columnLabel, reader, length),
                 columnLabel, reader, length);
@@ -1235,7 +1228,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnLabel, x, scaleOrLength),
                 columnLabel, x, scaleOrLength);
@@ -1246,7 +1239,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnLabel, x),
                 columnLabel, x);
@@ -1257,7 +1250,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.insertRow",
                 () -> this.resultSet.insertRow());
     }
@@ -1267,7 +1260,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateRow",
                 () -> this.resultSet.updateRow());
     }
@@ -1277,7 +1270,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.deleteRow",
                 () -> this.resultSet.deleteRow());
     }
@@ -1287,7 +1280,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.refreshRow",
                 () -> this.resultSet.refreshRow());
     }
@@ -1297,7 +1290,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.cancelRowUpdates",
                 () -> this.resultSet.cancelRowUpdates());
     }
@@ -1307,7 +1300,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.moveToInsertRow",
                 () -> this.resultSet.moveToInsertRow());
     }
@@ -1317,7 +1310,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.moveToCurrentRow",
                 () -> this.resultSet.moveToCurrentRow());
     }
@@ -1328,7 +1321,7 @@ public class ResultSetWrapper implements ResultSet {
                 Statement.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getStatement",
                 () -> this.resultSet.getStatement());
     }
@@ -1339,7 +1332,7 @@ public class ResultSetWrapper implements ResultSet {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getObject",
                 () -> this.resultSet.getObject(columnIndex, map),
                 columnIndex, map);
@@ -1351,7 +1344,7 @@ public class ResultSetWrapper implements ResultSet {
                 Ref.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getRef",
                 () -> this.resultSet.getRef(columnIndex),
                 columnIndex);
@@ -1363,7 +1356,7 @@ public class ResultSetWrapper implements ResultSet {
                 Blob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBlob",
                 () -> this.resultSet.getBlob(columnIndex),
                 columnIndex);
@@ -1375,7 +1368,7 @@ public class ResultSetWrapper implements ResultSet {
                 Clob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getClob",
                 () -> this.resultSet.getClob(columnIndex),
                 columnIndex);
@@ -1387,7 +1380,7 @@ public class ResultSetWrapper implements ResultSet {
                 Array.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getArray",
                 () -> this.resultSet.getArray(columnIndex),
                 columnIndex);
@@ -1399,7 +1392,7 @@ public class ResultSetWrapper implements ResultSet {
                 Object.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getObject",
                 () -> this.resultSet.getObject(columnLabel, map),
                 columnLabel, map);
@@ -1411,7 +1404,7 @@ public class ResultSetWrapper implements ResultSet {
                 Ref.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getRef",
                 () -> this.resultSet.getRef(columnLabel),
                 columnLabel);
@@ -1423,7 +1416,7 @@ public class ResultSetWrapper implements ResultSet {
                 Blob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getBlob",
                 () -> this.resultSet.getBlob(columnLabel),
                 columnLabel);
@@ -1435,7 +1428,7 @@ public class ResultSetWrapper implements ResultSet {
                 Clob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getClob",
                 () -> this.resultSet.getClob(columnLabel),
                 columnLabel);
@@ -1447,7 +1440,7 @@ public class ResultSetWrapper implements ResultSet {
                 Array.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getArray",
                 () -> this.resultSet.getArray(columnLabel),
                 columnLabel);
@@ -1459,7 +1452,7 @@ public class ResultSetWrapper implements ResultSet {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getDate",
                 () -> this.resultSet.getDate(columnIndex, cal),
                 columnIndex, cal);
@@ -1471,7 +1464,7 @@ public class ResultSetWrapper implements ResultSet {
                 Date.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getDate",
                 () -> this.resultSet.getDate(columnLabel, cal),
                 columnLabel, cal);
@@ -1483,7 +1476,7 @@ public class ResultSetWrapper implements ResultSet {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTime",
                 () -> this.resultSet.getTime(columnIndex, cal),
                 columnIndex, cal);
@@ -1495,7 +1488,7 @@ public class ResultSetWrapper implements ResultSet {
                 Time.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTime",
                 () -> this.resultSet.getTime(columnLabel, cal),
                 columnLabel, cal);
@@ -1507,7 +1500,7 @@ public class ResultSetWrapper implements ResultSet {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTimestamp",
                 () -> this.resultSet.getTimestamp(columnIndex, cal),
                 columnIndex, cal);
@@ -1519,7 +1512,7 @@ public class ResultSetWrapper implements ResultSet {
                 Timestamp.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getTimestamp",
                 () -> this.resultSet.getTimestamp(columnLabel, cal),
                 columnLabel, cal);
@@ -1531,7 +1524,7 @@ public class ResultSetWrapper implements ResultSet {
                 URL.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getURL",
                 () -> this.resultSet.getURL(columnIndex),
                 columnIndex);
@@ -1543,7 +1536,7 @@ public class ResultSetWrapper implements ResultSet {
                 URL.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getURL",
                 () -> this.resultSet.getURL(columnLabel),
                 columnLabel);
@@ -1554,7 +1547,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateRef",
                 () -> this.resultSet.updateRef(columnIndex, x),
                 columnIndex, x);
@@ -1565,7 +1558,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateRef",
                 () -> this.resultSet.updateRef(columnLabel, x),
                 columnLabel, x);
@@ -1576,7 +1569,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBlob",
                 () -> this.resultSet.updateBlob(columnIndex, x),
                 columnIndex, x);
@@ -1587,7 +1580,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBlob",
                 () -> this.resultSet.updateBlob(columnLabel, x),
                 columnLabel, x);
@@ -1598,7 +1591,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateClob",
                 () -> this.resultSet.updateClob(columnIndex, x),
                 columnIndex, x);
@@ -1609,7 +1602,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateClob",
                 () -> this.resultSet.updateClob(columnLabel, x),
                 columnLabel, x);
@@ -1620,7 +1613,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateArray",
                 () -> this.resultSet.updateArray(columnIndex, x),
                 columnIndex, x);
@@ -1631,7 +1624,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateArray",
                 () -> this.resultSet.updateArray(columnLabel, x),
                 columnLabel, x);
@@ -1643,7 +1636,7 @@ public class ResultSetWrapper implements ResultSet {
                 RowId.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getRowId",
                 () -> this.resultSet.getRowId(columnIndex),
                 columnIndex);
@@ -1655,7 +1648,7 @@ public class ResultSetWrapper implements ResultSet {
                 RowId.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getRowId",
                 () -> this.resultSet.getRowId(columnLabel),
                 columnLabel);
@@ -1666,7 +1659,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateRowId",
                 () -> this.resultSet.updateRowId(columnIndex, x),
                 columnIndex, x);
@@ -1677,7 +1670,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateRowId",
                 () -> this.resultSet.updateRowId(columnLabel, x),
                 columnLabel, x);
@@ -1690,7 +1683,7 @@ public class ResultSetWrapper implements ResultSet {
                 int.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getHoldability",
                 () -> this.resultSet.getHoldability());
     }
@@ -1701,7 +1694,7 @@ public class ResultSetWrapper implements ResultSet {
                 boolean.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.isClosed",
                 () -> this.resultSet.isClosed());
     }
@@ -1711,7 +1704,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNString",
                 () -> this.resultSet.updateNString(columnIndex, nString),
                 columnIndex, nString);
@@ -1722,7 +1715,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNString",
                 () -> this.resultSet.updateNString(columnLabel, nString),
                 columnLabel, nString);
@@ -1733,7 +1726,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNClob",
                 () -> this.resultSet.updateNClob(columnIndex, nClob),
                 columnIndex, nClob);
@@ -1744,7 +1737,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNClob",
                 () -> this.resultSet.updateNClob(columnLabel, nClob),
                 columnLabel, nClob);
@@ -1756,7 +1749,7 @@ public class ResultSetWrapper implements ResultSet {
                 NClob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getNClob",
                 () -> this.resultSet.getNClob(columnIndex),
                 columnIndex);
@@ -1768,7 +1761,7 @@ public class ResultSetWrapper implements ResultSet {
                 NClob.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getNClob",
                 () -> this.resultSet.getNClob(columnLabel),
                 columnLabel);
@@ -1781,7 +1774,7 @@ public class ResultSetWrapper implements ResultSet {
                 SQLXML.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getSQLXML",
                 () -> this.resultSet.getSQLXML(columnIndex),
                 columnIndex);
@@ -1794,7 +1787,7 @@ public class ResultSetWrapper implements ResultSet {
                 SQLXML.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getSQLXML",
                 () -> this.resultSet.getSQLXML(columnLabel),
                 columnLabel);
@@ -1805,7 +1798,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateSQLXML",
                 () -> this.resultSet.updateSQLXML(columnIndex, xmlObject),
                 columnIndex, xmlObject);
@@ -1816,7 +1809,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateSQLXML",
                 () -> this.resultSet.updateSQLXML(columnLabel, xmlObject),
                 columnLabel, xmlObject);
@@ -1828,7 +1821,7 @@ public class ResultSetWrapper implements ResultSet {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getNString",
                 () -> this.resultSet.getNString(columnIndex),
                 columnIndex);
@@ -1840,7 +1833,7 @@ public class ResultSetWrapper implements ResultSet {
                 String.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getNString",
                 () -> this.resultSet.getNString(columnLabel),
                 columnLabel);
@@ -1852,7 +1845,7 @@ public class ResultSetWrapper implements ResultSet {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getNCharacterStream",
                 () -> this.resultSet.getNCharacterStream(columnIndex),
                 columnIndex);
@@ -1864,7 +1857,7 @@ public class ResultSetWrapper implements ResultSet {
                 Reader.class,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getNCharacterStream",
                 () -> this.resultSet.getNCharacterStream(columnLabel),
                 columnLabel);
@@ -1875,7 +1868,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNCharacterStream",
                 () -> this.resultSet.updateNCharacterStream(columnIndex, x, length),
                 columnIndex, x, length);
@@ -1887,7 +1880,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNCharacterStream",
                 () -> this.resultSet.updateNCharacterStream(columnLabel, reader, length),
                 columnLabel, reader, length);
@@ -1898,7 +1891,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateAsciiStream",
                 () -> this.resultSet.updateAsciiStream(columnIndex, x, length),
                 columnIndex, x, length);
@@ -1909,7 +1902,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBinaryStream",
                 () -> this.resultSet.updateBinaryStream(columnIndex, x, length),
                 columnIndex, x, length);
@@ -1920,7 +1913,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateCharacterStream",
                 () -> this.resultSet.updateCharacterStream(columnIndex, x, length),
                 columnIndex, x, length);
@@ -1932,7 +1925,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateAsciiStream",
                 () -> this.resultSet.updateAsciiStream(columnLabel, x, length),
                 columnLabel, x, length);
@@ -1944,7 +1937,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBinaryStream",
                 () -> this.resultSet.updateBinaryStream(columnLabel, x, length),
                 columnLabel, x, length);
@@ -1956,7 +1949,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateCharacterStream",
                 () -> this.resultSet.updateCharacterStream(columnLabel, reader, length),
                 columnLabel, reader, length);
@@ -1968,7 +1961,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBlob",
                 () -> this.resultSet.updateBlob(columnIndex, inputStream, length),
                 columnIndex, inputStream, length);
@@ -1980,7 +1973,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBlob",
                 () -> this.resultSet.updateBlob(columnLabel, inputStream, length),
                 columnLabel, inputStream, length);
@@ -1991,7 +1984,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateClob",
                 () -> this.resultSet.updateClob(columnIndex, reader, length),
                 columnIndex, reader, length);
@@ -2002,7 +1995,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateClob",
                 () -> this.resultSet.updateClob(columnLabel, reader, length),
                 columnLabel, reader, length);
@@ -2013,7 +2006,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNClob",
                 () -> this.resultSet.updateNClob(columnIndex, reader, length),
                 columnIndex, reader, length);
@@ -2024,7 +2017,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNClob",
                 () -> this.resultSet.updateNClob(columnLabel, reader, length),
                 columnLabel, reader, length);
@@ -2035,7 +2028,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNCharacterStream",
                 () -> this.resultSet.updateNCharacterStream(columnIndex, x),
                 columnIndex, x);
@@ -2046,7 +2039,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNCharacterStream",
                 () -> this.resultSet.updateNCharacterStream(columnLabel, reader),
                 columnLabel, reader);
@@ -2057,7 +2050,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateAsciiStream",
                 () -> this.resultSet.updateAsciiStream(columnIndex, x),
                 columnIndex, x);
@@ -2068,7 +2061,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBinaryStream",
                 () -> this.resultSet.updateBinaryStream(columnIndex, x),
                 columnIndex, x);
@@ -2079,7 +2072,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateCharacterStream",
                 () -> this.resultSet.updateCharacterStream(columnIndex, x),
                 columnIndex, x);
@@ -2090,7 +2083,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateAsciiStream",
                 () -> this.resultSet.updateAsciiStream(columnLabel, x),
                 columnLabel, x);
@@ -2101,7 +2094,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBinaryStream",
                 () -> this.resultSet.updateBinaryStream(columnLabel, x),
                 columnLabel, x);
@@ -2112,7 +2105,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateCharacterStream",
                 () -> this.resultSet.updateCharacterStream(columnLabel, reader),
                 columnLabel, reader);
@@ -2123,7 +2116,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBlob",
                 () -> this.resultSet.updateBlob(columnIndex, inputStream),
                 columnIndex, inputStream);
@@ -2134,7 +2127,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateBlob",
                 () -> this.resultSet.updateBlob(columnLabel, inputStream),
                 columnLabel, inputStream);
@@ -2145,7 +2138,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateClob",
                 () -> this.resultSet.updateClob(columnIndex, reader),
                 columnIndex, reader);
@@ -2156,7 +2149,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateClob",
                 () -> this.resultSet.updateClob(columnLabel, reader),
                 columnLabel, reader);
@@ -2167,7 +2160,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNClob",
                 () -> this.resultSet.updateNClob(columnIndex, reader),
                 columnIndex, reader);
@@ -2178,7 +2171,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateNClob",
                 () -> this.resultSet.updateNClob(columnLabel, reader),
                 columnLabel, reader);
@@ -2190,7 +2183,7 @@ public class ResultSetWrapper implements ResultSet {
                 type,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getObject",
                 () -> this.resultSet.getObject(columnIndex, type),
                 columnIndex, type);
@@ -2202,7 +2195,7 @@ public class ResultSetWrapper implements ResultSet {
                 type,
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.getObject",
                 () -> this.resultSet.getObject(columnLabel, type),
                 columnLabel, type);
@@ -2214,7 +2207,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnIndex, x, targetSqlType, scaleOrLength),
                 columnIndex, x, targetSqlType, scaleOrLength);
@@ -2226,7 +2219,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnLabel, x, targetSqlType, scaleOrLength),
                 columnLabel, x, targetSqlType, scaleOrLength);
@@ -2237,7 +2230,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnIndex, x, targetSqlType),
                 columnIndex, x, targetSqlType);
@@ -2249,7 +2242,7 @@ public class ResultSetWrapper implements ResultSet {
         WrapperUtils.runWithPlugins(
                 SQLException.class,
                 this.pluginManager,
-                this.resultSetClass,
+                this.resultSet,
                 "ResultSet.updateObject",
                 () -> this.resultSet.updateObject(columnLabel, x, targetSqlType),
                 columnLabel, x, targetSqlType);

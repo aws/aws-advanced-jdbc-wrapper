@@ -6,6 +6,8 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
-public interface JdbcRunnable <E extends Exception> {
-    void call() throws E;
+public enum HostAvailability {
+    UNCERTAIN,
+    AVAILABLE,
+    NOT_AVAILABLE
 }

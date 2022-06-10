@@ -16,22 +16,30 @@ import java.util.Set;
  * and to clean up resources used before closing the plugin.
  */
 public interface ConnectionPlugin {
+
     Set<String> getSubscribedMethods();
 
     <T, E extends Exception> T execute(
-            Class<T> resultClass,
-            Class<E> exceptionClass,
-            Class<?> methodInvokeOn,
-            String methodName,
-            JdbcCallable<T, E> jdbcMethodFunc,
-            Object[] jdbcMethodArgs) throws E;
+            final Class<T> resultClass,
+            final Class<E> exceptionClass,
+            final Object methodInvokeOn,
+            final String methodName,
+            final JdbcCallable<T, E> jdbcMethodFunc,
+            final Object[] jdbcMethodArgs) throws E;
 
     Connection connect(
-            String driverProtocol,
-            HostSpec hostSpec,
-            Properties props,
-            boolean isInitialConnection,
-            JdbcCallable<Connection, SQLException> connectFunc) throws SQLException;
+            final String driverProtocol,
+            final HostSpec hostSpec,
+            final Properties props,
+            final boolean isInitialConnection,
+            final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException;
+
+    void initHostProvider(
+            final String driverProtocol,
+            final String initialUrl,
+            final Properties props,
+            final HostListProviderService hostListProviderService,
+            final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException;
 
     void releaseResources();
 }

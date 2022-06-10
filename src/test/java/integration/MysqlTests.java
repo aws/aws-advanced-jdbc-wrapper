@@ -4,13 +4,14 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import integration.util.TestSettings;
 import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
+import software.aws.rds.jdbc.proxydriver.wrapper.ResultSetWrapper;
+import software.aws.rds.jdbc.proxydriver.wrapper.StatementWrapper;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.Properties;
+import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @Disabled
 public class MysqlTests {
@@ -37,6 +38,22 @@ public class MysqlTests {
         assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
 
         assertTrue(conn.isValid(10));
+
+        Statement statement = conn.createStatement();
+        assertNotNull(statement);
+        assertTrue(statement instanceof StatementWrapper);
+        assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+
+        int rnd = new Random().nextInt(100);
+        ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
+        assertNotNull(resultSet);
+        assertTrue(resultSet instanceof ResultSetWrapper);
+        assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+
+        resultSet.next();
+        int result = resultSet.getInt(1);
+        assertEquals(rnd, result);
+
         conn.close();
     }
 }

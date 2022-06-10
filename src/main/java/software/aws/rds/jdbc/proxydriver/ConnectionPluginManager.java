@@ -40,10 +40,10 @@ public class ConnectionPluginManager {
             Logger.getLogger(ConnectionPluginManager.class.getName());
     private static final String ALL_METHODS = "*";
     private static final String CONNECT_METHOD = "connect";
+    private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
 
     protected Properties props = new Properties();
     protected ArrayList<ConnectionPlugin> plugins;
-    protected CurrentConnectionProvider currentConnectionProvider;
     protected final ConnectionProvider connectionProvider;
 
     public ConnectionPluginManager(ConnectionProvider connectionProvider) {
@@ -86,15 +86,14 @@ public class ConnectionPluginManager {
      * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the
      * last connection plugin in the chain.
      *
-     * @param currentConnectionProvider The connection the plugins are associated with.
+     * @param pluginService A reference to a plugin service that plugin can use.
      * @param props                     The configuration of the connection.
      * @throws SQLException if errors occurred during the execution.
      */
-    public void init(CurrentConnectionProvider currentConnectionProvider, Properties props)
+    public void init(PluginService pluginService, Properties props)
             throws SQLException {
 
         instances.add(this);
-        this.currentConnectionProvider = currentConnectionProvider;
         this.props = props;
 
         String factoryClazzNames = PropertyDefinition.PLUGIN_FACTORIES.get(props);
@@ -117,7 +116,7 @@ public class ConnectionPluginManager {
 
                 for (ConnectionPluginFactory factory : factories) {
                     this.plugins.add(factory.getInstance(
-                            this.currentConnectionProvider,
+                            pluginService,
                             this.props));
                 }
 
@@ -131,7 +130,7 @@ public class ConnectionPluginManager {
         // add default connection plugin to the tail
 
         ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
-                this.currentConnectionProvider, this.connectionProvider);
+                pluginService, this.connectionProvider);
         this.plugins.add(defaultPlugin);
     }
 
@@ -169,7 +168,7 @@ public class ConnectionPluginManager {
     public <T, E extends Exception> T execute(
             final Class<T> resultType,
             final Class<E> exceptionClass,
-            final Class<?> methodInvokeOn,
+            final Object methodInvokeOn,
             final String methodName,
             final JdbcCallable<T, E> jdbcMethodFunc,
             final Object[] jdbcMethodArgs) throws E {
@@ -188,7 +187,7 @@ public class ConnectionPluginManager {
 
         try {
             return executeWithSubscribedPlugins(
-                    "connect",
+                    CONNECT_METHOD,
                     (plugin, func) -> plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
                     () -> { throw new SQLException("Shouldn't be called."); });
         } catch (SQLException | RuntimeException e) {
@@ -196,6 +195,21 @@ public class ConnectionPluginManager {
         } catch (Exception e) {
             throw new SQLException(e);
         }
+    }
+
+    public void initHostProvider(
+            final String driverProtocol,
+            final String initialUrl,
+            final Properties props,
+            final HostListProviderService hostListProviderService) throws SQLException {
+
+        executeWithSubscribedPlugins(
+                INIT_HOST_PROVIDER_METHOD,
+                (PluginPipeline<Void, SQLException>)(plugin, func) -> {
+                    plugin.initHostProvider(driverProtocol, initialUrl, props, hostListProviderService, func);
+                    return null;
+                },
+                () -> { throw new SQLException("Shouldn't be called."); });
     }
 
     /**
