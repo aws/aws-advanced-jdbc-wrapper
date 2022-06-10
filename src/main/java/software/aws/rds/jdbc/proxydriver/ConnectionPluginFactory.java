@@ -13,6 +13,5 @@ import java.util.Properties;
  * connection plugin.
  */
 public interface ConnectionPluginFactory {
-    ConnectionPlugin getInstance(PluginService pluginService,
-                                 Properties props);
+    ConnectionPlugin getInstance(PluginService pluginService, Properties props);
 }
