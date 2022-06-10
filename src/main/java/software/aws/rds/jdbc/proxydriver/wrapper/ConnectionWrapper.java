@@ -11,6 +11,7 @@ import software.aws.rds.jdbc.proxydriver.ConnectionProvider;
 import software.aws.rds.jdbc.proxydriver.CurrentConnectionProvider;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
+import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
 import java.sql.Array;
@@ -39,34 +40,58 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
     protected HostSpec hostSpec;
     protected final HostSpec[] hostSpecs;
     protected final ConnectionPluginManager pluginManager;
+    protected final String targetDriverProtocol;
+    protected final String originalUrl;
 
-    public ConnectionWrapper(ConnectionProvider connectionProvider, Properties props, String url)
+    public ConnectionWrapper(Properties props,
+                             String url,
+                             ConnectionProvider connectionProvider)
             throws SQLException {
-        this(null, props, url, new ConnectionPluginManager(connectionProvider));
+        this(props, url, new ConnectionPluginManager(connectionProvider));
     }
 
-    ConnectionWrapper(Connection connection, Properties props, String url,
+    ConnectionWrapper(Properties props,
+                      String url,
                       ConnectionPluginManager connectionPluginManager)
             throws SQLException {
 
-        this.currentConnection = connection;
-        this.hostSpecs = null; //TODO: it will be replaced by topology
-        this.pluginManager = connectionPluginManager;
-
-        if (this.pluginManager == null) {
-            throw new IllegalArgumentException("pluginManager");
+        if (connectionPluginManager == null) {
+            throw new IllegalArgumentException("connectionPluginManager");
         }
 
-        this.pluginManager.init(this, props);
-        if (this.currentConnection == null) {
-            this.pluginManager.openInitialConnection(this.hostSpecs, props, url);
+        if (StringUtils.isNullOrEmpty(url)) {
+            throw new IllegalArgumentException("url");
+        }
 
-            if (this.currentConnection == null) {
+        this.originalUrl = url;
+        this.targetDriverProtocol = getProtocol(url);
+        this.pluginManager = connectionPluginManager;
+
+        this.hostSpecs = null; //TODO: it will be replaced by topology
+        //TODO: here: run default topology provider to identify list of hosts from connection string
+        this.hostSpec = null; //TODO: it should be set up by topology provider
+
+        this.pluginManager.init(this, props);
+
+        if (this.currentConnection == null) {
+            Connection conn = this.pluginManager.connect(this.targetDriverProtocol, this.hostSpec, props, true);
+
+            if (conn == null) {
                 throw new SQLException("Initial connection isn't open.", SqlState.UNKNOWN_STATE.getCode());
             }
+
+            this.currentConnection = conn;
         }
 
         this.currentConnectionClass = this.currentConnection.getClass();
+    }
+
+    protected String getProtocol(String url) {
+        int index = url.indexOf("//");
+        if (index < 0) {
+            throw new IllegalArgumentException("Url should contains a driver protocol. Protocol is not found in url " + url);
+        }
+        return url.substring(0, index + 2);
     }
 
     @Override

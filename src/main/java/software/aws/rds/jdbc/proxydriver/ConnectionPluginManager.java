@@ -12,6 +12,7 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
@@ -31,13 +32,14 @@ import java.util.logging.Logger;
 public class ConnectionPluginManager {
 
     protected static final String DEFAULT_PLUGIN_FACTORIES = "";
+
     //TODO: use weak pointers
     protected static final Queue<ConnectionPluginManager> instances = new ConcurrentLinkedQueue<>();
 
     private static final transient Logger LOGGER =
             Logger.getLogger(ConnectionPluginManager.class.getName());
     private static final String ALL_METHODS = "*";
-    private static final String OPEN_INITIAL_CONNECTION_METHOD = "openInitialConnection";
+    private static final String CONNECT_METHOD = "connect";
 
     protected Properties props = new Properties();
     protected ArrayList<ConnectionPlugin> plugins;
@@ -178,19 +180,17 @@ public class ConnectionPluginManager {
                 jdbcMethodFunc);
     }
 
-    public void openInitialConnection(
-            final HostSpec[] hostSpecs,
+    public Connection connect(
+            final String driverProtocol,
+            final HostSpec hostSpec,
             final Properties props,
-            final String url) throws SQLException {
+            final boolean isInitialConnection) throws SQLException {
 
         try {
-            executeWithSubscribedPlugins(
-                    "openInitialConnection",
-                    (PluginPipeline<Void, Exception>) (plugin, func) -> {
-                        plugin.openInitialConnection(hostSpecs, props, url, func);
-                        return null;
-                    },
-                    () -> null);
+            return executeWithSubscribedPlugins(
+                    "connect",
+                    (plugin, func) -> plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
+                    () -> { throw new SQLException("Shouldn't be called."); });
         } catch (SQLException | RuntimeException e) {
             throw e;
         } catch (Exception e) {

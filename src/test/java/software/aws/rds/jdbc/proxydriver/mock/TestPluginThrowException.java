@@ -3,6 +3,7 @@ package software.aws.rds.jdbc.proxydriver.mock;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -57,31 +58,38 @@ public class TestPluginThrowException extends TestPluginOne {
     }
 
     @Override
-    public void openInitialConnection(
-            HostSpec[] hostSpecs,
+    public Connection connect(
+            String driverProtocol,
+            HostSpec hostSpec,
             Properties props,
-            String url,
-            JdbcCallable<Void, Exception> openInitialConnectionFunc) throws Exception {
+            boolean isInitialConnection,
+            JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
         this.calls.add(this.getClass().getSimpleName() + ":before");
         if(this.isBefore) {
-            try {
-                throw this.exceptionClass.newInstance();
-            } catch (IllegalAccessException | InstantiationException e) {
-                throw new RuntimeException(e);
-            }
+            throwException();
         }
 
-        openInitialConnectionFunc.call();
+        Connection conn = connectFunc.call();
 
         this.calls.add(this.getClass().getSimpleName() + ":after");
-        //noinspection ConstantConditions
         if(!this.isBefore) {
-            try {
-                throw this.exceptionClass.newInstance();
-            } catch (IllegalAccessException | InstantiationException e) {
-                throw new RuntimeException(e);
+            throwException();
+        }
+
+        return conn;
+    }
+
+    private void throwException() throws SQLException {
+        try {
+            throw this.exceptionClass.newInstance();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            if(e instanceof SQLException) {
+                throw (SQLException) e;
             }
+            throw new SQLException(e);
         }
     }
 }
