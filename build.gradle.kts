@@ -13,7 +13,7 @@ dependencies {
 
     implementation("org.checkerframework:checker-qual:3.22.0")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.postgresql:postgresql:42.+")
