@@ -1,6 +1,7 @@
 package software.aws.rds.jdbc.proxydriver.mock;
 
 import software.aws.rds.jdbc.proxydriver.ConnectionPlugin;
+import software.aws.rds.jdbc.proxydriver.HostListProviderService;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
@@ -71,6 +72,17 @@ public class TestPluginOne implements ConnectionPlugin {
         Connection result = connectFunc.call();
         this.calls.add(this.getClass().getSimpleName() + ":after");
         return result;
+    }
+
+    @Override
+    public void initHostProvider(
+            String driverProtocol,
+            String initialUrl,
+            Properties props,
+            HostListProviderService hostListProviderService,
+            JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+
+        // do nothing
     }
 
     @Override

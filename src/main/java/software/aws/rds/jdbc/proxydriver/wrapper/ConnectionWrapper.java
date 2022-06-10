@@ -6,13 +6,12 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
-import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
-import software.aws.rds.jdbc.proxydriver.ConnectionProvider;
-import software.aws.rds.jdbc.proxydriver.CurrentConnectionProvider;
-import software.aws.rds.jdbc.proxydriver.HostSpec;
+import software.aws.rds.jdbc.proxydriver.*;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
+
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.sql.Array;
 import java.sql.Blob;
@@ -33,57 +32,78 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-public class ConnectionWrapper implements Connection, CurrentConnectionProvider {
+public class ConnectionWrapper implements Connection {
 
-    protected Connection currentConnection;
+    //TODO: how to update these values? Or, should we rid of these variables and replace them with this.pluginService.getCurrentConnection() ?
     protected Class<?> currentConnectionClass;
-    protected HostSpec hostSpec;
-    protected final HostSpec[] hostSpecs;
-    protected final ConnectionPluginManager pluginManager;
-    protected final String targetDriverProtocol;
-    protected final String originalUrl;
 
-    public ConnectionWrapper(Properties props,
-                             String url,
-                             ConnectionProvider connectionProvider)
+    protected ConnectionPluginManager pluginManager;
+    protected PluginService pluginService;
+    protected HostListProviderService hostListProviderService;
+
+    protected String targetDriverProtocol;
+    protected String originalUrl;
+
+    public ConnectionWrapper(@NonNull Properties props,
+                             @NonNull String url,
+                             @NonNull ConnectionProvider connectionProvider)
             throws SQLException {
-        this(props, url, new ConnectionPluginManager(connectionProvider));
-    }
-
-    ConnectionWrapper(Properties props,
-                      String url,
-                      ConnectionPluginManager connectionPluginManager)
-            throws SQLException {
-
-        if (connectionPluginManager == null) {
-            throw new IllegalArgumentException("connectionPluginManager");
-        }
 
         if (StringUtils.isNullOrEmpty(url)) {
             throw new IllegalArgumentException("url");
         }
 
+        ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider);
+        PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager);
+
+        init(props, url, pluginManager, pluginService, pluginService);
+    }
+
+    ConnectionWrapper(@NonNull Properties props,
+                      @NonNull String url,
+                      @NonNull ConnectionPluginManager connectionPluginManager,
+                      @NonNull PluginService pluginService,
+                      @NonNull HostListProviderService hostListProviderService)
+            throws SQLException {
+
+        if (StringUtils.isNullOrEmpty(url)) {
+            throw new IllegalArgumentException("url");
+        }
+
+        init(props, url, connectionPluginManager, pluginService, hostListProviderService);
+    }
+
+    protected void init(Properties props,
+                        String url,
+                        ConnectionPluginManager connectionPluginManager,
+                        PluginService pluginService,
+                        HostListProviderService hostListProviderService) throws SQLException {
+
         this.originalUrl = url;
         this.targetDriverProtocol = getProtocol(url);
         this.pluginManager = connectionPluginManager;
+        this.pluginService = pluginService;
+        this.hostListProviderService = hostListProviderService;
 
-        this.hostSpecs = null; //TODO: it will be replaced by topology
-        //TODO: here: run default topology provider to identify list of hosts from connection string
-        this.hostSpec = null; //TODO: it should be set up by topology provider
+        this.pluginManager.init(this.pluginService, props);
 
-        this.pluginManager.init(this, props);
+        this.pluginManager.initHostProvider(this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
 
-        if (this.currentConnection == null) {
-            Connection conn = this.pluginManager.connect(this.targetDriverProtocol, this.hostSpec, props, true);
+        if (this.pluginService.getCurrentConnection() == null) {
+            Connection conn = this.pluginManager.connect(
+                    this.targetDriverProtocol,
+                    this.pluginService.getCurrentHostSpec(),
+                    props,
+                    true);
 
             if (conn == null) {
                 throw new SQLException("Initial connection isn't open.", SqlState.UNKNOWN_STATE.getCode());
             }
 
-            this.currentConnection = conn;
+            this.pluginService.setCurrentConnection(conn, this.pluginService.getCurrentHostSpec());
         }
 
-        this.currentConnectionClass = this.currentConnection.getClass();
+        this.currentConnectionClass = this.pluginService.getCurrentConnection().getClass();
     }
 
     protected String getProtocol(String url) {
@@ -102,7 +122,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStatement",
-                () -> this.currentConnection.createStatement());
+                () -> this.pluginService.getCurrentConnection().createStatement());
     }
 
     @Override
@@ -113,7 +133,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
-                () -> this.currentConnection.prepareStatement(sql),
+                () -> this.pluginService.getCurrentConnection().prepareStatement(sql),
                 sql);
     }
 
@@ -125,7 +145,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareCall",
-                () -> this.currentConnection.prepareCall(sql),
+                () -> this.pluginService.getCurrentConnection().prepareCall(sql),
                 sql);
     }
 
@@ -137,7 +157,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.nativeSQL",
-                () -> this.currentConnection.nativeSQL(sql),
+                () -> this.pluginService.getCurrentConnection().nativeSQL(sql),
                 sql);
     }
 
@@ -149,7 +169,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getAutoCommit",
-                () -> this.currentConnection.getAutoCommit());
+                () -> this.pluginService.getCurrentConnection().getAutoCommit());
     }
 
     @Override
@@ -159,7 +179,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setAutoCommit",
-                () -> this.currentConnection.setAutoCommit(autoCommit),
+                () -> this.pluginService.getCurrentConnection().setAutoCommit(autoCommit),
                 autoCommit);
     }
 
@@ -170,7 +190,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.commit",
-                () -> this.currentConnection.commit());
+                () -> this.pluginService.getCurrentConnection().commit());
     }
 
     @Override
@@ -180,7 +200,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.rollback",
-                () -> this.currentConnection.rollback());
+                () -> this.pluginService.getCurrentConnection().rollback());
     }
 
     @Override
@@ -190,7 +210,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.close",
-                () -> this.currentConnection.close());
+                () -> this.pluginService.getCurrentConnection().close());
     }
 
     @Override
@@ -201,7 +221,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.isClosed",
-                () -> this.currentConnection.isClosed());
+                () -> this.pluginService.getCurrentConnection().isClosed());
     }
 
     @Override
@@ -212,7 +232,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getMetaData",
-                () -> this.currentConnection.getMetaData());
+                () -> this.pluginService.getCurrentConnection().getMetaData());
     }
 
     @Override
@@ -223,7 +243,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.isReadOnly",
-                () -> this.currentConnection.isReadOnly());
+                () -> this.pluginService.getCurrentConnection().isReadOnly());
     }
 
     @Override
@@ -233,7 +253,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setReadOnly",
-                () -> this.currentConnection.setReadOnly(readOnly),
+                () -> this.pluginService.getCurrentConnection().setReadOnly(readOnly),
                 readOnly);
     }
 
@@ -245,7 +265,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getCatalog",
-                () -> this.currentConnection.getCatalog());
+                () -> this.pluginService.getCurrentConnection().getCatalog());
     }
 
     @Override
@@ -255,7 +275,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setCatalog",
-                () -> this.currentConnection.setCatalog(catalog),
+                () -> this.pluginService.getCurrentConnection().setCatalog(catalog),
                 catalog);
     }
 
@@ -268,7 +288,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getTransactionIsolation",
-                () -> this.currentConnection.getTransactionIsolation());
+                () -> this.pluginService.getCurrentConnection().getTransactionIsolation());
     }
 
     @Override
@@ -278,7 +298,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setTransactionIsolation",
-                () -> this.currentConnection.setTransactionIsolation(level),
+                () -> this.pluginService.getCurrentConnection().setTransactionIsolation(level),
                 level);
     }
 
@@ -290,7 +310,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getWarnings",
-                () -> this.currentConnection.getWarnings());
+                () -> this.pluginService.getCurrentConnection().getWarnings());
     }
 
     @Override
@@ -300,7 +320,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.clearWarnings",
-                () -> this.currentConnection.clearWarnings());
+                () -> this.pluginService.getCurrentConnection().clearWarnings());
     }
 
     @Override
@@ -312,7 +332,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStatement",
-                () -> this.currentConnection.createStatement(resultSetType, resultSetConcurrency),
+                () -> this.pluginService.getCurrentConnection().createStatement(resultSetType, resultSetConcurrency),
                 resultSetType, resultSetConcurrency);
     }
 
@@ -325,7 +345,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
-                () -> this.currentConnection.prepareStatement(sql, resultSetType, resultSetConcurrency),
+                () -> this.pluginService.getCurrentConnection().prepareStatement(sql, resultSetType, resultSetConcurrency),
                 sql, resultSetType, resultSetConcurrency);
     }
 
@@ -338,7 +358,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareCall",
-                () -> this.currentConnection.prepareCall(sql, resultSetType, resultSetConcurrency),
+                () -> this.pluginService.getCurrentConnection().prepareCall(sql, resultSetType, resultSetConcurrency),
                 sql, resultSetType, resultSetConcurrency);
     }
 
@@ -351,7 +371,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getTypeMap",
-                () -> this.currentConnection.getTypeMap());
+                () -> this.pluginService.getCurrentConnection().getTypeMap());
     }
 
     @Override
@@ -361,7 +381,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setTypeMap",
-                () -> this.currentConnection.setTypeMap(map),
+                () -> this.pluginService.getCurrentConnection().setTypeMap(map),
                 map);
     }
 
@@ -373,7 +393,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getHoldability",
-                () -> this.currentConnection.getHoldability());
+                () -> this.pluginService.getCurrentConnection().getHoldability());
     }
 
     @Override
@@ -383,7 +403,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setHoldability",
-                () -> this.currentConnection.setHoldability(holdability),
+                () -> this.pluginService.getCurrentConnection().setHoldability(holdability),
                 holdability);
     }
 
@@ -395,7 +415,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setSavepoint",
-                () -> this.currentConnection.setSavepoint());
+                () -> this.pluginService.getCurrentConnection().setSavepoint());
     }
 
     @Override
@@ -406,7 +426,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setSavepoint",
-                () -> this.currentConnection.setSavepoint(name),
+                () -> this.pluginService.getCurrentConnection().setSavepoint(name),
                 name);
     }
 
@@ -417,7 +437,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.rollback",
-                () -> this.currentConnection.rollback(savepoint),
+                () -> this.pluginService.getCurrentConnection().rollback(savepoint),
                 savepoint);
     }
 
@@ -428,7 +448,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.releaseSavepoint",
-                () -> this.currentConnection.releaseSavepoint(savepoint),
+                () -> this.pluginService.getCurrentConnection().releaseSavepoint(savepoint),
                 savepoint);
     }
 
@@ -441,7 +461,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStatement",
-                () -> this.currentConnection.createStatement(
+                () -> this.pluginService.getCurrentConnection().createStatement(
                         resultSetType, resultSetConcurrency, resultSetHoldability),
                 resultSetType, resultSetConcurrency, resultSetHoldability);
     }
@@ -455,7 +475,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
-                () -> this.currentConnection.prepareStatement(
+                () -> this.pluginService.getCurrentConnection().prepareStatement(
                         sql, resultSetType, resultSetConcurrency, resultSetHoldability),
                 sql, resultSetType, resultSetConcurrency, resultSetHoldability);
     }
@@ -469,7 +489,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareCall",
-                () -> this.currentConnection.prepareCall(
+                () -> this.pluginService.getCurrentConnection().prepareCall(
                         sql, resultSetType, resultSetConcurrency, resultSetHoldability),
                 sql, resultSetType, resultSetConcurrency, resultSetHoldability);
     }
@@ -482,7 +502,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
-                () -> this.currentConnection.prepareStatement(sql, autoGeneratedKeys),
+                () -> this.pluginService.getCurrentConnection().prepareStatement(sql, autoGeneratedKeys),
                 sql, autoGeneratedKeys);
     }
 
@@ -494,7 +514,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
-                () -> this.currentConnection.prepareStatement(sql, columnIndexes),
+                () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnIndexes),
                 sql, columnIndexes);
     }
 
@@ -506,7 +526,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.prepareStatement",
-                () -> this.currentConnection.prepareStatement(sql, columnNames),
+                () -> this.pluginService.getCurrentConnection().prepareStatement(sql, columnNames),
                 sql, columnNames);
     }
 
@@ -518,7 +538,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createClob",
-                () -> this.currentConnection.createClob());
+                () -> this.pluginService.getCurrentConnection().createClob());
     }
 
     @Override
@@ -529,7 +549,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createBlob",
-                () -> this.currentConnection.createBlob());
+                () -> this.pluginService.getCurrentConnection().createBlob());
     }
 
     @Override
@@ -540,7 +560,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createNClob",
-                () -> this.currentConnection.createNClob());
+                () -> this.pluginService.getCurrentConnection().createNClob());
     }
 
     @Override
@@ -551,7 +571,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createSQLXML",
-                () -> this.currentConnection.createSQLXML());
+                () -> this.pluginService.getCurrentConnection().createSQLXML());
     }
 
     @Override
@@ -562,7 +582,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.isValid",
-                () -> this.currentConnection.isValid(timeout),
+                () -> this.pluginService.getCurrentConnection().isValid(timeout),
                 timeout);
     }
 
@@ -573,7 +593,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setClientInfo",
-                () -> this.currentConnection.setClientInfo(name, value),
+                () -> this.pluginService.getCurrentConnection().setClientInfo(name, value),
                 name, value);
     }
 
@@ -585,7 +605,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getClientInfo",
-                () -> this.currentConnection.getClientInfo(name),
+                () -> this.pluginService.getCurrentConnection().getClientInfo(name),
                 name);
     }
 
@@ -597,7 +617,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getClientInfo",
-                () -> this.currentConnection.getClientInfo());
+                () -> this.pluginService.getCurrentConnection().getClientInfo());
     }
 
     @Override
@@ -607,7 +627,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setClientInfo",
-                () -> this.currentConnection.setClientInfo(properties),
+                () -> this.pluginService.getCurrentConnection().setClientInfo(properties),
                 properties);
     }
 
@@ -619,7 +639,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createArrayOf",
-                () -> this.currentConnection.createArrayOf(typeName, elements),
+                () -> this.pluginService.getCurrentConnection().createArrayOf(typeName, elements),
                 typeName, elements);
     }
 
@@ -631,7 +651,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.createStruct",
-                () -> this.currentConnection.createStruct(typeName, attributes),
+                () -> this.pluginService.getCurrentConnection().createStruct(typeName, attributes),
                 typeName, attributes);
     }
 
@@ -643,7 +663,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getSchema",
-                () -> this.currentConnection.getSchema());
+                () -> this.pluginService.getCurrentConnection().getSchema());
     }
 
     @Override
@@ -653,7 +673,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setSchema",
-                () -> this.currentConnection.setSchema(schema),
+                () -> this.pluginService.getCurrentConnection().setSchema(schema),
                 schema);
     }
 
@@ -664,7 +684,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.abort",
-                () -> this.currentConnection.abort(executor),
+                () -> this.pluginService.getCurrentConnection().abort(executor),
                 executor);
     }
 
@@ -675,7 +695,7 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.setNetworkTimeout",
-                () -> this.currentConnection.setNetworkTimeout(executor, milliseconds),
+                () -> this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds),
                 executor, milliseconds);
     }
 
@@ -687,32 +707,16 @@ public class ConnectionWrapper implements Connection, CurrentConnectionProvider 
                 this.pluginManager,
                 this.currentConnectionClass,
                 "Connection.getNetworkTimeout",
-                () -> this.currentConnection.getNetworkTimeout());
+                () -> this.pluginService.getCurrentConnection().getNetworkTimeout());
     }
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        return this.currentConnection.unwrap(iface);
+        return this.pluginService.getCurrentConnection().unwrap(iface);
     }
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return this.currentConnection.isWrapperFor(iface);
-    }
-
-    @Override
-    public Connection getCurrentConnection() {
-        return this.currentConnection;
-    }
-
-    @Override
-    public HostSpec getCurrentHostSpec() {
-        return this.hostSpec;
-    }
-
-    @Override
-    public void setCurrentConnection(Connection connection, HostSpec hostSpec) {
-        this.currentConnection = connection;
-        this.hostSpec = hostSpec;
+        return this.pluginService.getCurrentConnection().isWrapperFor(iface);
     }
 }

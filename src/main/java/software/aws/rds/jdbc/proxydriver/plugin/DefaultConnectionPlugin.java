@@ -7,9 +7,7 @@
 package software.aws.rds.jdbc.proxydriver.plugin;
 
 import software.aws.rds.jdbc.proxydriver.*;
-import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 
-import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -17,7 +15,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,18 +30,18 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
             Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*", "openInitialConnection")));
 
     private final ConnectionProvider connectionProvider;
-    private final CurrentConnectionProvider currentConnectionProvider;
+    private final PluginService pluginService;
 
-    public DefaultConnectionPlugin(CurrentConnectionProvider currentConnectionProvider,
+    public DefaultConnectionPlugin(PluginService pluginService,
                                    ConnectionProvider connectionProvider) {
-        if (currentConnectionProvider == null) {
+        if (pluginService == null) {
             throw new IllegalArgumentException("currentConnectionProvider");
         }
         if (connectionProvider == null) {
             throw new IllegalArgumentException("connectionProvider");
         }
 
-        this.currentConnectionProvider = currentConnectionProvider;
+        this.pluginService = pluginService;
         this.connectionProvider = connectionProvider;
     }
 
@@ -79,6 +76,18 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
         // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be omitted.
 
         return conn;
+    }
+
+    @Override
+    public void initHostProvider(
+            final String driverProtocol,
+            final String initialUrl,
+            final Properties props,
+            final HostListProviderService hostListProviderService,
+            final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+
+        // do nothing
+        // It's guaranteed that this plugin is always the last in plugin chain so initHostProviderFunc can be omitted.
     }
 
     @Override
