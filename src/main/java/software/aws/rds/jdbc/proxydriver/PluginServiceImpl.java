@@ -6,12 +6,12 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import java.util.EnumSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import software.aws.rds.jdbc.proxydriver.nodelistprovider.ConnectionStringHostListProvider;
 
 public class PluginServiceImpl implements PluginService, HostListProviderService {
 
@@ -36,11 +36,72 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
     return this.currentHostSpec;
   }
 
-  @Override
-  public void setCurrentConnection(final @NonNull Connection connection, final @NonNull HostSpec hostSpec) {
-    this.currentConnection = connection;
-    this.currentHostSpec = hostSpec;
-  }
+    @Override
+    public void setCurrentConnection(
+        final @NonNull Connection connection,
+        final @NonNull HostSpec hostSpec) throws SQLException {
+
+        setCurrentConnection(connection, hostSpec, null);
+    }
+
+    @Override
+    public synchronized EnumSet<NodeChangeOptions> setCurrentConnection(
+        final @NonNull Connection connection,
+        final @NonNull HostSpec hostSpec,
+        @Nullable ConnectionPlugin skipNotificationForThisPlugin) throws SQLException {
+
+        EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
+
+        if (this.currentConnection != connection) {
+            changes.add(NodeChangeOptions.CONNECTION_OBJECT_CHANGED);
+        }
+
+        if (!this.currentHostSpec.getHost().equals(hostSpec.getHost())
+            || this.currentHostSpec.getPort() != hostSpec.getPort()) {
+            changes.add(NodeChangeOptions.HOSTNAME);
+        }
+
+        if (this.currentHostSpec.getRole() != hostSpec.getRole()) {
+            if (hostSpec.getRole() == HostRole.WRITER) {
+                changes.add(NodeChangeOptions.PROMOTED_TO_WRITER);
+            } else if (hostSpec.getRole() == HostRole.READER) {
+                changes.add(NodeChangeOptions.PROMOTED_TO_READER);
+            }
+        }
+
+        if (this.currentHostSpec.getAvailability() != hostSpec.getAvailability()) {
+            if (hostSpec.getAvailability() == HostAvailability.AVAILABLE) {
+                changes.add(NodeChangeOptions.WENT_UP);
+            } else if (hostSpec.getAvailability() == HostAvailability.NOT_AVAILABLE) {
+                changes.add(NodeChangeOptions.WENT_DOWN);
+            }
+        }
+
+        final Connection oldConnection = this.currentConnection;
+
+        this.currentConnection = connection;
+        this.currentHostSpec = hostSpec;
+
+        EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
+
+        if (oldConnection != null && !oldConnection.isClosed()) {
+
+            pluginOpinions.remove(OldConnectionSuggestedAction.NO_OPINION);
+
+            boolean shouldCloseConnection = pluginOpinions.contains(OldConnectionSuggestedAction.DISPOSE)
+                || pluginOpinions.isEmpty();
+
+            if (shouldCloseConnection) {
+                try {
+                    oldConnection.close();
+                } catch (SQLException e) {
+                    // Ignore any exception
+                }
+            }
+        }
+
+        return changes;
+    }
 
   @Override
   public HostSpec[] getHosts() {

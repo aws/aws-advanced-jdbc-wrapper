@@ -8,6 +8,8 @@ package software.aws.rds.jdbc.proxydriver;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -40,6 +42,9 @@ public interface ConnectionPlugin {
             final Properties props,
             final HostListProviderService hostListProviderService,
             final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException;
+
+    OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) throws SQLException;
+    void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) throws SQLException;
 
     void releaseResources();
 }

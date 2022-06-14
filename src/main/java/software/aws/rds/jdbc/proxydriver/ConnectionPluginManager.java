@@ -6,6 +6,9 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import java.util.EnumSet;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
@@ -165,6 +168,36 @@ public class ConnectionPluginManager {
         return func.call();
     }
 
+    protected <T extends Enum<T>, E extends Exception> EnumSet<T> notifySubscribedPlugins(
+        final Class<T> resultClass,
+        final String methodName,
+        final PluginPipeline<T, E> pluginPipeline,
+        final ConnectionPlugin skipNotificationForThisPlugin) throws E {
+
+        if (pluginPipeline == null) {
+            throw new IllegalArgumentException("pluginPipeline");
+        }
+
+        EnumSet<T> result = EnumSet.noneOf(resultClass);
+
+        for (int i = 0; i < this.plugins.size(); i++) {
+            ConnectionPlugin plugin = this.plugins.get(i);
+            if (plugin == skipNotificationForThisPlugin) {
+                continue;
+            }
+            Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+            boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
+                || pluginSubscribedMethods.contains(methodName);
+
+            if (isSubscribed) {
+                T pluginOpinion = pluginPipeline.call(plugin, null);
+                result.add(pluginOpinion);
+            }
+        }
+
+        return result;
+    }
+
     public <T, E extends Exception> T execute(
             final Class<T> resultType,
             final Class<E> exceptionClass,
@@ -210,6 +243,17 @@ public class ConnectionPluginManager {
                     return null;
                 },
                 () -> { throw new SQLException("Shouldn't be called."); });
+    }
+
+    public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
+        @NonNull EnumSet<NodeChangeOptions> changes,
+        @Nullable ConnectionPlugin skipNotificationForThisPlugin) throws SQLException {
+
+        return notifySubscribedPlugins(
+            OldConnectionSuggestedAction.class,
+            "notifyConnectionChanged",
+            (PluginPipeline<OldConnectionSuggestedAction, SQLException>)(plugin, func) -> plugin.notifyConnectionChanged(changes),
+            skipNotificationForThisPlugin);
     }
 
     /**
