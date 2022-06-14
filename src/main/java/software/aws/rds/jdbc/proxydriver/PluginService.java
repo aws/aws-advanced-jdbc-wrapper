@@ -8,7 +8,10 @@ package software.aws.rds.jdbc.proxydriver;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.EnumSet;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
@@ -17,7 +20,13 @@ public interface PluginService {
 
     Connection getCurrentConnection();
     HostSpec getCurrentHostSpec();
-    void setCurrentConnection(Connection connection, HostSpec hostSpec);
+    void setCurrentConnection(
+        final @NonNull Connection connection,
+        final @NonNull HostSpec hostSpec) throws SQLException;
+    EnumSet<NodeChangeOptions> setCurrentConnection(
+        final @NonNull Connection connection,
+        final @NonNull HostSpec hostSpec,
+        @Nullable ConnectionPlugin skipNotificationForThisPlugin) throws SQLException;
 
     HostSpec[] getHosts();
 

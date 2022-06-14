@@ -6,6 +6,8 @@
 
 package software.aws.rds.jdbc.proxydriver.plugin;
 
+import java.util.EnumSet;
+import java.util.Map;
 import software.aws.rds.jdbc.proxydriver.*;
 
 import java.sql.Connection;
@@ -88,6 +90,16 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
         // do nothing
         // It's guaranteed that this plugin is always the last in plugin chain so initHostProviderFunc can be omitted.
+    }
+
+    @Override
+    public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) throws SQLException {
+        return OldConnectionSuggestedAction.NO_OPINION;
+    }
+
+    @Override
+    public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) throws SQLException {
+        // do nothing
     }
 
     @Override
