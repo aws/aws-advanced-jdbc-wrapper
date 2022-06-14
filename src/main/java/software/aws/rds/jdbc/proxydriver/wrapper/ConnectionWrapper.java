@@ -51,7 +51,7 @@ public class ConnectionWrapper implements Connection {
         }
 
         ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider);
-        PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager);
+        PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
 
         init(props, url, pluginManager, pluginService, pluginService);
     }

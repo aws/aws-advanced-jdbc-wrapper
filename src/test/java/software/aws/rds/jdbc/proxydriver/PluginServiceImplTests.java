@@ -19,16 +19,20 @@ import static org.mockito.Mockito.when;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
+import java.util.Properties;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PluginServiceImplTests {
+  private static final Properties PROPERTIES = new Properties();
+  private static final String URL = "url";
+  private static final String DRIVER_PROTOCOL = "driverProtocol";
 
   @Test
   public void testOldConnectionNoSuggestion() throws SQLException {
-
     ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
     when(pluginManager.notifyConnectionChanged(any(), any()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
@@ -38,7 +42,7 @@ public class PluginServiceImplTests {
 
     Connection newConnection = mock(Connection.class);
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -62,7 +66,7 @@ public class PluginServiceImplTests {
 
     Connection newConnection = mock(Connection.class);
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -86,7 +90,7 @@ public class PluginServiceImplTests {
 
     Connection newConnection = mock(Connection.class);
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -113,7 +117,7 @@ public class PluginServiceImplTests {
 
     Connection newConnection = mock(Connection.class);
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -139,7 +143,7 @@ public class PluginServiceImplTests {
 
     Connection newConnection = mock(Connection.class);
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host", 1000, HostRole.WRITER, HostAvailability.AVAILABLE);
 
@@ -171,7 +175,7 @@ public class PluginServiceImplTests {
 
     Connection newConnection = mock(Connection.class);
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.NOT_AVAILABLE);
 
@@ -203,7 +207,7 @@ public class PluginServiceImplTests {
 
     Connection newConnection = mock(Connection.class);
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE);
 
@@ -233,9 +237,7 @@ public class PluginServiceImplTests {
     Connection oldConnection = mock(Connection.class);
     when(oldConnection.isClosed()).thenReturn(false);
 
-    Connection newConnection = mock(Connection.class);
-
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager));
+    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE);
 

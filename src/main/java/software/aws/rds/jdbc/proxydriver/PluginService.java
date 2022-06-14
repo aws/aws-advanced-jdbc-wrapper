@@ -8,6 +8,7 @@ package software.aws.rds.jdbc.proxydriver;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.EnumSet;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -28,14 +29,14 @@ public interface PluginService {
         final @NonNull HostSpec hostSpec,
         @Nullable ConnectionPlugin skipNotificationForThisPlugin) throws SQLException;
 
-    HostSpec[] getHosts();
+    List<HostSpec> getHosts();
 
     boolean isExplicitReadOnly();
     boolean isReadOnly();
     boolean isInTransaction();
 
     HostListProvider getHostListProvider();
-    void refreshHostList();
+    void refreshHostList() throws SQLException;
 
     Connection connect(HostSpec hostSpec, Properties props) throws SQLException;
 }
