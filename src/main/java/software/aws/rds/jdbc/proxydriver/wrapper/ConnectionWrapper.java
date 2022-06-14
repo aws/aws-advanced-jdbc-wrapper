@@ -38,8 +38,8 @@ public class ConnectionWrapper implements Connection {
     protected PluginService pluginService;
     protected HostListProviderService hostListProviderService;
 
-    protected String targetDriverProtocol;
-    protected String originalUrl;
+    protected String targetDriverProtocol; //TODO: consider moving to PluginService
+    protected String originalUrl; //TODO: consider moving to PluginService
 
     public ConnectionWrapper(@NonNull Properties props,
                              @NonNull String url,

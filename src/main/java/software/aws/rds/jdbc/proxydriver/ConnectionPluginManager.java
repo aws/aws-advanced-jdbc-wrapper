@@ -178,7 +178,7 @@ public class ConnectionPluginManager {
             throw new IllegalArgumentException("pluginPipeline");
         }
 
-        EnumSet<T> result = EnumSet.noneOf(resultClass);
+        final EnumSet<T> result = EnumSet.noneOf(resultClass);
 
         for (int i = 0; i < this.plugins.size(); i++) {
             ConnectionPlugin plugin = this.plugins.get(i);
