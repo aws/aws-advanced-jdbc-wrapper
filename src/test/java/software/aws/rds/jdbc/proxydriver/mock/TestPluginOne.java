@@ -8,6 +8,8 @@ import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
+import software.aws.rds.jdbc.proxydriver.NodeChangeOptions;
+import software.aws.rds.jdbc.proxydriver.OldConnectionSuggestedAction;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -78,6 +80,18 @@ public class TestPluginOne implements ConnectionPlugin {
             HostListProviderService hostListProviderService,
             JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
 
+        // do nothing
+    }
+
+    @Override
+    public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes)
+        throws SQLException {
+        return OldConnectionSuggestedAction.NO_OPINION;
+    }
+
+    @Override
+    public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes)
+        throws SQLException {
         // do nothing
     }
 
