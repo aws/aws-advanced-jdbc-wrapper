@@ -77,6 +77,10 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
             }
         }
 
+        if (!changes.isEmpty()) {
+            changes.add(NodeChangeOptions.NODE_CHANGED);
+        }
+
         final Connection oldConnection = this.currentConnection;
 
         this.currentConnection = connection;
