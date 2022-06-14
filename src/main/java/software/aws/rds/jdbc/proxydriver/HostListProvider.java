@@ -7,7 +7,10 @@
 package software.aws.rds.jdbc.proxydriver;
 
 import java.sql.SQLException;
+import java.util.List;
 
 public interface HostListProvider {
+    List<HostSpec> getHostList();
+
     void refresh() throws SQLException;
 }

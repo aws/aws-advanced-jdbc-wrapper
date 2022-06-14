@@ -12,20 +12,32 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
-import software.aws.rds.jdbc.proxydriver.nodelistprovider.ConnectionStringHostListProvider;
+
+import software.aws.rds.jdbc.proxydriver.hostlistprovider.ConnectionStringHostListProvider;
 
 public class PluginServiceImpl implements PluginService, HostListProviderService {
 
   protected final ConnectionPluginManager pluginManager;
+  private final Properties props;
+  private final String originalUrl;
+  private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
-
-  protected HostSpec[] hostSpecs;
+  protected List<HostSpec> hosts = new ArrayList<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
 
-  public PluginServiceImpl(@NonNull ConnectionPluginManager pluginManager) {
+  public PluginServiceImpl(
+      @NonNull ConnectionPluginManager pluginManager,
+      @NonNull Properties props,
+      @NonNull String originalUrl,
+      String targetDriverProtocol) {
     this.pluginManager = pluginManager;
+    this.props = props;
+    this.originalUrl = originalUrl;
+    this.driverProtocol = targetDriverProtocol;
   }
 
   @Override
@@ -111,8 +123,15 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   }
 
   @Override
-  public HostSpec[] getHosts() {
-    return new HostSpec[0];
+  public List<HostSpec> getHosts() {
+    if (this.hosts.isEmpty()) {
+      try {
+        this.refreshHostList();
+      } catch (SQLException e) {
+        // TODO: log failure
+      }
+    }
+    return this.hosts;
   }
 
   @Override
@@ -135,7 +154,7 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
     if (this.hostListProvider == null) {
       synchronized (this) {
         if (this.hostListProvider == null) {
-          this.hostListProvider = new ConnectionStringHostListProvider();
+          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);
         }
       }
     }
@@ -143,8 +162,9 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   }
 
   @Override
-  public void refreshHostList() {
-
+  public void refreshHostList() throws SQLException {
+    this.hostListProvider.refresh();
+    this.hosts = this.hostListProvider.getHostList();
   }
 
   @Override
