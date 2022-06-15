@@ -6,49 +6,48 @@
 
 package software.aws.rds.jdbc.proxydriver.wrapper;
 
+import java.sql.SQLType;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
-import java.sql.SQLType;
-
 public class SQLTypeWrapper implements SQLType {
 
-    protected SQLType sqlType;
-    protected ConnectionPluginManager pluginManager;
+  protected SQLType sqlType;
+  protected ConnectionPluginManager pluginManager;
 
-    public SQLTypeWrapper(@NonNull SQLType sqlType, @NonNull ConnectionPluginManager pluginManager) {
-        this.sqlType = sqlType;
-        this.pluginManager = pluginManager;
-    }
+  public SQLTypeWrapper(@NonNull SQLType sqlType, @NonNull ConnectionPluginManager pluginManager) {
+    this.sqlType = sqlType;
+    this.pluginManager = pluginManager;
+  }
 
-    @Override
-    public String getName() {
-        return WrapperUtils.executeWithPlugins(
-                String.class,
-                this.pluginManager,
-                this.sqlType,
-                "SQLType.getName",
-                () -> this.sqlType.getName());
-    }
+  @Override
+  public String getName() {
+    return WrapperUtils.executeWithPlugins(
+        String.class,
+        this.pluginManager,
+        this.sqlType,
+        "SQLType.getName",
+        () -> this.sqlType.getName());
+  }
 
-    @Override
-    public String getVendor() {
-        return WrapperUtils.executeWithPlugins(
-                String.class,
-                this.pluginManager,
-                this.sqlType,
-                "SQLType.getVendor",
-                () -> this.sqlType.getVendor());
-    }
+  @Override
+  public String getVendor() {
+    return WrapperUtils.executeWithPlugins(
+        String.class,
+        this.pluginManager,
+        this.sqlType,
+        "SQLType.getVendor",
+        () -> this.sqlType.getVendor());
+  }
 
-    @Override
-    public Integer getVendorTypeNumber() {
-        return WrapperUtils.executeWithPlugins(
-                Integer.class,
-                this.pluginManager,
-                this.sqlType,
-                "SQLType.getVendorTypeNumber",
-                () -> this.sqlType.getVendorTypeNumber());
-    }
+  @Override
+  public Integer getVendorTypeNumber() {
+    return WrapperUtils.executeWithPlugins(
+        Integer.class,
+        this.pluginManager,
+        this.sqlType,
+        "SQLType.getVendorTypeNumber",
+        () -> this.sqlType.getVendorTypeNumber());
+  }
 }

@@ -7,93 +7,93 @@
 package software.aws.rds.jdbc.proxydriver.util;
 
 import java.lang.reflect.Method;
-import java.util.*;
-import java.util.logging.Level;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 public class PropertyUtils {
 
-    public static void applyProperties(final Object target, final Properties properties)
-    {
-        if (target == null || properties == null) {
-            return;
-        }
-
-        List<Method> methods = Arrays.asList(target.getClass().getMethods());
-        Enumeration<?> propertyNames = properties.propertyNames();
-        while (propertyNames.hasMoreElements()) {
-            Object key = propertyNames.nextElement();
-            String propName = key.toString();
-            Object propValue = properties.getProperty(propName);
-            if (propValue == null) {
-                propValue = properties.get(key);
-            }
-
-            setPropertyOnTarget(target, propName, propValue, methods);
-        }
+  public static void applyProperties(final Object target, final Properties properties) {
+    if (target == null || properties == null) {
+      return;
     }
 
-    public static void setPropertyOnTarget(final Object target, final String propName,
-                                           final Object propValue, final List<Method> methods)
-    {
-        Method writeMethod = null;
-        String methodName = "set" + propName.substring(0, 1).toUpperCase() + propName.substring(1);
+    List<Method> methods = Arrays.asList(target.getClass().getMethods());
+    Enumeration<?> propertyNames = properties.propertyNames();
+    while (propertyNames.hasMoreElements()) {
+      Object key = propertyNames.nextElement();
+      String propName = key.toString();
+      Object propValue = properties.getProperty(propName);
+      if (propValue == null) {
+        propValue = properties.get(key);
+      }
 
-        for (Method method : methods) {
-            if (method.getName().equals(methodName) && method.getParameterTypes().length == 1) {
-                writeMethod = method;
-                break;
-            }
-        }
+      setPropertyOnTarget(target, propName, propValue, methods);
+    }
+  }
 
-        if (writeMethod == null) {
-            methodName = "set" + propName.toUpperCase();
-            for (Method method : methods) {
-                if (method.getName().equals(methodName) && method.getParameterTypes().length == 1) {
-                    writeMethod = method;
-                    break;
-                }
-            }
-        }
+  public static void setPropertyOnTarget(
+      final Object target,
+      final String propName,
+      final Object propValue,
+      final List<Method> methods) {
+    Method writeMethod = null;
+    String methodName = "set" + propName.substring(0, 1).toUpperCase() + propName.substring(1);
 
-        if (writeMethod == null) {
-            //TODO: use a better exception class
-            throw new RuntimeException(String.format("Property %s does not exist on target %s", propName, target.getClass()));
-        }
-
-        try {
-            Class<?> paramClass = writeMethod.getParameterTypes()[0];
-            if (paramClass == int.class) {
-                writeMethod.invoke(target, Integer.parseInt(propValue.toString()));
-            }
-            else if (paramClass == long.class) {
-                writeMethod.invoke(target, Long.parseLong(propValue.toString()));
-            }
-            else if (paramClass == boolean.class || paramClass == Boolean.class) {
-                writeMethod.invoke(target, Boolean.parseBoolean(propValue.toString()));
-            }
-            else if (paramClass == String.class) {
-                writeMethod.invoke(target, propValue.toString());
-            }
-            else {
-                writeMethod.invoke(target, propValue);
-            }
-        }
-        catch (Exception e) {
-            throw new RuntimeException(String.format("Failed to set property %s on target %s", propName, target.getClass()), e);
-        }
+    for (Method method : methods) {
+      if (method.getName().equals(methodName) && method.getParameterTypes().length == 1) {
+        writeMethod = method;
+        break;
+      }
     }
 
-    public static Properties copyProperties(final Properties props)
-    {
-        Properties copy = new Properties();
-
-        if(props == null) {
-            return copy;
+    if (writeMethod == null) {
+      methodName = "set" + propName.toUpperCase();
+      for (Method method : methods) {
+        if (method.getName().equals(methodName) && method.getParameterTypes().length == 1) {
+          writeMethod = method;
+          break;
         }
-
-        for (Map.Entry<Object, Object> entry : props.entrySet()) {
-            copy.setProperty(entry.getKey().toString(), entry.getValue().toString());
-        }
-        return copy;
+      }
     }
+
+    if (writeMethod == null) {
+      // TODO: use a better exception class
+      throw new RuntimeException(
+          String.format("Property %s does not exist on target %s", propName, target.getClass()));
+    }
+
+    try {
+      Class<?> paramClass = writeMethod.getParameterTypes()[0];
+      if (paramClass == int.class) {
+        writeMethod.invoke(target, Integer.parseInt(propValue.toString()));
+      } else if (paramClass == long.class) {
+        writeMethod.invoke(target, Long.parseLong(propValue.toString()));
+      } else if (paramClass == boolean.class || paramClass == Boolean.class) {
+        writeMethod.invoke(target, Boolean.parseBoolean(propValue.toString()));
+      } else if (paramClass == String.class) {
+        writeMethod.invoke(target, propValue.toString());
+      } else {
+        writeMethod.invoke(target, propValue);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(
+          String.format("Failed to set property %s on target %s", propName, target.getClass()), e);
+    }
+  }
+
+  public static Properties copyProperties(final Properties props) {
+    Properties copy = new Properties();
+
+    if (props == null) {
+      return copy;
+    }
+
+    for (Map.Entry<Object, Object> entry : props.entrySet()) {
+      copy.setProperty(entry.getKey().toString(), entry.getValue().toString());
+    }
+    return copy;
+  }
 }

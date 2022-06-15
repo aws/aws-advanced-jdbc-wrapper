@@ -6,16 +6,14 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
-import java.util.EnumSet;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
-
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.hostlistprovider.ConnectionStringHostListProvider;
 
 public class PluginServiceImpl implements PluginService, HostListProviderService {
@@ -52,8 +50,7 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
 
   @Override
   public void setCurrentConnection(
-      final @NonNull Connection connection,
-      final @NonNull HostSpec hostSpec) throws SQLException {
+      final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
 
     setCurrentConnection(connection, hostSpec, null);
   }
@@ -62,7 +59,8 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   public synchronized EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec,
-      @Nullable ConnectionPlugin skipNotificationForThisPlugin) throws SQLException {
+      @Nullable ConnectionPlugin skipNotificationForThisPlugin)
+      throws SQLException {
 
     EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
 
@@ -100,15 +98,15 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
     this.currentConnection = connection;
     this.currentHostSpec = hostSpec;
 
-    EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
-        changes, skipNotificationForThisPlugin);
+    EnumSet<OldConnectionSuggestedAction> pluginOpinions =
+        this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
 
     if (oldConnection != null && !oldConnection.isClosed()) {
 
       pluginOpinions.remove(OldConnectionSuggestedAction.NO_OPINION);
 
-      boolean shouldCloseConnection = pluginOpinions.contains(OldConnectionSuggestedAction.DISPOSE)
-          || pluginOpinions.isEmpty();
+      boolean shouldCloseConnection =
+          pluginOpinions.contains(OldConnectionSuggestedAction.DISPOSE) || pluginOpinions.isEmpty();
 
       if (shouldCloseConnection) {
         try {
@@ -154,7 +152,8 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
     if (this.hostListProvider == null) {
       synchronized (this) {
         if (this.hostListProvider == null) {
-          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);
+          this.hostListProvider =
+              new ConnectionStringHostListProvider(this.props, this.originalUrl);
         }
       }
     }

@@ -27,7 +27,12 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 8
+
+      - name: 'Check Style Main'
+        run: ./gradlew checkStyleMain
+
+      - name: 'Check Style Tests'
+        run: ./gradlew checkStyleTest
           
       - name: 'Run Tests'
-        run: |
-          ./gradlew test
+        run: ./gradlew test

@@ -6,6 +6,18 @@
 
 package software.aws.rds.jdbc.proxydriver.ds;
 
+import java.io.PrintWriter;
+import java.io.Serializable;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.util.Properties;
+import java.util.logging.Logger;
+import javax.naming.NamingException;
+import javax.naming.Reference;
+import javax.naming.Referenceable;
+import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.DataSourceConnectionProvider;
 import software.aws.rds.jdbc.proxydriver.Driver;
@@ -15,164 +27,154 @@ import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
-import javax.naming.NamingException;
-import javax.naming.Reference;
-import javax.naming.Referenceable;
-import javax.sql.DataSource;
-import java.io.PrintWriter;
-import java.io.Serializable;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
-import java.util.*;
-import java.util.logging.Logger;
-
 public class ProxyDriverDataSource implements DataSource, Referenceable, Serializable {
 
-    private static final Logger LOGGER = Logger.getLogger("software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource");
+  private static final Logger LOGGER =
+      Logger.getLogger("software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource");
 
-    protected transient @Nullable PrintWriter logWriter;
-    protected @Nullable String user;
-    protected @Nullable String password;
-    protected @Nullable String jdbcUrl;
-    protected @Nullable String targetDataSourceClassName;
-    protected @Nullable Properties targetDataSourceProperties;
+  static {
+    try {
+      if (!Driver.isRegistered()) {
+        Driver.register();
+      }
+    } catch (SQLException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
 
-    static {
-        try {
-            if (!Driver.isRegistered()) {
-                Driver.register();
-            }
-        } catch (SQLException e) {
-            throw new ExceptionInInitializerError(e);
-        }
+  protected transient @Nullable PrintWriter logWriter;
+  protected @Nullable String user;
+  protected @Nullable String password;
+  protected @Nullable String jdbcUrl;
+  protected @Nullable String targetDataSourceClassName;
+  protected @Nullable Properties targetDataSourceProperties;
+
+  @Override
+  public Connection getConnection() throws SQLException {
+    return getConnection(this.user, this.password);
+  }
+
+  @Override
+  public Connection getConnection(String username, String password) throws SQLException {
+    this.user = username;
+    this.password = password;
+
+    if (isNullOrEmpty(this.targetDataSourceClassName) && isNullOrEmpty(this.jdbcUrl)) {
+      throw new SQLException("Target data source class name or JDBC url is required.");
     }
 
-    @Override
-    public Connection getConnection() throws SQLException {
-        return getConnection(this.user, this.password);
+    Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
+    props.setProperty("user", this.user);
+    props.setProperty("password", this.password);
+
+    if (!isNullOrEmpty(this.targetDataSourceClassName)) {
+
+      DataSource targetDataSource;
+      try {
+        targetDataSource =
+            WrapperUtils.createInstance(this.targetDataSourceClassName, DataSource.class);
+      } catch (InstantiationException instEx) {
+        throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getCode(), instEx);
+      }
+      PropertyUtils.applyProperties(targetDataSource, props);
+
+      return new ConnectionWrapper(
+          props, this.jdbcUrl, new DataSourceConnectionProvider(targetDataSource));
+
+    } else {
+
+      java.sql.Driver targetDriver = DriverManager.getDriver(this.jdbcUrl);
+
+      if (targetDriver == null) {
+        throw new SQLException("Can't find a suitable driver for " + this.jdbcUrl);
+      }
+
+      return new ConnectionWrapper(props, this.jdbcUrl, new DriverConnectionProvider(targetDriver));
     }
+  }
 
-    @Override
-    public Connection getConnection(String username, String password) throws SQLException {
-        this.user = username;
-        this.password = password;
+  public void setTargetDataSourceClassName(@Nullable String dataSourceClassName) {
+    this.targetDataSourceClassName = dataSourceClassName;
+  }
 
-        if(isNullOrEmpty(this.targetDataSourceClassName) && isNullOrEmpty(this.jdbcUrl)) {
-            throw new SQLException("Target data source class name or JDBC url is required.");
-        }
+  public @Nullable String getTargetDataSourceClassName() {
+    return this.targetDataSourceClassName;
+  }
 
-        Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
-        props.setProperty("user", this.user);
-        props.setProperty("password", this.password);
+  public void setJdbcUrl(@Nullable String url) {
+    this.jdbcUrl = url;
+  }
 
-        if(!isNullOrEmpty(this.targetDataSourceClassName)) {
+  public @Nullable String getJdbcUrl() {
+    return this.jdbcUrl;
+  }
 
-            DataSource targetDataSource;
-            try {
-                targetDataSource = WrapperUtils.createInstance(this.targetDataSourceClassName, DataSource.class);
-            } catch (InstantiationException instEx) {
-                throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getCode(), instEx);
-            }
-            PropertyUtils.applyProperties(targetDataSource, props);
+  public void setTargetDataSourceProperties(Properties dataSourceProps) {
+    this.targetDataSourceProperties = dataSourceProps;
+  }
 
-            return new ConnectionWrapper(props, this.jdbcUrl, new DataSourceConnectionProvider(targetDataSource));
+  public Properties getTargetDataSourceProperties() {
+    return this.targetDataSourceProperties;
+  }
 
-        } else {
+  public void setUser(String user) {
+    this.user = user;
+  }
 
-            java.sql.Driver targetDriver = DriverManager.getDriver(this.jdbcUrl);
+  public String getUser() {
+    return this.user;
+  }
 
-            if (targetDriver == null) {
-                throw new SQLException("Can't find a suitable driver for " + this.jdbcUrl);
-            }
+  public void setPassword(String password) {
+    this.password = password;
+  }
 
-            return new ConnectionWrapper(props, this.jdbcUrl, new DriverConnectionProvider(targetDriver));
-        }
-    }
+  public String getPassword() {
+    return this.password;
+  }
 
-    public void setTargetDataSourceClassName(@Nullable String dataSourceClassName) {
-        this.targetDataSourceClassName = dataSourceClassName;
-    }
+  @Override
+  public <T> T unwrap(Class<T> iface) throws SQLException {
+    return null;
+  }
 
-    public @Nullable String getTargetDataSourceClassName() {
-        return this.targetDataSourceClassName;
-    }
+  @Override
+  public boolean isWrapperFor(Class<?> iface) throws SQLException {
+    return false;
+  }
 
-    public void setJdbcUrl(@Nullable String url) {
-        this.jdbcUrl = url;
-    }
+  @Override
+  public PrintWriter getLogWriter() throws SQLException {
+    return this.logWriter;
+  }
 
-    public @Nullable String getJdbcUrl() {
-        return this.jdbcUrl;
-    }
+  @Override
+  public void setLogWriter(PrintWriter out) throws SQLException {
+    this.logWriter = out;
+  }
 
-    public void setTargetDataSourceProperties(Properties dataSourceProps) {
-        this.targetDataSourceProperties = dataSourceProps;
-    }
+  @Override
+  public void setLoginTimeout(int seconds) throws SQLException {
+    throw new SQLFeatureNotSupportedException();
+  }
 
-    public Properties getTargetDataSourceProperties() {
-        return this.targetDataSourceProperties;
-    }
+  @Override
+  public int getLoginTimeout() throws SQLException {
+    throw new SQLFeatureNotSupportedException();
+  }
 
-    public void setUser(String user) {
-        this.user = user;
-    }
+  @Override
+  public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+    return null;
+  }
 
-    public String getUser() {
-        return this.user;
-    }
+  @Override
+  public Reference getReference() throws NamingException {
+    // TODO
+    return null;
+  }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getPassword() {
-        return this.password;
-    }
-
-    @Override
-    public <T> T unwrap(Class<T> iface) throws SQLException {
-        return null;
-    }
-
-    @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return false;
-    }
-
-    @Override
-    public PrintWriter getLogWriter() throws SQLException {
-        return this.logWriter;
-    }
-
-    @Override
-    public void setLogWriter(PrintWriter out) throws SQLException {
-        this.logWriter = out;
-    }
-
-    @Override
-    public void setLoginTimeout(int seconds) throws SQLException {
-        throw new SQLFeatureNotSupportedException();
-    }
-
-    @Override
-    public int getLoginTimeout() throws SQLException {
-        throw new SQLFeatureNotSupportedException();
-    }
-
-    @Override
-    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        return null;
-    }
-
-    @Override
-    public Reference getReference() throws NamingException {
-        // TODO
-        return null;
-    }
-
-    protected boolean isNullOrEmpty(final String str) {
-        return str == null || str.isEmpty();
-    }
+  protected boolean isNullOrEmpty(final String str) {
+    return str == null || str.isEmpty();
+  }
 }

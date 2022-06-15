@@ -10,22 +10,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SqlState {
 
-    public static final SqlState UNKNOWN_STATE = new SqlState("");
+  public static final SqlState UNKNOWN_STATE = new SqlState("");
 
-    //TODO: add custom error codes support
+  // TODO: add custom error codes support
 
-    private final String sqlState;
+  private final String sqlState;
 
-    SqlState(String sqlState) {
-        this.sqlState = sqlState;
-    }
+  SqlState(String sqlState) {
+    this.sqlState = sqlState;
+  }
 
-    public String getCode() {
-        return this.sqlState;
-    }
+  public String getCode() {
+    return this.sqlState;
+  }
 
-    public static boolean isConnectionError(@Nullable String psqlState) {
-        //TODO
-        return false;
-    }
+  public static boolean isConnectionError(@Nullable String psqlState) {
+    // TODO
+    return false;
+  }
 }

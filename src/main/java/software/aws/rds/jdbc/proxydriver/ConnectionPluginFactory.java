@@ -9,9 +9,9 @@ package software.aws.rds.jdbc.proxydriver;
 import java.util.Properties;
 
 /**
- * Interface for connection plugin factories. This class implements ways to initialize a
- * connection plugin.
+ * Interface for connection plugin factories. This class implements ways to initialize a connection
+ * plugin.
  */
 public interface ConnectionPluginFactory {
-    ConnectionPlugin getInstance(PluginService pluginService, Properties props);
+  ConnectionPlugin getInstance(PluginService pluginService, Properties props);
 }
