@@ -1,114 +1,122 @@
 package integration;
 
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource;
-import integration.util.TestSettings;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.util.TestSettings;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource;
 
 @Disabled
 public class DataSourceTests {
 
-    @Test
-    public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException, ClassNotFoundException {
+  @Test
+  public void testOpenConnectionWithMysqlDataSourceClassName()
+      throws SQLException, ClassNotFoundException {
 
-        // Make sure that MySql driver class is loaded and registered at DriverManager
-        Class.forName("com.mysql.cj.jdbc.Driver");
+    // Make sure that MySql driver class is loaded and registered at DriverManager
+    Class.forName("com.mysql.cj.jdbc.Driver");
 
-        if(!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-            software.aws.rds.jdbc.proxydriver.Driver.register();
-        }
-
-        ProxyDriverDataSource ds = new ProxyDriverDataSource();
-
-        ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-
-        Properties targetDataSourceProps = new Properties();
-        targetDataSourceProps.setProperty("serverName", TestSettings.mysqlServerName);
-        targetDataSourceProps.setProperty("databaseName", TestSettings.mysqlDatabase);
-        ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-        Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
-
-        assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
-
-        assertTrue(conn.isValid(10));
-        conn.close();
+    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
+      software.aws.rds.jdbc.proxydriver.Driver.register();
     }
 
-    @Test
-    public void testOpenConnectionWithMysqlUrl() throws SQLException, ClassNotFoundException {
+    ProxyDriverDataSource ds = new ProxyDriverDataSource();
 
-        // Make sure that MySql driver class is loaded and registered at DriverManager
-        Class.forName("com.mysql.cj.jdbc.Driver");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
-        if(!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-            software.aws.rds.jdbc.proxydriver.Driver.register();
-        }
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", TestSettings.mysqlServerName);
+    targetDataSourceProps.setProperty("databaseName", TestSettings.mysqlDatabase);
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-        ProxyDriverDataSource ds = new ProxyDriverDataSource();
-        ds.setJdbcUrl("jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase);
+    Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
 
-        Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
+    assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
 
-        assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
+    assertTrue(conn.isValid(10));
+    conn.close();
+  }
 
-        assertTrue(conn.isValid(10));
-        conn.close();
+  @Test
+  public void testOpenConnectionWithMysqlUrl() throws SQLException, ClassNotFoundException {
+
+    // Make sure that MySql driver class is loaded and registered at DriverManager
+    Class.forName("com.mysql.cj.jdbc.Driver");
+
+    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
+      software.aws.rds.jdbc.proxydriver.Driver.register();
     }
 
-    @Test
-    public void testOpenConnectionWithPostgresqlDataSourceClassName() throws SQLException, ClassNotFoundException {
+    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    ds.setJdbcUrl(
+        "jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase);
 
-        if(!org.postgresql.Driver.isRegistered()) {
-            org.postgresql.Driver.register();
-        }
+    Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
 
-        if(!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-            software.aws.rds.jdbc.proxydriver.Driver.register();
-        }
+    assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
 
-        ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    assertTrue(conn.isValid(10));
+    conn.close();
+  }
 
-        ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+  @Test
+  public void testOpenConnectionWithPostgresqlDataSourceClassName()
+      throws SQLException, ClassNotFoundException {
 
-        Properties targetDataSourceProps = new Properties();
-        targetDataSourceProps.setProperty("serverName", TestSettings.postgresqlServerName);
-        targetDataSourceProps.setProperty("databaseName", TestSettings.postgresqlDatabase);
-        ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-        Connection conn = ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
-
-        assertTrue(conn instanceof org.postgresql.PGConnection);
-
-        assertTrue(conn.isValid(10));
-        conn.close();
+    if (!org.postgresql.Driver.isRegistered()) {
+      org.postgresql.Driver.register();
     }
 
-    @Test
-    public void testOpenConnectionWithPostgresqlUrl() throws SQLException, ClassNotFoundException {
-
-        if(!org.postgresql.Driver.isRegistered()) {
-            org.postgresql.Driver.register();
-        }
-
-        if(!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-            software.aws.rds.jdbc.proxydriver.Driver.register();
-        }
-
-        ProxyDriverDataSource ds = new ProxyDriverDataSource();
-        ds.setJdbcUrl("jdbc:postgresql://" + TestSettings.postgresqlServerName + "/" + TestSettings.postgresqlDatabase);
-
-        Connection conn = ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
-
-        assertTrue(conn instanceof org.postgresql.PGConnection);
-
-        assertTrue(conn.isValid(10));
-        conn.close();
+    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
+      software.aws.rds.jdbc.proxydriver.Driver.register();
     }
+
+    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+
+    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", TestSettings.postgresqlServerName);
+    targetDataSourceProps.setProperty("databaseName", TestSettings.postgresqlDatabase);
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
+
+    Connection conn =
+        ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
+
+    assertTrue(conn instanceof org.postgresql.PGConnection);
+
+    assertTrue(conn.isValid(10));
+    conn.close();
+  }
+
+  @Test
+  public void testOpenConnectionWithPostgresqlUrl() throws SQLException, ClassNotFoundException {
+
+    if (!org.postgresql.Driver.isRegistered()) {
+      org.postgresql.Driver.register();
+    }
+
+    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
+      software.aws.rds.jdbc.proxydriver.Driver.register();
+    }
+
+    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    ds.setJdbcUrl(
+        "jdbc:postgresql://"
+            + TestSettings.postgresqlServerName
+            + "/"
+            + TestSettings.postgresqlDatabase);
+
+    Connection conn =
+        ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
+
+    assertTrue(conn instanceof org.postgresql.PGConnection);
+
+    assertTrue(conn.isValid(10));
+    conn.close();
+  }
 }

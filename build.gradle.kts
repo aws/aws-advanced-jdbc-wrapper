@@ -1,5 +1,7 @@
 plugins {
     java
+    checkstyle
+    id("com.diffplug.spotless") version "6.7.2"
 }
 
 group = "org.example"
@@ -7,6 +9,27 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+}
+
+checkstyle {
+    // Checkstyle versions 7.x, 8.x, and 9.x are supported by JRE version 8 and above
+    toolVersion = "9.3"
+    configDirectory.set(File(rootDir, "config/checkstyle"))
+    configFile = configDirectory.get().file("google_checks.xml").asFile
+}
+
+spotless {
+    format("misc") {
+        target("*.gradle", "*.md", ".gitignore")
+
+        trimTrailingWhitespace()
+        indentWithTabs()
+        endWithNewline()
+    }
+
+    java {
+        googleJavaFormat("1.7")
+    }
 }
 
 dependencies {

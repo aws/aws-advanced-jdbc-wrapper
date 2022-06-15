@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-
 import software.aws.rds.jdbc.proxydriver.HostListProvider;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.util.ConnectionUrlParser;
@@ -20,9 +19,7 @@ public class ConnectionStringHostListProvider implements HostListProvider {
   final List<HostSpec> hostList = new ArrayList<>();
   Properties properties;
 
-  public ConnectionStringHostListProvider(
-      final Properties properties,
-      final String initialUrl) {
+  public ConnectionStringHostListProvider(final Properties properties, final String initialUrl) {
     this(properties, initialUrl, new ConnectionUrlParser());
   }
 

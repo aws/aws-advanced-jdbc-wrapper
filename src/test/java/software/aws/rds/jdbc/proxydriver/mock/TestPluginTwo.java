@@ -6,10 +6,10 @@ import java.util.HashSet;
 
 public class TestPluginTwo extends TestPluginOne {
 
-    public TestPluginTwo(ArrayList<String> calls) {
-        super();
-        this.calls = calls;
+  public TestPluginTwo(ArrayList<String> calls) {
+    super();
+    this.calls = calls;
 
-        this.subscribedMethods = new HashSet<>(Arrays.asList("testJdbcCall_A", "testJdbcCall_B"));
-    }
+    this.subscribedMethods = new HashSet<>(Arrays.asList("testJdbcCall_A", "testJdbcCall_B"));
+  }
 }
