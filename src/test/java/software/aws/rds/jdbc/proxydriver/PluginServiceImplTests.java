@@ -263,13 +263,8 @@ public class PluginServiceImplTests {
   public void testChangesNoChanges() throws SQLException {
 
     ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    @SuppressWarnings("unchecked") ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges = ArgumentCaptor.forClass(
-        EnumSet.class);
-    ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin = ArgumentCaptor.forClass(
-        ConnectionPlugin.class);
-    when(pluginManager.notifyConnectionChanged(argumentChanges.capture(),
-        argumentSkipPlugin.capture()))
-        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
+    when(pluginManager.notifyConnectionChanged(any(), any())).thenReturn(
+        EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     Connection oldConnection = mock(Connection.class);
     when(oldConnection.isClosed()).thenReturn(false);
@@ -373,5 +368,27 @@ public class PluginServiceImplTests {
     assertEquals(2, hostAChanges.size());
     assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
     assertTrue(hostAChanges.contains(NodeChangeOptions.PROMOTED_TO_READER));
+  }
+
+  @Test
+  public void testSetNodeListNoChanges() throws SQLException {
+
+    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
+    doNothing().when(pluginManager).notifyNodeListChanged(any());
+
+    HostListProvider hostListProvider = mock(HostListProvider.class);
+    when(hostListProvider.refresh()).thenReturn(
+        Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts = Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER));
+    target.hostListProvider = hostListProvider;
+
+    target.refreshHostList();
+
+    assertEquals(1, target.getHosts().size());
+    assertEquals("hostA", target.getHosts().get(0).getHost());
+    verify(pluginManager, times(0)).notifyNodeListChanged(any());
   }
 }
