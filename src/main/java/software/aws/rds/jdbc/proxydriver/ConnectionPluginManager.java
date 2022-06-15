@@ -260,7 +260,7 @@ public class ConnectionPluginManager {
         OldConnectionSuggestedAction.class);
 
     notifySubscribedPlugins(
-        "notifyConnectionChanged",
+        NOTIFY_CONNECTION_CHANGED_METHOD,
         (plugin, func) -> {
           OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
           result.add(pluginOpinion);
@@ -274,7 +274,7 @@ public class ConnectionPluginManager {
   public void notifyNodeListChanged(@NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
 
     notifySubscribedPlugins(
-        "notifyNodeListChanged",
+        NOTIFY_HOST_LIST_CHANGED_METHOD,
         (plugin, func) -> {
           plugin.notifyNodeListChanged(changes);
           return null;
