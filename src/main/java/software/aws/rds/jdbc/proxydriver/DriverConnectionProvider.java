@@ -28,7 +28,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
    *
    * @param protocol The connection protocol (example "jdbc:mysql://")
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props The Properties to use for the connection
+   * @param props    The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
@@ -46,7 +46,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param url The connection URL
+   * @param url   The connection URL
    * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs

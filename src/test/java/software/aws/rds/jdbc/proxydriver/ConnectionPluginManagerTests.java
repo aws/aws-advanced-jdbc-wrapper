@@ -30,7 +30,7 @@ public class ConnectionPluginManagerTests {
 
     ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
 
-    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+    Object[] testArgs = new Object[]{10, "arg2", 3.33};
 
     ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
@@ -73,7 +73,7 @@ public class ConnectionPluginManagerTests {
 
     ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
 
-    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+    Object[] testArgs = new Object[]{10, "arg2", 3.33};
 
     ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);
@@ -114,7 +114,7 @@ public class ConnectionPluginManagerTests {
 
     ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
 
-    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+    Object[] testArgs = new Object[]{10, "arg2", 3.33};
 
     ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins);

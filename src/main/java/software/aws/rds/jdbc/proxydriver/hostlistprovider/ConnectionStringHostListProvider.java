@@ -16,6 +16,7 @@ import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.util.ConnectionUrlParser;
 
 public class ConnectionStringHostListProvider implements HostListProvider {
+
   final List<HostSpec> hostList = new ArrayList<>();
   Properties properties;
 
@@ -33,12 +34,12 @@ public class ConnectionStringHostListProvider implements HostListProvider {
   }
 
   @Override
-  public List<HostSpec> getHostList() {
+  public List<HostSpec> refresh() throws SQLException {
     return Collections.unmodifiableList(hostList);
   }
 
   @Override
-  public void refresh() throws SQLException {
-    // do nothing
+  public List<HostSpec> forceRefresh() throws SQLException {
+    return Collections.unmodifiableList(hostList);
   }
 }

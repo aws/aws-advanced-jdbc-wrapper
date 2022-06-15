@@ -208,7 +208,7 @@ public class WrapperUtils {
       return createInstance(
           wrapperClass,
           resultClass,
-          new Class<?>[] {resultClass, ConnectionPluginManager.class},
+          new Class<?>[]{resultClass, ConnectionPluginManager.class},
           toProxy,
           pluginManager);
     }
@@ -229,8 +229,8 @@ public class WrapperUtils {
   public static boolean isJdbcPackage(@Nullable String packageName) {
     return packageName != null
         && (packageName.startsWith("java.sql")
-            || packageName.startsWith("javax.sql")
-            || packageName.startsWith("org.postgresql"));
+        || packageName.startsWith("javax.sql")
+        || packageName.startsWith("org.postgresql"));
   }
 
   /**

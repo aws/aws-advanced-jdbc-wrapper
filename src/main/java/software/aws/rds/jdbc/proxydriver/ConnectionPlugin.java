@@ -46,10 +46,9 @@ public interface ConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException;
 
-  OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes)
-      throws SQLException;
+  OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes);
 
-  void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) throws SQLException;
+  void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes);
 
   void releaseResources();
 }

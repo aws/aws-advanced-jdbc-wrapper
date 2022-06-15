@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.Set;
@@ -42,6 +43,8 @@ public class ConnectionPluginManager {
   private static final String ALL_METHODS = "*";
   private static final String CONNECT_METHOD = "connect";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
+  private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
+  private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
 
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
@@ -59,7 +62,9 @@ public class ConnectionPluginManager {
     this.connectionProvider = new DataSourceConnectionProvider(targetDataSource);
   }
 
-  /** This constructor is for testing purposes only. */
+  /**
+   * This constructor is for testing purposes only.
+   */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -70,7 +75,9 @@ public class ConnectionPluginManager {
     instances.add(this);
   }
 
-  /** Release all dangling resources for all connection plugin managers. */
+  /**
+   * Release all dangling resources for all connection plugin managers.
+   */
   public static void releaseAllResources() {
     instances.forEach(ConnectionPluginManager::releaseResources);
   }
@@ -84,7 +91,7 @@ public class ConnectionPluginManager {
    * connection plugin in the chain.
    *
    * @param pluginService A reference to a plugin service that plugin can use.
-   * @param props The configuration of the connection.
+   * @param props         The configuration of the connection.
    * @throws SQLException if errors occurred during the execution.
    */
   public void init(PluginService pluginService, Properties props) throws SQLException {
@@ -162,18 +169,14 @@ public class ConnectionPluginManager {
     return func.call();
   }
 
-  protected <T extends Enum<T>, E extends Exception> EnumSet<T> notifySubscribedPlugins(
-      final Class<T> resultClass,
+  protected <E extends Exception> void notifySubscribedPlugins(
       final String methodName,
-      final PluginPipeline<T, E> pluginPipeline,
-      final ConnectionPlugin skipNotificationForThisPlugin)
-      throws E {
+      final PluginPipeline<Void, E> pluginPipeline,
+      final ConnectionPlugin skipNotificationForThisPlugin) throws E {
 
     if (pluginPipeline == null) {
       throw new IllegalArgumentException("pluginPipeline");
     }
-
-    final EnumSet<T> result = EnumSet.noneOf(resultClass);
 
     for (int i = 0; i < this.plugins.size(); i++) {
       ConnectionPlugin plugin = this.plugins.get(i);
@@ -181,17 +184,13 @@ public class ConnectionPluginManager {
         continue;
       }
       Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-      boolean isSubscribed =
-          pluginSubscribedMethods.contains(ALL_METHODS)
-              || pluginSubscribedMethods.contains(methodName);
+      boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
+          || pluginSubscribedMethods.contains(methodName);
 
       if (isSubscribed) {
-        T pluginOpinion = pluginPipeline.call(plugin, null);
-        result.add(pluginOpinion);
+        pluginPipeline.call(plugin, null);
       }
     }
-
-    return result;
   }
 
   public <T, E extends Exception> T execute(
@@ -255,15 +254,32 @@ public class ConnectionPluginManager {
 
   public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
       @NonNull EnumSet<NodeChangeOptions> changes,
-      @Nullable ConnectionPlugin skipNotificationForThisPlugin)
-      throws SQLException {
+      @Nullable ConnectionPlugin skipNotificationForThisPlugin) {
 
-    return notifySubscribedPlugins(
-        OldConnectionSuggestedAction.class,
-        "notifyConnectionChanged",
-        (PluginPipeline<OldConnectionSuggestedAction, SQLException>)
-            (plugin, func) -> plugin.notifyConnectionChanged(changes),
+    final EnumSet<OldConnectionSuggestedAction> result = EnumSet.noneOf(
+        OldConnectionSuggestedAction.class);
+
+    notifySubscribedPlugins(
+        NOTIFY_CONNECTION_CHANGED_METHOD,
+        (plugin, func) -> {
+          OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
+          result.add(pluginOpinion);
+          return null;
+        },
         skipNotificationForThisPlugin);
+
+    return result;
+  }
+
+  public void notifyNodeListChanged(@NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
+
+    notifySubscribedPlugins(
+        NOTIFY_NODE_LIST_CHANGED_METHOD,
+        (plugin, func) -> {
+          plugin.notifyNodeListChanged(changes);
+          return null;
+        },
+        null);
   }
 
   /**
@@ -281,6 +297,7 @@ public class ConnectionPluginManager {
   }
 
   private interface PluginPipeline<T, E extends Exception> {
+
     T call(final ConnectionPlugin plugin, JdbcCallable<T, E> func) throws E;
   }
 }
