@@ -33,17 +33,20 @@ public class ConnectionUrlParser {
     }
     final String hosts = matcher.group("hosts") == null ? null : matcher.group("hosts").trim();
     if (hosts != null) {
-      Arrays.stream(hosts.split(HOSTS_SEPARATOR))
-          .forEach(
-              hostString -> {
-                final String[] hostPortPair = hostString.split(HOST_PORT_SEPARATOR, 2);
-                final String host = hostPortPair[0];
-                if (hostPortPair.length > 1 && isNumeric(hostPortPair[1])) {
-                  hostsList.add(new HostSpec(host, Integer.parseInt(hostPortPair[1])));
-                } else {
-                  hostsList.add(new HostSpec(host));
-                }
-              });
+      Arrays
+          .stream(hosts.split(HOSTS_SEPARATOR))
+          .forEach(hostString -> {
+            final String[] hostPortPair = hostString.split(HOST_PORT_SEPARATOR, 2);
+            final String host = hostPortPair[0];
+            if (host.isEmpty()) {
+              return;
+            }
+            if (hostPortPair.length > 1 && isNumeric(hostPortPair[1])) {
+              hostsList.add(new HostSpec(host, Integer.parseInt(hostPortPair[1])));
+            } else {
+              hostsList.add(new HostSpec(host));
+            }
+          });
     }
 
     return hostsList;
