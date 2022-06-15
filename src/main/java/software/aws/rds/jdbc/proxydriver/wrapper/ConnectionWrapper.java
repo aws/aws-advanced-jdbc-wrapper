@@ -28,6 +28,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.ConnectionProvider;
 import software.aws.rds.jdbc.proxydriver.HostListProviderService;
+import software.aws.rds.jdbc.proxydriver.PluginManagerService;
 import software.aws.rds.jdbc.proxydriver.PluginService;
 import software.aws.rds.jdbc.proxydriver.PluginServiceImpl;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
@@ -40,6 +41,7 @@ public class ConnectionWrapper implements Connection {
   protected PluginService pluginService;
   protected HostListProviderService hostListProviderService;
 
+  protected PluginManagerService pluginManagerService;
   protected String targetDriverProtocol; // TODO: consider moving to PluginService
   protected String originalUrl; // TODO: consider moving to PluginService
 
@@ -57,7 +59,7 @@ public class ConnectionWrapper implements Connection {
     PluginServiceImpl pluginService =
         new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
 
-    init(props, url, pluginManager, pluginService, pluginService);
+    init(props, url, pluginManager, pluginService, pluginService, pluginService);
   }
 
   ConnectionWrapper(
@@ -65,14 +67,15 @@ public class ConnectionWrapper implements Connection {
       @NonNull String url,
       @NonNull ConnectionPluginManager connectionPluginManager,
       @NonNull PluginService pluginService,
-      @NonNull HostListProviderService hostListProviderService)
+      @NonNull HostListProviderService hostListProviderService,
+      @NonNull PluginManagerService pluginManagerService)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
       throw new IllegalArgumentException("url");
     }
 
-    init(props, url, connectionPluginManager, pluginService, hostListProviderService);
+    init(props, url, connectionPluginManager, pluginService, hostListProviderService, pluginManagerService);
   }
 
   protected void init(
@@ -80,14 +83,14 @@ public class ConnectionWrapper implements Connection {
       String url,
       ConnectionPluginManager connectionPluginManager,
       PluginService pluginService,
-      HostListProviderService hostListProviderService)
-      throws SQLException {
-
+      HostListProviderService hostListProviderService,
+      PluginManagerService pluginManagerService) throws SQLException {
     this.originalUrl = url;
     this.targetDriverProtocol = getProtocol(url);
     this.pluginManager = connectionPluginManager;
     this.pluginService = pluginService;
     this.hostListProviderService = hostListProviderService;
+    this.pluginManagerService = pluginManagerService;
 
     this.pluginManager.init(this.pluginService, props);
 
@@ -274,14 +277,17 @@ public class ConnectionWrapper implements Connection {
   }
 
   @Override
-  public boolean getAutoCommit() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        boolean.class,
+  public void setReadOnly(boolean readOnly) throws SQLException {
+    WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
-        "Connection.getAutoCommit",
-        () -> this.pluginService.getCurrentConnection().getAutoCommit());
+        "Connection.setReadOnly",
+        () -> {
+          this.pluginService.getCurrentConnection().setReadOnly(readOnly);
+          this.pluginManagerService.setReadOnly(readOnly);
+        },
+        readOnly);
   }
 
   @Override
@@ -364,7 +370,7 @@ public class ConnectionWrapper implements Connection {
 
   @Override
   public int getTransactionIsolation() throws SQLException {
-    //noinspection MagicConstant
+    // noinspection MagicConstant
     return WrapperUtils.executeWithPlugins(
         int.class,
         SQLException.class,
@@ -376,7 +382,7 @@ public class ConnectionWrapper implements Connection {
 
   @Override
   public Map<String, Class<?>> getTypeMap() throws SQLException {
-    //noinspection unchecked
+    // noinspection unchecked
     return WrapperUtils.executeWithPlugins(
         Map.class,
         SQLException.class,
@@ -631,6 +637,17 @@ public class ConnectionWrapper implements Connection {
   }
 
   @Override
+  public boolean getAutoCommit() throws SQLException {
+    return WrapperUtils.executeWithPlugins(
+        boolean.class,
+        SQLException.class,
+        this.pluginManager,
+        this.pluginService.getCurrentConnection(),
+        "Connection.getAutoCommit",
+        () -> this.pluginService.getCurrentConnection().getAutoCommit());
+  }
+
+  @Override
   public void setCatalog(String catalog) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
@@ -685,17 +702,6 @@ public class ConnectionWrapper implements Connection {
         () -> this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds),
         executor,
         milliseconds);
-  }
-
-  @Override
-  public void setReadOnly(boolean readOnly) throws SQLException {
-    WrapperUtils.runWithPlugins(
-        SQLException.class,
-        this.pluginManager,
-        this.pluginService.getCurrentConnection(),
-        "Connection.setReadOnly",
-        () -> this.pluginService.getCurrentConnection().setReadOnly(readOnly),
-        readOnly);
   }
 
   @Override
