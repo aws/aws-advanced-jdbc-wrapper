@@ -10,6 +10,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.Set;
@@ -42,6 +43,8 @@ public class ConnectionPluginManager {
   private static final String ALL_METHODS = "*";
   private static final String CONNECT_METHOD = "connect";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
+  private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
+  private static final String NOTIFY_HOST_LIST_CHANGED_METHOD = "notifyNodeListChanged";
 
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
@@ -162,37 +165,29 @@ public class ConnectionPluginManager {
     return func.call();
   }
 
-  protected <T extends Enum<T>, E extends Exception> EnumSet<T> notifySubscribedPlugins(
-      final Class<T> resultClass,
-      final String methodName,
-      final PluginPipeline<T, E> pluginPipeline,
-      final ConnectionPlugin skipNotificationForThisPlugin)
-      throws E {
+    protected <E extends Exception> void notifySubscribedPlugins(
+        final String methodName,
+        final PluginPipeline<Void, E> pluginPipeline,
+        final ConnectionPlugin skipNotificationForThisPlugin) throws E {
 
     if (pluginPipeline == null) {
       throw new IllegalArgumentException("pluginPipeline");
     }
 
-    final EnumSet<T> result = EnumSet.noneOf(resultClass);
+        for (int i = 0; i < this.plugins.size(); i++) {
+            ConnectionPlugin plugin = this.plugins.get(i);
+            if (plugin == skipNotificationForThisPlugin) {
+                continue;
+            }
+            Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+            boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
+                || pluginSubscribedMethods.contains(methodName);
 
-    for (int i = 0; i < this.plugins.size(); i++) {
-      ConnectionPlugin plugin = this.plugins.get(i);
-      if (plugin == skipNotificationForThisPlugin) {
-        continue;
-      }
-      Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-      boolean isSubscribed =
-          pluginSubscribedMethods.contains(ALL_METHODS)
-              || pluginSubscribedMethods.contains(methodName);
-
-      if (isSubscribed) {
-        T pluginOpinion = pluginPipeline.call(plugin, null);
-        result.add(pluginOpinion);
-      }
+            if (isSubscribed) {
+                pluginPipeline.call(plugin, null);
+            }
+        }
     }
-
-    return result;
-  }
 
   public <T, E extends Exception> T execute(
       final Class<T> resultType,
@@ -253,18 +248,34 @@ public class ConnectionPluginManager {
         });
   }
 
-  public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
-      @NonNull EnumSet<NodeChangeOptions> changes,
-      @Nullable ConnectionPlugin skipNotificationForThisPlugin)
-      throws SQLException {
+    public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
+        @NonNull EnumSet<NodeChangeOptions> changes,
+        @Nullable ConnectionPlugin skipNotificationForThisPlugin) {
 
-    return notifySubscribedPlugins(
-        OldConnectionSuggestedAction.class,
-        "notifyConnectionChanged",
-        (PluginPipeline<OldConnectionSuggestedAction, SQLException>)
-            (plugin, func) -> plugin.notifyConnectionChanged(changes),
-        skipNotificationForThisPlugin);
-  }
+        final EnumSet<OldConnectionSuggestedAction> result = EnumSet.noneOf(OldConnectionSuggestedAction.class);
+
+        notifySubscribedPlugins(
+            "notifyConnectionChanged",
+            (plugin, func) -> {
+                OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
+                result.add(pluginOpinion);
+                return null;
+            },
+            skipNotificationForThisPlugin);
+
+        return result;
+    }
+
+    public void notifyNodeListChanged(@NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
+
+        notifySubscribedPlugins(
+            "notifyNodeListChanged",
+            (plugin, func) -> {
+                plugin.notifyNodeListChanged(changes);
+                return null;
+            },
+            null);
+    }
 
   /**
    * Release all dangling resources held by the connection plugins associated with a single

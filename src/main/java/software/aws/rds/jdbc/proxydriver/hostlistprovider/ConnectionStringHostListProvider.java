@@ -33,12 +33,12 @@ public class ConnectionStringHostListProvider implements HostListProvider {
   }
 
   @Override
-  public List<HostSpec> getHostList() {
+  public List<HostSpec> refresh() throws SQLException {
     return Collections.unmodifiableList(hostList);
   }
 
   @Override
-  public void refresh() throws SQLException {
-    // do nothing
+  public List<HostSpec> forceRefresh() throws SQLException {
+    return Collections.unmodifiableList(hostList);
   }
 }

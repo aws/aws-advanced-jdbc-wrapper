@@ -42,5 +42,7 @@ public interface PluginService {
 
   void refreshHostList() throws SQLException;
 
+  void forceRefreshHostList() throws SQLException;
+
   Connection connect(HostSpec hostSpec, Properties props) throws SQLException;
 }

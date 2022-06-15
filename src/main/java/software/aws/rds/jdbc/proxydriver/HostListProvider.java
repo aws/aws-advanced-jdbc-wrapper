@@ -10,7 +10,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface HostListProvider {
-  List<HostSpec> getHostList();
+    List<HostSpec> refresh() throws SQLException;
 
-  void refresh() throws SQLException;
+    List<HostSpec> forceRefresh() throws SQLException;
 }
