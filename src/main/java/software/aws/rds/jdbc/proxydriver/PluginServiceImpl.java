@@ -16,7 +16,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.hostlistprovider.ConnectionStringHostListProvider;
 
-public class PluginServiceImpl implements PluginService, HostListProviderService {
+public class PluginServiceImpl implements PluginService, HostListProviderService, PluginManagerService {
 
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
@@ -26,6 +26,8 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   protected List<HostSpec> hosts = new ArrayList<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
+  private boolean isInTransaction;
+  private boolean explicitReadOnly;
 
   public PluginServiceImpl(
       @NonNull ConnectionPluginManager pluginManager,
@@ -134,17 +136,27 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
 
   @Override
   public boolean isExplicitReadOnly() {
-    return false;
+    return this.explicitReadOnly;
   }
 
   @Override
   public boolean isReadOnly() {
-    return false;
+    return isExplicitReadOnly() || (this.currentHostSpec != null && this.currentHostSpec.getRole() != HostRole.WRITER);
   }
 
   @Override
   public boolean isInTransaction() {
-    return false;
+    return this.isInTransaction;
+  }
+
+  @Override
+  public void setReadOnly(final boolean readOnly) {
+    this.explicitReadOnly = readOnly;
+  }
+
+  @Override
+  public void setInTransaction(boolean inTransaction) {
+    this.isInTransaction = inTransaction;
   }
 
   @Override
