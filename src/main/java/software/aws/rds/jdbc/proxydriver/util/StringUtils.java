@@ -55,8 +55,8 @@ public class StringUtils {
    * Splits stringToSplit into a list, using the given delimiter.
    *
    * @param stringToSplit the string to split
-   * @param delimiter the string to split on
-   * @param trim should the split strings be whitespace trimmed?
+   * @param delimiter     the string to split on
+   * @param trim          should the split strings be whitespace trimmed?
    * @return the list of strings, split by delimiter
    * @throws IllegalArgumentException if an error occurs
    */

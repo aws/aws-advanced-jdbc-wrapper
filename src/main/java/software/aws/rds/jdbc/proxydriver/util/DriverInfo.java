@@ -8,7 +8,8 @@ package software.aws.rds.jdbc.proxydriver.util;
 
 public final class DriverInfo {
 
-  private DriverInfo() {}
+  private DriverInfo() {
+  }
 
   // Driver name
   public static final String DRIVER_NAME = "Amazon Web Services (AWS) JDBC Proxy Driver";

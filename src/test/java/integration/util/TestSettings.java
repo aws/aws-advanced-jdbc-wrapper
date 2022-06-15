@@ -1,6 +1,7 @@
 package integration.util;
 
 public class TestSettings {
+
   public static final String mysqlServerName = System.getProperty("mysqlServerName");
   public static final String mysqlUser = System.getProperty("mysqlUser");
   public static final String mysqlPassword = System.getProperty("mysqlPassword");

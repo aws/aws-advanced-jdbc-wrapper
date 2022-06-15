@@ -10,6 +10,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -64,59 +68,85 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
 
+    if (this.currentConnection == null) {
+      // setting up an initial connection
+
+      this.currentConnection = connection;
+      this.currentHostSpec = hostSpec;
+
+      EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);
+      this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
+
+      return changes;
+
+    } else {
+      // update an existing connection
+
+      EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
+          connection, hostSpec);
+
+      if (!changes.isEmpty()) {
+
+        final Connection oldConnection = this.currentConnection;
+
+        this.currentConnection = connection;
+        this.currentHostSpec = hostSpec;
+
+        EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
+            changes, skipNotificationForThisPlugin);
+
+        boolean shouldCloseConnection =
+            changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
+                && !oldConnection.isClosed()
+                && !pluginOpinions.contains(OldConnectionSuggestedAction.PRESERVE);
+
+        if (shouldCloseConnection) {
+          try {
+            oldConnection.close();
+          } catch (SQLException e) {
+            // Ignore any exception
+          }
+        }
+      }
+      return changes;
+    }
+  }
+
+  protected EnumSet<NodeChangeOptions> compare(
+      final @NonNull Connection connA,
+      final @NonNull HostSpec hostSpecA,
+      final @NonNull Connection connB,
+      final @NonNull HostSpec hostSpecB) {
+
     EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
 
-    if (this.currentConnection != connection) {
+    if (connA != connB) {
       changes.add(NodeChangeOptions.CONNECTION_OBJECT_CHANGED);
     }
 
-    if (!this.currentHostSpec.getHost().equals(hostSpec.getHost())
-        || this.currentHostSpec.getPort() != hostSpec.getPort()) {
+    if (!hostSpecA.getHost().equals(hostSpecB.getHost())
+        || hostSpecA.getPort() != hostSpecB.getPort()) {
       changes.add(NodeChangeOptions.HOSTNAME);
     }
 
-    if (this.currentHostSpec.getRole() != hostSpec.getRole()) {
-      if (hostSpec.getRole() == HostRole.WRITER) {
+    if (hostSpecA.getRole() != hostSpecB.getRole()) {
+      if (hostSpecB.getRole() == HostRole.WRITER) {
         changes.add(NodeChangeOptions.PROMOTED_TO_WRITER);
-      } else if (hostSpec.getRole() == HostRole.READER) {
+      } else if (hostSpecB.getRole() == HostRole.READER) {
         changes.add(NodeChangeOptions.PROMOTED_TO_READER);
       }
     }
 
-    if (this.currentHostSpec.getAvailability() != hostSpec.getAvailability()) {
-      if (hostSpec.getAvailability() == HostAvailability.AVAILABLE) {
+    if (hostSpecA.getAvailability() != hostSpecB.getAvailability()) {
+      if (hostSpecB.getAvailability() == HostAvailability.AVAILABLE) {
         changes.add(NodeChangeOptions.WENT_UP);
-      } else if (hostSpec.getAvailability() == HostAvailability.NOT_AVAILABLE) {
+      } else if (hostSpecB.getAvailability() == HostAvailability.NOT_AVAILABLE) {
         changes.add(NodeChangeOptions.WENT_DOWN);
       }
     }
 
     if (!changes.isEmpty()) {
       changes.add(NodeChangeOptions.NODE_CHANGED);
-    }
-
-    final Connection oldConnection = this.currentConnection;
-
-    this.currentConnection = connection;
-    this.currentHostSpec = hostSpec;
-
-    EnumSet<OldConnectionSuggestedAction> pluginOpinions =
-        this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
-
-    if (oldConnection != null && !oldConnection.isClosed()) {
-
-      pluginOpinions.remove(OldConnectionSuggestedAction.NO_OPINION);
-
-      boolean shouldCloseConnection =
-          pluginOpinions.contains(OldConnectionSuggestedAction.DISPOSE) || pluginOpinions.isEmpty();
-
-      if (shouldCloseConnection) {
-        try {
-          oldConnection.close();
-        } catch (SQLException e) {
-          // Ignore any exception
-        }
-      }
     }
 
     return changes;
@@ -174,8 +204,53 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
 
   @Override
   public void refreshHostList() throws SQLException {
-    this.hostListProvider.refresh();
-    this.hosts = this.hostListProvider.getHostList();
+    setNodeList(this.hosts, this.hostListProvider.refresh());
+  }
+
+  @Override
+  public void forceRefreshHostList() throws SQLException {
+    setNodeList(this.hosts, this.hostListProvider.forceRefresh());
+  }
+
+  void setNodeList(@Nullable final List<HostSpec> oldHosts,
+      @Nullable final List<HostSpec> newHosts) {
+
+    Map<String, HostSpec> oldHostMap = oldHosts == null
+        ? new HashMap<>()
+        : oldHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
+
+    Map<String, HostSpec> newHostMap = newHosts == null
+        ? new HashMap<>()
+        : newHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
+
+    Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
+
+    for (Entry<String, HostSpec> entry : oldHostMap.entrySet()) {
+      HostSpec correspondingNewHost = newHostMap.get(entry.getKey());
+      if (correspondingNewHost == null) {
+        // host deleted
+        changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_DELETED));
+      } else {
+        // host maybe changed
+        EnumSet<NodeChangeOptions> hostChanges = compare(null, entry.getValue(), null,
+            correspondingNewHost);
+        if (!hostChanges.isEmpty()) {
+          changes.put(entry.getKey(), hostChanges);
+        }
+      }
+    }
+
+    for (Entry<String, HostSpec> entry : newHostMap.entrySet()) {
+      if (!oldHostMap.containsKey(entry.getKey())) {
+        // host added
+        changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_ADDED));
+      }
+    }
+
+    if (!changes.isEmpty()) {
+      this.hosts = newHosts != null ? newHosts : new ArrayList<>();
+      this.pluginManager.notifyNodeListChanged(changes);
+    }
   }
 
   @Override

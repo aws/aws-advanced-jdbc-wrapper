@@ -11,6 +11,6 @@ package software.aws.rds.jdbc.proxydriver;
 
 public enum OldConnectionSuggestedAction {
   NO_OPINION, // no strong suggestion about connection object
-  PRESERVE, // suggestion to preserve a connection object; it may be overridden by "DISPOSE"
-  DISPOSE // overrides any other opinions; the strongest suggestion
+  DISPOSE, // suggestion to dispose a connection object; it may be overridden by "PRESERVE"
+  PRESERVE // overrides any other opinions; the strongest suggestion
 }

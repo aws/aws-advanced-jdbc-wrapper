@@ -7,5 +7,6 @@
 package software.aws.rds.jdbc.proxydriver;
 
 public interface JdbcCallable<T, E extends Exception> {
+
   T call() throws E;
 }
