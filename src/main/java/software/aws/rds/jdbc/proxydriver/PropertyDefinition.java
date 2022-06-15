@@ -26,8 +26,8 @@ public class PropertyDefinition {
           null,
           "Logger level of the driver",
           false,
-          new String[] {
-            "OFF", "SEVERE", "WARNING", "INFO", "CONFIG", "FINE", "FINER", "FINEST", "ALL"
+          new String[]{
+              "OFF", "SEVERE", "WARNING", "INFO", "CONFIG", "FINE", "FINER", "FINEST", "ALL"
           });
 
   private static final Map<String, ProxyDriverProperty> PROPS_BY_NAME =

@@ -7,6 +7,7 @@
 package software.aws.rds.jdbc.proxydriver;
 
 public interface HostListProviderService {
+
   boolean isDefaultHostListProvider();
 
   HostListProvider getHostListProvider();

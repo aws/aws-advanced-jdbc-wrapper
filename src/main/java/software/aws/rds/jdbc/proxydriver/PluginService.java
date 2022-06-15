@@ -14,7 +14,9 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Interface for retrieving the current active {@link Connection} and its {@link HostSpec}. */
+/**
+ * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
+ */
 public interface PluginService {
 
   Connection getCurrentConnection();

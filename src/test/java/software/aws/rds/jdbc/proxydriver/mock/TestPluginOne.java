@@ -91,14 +91,12 @@ public class TestPluginOne implements ConnectionPlugin {
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes)
-      throws SQLException {
+  public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 
   @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes)
-      throws SQLException {
+  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
     // do nothing
   }
 

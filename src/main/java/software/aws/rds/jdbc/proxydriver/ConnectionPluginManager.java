@@ -62,7 +62,9 @@ public class ConnectionPluginManager {
     this.connectionProvider = new DataSourceConnectionProvider(targetDataSource);
   }
 
-  /** This constructor is for testing purposes only. */
+  /**
+   * This constructor is for testing purposes only.
+   */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -73,7 +75,9 @@ public class ConnectionPluginManager {
     instances.add(this);
   }
 
-  /** Release all dangling resources for all connection plugin managers. */
+  /**
+   * Release all dangling resources for all connection plugin managers.
+   */
   public static void releaseAllResources() {
     instances.forEach(ConnectionPluginManager::releaseResources);
   }
@@ -87,7 +91,7 @@ public class ConnectionPluginManager {
    * connection plugin in the chain.
    *
    * @param pluginService A reference to a plugin service that plugin can use.
-   * @param props The configuration of the connection.
+   * @param props         The configuration of the connection.
    * @throws SQLException if errors occurred during the execution.
    */
   public void init(PluginService pluginService, Properties props) throws SQLException {
@@ -165,29 +169,29 @@ public class ConnectionPluginManager {
     return func.call();
   }
 
-    protected <E extends Exception> void notifySubscribedPlugins(
-        final String methodName,
-        final PluginPipeline<Void, E> pluginPipeline,
-        final ConnectionPlugin skipNotificationForThisPlugin) throws E {
+  protected <E extends Exception> void notifySubscribedPlugins(
+      final String methodName,
+      final PluginPipeline<Void, E> pluginPipeline,
+      final ConnectionPlugin skipNotificationForThisPlugin) throws E {
 
     if (pluginPipeline == null) {
       throw new IllegalArgumentException("pluginPipeline");
     }
 
-        for (int i = 0; i < this.plugins.size(); i++) {
-            ConnectionPlugin plugin = this.plugins.get(i);
-            if (plugin == skipNotificationForThisPlugin) {
-                continue;
-            }
-            Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-            boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
-                || pluginSubscribedMethods.contains(methodName);
+    for (int i = 0; i < this.plugins.size(); i++) {
+      ConnectionPlugin plugin = this.plugins.get(i);
+      if (plugin == skipNotificationForThisPlugin) {
+        continue;
+      }
+      Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+      boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
+          || pluginSubscribedMethods.contains(methodName);
 
-            if (isSubscribed) {
-                pluginPipeline.call(plugin, null);
-            }
-        }
+      if (isSubscribed) {
+        pluginPipeline.call(plugin, null);
+      }
     }
+  }
 
   public <T, E extends Exception> T execute(
       final Class<T> resultType,
@@ -248,34 +252,35 @@ public class ConnectionPluginManager {
         });
   }
 
-    public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
-        @NonNull EnumSet<NodeChangeOptions> changes,
-        @Nullable ConnectionPlugin skipNotificationForThisPlugin) {
+  public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
+      @NonNull EnumSet<NodeChangeOptions> changes,
+      @Nullable ConnectionPlugin skipNotificationForThisPlugin) {
 
-        final EnumSet<OldConnectionSuggestedAction> result = EnumSet.noneOf(OldConnectionSuggestedAction.class);
+    final EnumSet<OldConnectionSuggestedAction> result = EnumSet.noneOf(
+        OldConnectionSuggestedAction.class);
 
-        notifySubscribedPlugins(
-            "notifyConnectionChanged",
-            (plugin, func) -> {
-                OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
-                result.add(pluginOpinion);
-                return null;
-            },
-            skipNotificationForThisPlugin);
+    notifySubscribedPlugins(
+        "notifyConnectionChanged",
+        (plugin, func) -> {
+          OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
+          result.add(pluginOpinion);
+          return null;
+        },
+        skipNotificationForThisPlugin);
 
-        return result;
-    }
+    return result;
+  }
 
-    public void notifyNodeListChanged(@NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
+  public void notifyNodeListChanged(@NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
 
-        notifySubscribedPlugins(
-            "notifyNodeListChanged",
-            (plugin, func) -> {
-                plugin.notifyNodeListChanged(changes);
-                return null;
-            },
-            null);
-    }
+    notifySubscribedPlugins(
+        "notifyNodeListChanged",
+        (plugin, func) -> {
+          plugin.notifyNodeListChanged(changes);
+          return null;
+        },
+        null);
+  }
 
   /**
    * Release all dangling resources held by the connection plugins associated with a single
@@ -292,6 +297,7 @@ public class ConnectionPluginManager {
   }
 
   private interface PluginPipeline<T, E extends Exception> {
+
     T call(final ConnectionPlugin plugin, JdbcCallable<T, E> func) throws E;
   }
 }

@@ -16,6 +16,7 @@ import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.util.ConnectionUrlParser;
 
 public class ConnectionStringHostListProvider implements HostListProvider {
+
   final List<HostSpec> hostList = new ArrayList<>();
   Properties properties;
 

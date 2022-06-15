@@ -151,7 +151,7 @@ public class PluginServiceImplTests {
     ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin =
         ArgumentCaptor.forClass(ConnectionPlugin.class);
     when(pluginManager.notifyConnectionChanged(
-            argumentChanges.capture(), argumentSkipPlugin.capture()))
+        argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     Connection oldConnection = mock(Connection.class);
@@ -191,7 +191,7 @@ public class PluginServiceImplTests {
     ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin =
         ArgumentCaptor.forClass(ConnectionPlugin.class);
     when(pluginManager.notifyConnectionChanged(
-            argumentChanges.capture(), argumentSkipPlugin.capture()))
+        argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     Connection oldConnection = mock(Connection.class);
@@ -230,7 +230,7 @@ public class PluginServiceImplTests {
     ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin =
         ArgumentCaptor.forClass(ConnectionPlugin.class);
     when(pluginManager.notifyConnectionChanged(
-            argumentChanges.capture(), argumentSkipPlugin.capture()))
+        argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     Connection oldConnection = mock(Connection.class);
@@ -263,9 +263,12 @@ public class PluginServiceImplTests {
   public void testChangesNoChanges() throws SQLException {
 
     ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    @SuppressWarnings("unchecked") ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges = ArgumentCaptor.forClass(EnumSet.class);
-    ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin = ArgumentCaptor.forClass(ConnectionPlugin.class);
-    when(pluginManager.notifyConnectionChanged(argumentChanges.capture(), argumentSkipPlugin.capture()))
+    @SuppressWarnings("unchecked") ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges = ArgumentCaptor.forClass(
+        EnumSet.class);
+    ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin = ArgumentCaptor.forClass(
+        ConnectionPlugin.class);
+    when(pluginManager.notifyConnectionChanged(argumentChanges.capture(),
+        argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     Connection oldConnection = mock(Connection.class);
@@ -287,13 +290,15 @@ public class PluginServiceImplTests {
   public void testSetNodeListAdded() throws SQLException {
 
     ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(Map.class);
+    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(
+        Map.class);
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChanges.capture());
 
     HostListProvider hostListProvider = mock(HostListProvider.class);
     when(hostListProvider.refresh()).thenReturn(Arrays.asList(new HostSpec("hostA")));
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.hosts = new ArrayList<>();
     target.hostListProvider = hostListProvider;
 
@@ -314,13 +319,15 @@ public class PluginServiceImplTests {
   public void testSetNodeListDeleted() throws SQLException {
 
     ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(Map.class);
+    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(
+        Map.class);
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChanges.capture());
 
     HostListProvider hostListProvider = mock(HostListProvider.class);
     when(hostListProvider.refresh()).thenReturn(Arrays.asList(new HostSpec("hostB")));
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.hosts = Arrays.asList(new HostSpec("hostA"), new HostSpec("hostB"));
     target.hostListProvider = hostListProvider;
 
@@ -341,13 +348,16 @@ public class PluginServiceImplTests {
   public void testSetNodeListChanged() throws SQLException {
 
     ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(Map.class);
+    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(
+        Map.class);
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChanges.capture());
 
     HostListProvider hostListProvider = mock(HostListProvider.class);
-    when(hostListProvider.refresh()).thenReturn(Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+    when(hostListProvider.refresh()).thenReturn(
+        Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
 
-    PluginServiceImpl target = spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.hosts = Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.WRITER));
     target.hostListProvider = hostListProvider;
 

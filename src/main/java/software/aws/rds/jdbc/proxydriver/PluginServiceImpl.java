@@ -82,7 +82,8 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
     } else {
       // update an existing connection
 
-      EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec, connection, hostSpec);
+      EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
+          connection, hostSpec);
 
       if (!changes.isEmpty()) {
 
@@ -91,11 +92,13 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
         this.currentConnection = connection;
         this.currentHostSpec = hostSpec;
 
-        EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
+        EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
+            changes, skipNotificationForThisPlugin);
 
-        boolean shouldCloseConnection = changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
-            && !oldConnection.isClosed()
-            && !pluginOpinions.contains(OldConnectionSuggestedAction.PRESERVE);
+        boolean shouldCloseConnection =
+            changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
+                && !oldConnection.isClosed()
+                && !pluginOpinions.contains(OldConnectionSuggestedAction.PRESERVE);
 
         if (shouldCloseConnection) {
           try {
@@ -209,7 +212,8 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
     setNodeList(this.hosts, this.hostListProvider.forceRefresh());
   }
 
-  void setNodeList(@Nullable final List<HostSpec> oldHosts, @Nullable final List<HostSpec> newHosts) {
+  void setNodeList(@Nullable final List<HostSpec> oldHosts,
+      @Nullable final List<HostSpec> newHosts) {
 
     Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()
@@ -228,7 +232,8 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
         changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_DELETED));
       } else {
         // host maybe changed
-        EnumSet<NodeChangeOptions> hostChanges = compare(null, entry.getValue(), null, correspondingNewHost);
+        EnumSet<NodeChangeOptions> hostChanges = compare(null, entry.getValue(), null,
+            correspondingNewHost);
         if (!hostChanges.isEmpty()) {
           changes.put(entry.getKey(), hostChanges);
         }
