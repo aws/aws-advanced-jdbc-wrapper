@@ -8,6 +8,7 @@ package software.aws.rds.jdbc.proxydriver;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class HostSpec {
@@ -86,5 +87,26 @@ public class HostSpec {
 
   public String toString() {
     return String.format("HostSpec[host=%s, port=%d]", this.host, this.port);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.host, this.port, this.availability, this.role);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == this) {
+      return true;
+    }
+    if (!(obj instanceof HostSpec)) {
+      return false;
+    }
+
+    final HostSpec spec = (HostSpec) obj;
+    return Objects.equals(this.host, spec.host)
+        && this.port == spec.port
+        && this.availability == spec.availability
+        && this.role == spec.role;
   }
 }
