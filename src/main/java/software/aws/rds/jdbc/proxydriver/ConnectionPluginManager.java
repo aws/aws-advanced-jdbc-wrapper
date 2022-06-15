@@ -44,7 +44,7 @@ public class ConnectionPluginManager {
   private static final String CONNECT_METHOD = "connect";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
-  private static final String NOTIFY_HOST_LIST_CHANGED_METHOD = "notifyNodeListChanged";
+  private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
 
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
@@ -274,7 +274,7 @@ public class ConnectionPluginManager {
   public void notifyNodeListChanged(@NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
 
     notifySubscribedPlugins(
-        NOTIFY_HOST_LIST_CHANGED_METHOD,
+        NOTIFY_NODE_LIST_CHANGED_METHOD,
         (plugin, func) -> {
           plugin.notifyNodeListChanged(changes);
           return null;
