@@ -1,18 +1,23 @@
 plugins {
     java
     checkstyle
+    jacoco
     id("com.diffplug.spotless") version "6.7.2"
 }
 
 group = "org.example"
 version = "1.0-SNAPSHOT"
 
+tasks.check {
+    dependsOn("jacocoTestCoverageVerification")
+}
+
 repositories {
     mavenCentral()
 }
 
 checkstyle {
-    // Checkstyle versions 7.x, 8.x, and 9.x are supported by JRE version 8 and above
+    // Checkstyle versions 7.x, 8.x, and 9.x are supported by JRE version 8 and above.
     toolVersion = "9.3"
     configDirectory.set(File(rootDir, "config/checkstyle"))
     configFile = configDirectory.get().file("google_checks.xml").asFile
@@ -29,6 +34,17 @@ spotless {
 
     java {
         googleJavaFormat("1.7")
+    }
+}
+
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                // Coverage verification will pass if it is greater than or equal to 1%.
+                minimum = "0.01".toBigDecimal()
+            }
+        }
     }
 }
 
