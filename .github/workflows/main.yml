@@ -28,11 +28,24 @@ jobs:
         with:
           java-version: 8
 
-      - name: 'Check Style Main'
-        run: ./gradlew checkStyleMain
+      - name: 'Run all checks'
+        run: ./gradlew check
 
-      - name: 'Check Style Tests'
-        run: ./gradlew checkStyleTest
-          
-      - name: 'Run Tests'
-        run: ./gradlew test
+      - name: 'Generate code coverage report'
+        run: ./gradlew jacocoTestReport
+
+      - name: 'Archive Test Results'
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: 'junit-report'
+          path: ./build/reports/tests/test/
+          retention-days: 3
+
+      - name: 'Archive Coverage Report'
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: 'coverage-report'
+          path: ./build/reports/jacoco/test/
+          retention-days: 3
