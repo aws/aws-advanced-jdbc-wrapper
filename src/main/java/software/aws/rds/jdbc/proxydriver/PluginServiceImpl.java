@@ -11,11 +11,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
-import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.hostlistprovider.ConnectionStringHostListProvider;
@@ -214,7 +214,7 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,
-      @Nullable final List<HostSpec> newHosts) {
+                   @Nullable final List<HostSpec> newHosts) {
 
     Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()

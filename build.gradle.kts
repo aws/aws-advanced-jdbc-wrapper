@@ -19,11 +19,15 @@ repositories {
 checkstyle {
     // Checkstyle versions 7.x, 8.x, and 9.x are supported by JRE version 8 and above.
     toolVersion = "9.3"
+    // Fail the build if there is at least one Checkstyle warning.
+    maxWarnings = 0
     configDirectory.set(File(rootDir, "config/checkstyle"))
     configFile = configDirectory.get().file("google_checks.xml").asFile
 }
 
 spotless {
+    isEnforceCheck = false
+
     format("misc") {
         target("*.gradle", "*.md", ".gitignore")
 
