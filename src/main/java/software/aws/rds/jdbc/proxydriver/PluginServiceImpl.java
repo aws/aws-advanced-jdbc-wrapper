@@ -19,6 +19,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.hostlistprovider.ConnectionStringHostListProvider;
+import software.aws.rds.jdbc.proxydriver.hostlistprovider.StaticHostListProvider;
 
 public class PluginServiceImpl implements PluginService, HostListProviderService, PluginManagerService {
 
@@ -254,8 +255,8 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   }
 
   @Override
-  public boolean isDefaultHostListProvider() {
-    return this.hostListProvider instanceof ConnectionStringHostListProvider;
+  public boolean isStaticHostListProvider() {
+    return this.hostListProvider instanceof StaticHostListProvider;
   }
 
   @Override
