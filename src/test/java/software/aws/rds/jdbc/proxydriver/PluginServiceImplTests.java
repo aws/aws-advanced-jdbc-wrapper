@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -26,28 +25,49 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 public class PluginServiceImplTests {
 
   private static final Properties PROPERTIES = new Properties();
   private static final String URL = "url";
   private static final String DRIVER_PROTOCOL = "driverProtocol";
+  private AutoCloseable closeable;
+
+  @Mock ConnectionPluginManager pluginManager;
+  @Mock Connection newConnection;
+  @Mock Connection oldConnection;
+  @Mock HostListProvider hostListProvider;
+
+  @Captor ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges;
+  @Captor ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChangesMap;
+  @Captor ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin;
+
+  @BeforeEach
+  void setUp() throws SQLException {
+    closeable = MockitoAnnotations.openMocks(this);
+    when(oldConnection.isClosed()).thenReturn(false);
+  }
+
+  @AfterEach
+  void cleanUp() throws Exception {
+    closeable.close();
+  }
 
   @Test
   public void testOldConnectionNoSuggestion() throws SQLException {
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
     when(pluginManager.notifyConnectionChanged(any(), any()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
-
-    Connection newConnection = mock(Connection.class);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -64,15 +84,8 @@ public class PluginServiceImplTests {
 
   @Test
   public void testOldConnectionDisposeSuggestion() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
     when(pluginManager.notifyConnectionChanged(any(), any()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.DISPOSE));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
-
-    Connection newConnection = mock(Connection.class);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -89,15 +102,8 @@ public class PluginServiceImplTests {
 
   @Test
   public void testOldConnectionPreserveSuggestion() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
     when(pluginManager.notifyConnectionChanged(any(), any()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.PRESERVE));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
-
-    Connection newConnection = mock(Connection.class);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -114,19 +120,12 @@ public class PluginServiceImplTests {
 
   @Test
   public void testOldConnectionMixedSuggestion() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
     when(pluginManager.notifyConnectionChanged(any(), any()))
         .thenReturn(
             EnumSet.of(
                 OldConnectionSuggestedAction.NO_OPINION,
                 OldConnectionSuggestedAction.PRESERVE,
                 OldConnectionSuggestedAction.DISPOSE));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
-
-    Connection newConnection = mock(Connection.class);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -143,21 +142,9 @@ public class PluginServiceImplTests {
 
   @Test
   public void testChangesNewConnectionNewHostNewPortNewRoleNewAvailability() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges =
-        ArgumentCaptor.forClass(EnumSet.class);
-    ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin =
-        ArgumentCaptor.forClass(ConnectionPlugin.class);
     when(pluginManager.notifyConnectionChanged(
         argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
-
-    Connection newConnection = mock(Connection.class);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -183,21 +170,9 @@ public class PluginServiceImplTests {
 
   @Test
   public void testChangesNewConnectionNewRoleNewAvailability() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges =
-        ArgumentCaptor.forClass(EnumSet.class);
-    ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin =
-        ArgumentCaptor.forClass(ConnectionPlugin.class);
     when(pluginManager.notifyConnectionChanged(
         argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
-
-    Connection newConnection = mock(Connection.class);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -222,21 +197,9 @@ public class PluginServiceImplTests {
 
   @Test
   public void testChangesNewConnection() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges =
-        ArgumentCaptor.forClass(EnumSet.class);
-    ArgumentCaptor<ConnectionPlugin> argumentSkipPlugin =
-        ArgumentCaptor.forClass(ConnectionPlugin.class);
     when(pluginManager.notifyConnectionChanged(
         argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
-
-    Connection newConnection = mock(Connection.class);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -261,13 +224,8 @@ public class PluginServiceImplTests {
 
   @Test
   public void testChangesNoChanges() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
     when(pluginManager.notifyConnectionChanged(any(), any())).thenReturn(
         EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
-
-    Connection oldConnection = mock(Connection.class);
-    when(oldConnection.isClosed()).thenReturn(false);
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -284,13 +242,9 @@ public class PluginServiceImplTests {
   @Test
   public void testSetNodeListAdded() throws SQLException {
 
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(
-        Map.class);
-    doNothing().when(pluginManager).notifyNodeListChanged(argumentChanges.capture());
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    HostListProvider hostListProvider = mock(HostListProvider.class);
-    when(hostListProvider.refresh()).thenReturn(Arrays.asList(new HostSpec("hostA")));
+    when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostA")));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -303,23 +257,18 @@ public class PluginServiceImplTests {
     assertEquals("hostA", target.getHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
-    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChanges.getValue();
-    assertTrue(notifiedChanges.containsKey("hostA"));
-    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA");
+    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
+    assertTrue(notifiedChanges.containsKey("hostA/"));
+    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
     assertEquals(1, hostAChanges.size());
     assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_ADDED));
   }
 
   @Test
   public void testSetNodeListDeleted() throws SQLException {
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(
-        Map.class);
-    doNothing().when(pluginManager).notifyNodeListChanged(argumentChanges.capture());
-
-    HostListProvider hostListProvider = mock(HostListProvider.class);
-    when(hostListProvider.refresh()).thenReturn(Arrays.asList(new HostSpec("hostB")));
+    when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostB")));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -332,28 +281,23 @@ public class PluginServiceImplTests {
     assertEquals("hostB", target.getHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
-    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChanges.getValue();
-    assertTrue(notifiedChanges.containsKey("hostA"));
-    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA");
+    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
+    assertTrue(notifiedChanges.containsKey("hostA/"));
+    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
     assertEquals(1, hostAChanges.size());
     assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_DELETED));
   }
 
   @Test
   public void testSetNodeListChanged() throws SQLException {
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
-    ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChanges = ArgumentCaptor.forClass(
-        Map.class);
-    doNothing().when(pluginManager).notifyNodeListChanged(argumentChanges.capture());
-
-    HostListProvider hostListProvider = mock(HostListProvider.class);
     when(hostListProvider.refresh()).thenReturn(
-        Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
-    target.hosts = Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.WRITER));
+    target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.WRITER));
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
@@ -362,9 +306,9 @@ public class PluginServiceImplTests {
     assertEquals("hostA", target.getHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
-    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChanges.getValue();
-    assertTrue(notifiedChanges.containsKey("hostA"));
-    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA");
+    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
+    assertTrue(notifiedChanges.containsKey("hostA/"));
+    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
     assertEquals(2, hostAChanges.size());
     assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
     assertTrue(hostAChanges.contains(NodeChangeOptions.PROMOTED_TO_READER));
@@ -372,17 +316,14 @@ public class PluginServiceImplTests {
 
   @Test
   public void testSetNodeListNoChanges() throws SQLException {
-
-    ConnectionPluginManager pluginManager = mock(ConnectionPluginManager.class);
     doNothing().when(pluginManager).notifyNodeListChanged(any());
 
-    HostListProvider hostListProvider = mock(HostListProvider.class);
     when(hostListProvider.refresh()).thenReturn(
-        Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
-    target.hosts = Arrays.asList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER));
+    target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER));
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();

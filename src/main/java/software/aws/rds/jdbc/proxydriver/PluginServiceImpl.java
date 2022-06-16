@@ -52,6 +52,9 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
 
   @Override
   public HostSpec getCurrentHostSpec() {
+    if (this.currentHostSpec == null) {
+      this.currentHostSpec = this.getHosts().get(0);
+    }
     return this.currentHostSpec;
   }
 
@@ -205,12 +208,12 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
 
   @Override
   public void refreshHostList() throws SQLException {
-    setNodeList(this.hosts, this.hostListProvider.refresh());
+    setNodeList(this.hosts, this.getHostListProvider().refresh());
   }
 
   @Override
   public void forceRefreshHostList() throws SQLException {
-    setNodeList(this.hosts, this.hostListProvider.forceRefresh());
+    setNodeList(this.hosts, this.getHostListProvider().forceRefresh());
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,

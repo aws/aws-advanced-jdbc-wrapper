@@ -82,7 +82,11 @@ public class HostSpec {
   }
 
   public String getUrl() {
-    return isPortSpecified() ? host + ":" + port : host;
+    String url = isPortSpecified() ? host + ":" + port : host;
+    if (!url.endsWith("/")) {
+      url += "/";
+    }
+    return url;
   }
 
   public String toString() {
