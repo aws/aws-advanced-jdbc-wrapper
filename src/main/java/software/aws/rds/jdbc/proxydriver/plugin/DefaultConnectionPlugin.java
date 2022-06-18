@@ -27,21 +27,19 @@ import software.aws.rds.jdbc.proxydriver.OldConnectionSuggestedAction;
 import software.aws.rds.jdbc.proxydriver.PluginService;
 
 /**
- * This connection plugin will always be the last plugin in the connection plugin chain, and will
- * invoke the JDBC method passed down the chain.
+ * This connection plugin will always be the last plugin in the connection plugin chain, and will invoke the JDBC method
+ * passed down the chain.
  */
 public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   private static final transient Logger LOGGER =
       Logger.getLogger(DefaultConnectionPlugin.class.getName());
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*", "openInitialConnection")));
+  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
 
   private final ConnectionProvider connectionProvider;
   private final PluginService pluginService;
 
-  public DefaultConnectionPlugin(
-      PluginService pluginService, ConnectionProvider connectionProvider) {
+  public DefaultConnectionPlugin(PluginService pluginService, ConnectionProvider connectionProvider) {
     if (pluginService == null) {
       throw new IllegalArgumentException("currentConnectionProvider");
     }
