@@ -16,9 +16,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
 
-  public static final ProxyDriverProperty PLUGIN_FACTORIES =
+  public static final ProxyDriverProperty PLUGINS =
       new ProxyDriverProperty(
-          "proxyDriverPluginFactories", null, "Coma separated list of connection plugin factories");
+          "proxyDriverPlugins", null, "Coma separated list of connection plugin codes");
+
+  public static final ProxyDriverProperty PROFILE_NAME =
+      new ProxyDriverProperty(
+          "proxyDriverProfileName", null, "Driver configuration profile name");
 
   public static final ProxyDriverProperty LOGGER_LEVEL =
       new ProxyDriverProperty(

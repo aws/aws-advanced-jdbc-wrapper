@@ -10,6 +10,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
@@ -21,6 +23,8 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
+import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
@@ -33,7 +37,14 @@ import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
  */
 public class ConnectionPluginManager {
 
-  protected static final String DEFAULT_PLUGIN_FACTORIES = "";
+  protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
+      new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
+        {
+          put("executionTime", ExecutionTimeConnectionPluginFactory.class);
+        }
+      };
+
+  protected static final String DEFAULT_PLUGINS = "";
 
   // TODO: use weak pointers
   protected static final Queue<ConnectionPluginManager> instances = new ConcurrentLinkedQueue<>();
@@ -83,9 +94,9 @@ public class ConnectionPluginManager {
   }
 
   /**
-   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link
-   * ConnectionPluginFactory}. If {@code PropertyKey.connectionPluginFactories} is provided by the
-   * user, initialize the chain with the given connection plugins in the order they are specified.
+   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link ConnectionPluginFactory}. If {@code
+   * PropertyKey.connectionPluginFactories} is provided by the user, initialize the chain with the given connection
+   * plugins in the order they are specified.
    *
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
@@ -99,17 +110,41 @@ public class ConnectionPluginManager {
     instances.add(this);
     this.props = props;
 
-    String factoryClazzNames = PropertyDefinition.PLUGIN_FACTORIES.get(props);
+    String profileName = PropertyDefinition.PROFILE_NAME.get(props);
 
-    if (factoryClazzNames == null) {
-      factoryClazzNames = DEFAULT_PLUGIN_FACTORIES;
+    List<Class<? extends ConnectionPluginFactory>> pluginFactories;
+
+    if (profileName != null) {
+
+      if (!DriverConfigurationProfiles.contains(profileName)) {
+        throw new SQLException(String.format("Configuration profile '%s' not found.", profileName));
+      }
+      pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
+
+    } else {
+
+      String pluginCodes = PropertyDefinition.PLUGINS.get(props);
+
+      if (pluginCodes == null) {
+        pluginCodes = DEFAULT_PLUGINS;
+      }
+
+      List<String> pluginCodeList = StringUtils.split(pluginCodes, ",", true);
+      pluginFactories = new ArrayList<>(pluginCodeList.size());
+
+      for (String pluginCode : pluginCodeList) {
+        if (!pluginFactoriesByCode.containsKey(pluginCode)) {
+          throw new SQLException(String.format("Unknown plugin code '%s'.", pluginCode));
+        }
+        pluginFactories.add(pluginFactoriesByCode.get(pluginCode));
+      }
     }
 
-    if (!StringUtils.isNullOrEmpty(factoryClazzNames)) {
+    if (!pluginFactories.isEmpty()) {
       try {
         ConnectionPluginFactory[] factories =
             WrapperUtils.loadClasses(
-                    factoryClazzNames,
+                    pluginFactories,
                     ConnectionPluginFactory.class,
                     "Unable to load connection plugin factory '%s'.")
                 .toArray(new ConnectionPluginFactory[0]);
@@ -131,8 +166,7 @@ public class ConnectionPluginManager {
 
     // add default connection plugin to the tail
 
-    ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(pluginService, this.connectionProvider);
+    ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(pluginService, this.connectionProvider);
     this.plugins.add(defaultPlugin);
   }
 
@@ -283,8 +317,7 @@ public class ConnectionPluginManager {
   }
 
   /**
-   * Release all dangling resources held by the connection plugins associated with a single
-   * connection.
+   * Release all dangling resources held by the connection plugins associated with a single connection.
    */
   public void releaseResources() {
     instances.remove(this);

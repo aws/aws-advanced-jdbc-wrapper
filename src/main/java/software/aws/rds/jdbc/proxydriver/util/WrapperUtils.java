@@ -324,6 +324,27 @@ public class WrapperUtils {
     return instances;
   }
 
+  public static <T> List<T> loadClasses(
+      final List<Class<? extends T>> extensionClassList, final Class<T> resultClass, final String errorMessage)
+      throws InstantiationException {
+
+    List<T> instances = new LinkedList<>();
+    Class<? extends T> lastClass = null;
+
+    try {
+      for (Class<? extends T> extensionClass : extensionClassList) {
+        lastClass = extensionClass;
+        T instance = createInstance(lastClass, resultClass, null);
+        instances.add(instance);
+      }
+
+    } catch (Throwable t) {
+      throw new InstantiationException(String.format(errorMessage, lastClass.getName()));
+    }
+
+    return instances;
+  }
+
   public static <T> T createInstance(
       final Class<?> classToInstantiate,
       final Class<T> resultClass,
