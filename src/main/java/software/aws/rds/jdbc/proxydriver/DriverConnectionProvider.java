@@ -12,8 +12,8 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
- * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
- * returns an instance of PgConnection.
+ * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and returns a connection
+ * provided by a target driver or a data source.
  */
 public class DriverConnectionProvider implements ConnectionProvider {
 
@@ -39,7 +39,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull Properties props)
       throws SQLException {
 
-    final String url = protocol + hostSpec.getUrl();
+    //TODO: define "database" property
+    final String url = protocol + hostSpec.getUrl() + props.getProperty("database");
     return this.driver.connect(url, props);
   }
 

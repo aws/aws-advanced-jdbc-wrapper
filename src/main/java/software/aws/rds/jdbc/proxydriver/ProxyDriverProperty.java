@@ -8,6 +8,7 @@ package software.aws.rds.jdbc.proxydriver;
 
 import java.sql.DriverPropertyInfo;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ProxyDriverProperty extends DriverPropertyInfo {
@@ -38,6 +39,10 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
 
   public @Nullable String get(Properties properties) {
     return properties.getProperty(name, defaultValue);
+  }
+
+  public boolean getBoolean(Properties properties) {
+    return Boolean.parseBoolean(properties.getProperty(name, defaultValue));
   }
 
   public void set(Properties properties, @Nullable String value) {

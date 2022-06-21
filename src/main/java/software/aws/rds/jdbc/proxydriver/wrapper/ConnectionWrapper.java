@@ -24,18 +24,25 @@ import java.sql.Struct;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.ConnectionProvider;
 import software.aws.rds.jdbc.proxydriver.HostListProviderService;
 import software.aws.rds.jdbc.proxydriver.PluginManagerService;
 import software.aws.rds.jdbc.proxydriver.PluginService;
 import software.aws.rds.jdbc.proxydriver.PluginServiceImpl;
+import software.aws.rds.jdbc.proxydriver.PropertyDefinition;
+import software.aws.rds.jdbc.proxydriver.cleanup.CanReleaseResources;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
 
-public class ConnectionWrapper implements Connection {
+public class ConnectionWrapper implements Connection, CanReleaseResources {
+
+  private static final Logger LOGGER = Logger.getLogger(ConnectionWrapper.class.getName());
 
   protected ConnectionPluginManager pluginManager;
   protected PluginService pluginService;
@@ -44,6 +51,8 @@ public class ConnectionWrapper implements Connection {
   protected PluginManagerService pluginManagerService;
   protected String targetDriverProtocol; // TODO: consider moving to PluginService
   protected String originalUrl; // TODO: consider moving to PluginService
+
+  protected @Nullable Throwable openConnectionStacktrace;
 
   public ConnectionWrapper(
       @NonNull Properties props,
@@ -55,11 +64,17 @@ public class ConnectionWrapper implements Connection {
       throw new IllegalArgumentException("url");
     }
 
-    ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider);
-    PluginServiceImpl pluginService =
-        new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
+    this.originalUrl = url;
+    this.targetDriverProtocol = getProtocol(url);
 
-    init(props, url, pluginManager, pluginService, pluginService, pluginService);
+    ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider);
+    PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
+
+    init(props, pluginManager, pluginService, pluginService, pluginService);
+
+    if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
+      this.openConnectionStacktrace = new Throwable("Unclosed connection was instantiated at this point:");
+    }
   }
 
   ConnectionWrapper(
@@ -75,18 +90,15 @@ public class ConnectionWrapper implements Connection {
       throw new IllegalArgumentException("url");
     }
 
-    init(props, url, connectionPluginManager, pluginService, hostListProviderService, pluginManagerService);
+    init(props, connectionPluginManager, pluginService, hostListProviderService, pluginManagerService);
   }
 
   protected void init(
       Properties props,
-      String url,
       ConnectionPluginManager connectionPluginManager,
       PluginService pluginService,
       HostListProviderService hostListProviderService,
       PluginManagerService pluginManagerService) throws SQLException {
-    this.originalUrl = url;
-    this.targetDriverProtocol = getProtocol(url);
     this.pluginManager = connectionPluginManager;
     this.pluginService = pluginService;
     this.hostListProviderService = hostListProviderService;
@@ -96,6 +108,7 @@ public class ConnectionWrapper implements Connection {
 
     this.pluginManager.initHostProvider(
         this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
+    this.pluginService.refreshHostList();
 
     if (this.pluginService.getCurrentConnection() == null) {
       Connection conn =
@@ -117,6 +130,13 @@ public class ConnectionWrapper implements Connection {
           "Url should contains a driver protocol. Protocol is not found in url " + url);
     }
     return url.substring(0, index + 2);
+  }
+
+  public void releaseResources() {
+    this.pluginManager.releaseResources();
+    if (this.pluginService instanceof CanReleaseResources) {
+      ((CanReleaseResources) this.pluginService).releaseResources();
+    }
   }
 
   @Override
@@ -147,7 +167,11 @@ public class ConnectionWrapper implements Connection {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.close",
-        () -> this.pluginService.getCurrentConnection().close());
+        () -> {
+          this.pluginService.getCurrentConnection().close();
+          this.openConnectionStacktrace = null;
+        });
+    this.releaseResources();
   }
 
   @Override
@@ -764,4 +788,21 @@ public class ConnectionWrapper implements Connection {
   public <T> T unwrap(Class<T> iface) throws SQLException {
     return this.pluginService.getCurrentConnection().unwrap(iface);
   }
+
+  @SuppressWarnings("checkstyle:NoFinalizer")
+  protected void finalize() throws Throwable {
+
+    try {
+      if (this.openConnectionStacktrace != null) {
+        LOGGER.log(Level.WARNING, "Finalizing a connection that was never closed.", this.openConnectionStacktrace);
+        this.openConnectionStacktrace = null;
+      }
+
+      this.releaseResources();
+
+    } finally {
+      super.finalize();
+    }
+  }
+
 }

@@ -15,13 +15,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.rds.jdbc.proxydriver.cleanup.CanReleaseResources;
 import software.aws.rds.jdbc.proxydriver.hostlistprovider.ConnectionStringHostListProvider;
 import software.aws.rds.jdbc.proxydriver.hostlistprovider.StaticHostListProvider;
 
-public class PluginServiceImpl implements PluginService, HostListProviderService, PluginManagerService {
+public class PluginServiceImpl implements PluginService, CanReleaseResources, HostListProviderService,
+    PluginManagerService {
+
+  private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
 
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
@@ -217,7 +223,7 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,
-                   @Nullable final List<HostSpec> newHosts) {
+      @Nullable final List<HostSpec> newHosts) {
 
     Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()
@@ -270,5 +276,23 @@ public class PluginServiceImpl implements PluginService, HostListProviderService
   @Override
   public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
     return null;
+  }
+
+  @Override
+  public void releaseResources() {
+    LOGGER.log(Level.FINE, "releasing resources");
+
+    try {
+      if (this.currentConnection != null && !this.currentConnection.isClosed()) {
+        this.currentConnection.close();
+      }
+    } catch (SQLException e) {
+      // Ignore an exception
+    }
+
+    if (this.hostListProvider != null && this.hostListProvider instanceof CanReleaseResources) {
+      CanReleaseResources canReleaseResourcesObject = (CanReleaseResources) this.hostListProvider;
+      canReleaseResourcesObject.releaseResources();
+    }
   }
 }
