@@ -110,9 +110,4 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
     // do nothing
   }
-
-  @Override
-  public void releaseResources() {
-    // do nothing
-  }
 }

@@ -99,9 +99,4 @@ public class TestPluginOne implements ConnectionPlugin {
   public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
     // do nothing
   }
-
-  @Override
-  public void releaseResources() {
-    this.calls.add(this.getClass().getSimpleName());
-  }
 }

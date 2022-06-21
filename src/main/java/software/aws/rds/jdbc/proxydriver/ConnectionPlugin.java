@@ -49,6 +49,4 @@ public interface ConnectionPlugin {
   OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes);
 
   void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes);
-
-  void releaseResources();
 }

@@ -34,6 +34,11 @@ public class PropertyDefinition {
               "OFF", "SEVERE", "WARNING", "INFO", "CONFIG", "FINE", "FINER", "FINEST", "ALL"
           });
 
+  public static final ProxyDriverProperty LOG_UNCLOSED_CONNECTIONS =
+      new ProxyDriverProperty(
+          "proxyDriverLogUnclosedConnections", "false",
+          "Allows the driver to track a point in the code where connection has been opened and never closed after");
+
   private static final Map<String, ProxyDriverProperty> PROPS_BY_NAME =
       new HashMap<String, ProxyDriverProperty>();
 

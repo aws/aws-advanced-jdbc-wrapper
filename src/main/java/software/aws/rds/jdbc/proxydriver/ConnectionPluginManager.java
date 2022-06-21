@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.rds.jdbc.proxydriver.cleanup.CanReleaseResources;
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
@@ -35,7 +36,7 @@ import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
  * <p>THIS CLASS IS NOT MULTI-THREADING SAFE IT'S EXPECTED TO HAVE ONE INSTANCE OF THIS MANAGER PER
  * JDBC CONNECTION
  */
-public class ConnectionPluginManager {
+public class ConnectionPluginManager implements CanReleaseResources {
 
   protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
       new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
@@ -46,11 +47,7 @@ public class ConnectionPluginManager {
 
   protected static final String DEFAULT_PLUGINS = "";
 
-  // TODO: use weak pointers
-  protected static final Queue<ConnectionPluginManager> instances = new ConcurrentLinkedQueue<>();
-
-  private static final transient Logger LOGGER =
-      Logger.getLogger(ConnectionPluginManager.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
   private static final String ALL_METHODS = "*";
   private static final String CONNECT_METHOD = "connect";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
@@ -83,14 +80,6 @@ public class ConnectionPluginManager {
     this.connectionProvider = connectionProvider;
     this.props = props;
     this.plugins = plugins;
-    instances.add(this);
-  }
-
-  /**
-   * Release all dangling resources for all connection plugin managers.
-   */
-  public static void releaseAllResources() {
-    instances.forEach(ConnectionPluginManager::releaseResources);
   }
 
   /**
@@ -107,7 +96,6 @@ public class ConnectionPluginManager {
    */
   public void init(PluginService pluginService, Properties props) throws SQLException {
 
-    instances.add(this);
     this.props = props;
 
     String profileName = PropertyDefinition.PROFILE_NAME.get(props);
@@ -320,13 +308,17 @@ public class ConnectionPluginManager {
    * Release all dangling resources held by the connection plugins associated with a single connection.
    */
   public void releaseResources() {
-    instances.remove(this);
     LOGGER.log(Level.FINE, "releasing resources");
 
     // This step allows all connection plugins a chance to clean up any dangling resources or
     // perform any
     // last tasks before shutting down.
-    this.plugins.forEach(ConnectionPlugin::releaseResources);
+
+    this.plugins.forEach((plugin) -> {
+      if (plugin instanceof CanReleaseResources) {
+        ((CanReleaseResources) plugin).releaseResources();
+      }
+    });
   }
 
   private interface PluginPipeline<T, E extends Exception> {
