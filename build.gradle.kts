@@ -1,12 +1,19 @@
+import org.jdbcProxyDriver.buildtools.JavaCommentPreprocessorTask
+import com.github.vlsi.gradle.properties.dsl.props
+import com.github.vlsi.gradle.dsl.configureEach
+
 plugins {
     java
     checkstyle
     jacoco
     id("com.diffplug.spotless") version "6.7.2"
+    id("com.github.vlsi.gradle-extensions") version "1.82"
+    id("com.github.vlsi.ide") version "1.82"
+    id("com.github.vlsi.stage-vote-release") version "1.82"
 }
 
-group = "org.example"
-version = "1.0-SNAPSHOT"
+val String.v: String get() = rootProject.extra["$this.version"] as String
+val buildVersion = "jdbc-proxy-driver".v + releaseParams.snapshotSuffix
 
 tasks.check {
     dependsOn("jacocoTestCoverageVerification")
@@ -47,6 +54,40 @@ tasks.jacocoTestCoverageVerification {
             limit {
                 // Coverage verification will pass if it is greater than or equal to 1%.
                 minimum = "0.01".toBigDecimal()
+            }
+        }
+    }
+}
+
+val preprocessVersion by tasks.registering(JavaCommentPreprocessorTask::class) {
+    baseDir.set(projectDir)
+    sourceFolders.add("src/main/version/")
+}
+
+ide {
+    generatedJavaSources(
+        preprocessVersion,
+        preprocessVersion.get().outputDirectory.get().asFile,
+        sourceSets.main
+    )
+}
+
+allprojects {
+    version = buildVersion
+
+    tasks {
+        configureEach<JavaCommentPreprocessorTask> {
+            val re = Regex("^(\\d+)\\.(\\d+)(?:\\.(\\d+))?.*")
+
+            val version = project.version.toString()
+            val matchResult = re.find(version) ?: throw GradleException("Unable to parse major.minor.patch version parts from project.version '$version'")
+            val (major, minor, patch) = matchResult.destructured
+
+            variables.apply {
+                put("version", version)
+                put("version.major", major)
+                put("version.minor", minor)
+                put("version.patch", patch.ifBlank { "0" })
             }
         }
     }
