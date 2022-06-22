@@ -7,6 +7,7 @@ plugins {
     checkstyle
     jacoco
     id("com.diffplug.spotless") version "6.7.2"
+    id("com.github.spotbugs") version "5.0.8"
     id("com.github.vlsi.gradle-extensions") version "1.82"
     id("com.github.vlsi.ide") version "1.82"
     id("com.github.vlsi.stage-vote-release") version "1.82"
@@ -45,6 +46,25 @@ spotless {
 
     java {
         googleJavaFormat("1.7")
+    }
+}
+
+spotbugs {
+    ignoreFailures.set(true)
+}
+
+tasks.spotbugsMain {
+    reports.create("html") {
+        required.set(true)
+        outputLocation.set(file("$buildDir/reports/spotbugsMain.html"))
+        setStylesheet("fancy-hist.xsl")
+    }
+}
+tasks.spotbugsTest {
+    reports.create("html") {
+        required.set(true)
+        outputLocation.set(file("$buildDir/reports/spotbugsTest.html"))
+        setStylesheet("fancy-hist.xsl")
     }
 }
 
