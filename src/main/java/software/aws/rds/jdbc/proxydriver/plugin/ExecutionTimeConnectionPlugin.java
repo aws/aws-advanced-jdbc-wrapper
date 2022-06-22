@@ -6,19 +6,18 @@
 
 package software.aws.rds.jdbc.proxydriver.plugin;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.aws.rds.jdbc.proxydriver.ConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
-public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin implements ConnectionPlugin {
+public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
-  private static final transient Logger LOGGER = Logger.getLogger(ExecutionTimeConnectionPlugin.class.getName());
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
+  private static final Logger LOGGER = Logger.getLogger(ExecutionTimeConnectionPlugin.class.getName());
+  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
+      Collections.singletonList("*")));
 
   @Override
   public Set<String> getSubscribedMethods() {

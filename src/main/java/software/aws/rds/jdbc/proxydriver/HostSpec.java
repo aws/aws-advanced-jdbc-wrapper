@@ -13,7 +13,7 @@ import java.util.Set;
 
 public class HostSpec {
 
-  public static final int NO_PORT = 0;
+  public static final int NO_PORT = -1;
 
   protected final String host;
   protected final int port;

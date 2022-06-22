@@ -59,6 +59,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   @Override
   public HostSpec getCurrentHostSpec() {
     if (this.currentHostSpec == null) {
+      if (this.getHosts().isEmpty()) {
+        throw new RuntimeException("Current host list is empty.");
+      }
       this.currentHostSpec = this.getHosts().get(0);
     }
     return this.currentHostSpec;
@@ -205,8 +208,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
     if (this.hostListProvider == null) {
       synchronized (this) {
         if (this.hostListProvider == null) {
-          this.hostListProvider =
-              new ConnectionStringHostListProvider(this.props, this.originalUrl);
+          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);
+          this.currentHostSpec = this.getCurrentHostSpec();
         }
       }
     }
@@ -276,7 +279,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
   @Override
   public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
-    return null;
+    return this.pluginManager.connect(this.driverProtocol, hostSpec, props, this.currentConnection == null);
   }
 
   @Override
