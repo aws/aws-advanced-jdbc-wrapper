@@ -61,7 +61,7 @@ public class StringUtils {
    * @throws IllegalArgumentException if an error occurs
    */
   public static List<String> split(String stringToSplit, String delimiter, boolean trim) {
-    if (stringToSplit == null) {
+    if (stringToSplit == null || "".equals(stringToSplit)) {
       return new ArrayList<>();
     }
 
@@ -74,6 +74,6 @@ public class StringUtils {
     if (trim) {
       tokensStream = tokensStream.map(String::trim);
     }
-    return tokensStream.collect(Collectors.toList());
+    return tokensStream.filter((x) -> x != null && !"".equals(x)).collect(Collectors.toList());
   }
 }
