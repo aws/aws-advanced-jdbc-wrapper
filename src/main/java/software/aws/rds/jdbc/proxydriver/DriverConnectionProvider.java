@@ -40,7 +40,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
       throws SQLException {
 
     //TODO: define "database" property
-    final String url = protocol + hostSpec.getUrl() + props.getProperty("database");
+    final String databaseName = props.getProperty("database") != null ? props.getProperty("database") : "";
+    final String url = protocol + hostSpec.getUrl() + databaseName;
     return this.driver.connect(url, props);
   }
 
