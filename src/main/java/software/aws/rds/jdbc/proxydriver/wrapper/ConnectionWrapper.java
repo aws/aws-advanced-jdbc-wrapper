@@ -104,7 +104,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.hostListProviderService = hostListProviderService;
     this.pluginManagerService = pluginManagerService;
 
-    this.pluginManager.init(this.pluginService, props);
+    this.pluginManager.init(this.pluginService, props, pluginManagerService);
 
     this.pluginManager.initHostProvider(
         this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
@@ -146,7 +146,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.abort",
-        () -> this.pluginService.getCurrentConnection().abort(executor),
+        () -> {
+          this.pluginService.getCurrentConnection().abort(executor);
+          this.pluginManagerService.setInTransaction(false);
+        },
         executor);
   }
 
@@ -170,6 +173,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         () -> {
           this.pluginService.getCurrentConnection().close();
           this.openConnectionStacktrace = null;
+          this.pluginManagerService.setInTransaction(false);
         });
     this.releaseResources();
   }
@@ -181,7 +185,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.commit",
-        () -> this.pluginService.getCurrentConnection().commit());
+        () -> {
+          this.pluginService.getCurrentConnection().commit();
+          this.pluginManagerService.setInTransaction(false);
+        });
   }
 
   @Override
@@ -635,7 +642,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.rollback",
-        () -> this.pluginService.getCurrentConnection().rollback());
+        () -> {
+          this.pluginService.getCurrentConnection().rollback();
+          this.pluginManagerService.setInTransaction(false);
+        });
   }
 
   @Override
@@ -645,7 +655,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.rollback",
-        () -> this.pluginService.getCurrentConnection().rollback(savepoint),
+        () -> {
+          this.pluginService.getCurrentConnection().rollback(savepoint);
+          this.pluginManagerService.setInTransaction(false);
+        },
         savepoint);
   }
 
