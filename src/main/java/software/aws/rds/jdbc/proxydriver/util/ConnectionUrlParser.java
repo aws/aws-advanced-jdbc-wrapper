@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.util;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,7 +17,7 @@ import software.aws.rds.jdbc.proxydriver.HostSpec;
 public class ConnectionUrlParser {
 
   private static final String HOSTS_SEPARATOR = ",";
-  private static final String HOST_PORT_SEPARATOR = ":";
+  static final String HOST_PORT_SEPARATOR = ":";
   static final Pattern CONNECTION_STRING_PATTERN =
       Pattern.compile(
           "(?<protocol>[\\w\\+:%]+)\\s*" // Driver protocol
@@ -36,28 +37,30 @@ public class ConnectionUrlParser {
       Arrays
           .stream(hosts.split(HOSTS_SEPARATOR))
           .forEach(hostString -> {
-            final String[] hostPortPair = hostString.split(HOST_PORT_SEPARATOR, 2);
-            final String host = hostPortPair[0];
-            if (host.isEmpty()) {
+            final HostSpec host = parseHostPortPair(hostString);
+            if (host.getHost().isEmpty()) {
               return;
             }
-            if (hostPortPair.length > 1 && isNumeric(hostPortPair[1])) {
-              hostsList.add(new HostSpec(host, Integer.parseInt(hostPortPair[1])));
-            } else {
-              hostsList.add(new HostSpec(host));
-            }
+            hostsList.add(host);
           });
     }
 
     return hostsList;
   }
 
-  private boolean isNumeric(String num) {
+  HostSpec parseHostPortPair(final String url) {
+    final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
+    if (hostPortPair.length > 1) {
+      return new HostSpec(hostPortPair[0], parsePortAsInt(hostPortPair[1]));
+    }
+    return new HostSpec(hostPortPair[0]);
+  }
+
+  private int parsePortAsInt(String port) {
     try {
-      Integer.parseInt(num);
-      return true;
+      return Integer.parseInt(port);
     } catch (NumberFormatException e) {
-      return false;
+      return HostSpec.NO_PORT;
     }
   }
 }

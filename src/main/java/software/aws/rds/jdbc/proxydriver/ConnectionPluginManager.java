@@ -14,15 +14,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.cleanup.CanReleaseResources;
+import software.aws.rds.jdbc.proxydriver.plugin.AuroraHostListConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
@@ -42,6 +41,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
         {
           put("executionTime", ExecutionTimeConnectionPluginFactory.class);
+          put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
         }
       };
 
