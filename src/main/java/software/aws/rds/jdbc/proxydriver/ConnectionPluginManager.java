@@ -83,18 +83,22 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   /**
-   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link ConnectionPluginFactory}. If {@code
-   * PropertyKey.connectionPluginFactories} is provided by the user, initialize the chain with the given connection
-   * plugins in the order they are specified.
+   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link ConnectionPluginFactory}. If
+   * {@code PropertyKey.connectionPluginFactories} is provided by the user, initialize the chain with the given
+   * connection plugins in the order they are specified.
    *
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService A reference to a plugin service that plugin can use.
-   * @param props         The configuration of the connection.
+   * @param pluginService        A reference to a plugin service that plugin can use.
+   * @param props                The configuration of the connection.
+   * @param pluginManagerService A reference to a plugin manager service.
    * @throws SQLException if errors occurred during the execution.
    */
-  public void init(PluginService pluginService, Properties props) throws SQLException {
+  public void init(
+      PluginService pluginService,
+      Properties props,
+      PluginManagerService pluginManagerService) throws SQLException {
 
     this.props = props;
 
@@ -154,7 +158,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     // add default connection plugin to the tail
 
-    ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(pluginService, this.connectionProvider);
+    ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
+        pluginService,
+        this.connectionProvider,
+        pluginManagerService);
     this.plugins.add(defaultPlugin);
   }
 

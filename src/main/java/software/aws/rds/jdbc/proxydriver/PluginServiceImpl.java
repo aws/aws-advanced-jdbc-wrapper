@@ -101,6 +101,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
         this.currentConnection = connection;
         this.currentHostSpec = hostSpec;
+        this.setInTransaction(false);
 
         EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
             changes, skipNotificationForThisPlugin);
