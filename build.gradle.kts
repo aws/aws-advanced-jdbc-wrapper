@@ -117,6 +117,10 @@ dependencies {
 
     implementation("org.checkerframework:checker-qual:3.22.2")
 
+    testImplementation("org.junit.platform:junit-platform-commons:1.8.2")
+    testImplementation("org.junit.platform:junit-platform-engine:1.8.2")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.8.2")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.8.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
@@ -126,6 +130,14 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
     testImplementation("org.mockito:mockito-inline:4.+")
+    testImplementation("software.amazon.awssdk:rds:2.17.165")
+    testImplementation("software.amazon.awssdk:ec2:2.17.165")
+    testImplementation("org.testcontainers:testcontainers:1.16.2")
+    testImplementation("org.testcontainers:mysql:1.16.2")
+    testImplementation("org.testcontainers:postgresql:1.17.2")
+    testImplementation("org.testcontainers:junit-jupiter:1.16.2")
+    testImplementation("org.testcontainers:toxiproxy:1.16.2")
+    testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
 }
 
 tasks.getByName<Test>("test") {
@@ -147,4 +159,64 @@ tasks.getByName<Test>("test") {
     passProperty("postgresqlDatabase")
 
     systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
+}
+
+// Run integrations tests in container
+// Environment is being configured and started
+tasks.register<Test>("test-integration-aurora-postgres") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.runTestInContainer")
+}
+
+tasks.register<Test>("test-performance-aurora-postgres") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.runPerformanceTestInContainer")
+}
+
+// Run standard Postgres tests in container
+// Environment (like supplementary containers) should be up and running!
+tasks.register<Test>("test-integration-standard-postgres") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.runTestInContainer")
+}
+
+// Run integration tests in container with debugger
+// Environment is being configured and started
+tasks.register<Test>("debug-integration-aurora-postgres") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.debugTestInContainer")
+}
+
+tasks.register<Test>("debug-performance-aurora-postgres") {
+    group = "verification"
+    filter.includeTestsMatching("testsuite.integration.host.AuroraPostgresContainerTest.debugPerformanceTestInContainer")
+}
+
+// Run community tests in container with debugger
+// Environment (like supplementary containers) should be up and running!
+tasks.register<Test>("debug-integration-standard-postgres") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
+}
+
+// Integration tests are run in a specific order.
+// To add more tests, see testsuite.integration.container.aurora.postgres.AuroraPostgresTestSuite.java
+tasks.register<Test>("in-container-aurora-postgres") {
+    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresTestSuite")
+}
+
+tasks.register<Test>("in-container-aurora-postgres-performance") {
+    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresPerformanceTest")
+}
+
+// Run all tests excluding integration tests
+tasks.register<Test>("in-container-standard-postgres") {
+    filter.includeTestsMatching("integration.container.standard.postgres.StandardPostgresTestSuite")
+}
+
+tasks.withType<Test> {
+    this.testLogging {
+        this.showStandardStreams = true
+    }
+    useJUnitPlatform()
 }

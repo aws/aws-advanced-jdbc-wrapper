@@ -16,13 +16,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
 
-  public static final ProxyDriverProperty PLUGINS =
+  public static final ProxyDriverProperty CLUSTER_INSTANCE_HOST_PATTERN =
       new ProxyDriverProperty(
-          "proxyDriverPlugins", null, "Coma separated list of connection plugin codes");
+          "clusterInstanceHostPattern",
+          null,
+          "The cluster instance DNS pattern that will be used to build a complete instance endpoint. "
+              + "A \"?\" character in this pattern should be used as a placeholder for cluster instance names. "
+              + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
+              + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
-  public static final ProxyDriverProperty PROFILE_NAME =
+  public static final ProxyDriverProperty ENABLE_CLUSTER_AWARE_FAILOVER =
       new ProxyDriverProperty(
-          "proxyDriverProfileName", null, "Driver configuration profile name");
+          "enableClusterAwareFailover", "true",
+          "Enable/disable cluster-aware failover logic");
+
+  public static final ProxyDriverProperty LOG_UNCLOSED_CONNECTIONS =
+      new ProxyDriverProperty(
+          "proxyDriverLogUnclosedConnections", "false",
+          "Allows the driver to track a point in the code where connection has been opened and never closed after");
 
   public static final ProxyDriverProperty LOGGER_LEVEL =
       new ProxyDriverProperty(
@@ -30,14 +41,22 @@ public class PropertyDefinition {
           null,
           "Logger level of the driver",
           false,
-          new String[]{
+          new String[] {
               "OFF", "SEVERE", "WARNING", "INFO", "CONFIG", "FINE", "FINER", "FINEST", "ALL"
           });
 
-  public static final ProxyDriverProperty LOG_UNCLOSED_CONNECTIONS =
+  public static final ProxyDriverProperty PLUGINS =
       new ProxyDriverProperty(
-          "proxyDriverLogUnclosedConnections", "false",
-          "Allows the driver to track a point in the code where connection has been opened and never closed after");
+          "proxyDriverPlugins", null, "Comma separated list of connection plugin codes");
+
+  public static final ProxyDriverProperty PROFILE_NAME =
+      new ProxyDriverProperty(
+          "proxyDriverProfileName", null, "Driver configuration profile name");
+
+  public static final ProxyDriverProperty USE_AWS_IAM =
+      new ProxyDriverProperty(
+          "useAwsIam", "false", "Set to true to use AWS IAM database authentication");
+
 
   private static final Map<String, ProxyDriverProperty> PROPS_BY_NAME =
       new HashMap<String, ProxyDriverProperty>();
