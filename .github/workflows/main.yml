@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: 'junit-report'
-          path: ./build/reports/tests/test/
+          path: ./driver-proxy/build/reports/tests/test/
           retention-days: 3
 
       - name: 'Archive Coverage Report'
@@ -47,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: 'coverage-report'
-          path: ./build/reports/jacoco/test/
+          path: ./driver-proxy/build/reports/jacoco/test/
           retention-days: 3
