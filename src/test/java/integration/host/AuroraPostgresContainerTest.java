@@ -186,28 +186,28 @@ public class AuroraPostgresContainerTest {
   public void runTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.runTest(integrationTestContainer, "in-container-aurora");
+    containerHelper.runTest(integrationTestContainer, "in-container-aurora-postgres");
   }
 
   @Test
   public void runPerformanceTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.runTest(integrationTestContainer, "in-container-aurora-performance");
+    containerHelper.runTest(integrationTestContainer, "in-container-aurora-postgres-performance");
   }
 
   @Test
   public void debugTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.debugTest(integrationTestContainer, "in-container-aurora");
+    containerHelper.debugTest(integrationTestContainer, "in-container-aurora-postgres");
   }
 
   @Test
   public void debugPerformanceTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.debugTest(integrationTestContainer, "in-container-aurora-performance");
+    containerHelper.debugTest(integrationTestContainer, "in-container-aurora-postgres-performance");
   }
 
   protected static GenericContainer<?> initializeTestContainer(

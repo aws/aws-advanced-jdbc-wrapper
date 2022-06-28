@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,7 +30,7 @@ public class StandardPostgresContainerTest {
   private static final String POSTGRES_PASSWORD = "";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
 
-  private static final List<String> postgresInstances = List.of(TEST_CONTAINER_NAME);
+  private static final List<String> postgresInstances = Arrays.asList(TEST_CONTAINER_NAME);
   private static PostgreSQLContainer<?> postgresContainer;
   private static GenericContainer<?> integrationTestContainer;
   private static List<ToxiproxyContainer> proxyContainers = new ArrayList<>();

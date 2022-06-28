@@ -115,6 +115,8 @@ public class ContainerHelper {
         .withFileSystemBind("./docs", "/app/docs", BindMode.READ_WRITE)
         .withFileSystemBind("./src", "/app/src", BindMode.READ_WRITE)
         .withFileSystemBind("./gradle", "/app/gradle", BindMode.READ_WRITE)
+        .withFileSystemBind("./buildSrc/src", "/app/buildSrc/src", BindMode.READ_WRITE)
+        .withFileSystemBind("./buildSrc/build.gradle.kts", "/app/buildSrc/build.gradle.kts", BindMode.READ_WRITE)
         .withPrivilegedMode(true) // it's needed to control Linux core settings like TcpKeepAlive
         .withCopyFileToContainer(MountableFile.forHostPath("./gradlew"), "app/gradlew")
         .withCopyFileToContainer(
@@ -196,8 +198,7 @@ public class ContainerHelper {
         .withNetworkAliases(networkAlias)
         .withDatabaseName(testDbName)
         .withPassword(password)
-        .withFileSystemBind(
-            "src/test/config/ssl-test-certs/", "/home/certdir/", BindMode.READ_WRITE)
+        .withFileSystemBind("src/test/config/ssl-test-certs/", "/home/certdir/", BindMode.READ_WRITE)
         .withFileSystemBind("src/test/config/plugins/", "/home/plugin_dir/", BindMode.READ_WRITE)
         .withFileSystemBind(
             "src/test/config/docker-entrypoint-initdb.d",

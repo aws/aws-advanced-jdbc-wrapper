@@ -192,8 +192,6 @@ tasks.register<Test>("debug-performance-aurora-postgres") {
     filter.includeTestsMatching("testsuite.integration.host.AuroraPostgresContainerTest.debugPerformanceTestInContainer")
 }
 
-// Run community tests in container with debugger
-// Environment (like supplementary containers) should be up and running!
 tasks.register<Test>("debug-integration-standard-postgres") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
@@ -209,7 +207,8 @@ tasks.register<Test>("in-container-aurora-postgres-performance") {
     filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresPerformanceTest")
 }
 
-// Run all tests excluding integration tests
+// Integration tests are run in a specific order.
+// To add more tests, see integration.container.standard.postgres.StandardPostgresTestSuite.java
 tasks.register<Test>("in-container-standard-postgres") {
     filter.includeTestsMatching("integration.container.standard.postgres.StandardPostgresTestSuite")
 }

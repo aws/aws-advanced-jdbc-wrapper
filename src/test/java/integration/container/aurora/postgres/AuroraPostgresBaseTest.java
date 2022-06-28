@@ -174,7 +174,13 @@ public abstract class AuroraPostgresBaseTest {
     proxyMap.put(POSTGRES_CLUSTER_URL, proxyCluster);
     proxyMap.put(POSTGRES_RO_CLUSTER_URL, proxyReadOnlyCluster);
 
-    DriverManager.registerDriver(new Driver());
+    if (!org.postgresql.Driver.isRegistered()) {
+      org.postgresql.Driver.register();
+    }
+
+    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
+      software.aws.rds.jdbc.proxydriver.Driver.register();
+    }
   }
 
   protected static Proxy getProxy(ToxiproxyClient proxyClient, String host, int port)
@@ -260,7 +266,7 @@ public abstract class AuroraPostgresBaseTest {
     final String dbConnHostBase =
         DB_CONN_STR_SUFFIX.startsWith(".") ? DB_CONN_STR_SUFFIX.substring(1) : DB_CONN_STR_SUFFIX;
 
-    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + POSTGRES_PORT;
+    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + POSTGRES_PORT + "/" + TEST_DB;
     return this.containerHelper.getAuroraInstanceEndpoints(
         url, TEST_USERNAME, TEST_PASSWORD, dbConnHostBase);
   }
@@ -268,7 +274,7 @@ public abstract class AuroraPostgresBaseTest {
   // Return list of instance Ids.
   // Writer instance goes first.
   protected List<String> getTopologyIds() throws SQLException {
-    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + POSTGRES_PORT;
+    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + POSTGRES_PORT + "/" + TEST_DB;
     return this.containerHelper.getAuroraInstanceIds(url, TEST_USERNAME, TEST_PASSWORD);
   }
 
@@ -305,7 +311,7 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Connection createPooledConnectionWithInstanceId(String instanceID) throws SQLException {
     final BasicDataSource ds = new BasicDataSource();
-    ds.setUrl(DB_CONN_STR_PREFIX + instanceID + DB_CONN_STR_SUFFIX);
+    ds.setUrl(DB_CONN_STR_PREFIX + instanceID + DB_CONN_STR_SUFFIX + "/" + TEST_DB);
     ds.setUsername(TEST_USERNAME);
     ds.setPassword(TEST_PASSWORD);
     ds.setMinIdle(CP_MIN_IDLE);
@@ -331,7 +337,8 @@ public abstract class AuroraPostgresBaseTest {
   protected DBClusterMember getMatchedDBClusterMember(String instanceId) {
     final List<DBClusterMember> matchedMemberList =
         getDBClusterMemberList().stream()
-            .filter(dbClusterMember -> dbClusterMember.dbInstanceIdentifier().equals(instanceId)).toList();
+            .filter(dbClusterMember -> dbClusterMember.dbInstanceIdentifier().equals(instanceId))
+            .collect(Collectors.toList());
     if (matchedMemberList.isEmpty()) {
       throw new RuntimeException(NO_SUCH_CLUSTER_MEMBER + instanceId);
     }
@@ -341,7 +348,7 @@ public abstract class AuroraPostgresBaseTest {
   protected String getDBClusterWriterInstanceId() {
     final List<DBClusterMember> matchedMemberList =
         getDBClusterMemberList().stream()
-            .filter(DBClusterMember::isClusterWriter).toList();
+            .filter(DBClusterMember::isClusterWriter).collect(Collectors.toList());
     if (matchedMemberList.isEmpty()) {
       throw new RuntimeException(NO_WRITER_AVAILABLE);
     }
