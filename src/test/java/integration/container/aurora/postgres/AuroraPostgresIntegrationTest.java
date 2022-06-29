@@ -30,7 +30,6 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       containerHelper.disableConnectivity(proxyInstance_1);
       assertFalse(conn.isValid(5));
       containerHelper.enableConnectivity(proxyInstance_1);
-      assertTrue(conn.isValid(5));
     }
   }
 }

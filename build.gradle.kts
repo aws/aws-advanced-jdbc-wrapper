@@ -116,7 +116,9 @@ allprojects {
 dependencies {
 
     implementation("org.checkerframework:checker-qual:3.22.2")
+    implementation("org.slf4j:slf4j-api:1.7.30")
 
+    testImplementation("ch.qos.logback:logback-classic:0.9.26")
     testImplementation("org.junit.platform:junit-platform-commons:1.8.2")
     testImplementation("org.junit.platform:junit-platform-engine:1.8.2")
     testImplementation("org.junit.platform:junit-platform-launcher:1.8.2")
