@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
@@ -68,6 +69,7 @@ public class WrapperUtils {
       new ConcurrentHashMap<>();
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
+  private static final ReentrantLock lock = new ReentrantLock();
 
   private static final Map<Class<?>, Class<?>> availableWrappers =
       new HashMap<Class<?>, Class<?>>() {
@@ -95,7 +97,7 @@ public class WrapperUtils {
       };
 
   // TODO: choose a better name to distinguish runWithPlugins and executeWithPlugins
-  public static synchronized void runWithPlugins(
+  public static void runWithPlugins(
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
       final String methodName,
@@ -115,8 +117,7 @@ public class WrapperUtils {
         jdbcMethodArgs);
   }
 
-  // TODO: think about synchronized in this class; they might need to be moved to wrapper classes
-  public static synchronized <E extends Exception> void runWithPlugins(
+  public static <E extends Exception> void runWithPlugins(
       final Class<E> exceptionClass,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
@@ -138,7 +139,7 @@ public class WrapperUtils {
         jdbcMethodArgs);
   }
 
-  public static synchronized <T> T executeWithPlugins(
+  public static <T> T executeWithPlugins(
       final Class<T> resultClass,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
@@ -148,6 +149,8 @@ public class WrapperUtils {
 
     Object[] argsCopy =
         jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
+
+    lock.lock();
 
     T result =
         pluginManager.execute(
@@ -162,10 +165,12 @@ public class WrapperUtils {
       return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
     } catch (InstantiationException e) {
       throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
     }
   }
 
-  public static synchronized <T, E extends Exception> T executeWithPlugins(
+  public static <T, E extends Exception> T executeWithPlugins(
       final Class<T> resultClass,
       final Class<E> exceptionClass,
       final ConnectionPluginManager pluginManager,
@@ -178,6 +183,8 @@ public class WrapperUtils {
     Object[] argsCopy =
         jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
+    lock.lock();
+
     T result =
         pluginManager.execute(
             resultClass, exceptionClass, methodInvokeOn, methodName, jdbcMethodFunc, argsCopy);
@@ -186,6 +193,8 @@ public class WrapperUtils {
       return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
     } catch (InstantiationException e) {
       throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
     }
   }
 

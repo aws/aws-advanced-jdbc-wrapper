@@ -6,7 +6,6 @@
 
 package software.aws.rds.jdbc.proxydriver.util;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
