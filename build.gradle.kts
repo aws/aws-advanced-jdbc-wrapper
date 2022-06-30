@@ -134,11 +134,11 @@ dependencies {
     testImplementation("org.mockito:mockito-inline:4.+")
     testImplementation("software.amazon.awssdk:rds:2.17.165")
     testImplementation("software.amazon.awssdk:ec2:2.17.165")
-    testImplementation("org.testcontainers:testcontainers:1.16.2")
-    testImplementation("org.testcontainers:mysql:1.16.2")
+    testImplementation("org.testcontainers:testcontainers:1.17.2")
+    testImplementation("org.testcontainers:mysql:1.17.2")
     testImplementation("org.testcontainers:postgresql:1.17.2")
-    testImplementation("org.testcontainers:junit-jupiter:1.16.2")
-    testImplementation("org.testcontainers:toxiproxy:1.16.2")
+    testImplementation("org.testcontainers:junit-jupiter:1.17.2")
+    testImplementation("org.testcontainers:toxiproxy:1.17.2")
     testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
 }
 
