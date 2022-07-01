@@ -40,23 +40,25 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
  */
 public class AuroraPostgresContainerTest {
 
-  private static final int POSTGRES_PORT = 5432;
-  private static final String TEST_CONTAINER_NAME = "test-container";
+  private static final int AURORA_POSTGRES_PORT = 5432;
+  private static final String AURORA_POSTGRES_TEST_CONTAINER_NAME = "aurora-postgres-test-container";
 
-  private static final String TEST_USERNAME =
-      !StringUtils.isNullOrEmpty(System.getenv("TEST_USERNAME"))
-          ? System.getenv("TEST_USERNAME")
+  private static final String AURORA_POSTGRES_TEST_USERNAME =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_USERNAME"))
+          ? System.getenv("AURORA_POSTGRES_TEST_USERNAME")
           : "my_test_username";
-  private static final String TEST_DB_USER =
-      !StringUtils.isNullOrEmpty(System.getenv("TEST_DB_USER"))
-          ? System.getenv("TEST_DB_USER")
+  private static final String AURORA_POSTGRES_TEST_USER =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_USER"))
+          ? System.getenv("AURORA_POSTGRES_TEST_USER")
           : "jane_doe";
-  private static final String TEST_PASSWORD =
-      !StringUtils.isNullOrEmpty(System.getenv("TEST_PASSWORD"))
-          ? System.getenv("TEST_PASSWORD")
+  private static final String AURORA_POSTGRES_TEST_PASSWORD =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_PASSWORD"))
+          ? System.getenv("AURORA_POSTGRES_TEST_PASSWORD")
           : "my_test_password";
-  protected static final String TEST_DB =
-      !StringUtils.isNullOrEmpty(System.getenv("TEST_DB")) ? System.getenv("TEST_DB") : "test";
+  protected static final String AURORA_POSTGRES_TEST_DB =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_DB"))
+          ? System.getenv("AURORA_POSTGRES_TEST_DB")
+          : "test";
 
   private static final String AWS_ACCESS_KEY_ID = System.getenv("AWS_ACCESS_KEY_ID");
   private static final String AWS_SECRET_ACCESS_KEY = System.getenv("AWS_SECRET_ACCESS_KEY");
@@ -100,7 +102,7 @@ public class AuroraPostgresContainerTest {
     // i.e. For "database-cluster-name.XYZ.us-east-2.rds.amazonaws.com"
     // dbConnStrSuffix = "XYZ.us-east-2.rds.amazonaws.com"
     dbConnStrSuffix =
-        auroraUtil.createCluster(TEST_USERNAME, TEST_PASSWORD, TEST_DB, TEST_DB_CLUSTER_IDENTIFIER);
+        auroraUtil.createCluster(AURORA_POSTGRES_TEST_USERNAME, AURORA_POSTGRES_TEST_PASSWORD, AURORA_POSTGRES_TEST_DB, TEST_DB_CLUSTER_IDENTIFIER);
 
     // Comment out getting public IP to not add & remove from EC2 whitelist
     runnerIP = auroraUtil.getPublicIPAddress();
@@ -118,17 +120,17 @@ public class AuroraPostgresContainerTest {
     }
 
     containerHelper.addAuroraAwsIamUser(
-        DB_CONN_STR_PREFIX + dbHostCluster + "/" + TEST_DB + DB_CONN_PROP,
-        TEST_USERNAME,
-        TEST_PASSWORD,
-        TEST_DB_USER);
+        DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_POSTGRES_TEST_DB + DB_CONN_PROP,
+        AURORA_POSTGRES_TEST_USERNAME,
+        AURORA_POSTGRES_TEST_PASSWORD,
+        AURORA_POSTGRES_TEST_USER);
 
     network = Network.newNetwork();
     postgresInstances =
         containerHelper.getAuroraInstanceEndpoints(
-            DB_CONN_STR_PREFIX + dbHostCluster + "/" + TEST_DB + DB_CONN_PROP,
-            TEST_USERNAME,
-            TEST_PASSWORD,
+            DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_POSTGRES_TEST_DB + DB_CONN_PROP,
+            AURORA_POSTGRES_TEST_USERNAME,
+            AURORA_POSTGRES_TEST_PASSWORD,
             dbConnStrSuffix);
     proxyContainers =
         containerHelper.createProxyContainers(
@@ -138,7 +140,7 @@ public class AuroraPostgresContainerTest {
     }
     postgresProxyPort =
         containerHelper.createInstanceProxies(
-            postgresInstances, proxyContainers, POSTGRES_PORT);
+            postgresInstances, proxyContainers, AURORA_POSTGRES_PORT);
 
     proxyContainers.add(
         containerHelper.createAndStartProxyContainer(
@@ -146,7 +148,7 @@ public class AuroraPostgresContainerTest {
             "toxiproxy-instance-cluster",
             dbHostCluster + PROXIED_DOMAIN_NAME_SUFFIX,
             dbHostCluster,
-            POSTGRES_PORT,
+            AURORA_POSTGRES_PORT,
             postgresProxyPort));
 
     proxyContainers.add(
@@ -155,7 +157,7 @@ public class AuroraPostgresContainerTest {
             "toxiproxy-ro-instance-cluster",
             dbHostClusterRo + PROXIED_DOMAIN_NAME_SUFFIX,
             dbHostClusterRo,
-            POSTGRES_PORT,
+            AURORA_POSTGRES_PORT,
             postgresProxyPort));
 
     integrationTestContainer = initializeTestContainer(network, postgresInstances);
@@ -216,12 +218,12 @@ public class AuroraPostgresContainerTest {
     final GenericContainer<?> container =
         containerHelper
             .createTestContainer("aws/rds-test-container")
-            .withNetworkAliases(TEST_CONTAINER_NAME)
+            .withNetworkAliases(AURORA_POSTGRES_TEST_CONTAINER_NAME)
             .withNetwork(network)
-            .withEnv("TEST_USERNAME", TEST_USERNAME)
-            .withEnv("TEST_DB_USER", TEST_DB_USER)
-            .withEnv("TEST_PASSWORD", TEST_PASSWORD)
-            .withEnv("TEST_DB", TEST_DB)
+            .withEnv("TEST_USERNAME", AURORA_POSTGRES_TEST_USERNAME)
+            .withEnv("TEST_DB_USER", AURORA_POSTGRES_TEST_USER)
+            .withEnv("TEST_PASSWORD", AURORA_POSTGRES_TEST_PASSWORD)
+            .withEnv("TEST_DB", AURORA_POSTGRES_TEST_DB)
             .withEnv("DB_REGION", TEST_DB_REGION)
             .withEnv("DB_CLUSTER_CONN", dbHostCluster)
             .withEnv("DB_RO_CLUSTER_CONN", dbHostClusterRo)
@@ -243,7 +245,7 @@ public class AuroraPostgresContainerTest {
       container.addEnv(
           "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS", "toxiproxy-instance-" + (i + 1));
     }
-    container.addEnv("POSTGRES_PORT", Integer.toString(POSTGRES_PORT));
+    container.addEnv("POSTGRES_PORT", Integer.toString(AURORA_POSTGRES_PORT));
     container.addEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX);
     container.addEnv("POSTGRES_PROXY_PORT", Integer.toString(postgresProxyPort));
 

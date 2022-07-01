@@ -24,13 +24,10 @@ import software.aws.rds.jdbc.proxydriver.Driver;
 public class StandardPostgresBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:postgresql://";
   protected static final String TEST_HOST = System.getenv("TEST_HOST");
-  protected static final String TEST_PORT = "5432";
-//  protected static final String TEST_PORT = System.getenv("TEST_PORT");
+  protected static final String TEST_PORT = System.getenv("TEST_PORT");
   protected static final String TEST_DB = System.getenv("TEST_DB");
-  protected static final String TEST_USERNAME = "test";
-//  protected static final String TEST_USERNAME = System.getenv("TEST_USERNAME");
-  protected static final String TEST_PASSWORD = "root";
-//  protected static final String TEST_PASSWORD = System.getenv("TEST_PASSWORD");
+  protected static final String TEST_USERNAME = System.getenv("TEST_USERNAME");
+  protected static final String TEST_PASSWORD = System.getenv("TEST_PASSWORD");
 
   protected static final String TOXIPROXY_HOST = System.getenv("TOXIPROXY_HOST");
   protected static ToxiproxyClient toxiproxyClient;
