@@ -68,13 +68,13 @@ public class AuroraPostgresContainerTest {
   private static String dbConnStrSuffix = "";
   private static final String DB_CONN_PROP = "?enabledTLSProtocols=TLSv1.2";
 
-  private static final String TEST_DB_REGION =
-      !StringUtils.isNullOrEmpty(System.getenv("TEST_DB_REGION"))
-          ? System.getenv("TEST_DB_REGION")
+  private static final String AURORA_POSTGRES_DB_REGION =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB_REGION"))
+          ? System.getenv("AURORA_POSTGRES_DB_REGION")
           : "us-east-2";
-  private static final String TEST_DB_CLUSTER_IDENTIFIER =
-      !StringUtils.isNullOrEmpty(System.getenv("TEST_DB_CLUSTER_IDENTIFIER"))
-          ? System.getenv("TEST_DB_CLUSTER_IDENTIFIER")
+  private static final String AURORA_POSTGRES_CLUSTER_IDENTIFIER =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER"))
+          ? System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER")
           : "test-identifier";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static List<ToxiproxyContainer> proxyContainers = new ArrayList<>();
@@ -89,7 +89,7 @@ public class AuroraPostgresContainerTest {
   private static Network network;
 
   private static final ContainerHelper containerHelper = new ContainerHelper();
-  private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(TEST_DB_REGION);
+  private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
 
   @BeforeAll
   static void setUp() throws SQLException, InterruptedException, UnknownHostException {
@@ -103,14 +103,14 @@ public class AuroraPostgresContainerTest {
     // dbConnStrSuffix = "XYZ.us-east-2.rds.amazonaws.com"
     dbConnStrSuffix =
         auroraUtil.createCluster(AURORA_POSTGRES_TEST_USERNAME, AURORA_POSTGRES_TEST_PASSWORD, AURORA_POSTGRES_TEST_DB,
-            TEST_DB_CLUSTER_IDENTIFIER);
+            AURORA_POSTGRES_CLUSTER_IDENTIFIER);
 
     // Comment out getting public IP to not add & remove from EC2 whitelist
     runnerIP = auroraUtil.getPublicIPAddress();
     auroraUtil.ec2AuthorizeIP(runnerIP);
 
-    dbHostCluster = TEST_DB_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
-    dbHostClusterRo = TEST_DB_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;
+    dbHostCluster = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
+    dbHostClusterRo = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;
 
     if (!org.postgresql.Driver.isRegistered()) {
       org.postgresql.Driver.register();
@@ -167,10 +167,10 @@ public class AuroraPostgresContainerTest {
   @AfterAll
   static void tearDown() {
     // Comment below out if you don't want to delete cluster after tests finishes
-    if (StringUtils.isNullOrEmpty(TEST_DB_CLUSTER_IDENTIFIER)) {
+    if (StringUtils.isNullOrEmpty(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
       auroraUtil.deleteCluster();
     } else {
-      auroraUtil.deleteCluster(TEST_DB_CLUSTER_IDENTIFIER);
+      auroraUtil.deleteCluster(AURORA_POSTGRES_CLUSTER_IDENTIFIER);
     }
 
     auroraUtil.ec2DeauthorizesIP(runnerIP);
@@ -220,7 +220,7 @@ public class AuroraPostgresContainerTest {
             .withEnv("TEST_DB_USER", AURORA_POSTGRES_TEST_USER)
             .withEnv("TEST_PASSWORD", AURORA_POSTGRES_TEST_PASSWORD)
             .withEnv("TEST_DB", AURORA_POSTGRES_TEST_DB)
-            .withEnv("DB_REGION", TEST_DB_REGION)
+            .withEnv("DB_REGION", AURORA_POSTGRES_DB_REGION)
             .withEnv("DB_CLUSTER_CONN", dbHostCluster)
             .withEnv("DB_RO_CLUSTER_CONN", dbHostClusterRo)
             .withEnv("TOXIPROXY_CLUSTER_NETWORK_ALIAS", "toxiproxy-instance-cluster")
