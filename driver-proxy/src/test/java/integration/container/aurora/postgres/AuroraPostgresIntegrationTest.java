@@ -21,7 +21,8 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
   @Test
   public void test_connect() throws SQLException, IOException {
-    try (final Connection conn = connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+    try (final Connection conn = connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX,
+        POSTGRES_PROXY_PORT)) {
       Statement stmt = conn.createStatement();
       ResultSet rs = stmt.executeQuery("SELECT 1");
       rs.next();

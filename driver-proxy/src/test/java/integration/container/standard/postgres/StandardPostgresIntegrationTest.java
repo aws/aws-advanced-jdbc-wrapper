@@ -17,7 +17,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import org.junit.jupiter.api.Test;
 
-public class PostgresIntegrationTest extends StandardPostgresBaseTest {
+public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
 
   @Test
   public void test_connect() throws SQLException, IOException {

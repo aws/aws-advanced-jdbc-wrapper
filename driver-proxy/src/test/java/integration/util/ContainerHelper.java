@@ -47,7 +47,7 @@ import org.testcontainers.utility.TestEnvironment;
 public class ContainerHelper {
   private static final String TEST_CONTAINER_IMAGE_NAME = "openjdk:8-jdk-alpine";
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.28";
-  private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:14.4";
+  private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 
@@ -80,14 +80,14 @@ public class ContainerHelper {
 
   public GenericContainer<?> createTestContainer(
       String dockerImageName, String testContainerImageName) {
-    class FixedExposedPortContainer<SELF extends GenericContainer<SELF>>
-        extends GenericContainer<SELF> {
+    class FixedExposedPortContainer<T extends GenericContainer<T>>
+        extends GenericContainer<T> {
 
       public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
         super(withDockerfileFromBuilder);
       }
 
-      public SELF withFixedExposedPort(int hostPort, int containerPort) {
+      public T withFixedExposedPort(int hostPort, int containerPort) {
         super.addFixedExposedPort(hostPort, containerPort, InternetProtocol.TCP);
 
         return self();
@@ -95,16 +95,16 @@ public class ContainerHelper {
     }
 
     return new FixedExposedPortContainer<>(
-            new ImageFromDockerfile(dockerImageName, true)
-                .withDockerfileFromBuilder(
-                    builder ->
-                        builder
-                            .from(testContainerImageName)
-                            .run("mkdir", "app")
-                            .workDir("/app")
-                            .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
-                            .expose(5005) // Exposing ports for debugger to be attached
-                            .build()))
+        new ImageFromDockerfile(dockerImageName, true)
+            .withDockerfileFromBuilder(
+                builder ->
+                    builder
+                        .from(testContainerImageName)
+                        .run("mkdir", "app")
+                        .workDir("/app")
+                        .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
+                        .expose(5005) // Exposing ports for debugger to be attached
+                        .build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind("./.git", "/app/.git", BindMode.READ_WRITE)
         .withFileSystemBind(
@@ -262,7 +262,7 @@ public class ContainerHelper {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-        final Statement stmt = conn.createStatement()) {
+         final Statement stmt = conn.createStatement()) {
       // Get instances
       try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
         while (resultSet.next()) {
@@ -281,7 +281,7 @@ public class ContainerHelper {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-        final Statement stmt = conn.createStatement()) {
+         final Statement stmt = conn.createStatement()) {
       // Get instances
       try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
         while (resultSet.next()) {
@@ -302,7 +302,7 @@ public class ContainerHelper {
     final String createAwsIamUserSQL =
         "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-        final Statement stmt = conn.createStatement()) {
+         final Statement stmt = conn.createStatement()) {
       stmt.execute(dropAwsIamUserSQL);
       stmt.execute(createAwsIamUserSQL);
     }
@@ -322,6 +322,14 @@ public class ContainerHelper {
     return containers;
   }
 
+  public ToxiproxyContainer createProxyContainer(
+      final Network network, String hostEndpoint, String proxyDomainNameSuffix) {
+    return new ToxiproxyContainer(TOXIPROXY_IMAGE)
+        .withNetwork(network)
+        .withNetworkAliases(
+            "toxiproxy-instance", hostEndpoint + proxyDomainNameSuffix);
+  }
+
   // return db cluster instance proxy port
   public int createInstanceProxies(
       List<String> clusterInstances, List<ToxiproxyContainer> containers, int port) {
@@ -335,6 +343,11 @@ public class ContainerHelper {
     }
     assertEquals(1, proxyPorts.size(), "DB cluster proxies should be on the same port.");
     return proxyPorts.stream().findFirst().orElse(0);
+  }
+
+  public int createInstanceProxy(String hostEndpoint, ToxiproxyContainer container, int port) {
+    ToxiproxyContainer.ContainerProxy proxy = container.getProxy(hostEndpoint, port);
+    return proxy.getOriginalProxyPort();
   }
 
   // It works for Linux containers only!
@@ -369,7 +382,9 @@ public class ContainerHelper {
     return 1;
   }
 
-  /** Stops all traffic to and from server. */
+  /**
+   * Stops all traffic to and from server.
+   */
   public void disableConnectivity(Proxy proxy) throws IOException {
     proxy
         .toxics()
@@ -380,7 +395,9 @@ public class ContainerHelper {
         .bandwidth("UP-STREAM", ToxicDirection.UPSTREAM, 0); // from driver towards database server
   }
 
-  /** Allow traffic to and from server. */
+  /**
+   * Allow traffic to and from server.
+   */
   public void enableConnectivity(Proxy proxy) {
     try {
       proxy.toxics().get("DOWN-STREAM").remove();

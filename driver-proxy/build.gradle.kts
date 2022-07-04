@@ -19,9 +19,6 @@ plugins {
 dependencies {
     implementation("org.checkerframework:checker-qual:3.22.2")
 
-    testImplementation("org.slf4j:slf4j-api:1.7.30")
-    testImplementation("ch.qos.logback:logback-classic:0.9.26")
-
     testImplementation("org.junit.platform:junit-platform-commons:1.8.2")
     testImplementation("org.junit.platform:junit-platform-engine:1.8.2")
     testImplementation("org.junit.platform:junit-platform-launcher:1.8.2")
@@ -37,11 +34,11 @@ dependencies {
     testImplementation("org.mockito:mockito-inline:4.+")
     testImplementation("software.amazon.awssdk:rds:2.17.165")
     testImplementation("software.amazon.awssdk:ec2:2.17.165")
-    testImplementation("org.testcontainers:testcontainers:1.17.2")
-    testImplementation("org.testcontainers:mysql:1.17.2")
-    testImplementation("org.testcontainers:postgresql:1.17.2")
-    testImplementation("org.testcontainers:junit-jupiter:1.17.2")
-    testImplementation("org.testcontainers:toxiproxy:1.17.2")
+    testImplementation("org.testcontainers:testcontainers:1.17.+")
+    testImplementation("org.testcontainers:mysql:1.17.+")
+    testImplementation("org.testcontainers:postgresql:1.17.+")
+    testImplementation("org.testcontainers:junit-jupiter:1.17.+")
+    testImplementation("org.testcontainers:toxiproxy:1.17.+")
 }
 
 tasks.check {

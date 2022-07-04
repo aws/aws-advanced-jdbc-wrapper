@@ -41,7 +41,7 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 public class AuroraPostgresContainerTest {
 
   private static final int AURORA_POSTGRES_PORT = 5432;
-  private static final String AURORA_POSTGRES_TEST_CONTAINER_NAME = "aurora-postgres-test-container";
+  private static final String AURORA_POSTGRES_TEST_HOST_NAME = "aurora-postgres-test-host";
 
   private static final String AURORA_POSTGRES_TEST_USERNAME =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_USERNAME"))
@@ -102,7 +102,8 @@ public class AuroraPostgresContainerTest {
     // i.e. For "database-cluster-name.XYZ.us-east-2.rds.amazonaws.com"
     // dbConnStrSuffix = "XYZ.us-east-2.rds.amazonaws.com"
     dbConnStrSuffix =
-        auroraUtil.createCluster(AURORA_POSTGRES_TEST_USERNAME, AURORA_POSTGRES_TEST_PASSWORD, AURORA_POSTGRES_TEST_DB, TEST_DB_CLUSTER_IDENTIFIER);
+        auroraUtil.createCluster(AURORA_POSTGRES_TEST_USERNAME, AURORA_POSTGRES_TEST_PASSWORD, AURORA_POSTGRES_TEST_DB,
+            TEST_DB_CLUSTER_IDENTIFIER);
 
     // Comment out getting public IP to not add & remove from EC2 whitelist
     runnerIP = auroraUtil.getPublicIPAddress();
@@ -162,7 +163,7 @@ public class AuroraPostgresContainerTest {
 
     integrationTestContainer = initializeTestContainer(network, postgresInstances);
     try {
-      integrationTestContainer.execInContainer("dos2unix", "gradlew");
+      integrationTestContainer.execInContainer("gradlew");
     } catch (InterruptedException | UnsupportedOperationException | IOException e) {
       fail("Integration test container initialised incorrectly");
     }
@@ -218,7 +219,7 @@ public class AuroraPostgresContainerTest {
     final GenericContainer<?> container =
         containerHelper
             .createTestContainer("aws/rds-test-container")
-            .withNetworkAliases(AURORA_POSTGRES_TEST_CONTAINER_NAME)
+            .withNetworkAliases(AURORA_POSTGRES_TEST_HOST_NAME)
             .withNetwork(network)
             .withEnv("TEST_USERNAME", AURORA_POSTGRES_TEST_USERNAME)
             .withEnv("TEST_DB_USER", AURORA_POSTGRES_TEST_USER)
