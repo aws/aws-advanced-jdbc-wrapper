@@ -59,12 +59,6 @@ public class StandardPostgresContainerTest {
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();
-
-    try {
-      integrationTestContainer.execInContainer("gradlew");
-    } catch (InterruptedException | UnsupportedOperationException | IOException e) {
-      fail("Standard Postgres integration test container initialised incorrectly");
-    }
   }
 
   @AfterAll

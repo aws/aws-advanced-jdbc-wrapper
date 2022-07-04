@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build-driver:
-    name: 'Run Tests'
+    name: 'Run Basic Tests'
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone Repository'
@@ -29,7 +29,7 @@ jobs:
           java-version: 8
 
       - name: 'Run all checks'
-        run: ./gradlew check
+        run: ./gradlew test-integration-basic
 
       - name: 'Generate code coverage report'
         run: ./gradlew jacocoTestReport
@@ -49,6 +49,7 @@ jobs:
           name: 'coverage-report'
           path: ./driver-proxy/build/reports/jacoco/test/
           retention-days: 3
+
 #  aurora-postgres-integration-tests:
 #    concurrency: IntegrationTests
 #    name: 'Run Aurora Postgres Integration Tests'
@@ -115,9 +116,9 @@ jobs:
       - name: 'Run Integration Tests'
         run: |
           ./gradlew --no-parallel --no-daemon test-integration-standard-postgres
-        env:
-          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+#        env:
+#          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+#          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
       - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@v2

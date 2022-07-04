@@ -27,6 +27,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
+    testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
     testImplementation("org.postgresql:postgresql:42.+")
     testImplementation("mysql:mysql-connector-java:8.0.+")
     testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
@@ -134,8 +135,14 @@ tasks.getByName<Test>("test") {
     systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
 }
 
-// Run integrations tests in container
-// Environment is being configured and started
+// Run basic integration tests
+tasks.register<Test>("test-integration-basic") {
+    group = "verification"
+    filter.excludeTestsMatching("integration.host.*")
+    filter.excludeTestsMatching("integration.container.*")
+}
+
+// Run Aurora Postgres integrations tests in container
 tasks.register<Test>("test-integration-aurora-postgres") {
     group = "verification"
     filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.runTestInContainer")
@@ -147,14 +154,12 @@ tasks.register<Test>("test-performance-aurora-postgres") {
 }
 
 // Run standard Postgres tests in container
-// Environment (like supplementary containers) should be up and running!
 tasks.register<Test>("test-integration-standard-postgres") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.runTestInContainer")
 }
 
-// Run integration tests in container with debugger
-// Environment is being configured and started
+// Run Aurora Postgres integration tests in container with debugger
 tasks.register<Test>("debug-integration-aurora-postgres") {
     group = "verification"
     filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.debugTestInContainer")
@@ -165,13 +170,14 @@ tasks.register<Test>("debug-performance-aurora-postgres") {
     filter.includeTestsMatching("testsuite.integration.host.AuroraPostgresContainerTest.debugPerformanceTestInContainer")
 }
 
+// Run standard Postgres integration tests in container with debugger
 tasks.register<Test>("debug-integration-standard-postgres") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
 }
 
 // Integration tests are run in a specific order.
-// To add more tests, see testsuite.integration.container.aurora.postgres.AuroraPostgresTestSuite.java
+// To add more tests, see integration.container.aurora.postgres.AuroraPostgresTestSuite.java
 tasks.register<Test>("in-container-aurora-postgres") {
     filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresTestSuite")
 }

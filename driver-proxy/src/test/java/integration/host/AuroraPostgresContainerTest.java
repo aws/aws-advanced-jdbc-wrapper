@@ -162,11 +162,6 @@ public class AuroraPostgresContainerTest {
             postgresProxyPort));
 
     integrationTestContainer = initializeTestContainer(network, postgresInstances);
-    try {
-      integrationTestContainer.execInContainer("gradlew");
-    } catch (InterruptedException | UnsupportedOperationException | IOException e) {
-      fail("Integration test container initialised incorrectly");
-    }
   }
 
   @AfterAll
