@@ -110,7 +110,6 @@ public class ContainerHelper {
             "./build/reports/tests",
             "/app/driver-proxy/build/reports/tests",
             BindMode.READ_WRITE) // some tests may write some files here
-        .withFileSystemBind("../config", "/app/config", BindMode.READ_WRITE)
         .withFileSystemBind("./src", "/app/driver-proxy/src", BindMode.READ_WRITE)
         .withFileSystemBind("../gradle", "/app/gradle", BindMode.READ_WRITE)
         .withFileSystemBind("../buildSrc/src", "/app/buildSrc/src", BindMode.READ_WRITE)
