@@ -106,23 +106,28 @@ public class ContainerHelper {
                         .expose(5005) // Exposing ports for debugger to be attached
                         .build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
-        .withFileSystemBind("./.git", "/app/.git", BindMode.READ_WRITE)
         .withFileSystemBind(
             "./build/reports/tests",
-            "/app/build/reports/tests",
+            "/app/driver-proxy/build/reports/tests",
             BindMode.READ_WRITE) // some tests may write some files here
-        .withFileSystemBind("./config", "/app/config", BindMode.READ_WRITE)
-        .withFileSystemBind("./docs", "/app/docs", BindMode.READ_WRITE)
-        .withFileSystemBind("./src", "/app/src", BindMode.READ_WRITE)
-        .withFileSystemBind("./gradle", "/app/gradle", BindMode.READ_WRITE)
-        .withFileSystemBind("./buildSrc/src", "/app/buildSrc/src", BindMode.READ_WRITE)
-        .withFileSystemBind("./buildSrc/build.gradle.kts", "/app/buildSrc/build.gradle.kts", BindMode.READ_WRITE)
+        .withFileSystemBind("../config", "/app/config", BindMode.READ_WRITE)
+        .withFileSystemBind("./src", "/app/driver-proxy/src", BindMode.READ_WRITE)
+        .withFileSystemBind("../gradle", "/app/gradle", BindMode.READ_WRITE)
+        .withFileSystemBind("../buildSrc/src", "/app/buildSrc/src", BindMode.READ_WRITE)
         .withPrivilegedMode(true) // it's needed to control Linux core settings like TcpKeepAlive
-        .withCopyFileToContainer(MountableFile.forHostPath("./gradlew"), "app/gradlew")
+        .withCopyFileToContainer(MountableFile.forHostPath("../gradlew"), "app/gradlew")
         .withCopyFileToContainer(
-            MountableFile.forHostPath("./gradle.properties"), "app/gradle.properties")
+            MountableFile.forHostPath("../buildSrc/build.gradle.kts"), "/app/buildSrc/build.gradle.kts")
         .withCopyFileToContainer(
-            MountableFile.forHostPath("./build.gradle.kts"), "app/build.gradle.kts");
+            MountableFile.forHostPath("../gradle.properties"), "app/gradle.properties")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("../build.gradle.kts"), "app/build.gradle.kts")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("../settings.gradle.kts"), "app/settings.gradle.kts")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./gradle.properties"), "app/driver-proxy/gradle.properties")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./build.gradle.kts"), "app/driver-proxy/build.gradle.kts");
   }
 
   protected Long execInContainer(

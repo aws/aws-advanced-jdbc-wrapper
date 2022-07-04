@@ -59,6 +59,12 @@ public class StandardPostgresContainerTest {
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();
+
+    try {
+      integrationTestContainer.execInContainer("dos2unix", "gradlew");
+    } catch (InterruptedException | UnsupportedOperationException | IOException e) {
+      fail("Integration test container initialised incorrectly");
+    }
   }
 
   @AfterAll
@@ -86,7 +92,7 @@ public class StandardPostgresContainerTest {
     return containerHelper.createTestContainer("aws/rds-test-container")
         .withNetworkAliases(STANDARD_POSTGRES_TEST_HOST_NAME)
         .withNetwork(network)
-        .withEnv("TEST_HOST", STANDARD_POSTGRES_TEST_HOST_NAME)
+        .withEnv("TEST_HOST", STANDARD_POSTGRES_CONTAINER_NAME)
         .withEnv("TEST_PORT", String.valueOf(STANDARD_POSTGRES_PORT))
         .withEnv("TEST_DB", STANDARD_POSTGRES_DB)
         .withEnv("TEST_USERNAME", STANDARD_POSTGRES_USERNAME)
