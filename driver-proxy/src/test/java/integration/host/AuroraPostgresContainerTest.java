@@ -6,10 +6,6 @@
 
 package integration.host;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
-import integration.util.AuroraTestUtility;
-import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.sql.SQLException;
@@ -22,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
+import integration.util.AuroraTestUtility;
+import integration.util.ContainerHelper;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 
 /**
@@ -43,21 +41,17 @@ public class AuroraPostgresContainerTest {
   private static final int AURORA_POSTGRES_PORT = 5432;
   private static final String AURORA_POSTGRES_TEST_HOST_NAME = "aurora-postgres-test-host";
 
-  private static final String AURORA_POSTGRES_TEST_USERNAME =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_USERNAME"))
-          ? System.getenv("AURORA_POSTGRES_TEST_USERNAME")
+  private static final String AURORA_POSTGRES_USERNAME =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_USERNAME"))
+          ? System.getenv("AURORA_POSTGRES_USERNAME")
           : "my_test_username";
-  private static final String AURORA_POSTGRES_TEST_USER =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_USER"))
-          ? System.getenv("AURORA_POSTGRES_TEST_USER")
-          : "jane_doe";
-  private static final String AURORA_POSTGRES_TEST_PASSWORD =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_PASSWORD"))
-          ? System.getenv("AURORA_POSTGRES_TEST_PASSWORD")
+  private static final String AURORA_POSTGRES_PASSWORD =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_PASSWORD"))
+          ? System.getenv("AURORA_POSTGRES_PASSWORD")
           : "my_test_password";
-  protected static final String AURORA_POSTGRES_TEST_DB =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_TEST_DB"))
-          ? System.getenv("AURORA_POSTGRES_TEST_DB")
+  protected static final String AURORA_POSTGRES_DB =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB"))
+          ? System.getenv("AURORA_POSTGRES_DB")
           : "test";
 
   private static final String AWS_ACCESS_KEY_ID = System.getenv("AWS_ACCESS_KEY_ID");
@@ -102,7 +96,7 @@ public class AuroraPostgresContainerTest {
     // i.e. For "database-cluster-name.XYZ.us-east-2.rds.amazonaws.com"
     // dbConnStrSuffix = "XYZ.us-east-2.rds.amazonaws.com"
     dbConnStrSuffix =
-        auroraUtil.createCluster(AURORA_POSTGRES_TEST_USERNAME, AURORA_POSTGRES_TEST_PASSWORD, AURORA_POSTGRES_TEST_DB,
+        auroraUtil.createCluster(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, AURORA_POSTGRES_DB,
             AURORA_POSTGRES_CLUSTER_IDENTIFIER);
 
     // Comment out getting public IP to not add & remove from EC2 whitelist
@@ -120,18 +114,12 @@ public class AuroraPostgresContainerTest {
       software.aws.rds.jdbc.proxydriver.Driver.register();
     }
 
-    containerHelper.addAuroraAwsIamUser(
-        DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_POSTGRES_TEST_DB + DB_CONN_PROP,
-        AURORA_POSTGRES_TEST_USERNAME,
-        AURORA_POSTGRES_TEST_PASSWORD,
-        AURORA_POSTGRES_TEST_USER);
-
     network = Network.newNetwork();
     postgresInstances =
         containerHelper.getAuroraInstanceEndpoints(
-            DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_POSTGRES_TEST_DB + DB_CONN_PROP,
-            AURORA_POSTGRES_TEST_USERNAME,
-            AURORA_POSTGRES_TEST_PASSWORD,
+            DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_POSTGRES_DB + DB_CONN_PROP,
+            AURORA_POSTGRES_USERNAME,
+            AURORA_POSTGRES_PASSWORD,
             dbConnStrSuffix);
     proxyContainers =
         containerHelper.createProxyContainers(
@@ -216,10 +204,9 @@ public class AuroraPostgresContainerTest {
             .createTestContainer("aws/rds-test-container")
             .withNetworkAliases(AURORA_POSTGRES_TEST_HOST_NAME)
             .withNetwork(network)
-            .withEnv("TEST_USERNAME", AURORA_POSTGRES_TEST_USERNAME)
-            .withEnv("TEST_DB_USER", AURORA_POSTGRES_TEST_USER)
-            .withEnv("TEST_PASSWORD", AURORA_POSTGRES_TEST_PASSWORD)
-            .withEnv("TEST_DB", AURORA_POSTGRES_TEST_DB)
+            .withEnv("TEST_USERNAME", AURORA_POSTGRES_USERNAME)
+            .withEnv("TEST_PASSWORD", AURORA_POSTGRES_PASSWORD)
+            .withEnv("TEST_DB", AURORA_POSTGRES_DB)
             .withEnv("DB_REGION", AURORA_POSTGRES_DB_REGION)
             .withEnv("DB_CLUSTER_CONN", dbHostCluster)
             .withEnv("DB_RO_CLUSTER_CONN", dbHostClusterRo)

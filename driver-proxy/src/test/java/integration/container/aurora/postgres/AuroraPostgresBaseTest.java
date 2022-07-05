@@ -48,7 +48,6 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 public abstract class AuroraPostgresBaseTest {
 
   protected static final String TEST_USERNAME = System.getenv("TEST_USERNAME");
-  protected static final String TEST_DB_USER = System.getenv("TEST_DB_USER");
   protected static final String TEST_PASSWORD = System.getenv("TEST_PASSWORD");
   protected static final String TEST_DB =
       !StringUtils.isNullOrEmpty(System.getenv("TEST_DB")) ? System.getenv("TEST_DB") : "test";

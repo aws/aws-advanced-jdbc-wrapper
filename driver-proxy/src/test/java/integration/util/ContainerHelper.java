@@ -217,16 +217,17 @@ public class ContainerHelper {
 
   public PostgreSQLContainer<?> createPostgresContainer(
       Network network, String networkAlias, String testDbName) {
-    return createPostgresContainer(network, networkAlias, testDbName, "root");
+    return createPostgresContainer(network, networkAlias, testDbName, "test", "root");
   }
 
   public PostgreSQLContainer<?> createPostgresContainer(
-      Network network, String networkAlias, String testDbName, String password) {
+      Network network, String networkAlias, String testDbName, String username, String password) {
 
     return new PostgreSQLContainer<>(POSTGRES_CONTAINER_IMAGE_NAME)
         .withNetwork(network)
         .withNetworkAliases(networkAlias)
         .withDatabaseName(testDbName)
+        .withUsername(username)
         .withPassword(password);
   }
 
@@ -286,20 +287,6 @@ public class ContainerHelper {
       }
     }
     return auroraInstances;
-  }
-
-  public void addAuroraAwsIamUser(
-      String connectionUrl, String userName, String password, String dbUser)
-      throws SQLException {
-
-    final String dropAwsIamUserSQL = "DROP USER IF EXISTS " + dbUser + ";";
-    final String createAwsIamUserSQL =
-        "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
-    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement()) {
-      stmt.execute(dropAwsIamUserSQL);
-      stmt.execute(createAwsIamUserSQL);
-    }
   }
 
   public List<ToxiproxyContainer> createProxyContainers(

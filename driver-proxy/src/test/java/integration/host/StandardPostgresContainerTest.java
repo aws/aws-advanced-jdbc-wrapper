@@ -6,10 +6,7 @@
 
 package integration.host;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
 import com.mysql.cj.util.StringUtils;
-import integration.util.ContainerHelper;
 import java.io.IOException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -18,6 +15,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
+import integration.util.ContainerHelper;
 
 public class StandardPostgresContainerTest {
 
@@ -48,7 +46,7 @@ public class StandardPostgresContainerTest {
     network = Network.newNetwork();
 
     postgresContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_CONTAINER_NAME,
-        STANDARD_POSTGRES_DB, STANDARD_POSTGRES_PASSWORD);
+        STANDARD_POSTGRES_DB, STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD);
     postgresContainer.start();
 
     proxyContainer =
