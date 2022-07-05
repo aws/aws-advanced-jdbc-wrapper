@@ -108,25 +108,15 @@ public class ContainerHelper {
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind(
             "./build/reports/tests",
-            "/app/driver-proxy/build/reports/tests",
+            "/app/build/reports/tests",
             BindMode.READ_WRITE) // some tests may write some files here
-        .withFileSystemBind("./src", "/app/driver-proxy/src", BindMode.READ_WRITE)
         .withFileSystemBind("../gradle", "/app/gradle", BindMode.READ_WRITE)
-        .withFileSystemBind("../buildSrc/src", "/app/buildSrc/src", BindMode.READ_WRITE)
         .withPrivilegedMode(true) // it's needed to control Linux core settings like TcpKeepAlive
+        .withCopyFileToContainer(MountableFile.forHostPath("./build/classes/java/test"), "app/test")
         .withCopyFileToContainer(MountableFile.forHostPath("../gradlew"), "app/gradlew")
+        .withCopyFileToContainer(MountableFile.forHostPath("./build/libs"), "app/libs")
         .withCopyFileToContainer(
-            MountableFile.forHostPath("../buildSrc/build.gradle.kts"), "/app/buildSrc/build.gradle.kts")
-        .withCopyFileToContainer(
-            MountableFile.forHostPath("../gradle.properties"), "app/gradle.properties")
-        .withCopyFileToContainer(
-            MountableFile.forHostPath("../build.gradle.kts"), "app/build.gradle.kts")
-        .withCopyFileToContainer(
-            MountableFile.forHostPath("../settings.gradle.kts"), "app/settings.gradle.kts")
-        .withCopyFileToContainer(
-            MountableFile.forHostPath("./gradle.properties"), "app/driver-proxy/gradle.properties")
-        .withCopyFileToContainer(
-            MountableFile.forHostPath("./build.gradle.kts"), "app/driver-proxy/build.gradle.kts");
+            MountableFile.forHostPath("./src/test/build.gradle.kts"), "app/build.gradle.kts");
   }
 
   protected Long execInContainer(

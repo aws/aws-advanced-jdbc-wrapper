@@ -176,22 +176,6 @@ tasks.register<Test>("debug-integration-standard-postgres") {
     filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
 }
 
-// Integration tests are run in a specific order.
-// To add more tests, see integration.container.aurora.postgres.AuroraPostgresTestSuite.java
-tasks.register<Test>("in-container-aurora-postgres") {
-    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresTestSuite")
-}
-
-tasks.register<Test>("in-container-aurora-postgres-performance") {
-    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresPerformanceTest")
-}
-
-// Integration tests are run in a specific order.
-// To add more tests, see integration.container.standard.postgres.StandardPostgresTestSuite.java
-tasks.register<Test>("in-container-standard-postgres") {
-    filter.includeTestsMatching("integration.container.standard.postgres.StandardPostgresTestSuite")
-}
-
 tasks.withType<Test> {
     this.testLogging {
         this.showStandardStreams = true
