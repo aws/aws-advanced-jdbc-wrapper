@@ -1,5 +1,6 @@
 /*
- * TODO - Modified File License Header
+ * Copyright (c) 2020, PostgreSQL Global Development Group
+ * See the LICENSE file in the project root for more information.
  */
 
 package org.jdbcProxyDriver.buildtools
