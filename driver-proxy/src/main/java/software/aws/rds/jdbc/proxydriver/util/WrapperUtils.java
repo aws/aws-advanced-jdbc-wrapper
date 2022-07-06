@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
@@ -69,7 +68,6 @@ public class WrapperUtils {
       new ConcurrentHashMap<>();
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
-  private static final ReentrantLock lock = new ReentrantLock();
 
   private static final Map<Class<?>, Class<?>> availableWrappers =
       new HashMap<Class<?>, Class<?>>() {
@@ -150,7 +148,7 @@ public class WrapperUtils {
     Object[] argsCopy =
         jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
-    lock.lock();
+    pluginManager.lock();
 
     T result =
         pluginManager.execute(
@@ -166,7 +164,7 @@ public class WrapperUtils {
     } catch (InstantiationException e) {
       throw new RuntimeException(e);
     } finally {
-      lock.unlock();
+      pluginManager.unlock();
     }
   }
 
@@ -183,7 +181,7 @@ public class WrapperUtils {
     Object[] argsCopy =
         jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
-    lock.lock();
+    pluginManager.lock();
 
     T result =
         pluginManager.execute(
@@ -194,7 +192,7 @@ public class WrapperUtils {
     } catch (InstantiationException e) {
       throw new RuntimeException(e);
     } finally {
-      lock.unlock();
+      pluginManager.unlock();
     }
   }
 

@@ -12,13 +12,11 @@ import static org.mockito.Mockito.doAnswer;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -30,13 +28,31 @@ public class WrapperUtilsTest {
   @Mock ConnectionPluginManager pluginManager;
   @Mock Object object;
   private AutoCloseable closeable;
-  private int counter = 0;
 
   @BeforeEach
-  private void init() throws SQLException {
+  private void init() {
+    final ReentrantLock pluginManagerLock = new ReentrantLock();
+    final ReentrantLock testLock = new ReentrantLock();
     closeable = MockitoAnnotations.openMocks(this);
 
-    doAnswer(invocation -> counter++).when(pluginManager).execute(
+    doAnswer(invocation -> {
+      pluginManagerLock.lock();
+      return null;
+    }).when(pluginManager).lock();
+    doAnswer(invocation -> {
+      pluginManagerLock.unlock();
+      return null;
+    }).when(pluginManager).unlock();
+
+    doAnswer(invocation -> {
+      boolean lockIsFree = testLock.tryLock();
+      if (!lockIsFree) {
+        fail("Lock is in use, should not be attempting to fetch it right now");
+      }
+      Thread.sleep(3000);
+      testLock.unlock();
+      return 1;
+    }).when(pluginManager).execute(
         any(Class.class),
         any(Class.class),
         any(Object.class),
@@ -75,45 +91,29 @@ public class WrapperUtilsTest {
     return null;
   }
 
-  @RepeatedTest(1000)
+  @Test
   void testExecutesWithPluginsIsSequential() {
     List<CompletableFuture<Integer>> futures = new ArrayList<>();
-    List<Integer> results = new ArrayList<>();
 
     for (int i = 0; i < 5; i++) {
       futures.add(CompletableFuture.supplyAsync(this::callExecuteWithPlugins));
     }
 
     for (CompletableFuture<Integer> future : futures) {
-      results.add(future.join());
-    }
-
-    Set<Integer> resultSet = new HashSet<>();
-    for (Integer integer : results) {
-      if (!resultSet.add(integer)) {
-        fail();
-      }
+      future.join();
     }
   }
 
-  @RepeatedTest(1000)
+  @Test
   void testExecutesWithPluginsWithExceptionIsSequential() {
     List<CompletableFuture<Integer>> futures = new ArrayList<>();
-    List<Integer> results = new ArrayList<>();
 
     for (int i = 0; i < 5; i++) {
       futures.add(CompletableFuture.supplyAsync(this::callExecuteWithPluginsWithException));
     }
 
     for (CompletableFuture<Integer> future : futures) {
-      results.add(future.join());
-    }
-
-    Set<Integer> resultSet = new HashSet<>();
-    for (Integer integer : results) {
-      if (!resultSet.add(integer)) {
-        fail();
-      }
+      future.join();
     }
   }
 }
