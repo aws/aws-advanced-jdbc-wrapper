@@ -23,8 +23,10 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.cleanup.CanReleaseResources;
 import software.aws.rds.jdbc.proxydriver.plugin.AuroraHostListConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.plugin.DataCacheConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.plugin.LogQueryConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
@@ -43,6 +45,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
         {
           put("executionTime", ExecutionTimeConnectionPluginFactory.class);
           put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
+          put("logQuery", LogQueryConnectionPluginFactory.class);
+          put("dataCache", DataCacheConnectionPluginFactory.class);
         }
       };
 

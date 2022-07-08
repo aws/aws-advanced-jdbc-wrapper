@@ -7,6 +7,7 @@
 package software.aws.rds.jdbc.proxydriver.util;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -406,5 +407,50 @@ public class WrapperUtils {
     }
 
     return createInstance(loaded, resultClass, null, constructorArgs);
+  }
+
+  public static Object getFieldValue(Object target, String accessor) {
+    if (target == null) {
+      return null;
+    }
+
+    List<String> fieldNames = StringUtils.split(accessor, "\\.", true);
+    Class<?> targetClass = target.getClass();
+
+    for (String fieldName : fieldNames) {
+      Field field = null;
+      while (targetClass != null && field == null) {
+        try {
+          field = targetClass.getDeclaredField(fieldName);
+        } catch (Exception ex) {
+          // try parent class
+          targetClass = targetClass.getSuperclass();
+        }
+      }
+
+      if (field == null) {
+        return null; // field not found
+      }
+
+      if (!field.isAccessible()) {
+        field.setAccessible(true);
+      }
+
+      Object fieldValue = null;
+      try {
+        fieldValue = field.get(target);
+      } catch (Exception ex) {
+        return null;
+      }
+
+      if (fieldValue == null) {
+        return null;
+      }
+
+      target = fieldValue;
+      targetClass = target.getClass();
+    }
+
+    return target;
   }
 }
