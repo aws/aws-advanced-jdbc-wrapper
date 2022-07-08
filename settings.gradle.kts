@@ -22,7 +22,7 @@ pluginManagement {
         id("com.github.vlsi.gradle-extensions") version "1.82"
         id("com.github.vlsi.stage-vote-release") version "1.82"
         id("com.github.vlsi.ide") version "1.82"
-        id("me.champeau.gradle.jmh") version "0.5.0"
+        id("me.champeau.gradle.jmh") version "0.5.3"
         id("org.checkerframework") version "0.5.5"
     }
 }
