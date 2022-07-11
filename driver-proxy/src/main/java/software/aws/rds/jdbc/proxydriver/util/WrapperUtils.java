@@ -7,6 +7,7 @@
 package software.aws.rds.jdbc.proxydriver.util;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -38,7 +39,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.ConnectionPluginManager;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
@@ -69,7 +69,6 @@ public class WrapperUtils {
       new ConcurrentHashMap<>();
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
-  private static final ReentrantLock lock = new ReentrantLock();
 
   private static final Map<Class<?>, Class<?>> availableWrappers =
       new HashMap<Class<?>, Class<?>>() {
@@ -150,7 +149,7 @@ public class WrapperUtils {
     Object[] argsCopy =
         jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
-    lock.lock();
+    pluginManager.lock();
 
     T result =
         pluginManager.execute(
@@ -166,7 +165,7 @@ public class WrapperUtils {
     } catch (InstantiationException e) {
       throw new RuntimeException(e);
     } finally {
-      lock.unlock();
+      pluginManager.unlock();
     }
   }
 
@@ -183,7 +182,7 @@ public class WrapperUtils {
     Object[] argsCopy =
         jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
-    lock.lock();
+    pluginManager.lock();
 
     T result =
         pluginManager.execute(
@@ -194,7 +193,7 @@ public class WrapperUtils {
     } catch (InstantiationException e) {
       throw new RuntimeException(e);
     } finally {
-      lock.unlock();
+      pluginManager.unlock();
     }
   }
 
@@ -408,5 +407,50 @@ public class WrapperUtils {
     }
 
     return createInstance(loaded, resultClass, null, constructorArgs);
+  }
+
+  public static Object getFieldValue(Object target, String accessor) {
+    if (target == null) {
+      return null;
+    }
+
+    List<String> fieldNames = StringUtils.split(accessor, "\\.", true);
+    Class<?> targetClass = target.getClass();
+
+    for (String fieldName : fieldNames) {
+      Field field = null;
+      while (targetClass != null && field == null) {
+        try {
+          field = targetClass.getDeclaredField(fieldName);
+        } catch (Exception ex) {
+          // try parent class
+          targetClass = targetClass.getSuperclass();
+        }
+      }
+
+      if (field == null) {
+        return null; // field not found
+      }
+
+      if (!field.isAccessible()) {
+        field.setAccessible(true);
+      }
+
+      Object fieldValue = null;
+      try {
+        fieldValue = field.get(target);
+      } catch (Exception ex) {
+        return null;
+      }
+
+      if (fieldValue == null) {
+        return null;
+      }
+
+      target = fieldValue;
+      targetClass = target.getClass();
+    }
+
+    return target;
   }
 }

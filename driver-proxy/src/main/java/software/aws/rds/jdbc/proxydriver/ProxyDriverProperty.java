@@ -15,16 +15,16 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
 
   public final @Nullable String defaultValue;
 
-  ProxyDriverProperty(String name, @Nullable String defaultValue, String description) {
+  public ProxyDriverProperty(String name, @Nullable String defaultValue, String description) {
     this(name, defaultValue, description, false);
   }
 
-  ProxyDriverProperty(
+  public ProxyDriverProperty(
       String name, @Nullable String defaultValue, String description, boolean required) {
     this(name, defaultValue, description, required, (String[]) null);
   }
 
-  ProxyDriverProperty(
+  public ProxyDriverProperty(
       String name,
       @Nullable String defaultValue,
       String description,

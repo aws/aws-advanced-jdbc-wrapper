@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -22,8 +23,10 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.aws.rds.jdbc.proxydriver.cleanup.CanReleaseResources;
 import software.aws.rds.jdbc.proxydriver.plugin.AuroraHostListConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.plugin.DataCacheConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.plugin.LogQueryConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
@@ -42,6 +45,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
         {
           put("executionTime", ExecutionTimeConnectionPluginFactory.class);
           put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
+          put("logQuery", LogQueryConnectionPluginFactory.class);
+          put("dataCache", DataCacheConnectionPluginFactory.class);
         }
       };
 
@@ -53,6 +58,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
+  private final ReentrantLock lock = new ReentrantLock();
 
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
@@ -80,6 +86,14 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionProvider = connectionProvider;
     this.props = props;
     this.plugins = plugins;
+  }
+
+  public void lock() {
+    lock.lock();
+  }
+
+  public void unlock() {
+    lock.unlock();
   }
 
   /**

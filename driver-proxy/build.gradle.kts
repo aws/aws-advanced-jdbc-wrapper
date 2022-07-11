@@ -17,14 +17,14 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.22.2")
+    implementation("org.checkerframework:checker-qual:3.22.+")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.8.2")
     testImplementation("org.junit.platform:junit-platform-engine:1.8.2")
     testImplementation("org.junit.platform:junit-platform-launcher:1.8.2")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.8.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
