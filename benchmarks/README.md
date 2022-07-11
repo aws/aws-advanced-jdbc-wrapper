@@ -1,4 +1,4 @@
-# Benchmarks for AWS JDBC Proxy Driver
+# Benchmarks for AWS Advanced JDBC Wrapper
 
 ## Usage
 1. Build the benchmarks with the following command `../gradlew jmhJar`.
