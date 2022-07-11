@@ -17,10 +17,10 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.22.2")
+    implementation("org.checkerframework:checker-qual:3.22.+")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.postgresql:postgresql:42.+")
