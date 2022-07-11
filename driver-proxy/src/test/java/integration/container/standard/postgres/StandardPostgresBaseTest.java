@@ -6,9 +6,6 @@
 
 package integration.container.standard.postgres;
 
-import eu.rekawek.toxiproxy.Proxy;
-import eu.rekawek.toxiproxy.ToxiproxyClient;
-import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -19,7 +16,9 @@ import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.postgresql.PGProperty;
-import software.aws.rds.jdbc.proxydriver.Driver;
+import eu.rekawek.toxiproxy.Proxy;
+import eu.rekawek.toxiproxy.ToxiproxyClient;
+import integration.util.ContainerHelper;
 
 public class StandardPostgresBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:postgresql://";
@@ -46,7 +45,13 @@ public class StandardPostgresBaseTest {
     proxy = getProxy(toxiproxyClient, TEST_HOST, Integer.parseInt(TEST_PORT));
     proxyMap.put(TEST_HOST, proxy);
 
-    DriverManager.registerDriver(new Driver());
+    if (!org.postgresql.Driver.isRegistered()) {
+      org.postgresql.Driver.register();
+    }
+
+    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
+      software.aws.rds.jdbc.proxydriver.Driver.register();
+    }
   }
 
   @BeforeEach
