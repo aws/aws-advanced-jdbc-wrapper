@@ -8,6 +8,7 @@ package integration.host;
 
 import com.mysql.cj.util.StringUtils;
 import java.io.IOException;
+import java.sql.SQLException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,15 @@ public class StandardPostgresContainerTest {
   private static final ContainerHelper containerHelper = new ContainerHelper();
 
   @BeforeAll
-  static void setUp() {
+  static void setUp() throws SQLException {
+    if (!org.postgresql.Driver.isRegistered()) {
+      org.postgresql.Driver.register();
+    }
+
+    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
+      software.aws.rds.jdbc.proxydriver.Driver.register();
+    }
+
     network = Network.newNetwork();
 
     postgresContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_CONTAINER_NAME,
