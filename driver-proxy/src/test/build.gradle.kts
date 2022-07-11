@@ -29,7 +29,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
 
-    implementation(fileTree("./libs") { include("*.jar") })
+    testImplementation(fileTree("./libs") { include("*.jar") })
     testImplementation(files("./test"))
 }
 
@@ -52,5 +52,4 @@ tasks.register<Test>("in-container-standard-postgres") {
 tasks.withType<Test> {
     outputs.upToDateWhen { false }
     useJUnitPlatform()
-    testClassesDirs += files("./test")
 }
