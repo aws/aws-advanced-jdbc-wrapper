@@ -30,7 +30,7 @@ dependencies {
     testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
     testImplementation("org.postgresql:postgresql:42.+")
     testImplementation("mysql:mysql-connector-java:8.0.+")
-    testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
+    testImplementation("com.zaxxer:HikariCP:5.+") // version 5.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
     testImplementation("org.mockito:mockito-inline:4.+")
     testImplementation("software.amazon.awssdk:rds:2.17.+")
