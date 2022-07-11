@@ -86,9 +86,9 @@ jobs:
         run: |
           ./gradlew --no-parallel --no-daemon test-integration-aurora-postgres
         env:
-          TEST_DB_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
-          TEST_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.AURORA_POSTGRES_PASSWORD }}
+          AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
+          AURORA_POSTGRES_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
+          AURORA_POSTGRES_PASSWORD: ${{ secrets.AURORA_POSTGRES_PASSWORD }}
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
