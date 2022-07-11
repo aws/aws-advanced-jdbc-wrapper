@@ -6,6 +6,9 @@
 
 package integration.container.standard.postgres;
 
+import eu.rekawek.toxiproxy.Proxy;
+import eu.rekawek.toxiproxy.ToxiproxyClient;
+import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -16,9 +19,6 @@ import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.postgresql.PGProperty;
-import eu.rekawek.toxiproxy.Proxy;
-import eu.rekawek.toxiproxy.ToxiproxyClient;
-import integration.util.ContainerHelper;
 
 public class StandardPostgresBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:postgresql://";

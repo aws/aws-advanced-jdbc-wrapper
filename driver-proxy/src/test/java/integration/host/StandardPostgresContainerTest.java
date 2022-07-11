@@ -7,6 +7,7 @@
 package integration.host;
 
 import com.mysql.cj.util.StringUtils;
+import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.SQLException;
 import org.junit.jupiter.api.AfterAll;
@@ -16,7 +17,6 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
-import integration.util.ContainerHelper;
 
 public class StandardPostgresContainerTest {
 

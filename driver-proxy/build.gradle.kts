@@ -46,6 +46,11 @@ tasks.check {
     dependsOn("jacocoTestCoverageVerification")
 }
 
+tasks.test {
+    filter.excludeTestsMatching("integration.host.*")
+    filter.excludeTestsMatching("integration.container.*")
+}
+
 checkstyle {
     // Checkstyle versions 7.x, 8.x, and 9.x are supported by JRE version 8 and above.
     toolVersion = "9.3"
@@ -133,13 +138,6 @@ tasks.getByName<Test>("test") {
     passProperty("postgresqlDatabase")
 
     systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
-}
-
-// Run basic integration tests
-tasks.register<Test>("test-integration-basic") {
-    group = "verification"
-    filter.excludeTestsMatching("integration.host.*")
-    filter.excludeTestsMatching("integration.container.*")
 }
 
 // Run Aurora Postgres integrations tests in container

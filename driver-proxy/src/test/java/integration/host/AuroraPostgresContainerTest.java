@@ -6,6 +6,8 @@
 
 package integration.host;
 
+import integration.util.AuroraTestUtility;
+import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.sql.SQLException;
@@ -18,8 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
-import integration.util.AuroraTestUtility;
-import integration.util.ContainerHelper;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 
 /**
