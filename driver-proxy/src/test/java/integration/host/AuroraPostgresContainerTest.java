@@ -65,7 +65,7 @@ public class AuroraPostgresContainerTest {
   private static final String AURORA_POSTGRES_DB_REGION =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB_REGION"))
           ? System.getenv("AURORA_POSTGRES_DB_REGION")
-          : "us-east-2";
+          : "us-east-1";
   private static final String AURORA_POSTGRES_CLUSTER_IDENTIFIER =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER"))
           ? System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER")
