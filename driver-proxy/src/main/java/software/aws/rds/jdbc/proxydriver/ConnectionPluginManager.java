@@ -181,18 +181,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   protected <T, E extends Exception> T executeWithSubscribedPlugins(
       final String methodName,
-      final PluginPipeline<T, E> pluginPipeline,
-      final JdbcCallable<T, E> jdbcMethodFunc)
+      @NonNull final PluginPipeline<T, E> pluginPipeline,
+      @NonNull final JdbcCallable<T, E> jdbcMethodFunc)
       throws E {
-
-    if (pluginPipeline == null) {
-      throw new IllegalArgumentException("pluginPipeline");
-    }
-
-    if (jdbcMethodFunc == null) {
-      throw new IllegalArgumentException("jdbcMethodFunc");
-    }
-
     JdbcCallable<T, E> func = jdbcMethodFunc;
 
     for (int i = this.plugins.size() - 1; i >= 0; i--) {
@@ -214,12 +205,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   protected <E extends Exception> void notifySubscribedPlugins(
       final String methodName,
-      final PluginPipeline<Void, E> pluginPipeline,
+      @NonNull final PluginPipeline<Void, E> pluginPipeline,
       final ConnectionPlugin skipNotificationForThisPlugin) throws E {
-
-    if (pluginPipeline == null) {
-      throw new IllegalArgumentException("pluginPipeline");
-    }
 
     for (int i = 0; i < this.plugins.size(); i++) {
       ConnectionPlugin plugin = this.plugins.get(i);

@@ -7,7 +7,8 @@
 rootProject.name = "jdbc-proxy-driver"
 
 include(
-    "aws-jdbc-proxy-driver"
+    "aws-jdbc-proxy-driver",
+    "benchmarks"
 )
 
 project(":aws-jdbc-proxy-driver").projectDir = file("driver-proxy")
@@ -22,7 +23,7 @@ pluginManagement {
         id("com.github.vlsi.gradle-extensions") version "1.+"
         id("com.github.vlsi.stage-vote-release") version "1.+"
         id("com.github.vlsi.ide") version "1.+"
-        id("me.champeau.gradle.jmh") version "0.+"
+        id("me.champeau.jmh") version "0.6.+"
         id("org.checkerframework") version "0.+"
     }
 }

@@ -1,0 +1,165 @@
+/*
+ * AWS JDBC Proxy Driver
+ * Copyright Amazon.com Inc. or affiliates.
+ * See the LICENSE file in the project root for more information.
+ */
+
+package software.aws.rds.benchmarks;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.profile.GCProfiler;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
+import software.aws.rds.jdbc.proxydriver.ConnectionProvider;
+import software.aws.rds.jdbc.proxydriver.HostSpec;
+import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
+
+@State(Scope.Benchmark)
+@Fork(3)
+@Warmup(iterations = 3)
+@Measurement(iterations = 10)
+@BenchmarkMode(Mode.SingleShotTime)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+public class PluginBenchmarks {
+
+  private static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
+  private static final String FIELD_SERVER_ID = "SERVER_ID";
+  private static final String FIELD_SESSION_ID = "SESSION_ID";
+  private static final String CONNECTION_STRING = "driverProtocol://my.domain.com";
+
+  @Mock ConnectionProvider mockConnectionProvider;
+  @Mock Connection mockConnection;
+  @Mock Statement mockStatement;
+  @Mock ResultSet mockResultSet;
+  private AutoCloseable closeable;
+
+  public static void main(String[] args) throws RunnerException {
+    Options opt = new OptionsBuilder()
+        .include(PluginBenchmarks.class.getSimpleName())
+        .addProfiler(GCProfiler.class)
+        .detectJvmArgs()
+        .build();
+
+    new Runner(opt).run();
+  }
+
+  @Setup(Level.Iteration)
+  public void setUpIteration() throws Exception {
+    closeable = MockitoAnnotations.openMocks(this);
+    when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
+        mockConnection);
+    when(mockConnectionProvider.connect(anyString(), any(HostSpec.class), any(Properties.class)))
+        .thenReturn(mockConnection);
+    when(mockConnection.createStatement()).thenReturn(mockStatement);
+    when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
+    when(mockResultSet.next()).thenReturn(true, true, false);
+    when(mockResultSet.getString(eq(FIELD_SESSION_ID))).thenReturn(WRITER_SESSION_ID);
+    when(mockResultSet.getString(eq(FIELD_SERVER_ID)))
+        .thenReturn("myInstance1.domain.com", "myInstance2.domain.com", "myInstance3.domain.com");
+  }
+
+  @TearDown(Level.Iteration)
+  public void tearDownIteration() throws Exception {
+    closeable.close();
+  }
+
+  @Benchmark
+  public void initAndReleaseBaseLine() throws SQLException {
+  }
+
+  @Benchmark
+  public void initAndReleaseWithAllPlugins() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useAllPlugins(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+    }
+  }
+
+  @Benchmark
+  public void initAndReleaseWithExecutionTimePlugin() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useExecutionPlugin(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+    }
+  }
+
+  @Benchmark
+  public void initAndReleaseWithAuroraHostListPlugin() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useAuroraHostList(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+    }
+  }
+
+  @Benchmark
+  public void executeStatementBaseline() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useAuroraHostList(),
+        CONNECTION_STRING,
+        mockConnectionProvider);
+        Statement statement = wrapper.createStatement()) {
+    }
+  }
+
+  @Benchmark
+  public void executeStatementWithExecutionTimePlugin() throws SQLException {
+    try (
+        ConnectionWrapper wrapper = new ConnectionWrapper(
+            useAuroraHostList(),
+            CONNECTION_STRING,
+            mockConnectionProvider);
+        Statement statement = wrapper.createStatement();
+        ResultSet resultSet = statement.executeQuery("some sql")) {
+    }
+  }
+
+  Properties useAllPlugins() {
+    final Properties properties = new Properties();
+    properties.setProperty("proxyDriverPlugins", "executionTime,auroraHostList");
+    return properties;
+  }
+
+  Properties useExecutionPlugin() {
+    final Properties properties = new Properties();
+    properties.setProperty("proxyDriverPlugins", "executionTime");
+    return properties;
+  }
+
+  Properties useAuroraHostList() {
+    final Properties properties = new Properties();
+    properties.setProperty("proxyDriverPlugins", "auroraHostList");
+    return properties;
+  }
+}

@@ -26,7 +26,6 @@ import software.aws.rds.jdbc.proxydriver.HostListProvider;
 import software.aws.rds.jdbc.proxydriver.HostRole;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.PluginService;
-import software.aws.rds.jdbc.proxydriver.util.ConnectionUrlParser;
 import software.aws.rds.jdbc.proxydriver.util.ExpiringCache;
 
 public class AuroraHostListProvider implements HostListProvider, DynamicHostListProvider {
@@ -66,7 +65,6 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   private static final Object cacheLock = new Object();
 
   private static final String PG_DRIVER_PROTOCOL = "postgresql";
-  private static final ConnectionUrlParser parser = new ConnectionUrlParser();
   private final String retrieveTopologyQuery;
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
