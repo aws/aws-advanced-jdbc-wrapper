@@ -11,7 +11,7 @@ plugins {
 dependencies {
     jmhImplementation(project(":aws-jdbc-proxy-driver"))
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
     testImplementation("org.mockito:mockito-inline:4.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
