@@ -19,10 +19,10 @@ plugins {
 dependencies {
     implementation("org.checkerframework:checker-qual:3.22.+")
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.8.2")
-    testImplementation("org.junit.platform:junit-platform-engine:1.8.2")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.8.2")
-    testImplementation("org.junit.platform:junit-platform-suite-engine:1.8.2")
+    testImplementation("org.junit.platform:junit-platform-commons:1.8.+")
+    testImplementation("org.junit.platform:junit-platform-engine:1.8.+")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.8.+")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.8.+")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.+")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
@@ -33,8 +33,8 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
     testImplementation("org.mockito:mockito-inline:4.+")
-    testImplementation("software.amazon.awssdk:rds:2.17.165")
-    testImplementation("software.amazon.awssdk:ec2:2.17.165")
+    testImplementation("software.amazon.awssdk:rds:2.17.+")
+    testImplementation("software.amazon.awssdk:ec2:2.17.+")
     testImplementation("org.testcontainers:testcontainers:1.17.+")
     testImplementation("org.testcontainers:mysql:1.17.+")
     testImplementation("org.testcontainers:postgresql:1.17.+")

@@ -20,7 +20,7 @@ import integration.util.ContainerHelper;
 
 public class StandardPostgresContainerTest {
 
-  private static final String STANDARD_POSTGRES_TEST_HOST_NAME = "standard-postgres-test-host";
+  private static final String STANDARD_POSTGRES_TEST_HOST_NAME = "test-container";
   private static final String STANDARD_POSTGRES_CONTAINER_NAME = "standard-postgres-container";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static final int STANDARD_POSTGRES_PORT = 5432;

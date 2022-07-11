@@ -39,7 +39,7 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 public class AuroraPostgresContainerTest {
 
   private static final int AURORA_POSTGRES_PORT = 5432;
-  private static final String AURORA_POSTGRES_TEST_HOST_NAME = "aurora-postgres-test-host";
+  private static final String AURORA_POSTGRES_TEST_HOST_NAME = "test-container";
 
   private static final String AURORA_POSTGRES_USERNAME =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_USERNAME"))
