@@ -39,10 +39,11 @@ class ConnectionUrlParserTest {
         Arguments.of("jdbc//host:3303/db?param=1", Collections.singletonList(new HostSpec("host", 3303))),
         Arguments.of("protocol//host2:3303", Collections.singletonList(new HostSpec("host2", 3303))),
         Arguments.of("foo//host:3303/?#", Collections.singletonList(new HostSpec("host", 3303))),
-        Arguments.of("jdbc:mysql:replication://host:badInt?param=", Collections.singletonList(new HostSpec("host"))),
-        Arguments.of(
-            "jdbc:driver:test://source,replica1:3303,host/test",
-            Arrays.asList(new HostSpec("source"), new HostSpec("replica1", 3303), new HostSpec("host")))
+        Arguments.of("jdbc:mysql:replication://host:badInt?param=",
+            Collections.singletonList(new HostSpec("host"))),
+        Arguments.of("jdbc:driver:test://source,replica1:3303,host/test",
+            Arrays.asList(new HostSpec("source"), new HostSpec("replica1", 3303),
+                new HostSpec("host")))
     );
   }
 }
