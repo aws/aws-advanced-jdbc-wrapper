@@ -253,6 +253,11 @@ public abstract class AuroraPostgresBaseTest {
     return DriverManager.getConnection(url, props);
   }
 
+  protected Connection connectToInstanceCustomUrl(String url, Properties props)
+      throws SQLException {
+    return DriverManager.getConnection(url, props);
+  }
+
   protected String hostToIP(String hostname) throws UnknownHostException {
     final InetAddress inet = InetAddress.getByName(hostname);
     return inet.getHostAddress();
