@@ -22,11 +22,11 @@ import org.postgresql.PGProperty;
 
 public class StandardPostgresBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:postgresql://";
-  protected static final String TEST_HOST = System.getenv("TEST_HOST");
-  protected static final String TEST_PORT = System.getenv("TEST_PORT");
-  protected static final String TEST_DB = System.getenv("TEST_DB");
-  protected static final String TEST_USERNAME = System.getenv("TEST_USERNAME");
-  protected static final String TEST_PASSWORD = System.getenv("TEST_PASSWORD");
+  protected static final String STANDARD_POSTGRES_HOST = System.getenv("STANDARD_POSTGRES_HOST");
+  protected static final String STANDARD_POSTGRES_PORT = System.getenv("STANDARD_POSTGRES_PORT");
+  protected static final String STANDARD_POSTGRES_DB = System.getenv("STANDARD_POSTGRES_DB");
+  protected static final String STANDARD_POSTGRES_USERNAME = System.getenv("STANDARD_POSTGRES_USERNAME");
+  protected static final String STANDARD_POSTGRES_PASSWORD = System.getenv("STANDARD_POSTGRES_PASSWORD");
 
   protected static final String TOXIPROXY_HOST = System.getenv("TOXIPROXY_HOST");
   protected static ToxiproxyClient toxiproxyClient;
@@ -42,8 +42,8 @@ public class StandardPostgresBaseTest {
   @BeforeAll
   public static void setUp() throws SQLException, IOException {
     toxiproxyClient = new ToxiproxyClient(TOXIPROXY_HOST, TOXIPROXY_CONTROL_PORT);
-    proxy = getProxy(toxiproxyClient, TEST_HOST, Integer.parseInt(TEST_PORT));
-    proxyMap.put(TEST_HOST, proxy);
+    proxy = getProxy(toxiproxyClient, STANDARD_POSTGRES_HOST, Integer.parseInt(STANDARD_POSTGRES_PORT));
+    proxyMap.put(STANDARD_POSTGRES_HOST, proxy);
 
     if (!org.postgresql.Driver.isRegistered()) {
       org.postgresql.Driver.register();
@@ -65,12 +65,14 @@ public class StandardPostgresBaseTest {
   }
 
   protected Connection connect() throws SQLException {
-    String url = DB_CONN_STR_PREFIX + TEST_HOST + ":" + TEST_PORT + "/" + TEST_DB;
+    String url =
+        DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + ":" + STANDARD_POSTGRES_PORT + "/" + STANDARD_POSTGRES_DB;
     return DriverManager.getConnection(url, initDefaultProps());
   }
 
   protected Connection connectToProxy() throws SQLException {
-    String url = DB_CONN_STR_PREFIX + TEST_HOST + PROXIED_DOMAIN_NAME_SUFFIX + ":" + PROXY_PORT + "/" + TEST_DB;
+    String url = DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + PROXIED_DOMAIN_NAME_SUFFIX + ":" + PROXY_PORT + "/"
+        + STANDARD_POSTGRES_DB;
     return DriverManager.getConnection(url, initDefaultProps());
   }
 
@@ -84,8 +86,8 @@ public class StandardPostgresBaseTest {
 
   protected Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
-    props.setProperty(PGProperty.USER.getName(), TEST_USERNAME);
-    props.setProperty(PGProperty.PASSWORD.getName(), TEST_PASSWORD);
+    props.setProperty(PGProperty.USER.getName(), STANDARD_POSTGRES_USERNAME);
+    props.setProperty(PGProperty.PASSWORD.getName(), STANDARD_POSTGRES_PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
 
     return props;

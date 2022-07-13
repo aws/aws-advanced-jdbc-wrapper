@@ -175,6 +175,7 @@ tasks.register<Test>("debug-integration-standard-postgres") {
 }
 
 tasks.withType<Test> {
+    dependsOn("jar")
     this.testLogging {
         this.showStandardStreams = true
     }

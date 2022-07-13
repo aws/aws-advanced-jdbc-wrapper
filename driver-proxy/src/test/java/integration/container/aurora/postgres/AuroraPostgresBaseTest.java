@@ -46,10 +46,10 @@ import software.aws.rds.jdbc.proxydriver.util.StringUtils;
 
 public abstract class AuroraPostgresBaseTest {
 
-  protected static final String TEST_USERNAME = System.getenv("TEST_USERNAME");
-  protected static final String TEST_PASSWORD = System.getenv("TEST_PASSWORD");
-  protected static final String TEST_DB =
-      !StringUtils.isNullOrEmpty(System.getenv("TEST_DB")) ? System.getenv("TEST_DB") : "test";
+  protected static final String AURORA_POSTGRES_USERNAME = System.getenv("AURORA_POSTGRES_USERNAME");
+  protected static final String AURORA_POSTGRES_PASSWORD = System.getenv("AURORA_POSTGRES_PASSWORD");
+  protected static final String AURORA_POSTGRES_DB =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB")) ? System.getenv("AURORA_POSTGRES_DB") : "test";
 
   protected static final String QUERY_FOR_INSTANCE = "SELECT @@aurora_server_id";
 
@@ -73,12 +73,12 @@ public abstract class AuroraPostgresBaseTest {
       !StringUtils.isNullOrEmpty(POSTGRES_CLUSTER_URL)
           ? POSTGRES_CLUSTER_URL.substring(0, POSTGRES_CLUSTER_URL.indexOf('.'))
           : null;
-  protected static final String DB_REGION =
-      !StringUtils.isNullOrEmpty(System.getenv("DB_REGION"))
-          ? System.getenv("DB_REGION")
+  protected static final String AURORA_POSTGRES_DB_REGION =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB_REGION"))
+          ? System.getenv("AURORA_POSTGRES_DB_REGION")
           : "us-east-1";
 
-  protected static final int POSTGRES_PORT = Integer.parseInt(System.getenv("POSTGRES_PORT"));
+  protected static final int AURORA_POSTGRES_PORT = Integer.parseInt(System.getenv("AURORA_POSTGRES_PORT"));
   protected static final int POSTGRES_PROXY_PORT = Integer.parseInt(System.getenv("POSTGRES_PROXY_PORT"));
 
   protected static final String TOXIPROXY_INSTANCE_1_NETWORK_ALIAS =
@@ -118,11 +118,11 @@ public abstract class AuroraPostgresBaseTest {
   protected int clusterSize = 0;
 
   protected final ContainerHelper containerHelper = new ContainerHelper();
-  protected final AuroraTestUtility auroraUtil = new AuroraTestUtility(DB_REGION);
+  protected final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
 
   protected final RdsClient rdsClient =
       RdsClient.builder()
-          .region(auroraUtil.getRegion(DB_REGION))
+          .region(auroraUtil.getRegion(AURORA_POSTGRES_DB_REGION))
           .credentialsProvider(DefaultCredentialsProvider.create())
           .build();
 
@@ -151,13 +151,13 @@ public abstract class AuroraPostgresBaseTest {
     toxiproxyReadOnlyCluster =
         new ToxiproxyClient(TOXIPROXY_RO_CLUSTER_NETWORK_ALIAS, TOXIPROXY_CONTROL_PORT);
 
-    proxyInstance_1 = getProxy(toxiproxyClientInstance_1, POSTGRES_INSTANCE_1_URL, POSTGRES_PORT);
-    proxyInstance_2 = getProxy(toxiproxyClientInstance_2, POSTGRES_INSTANCE_2_URL, POSTGRES_PORT);
-    proxyInstance_3 = getProxy(toxiproxyClientInstance_3, POSTGRES_INSTANCE_3_URL, POSTGRES_PORT);
-    proxyInstance_4 = getProxy(toxiproxyClientInstance_4, POSTGRES_INSTANCE_4_URL, POSTGRES_PORT);
-    proxyInstance_5 = getProxy(toxiproxyClientInstance_5, POSTGRES_INSTANCE_5_URL, POSTGRES_PORT);
-    proxyCluster = getProxy(toxiproxyCluster, POSTGRES_CLUSTER_URL, POSTGRES_PORT);
-    proxyReadOnlyCluster = getProxy(toxiproxyReadOnlyCluster, POSTGRES_RO_CLUSTER_URL, POSTGRES_PORT);
+    proxyInstance_1 = getProxy(toxiproxyClientInstance_1, POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT);
+    proxyInstance_2 = getProxy(toxiproxyClientInstance_2, POSTGRES_INSTANCE_2_URL, AURORA_POSTGRES_PORT);
+    proxyInstance_3 = getProxy(toxiproxyClientInstance_3, POSTGRES_INSTANCE_3_URL, AURORA_POSTGRES_PORT);
+    proxyInstance_4 = getProxy(toxiproxyClientInstance_4, POSTGRES_INSTANCE_4_URL, AURORA_POSTGRES_PORT);
+    proxyInstance_5 = getProxy(toxiproxyClientInstance_5, POSTGRES_INSTANCE_5_URL, AURORA_POSTGRES_PORT);
+    proxyCluster = getProxy(toxiproxyCluster, POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT);
+    proxyReadOnlyCluster = getProxy(toxiproxyReadOnlyCluster, POSTGRES_RO_CLUSTER_URL, AURORA_POSTGRES_PORT);
 
     proxyMap.put(
         POSTGRES_INSTANCE_1_URL.substring(0, POSTGRES_INSTANCE_1_URL.indexOf('.')), proxyInstance_1);
@@ -205,8 +205,8 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
-    props.setProperty(PGProperty.USER.getName(), TEST_USERNAME);
-    props.setProperty(PGProperty.PASSWORD.getName(), TEST_PASSWORD);
+    props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
+    props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
 
     return props;
@@ -249,7 +249,7 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Connection connectToInstance(String instanceUrl, int port, Properties props)
       throws SQLException {
-    final String url = DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + TEST_DB;
+    final String url = DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_POSTGRES_DB;
     return DriverManager.getConnection(url, props);
   }
 
@@ -264,16 +264,18 @@ public abstract class AuroraPostgresBaseTest {
     final String dbConnHostBase =
         DB_CONN_STR_SUFFIX.startsWith(".") ? DB_CONN_STR_SUFFIX.substring(1) : DB_CONN_STR_SUFFIX;
 
-    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + POSTGRES_PORT + "/" + TEST_DB;
+    final String url =
+        DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB;
     return this.containerHelper.getAuroraInstanceEndpoints(
-        url, TEST_USERNAME, TEST_PASSWORD, dbConnHostBase);
+        url, AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, dbConnHostBase);
   }
 
   // Return list of instance Ids.
   // Writer instance goes first.
   protected List<String> getTopologyIds() throws SQLException {
-    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + POSTGRES_PORT + "/" + TEST_DB;
-    return this.containerHelper.getAuroraInstanceIds(url, TEST_USERNAME, TEST_PASSWORD);
+    final String url =
+        DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB;
+    return this.containerHelper.getAuroraInstanceIds(url, AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);
   }
 
   /* Helper functions. */
@@ -309,9 +311,9 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Connection createPooledConnectionWithInstanceId(String instanceID) throws SQLException {
     final BasicDataSource ds = new BasicDataSource();
-    ds.setUrl(DB_CONN_STR_PREFIX + instanceID + DB_CONN_STR_SUFFIX + "/" + TEST_DB);
-    ds.setUsername(TEST_USERNAME);
-    ds.setPassword(TEST_PASSWORD);
+    ds.setUrl(DB_CONN_STR_PREFIX + instanceID + DB_CONN_STR_SUFFIX + "/" + AURORA_POSTGRES_DB);
+    ds.setUsername(AURORA_POSTGRES_USERNAME);
+    ds.setPassword(AURORA_POSTGRES_PASSWORD);
     ds.setMinIdle(CP_MIN_IDLE);
     ds.setMaxIdle(CP_MAX_IDLE);
     ds.setMaxOpenPreparedStatements(CP_MAX_OPEN_PREPARED_STATEMENTS);
@@ -376,8 +378,8 @@ public abstract class AuroraPostgresBaseTest {
           () -> {
             while (true) {
               try (final Connection conn =
-                  connectToInstance(
-                      id + DB_CONN_STR_SUFFIX, POSTGRES_PORT, initFailoverDisabledProps())) {
+                       connectToInstance(
+                           id + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initFailoverDisabledProps())) {
                 conn.close();
                 remainingInstances.remove(id);
                 break;

@@ -204,10 +204,10 @@ public class AuroraPostgresContainerTest {
             .createTestContainer("aws/rds-test-container")
             .withNetworkAliases(AURORA_POSTGRES_TEST_HOST_NAME)
             .withNetwork(network)
-            .withEnv("TEST_USERNAME", AURORA_POSTGRES_USERNAME)
-            .withEnv("TEST_PASSWORD", AURORA_POSTGRES_PASSWORD)
-            .withEnv("TEST_DB", AURORA_POSTGRES_DB)
-            .withEnv("DB_REGION", AURORA_POSTGRES_DB_REGION)
+            .withEnv("AURORA_POSTGRES_USERNAME", AURORA_POSTGRES_USERNAME)
+            .withEnv("AURORA_POSTGRES_PASSWORD", AURORA_POSTGRES_PASSWORD)
+            .withEnv("AURORA_POSTGRES_DB", AURORA_POSTGRES_DB)
+            .withEnv("AURORA_POSTGRES_DB_REGION", AURORA_POSTGRES_DB_REGION)
             .withEnv("DB_CLUSTER_CONN", dbHostCluster)
             .withEnv("DB_RO_CLUSTER_CONN", dbHostClusterRo)
             .withEnv("TOXIPROXY_CLUSTER_NETWORK_ALIAS", "toxiproxy-instance-cluster")
@@ -228,7 +228,7 @@ public class AuroraPostgresContainerTest {
       container.addEnv(
           "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS", "toxiproxy-instance-" + (i + 1));
     }
-    container.addEnv("POSTGRES_PORT", Integer.toString(AURORA_POSTGRES_PORT));
+    container.addEnv("AURORA_POSTGRES_PORT", Integer.toString(AURORA_POSTGRES_PORT));
     container.addEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX);
     container.addEnv("POSTGRES_PROXY_PORT", Integer.toString(postgresProxyPort));
 

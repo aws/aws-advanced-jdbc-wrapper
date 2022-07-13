@@ -20,8 +20,8 @@ import org.testcontainers.containers.ToxiproxyContainer;
 
 public class StandardPostgresContainerTest {
 
-  private static final String STANDARD_POSTGRES_TEST_HOST_NAME = "test-container";
-  private static final String STANDARD_POSTGRES_CONTAINER_NAME = "standard-postgres-container";
+  private static final String STANDARD_POSTGRES_TEST_RUNNER_NAME = "test-container";
+  private static final String STANDARD_POSTGRES_HOST = "standard-postgres-container";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static final int STANDARD_POSTGRES_PORT = 5432;
 
@@ -54,14 +54,14 @@ public class StandardPostgresContainerTest {
 
     network = Network.newNetwork();
 
-    postgresContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_CONTAINER_NAME,
+    postgresContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_HOST,
         STANDARD_POSTGRES_DB, STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD);
     postgresContainer.start();
 
     proxyContainer =
-        containerHelper.createProxyContainer(network, STANDARD_POSTGRES_CONTAINER_NAME, PROXIED_DOMAIN_NAME_SUFFIX);
+        containerHelper.createProxyContainer(network, STANDARD_POSTGRES_HOST, PROXIED_DOMAIN_NAME_SUFFIX);
     proxyContainer.start();
-    postgresProxyPort = containerHelper.createInstanceProxy(STANDARD_POSTGRES_CONTAINER_NAME, proxyContainer,
+    postgresProxyPort = containerHelper.createInstanceProxy(STANDARD_POSTGRES_HOST, proxyContainer,
         STANDARD_POSTGRES_PORT);
 
     integrationTestContainer = createTestContainer();
@@ -91,13 +91,13 @@ public class StandardPostgresContainerTest {
 
   protected static GenericContainer<?> createTestContainer() {
     return containerHelper.createTestContainer("aws/rds-test-container")
-        .withNetworkAliases(STANDARD_POSTGRES_TEST_HOST_NAME)
+        .withNetworkAliases(STANDARD_POSTGRES_TEST_RUNNER_NAME)
         .withNetwork(network)
-        .withEnv("TEST_HOST", STANDARD_POSTGRES_CONTAINER_NAME)
-        .withEnv("TEST_PORT", String.valueOf(STANDARD_POSTGRES_PORT))
-        .withEnv("TEST_DB", STANDARD_POSTGRES_DB)
-        .withEnv("TEST_USERNAME", STANDARD_POSTGRES_USERNAME)
-        .withEnv("TEST_PASSWORD", STANDARD_POSTGRES_PASSWORD)
+        .withEnv("STANDARD_POSTGRES_HOST", STANDARD_POSTGRES_HOST)
+        .withEnv("STANDARD_POSTGRES_PORT", String.valueOf(STANDARD_POSTGRES_PORT))
+        .withEnv("STANDARD_POSTGRES_DB", STANDARD_POSTGRES_DB)
+        .withEnv("STANDARD_POSTGRES_USERNAME", STANDARD_POSTGRES_USERNAME)
+        .withEnv("STANDARD_POSTGRES_PASSWORD", STANDARD_POSTGRES_PASSWORD)
         .withEnv("PROXY_PORT", Integer.toString(postgresProxyPort))
         .withEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX)
         .withEnv("TOXIPROXY_HOST", "toxiproxy-instance");

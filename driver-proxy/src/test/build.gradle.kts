@@ -34,9 +34,6 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
-
-    testImplementation(fileTree("./libs") { include("*.jar") })
-    testImplementation(files("./test"))
 }
 
 // Integration tests are run in a specific order.
@@ -56,6 +53,8 @@ tasks.register<Test>("in-container-standard-postgres") {
 }
 
 tasks.withType<Test> {
+    testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test")
+    classpath += fileTree("./libs") { include("*.jar") } + project.files("./test")
     outputs.upToDateWhen { false }
     useJUnitPlatform()
 }
