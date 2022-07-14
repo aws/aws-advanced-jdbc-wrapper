@@ -47,8 +47,7 @@ tasks.check {
 }
 
 tasks.test {
-    filter.excludeTestsMatching("integration.host.*")
-    filter.excludeTestsMatching("integration.container.*")
+    filter.excludeTestsMatching("integration.*")
 }
 
 checkstyle {

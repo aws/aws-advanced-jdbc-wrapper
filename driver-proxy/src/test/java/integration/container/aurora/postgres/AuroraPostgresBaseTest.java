@@ -214,8 +214,8 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "3000");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "3000");
+    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "3");
+    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "3");
 
     return props;
   }
