@@ -21,6 +21,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.rds.jdbc.proxydriver.HostAvailability;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 import software.aws.rds.jdbc.proxydriver.NodeChangeOptions;
@@ -161,15 +162,18 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       if (monitorContext != null) {
         this.monitorService.stopMonitoring(monitorContext);
 
-        synchronized (monitorContext) {
-          boolean isConnectionClosed = false;
-          try {
-            isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
-          } catch (SQLException e) {
-            throw castException(exceptionClass, e);
-          }
+        boolean isConnectionClosed = false;
+        try {
+          isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
+        } catch (SQLException e) {
+          throw castException(exceptionClass, e);
+        }
 
-          if (monitorContext.isNodeUnhealthy() && !isConnectionClosed) {
+        if (monitorContext.isNodeUnhealthy()) {
+
+          this.pluginService.setAvailability(this.nodeKeys, HostAvailability.NOT_AVAILABLE);
+
+          if (!isConnectionClosed) {
             abortConnection();
             throw castException(
                 exceptionClass,

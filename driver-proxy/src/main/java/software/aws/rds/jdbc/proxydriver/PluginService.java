@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -33,6 +34,8 @@ public interface PluginService {
       throws SQLException;
 
   List<HostSpec> getHosts();
+
+  void setAvailability(Set<String> hostAliases, HostAvailability availability);
 
   boolean isExplicitReadOnly();
 

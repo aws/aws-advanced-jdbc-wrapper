@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.aws.rds.jdbc.proxydriver.ConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.ConnectionProvider;
+import software.aws.rds.jdbc.proxydriver.HostAvailability;
 import software.aws.rds.jdbc.proxydriver.HostListProviderService;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
@@ -112,6 +113,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // omitted.
+
+
+    this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
 
     return conn;
   }

@@ -69,6 +69,10 @@ public class HostSpec {
     return this.availability;
   }
 
+  public void setAvailability(HostAvailability availability) {
+    this.availability = availability;
+  }
+
   public Set<String> getAliases() {
     return Collections.unmodifiableSet(this.aliases);
   }
@@ -91,6 +95,13 @@ public class HostSpec {
 
   public String asAlias() {
     return isPortSpecified() ? host + ":" + port : host;
+  }
+
+  public Set<String> asAliases() {
+    Set<String> allAliases = new HashSet<>();
+    allAliases.add(this.asAlias());
+    allAliases.addAll(this.aliases);
+    return Collections.unmodifiableSet(allAliases);
   }
 
   public String toString() {

@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -24,8 +25,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -328,5 +331,143 @@ public class PluginServiceImplTests {
     assertEquals(1, target.getHosts().size());
     assertEquals("hostA", target.getHosts().get(0).getHost());
     verify(pluginManager, times(0)).notifyNodeListChanged(any());
+  }
+
+  @Test
+  public void testNodeAvailabilityNotChanged() {
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts = Collections.singletonList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+
+    Set<String> aliases = new HashSet<>();
+    aliases.add("hostA");
+    target.setAvailability(aliases, HostAvailability.AVAILABLE);
+
+    assertEquals(1, target.getHosts().size());
+    assertEquals(HostAvailability.AVAILABLE, target.getHosts().get(0).getAvailability());
+    verify(pluginManager, never()).notifyNodeListChanged(any());
+  }
+
+  @Test
+  public void testNodeAvailabilityChanged_WentDown() {
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts = Collections.singletonList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+
+    Set<String> aliases = new HashSet<>();
+    aliases.add("hostA");
+    target.setAvailability(aliases, HostAvailability.NOT_AVAILABLE);
+
+    assertEquals(1, target.getHosts().size());
+    assertEquals(HostAvailability.NOT_AVAILABLE, target.getHosts().get(0).getAvailability());
+    verify(pluginManager, times(1)).notifyNodeListChanged(any());
+
+    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
+    assertTrue(notifiedChanges.containsKey("hostA/"));
+    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
+    assertEquals(2, hostAChanges.size());
+    assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
+    assertTrue(hostAChanges.contains(NodeChangeOptions.WENT_DOWN));
+  }
+
+  @Test
+  public void testNodeAvailabilityChanged_WentUp() {
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts = Collections.singletonList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE));
+
+    Set<String> aliases = new HashSet<>();
+    aliases.add("hostA");
+    target.setAvailability(aliases, HostAvailability.AVAILABLE);
+
+    assertEquals(1, target.getHosts().size());
+    assertEquals(HostAvailability.AVAILABLE, target.getHosts().get(0).getAvailability());
+    verify(pluginManager, times(1)).notifyNodeListChanged(any());
+
+    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
+    assertTrue(notifiedChanges.containsKey("hostA/"));
+    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
+    assertEquals(2, hostAChanges.size());
+    assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
+    assertTrue(hostAChanges.contains(NodeChangeOptions.WENT_UP));
+  }
+
+  @Test
+  public void testNodeAvailabilityChanged_WentUp_ByAlias() {
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
+
+    final HostSpec hostA = new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    hostA.addAlias("ip-10-10-10-10");
+    hostA.addAlias("hostA.custom.domain.com");
+    final HostSpec hostB = new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    hostB.addAlias("ip-10-10-10-10");
+    hostB.addAlias("hostB.custom.domain.com");
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+
+    target.hosts = Arrays.asList(hostA, hostB);
+
+    Set<String> aliases = new HashSet<>();
+    aliases.add("hostA.custom.domain.com");
+    target.setAvailability(aliases, HostAvailability.AVAILABLE);
+
+    assertEquals(HostAvailability.AVAILABLE, hostA.getAvailability());
+    assertEquals(HostAvailability.NOT_AVAILABLE, hostB.getAvailability());
+    verify(pluginManager, times(1)).notifyNodeListChanged(any());
+
+    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
+    assertTrue(notifiedChanges.containsKey("hostA/"));
+    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
+    assertEquals(2, hostAChanges.size());
+    assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
+    assertTrue(hostAChanges.contains(NodeChangeOptions.WENT_UP));
+  }
+
+  @Test
+  public void testNodeAvailabilityChanged_WentUp_MultipleHostsByAlias() {
+    doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
+
+    final HostSpec hostA = new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    hostA.addAlias("ip-10-10-10-10");
+    hostA.addAlias("hostA.custom.domain.com");
+    final HostSpec hostB = new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    hostB.addAlias("ip-10-10-10-10");
+    hostB.addAlias("hostB.custom.domain.com");
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+
+    target.hosts = Arrays.asList(hostA, hostB);
+
+    Set<String> aliases = new HashSet<>();
+    aliases.add("ip-10-10-10-10");
+    target.setAvailability(aliases, HostAvailability.AVAILABLE);
+
+    assertEquals(HostAvailability.AVAILABLE, hostA.getAvailability());
+    assertEquals(HostAvailability.AVAILABLE, hostB.getAvailability());
+    verify(pluginManager, times(1)).notifyNodeListChanged(any());
+
+    Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
+    assertTrue(notifiedChanges.containsKey("hostA/"));
+    EnumSet<NodeChangeOptions> hostAChanges = notifiedChanges.get("hostA/");
+    assertEquals(2, hostAChanges.size());
+    assertTrue(hostAChanges.contains(NodeChangeOptions.NODE_CHANGED));
+    assertTrue(hostAChanges.contains(NodeChangeOptions.WENT_UP));
+
+    assertTrue(notifiedChanges.containsKey("hostB/"));
+    EnumSet<NodeChangeOptions> hostBChanges = notifiedChanges.get("hostB/");
+    assertEquals(2, hostBChanges.size());
+    assertTrue(hostBChanges.contains(NodeChangeOptions.NODE_CHANGED));
+    assertTrue(hostBChanges.contains(NodeChangeOptions.WENT_UP));
   }
 }

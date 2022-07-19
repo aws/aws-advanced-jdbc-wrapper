@@ -95,10 +95,10 @@ public class MonitorImpl implements Monitor {
       LOGGER.log(Level.WARNING, "Parameter 'context' should not be null.");
       return;
     }
-    synchronized (context) {
-      this.contexts.remove(context);
-      context.invalidate();
-    }
+
+    context.invalidate();
+    this.contexts.remove(context);
+
     this.connectionCheckIntervalMillis = findShortestIntervalMillis();
   }
 

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -176,6 +177,44 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       }
     }
     return this.hosts;
+  }
+
+  @Override
+  public void setAvailability(final @NonNull Set<String> hostAliases, final @NonNull HostAvailability availability) {
+
+    if (hostAliases.isEmpty()) {
+      return;
+    }
+
+    List<HostSpec> hostsToChange = this.getHosts().stream()
+        .filter((host) -> hostAliases.contains(host.asAlias())
+            || host.getAliases().stream().anyMatch((hostAlias) -> hostAliases.contains(hostAlias)))
+        .distinct()
+        .collect(Collectors.toList());
+
+    if (hostsToChange.isEmpty()) {
+      LOGGER.log(Level.FINEST, String.format("Can't find any host by the following aliases: %s.", hostAliases));
+      return;
+    }
+
+    Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
+    for (HostSpec host : hostsToChange) {
+      HostAvailability currentAvailability = host.getAvailability();
+      host.setAvailability(availability);
+      if (currentAvailability != availability) {
+        EnumSet<NodeChangeOptions> hostChanges;
+        if (availability == HostAvailability.AVAILABLE) {
+          hostChanges = EnumSet.of(NodeChangeOptions.WENT_UP, NodeChangeOptions.NODE_CHANGED);
+        } else {
+          hostChanges = EnumSet.of(NodeChangeOptions.WENT_DOWN, NodeChangeOptions.NODE_CHANGED);
+        }
+        changes.put(host.getUrl(), hostChanges);
+      }
+    }
+
+    if (!changes.isEmpty()) {
+      this.pluginManager.notifyNodeListChanged(changes);
+    }
   }
 
   @Override
