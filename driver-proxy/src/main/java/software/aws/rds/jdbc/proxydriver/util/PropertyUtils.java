@@ -12,6 +12,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 public class PropertyUtils {
 
@@ -60,7 +61,6 @@ public class PropertyUtils {
     }
 
     if (writeMethod == null) {
-      // TODO: use a better exception class
       throw new RuntimeException(
           String.format("Property %s does not exist on target %s", propName, target.getClass()));
     }
@@ -84,7 +84,7 @@ public class PropertyUtils {
     }
   }
 
-  public static Properties copyProperties(final Properties props) {
+  public static @NonNull Properties copyProperties(final Properties props) {
     Properties copy = new Properties();
 
     if (props == null) {

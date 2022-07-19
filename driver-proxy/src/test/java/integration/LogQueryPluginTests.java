@@ -124,6 +124,7 @@ public class LogQueryPluginTests {
 
     handler.flush();
     String logMessages = new String(os.toByteArray(), "UTF-8");
-    assertTrue(logMessages.contains("[PreparedStatement.executeQuery] Executing query: SELECT 12345 * ?"));
+    assertTrue(
+        logMessages.contains("[PreparedStatement.executeQuery] Executing query: SELECT 12345 * ?"));
   }
 }

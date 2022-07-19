@@ -42,7 +42,19 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
   }
 
   public boolean getBoolean(Properties properties) {
+    Object value = properties.get(name);
+    if (value instanceof Boolean) {
+      return (Boolean) value;
+    }
     return Boolean.parseBoolean(properties.getProperty(name, defaultValue));
+  }
+
+  public int getInt(Properties properties) {
+    Object value = properties.get(name);
+    if (value instanceof Integer) {
+      return (Integer) value;
+    }
+    return Integer.parseInt(properties.getProperty(name, defaultValue));
   }
 
   public void set(Properties properties, @Nullable String value) {

@@ -15,9 +15,10 @@ import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 
 public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
-  private static final Logger LOGGER = Logger.getLogger(ExecutionTimeConnectionPlugin.class.getName());
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Collections.singletonList("*")));
+  private static final Logger LOGGER =
+      Logger.getLogger(ExecutionTimeConnectionPlugin.class.getName());
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
 
   @Override
   public Set<String> getSubscribedMethods() {
@@ -25,9 +26,14 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public <T, E extends Exception> T execute(Class<T> resultClass, Class<E> exceptionClass,
-      Object methodInvokeOn, String methodName, JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs) throws E {
+  public <T, E extends Exception> T execute(
+      Class<T> resultClass,
+      Class<E> exceptionClass,
+      Object methodInvokeOn,
+      String methodName,
+      JdbcCallable<T, E> jdbcMethodFunc,
+      Object[] jdbcMethodArgs)
+      throws E {
 
     final long startTime = System.nanoTime();
 

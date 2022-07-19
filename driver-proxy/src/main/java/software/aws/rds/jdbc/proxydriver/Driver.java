@@ -158,7 +158,7 @@ public class Driver implements java.sql.Driver {
       LOGGER.log(
           Level.FINE,
           "Url [{0}] parsing failed with error [{1}]",
-          new Object[]{url, e.getMessage()});
+          new Object[] {url, e.getMessage()});
     }
     return null;
   }

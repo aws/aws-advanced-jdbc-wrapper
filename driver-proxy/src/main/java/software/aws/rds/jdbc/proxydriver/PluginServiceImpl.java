@@ -172,7 +172,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       try {
         this.refreshHostList();
       } catch (SQLException e) {
-        // TODO: log failure
+        LOGGER.log(Level.FINEST, "Exception while getting a host list.", e);
       }
     }
     return this.hosts;

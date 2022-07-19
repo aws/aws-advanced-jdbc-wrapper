@@ -27,6 +27,7 @@ import software.aws.rds.jdbc.proxydriver.plugin.DataCacheConnectionPluginFactory
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.LogQueryConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
@@ -40,15 +41,17 @@ import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
  */
 public class ConnectionPluginManager implements CanReleaseResources {
 
-  protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
-      new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
-        {
-          put("executionTime", ExecutionTimeConnectionPluginFactory.class);
-          put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
-          put("logQuery", LogQueryConnectionPluginFactory.class);
-          put("dataCache", DataCacheConnectionPluginFactory.class);
-        }
-      };
+  protected static final Map<String, Class<? extends ConnectionPluginFactory>>
+      pluginFactoriesByCode =
+          new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
+            {
+              put("executionTime", ExecutionTimeConnectionPluginFactory.class);
+              put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
+              put("logQuery", LogQueryConnectionPluginFactory.class);
+              put("dataCache", DataCacheConnectionPluginFactory.class);
+              put("efm", HostMonitoringConnectionPluginFactory.class);
+            }
+          };
 
   protected static final String DEFAULT_PLUGINS = "";
 
@@ -76,9 +79,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionProvider = new DataSourceConnectionProvider(targetDataSource);
   }
 
-  /**
-   * This constructor is for testing purposes only.
-   */
+  /** This constructor is for testing purposes only. */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -97,22 +98,21 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   /**
-   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link ConnectionPluginFactory}. If
-   * {@code PropertyDefinition.PLUGINS} is provided by the user, initialize the chain with the given
-   * connection plugins in the order they are specified.
+   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link
+   * ConnectionPluginFactory}. If {@code PropertyDefinition.PLUGINS} is provided by the user,
+   * initialize the chain with the given connection plugins in the order they are specified.
    *
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService        A reference to a plugin service that plugin can use.
-   * @param props                The configuration of the connection.
+   * @param pluginService A reference to a plugin service that plugin can use.
+   * @param props The configuration of the connection.
    * @param pluginManagerService A reference to a plugin manager service.
    * @throws SQLException if errors occurred during the execution.
    */
   public void init(
-      PluginService pluginService,
-      Properties props,
-      PluginManagerService pluginManagerService) throws SQLException {
+      PluginService pluginService, Properties props, PluginManagerService pluginManagerService)
+      throws SQLException {
 
     this.props = props;
 
@@ -172,10 +172,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     // add default connection plugin to the tail
 
-    ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
-        pluginService,
-        this.connectionProvider,
-        pluginManagerService);
+    ConnectionPlugin defaultPlugin =
+        new DefaultConnectionPlugin(pluginService, this.connectionProvider, pluginManagerService);
     this.plugins.add(defaultPlugin);
   }
 
@@ -215,7 +213,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected <E extends Exception> void notifySubscribedPlugins(
       final String methodName,
       final PluginPipeline<Void, E> pluginPipeline,
-      final ConnectionPlugin skipNotificationForThisPlugin) throws E {
+      final ConnectionPlugin skipNotificationForThisPlugin)
+      throws E {
 
     if (pluginPipeline == null) {
       throw new IllegalArgumentException("pluginPipeline");
@@ -227,8 +226,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
         continue;
       }
       Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-      boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
-          || pluginSubscribedMethods.contains(methodName);
+      boolean isSubscribed =
+          pluginSubscribedMethods.contains(ALL_METHODS)
+              || pluginSubscribedMethods.contains(methodName);
 
       if (isSubscribed) {
         pluginPipeline.call(plugin, null);
@@ -299,8 +299,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
       @NonNull EnumSet<NodeChangeOptions> changes,
       @Nullable ConnectionPlugin skipNotificationForThisPlugin) {
 
-    final EnumSet<OldConnectionSuggestedAction> result = EnumSet.noneOf(
-        OldConnectionSuggestedAction.class);
+    final EnumSet<OldConnectionSuggestedAction> result =
+        EnumSet.noneOf(OldConnectionSuggestedAction.class);
 
     notifySubscribedPlugins(
         NOTIFY_CONNECTION_CHANGED_METHOD,
@@ -326,7 +326,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   /**
-   * Release all dangling resources held by the connection plugins associated with a single connection.
+   * Release all dangling resources held by the connection plugins associated with a single
+   * connection.
    */
   public void releaseResources() {
     LOGGER.log(Level.FINE, "releasing resources");
@@ -335,11 +336,12 @@ public class ConnectionPluginManager implements CanReleaseResources {
     // perform any
     // last tasks before shutting down.
 
-    this.plugins.forEach((plugin) -> {
-      if (plugin instanceof CanReleaseResources) {
-        ((CanReleaseResources) plugin).releaseResources();
-      }
-    });
+    this.plugins.forEach(
+        (plugin) -> {
+          if (plugin instanceof CanReleaseResources) {
+            ((CanReleaseResources) plugin).releaseResources();
+          }
+        });
   }
 
   private interface PluginPipeline<T, E extends Exception> {

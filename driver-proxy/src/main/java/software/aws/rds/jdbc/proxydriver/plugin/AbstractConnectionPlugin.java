@@ -67,5 +67,4 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {}
-
 }

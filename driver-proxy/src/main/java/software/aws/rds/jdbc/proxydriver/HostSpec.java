@@ -89,6 +89,10 @@ public class HostSpec {
     return url;
   }
 
+  public String asAlias() {
+    return isPortSpecified() ? host + ":" + port : host;
+  }
+
   public String toString() {
     return String.format("HostSpec[host=%s, port=%d]", this.host, this.port);
   }

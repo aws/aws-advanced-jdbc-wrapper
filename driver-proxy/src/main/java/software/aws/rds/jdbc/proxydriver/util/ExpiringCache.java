@@ -17,8 +17,8 @@ import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Expiring Cache class. This cache uses a LinkedHashMap to store values with a specific time they were stored. Items
- * that exceed the expired time will be removed when attempting to retrieve them.
+ * Expiring Cache class. This cache uses a LinkedHashMap to store values with a specific time they
+ * were stored. Items that exceed the expired time will be removed when attempting to retrieve them.
  *
  * @param <K> The type of the key to store
  * @param <V> The type of the value to store
@@ -27,9 +27,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
 
   private int expireTimeMs;
 
-  /**
-   * The HashMap which stores the key-value pair.
-   */
+  /** The HashMap which stores the key-value pair. */
   private final LinkedHashMap<K, Hit<V>> linkedHashMap =
       new LinkedHashMap<K, Hit<V>>(1, 0.75F, true) {
 
@@ -144,9 +142,10 @@ public class ExpiringCache<K, V> implements Map<K, V> {
   /**
    * Associates a specified value with a specified key in this map.
    *
-   * @param key   The key in the key-value pair
+   * @param key The key in the key-value pair
    * @param value The value in the key-value pair
-   * @return The previously associated value of the key. If there isn't any then it would return null
+   * @return The previously associated value of the key. If there isn't any then it would return
+   *     null
    */
   @Override
   public @Nullable V put(K key, V value) {
@@ -178,9 +177,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
     }
   }
 
-  /**
-   * Clears all mapping from the cache.
-   */
+  /** Clears all mapping from the cache. */
   @Override
   public void clear() {
     this.linkedHashMap.clear();

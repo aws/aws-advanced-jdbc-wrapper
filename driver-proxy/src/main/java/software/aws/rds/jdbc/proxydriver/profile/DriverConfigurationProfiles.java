@@ -14,13 +14,15 @@ import software.aws.rds.jdbc.proxydriver.ConnectionPluginFactory;
 
 public class DriverConfigurationProfiles {
 
-  private static final Map<String, List<Class<? extends ConnectionPluginFactory>>> profiles = new ConcurrentHashMap<>();
+  private static final Map<String, List<Class<? extends ConnectionPluginFactory>>> profiles =
+      new ConcurrentHashMap<>();
 
   public static void clear() {
     profiles.clear();
   }
 
-  public static void addOrReplaceProfile(@NonNull String profileName,
+  public static void addOrReplaceProfile(
+      @NonNull String profileName,
       @NonNull List<Class<? extends ConnectionPluginFactory>> pluginFactories) {
     profiles.put(profileName, pluginFactories);
   }
@@ -33,7 +35,8 @@ public class DriverConfigurationProfiles {
     return profiles.containsKey(profileName);
   }
 
-  public static List<Class<? extends ConnectionPluginFactory>> getPluginFactories(@NonNull String profileName) {
+  public static List<Class<? extends ConnectionPluginFactory>> getPluginFactories(
+      @NonNull String profileName) {
     return profiles.get(profileName);
   }
 }
