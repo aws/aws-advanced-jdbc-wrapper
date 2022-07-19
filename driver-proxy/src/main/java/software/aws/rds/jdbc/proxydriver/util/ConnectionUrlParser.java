@@ -6,9 +6,12 @@
 
 package software.aws.rds.jdbc.proxydriver.util;
 
+import static software.aws.rds.jdbc.proxydriver.util.StringUtils.isNullOrEmpty;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import software.aws.rds.jdbc.proxydriver.HostSpec;
@@ -47,19 +50,88 @@ public class ConnectionUrlParser {
     return hostsList;
   }
 
-  HostSpec parseHostPortPair(final String url) {
+  public static HostSpec parseHostPortPair(final String url) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
     if (hostPortPair.length > 1) {
-      return new HostSpec(hostPortPair[0], parsePortAsInt(hostPortPair[1]));
+      final String[] port = hostPortPair[1].split("/");
+      int portValue = parsePortAsInt(hostPortPair[1]);
+      if (port.length > 1) {
+        portValue = parsePortAsInt(port[0]);
+      }
+      return new HostSpec(hostPortPair[0], portValue);
     }
     return new HostSpec(hostPortPair[0]);
   }
 
-  private int parsePortAsInt(String port) {
+  private static int parsePortAsInt(String port) {
     try {
       return Integer.parseInt(port);
     } catch (NumberFormatException e) {
       return HostSpec.NO_PORT;
     }
+  }
+
+  // Get the database name from a given url of the generic format: "protocol//[hosts][/database][?properties]"
+  public static String parseDatabaseFromUrl(String url) {
+    String[] dbName = url.split("//")[1].split("\\?")[0].split("/");
+
+    if (dbName.length == 1) {
+      return null;
+    }
+
+    return dbName[1];
+  }
+
+  // Get the user name from a given url of the generic format: "protocol//[hosts][/database][?properties]"
+  public static String parseUserFromUrl(String url, String userPropertyName) {
+    String[] urlParameters = url.split("\\?");
+    if (urlParameters.length == 1) {
+      return null;
+    }
+
+    String[] user = urlParameters[1].split(userPropertyName + "=")[1].split("&");
+    if (isNullOrEmpty(user[0])) {
+      return null;
+    }
+
+    return user[0];
+  }
+
+  // Get the password from a given url of the generic format: "protocol//[hosts][/database][?properties]"
+  public static String parsePasswordFromUrl(String url, String passwordPropertyName) {
+    String[] urlParameters = url.split("\\?");
+    if (urlParameters.length == 1) {
+      return null;
+    }
+
+    String[] password = urlParameters[1].split(passwordPropertyName + "=")[1].split("&");
+    if (isNullOrEmpty(password[0])) {
+      return null;
+    }
+
+    return password[0];
+  }
+
+  // Get the properties from a given url of the generic format: "protocol//[hosts][/database][?properties]"
+  public static Properties parsePropertiesFromUrl(String url, Properties props) {
+    String[] urlParameters = url.split("\\?");
+    if (urlParameters.length == 1) {
+      return null;
+    }
+
+    String[] listOfParameters = urlParameters[1].split("&");
+    for (String param : listOfParameters) {
+      String[] currentParameter = param.split("=");
+      String currentParameterName = currentParameter[0];
+      String currentParameterValue = "";
+
+      if (currentParameter.length > 1) {
+        currentParameterValue = currentParameter[1];
+      }
+
+      props.setProperty(currentParameterName, currentParameterValue);
+    }
+
+    return props;
   }
 }

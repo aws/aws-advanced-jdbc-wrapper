@@ -12,9 +12,12 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 public class PropertyUtils {
+  private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
 
   public static void applyProperties(final Object target, final Properties properties) {
     if (target == null || properties == null) {
@@ -61,8 +64,10 @@ public class PropertyUtils {
     }
 
     if (writeMethod == null) {
-      throw new RuntimeException(
-          String.format("Property %s does not exist on target %s", propName, target.getClass()));
+      LOGGER.log(
+          Level.WARNING,
+          String.format("Set method for property '%s' does not exist on target %s", propName, target.getClass()));
+      return;
     }
 
     try {
@@ -79,8 +84,7 @@ public class PropertyUtils {
         writeMethod.invoke(target, propValue);
       }
     } catch (Exception e) {
-      throw new RuntimeException(
-          String.format("Failed to set property %s on target %s", propName, target.getClass()), e);
+      LOGGER.log(Level.WARNING, String.format("Failed to set property %s on target %s", propName, target.getClass()));
     }
   }
 

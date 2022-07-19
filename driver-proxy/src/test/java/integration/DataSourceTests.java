@@ -6,12 +6,14 @@
 
 package integration;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.util.TestSettings;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource;
@@ -19,20 +21,27 @@ import software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource;
 @Disabled
 public class DataSourceTests {
 
-  @Test
-  public void testOpenConnectionWithMysqlDataSourceClassName()
-      throws SQLException, ClassNotFoundException {
-
-    // Make sure that MySql driver class is loaded and registered at DriverManager
+  @BeforeAll
+  public static void setup() throws SQLException, ClassNotFoundException {
     Class.forName("com.mysql.cj.jdbc.Driver");
+    Class.forName("org.mariadb.jdbc.Driver");
 
     if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
       software.aws.rds.jdbc.proxydriver.Driver.register();
     }
 
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    if (!org.postgresql.Driver.isRegistered()) {
+      org.postgresql.Driver.register();
+    }
+  }
 
+  @Test
+  public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
+    ProxyDriverDataSource ds = new ProxyDriverDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setServerPropertyName("serverName");
+    ds.setDatabasePropertyName("databaseName");
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", TestSettings.mysqlServerName);
@@ -42,21 +51,14 @@ public class DataSourceTests {
     Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
 
     assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
+    assertEquals(conn.getCatalog(), TestSettings.mysqlDatabase);
 
     assertTrue(conn.isValid(10));
     conn.close();
   }
 
   @Test
-  public void testOpenConnectionWithMysqlUrl() throws SQLException, ClassNotFoundException {
-
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
+  public void testOpenConnectionWithMysqlUrl() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
     ds.setJdbcUrl(
         "jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase);
@@ -64,24 +66,18 @@ public class DataSourceTests {
     Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
 
     assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
+    assertEquals(conn.getCatalog(), TestSettings.mysqlDatabase);
 
     assertTrue(conn.isValid(10));
     conn.close();
   }
 
   @Test
-  public void testOpenConnectionWithPostgresqlDataSourceClassName()
-      throws SQLException, ClassNotFoundException {
-
-    if (!org.postgresql.Driver.isRegistered()) {
-      org.postgresql.Driver.register();
-    }
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
+  public void testOpenConnectionWithPostgresqlDataSourceClassName() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    ds.setJdbcProtocol("jdbc:postgresql:");
+    ds.setServerPropertyName("serverName");
+    ds.setDatabasePropertyName("databaseName");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -94,33 +90,61 @@ public class DataSourceTests {
         ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
 
     assertTrue(conn instanceof org.postgresql.PGConnection);
+    assertEquals(conn.getCatalog(), TestSettings.postgresqlDatabase);
 
     assertTrue(conn.isValid(10));
     conn.close();
   }
 
   @Test
-  public void testOpenConnectionWithPostgresqlUrl() throws SQLException, ClassNotFoundException {
-
-    if (!org.postgresql.Driver.isRegistered()) {
-      org.postgresql.Driver.register();
-    }
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
+  public void testOpenConnectionWithPostgresqlUrl() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
     ds.setJdbcUrl(
-        "jdbc:postgresql://"
-            + TestSettings.postgresqlServerName
-            + "/"
-            + TestSettings.postgresqlDatabase);
+        "jdbc:postgresql://" + TestSettings.postgresqlServerName + "/" + TestSettings.postgresqlDatabase);
 
     Connection conn =
         ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
 
     assertTrue(conn instanceof org.postgresql.PGConnection);
+    assertEquals(conn.getCatalog(), TestSettings.postgresqlDatabase);
+
+    assertTrue(conn.isValid(10));
+    conn.close();
+  }
+
+  @Test
+  public void testOpenConnectionWithMariaDbDataSourceClassName() throws SQLException {
+    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
+    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setUrlPropertyName("url");
+
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty(
+        "url",
+        "jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase + "?permitMysqlScheme");
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
+
+    Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
+
+    assertTrue(conn instanceof org.mariadb.jdbc.Connection);
+    assertEquals(conn.getCatalog(), TestSettings.mysqlDatabase);
+
+    assertTrue(conn.isValid(10));
+    conn.close();
+  }
+
+  @Test
+  public void testOpenConnectionWithMariaDbUrl() throws SQLException {
+    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    ds.setJdbcUrl(
+        "jdbc:mysql://" + TestSettings.mysqlServerName + "/" + TestSettings.mysqlDatabase + "?permitMysqlScheme");
+
+    Connection conn = ds.getConnection(TestSettings.mysqlUser, TestSettings.mysqlPassword);
+
+    assertTrue(conn instanceof org.mariadb.jdbc.Connection);
+    assertEquals(conn.getCatalog(), TestSettings.mysqlDatabase);
 
     assertTrue(conn.isValid(10));
     conn.close();

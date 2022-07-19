@@ -6,6 +6,11 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import static software.aws.rds.jdbc.proxydriver.ConnectionPropertyNames.DATABASE_PROPERTY_NAME;
+import static software.aws.rds.jdbc.proxydriver.ConnectionPropertyNames.PASSWORD_PROPERTY_NAME;
+import static software.aws.rds.jdbc.proxydriver.ConnectionPropertyNames.USER_PROPERTY_NAME;
+import static software.aws.rds.jdbc.proxydriver.util.StringUtils.isNullOrEmpty;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -18,9 +23,17 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 public class DriverConnectionProvider implements ConnectionProvider {
 
   private final java.sql.Driver driver;
+  private final String userPropertyName;
+  private final String passwordPropertyName;
 
   public DriverConnectionProvider(final java.sql.Driver driver) {
+    this(driver, null, null);
+  }
+
+  public DriverConnectionProvider(final java.sql.Driver driver, String userPropertyName, String passwordPropertyName) {
     this.driver = driver;
+    this.userPropertyName = userPropertyName;
+    this.passwordPropertyName = passwordPropertyName;
   }
 
   /**
@@ -39,10 +52,20 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull Properties props)
       throws SQLException {
 
-    //TODO: define "database" property
-    final String databaseName = props.getProperty("database") != null ? props.getProperty("database") : "";
-    final String url = protocol + hostSpec.getUrl() + databaseName;
-    return this.driver.connect(url, props);
+    final String databaseName =
+        props.getProperty(DATABASE_PROPERTY_NAME) != null ? props.getProperty(DATABASE_PROPERTY_NAME) : "";
+    final StringBuilder urlBuilder = new StringBuilder();
+    urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
+
+    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
+      props.setProperty(this.userPropertyName, props.getProperty(USER_PROPERTY_NAME));
+    }
+
+    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
+      props.setProperty(this.passwordPropertyName, props.getProperty(PASSWORD_PROPERTY_NAME));
+    }
+
+    return this.driver.connect(urlBuilder.toString(), props);
   }
 
   /**

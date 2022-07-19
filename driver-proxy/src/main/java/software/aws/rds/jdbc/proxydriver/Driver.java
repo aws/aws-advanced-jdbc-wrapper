@@ -6,6 +6,8 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import static software.aws.rds.jdbc.proxydriver.ConnectionPropertyNames.DATABASE_PROPERTY_NAME;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
@@ -119,7 +121,7 @@ public class Driver implements java.sql.Driver {
     if (dPos != -1) {
       String database = urlServer.substring(dPos + 1);
       if (!database.isEmpty()) {
-        propertiesFromUrl.setProperty("database", database);
+        propertiesFromUrl.setProperty(DATABASE_PROPERTY_NAME, database);
       }
     }
 
