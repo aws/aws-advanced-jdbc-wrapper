@@ -30,6 +30,7 @@ public class WrapperUtilsTest {
   private AutoCloseable closeable;
 
   @BeforeEach
+  @SuppressWarnings("unchecked")
   private void init() {
     final ReentrantLock pluginManagerLock = new ReentrantLock();
     final ReentrantLock testLock = new ReentrantLock();

@@ -412,6 +412,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Map<String, Class<?>> getTypeMap() throws SQLException {
     // noinspection unchecked
     return WrapperUtils.executeWithPlugins(
