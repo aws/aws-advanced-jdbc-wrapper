@@ -4,11 +4,10 @@
  * See the LICENSE file in the project root for more information.
  */
 
-package integration;
+package integration.container.standard.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import integration.util.TestSettings;
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
@@ -22,50 +21,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
-import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 
-@Disabled
-public class LogQueryPluginTests {
+public class LogQueryPluginTests extends StandardPostgresBaseTest {
 
-  @BeforeAll
-  public static void beforeAll() throws ClassNotFoundException, SQLException {
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-  }
-
-  private static Stream<Arguments> testParameters() {
-    return Stream.of(
-        Arguments.of(
-            "aws-proxy-jdbc:mysql://"
-                + TestSettings.mysqlServerName
-                + "/"
-                + TestSettings.mysqlDatabase,
-            TestSettings.mysqlUser,
-            TestSettings.mysqlPassword),
-        Arguments.of(
-            "aws-proxy-jdbc:postgresql://"
-                + TestSettings.postgresqlServerName
-                + "/"
-                + TestSettings.postgresqlDatabase,
-            TestSettings.postgresqlUser,
-            TestSettings.postgresqlPassword));
-  }
-
-  @ParameterizedTest
-  @MethodSource("testParameters")
-  public void testStatementExecuteQueryWithArg(String url, String user, String password)
+  @Test
+  public void testStatementExecuteQueryWithArg()
       throws SQLException, UnsupportedEncodingException {
 
     Logger logger = Logger.getLogger(""); // get root logger
@@ -74,13 +35,11 @@ public class LogQueryPluginTests {
     handler.setLevel(Level.ALL);
     logger.addHandler(handler);
 
-    Properties props = new Properties();
-    props.setProperty("user", user);
-    props.setProperty("password", password);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverPlugins", "logQuery");
     props.setProperty("enhancedLogQueryEnabled", "true");
 
-    Connection conn = DriverManager.getConnection(url, props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     Statement statement = conn.createStatement();
 
@@ -95,9 +54,8 @@ public class LogQueryPluginTests {
     assertTrue(logMessages.contains("[Statement.executeQuery] Executing query: SELECT 100"));
   }
 
-  @ParameterizedTest
-  @MethodSource("testParameters")
-  public void testPreparedStatementExecuteQuery(String url, String user, String password)
+  @Test
+  public void testPreparedStatementExecuteQuery()
       throws SQLException, UnsupportedEncodingException {
 
     Logger logger = Logger.getLogger(""); // get root logger
@@ -106,13 +64,11 @@ public class LogQueryPluginTests {
     handler.setLevel(Level.ALL);
     logger.addHandler(handler);
 
-    Properties props = new Properties();
-    props.setProperty("user", user);
-    props.setProperty("password", password);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverPlugins", "logQuery");
     props.setProperty("enhancedLogQueryEnabled", "true");
 
-    Connection conn = DriverManager.getConnection(url, props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     PreparedStatement statement = conn.prepareStatement("SELECT 12345 * ?");
     statement.setInt(1, 10);

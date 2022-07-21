@@ -4,13 +4,12 @@
  * See the LICENSE file in the project root for more information.
  */
 
-package integration;
+package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
-import integration.util.TestSettings;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -18,27 +17,15 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 
-@Disabled
-public class HikariTests {
+public class HikariTests extends StandardMysqlBaseTest {
 
   @Test
-  public void testOpenConnectionWithMysqlUrl() throws SQLException, ClassNotFoundException {
-
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
+  public void testOpenConnectionWithMysqlUrl() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
-    ds.setJdbcUrl(
-        "aws-proxy-jdbc:mysql://"
-            + TestSettings.mysqlServerName
-            + "/"
-            + TestSettings.mysqlDatabase);
-    ds.setUsername(TestSettings.mysqlUser);
-    ds.setPassword(TestSettings.mysqlPassword);
+    ds.setJdbcUrl(getUrl());
+    ds.setUsername(STANDARD_MYSQL_USERNAME);
+    ds.setPassword(STANDARD_MYSQL_PASSWORD);
 
     Connection conn = ds.getConnection();
 
@@ -54,25 +41,19 @@ public class HikariTests {
   }
 
   @Test
+  @Disabled //TODO: check
   public void testOpenConnectionWithMysqlDataSourceClassName()
-      throws SQLException, ClassNotFoundException {
-
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
+      throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
     ds.setDataSourceClassName("software.aws.rds.jdbc.proxydriver.ds.ProxyDriverDataSource");
-    ds.setUsername(TestSettings.mysqlUser);
-    ds.setPassword(TestSettings.mysqlPassword);
+    ds.setUsername(STANDARD_MYSQL_USERNAME);
+    ds.setPassword(STANDARD_MYSQL_PASSWORD);
     ds.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
 
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", TestSettings.mysqlServerName);
-    targetDataSourceProps.setProperty("databaseName", TestSettings.mysqlDatabase);
+    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     Connection conn = ds.getConnection();

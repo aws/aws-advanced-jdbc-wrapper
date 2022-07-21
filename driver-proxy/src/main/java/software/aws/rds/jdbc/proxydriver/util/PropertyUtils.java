@@ -65,7 +65,7 @@ public class PropertyUtils {
 
     if (writeMethod == null) {
       LOGGER.log(
-          Level.WARNING,
+          Level.FINEST,
           String.format("Set method for property '%s' does not exist on target %s", propName, target.getClass()));
       return;
     }

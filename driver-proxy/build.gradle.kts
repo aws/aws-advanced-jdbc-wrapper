@@ -41,6 +41,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
+    testImplementation("org.slf4j:slf4j-simple:1.7.+")
 }
 
 tasks.check {
@@ -119,23 +120,13 @@ ide {
     )
 }
 
-tasks.getByName<Test>("test") {
+tasks.withType<Test> {
     useJUnitPlatform()
 
     fun passProperty(name: String, default: String? = null) {
         val value = System.getProperty(name) ?: default
         value?.let { systemProperty(name, it) }
     }
-
-    passProperty("mysqlServerName")
-    passProperty("mysqlUser")
-    passProperty("mysqlPassword")
-    passProperty("mysqlDatabase")
-
-    passProperty("postgresqlServerName")
-    passProperty("postgresqlUser")
-    passProperty("postgresqlPassword")
-    passProperty("postgresqlDatabase")
 
     systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
 }
@@ -172,6 +163,18 @@ tasks.register<Test>("debug-performance-aurora-postgres") {
 tasks.register<Test>("debug-integration-standard-postgres") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
+}
+
+// Run standard Mysql tests in container
+tasks.register<Test>("test-integration-standard-mysql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.runTestInContainer")
+}
+
+// Run standard Mysql integration tests in container with debugger
+tasks.register<Test>("debug-integration-standard-mysql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.debugTestInContainer")
 }
 
 tasks.withType<Test> {

@@ -4,57 +4,34 @@
  * See the LICENSE file in the project root for more information.
  */
 
-package integration;
+package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import integration.util.TestSettings;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.plugin.DataCacheConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.DataCacheConnectionPlugin.CachedResultSet;
 
-@Disabled
-public class DataCachePluginTests {
-
-  @BeforeAll
-  public static void beforeAll() throws ClassNotFoundException, SQLException {
-
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-  }
+public class DataCachePluginTests extends StandardMysqlBaseTest {
 
   @Test
   public void testQueryCacheable() throws SQLException {
 
     DataCacheConnectionPlugin.clearCache();
 
-    Properties props = new Properties();
-    props.setProperty("user", TestSettings.mysqlUser);
-    props.setProperty("password", TestSettings.mysqlPassword);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverPlugins", "dataCache");
     props.setProperty("dataCacheTriggerCondition", ".*testTable.*");
 
-    Connection conn =
-        DriverManager.getConnection(
-            "aws-proxy-jdbc:mysql://"
-                + TestSettings.mysqlServerName
-                + "/"
-                + TestSettings.mysqlDatabase,
-            props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     conn.createStatement().execute("drop table if exists testTable");
     conn.createStatement().execute("create table testTable (id int not null, name varchar(100))");
@@ -119,19 +96,11 @@ public class DataCachePluginTests {
 
     DataCacheConnectionPlugin.clearCache();
 
-    Properties props = new Properties();
-    props.setProperty("user", TestSettings.mysqlUser);
-    props.setProperty("password", TestSettings.mysqlPassword);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverPlugins", "dataCache");
     props.setProperty("dataCacheTriggerCondition", ".*WRONG_EXPRESSION.*");
 
-    Connection conn =
-        DriverManager.getConnection(
-            "aws-proxy-jdbc:mysql://"
-                + TestSettings.mysqlServerName
-                + "/"
-                + TestSettings.mysqlDatabase,
-            props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     conn.createStatement().execute("drop table if exists testTable");
     conn.createStatement().execute("create table testTable (id int not null, name varchar(100))");

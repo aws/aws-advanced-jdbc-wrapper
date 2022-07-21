@@ -4,7 +4,7 @@
  * See the LICENSE file in the project root for more information.
  */
 
-package integration;
+package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import integration.util.TestSettings;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -26,7 +26,6 @@ import java.util.Random;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
@@ -34,31 +33,33 @@ import software.aws.rds.jdbc.proxydriver.wrapper.ConnectionWrapper;
 import software.aws.rds.jdbc.proxydriver.wrapper.ResultSetWrapper;
 import software.aws.rds.jdbc.proxydriver.wrapper.StatementWrapper;
 
-@Disabled
-public class MysqlTests {
+public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
 
   @Test
-  public void testOpenConnection() throws SQLException, ClassNotFoundException, InterruptedException {
-
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
+  public void test_connect() throws SQLException, IOException {
+    try (Connection conn = connect()) {
+      Statement stmt = conn.createStatement();
+      stmt.executeQuery("SELECT 1");
+      ResultSet rs = stmt.getResultSet();
+      rs.next();
+      assertEquals(1, rs.getInt(1));
     }
 
-    Properties props = new Properties();
-    props.setProperty("user", TestSettings.mysqlUser);
-    props.setProperty("password", TestSettings.mysqlPassword);
+    try (Connection conn = connectToProxy()) {
+      assertTrue(conn.isValid(5));
+      containerHelper.disableConnectivity(proxy);
+      assertFalse(conn.isValid(5));
+      containerHelper.enableConnectivity(proxy);
+    }
+  }
+
+  @Test
+  public void testOpenConnection() throws SQLException {
+
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverPlugins", "executionTime");
 
-    Connection conn =
-        DriverManager.getConnection(
-            "aws-proxy-jdbc:mysql://"
-                + TestSettings.mysqlServerName
-                + "/"
-                + TestSettings.mysqlDatabase,
-            props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
     assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
@@ -84,58 +85,29 @@ public class MysqlTests {
   }
 
   @Test
-  public void testOpenConnectionWithUnknownProfile() throws SQLException, ClassNotFoundException {
+  public void testOpenConnectionWithUnknownProfile() {
 
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
-    Properties props = new Properties();
-    props.setProperty("user", TestSettings.mysqlUser);
-    props.setProperty("password", TestSettings.mysqlPassword);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverProfileName", "unknownProfile");
 
     SQLException actualException = assertThrows(SQLException.class, () -> {
-      DriverManager.getConnection(
-          "aws-proxy-jdbc:mysql://"
-              + TestSettings.mysqlServerName
-              + "/"
-              + TestSettings.mysqlDatabase,
-          props);
+      DriverManager.getConnection(getUrl(), props);
     });
 
     assertTrue(actualException.getMessage().contains("unknownProfile"));
   }
 
   @Test
-  public void testOpenConnectionWithProfile() throws SQLException, ClassNotFoundException {
+  public void testOpenConnectionWithProfile() throws SQLException {
 
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
-    Properties props = new Properties();
-    props.setProperty("user", TestSettings.mysqlUser);
-    props.setProperty("password", TestSettings.mysqlPassword);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverProfileName", "testProfile");
 
     DriverConfigurationProfiles.clear();
     DriverConfigurationProfiles.addOrReplaceProfile("testProfile",
         Arrays.asList(ExecutionTimeConnectionPluginFactory.class));
 
-    Connection conn =
-        DriverManager.getConnection(
-            "aws-proxy-jdbc:mysql://"
-                + TestSettings.mysqlServerName
-                + "/"
-                + TestSettings.mysqlDatabase,
-            props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
     assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
@@ -162,32 +134,17 @@ public class MysqlTests {
 
   @Test
   public void testUnclosedConnection()
-      throws SQLException, ClassNotFoundException, InterruptedException, UnsupportedEncodingException {
+      throws SQLException, InterruptedException, UnsupportedEncodingException {
 
     Logger logger = Logger.getLogger(""); //get root logger
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     logger.addHandler(new StreamHandler(os, new SimpleFormatter()));
 
 
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
-    Properties props = new Properties();
-    props.setProperty("user", TestSettings.mysqlUser);
-    props.setProperty("password", TestSettings.mysqlPassword);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverLogUnclosedConnections", "true");
 
-    Connection conn =
-        DriverManager.getConnection(
-            "aws-proxy-jdbc:mysql://"
-                + TestSettings.mysqlServerName
-                + "/"
-                + TestSettings.mysqlDatabase,
-            props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
     assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
@@ -221,32 +178,16 @@ public class MysqlTests {
 
   @Test
   public void testUnclosedConnectionHappyCase()
-      throws SQLException, ClassNotFoundException, InterruptedException, UnsupportedEncodingException {
+      throws SQLException, InterruptedException, UnsupportedEncodingException {
 
     Logger logger = Logger.getLogger(""); //get root logger
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     logger.addHandler(new StreamHandler(os, new SimpleFormatter()));
 
-
-    // Make sure that MySql driver class is loaded and registered at DriverManager
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
-      software.aws.rds.jdbc.proxydriver.Driver.register();
-    }
-
-    Properties props = new Properties();
-    props.setProperty("user", TestSettings.mysqlUser);
-    props.setProperty("password", TestSettings.mysqlPassword);
+    Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverLogUnclosedConnections", "true");
 
-    Connection conn =
-        DriverManager.getConnection(
-            "aws-proxy-jdbc:mysql://"
-                + TestSettings.mysqlServerName
-                + "/"
-                + TestSettings.mysqlDatabase,
-            props);
+    Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
     assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));

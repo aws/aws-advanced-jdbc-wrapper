@@ -116,7 +116,13 @@ public class ContainerHelper {
         .withCopyFileToContainer(MountableFile.forHostPath("../gradlew"), "app/gradlew")
         .withCopyFileToContainer(MountableFile.forHostPath("./build/libs"), "app/libs")
         .withCopyFileToContainer(
-            MountableFile.forHostPath("./src/test/build.gradle.kts"), "app/build.gradle.kts");
+            MountableFile.forHostPath("./src/test/build.gradle.kts"), "app/build.gradle.kts")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/resources/logging-test.properties"),
+            "app/test/resources/logging-test.properties")
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/resources/simplelogger.properties"),
+            "app/test/simplelogger.properties");
   }
 
   protected Long execInContainer(
@@ -181,17 +187,18 @@ public class ContainerHelper {
 
   public MySQLContainer<?> createMysqlContainer(
       Network network, String networkAlias, String testDbName) {
-    return createMysqlContainer(network, networkAlias, testDbName, "root");
+    return createMysqlContainer(network, networkAlias, testDbName, "test", "root");
   }
 
   public MySQLContainer<?> createMysqlContainer(
-      Network network, String networkAlias, String testDbName, String password) {
+      Network network, String networkAlias, String testDbName, String username, String password) {
 
     return new MySQLContainer<>(MYSQL_CONTAINER_IMAGE_NAME)
         .withNetwork(network)
         .withNetworkAliases(networkAlias)
         .withDatabaseName(testDbName)
         .withPassword(password)
+        .withUsername(username)
         .withFileSystemBind("src/test/config/ssl-test-certs/", "/home/certdir/", BindMode.READ_WRITE)
         .withFileSystemBind("src/test/config/plugins/", "/home/plugin_dir/", BindMode.READ_WRITE)
         .withFileSystemBind(

@@ -4,6 +4,9 @@
  * See the LICENSE file in the project root for more information.
  */
 
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat.*
+import org.gradle.api.tasks.testing.logging.TestLogEvent.*
+
 plugins {
     java
 }
@@ -35,6 +38,22 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
+    testImplementation("org.slf4j:slf4j-simple:1.7.+")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+
+    testLogging {
+        events(FAILED, SKIPPED)
+        showStandardStreams = true
+        exceptionFormat = FULL
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
+
+    systemProperty("java.util.logging.config.file", "./test/resources/logging-test.properties")
 }
 
 // Integration tests are run in a specific order.
@@ -51,6 +70,12 @@ tasks.register<Test>("in-container-aurora-postgres-performance") {
 // To add more tests, see integration.container.standard.postgres.StandardPostgresTestSuite.java
 tasks.register<Test>("in-container-standard-postgres") {
     filter.includeTestsMatching("integration.container.standard.postgres.StandardPostgresTestSuite")
+}
+
+// Integration tests are run in a specific order.
+// To add more tests, see integration.container.standard.mysql.StandardMysqlTestSuite.java
+tasks.register<Test>("in-container-standard-mysql") {
+    filter.includeTestsMatching("integration.container.standard.mysql.StandardMysqlTestSuite")
 }
 
 tasks.withType<Test> {

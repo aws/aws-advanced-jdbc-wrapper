@@ -4,7 +4,7 @@
  * See the LICENSE file in the project root for more information.
  */
 
-package integration.container.standard.postgres;
+package integration.container.standard.mysql;
 
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
@@ -13,9 +13,11 @@ import org.junit.platform.suite.api.Suite;
 // To add additional tests, append it inside SelectClasses, comma-separated
 @Suite
 @SelectClasses({
-  LogLevelTests.class,
-  StandardPostgresIntegrationTest.class,
-  StandardPostgresDataSourceTest.class,
-  LogQueryPluginTests.class
+    StandardMysqlIntegrationTest.class,
+    DataCachePluginTests.class,
+    DataSourceTests.class,
+    HikariTests.class,
+    LogQueryPluginTests.class,
+    SpringTests.class
 })
-public class StandardPostgresTestSuite {}
+public class StandardMysqlTestSuite {}
