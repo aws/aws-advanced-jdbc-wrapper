@@ -1,4 +1,4 @@
-# jdbc-proxy-driver
+# AWS Advanced JDBC Wrapper
 
 [![build_status](https://github.com/Bit-Quill/jdbc-proxy-driver/actions/workflows/main.yml/badge.svg)](https://github.com/Bit-Quill/jdbc-proxy-driver/actions/workflows/main.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-c30014.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
