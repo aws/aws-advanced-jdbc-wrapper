@@ -26,6 +26,7 @@ import software.aws.rds.jdbc.proxydriver.plugin.AuroraHostListConnectionPluginFa
 import software.aws.rds.jdbc.proxydriver.plugin.DataCacheConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.plugin.IamAuthConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.LogQueryConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.failover.FailoverConnectionPluginFactory;
@@ -51,6 +52,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("dataCache", DataCacheConnectionPluginFactory.class);
           put("efm", HostMonitoringConnectionPluginFactory.class);
           put("failover", FailoverConnectionPluginFactory.class);
+          put("iam", IamAuthConnectionPluginFactory.class);
         }
       };
 
