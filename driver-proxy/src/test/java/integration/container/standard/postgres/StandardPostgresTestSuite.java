@@ -13,6 +13,7 @@ import org.junit.platform.suite.api.Suite;
 // To add additional tests, append it inside SelectClasses, comma-separated
 @Suite
 @SelectClasses({
-    StandardPostgresIntegrationTest.class
+  StandardPostgresIntegrationTest.class,
+  StandardPostgresDataSourceTest.class
 })
 public class StandardPostgresTestSuite {}

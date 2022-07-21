@@ -22,7 +22,7 @@ public class ConnectionUrlParser {
   static final String HOST_PORT_SEPARATOR = ":";
   static final Pattern CONNECTION_STRING_PATTERN =
       Pattern.compile(
-          "(?<protocol>[\\w\\+:%]+)\\s*" // Driver protocol
+          "(?<protocol>[\\w(\\-\\w)?\\+:%]+)\\s*" // Driver protocol. "word1:word2:..." or "word1-word2:word3:..."
               + "(?://(?<hosts>[^/?#]*))?\\s*" // Optional list of host(s) starting with // and
               // follows by any char except "/", "?" or "#"
               + "(?:[/?#].*)?"); // Anything starting with either "/", "?" or "#"

@@ -27,13 +27,13 @@ public class StandardPostgresContainerTest {
 
   private static final String STANDARD_POSTGRES_DB =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_POSTGRES_DB"))
-          ? System.getenv("STANDARD_POSTGRES_DB") : "test";
+          ? System.getenv("STANDARD_POSTGRES_DB") : "test-db";
   private static final String STANDARD_POSTGRES_USERNAME =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_POSTGRES_USERNAME"))
-          ? System.getenv("STANDARD_POSTGRES_USERNAME") : "test";
+          ? System.getenv("STANDARD_POSTGRES_USERNAME") : "test-user";
   private static final String STANDARD_POSTGRES_PASSWORD =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_POSTGRES_PASSWORD"))
-          ? System.getenv("STANDARD_POSTGRES_PASSWORD") : "test";
+          ? System.getenv("STANDARD_POSTGRES_PASSWORD") : "test-password";
 
   private static PostgreSQLContainer<?> postgresContainer;
   private static GenericContainer<?> integrationTestContainer;

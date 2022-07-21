@@ -29,10 +29,6 @@ public class DataSourceTests {
     if (!software.aws.rds.jdbc.proxydriver.Driver.isRegistered()) {
       software.aws.rds.jdbc.proxydriver.Driver.register();
     }
-
-    if (!org.postgresql.Driver.isRegistered()) {
-      org.postgresql.Driver.register();
-    }
   }
 
   @Test
@@ -67,46 +63,6 @@ public class DataSourceTests {
 
     assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
     assertEquals(conn.getCatalog(), TestSettings.mysqlDatabase);
-
-    assertTrue(conn.isValid(10));
-    conn.close();
-  }
-
-  @Test
-  public void testOpenConnectionWithPostgresqlDataSourceClassName() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol("jdbc:postgresql:");
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
-
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
-    Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", TestSettings.postgresqlServerName);
-    targetDataSourceProps.setProperty("databaseName", TestSettings.postgresqlDatabase);
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-    Connection conn =
-        ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
-
-    assertTrue(conn instanceof org.postgresql.PGConnection);
-    assertEquals(conn.getCatalog(), TestSettings.postgresqlDatabase);
-
-    assertTrue(conn.isValid(10));
-    conn.close();
-  }
-
-  @Test
-  public void testOpenConnectionWithPostgresqlUrl() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcUrl(
-        "jdbc:postgresql://" + TestSettings.postgresqlServerName + "/" + TestSettings.postgresqlDatabase);
-
-    Connection conn =
-        ds.getConnection(TestSettings.postgresqlUser, TestSettings.postgresqlPassword);
-
-    assertTrue(conn instanceof org.postgresql.PGConnection);
-    assertEquals(conn.getCatalog(), TestSettings.postgresqlDatabase);
 
     assertTrue(conn.isValid(10));
     conn.close();
