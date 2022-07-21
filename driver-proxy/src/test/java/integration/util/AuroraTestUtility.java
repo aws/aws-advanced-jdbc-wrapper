@@ -40,6 +40,7 @@ public class AuroraTestUtility {
   private String dbName = "test";
   private String dbIdentifier = "test-identifier";
   private String dbEngine = "aurora-postgresql";
+  private String dbEngineVersion = "13.7";
   private String dbInstanceClass = "db.r5.large";
   private final Region dbRegion;
   private final String dbSecGroup = "default";
@@ -182,6 +183,7 @@ public class AuroraTestUtility {
             .sourceRegion(dbRegion.id())
             .enableIAMDatabaseAuthentication(true)
             .engine(dbEngine)
+            .engineVersion(dbEngineVersion)
             .storageEncrypted(true)
             .tags(testRunnerTag)
             .build();
@@ -197,6 +199,7 @@ public class AuroraTestUtility {
               .dbClusterIdentifier(dbIdentifier)
               .dbInstanceClass(dbInstanceClass)
               .engine(dbEngine)
+              .engineVersion(dbEngineVersion)
               .publiclyAccessible(true)
               .tags(testRunnerTag)
               .build());

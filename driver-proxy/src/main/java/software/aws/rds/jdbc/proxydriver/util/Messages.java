@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver.util;
 
+import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 public class Messages {
@@ -24,6 +25,6 @@ public class Messages {
 
   public static String get(String key, Object[] args) {
     final String message = MESSAGES.getString(key);
-    return String.format(message, args);
+    return MessageFormat.format(message, args);
   }
 }

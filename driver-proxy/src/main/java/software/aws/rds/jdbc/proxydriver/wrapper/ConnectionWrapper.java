@@ -116,7 +116,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
               this.targetDriverProtocol, this.pluginService.getCurrentHostSpec(), props, true);
 
       if (conn == null) {
-        throw new SQLException("Initial connection isn't open.", SqlState.UNKNOWN_STATE.getCode());
+        throw new SQLException("Initial connection isn't open.", SqlState.UNKNOWN_STATE.getState());
       }
 
       this.pluginService.setCurrentConnection(conn, this.pluginService.getCurrentHostSpec());

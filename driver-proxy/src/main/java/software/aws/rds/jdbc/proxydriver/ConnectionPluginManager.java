@@ -28,6 +28,7 @@ import software.aws.rds.jdbc.proxydriver.plugin.DefaultConnectionPlugin;
 import software.aws.rds.jdbc.proxydriver.plugin.ExecutionTimeConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.LogQueryConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.plugin.efm.HostMonitoringConnectionPluginFactory;
+import software.aws.rds.jdbc.proxydriver.plugin.failover.FailoverConnectionPluginFactory;
 import software.aws.rds.jdbc.proxydriver.profile.DriverConfigurationProfiles;
 import software.aws.rds.jdbc.proxydriver.util.SqlState;
 import software.aws.rds.jdbc.proxydriver.util.StringUtils;
@@ -41,17 +42,17 @@ import software.aws.rds.jdbc.proxydriver.util.WrapperUtils;
  */
 public class ConnectionPluginManager implements CanReleaseResources {
 
-  protected static final Map<String, Class<? extends ConnectionPluginFactory>>
-      pluginFactoriesByCode =
-          new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
-            {
-              put("executionTime", ExecutionTimeConnectionPluginFactory.class);
-              put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
-              put("logQuery", LogQueryConnectionPluginFactory.class);
-              put("dataCache", DataCacheConnectionPluginFactory.class);
-              put("efm", HostMonitoringConnectionPluginFactory.class);
-            }
-          };
+  protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
+      new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
+        {
+          put("executionTime", ExecutionTimeConnectionPluginFactory.class);
+          put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
+          put("logQuery", LogQueryConnectionPluginFactory.class);
+          put("dataCache", DataCacheConnectionPluginFactory.class);
+          put("efm", HostMonitoringConnectionPluginFactory.class);
+          put("failover", FailoverConnectionPluginFactory.class);
+        }
+      };
 
   protected static final String DEFAULT_PLUGINS = "";
 
@@ -164,7 +165,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
         }
 
       } catch (InstantiationException instEx) {
-        throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getCode(), instEx);
+        throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
       }
     } else {
       this.plugins = new ArrayList<>(1); // one spot for default connection plugin

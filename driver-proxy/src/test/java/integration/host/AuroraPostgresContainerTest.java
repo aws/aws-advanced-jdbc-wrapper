@@ -54,6 +54,8 @@ public class AuroraPostgresContainerTest {
           ? System.getenv("AURORA_POSTGRES_DB")
           : "test";
 
+  protected static final String EXISTING_DB_CONN_SUFFIX = System.getenv("DB_CONN_SUFFIX");
+
   private static final String AWS_ACCESS_KEY_ID = System.getenv("AWS_ACCESS_KEY_ID");
   private static final String AWS_SECRET_ACCESS_KEY = System.getenv("AWS_SECRET_ACCESS_KEY");
   private static final String AWS_SESSION_TOKEN = System.getenv("AWS_SESSION_TOKEN");
@@ -81,6 +83,7 @@ public class AuroraPostgresContainerTest {
   private static String runnerIP = null;
 
   private static Network network;
+  private static final boolean TEST_WITH_EXISTING_DB = EXISTING_DB_CONN_SUFFIX != null;
 
   private static final ContainerHelper containerHelper = new ContainerHelper();
   private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
@@ -91,17 +94,14 @@ public class AuroraPostgresContainerTest {
     Assertions.assertNotNull(AWS_SECRET_ACCESS_KEY);
     Assertions.assertNotNull(AWS_SESSION_TOKEN);
 
-    // Comment out below to not create a new cluster & instances
-    // Note: You will need to set it to the proper DB Conn Suffix
-    // i.e. For "database-cluster-name.XYZ.us-east-2.rds.amazonaws.com"
-    // dbConnStrSuffix = "XYZ.us-east-2.rds.amazonaws.com"
-    dbConnStrSuffix =
-        auroraUtil.createCluster(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, AURORA_POSTGRES_DB,
-            AURORA_POSTGRES_CLUSTER_IDENTIFIER);
-
-    // Comment out getting public IP to not add & remove from EC2 whitelist
-    runnerIP = auroraUtil.getPublicIPAddress();
-    auroraUtil.ec2AuthorizeIP(runnerIP);
+    if (TEST_WITH_EXISTING_DB) {
+      dbConnStrSuffix = EXISTING_DB_CONN_SUFFIX;
+    } else {
+      dbConnStrSuffix = auroraUtil.createCluster(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, AURORA_POSTGRES_DB,
+          AURORA_POSTGRES_CLUSTER_IDENTIFIER);
+      runnerIP = auroraUtil.getPublicIPAddress();
+      auroraUtil.ec2AuthorizeIP(runnerIP);
+    }
 
     dbHostCluster = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
     dbHostClusterRo = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;
@@ -154,14 +154,16 @@ public class AuroraPostgresContainerTest {
 
   @AfterAll
   static void tearDown() {
-    // Comment below out if you don't want to delete cluster after tests finishes
-    if (StringUtils.isNullOrEmpty(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
-      auroraUtil.deleteCluster();
-    } else {
-      auroraUtil.deleteCluster(AURORA_POSTGRES_CLUSTER_IDENTIFIER);
+    if (!TEST_WITH_EXISTING_DB) {
+      if (StringUtils.isNullOrEmpty(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
+        auroraUtil.deleteCluster();
+      } else {
+        auroraUtil.deleteCluster(AURORA_POSTGRES_CLUSTER_IDENTIFIER);
+      }
+
+      auroraUtil.ec2DeauthorizesIP(runnerIP);
     }
 
-    auroraUtil.ec2DeauthorizesIP(runnerIP);
     for (ToxiproxyContainer proxy : proxyContainers) {
       proxy.stop();
     }
@@ -226,7 +228,8 @@ public class AuroraPostgresContainerTest {
 
       // Add proxies
       container.addEnv(
-          "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS", "toxiproxy-instance-" + (i + 1));
+              "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS",
+              "toxiproxy-instance-" + (i + 1));
     }
     container.addEnv("AURORA_POSTGRES_PORT", Integer.toString(AURORA_POSTGRES_PORT));
     container.addEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX);

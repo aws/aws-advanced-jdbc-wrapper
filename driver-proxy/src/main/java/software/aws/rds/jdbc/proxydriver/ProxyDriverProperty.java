@@ -8,7 +8,6 @@ package software.aws.rds.jdbc.proxydriver;
 
 import java.sql.DriverPropertyInfo;
 import java.util.Properties;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ProxyDriverProperty extends DriverPropertyInfo {
@@ -41,6 +40,10 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
     return properties.getProperty(name, defaultValue);
   }
 
+  public String getString(Properties properties) {
+    return String.valueOf(properties.getProperty(name, defaultValue));
+  }
+
   public boolean getBoolean(Properties properties) {
     Object value = properties.get(name);
     if (value instanceof Boolean) {
@@ -49,7 +52,7 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
     return Boolean.parseBoolean(properties.getProperty(name, defaultValue));
   }
 
-  public int getInt(Properties properties) {
+  public int getInteger(Properties properties) {
     Object value = properties.get(name);
     if (value instanceof Integer) {
       return (Integer) value;

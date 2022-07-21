@@ -42,7 +42,7 @@ public class MonitorServiceImpl implements MonitorService {
                 pluginService,
                 hostSpec,
                 properties,
-                MONITOR_DISPOSAL_TIME_MS.getInt(properties),
+                MONITOR_DISPOSAL_TIME_MS.getInteger(properties),
                 monitorService),
         () ->
             Executors.newCachedThreadPool(

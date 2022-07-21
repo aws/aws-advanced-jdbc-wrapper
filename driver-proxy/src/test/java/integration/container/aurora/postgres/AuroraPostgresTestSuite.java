@@ -13,7 +13,8 @@ import org.junit.platform.suite.api.Suite;
 // To add additional tests, append it inside SelectClasses, comma-separated
 @Suite
 @SelectClasses({
-  AuroraPostgresIntegrationTest.class,
-  AuroraPostgresDataSourceTest.class
+    AuroraPostgresIntegrationTest.class,
+    AuroraPostgresFailoverTest.class,
+    AuroraPostgresDataSourceTest.class
 })
 public class AuroraPostgresTestSuite {}

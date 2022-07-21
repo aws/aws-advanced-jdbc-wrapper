@@ -308,7 +308,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
   @Override
   public boolean isStaticHostListProvider() {
-    return this.hostListProvider instanceof StaticHostListProvider;
+    return this.getHostListProvider() instanceof StaticHostListProvider;
   }
 
   @Override

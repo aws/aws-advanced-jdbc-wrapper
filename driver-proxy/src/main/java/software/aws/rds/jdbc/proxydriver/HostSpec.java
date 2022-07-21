@@ -6,6 +6,7 @@
 
 package software.aws.rds.jdbc.proxydriver;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
@@ -77,12 +78,19 @@ public class HostSpec {
     return Collections.unmodifiableSet(this.aliases);
   }
 
-  public void addAlias(String alias) {
-    this.aliases.add(alias);
+  public void addAlias(String... alias) {
+    if (alias == null || alias.length < 1) {
+      return;
+    }
+
+    this.aliases.addAll(Arrays.asList(alias));
   }
 
-  public void removeAlias(String alias) {
-    this.aliases.remove(alias);
+  public void removeAlias(String... alias) {
+    if (alias == null || alias.length < 1) {
+      return;
+    }
+    Arrays.asList(alias).forEach(this.aliases::remove);
   }
 
   public String getUrl() {

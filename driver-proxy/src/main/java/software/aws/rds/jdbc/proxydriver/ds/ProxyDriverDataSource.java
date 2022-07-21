@@ -312,7 +312,7 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
     try {
       return WrapperUtils.createInstance(this.targetDataSourceClassName, DataSource.class);
     } catch (InstantiationException instEx) {
-      throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getCode(), instEx);
+      throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
     }
   }
 

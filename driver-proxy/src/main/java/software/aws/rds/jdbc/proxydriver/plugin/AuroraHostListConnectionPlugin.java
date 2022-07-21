@@ -11,21 +11,21 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import software.aws.rds.jdbc.proxydriver.HostListProvider;
 import software.aws.rds.jdbc.proxydriver.HostListProviderService;
 import software.aws.rds.jdbc.proxydriver.JdbcCallable;
 import software.aws.rds.jdbc.proxydriver.PluginService;
 import software.aws.rds.jdbc.proxydriver.hostlistprovider.AuroraHostListProvider;
+import software.aws.rds.jdbc.proxydriver.util.Messages;
 
 public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Collections.singletonList("initHostProvider")));
   private final PluginService pluginService;
-  private final Properties properties;
 
   public AuroraHostListConnectionPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
-    this.properties = properties;
   }
 
   @Override
@@ -40,13 +40,17 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
       Properties props,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
-    if (hostListProviderService.getHostListProvider() != null) {
-      if (hostListProviderService.isStaticHostListProvider()) {
-        hostListProviderService.setHostListProvider(
-            new AuroraHostListProvider(driverProtocol, pluginService, props, initialUrl));
-      } else {
-        throw new SQLException("A dynamic host list provider has already been set.");
-      }
+    final HostListProvider provider = hostListProviderService.getHostListProvider();
+    if (provider == null) {
+      initHostProviderFunc.call();
+      return;
+    }
+
+    if (hostListProviderService.isStaticHostListProvider()) {
+      hostListProviderService.setHostListProvider(
+          new AuroraHostListProvider(driverProtocol, pluginService, props, initialUrl));
+    } else if (!(provider instanceof AuroraHostListProvider)) {
+      throw new SQLException(Messages.get("Failover.invalidHostListProvider", new Object[] {provider}));
     }
     initHostProviderFunc.call();
   }

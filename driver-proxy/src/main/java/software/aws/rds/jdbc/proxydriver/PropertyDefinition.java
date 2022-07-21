@@ -57,6 +57,11 @@ public class PropertyDefinition {
       new ProxyDriverProperty(
           "useAwsIam", "false", "Set to true to use AWS IAM database authentication");
 
+  public static final ProxyDriverProperty CLUSTER_ID = new ProxyDriverProperty(
+      "clusterId", "",
+      "A unique identifier for the cluster. "
+          + "Connections with the same cluster id share a cluster topology cache. "
+          + "If unspecified, a cluster id is automatically created for AWS RDS clusters.");
 
   private static final Map<String, ProxyDriverProperty> PROPS_BY_NAME =
       new HashMap<String, ProxyDriverProperty>();

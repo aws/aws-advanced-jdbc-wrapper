@@ -72,7 +72,7 @@ jobs:
       - name: 'Set up temp AWS credentials'
         run: |
           creds=($(aws sts get-session-token \
-            --duration-seconds 3600 \
+            --duration-seconds 21600 \
             --query 'Credentials.[AccessKeyId, SecretAccessKey, SessionToken]' \
             --output text \
           | xargs));

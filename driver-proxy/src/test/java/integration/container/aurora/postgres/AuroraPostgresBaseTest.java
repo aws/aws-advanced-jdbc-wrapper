@@ -24,10 +24,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +51,7 @@ public abstract class AuroraPostgresBaseTest {
   protected static final String AURORA_POSTGRES_DB =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB")) ? System.getenv("AURORA_POSTGRES_DB") : "test";
 
-  protected static final String QUERY_FOR_INSTANCE = "SELECT @@aurora_server_id";
+  protected static final String QUERY_FOR_INSTANCE = "SELECT aurora_db_instance_identifier()";
 
   protected static final String PROXIED_DOMAIN_NAME_SUFFIX =
       System.getenv("PROXIED_DOMAIN_NAME_SUFFIX");
@@ -208,14 +208,15 @@ public abstract class AuroraPostgresBaseTest {
     props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
+    props.setProperty("proxyDriverPlugins", "failover");
 
     return props;
   }
 
   protected Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "3");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "3");
+    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
+    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
 
     return props;
   }
@@ -293,7 +294,8 @@ public abstract class AuroraPostgresBaseTest {
   protected String executeInstanceIdQuery(Statement stmt) throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(QUERY_FOR_INSTANCE)) {
       if (rs.next()) {
-        return rs.getString("@@aurora_server_id");
+        final String id = rs.getString("aurora_db_instance_identifier");
+        return id;
       }
     }
     return null;
@@ -309,9 +311,8 @@ public abstract class AuroraPostgresBaseTest {
   }
 
   protected void assertFirstQueryThrows(Statement stmt, String expectedSQLErrorCode) {
-    final SQLException exception =
-        assertThrows(SQLException.class, () -> executeInstanceIdQuery(stmt));
-    assertEquals(expectedSQLErrorCode, exception.getSQLState());
+    final SQLException exception = assertThrows(SQLException.class, () -> executeInstanceIdQuery(stmt));
+    assertEquals(expectedSQLErrorCode, exception.getSQLState(), "Unexpected SQL Exception: " + exception.getMessage());
   }
 
   protected Connection createPooledConnectionWithInstanceId(String instanceID) throws SQLException {
@@ -376,22 +377,26 @@ public abstract class AuroraPostgresBaseTest {
   protected void makeSureInstancesUp(String[] instances, boolean finalCheck)
       throws InterruptedException {
     final ExecutorService executorService = Executors.newFixedThreadPool(instances.length);
-    final HashSet<String> remainingInstances = new HashSet<>(Arrays.asList(instances));
+    final ConcurrentHashMap<String, Boolean> remainingInstances = new ConcurrentHashMap<>();
+    Arrays.asList(instances).forEach((k) -> remainingInstances.put(k, true));
 
     for (final String id : instances) {
       executorService.submit(
           () -> {
             while (true) {
               try (final Connection conn =
-                       connectToInstance(
-                           id + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initFailoverDisabledProps())) {
-                conn.close();
+                  connectToInstance(
+                      id + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initFailoverDisabledProps())) {
                 remainingInstances.remove(id);
                 break;
               } catch (final SQLException ex) {
+                ex.printStackTrace();
                 // Continue waiting until instance is up.
+              } catch (final Exception ex) {
+                System.out.println("Exception: " + ex);
+                break;
               }
-              TimeUnit.MILLISECONDS.sleep(500);
+              TimeUnit.MILLISECONDS.sleep(1000);
             }
             return null;
           });
@@ -402,7 +407,7 @@ public abstract class AuroraPostgresBaseTest {
     if (finalCheck) {
       assertTrue(
           remainingInstances.isEmpty(),
-          "The following instances are still down: \n" + String.join("\n", remainingInstances));
+          "The following instances are still down: \n" + String.join("\n", remainingInstances.keySet()));
     }
   }
 }
