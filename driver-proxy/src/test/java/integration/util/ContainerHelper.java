@@ -209,27 +209,16 @@ public class ContainerHelper {
         .withDatabaseName(testDbName)
         .withPassword(password)
         .withUsername(username)
-        .withFileSystemBind("src/test/config/ssl-test-certs/", "/home/certdir/", BindMode.READ_WRITE)
-        .withFileSystemBind("src/test/config/plugins/", "/home/plugin_dir/", BindMode.READ_WRITE)
-        .withFileSystemBind(
-            "src/test/config/docker-entrypoint-initdb.d",
-            "/docker-entrypoint-initdb.d",
-            BindMode.READ_WRITE)
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/config/standard-mysql-grant-root.sql"),
+            "/docker-entrypoint-initdb.d/standard-mysql-grant-root.sql")
         .withCommand(
             "--local_infile=1",
             "--max_allowed_packet=40M",
             "--max-connections=2048",
             "--secure-file-priv=/var/lib/mysql",
-            "--ssl-key=/home/certdir/server-key.pem",
-            "--ssl-cert=/home/certdir/server-cert.pem",
-            "--ssl-ca=/home/certdir/ca-cert.pem",
-            "--plugin_dir=/home/plugin_dir",
             "--log-error-verbosity=4",
-            "--default-authentication-plugin=sha256_password",
-            "--sha256_password_public_key_path=/home/certdir/mykey.pub",
-            "--sha256_password_private_key_path=/home/certdir/mykey.pem",
-            "--caching_sha2_password_public_key_path=/home/certdir/mykey.pub",
-            "--caching_sha2_password_private_key_path=/home/certdir/mykey.pem");
+            "--default-authentication-plugin=sha256_password");
   }
 
   public PostgreSQLContainer<?> createPostgresContainer(
