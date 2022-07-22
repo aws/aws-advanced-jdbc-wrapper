@@ -27,7 +27,7 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.22.+")
+    implementation("org.checkerframework:checker-qual:3.23.+")
     compileOnly("software.amazon.awssdk:rds:2.17.165")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.8.+")
