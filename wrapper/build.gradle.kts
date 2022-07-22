@@ -131,6 +131,34 @@ ide {
     )
 }
 
+java {
+    withJavadocJar()
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.jar {
+    from("${project.rootDir}") {
+        include("README")
+        include("LICENSE")
+        include("THIRD-PARTY-LICENSES")
+        into("META-INF/")
+    }
+
+    from("${buildDir}/META-INF/services/") {
+        into("META-INF/services/")
+    }
+
+    doFirst {
+        mkdir("${buildDir}/META-INF/services/")
+        val driverFile = File("${buildDir}/META-INF/services/java.sql.Driver")
+        if (driverFile.createNewFile()) {
+            driverFile.writeText("com.amazon.awslabs.jdbc.Driver")
+        }
+    }
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
 
