@@ -369,4 +369,8 @@
             <property name="optional" value="true"/>
         </module>
     </module>
+    <module name="Header">
+        <property name="headerFile" value="config/checkstyle/amazon.header"/>
+        <property name="fileExtensions" value="java"/>
+    </module>
 </module>
