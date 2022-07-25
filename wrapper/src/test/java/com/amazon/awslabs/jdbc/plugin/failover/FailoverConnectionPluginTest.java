@@ -109,7 +109,7 @@ class FailoverConnectionPluginTest {
 
   @Test
   void test_initHostProvider_withFailoverDisabled() throws SQLException {
-    properties.setProperty(PropertyDefinition.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
+    properties.setProperty(FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
     initializePlugin();
 
     plugin.initHostProvider(
@@ -167,7 +167,7 @@ class FailoverConnectionPluginTest {
 
   @Test
   void test_notifyNodeListChanged_withFailoverDisabled() {
-    properties.setProperty(PropertyDefinition.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
+    properties.setProperty(FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
     final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
 
     initializePlugin();
@@ -494,7 +494,7 @@ class FailoverConnectionPluginTest {
 
   @Test
   void test_execute_withFailoverDisabled() throws SQLException {
-    properties.setProperty(PropertyDefinition.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
+    properties.setProperty(FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
     initializePlugin();
 
     plugin.execute(

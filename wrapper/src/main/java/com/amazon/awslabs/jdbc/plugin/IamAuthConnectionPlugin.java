@@ -16,9 +16,9 @@
 
 package com.amazon.awslabs.jdbc.plugin;
 
-import com.amazon.awslabs.jdbc.ConnectionPropertyNames;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.JdbcCallable;
+import com.amazon.awslabs.jdbc.PropertyDefinition;
 import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import java.sql.Connection;
@@ -109,7 +109,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     final String cacheKey = getCacheKey(
-            props.getProperty(ConnectionPropertyNames.USER_PROPERTY_NAME),
+            PropertyDefinition.USER.getString(props),
             host,
             port,
             region);
@@ -117,12 +117,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     if (tokenInfo != null && !tokenInfo.isExpired()) {
       LOGGER.log(Level.FINEST, "use cached IAM token = " + tokenInfo.getToken());
-      props.setProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME, tokenInfo.getToken());
+      PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
-      final String token = generateAuthenticationToken(props.getProperty(ConnectionPropertyNames.USER_PROPERTY_NAME),
+      final String token = generateAuthenticationToken(PropertyDefinition.USER.getString(props),
               hostSpec.getHost(), port, region);
       LOGGER.log(Level.FINEST, "generated new IAM token = " + token);
-      props.setProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME, token);
+      PropertyDefinition.PASSWORD.set(props, token);
       tokenCache.put(
               cacheKey,
               new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));

@@ -60,7 +60,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
           "PreparedStatement.execute", "PreparedStatement.executeQuery",
           "CallableStatement.execute", "CallableStatement.executeQuery")));
 
-  protected static final ProxyDriverProperty DATA_CACHE_TRIGGER_CONDITION = new ProxyDriverProperty(
+  public static final ProxyDriverProperty DATA_CACHE_TRIGGER_CONDITION = new ProxyDriverProperty(
       "dataCacheTriggerCondition", "false",
       "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
 

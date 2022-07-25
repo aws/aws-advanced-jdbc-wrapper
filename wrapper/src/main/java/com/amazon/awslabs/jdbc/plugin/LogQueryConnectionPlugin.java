@@ -90,7 +90,7 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
         }
       };
 
-  protected static final ProxyDriverProperty ENHANCED_LOG_QUERY_ENABLED =
+  public static final ProxyDriverProperty ENHANCED_LOG_QUERY_ENABLED =
       new ProxyDriverProperty(
           "enhancedLogQueryEnabled",
           "false",

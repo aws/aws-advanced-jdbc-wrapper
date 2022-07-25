@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.amazon.awslabs.jdbc.PropertyDefinition;
 import com.amazon.awslabs.jdbc.plugin.DataCacheConnectionPlugin;
 import com.amazon.awslabs.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 import java.sql.Connection;
@@ -38,8 +39,8 @@ public class DataCachePluginTests extends StandardMysqlBaseTest {
     DataCacheConnectionPlugin.clearCache();
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverPlugins", "dataCache");
-    props.setProperty("dataCacheTriggerCondition", ".*testTable.*");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
+    props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*testTable.*");
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
@@ -107,8 +108,8 @@ public class DataCachePluginTests extends StandardMysqlBaseTest {
     DataCacheConnectionPlugin.clearCache();
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverPlugins", "dataCache");
-    props.setProperty("dataCacheTriggerCondition", ".*WRONG_EXPRESSION.*");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
+    props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*WRONG_EXPRESSION.*");
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 

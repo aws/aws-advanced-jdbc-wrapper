@@ -16,12 +16,10 @@
 
 package com.amazon.awslabs.jdbc.util;
 
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.DATABASE_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.PASSWORD_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.USER_PROPERTY_NAME;
 import static com.amazon.awslabs.jdbc.util.StringUtils.isNullOrEmpty;
 
 import com.amazon.awslabs.jdbc.HostSpec;
+import com.amazon.awslabs.jdbc.PropertyDefinition;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -65,9 +63,9 @@ public class ConnectionUrlBuilder {
       urlBuilder.append("/");
     }
 
-    if (!isNullOrEmpty(copy.getProperty(DATABASE_PROPERTY_NAME))) {
-      urlBuilder.append(copy.get(DATABASE_PROPERTY_NAME));
-      copy.remove(DATABASE_PROPERTY_NAME);
+    if (!isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(copy))) {
+      urlBuilder.append(PropertyDefinition.DATABASE_NAME.getString(copy));
+      copy.remove(PropertyDefinition.DATABASE_NAME.name);
     }
 
     removeProperty(serverPropertyName, copy);
@@ -85,9 +83,9 @@ public class ConnectionUrlBuilder {
       }
 
       final String propertyValue = copy.getProperty(propertyName);
-      if (propertyName.equals(USER_PROPERTY_NAME) && !isNullOrEmpty(userPropertyName)) {
+      if (propertyName.equals(PropertyDefinition.USER.name) && !isNullOrEmpty(userPropertyName)) {
         propertyName = userPropertyName;
-      } else if (propertyName.equals(PASSWORD_PROPERTY_NAME) && !isNullOrEmpty(passwordPropertyName)) {
+      } else if (propertyName.equals(PropertyDefinition.PASSWORD.name) && !isNullOrEmpty(passwordPropertyName)) {
         propertyName = passwordPropertyName;
       }
 

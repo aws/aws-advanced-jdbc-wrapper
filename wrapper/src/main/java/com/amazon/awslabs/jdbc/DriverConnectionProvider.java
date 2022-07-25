@@ -16,11 +16,9 @@
 
 package com.amazon.awslabs.jdbc;
 
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.DATABASE_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.PASSWORD_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.USER_PROPERTY_NAME;
 import static com.amazon.awslabs.jdbc.util.StringUtils.isNullOrEmpty;
 
+import com.amazon.awslabs.jdbc.util.PropertyUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -62,20 +60,27 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull Properties props)
       throws SQLException {
 
-    final String databaseName =
-        props.getProperty(DATABASE_PROPERTY_NAME) != null ? props.getProperty(DATABASE_PROPERTY_NAME) : "";
+    Properties copy = PropertyUtils.copyProperties(props);
+
+    final String databaseName = PropertyDefinition.DATABASE_NAME.getString(props) != null
+        ? PropertyDefinition.DATABASE_NAME.getString(props)
+        : "";
     final StringBuilder urlBuilder = new StringBuilder();
     urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
 
-    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
-      props.setProperty(this.userPropertyName, props.getProperty(USER_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
+      copy.setProperty(this.userPropertyName, PropertyDefinition.USER.getString(props));
     }
 
-    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
-      props.setProperty(this.passwordPropertyName, props.getProperty(PASSWORD_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(PropertyDefinition.PASSWORD.getString(props))) {
+      copy.setProperty(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
     }
 
-    return this.driver.connect(urlBuilder.toString(), props);
+    copy.remove(PropertyDefinition.DATABASE_NAME.name);
+    copy.remove(PropertyDefinition.USER.name);
+    copy.remove(PropertyDefinition.PASSWORD.name);
+
+    return this.driver.connect(urlBuilder.toString(), copy);
   }
 
   /**

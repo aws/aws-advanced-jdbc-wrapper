@@ -146,6 +146,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "false",
           "Use a reconnection strategy appropriate for connection pools (defaults to ''false'')");
 
+  public static final ProxyDriverProperty ENABLE_CLUSTER_AWARE_FAILOVER =
+      new ProxyDriverProperty(
+          "enableClusterAwareFailover", "true",
+          "Enable/disable cluster-aware failover logic");
+
   public FailoverConnectionPlugin(PluginService pluginService, Properties properties) {
     this(pluginService, properties, new RdsUtils(), new ConnectionUrlParser());
   }
@@ -343,7 +348,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private void initSettings() {
-    this.enableFailoverSetting = PropertyDefinition.ENABLE_CLUSTER_AWARE_FAILOVER.getBoolean(this.properties);
+    this.enableFailoverSetting = ENABLE_CLUSTER_AWARE_FAILOVER.getBoolean(this.properties);
     this.failoverTimeoutMsSetting = FAILOVER_TIMEOUT_MS.getInteger(this.properties);
     this.failoverClusterTopologyRefreshRateMsSetting =
         FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(this.properties);

@@ -55,6 +55,22 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
           "Cluster topology refresh rate in millis. "
               + "The cached topology for the cluster will be invalidated after the specified time, "
               + "after which it will be updated during the next interaction with the connection.");
+
+  public static final ProxyDriverProperty CLUSTER_ID = new ProxyDriverProperty(
+      "clusterId", "",
+      "A unique identifier for the cluster. "
+          + "Connections with the same cluster id share a cluster topology cache. "
+          + "If unspecified, a cluster id is automatically created for AWS RDS clusters.");
+
+  public static final ProxyDriverProperty CLUSTER_INSTANCE_HOST_PATTERN =
+      new ProxyDriverProperty(
+          "clusterInstanceHostPattern",
+          null,
+          "The cluster instance DNS pattern that will be used to build a complete instance endpoint. "
+              + "A \"?\" character in this pattern should be used as a placeholder for cluster instance names. "
+              + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
+              + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
+
   static final String PG_RETRIEVE_TOPOLOGY_SQL =
       "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
           // filter out nodes that haven't been updated in the last 5 minutes
@@ -109,14 +125,14 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     this.originalUrl = originalUrl;
     this.clusterId = UUID.randomUUID().toString();
     this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
-    this.clusterInstanceTemplate = PropertyDefinition.CLUSTER_INSTANCE_HOST_PATTERN.get(this.properties) == null
+    this.clusterInstanceTemplate = CLUSTER_INSTANCE_HOST_PATTERN.get(this.properties) == null
         ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
-        : new HostSpec(PropertyDefinition.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
+        : new HostSpec(CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
     validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
 
     this.rdsUrlType = rdsHelper.identifyRdsType(originalUrl);
 
-    final String clusterIdSetting = PropertyDefinition.CLUSTER_ID.get(this.properties);
+    final String clusterIdSetting = CLUSTER_ID.get(this.properties);
     if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
       this.clusterId = clusterIdSetting;
     } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {

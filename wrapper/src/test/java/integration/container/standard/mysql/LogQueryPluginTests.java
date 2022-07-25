@@ -18,6 +18,8 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.amazon.awslabs.jdbc.PropertyDefinition;
+import com.amazon.awslabs.jdbc.plugin.LogQueryConnectionPlugin;
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
@@ -46,8 +48,8 @@ public class LogQueryPluginTests extends StandardMysqlBaseTest {
     logger.addHandler(handler);
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverPlugins", "logQuery");
-    props.setProperty("enhancedLogQueryEnabled", "true");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
+    props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
@@ -75,8 +77,8 @@ public class LogQueryPluginTests extends StandardMysqlBaseTest {
     logger.addHandler(handler);
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverPlugins", "logQuery");
-    props.setProperty("enhancedLogQueryEnabled", "true");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
+    props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
