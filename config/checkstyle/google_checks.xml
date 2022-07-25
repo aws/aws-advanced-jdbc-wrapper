@@ -16,7 +16,7 @@
     Authors: Max Vetrenko, Ruslan Diachenko, Roman Ivanov.
  -->
 
-<module name = "Checker">
+<module name="Checker">
     <property name="charset" value="UTF-8"/>
 
     <property name="severity" value="warning"/>
@@ -47,6 +47,11 @@
     </module>
 
     <module name="SuppressWarningsFilter"/>
+
+    <module name="Header">
+        <property name="headerFile" value="${config_loc}/amazon.header"/>
+        <property name="fileExtensions" value="java"/>
+    </module>
 
     <module name="TreeWalker">
         <module name="SuppressWarningsHolder"/>
@@ -261,14 +266,6 @@
             <property name="lineWrappingIndentation" value="4"/>
             <property name="arrayInitIndent" value="2"/>
         </module>
-<!--        <module name="AbbreviationAsWordInName">-->
-<!--            <property name="ignoreFinal" value="false"/>-->
-<!--            <property name="allowedAbbreviationLength" value="0"/>-->
-<!--            <property name="tokens"-->
-<!--                      value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, ANNOTATION_DEF, ANNOTATION_FIELD_DEF,-->
-<!--                    PARAMETER_DEF, VARIABLE_DEF, METHOD_DEF, PATTERN_VARIABLE_DEF, RECORD_DEF,-->
-<!--                    RECORD_COMPONENT_DEF"/>-->
-<!--        </module>-->
         <module name="NoWhitespaceBeforeCaseDefaultColon"/>
         <module name="OverloadMethodsDeclarationOrder"/>
         <module name="VariableDeclarationUsageDistance"/>
@@ -336,20 +333,6 @@
             <property name="allowedAnnotations" value="Override, Test"/>
             <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF, COMPACT_CTOR_DEF"/>
         </module>
-<!--        <module name="MissingJavadocMethod">-->
-<!--            <property name="scope" value="public"/>-->
-<!--            <property name="minLineCount" value="2"/>-->
-<!--            <property name="allowedAnnotations" value="Override, Test"/>-->
-<!--            <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF,-->
-<!--                                   COMPACT_CTOR_DEF"/>-->
-<!--        </module>-->
-<!--        <module name="MissingJavadocType">-->
-<!--            <property name="scope" value="protected"/>-->
-<!--            <property name="tokens"-->
-<!--                      value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF,-->
-<!--                      RECORD_DEF, ANNOTATION_DEF"/>-->
-<!--            <property name="excludeScope" value="nothing"/>-->
-<!--        </module>-->
         <module name="MethodName">
             <property name="format" value="^[a-z][a-z0-9][a-zA-Z0-9_]*$"/>
             <message key="name.invalidPattern"
@@ -368,9 +351,5 @@
                       default="checkstyle-xpath-suppressions.xml" />
             <property name="optional" value="true"/>
         </module>
-    </module>
-    <module name="Header">
-        <property name="headerFile" value="config/checkstyle/amazon.header"/>
-        <property name="fileExtensions" value="java"/>
     </module>
 </module>

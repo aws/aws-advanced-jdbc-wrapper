@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: 'junit-report'
-          path: ./driver-proxy/build/reports/tests/test/
+          path: ./wrapper/build/reports/tests/test/
           retention-days: 3
 
       - name: 'Archive Coverage Report'
@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: 'coverage-report'
-          path: ./driver-proxy/build/reports/jacoco/test/
+          path: ./wrapper/build/reports/jacoco/test/
           retention-days: 3
 
   aurora-postgres-integration-tests:
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: 'junit-report'
-          path: ./driver-proxy/build/reports/tests/
+          path: ./wrapper/build/reports/tests/
           retention-days: 5
 
   standard-postgres-integration-tests:
@@ -125,5 +125,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: 'junit-report'
-          path: ./driver-proxy/build/reports/tests/
+          path: ./wrapper/build/reports/tests/
           retention-days: 5
