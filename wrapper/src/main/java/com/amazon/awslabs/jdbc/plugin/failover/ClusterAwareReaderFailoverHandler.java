@@ -59,8 +59,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       Logger.getLogger(ClusterAwareReaderFailoverHandler.class.getName());
   protected static final int DEFAULT_FAILOVER_TIMEOUT = 60000; // 60 sec
   protected static final int DEFAULT_READER_CONNECT_TIMEOUT = 30000; // 30 sec
-  public static final ReaderFailoverResult FAILED_READER_FAILOVER_RESULT = new ReaderFailoverResult(null,
-      FailoverConnectionPlugin.NO_CONNECTION_INDEX, false);
+  public static final ReaderFailoverResult FAILED_READER_FAILOVER_RESULT =
+      new ReaderFailoverResult(null, FailoverConnectionPlugin.NO_CONNECTION_INDEX, false);
   protected Properties initialConnectionProps;
   protected int maxFailoverTimeoutMs;
   protected int timeoutMs;
@@ -144,30 +144,29 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   }
 
   private Future<ReaderFailoverResult> submitInternalFailoverTask(
-      List<HostSpec> hosts,
-      HostSpec currentHost,
-      ExecutorService executor) {
-    Future<ReaderFailoverResult> future = executor.submit(() -> {
-      ReaderFailoverResult result;
-      while (true) {
-        result = failoverInternal(hosts, currentHost);
-        if (result != null && result.isConnected()) {
-          break;
-        }
+      List<HostSpec> hosts, HostSpec currentHost, ExecutorService executor) {
+    Future<ReaderFailoverResult> future =
+        executor.submit(
+            () -> {
+              ReaderFailoverResult result;
+              while (true) {
+                result = failoverInternal(hosts, currentHost);
+                if (result != null && result.isConnected()) {
+                  break;
+                }
 
-        TimeUnit.SECONDS.sleep(1);
-      }
-      return result;
-    });
+                TimeUnit.SECONDS.sleep(1);
+              }
+              return result;
+            });
     executor.shutdown();
     return future;
   }
 
   private ReaderFailoverResult getInternalFailoverResult(
-      ExecutorService executor,
-      Future<ReaderFailoverResult> future) throws SQLException {
-    ReaderFailoverResult defaultResult = new ReaderFailoverResult(
-        null, FailoverConnectionPlugin.NO_CONNECTION_INDEX, false);
+      ExecutorService executor, Future<ReaderFailoverResult> future) throws SQLException {
+    ReaderFailoverResult defaultResult =
+        new ReaderFailoverResult(null, FailoverConnectionPlugin.NO_CONNECTION_INDEX, false);
     try {
       ReaderFailoverResult result = future.get(this.maxFailoverTimeoutMs, TimeUnit.MILLISECONDS);
       return result == null ? defaultResult : result;
@@ -186,9 +185,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
-  protected ReaderFailoverResult failoverInternal(
-      List<HostSpec> hosts,
-      HostSpec currentHost)
+  protected ReaderFailoverResult failoverInternal(List<HostSpec> hosts, HostSpec currentHost)
       throws SQLException {
     this.hostListProvider.addToDownHostList(currentHost);
     Set<String> downHosts = hostListProvider.getDownHosts();
@@ -200,18 +197,12 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     List<HostTuple> hostGroup = new ArrayList<>();
     addActiveReaders(hostGroup, hosts, downHosts);
     HostSpec writerHost = hosts.get(FailoverConnectionPlugin.WRITER_CONNECTION_INDEX);
-    hostGroup.add(
-        new HostTuple(
-            writerHost,
-            FailoverConnectionPlugin.WRITER_CONNECTION_INDEX));
+    hostGroup.add(new HostTuple(writerHost, FailoverConnectionPlugin.WRITER_CONNECTION_INDEX));
     addDownHosts(hostGroup, hosts, downHosts);
     return hostGroup;
   }
 
-  private void addActiveReaders(
-      List<HostTuple> list,
-      List<HostSpec> hosts,
-      Set<String> downHosts) {
+  private void addActiveReaders(List<HostTuple> list, List<HostSpec> hosts, Set<String> downHosts) {
     List<HostTuple> activeReaders = new ArrayList<>();
     for (int i = FailoverConnectionPlugin.WRITER_CONNECTION_INDEX + 1; i < hosts.size(); i++) {
       HostSpec host = hosts.get(i);
@@ -223,10 +214,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     list.addAll(activeReaders);
   }
 
-  private void addDownHosts(
-      List<HostTuple> list,
-      List<HostSpec> hosts,
-      Set<String> downHosts) {
+  private void addDownHosts(List<HostTuple> list, List<HostSpec> hosts, Set<String> downHosts) {
     List<HostTuple> downHostList = new ArrayList<>();
     for (int i = 0; i < hosts.size(); i++) {
       HostSpec host = hosts.get(i);
@@ -246,10 +234,10 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @return {@link ReaderFailoverResult} The results of this process.
    */
   @Override
-  public ReaderFailoverResult getReaderConnection(List<HostSpec> hostList)
-      throws SQLException {
+  public ReaderFailoverResult getReaderConnection(List<HostSpec> hostList) throws SQLException {
     if (Utils.isNullOrEmpty(hostList)) {
-      LOGGER.fine(Messages.get("ClusterAwareReaderFailover.6", new Object[] {"getReaderConnection"}));
+      LOGGER.fine(
+          Messages.get("ClusterAwareReaderFailover.6", new Object[] {"getReaderConnection"}));
       return FAILED_READER_FAILOVER_RESULT;
     }
 
@@ -258,19 +246,14 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     return getConnectionFromHostGroup(tuples);
   }
 
-  public List<HostTuple> getReaderTuplesByPriority(
-      List<HostSpec> hostList,
-      Set<String> downHosts) {
+  public List<HostTuple> getReaderTuplesByPriority(List<HostSpec> hostList, Set<String> downHosts) {
     List<HostTuple> tuples = new ArrayList<>();
     addActiveReaders(tuples, hostList, downHosts);
     addDownReaders(tuples, hostList, downHosts);
     return tuples;
   }
 
-  private void addDownReaders(
-      List<HostTuple> list,
-      List<HostSpec> hosts,
-      Set<String> downHosts) {
+  private void addDownReaders(List<HostTuple> list, List<HostSpec> hosts, Set<String> downHosts) {
     List<HostTuple> downReaders = new ArrayList<>();
     for (int i = FailoverConnectionPlugin.WRITER_CONNECTION_INDEX + 1; i < hosts.size(); i++) {
       HostSpec host = hosts.get(i);
@@ -285,12 +268,14 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   private ReaderFailoverResult getConnectionFromHostGroup(List<HostTuple> hostGroup)
       throws SQLException {
     ExecutorService executor = Executors.newFixedThreadPool(2);
-    CompletionService<ReaderFailoverResult> completionService = new ExecutorCompletionService<>(executor);
+    CompletionService<ReaderFailoverResult> completionService =
+        new ExecutorCompletionService<>(executor);
 
     try {
       for (int i = 0; i < hostGroup.size(); i += 2) {
         // submit connection attempt tasks in batches of 2
-        ReaderFailoverResult result = getResultFromNextTaskBatch(hostGroup, executor, completionService, i);
+        ReaderFailoverResult result =
+            getResultFromNextTaskBatch(hostGroup, executor, completionService, i);
         if (result.isConnected() || result.getException() != null) {
           return result;
         }
@@ -303,10 +288,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         }
       }
 
-      return new ReaderFailoverResult(
-          null,
-          FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-          false);
+      return new ReaderFailoverResult(null, FailoverConnectionPlugin.NO_CONNECTION_INDEX, false);
     } finally {
       executor.shutdownNow();
     }
@@ -316,7 +298,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       List<HostTuple> hostGroup,
       ExecutorService executor,
       CompletionService<ReaderFailoverResult> completionService,
-      int i) throws SQLException {
+      int i)
+      throws SQLException {
     ReaderFailoverResult result;
     int numTasks = i + 1 < hostGroup.size() ? 2 : 1;
     completionService.submit(new ConnectionAttemptTask(hostGroup.get(i)));
@@ -329,8 +312,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         executor.shutdownNow();
         LOGGER.fine(
             Messages.get(
-                "ClusterAwareReaderFailoverHandler.2",
-                new Object[] {result.getConnectionIndex()}));
+                "ClusterAwareReaderFailoverHandler.2", new Object[] {result.getConnectionIndex()}));
         return result;
       }
       if (result.getException() != null) {
@@ -338,10 +320,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         return result;
       }
     }
-    return new ReaderFailoverResult(
-        null,
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        false);
+    return new ReaderFailoverResult(null, FailoverConnectionPlugin.NO_CONNECTION_INDEX, false);
   }
 
   private ReaderFailoverResult getNextResult(CompletionService<ReaderFailoverResult> service)
@@ -358,10 +337,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       // "Thread was interrupted"
-      throw new SQLException(
-          Messages.get("ClusterAwareReaderFailoverHandler.1"),
-          "70100",
-          e);
+      throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.1"), "70100", e);
     }
   }
 
@@ -373,9 +349,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       this.newHostTuple = newHostTuple;
     }
 
-    /**
-     * Call ConnectionAttemptResult.
-     */
+    /** Call ConnectionAttemptResult. */
     @Override
     public ReaderFailoverResult call() {
       HostSpec newHost = this.newHostTuple.getHost();
@@ -401,10 +375,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         // Propagate exceptions that are not caused by network errors.
         if (!SqlState.isConnectionError(e)) {
           return new ReaderFailoverResult(
-              null,
-              FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-              false,
-              e);
+              null, FailoverConnectionPlugin.NO_CONNECTION_INDEX, false, e);
         }
 
         return FAILED_READER_FAILOVER_RESULT;
@@ -412,9 +383,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     }
   }
 
-  /**
-   * HostTuple class.
-   */
+  /** HostTuple class. */
   public static class HostTuple {
 
     private final HostSpec host;

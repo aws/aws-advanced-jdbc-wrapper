@@ -37,60 +37,54 @@ import org.junit.jupiter.params.provider.MethodSource;
 public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
 
   protected static String buildConnectionString(
-      String connStringPrefix,
-      String host,
-      String port,
-      String databaseName) {
+      String connStringPrefix, String host, String port, String databaseName) {
     return connStringPrefix + host + ":" + port + "/" + databaseName;
   }
 
   private static Stream<Arguments> testConnectionParameters() {
     return Stream.of(
         // missing connection prefix
-        Arguments.of(buildConnectionString(
-            "",
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
-            STANDARD_POSTGRES_DB)),
+        Arguments.of(
+            buildConnectionString(
+                "",
+                STANDARD_POSTGRES_HOST,
+                String.valueOf(STANDARD_POSTGRES_PORT),
+                STANDARD_POSTGRES_DB)),
         // missing port
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
-            "",
-            STANDARD_POSTGRES_DB)),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX, STANDARD_POSTGRES_HOST, "", STANDARD_POSTGRES_DB)),
         // incorrect database name
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
-            "failedDatabaseNameTest")),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX,
+                STANDARD_POSTGRES_HOST,
+                String.valueOf(STANDARD_POSTGRES_PORT),
+                "failedDatabaseNameTest")),
         // missing "/" at end of URL
-        Arguments.of(DB_CONN_STR_PREFIX
-            + STANDARD_POSTGRES_HOST
-            + ":"
-            + STANDARD_POSTGRES_PORT)
-    );
+        Arguments.of(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + ":" + STANDARD_POSTGRES_PORT));
   }
 
   private static Stream<Arguments> testPropertiesParameters() {
     return Stream.of(
         // missing username
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
-            STANDARD_POSTGRES_DB),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX,
+                STANDARD_POSTGRES_HOST,
+                String.valueOf(STANDARD_POSTGRES_PORT),
+                STANDARD_POSTGRES_DB),
             "",
             STANDARD_POSTGRES_PASSWORD),
         // missing password
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
-             STANDARD_POSTGRES_DB),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX,
+                STANDARD_POSTGRES_HOST,
+                String.valueOf(STANDARD_POSTGRES_PORT),
+                STANDARD_POSTGRES_DB),
             STANDARD_POSTGRES_USERNAME,
-            "")
-        );
+            ""));
   }
 
   @Test
@@ -124,8 +118,7 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
 
   @Test
   public void testSuccessOpenConnectionNoPort() throws SQLException {
-    String url =
-        DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB;
+    String url = DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB;
     try (Connection conn = connectCustomUrl(url, initDefaultProps())) {
 
       assertTrue(conn instanceof ConnectionWrapper);
@@ -156,11 +149,9 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
   @Test
   public void testFailedHost() {
 
-    String url = buildConnectionString(
-        DB_CONN_STR_PREFIX,
-        "",
-        String.valueOf(STANDARD_POSTGRES_PORT),
-        STANDARD_POSTGRES_DB);
+    String url =
+        buildConnectionString(
+            DB_CONN_STR_PREFIX, "", String.valueOf(STANDARD_POSTGRES_PORT), STANDARD_POSTGRES_DB);
     assertThrows(RuntimeException.class, () -> connectCustomUrl(url, initDefaultProps()));
   }
 }

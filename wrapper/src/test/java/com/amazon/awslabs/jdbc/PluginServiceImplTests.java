@@ -31,15 +31,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.amazon.awslabs.jdbc.ConnectionPlugin;
-import com.amazon.awslabs.jdbc.ConnectionPluginManager;
-import com.amazon.awslabs.jdbc.HostAvailability;
-import com.amazon.awslabs.jdbc.HostListProvider;
-import com.amazon.awslabs.jdbc.HostRole;
-import com.amazon.awslabs.jdbc.HostSpec;
-import com.amazon.awslabs.jdbc.NodeChangeOptions;
-import com.amazon.awslabs.jdbc.OldConnectionSuggestedAction;
-import com.amazon.awslabs.jdbc.PluginServiceImpl;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -164,7 +155,7 @@ public class PluginServiceImplTests {
   @Test
   public void testChangesNewConnectionNewHostNewPortNewRoleNewAvailability() throws SQLException {
     when(pluginManager.notifyConnectionChanged(
-        argumentChanges.capture(), argumentSkipPlugin.capture()))
+            argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
@@ -192,7 +183,7 @@ public class PluginServiceImplTests {
   @Test
   public void testChangesNewConnectionNewRoleNewAvailability() throws SQLException {
     when(pluginManager.notifyConnectionChanged(
-        argumentChanges.capture(), argumentSkipPlugin.capture()))
+            argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
@@ -219,7 +210,7 @@ public class PluginServiceImplTests {
   @Test
   public void testChangesNewConnection() throws SQLException {
     when(pluginManager.notifyConnectionChanged(
-        argumentChanges.capture(), argumentSkipPlugin.capture()))
+            argumentChanges.capture(), argumentSkipPlugin.capture()))
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
@@ -245,8 +236,8 @@ public class PluginServiceImplTests {
 
   @Test
   public void testChangesNoChanges() throws SQLException {
-    when(pluginManager.notifyConnectionChanged(any(), any())).thenReturn(
-        EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
+    when(pluginManager.notifyConnectionChanged(any(), any()))
+        .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
@@ -267,8 +258,8 @@ public class PluginServiceImplTests {
 
     when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostA")));
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.hosts = new ArrayList<>();
     target.hostListProvider = hostListProvider;
 
@@ -291,8 +282,8 @@ public class PluginServiceImplTests {
 
     when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostB")));
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
     target.hosts = Arrays.asList(new HostSpec("hostA"), new HostSpec("hostB"));
     target.hostListProvider = hostListProvider;
 
@@ -313,12 +304,14 @@ public class PluginServiceImplTests {
   public void testSetNodeListChanged() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    when(hostListProvider.refresh()).thenReturn(
-        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+    when(hostListProvider.refresh())
+        .thenReturn(
+            Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
-    target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.WRITER));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts =
+        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.WRITER));
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
@@ -339,12 +332,14 @@ public class PluginServiceImplTests {
   public void testSetNodeListNoChanges() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(any());
 
-    when(hostListProvider.refresh()).thenReturn(
-        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+    when(hostListProvider.refresh())
+        .thenReturn(
+            Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
-    target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts =
+        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER));
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
@@ -358,10 +353,11 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityNotChanged() {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
-    target.hosts = Collections.singletonList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts =
+        Collections.singletonList(
+            new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA");
@@ -376,10 +372,11 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentDown() {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
-    target.hosts = Collections.singletonList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts =
+        Collections.singletonList(
+            new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA");
@@ -401,10 +398,12 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentUp() {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
-    target.hosts = Collections.singletonList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    target.hosts =
+        Collections.singletonList(
+            new HostSpec(
+                "hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE));
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA");
@@ -426,15 +425,17 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentUp_ByAlias() {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    final HostSpec hostA = new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostA =
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
     hostA.addAlias("ip-10-10-10-10");
     hostA.addAlias("hostA.custom.domain.com");
-    final HostSpec hostB = new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostB =
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
     hostB.addAlias("ip-10-10-10-10");
     hostB.addAlias("hostB.custom.domain.com");
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
 
     target.hosts = Arrays.asList(hostA, hostB);
 
@@ -458,15 +459,17 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentUp_MultipleHostsByAlias() {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    final HostSpec hostA = new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostA =
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
     hostA.addAlias("ip-10-10-10-10");
     hostA.addAlias("hostA.custom.domain.com");
-    final HostSpec hostB = new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostB =
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
     hostB.addAlias("ip-10-10-10-10");
     hostB.addAlias("hostB.custom.domain.com");
 
-    PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    PluginServiceImpl target =
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
 
     target.hosts = Arrays.asList(hostA, hostB);
 

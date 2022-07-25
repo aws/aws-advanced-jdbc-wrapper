@@ -18,8 +18,6 @@
 
 package com.amazon.awslabs.jdbc;
 
-import com.amazon.awslabs.jdbc.HostListProvider;
-
 public interface HostListProviderService {
 
   boolean isStaticHostListProvider();

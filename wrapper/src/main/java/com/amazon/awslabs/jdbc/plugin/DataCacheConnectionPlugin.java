@@ -57,14 +57,22 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(DataCacheConnectionPlugin.class.getName());
 
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Arrays.asList("Statement.executeQuery", "Statement.execute",
-          "PreparedStatement.execute", "PreparedStatement.executeQuery",
-          "CallableStatement.execute", "CallableStatement.executeQuery")));
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  "Statement.executeQuery",
+                  "Statement.execute",
+                  "PreparedStatement.execute",
+                  "PreparedStatement.executeQuery",
+                  "CallableStatement.execute",
+                  "CallableStatement.executeQuery")));
 
-  protected static final ProxyDriverProperty DATA_CACHE_TRIGGER_CONDITION = new ProxyDriverProperty(
-      "dataCacheTriggerCondition", "false",
-      "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
+  protected static final ProxyDriverProperty DATA_CACHE_TRIGGER_CONDITION =
+      new ProxyDriverProperty(
+          "dataCacheTriggerCondition",
+          "false",
+          "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
 
   protected static final Map<String, ResultSet> dataCache = new ConcurrentHashMap<>();
 
@@ -84,10 +92,17 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public <T, E extends Exception> T execute(Class<T> resultClass, Class<E> exceptionClass, Object methodInvokeOn,
-      String methodName, JdbcCallable<T, E> jdbcMethodFunc, Object[] jdbcMethodArgs) throws E {
+  public <T, E extends Exception> T execute(
+      Class<T> resultClass,
+      Class<E> exceptionClass,
+      Object methodInvokeOn,
+      String methodName,
+      JdbcCallable<T, E> jdbcMethodFunc,
+      Object[] jdbcMethodArgs)
+      throws E {
 
-    if (StringUtils.isNullOrEmpty(this.dataCacheTriggerCondition) || resultClass != ResultSet.class) {
+    if (StringUtils.isNullOrEmpty(this.dataCacheTriggerCondition)
+        || resultClass != ResultSet.class) {
       return jdbcMethodFunc.call();
     }
 
@@ -99,7 +114,10 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
       result = dataCache.get(sql);
       if (result == null) {
         needToCache = true;
-        LOGGER.log(Level.FINEST, "[{0}] Query results will be cached: {1}", new Object[]{methodName, sql});
+        LOGGER.log(
+            Level.FINEST,
+            "[{0}] Query results will be cached: {1}",
+            new Object[] {methodName, sql});
       } else {
         try {
           result.beforeFirst();
@@ -713,17 +731,20 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateAsciiStream(String columnLabel, InputStream x, int length) throws SQLException {
+    public void updateAsciiStream(String columnLabel, InputStream x, int length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBinaryStream(String columnLabel, InputStream x, int length) throws SQLException {
+    public void updateBinaryStream(String columnLabel, InputStream x, int length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateCharacterStream(String columnLabel, Reader reader, int length) throws SQLException {
+    public void updateCharacterStream(String columnLabel, Reader reader, int length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -1018,7 +1039,8 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateNCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
+    public void updateNCharacterStream(String columnLabel, Reader reader, long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -1028,7 +1050,8 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateBinaryStream(int columnIndex, InputStream x, long length) throws SQLException {
+    public void updateBinaryStream(int columnIndex, InputStream x, long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
@@ -1038,27 +1061,32 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     @Override
-    public void updateAsciiStream(String columnLabel, InputStream x, long length) throws SQLException {
+    public void updateAsciiStream(String columnLabel, InputStream x, long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBinaryStream(String columnLabel, InputStream x, long length) throws SQLException {
+    public void updateBinaryStream(String columnLabel, InputStream x, long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
+    public void updateCharacterStream(String columnLabel, Reader reader, long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBlob(int columnIndex, InputStream inputStream, long length) throws SQLException {
+    public void updateBlob(int columnIndex, InputStream inputStream, long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateBlob(String columnLabel, InputStream inputStream, long length) throws SQLException {
+    public void updateBlob(String columnLabel, InputStream inputStream, long length)
+        throws SQLException {
       throw new UnsupportedOperationException();
     }
 

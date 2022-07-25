@@ -49,9 +49,9 @@ import java.util.stream.Collectors;
  */
 public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(DefaultConnectionPlugin.class.getName());
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
+  private static final Logger LOGGER = Logger.getLogger(DefaultConnectionPlugin.class.getName());
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
 
   private final ConnectionProvider connectionProvider;
   private final PluginService pluginService;
@@ -157,7 +157,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   public boolean doesOpenTransaction(String statement) {
     statement = statement.toUpperCase();
-    statement = statement.replaceAll("START(?:\\s*/\\*(.*?)\\*/\\s*)TRANSACTION", "START TRANSACTION");
+    statement =
+        statement.replaceAll("START(?:\\s*/\\*(.*?)\\*/\\s*)TRANSACTION", "START TRANSACTION");
     return statement.startsWith("BEGIN") || statement.startsWith("START TRANSACTION");
   }
 

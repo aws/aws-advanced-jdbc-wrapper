@@ -78,7 +78,9 @@ public class PropertyUtils {
     if (writeMethod == null) {
       LOGGER.log(
           Level.FINEST,
-          String.format("Set method for property '%s' does not exist on target %s", propName, target.getClass()));
+          String.format(
+              "Set method for property '%s' does not exist on target %s",
+              propName, target.getClass()));
       return;
     }
 
@@ -96,7 +98,9 @@ public class PropertyUtils {
         writeMethod.invoke(target, propValue);
       }
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, String.format("Failed to set property %s on target %s", propName, target.getClass()));
+      LOGGER.log(
+          Level.WARNING,
+          String.format("Failed to set property %s on target %s", propName, target.getClass()));
     }
   }
 

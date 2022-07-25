@@ -100,9 +100,12 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("proxyDriverProfileName", "unknownProfile");
 
-    SQLException actualException = assertThrows(SQLException.class, () -> {
-      DriverManager.getConnection(getUrl(), props);
-    });
+    SQLException actualException =
+        assertThrows(
+            SQLException.class,
+            () -> {
+              DriverManager.getConnection(getUrl(), props);
+            });
 
     assertTrue(actualException.getMessage().contains("unknownProfile"));
   }
@@ -114,8 +117,8 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     props.setProperty("proxyDriverProfileName", "testProfile");
 
     DriverConfigurationProfiles.clear();
-    DriverConfigurationProfiles.addOrReplaceProfile("testProfile",
-        Arrays.asList(ExecutionTimeConnectionPluginFactory.class));
+    DriverConfigurationProfiles.addOrReplaceProfile(
+        "testProfile", Arrays.asList(ExecutionTimeConnectionPluginFactory.class));
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 

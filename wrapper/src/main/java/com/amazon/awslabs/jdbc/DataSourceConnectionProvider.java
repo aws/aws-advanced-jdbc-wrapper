@@ -50,13 +50,14 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     this(dataSource, null, null, null, null, null, null);
   }
 
-  public DataSourceConnectionProvider(final @NonNull DataSource dataSource,
-                                      final @Nullable String serverPropertyName,
-                                      final @Nullable String portPropertyName,
-                                      final @Nullable String urlPropertyName,
-                                      final @Nullable String databasePropertyName,
-                                      final @Nullable String usernamePropertyName,
-                                      final @Nullable String passwordPropertyName) {
+  public DataSourceConnectionProvider(
+      final @NonNull DataSource dataSource,
+      final @Nullable String serverPropertyName,
+      final @Nullable String portPropertyName,
+      final @Nullable String urlPropertyName,
+      final @Nullable String databasePropertyName,
+      final @Nullable String usernamePropertyName,
+      final @Nullable String passwordPropertyName) {
     this.dataSource = dataSource;
     this.serverPropertyName = serverPropertyName;
     this.portPropertyName = portPropertyName;
@@ -92,21 +93,26 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.put(this.portPropertyName, hostSpec.getPort());
     }
 
-    if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(props.getProperty(DATABASE_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.databasePropertyName)
+        && !isNullOrEmpty(props.getProperty(DATABASE_PROPERTY_NAME))) {
       copy.setProperty(this.databasePropertyName, props.getProperty(DATABASE_PROPERTY_NAME));
     }
 
-    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.userPropertyName)
+        && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
       copy.setProperty(this.userPropertyName, props.getProperty(USER_PROPERTY_NAME));
     }
 
-    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.passwordPropertyName)
+        && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
       copy.setProperty(this.passwordPropertyName, props.getProperty(PASSWORD_PROPERTY_NAME));
     }
 
-    if (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
+    if (!isNullOrEmpty(this.urlPropertyName)
+        && !isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
       Properties urlProperties = PropertyUtils.copyProperties(copy);
-      // Remove the current url property to replace with a new url built from updated HostSpec and properties
+      // Remove the current url property to replace with a new url built from updated HostSpec and
+      // properties
       urlProperties.remove(this.urlPropertyName);
 
       copy.setProperty(
@@ -134,22 +140,26 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
-  public Connection connect(final @NonNull String url, final @NonNull Properties props) throws SQLException {
+  public Connection connect(final @NonNull String url, final @NonNull Properties props)
+      throws SQLException {
     Properties copy = PropertyUtils.copyProperties(props);
 
     if (!isNullOrEmpty(this.urlPropertyName)) {
       copy.setProperty(this.urlPropertyName, url);
     }
 
-    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.userPropertyName)
+        && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
       copy.put(this.userPropertyName, props.getProperty(USER_PROPERTY_NAME));
     }
 
-    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.passwordPropertyName)
+        && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
       copy.put(this.passwordPropertyName, props.getProperty(PASSWORD_PROPERTY_NAME));
     }
 
-    if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(props.getProperty(DATABASE_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.databasePropertyName)
+        && !isNullOrEmpty(props.getProperty(DATABASE_PROPERTY_NAME))) {
       copy.put(this.databasePropertyName, props.getProperty(DATABASE_PROPERTY_NAME));
     }
 

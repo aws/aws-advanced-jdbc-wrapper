@@ -47,66 +47,64 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   protected String currReader;
 
   protected static String buildConnectionString(
-      String connStringPrefix,
-      String host,
-      String port,
-      String databaseName) {
+      String connStringPrefix, String host, String port, String databaseName) {
     return connStringPrefix + host + ":" + port + "/" + databaseName;
   }
 
   private static Stream<Arguments> testParameters() {
     return Stream.of(
         // missing username
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            AURORA_POSTGRES_DB),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX,
+                POSTGRES_INSTANCE_1_URL,
+                String.valueOf(AURORA_POSTGRES_PORT),
+                AURORA_POSTGRES_DB),
             "",
             AURORA_POSTGRES_PASSWORD),
         // missing password
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            AURORA_POSTGRES_DB),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX,
+                POSTGRES_INSTANCE_1_URL,
+                String.valueOf(AURORA_POSTGRES_PORT),
+                AURORA_POSTGRES_DB),
             AURORA_POSTGRES_USERNAME,
             ""),
         // missing connection prefix
-        Arguments.of(buildConnectionString(
-            "",
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            AURORA_POSTGRES_DB),
+        Arguments.of(
+            buildConnectionString(
+                "",
+                POSTGRES_INSTANCE_1_URL,
+                String.valueOf(AURORA_POSTGRES_PORT),
+                AURORA_POSTGRES_DB),
             AURORA_POSTGRES_USERNAME,
             AURORA_POSTGRES_PASSWORD),
         // missing port
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-          "",
-            AURORA_POSTGRES_DB),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX, POSTGRES_INSTANCE_1_URL, "", AURORA_POSTGRES_DB),
             AURORA_POSTGRES_USERNAME,
             AURORA_POSTGRES_PASSWORD),
         // incorrect database name
-        Arguments.of(buildConnectionString(DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            "failedDatabaseNameTest"),
+        Arguments.of(
+            buildConnectionString(
+                DB_CONN_STR_PREFIX,
+                POSTGRES_INSTANCE_1_URL,
+                String.valueOf(AURORA_POSTGRES_PORT),
+                "failedDatabaseNameTest"),
             AURORA_POSTGRES_USERNAME,
-            AURORA_POSTGRES_PASSWORD)
-    );
+            AURORA_POSTGRES_PASSWORD));
   }
 
   private static Stream<Arguments> generateConnectionString() {
     return Stream.of(
-            Arguments.of(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT),
-            Arguments.of(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT),
-            Arguments.of(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT),
-            Arguments.of(POSTGRES_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT),
-            Arguments.of(POSTGRES_RO_CLUSTER_URL, AURORA_POSTGRES_PORT),
-            Arguments.of(POSTGRES_RO_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)
-    );
+        Arguments.of(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT),
+        Arguments.of(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT),
+        Arguments.of(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT),
+        Arguments.of(POSTGRES_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT),
+        Arguments.of(POSTGRES_RO_CLUSTER_URL, AURORA_POSTGRES_PORT),
+        Arguments.of(POSTGRES_RO_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT));
   }
 
   @ParameterizedTest(name = "test_ConnectionString")
@@ -124,7 +122,8 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   @Test
   public void test_ValidateConnectionWhenNetworkDown() throws SQLException, IOException {
     final Connection conn =
-            connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT);
+        connectToInstance(
+            POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT);
     assertTrue(conn.isValid(3));
 
     containerHelper.disableConnectivity(proxyInstance_1);
@@ -140,15 +139,19 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   public void test_ConnectWhenNetworkDown() throws SQLException, IOException {
     containerHelper.disableConnectivity(proxyInstance_1);
 
-    assertThrows(Exception.class, () -> {
-      // expected to fail since communication is cut
-      connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT);
-    });
+    assertThrows(
+        Exception.class,
+        () -> {
+          // expected to fail since communication is cut
+          connectToInstance(
+              POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT);
+        });
 
     containerHelper.enableConnectivity(proxyInstance_1);
 
-    final Connection conn = connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX,
-            POSTGRES_PROXY_PORT);
+    final Connection conn =
+        connectToInstance(
+            POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT);
     conn.close();
   }
 
@@ -161,8 +164,11 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     props.setProperty("failoverTimeoutMs", "10000");
 
     // Connect to cluster
-    try (final Connection testConnection = connectToInstance(
-            initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT, props)) {
+    try (final Connection testConnection =
+        connectToInstance(
+            initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+            POSTGRES_PROXY_PORT,
+            props)) {
       // Get writer
       currWriter = queryInstanceId(testConnection);
 
@@ -192,38 +198,43 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     String anyReaderId = instanceIDs[1];
 
     // Get Writer
-    try (final Connection checkWriterConnection = connectToInstance(
-            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+    try (final Connection checkWriterConnection =
+        connectToInstance(
+            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+            POSTGRES_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to cluster
-    try (final Connection testConnection = connectToInstance(
+    try (final Connection testConnection =
+        connectToInstance(
             anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
       assertNotEquals(currWriter, currReader);
 
       // Put all but writer down
-      proxyMap.forEach((instance, proxy) -> {
-        if (!instance.equalsIgnoreCase(currWriter)) {
-          try {
-            containerHelper.disableConnectivity(proxy);
-          } catch (IOException e) {
-            fail("Toxics were already set, should not happen");
-          }
-        }
-      });
+      proxyMap.forEach(
+          (instance, proxy) -> {
+            if (!instance.equalsIgnoreCase(currWriter)) {
+              try {
+                containerHelper.disableConnectivity(proxy);
+              } catch (IOException e) {
+                fail("Toxics were already set, should not happen");
+              }
+            }
+          });
 
       assertFirstQueryThrows(testConnection, "08S02");
 
       final String newReader = queryInstanceId(testConnection);
       assertEquals(currWriter, newReader);
     } finally {
-      proxyMap.forEach((instance, proxy) -> {
-        assertNotNull(proxy, "Proxy isn't found for " + instance);
-        containerHelper.enableConnectivity(proxy);
-      });
+      proxyMap.forEach(
+          (instance, proxy) -> {
+            assertNotNull(proxy, "Proxy isn't found for " + instance);
+            containerHelper.enableConnectivity(proxy);
+          });
     }
   }
 
@@ -234,15 +245,18 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     String anyReaderId = instanceIDs[1];
 
     // Get Writer
-    try (final Connection checkWriterConnection = connectToInstance(
-            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+    try (final Connection checkWriterConnection =
+        connectToInstance(
+            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+            POSTGRES_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     } catch (SQLException e) {
       fail(e);
     }
 
     // Connect to instance
-    try (final Connection testConnection = connectToInstance(
+    try (final Connection testConnection =
+        connectToInstance(
             anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
@@ -273,13 +287,16 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     String anyReaderId = instanceIDs[1];
 
     // Get Writer
-    try (final Connection checkWriterConnection = connectToInstance(
-            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+    try (final Connection checkWriterConnection =
+        connectToInstance(
+            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+            POSTGRES_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to instance
-    try (final Connection testConnection = connectToInstance(
+    try (final Connection testConnection =
+        connectToInstance(
             anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
@@ -310,24 +327,24 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     final Properties validProp = initDefaultProps();
     validProp.setProperty(PropertyKey.USER.getKeyName(), AURORA_POSTGRES_USERNAME);
     validProp.setProperty(PropertyKey.PASSWORD.getKeyName(), AURORA_POSTGRES_PASSWORD);
-    final Connection validConn = connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, validProp);
+    final Connection validConn =
+        connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, validProp);
     validConn.close();
 
     final Properties invalidProp = initDefaultProps();
     invalidProp.setProperty(PropertyKey.USER.getKeyName(), "INVALID_" + AURORA_POSTGRES_USERNAME);
-    invalidProp.setProperty(PropertyKey.PASSWORD.getKeyName(), "INVALID_" + AURORA_POSTGRES_PASSWORD);
+    invalidProp.setProperty(
+        PropertyKey.PASSWORD.getKeyName(), "INVALID_" + AURORA_POSTGRES_PASSWORD);
     assertThrows(
-            SQLException.class,
-            () -> connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, invalidProp)
-    );
+        SQLException.class,
+        () -> connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, invalidProp));
 
-    final Connection validConn2 = connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, validProp);
+    final Connection validConn2 =
+        connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, validProp);
     validConn2.close();
   }
 
-  /**
-   * Current writer dies, no available reader instance, connection fails.
-   */
+  /** Current writer dies, no available reader instance, connection fails. */
   @Test
   public void test_writerConnectionFailsDueToNoReader() throws SQLException, IOException {
 
@@ -335,20 +352,22 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     Properties props = initDefaultProxiedProps();
     props.setProperty("failoverTimeoutMs", "10000");
-    try (Connection conn = connectToInstance(
+    try (Connection conn =
+        connectToInstance(
             currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
             POSTGRES_PROXY_PORT,
             props)) {
       // Put all but writer down first
-      proxyMap.forEach((instance, proxy) -> {
-        if (!instance.equalsIgnoreCase(currentWriterId)) {
-          try {
-            containerHelper.disableConnectivity(proxy);
-          } catch (IOException e) {
-            fail("Toxics were already set, should not happen");
-          }
-        }
-      });
+      proxyMap.forEach(
+          (instance, proxy) -> {
+            if (!instance.equalsIgnoreCase(currentWriterId)) {
+              try {
+                containerHelper.disableConnectivity(proxy);
+              } catch (IOException e) {
+                fail("Toxics were already set, should not happen");
+              }
+            }
+          });
 
       // Crash the writer now
       final Proxy proxyInstance = proxyMap.get(currentWriterId);
@@ -362,25 +381,29 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       // (SQL_STATE_UNABLE_TO_CONNECT_TO_DATASOURCE)
       assertFirstQueryThrows(conn, "08001");
     } finally {
-      proxyMap.forEach((instance, proxy) -> {
-        assertNotNull(proxy, "Proxy isn't found for " + instance);
-        containerHelper.enableConnectivity(proxy);
-      });
+      proxyMap.forEach(
+          (instance, proxy) -> {
+            assertNotNull(proxy, "Proxy isn't found for " + instance);
+            containerHelper.enableConnectivity(proxy);
+          });
     }
   }
 
   /**
-   * Current reader dies, after failing to connect to several reader instances, failover to another reader.
+   * Current reader dies, after failing to connect to several reader instances, failover to another
+   * reader.
    */
   @Test
-  public void test_failFromReaderToReaderWithSomeReadersAreDown()
-          throws SQLException, IOException {
+  public void test_failFromReaderToReaderWithSomeReadersAreDown() throws SQLException, IOException {
     assertTrue(clusterSize >= 3, "Minimal cluster configuration: 1 writer + 2 readers");
     final String readerNode = instanceIDs[1];
 
     Properties props = initDefaultProxiedProps();
-    try (Connection conn = connectToInstance(readerNode + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-            POSTGRES_PROXY_PORT, props)) {
+    try (Connection conn =
+        connectToInstance(
+            readerNode + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+            POSTGRES_PROXY_PORT,
+            props)) {
       // First kill all reader instances except one
       for (int i = 1; i < clusterSize - 1; i++) {
         final String instanceId = instanceIDs[i];
@@ -398,14 +421,14 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       // instance (Instance1).
       final String currentConnectionId = queryInstanceId(conn);
       assertTrue(
-              currentConnectionId.equals(instanceIDs[clusterSize - 1]) // Last reader
-                      || currentConnectionId.equals(instanceIDs[0])); // Writer
+          currentConnectionId.equals(instanceIDs[clusterSize - 1]) // Last reader
+              || currentConnectionId.equals(instanceIDs[0])); // Writer
     }
   }
 
   /**
-   * Current reader dies, failover to another reader repeat to loop through instances in the cluster testing ability to
-   * revive previously down reader instance.
+   * Current reader dies, failover to another reader repeat to loop through instances in the cluster
+   * testing ability to revive previously down reader instance.
    */
   @Test
   @Disabled
@@ -418,8 +441,11 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
-    try (Connection conn = connectToInstance(firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-            POSTGRES_PROXY_PORT, props)) {
+    try (Connection conn =
+        connectToInstance(
+            firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+            POSTGRES_PROXY_PORT,
+            props)) {
       conn.setReadOnly(true);
 
       // Start crashing reader (Instance2).
@@ -452,7 +478,9 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       readerInstanceIds.remove(secondReaderInstanceId);
       readerInstanceIds.remove(thirdReaderInstanceId);
 
-      final String fourthInstanceId = readerInstanceIds.stream().findFirst()
+      final String fourthInstanceId =
+          readerInstanceIds.stream()
+              .findFirst()
               .orElseThrow(() -> new Exception("Empty instance Id"));
 
       // Crash the fourth reader instance.
@@ -478,19 +506,20 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       final String lastInstanceId = queryInstanceId(conn);
 
       assertTrue(
-              firstReaderInstanceId.equals(lastInstanceId)
-                      || secondReaderInstanceId.equals(lastInstanceId));
+          firstReaderInstanceId.equals(lastInstanceId)
+              || secondReaderInstanceId.equals(lastInstanceId));
     }
   }
 
   @Test
   public void testSuccessOpenConnection() throws SQLException {
 
-    final String url = buildConnectionString(
-        DB_CONN_STR_PREFIX,
-        POSTGRES_INSTANCE_1_URL,
-        String.valueOf(AURORA_POSTGRES_PORT),
-        AURORA_POSTGRES_DB);
+    final String url =
+        buildConnectionString(
+            DB_CONN_STR_PREFIX,
+            POSTGRES_INSTANCE_1_URL,
+            String.valueOf(AURORA_POSTGRES_PORT),
+            AURORA_POSTGRES_DB);
 
     Properties props = new Properties();
     props.setProperty("user", AURORA_POSTGRES_USERNAME);
@@ -508,7 +537,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   @Test
   public void testSuccessOpenConnectionNoPort() throws SQLException {
 
-    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL  + "/" + AURORA_POSTGRES_DB;
+    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + "/" + AURORA_POSTGRES_DB;
 
     Properties props = new Properties();
     props.setProperty("user", AURORA_POSTGRES_USERNAME);
@@ -540,12 +569,9 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     Properties props = new Properties();
     props.setProperty("user", AURORA_POSTGRES_USERNAME);
     props.setProperty("password", AURORA_POSTGRES_PASSWORD);
-    String url = buildConnectionString(
-        DB_CONN_STR_PREFIX,
-        "",
-        String.valueOf(AURORA_POSTGRES_PORT),
-        AURORA_POSTGRES_DB);
-    assertThrows(RuntimeException.class, () -> connectToInstanceCustomUrl(
-        url, props));
+    String url =
+        buildConnectionString(
+            DB_CONN_STR_PREFIX, "", String.valueOf(AURORA_POSTGRES_PORT), AURORA_POSTGRES_DB);
+    assertThrows(RuntimeException.class, () -> connectToInstanceCustomUrl(url, props));
   }
 }

@@ -32,8 +32,8 @@ import java.util.Set;
 
 public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Collections.singletonList("initHostProvider")));
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("initHostProvider")));
   private final PluginService pluginService;
 
   public AuroraHostListConnectionPlugin(PluginService pluginService, Properties properties) {
@@ -51,7 +51,8 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
       String initialUrl,
       Properties props,
       HostListProviderService hostListProviderService,
-      JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+      JdbcCallable<Void, SQLException> initHostProviderFunc)
+      throws SQLException {
     final HostListProvider provider = hostListProviderService.getHostListProvider();
     if (provider == null) {
       initHostProviderFunc.call();
@@ -62,7 +63,8 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
       hostListProviderService.setHostListProvider(
           new AuroraHostListProvider(driverProtocol, pluginService, props, initialUrl));
     } else if (!(provider instanceof AuroraHostListProvider)) {
-      throw new SQLException(Messages.get("Failover.invalidHostListProvider", new Object[] {provider}));
+      throw new SQLException(
+          Messages.get("Failover.invalidHostListProvider", new Object[] {provider}));
     }
     initHostProviderFunc.call();
   }

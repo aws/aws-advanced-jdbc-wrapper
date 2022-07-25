@@ -48,30 +48,39 @@ public class WrapperUtilsTest {
     final ReentrantLock testLock = new ReentrantLock();
     closeable = MockitoAnnotations.openMocks(this);
 
-    doAnswer(invocation -> {
-      pluginManagerLock.lock();
-      return null;
-    }).when(pluginManager).lock();
-    doAnswer(invocation -> {
-      pluginManagerLock.unlock();
-      return null;
-    }).when(pluginManager).unlock();
+    doAnswer(
+            invocation -> {
+              pluginManagerLock.lock();
+              return null;
+            })
+        .when(pluginManager)
+        .lock();
+    doAnswer(
+            invocation -> {
+              pluginManagerLock.unlock();
+              return null;
+            })
+        .when(pluginManager)
+        .unlock();
 
-    doAnswer(invocation -> {
-      boolean lockIsFree = testLock.tryLock();
-      if (!lockIsFree) {
-        fail("Lock is in use, should not be attempting to fetch it right now");
-      }
-      Thread.sleep(3000);
-      testLock.unlock();
-      return 1;
-    }).when(pluginManager).execute(
-        any(Class.class),
-        any(Class.class),
-        any(Object.class),
-        any(String.class),
-        any(JdbcCallable.class),
-        any(Object[].class));
+    doAnswer(
+            invocation -> {
+              boolean lockIsFree = testLock.tryLock();
+              if (!lockIsFree) {
+                fail("Lock is in use, should not be attempting to fetch it right now");
+              }
+              Thread.sleep(3000);
+              testLock.unlock();
+              return 1;
+            })
+        .when(pluginManager)
+        .execute(
+            any(Class.class),
+            any(Class.class),
+            any(Object.class),
+            any(String.class),
+            any(JdbcCallable.class),
+            any(Object[].class));
   }
 
   @AfterEach
@@ -81,22 +90,13 @@ public class WrapperUtilsTest {
 
   Integer callExecuteWithPlugins() {
     return WrapperUtils.executeWithPlugins(
-        Integer.class,
-        pluginManager,
-        object,
-        "methodName",
-        () -> 1);
+        Integer.class, pluginManager, object, "methodName", () -> 1);
   }
 
   Integer callExecuteWithPluginsWithException() {
     try {
       return WrapperUtils.executeWithPlugins(
-          Integer.class,
-          SQLException.class,
-          pluginManager,
-          object,
-          "methodName",
-          () -> 1);
+          Integer.class, SQLException.class, pluginManager, object, "methodName", () -> 1);
     } catch (SQLException e) {
       fail();
     }

@@ -38,13 +38,16 @@ public class StandardMysqlContainerTest {
 
   private static final String STANDARD_MYSQL_DB =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_MYSQL_DB"))
-          ? System.getenv("STANDARD_MYSQL_DB") : "test";
+          ? System.getenv("STANDARD_MYSQL_DB")
+          : "test";
   private static final String STANDARD_MYSQL_USERNAME =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_MYSQL_USERNAME"))
-          ? System.getenv("STANDARD_MYSQL_USERNAME") : "test";
+          ? System.getenv("STANDARD_MYSQL_USERNAME")
+          : "test";
   private static final String STANDARD_MYSQL_PASSWORD =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_MYSQL_PASSWORD"))
-          ? System.getenv("STANDARD_MYSQL_PASSWORD") : "test";
+          ? System.getenv("STANDARD_MYSQL_PASSWORD")
+          : "test";
 
   private static MySQLContainer<?> mysqlContainer;
   private static GenericContainer<?> integrationTestContainer;
@@ -63,15 +66,22 @@ public class StandardMysqlContainerTest {
 
     network = Network.newNetwork();
 
-    mysqlContainer = containerHelper.createMysqlContainer(network, STANDARD_MYSQL_HOST,
-        STANDARD_MYSQL_DB, STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
+    mysqlContainer =
+        containerHelper.createMysqlContainer(
+            network,
+            STANDARD_MYSQL_HOST,
+            STANDARD_MYSQL_DB,
+            STANDARD_MYSQL_USERNAME,
+            STANDARD_MYSQL_PASSWORD);
     mysqlContainer.start();
 
     proxyContainer =
-        containerHelper.createProxyContainer(network, STANDARD_MYSQL_HOST, PROXIED_DOMAIN_NAME_SUFFIX);
+        containerHelper.createProxyContainer(
+            network, STANDARD_MYSQL_HOST, PROXIED_DOMAIN_NAME_SUFFIX);
     proxyContainer.start();
-    mysqlProxyPort = containerHelper.createInstanceProxy(STANDARD_MYSQL_HOST, proxyContainer,
-        STANDARD_MYSQL_PORT);
+    mysqlProxyPort =
+        containerHelper.createInstanceProxy(
+            STANDARD_MYSQL_HOST, proxyContainer, STANDARD_MYSQL_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();
@@ -99,7 +109,8 @@ public class StandardMysqlContainerTest {
   }
 
   protected static GenericContainer<?> createTestContainer() {
-    return containerHelper.createTestContainer("aws/rds-test-container")
+    return containerHelper
+        .createTestContainer("aws/rds-test-container")
         .withNetworkAliases(STANDARD_TEST_RUNNER_NAME)
         .withNetwork(network)
         .withEnv("STANDARD_MYSQL_HOST", STANDARD_MYSQL_HOST)

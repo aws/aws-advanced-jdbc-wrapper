@@ -38,13 +38,16 @@ public class StandardPostgresContainerTest {
 
   private static final String STANDARD_POSTGRES_DB =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_POSTGRES_DB"))
-          ? System.getenv("STANDARD_POSTGRES_DB") : "test-db";
+          ? System.getenv("STANDARD_POSTGRES_DB")
+          : "test-db";
   private static final String STANDARD_POSTGRES_USERNAME =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_POSTGRES_USERNAME"))
-          ? System.getenv("STANDARD_POSTGRES_USERNAME") : "test-user";
+          ? System.getenv("STANDARD_POSTGRES_USERNAME")
+          : "test-user";
   private static final String STANDARD_POSTGRES_PASSWORD =
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_POSTGRES_PASSWORD"))
-          ? System.getenv("STANDARD_POSTGRES_PASSWORD") : "test-password";
+          ? System.getenv("STANDARD_POSTGRES_PASSWORD")
+          : "test-password";
 
   private static PostgreSQLContainer<?> postgresContainer;
   private static GenericContainer<?> integrationTestContainer;
@@ -65,15 +68,22 @@ public class StandardPostgresContainerTest {
 
     network = Network.newNetwork();
 
-    postgresContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_HOST,
-        STANDARD_POSTGRES_DB, STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD);
+    postgresContainer =
+        containerHelper.createPostgresContainer(
+            network,
+            STANDARD_POSTGRES_HOST,
+            STANDARD_POSTGRES_DB,
+            STANDARD_POSTGRES_USERNAME,
+            STANDARD_POSTGRES_PASSWORD);
     postgresContainer.start();
 
     proxyContainer =
-        containerHelper.createProxyContainer(network, STANDARD_POSTGRES_HOST, PROXIED_DOMAIN_NAME_SUFFIX);
+        containerHelper.createProxyContainer(
+            network, STANDARD_POSTGRES_HOST, PROXIED_DOMAIN_NAME_SUFFIX);
     proxyContainer.start();
-    postgresProxyPort = containerHelper.createInstanceProxy(STANDARD_POSTGRES_HOST, proxyContainer,
-        STANDARD_POSTGRES_PORT);
+    postgresProxyPort =
+        containerHelper.createInstanceProxy(
+            STANDARD_POSTGRES_HOST, proxyContainer, STANDARD_POSTGRES_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();
@@ -101,7 +111,8 @@ public class StandardPostgresContainerTest {
   }
 
   protected static GenericContainer<?> createTestContainer() {
-    return containerHelper.createTestContainer("aws/rds-test-container")
+    return containerHelper
+        .createTestContainer("aws/rds-test-container")
         .withNetworkAliases(STANDARD_POSTGRES_TEST_RUNNER_NAME)
         .withNetwork(network)
         .withEnv("STANDARD_POSTGRES_HOST", STANDARD_POSTGRES_HOST)

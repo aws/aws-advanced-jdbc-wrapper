@@ -143,7 +143,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
 
     final int failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
-    final int failureDetectionIntervalMillis = FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
+    final int failureDetectionIntervalMillis =
+        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
     final int failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
 
     initMonitorService();

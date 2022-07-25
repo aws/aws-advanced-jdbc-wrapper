@@ -153,9 +153,7 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection("", AURORA_POSTGRES_PASSWORD));
+    assertThrows(PSQLException.class, () -> ds.getConnection("", AURORA_POSTGRES_PASSWORD));
   }
 
   @Test
@@ -173,9 +171,7 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(AURORA_POSTGRES_USERNAME, ""));
+    assertThrows(PSQLException.class, () -> ds.getConnection(AURORA_POSTGRES_USERNAME, ""));
   }
 
   @Test
@@ -233,10 +229,14 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
             + POSTGRES_CLUSTER_URL
-            + ":" + AURORA_POSTGRES_PORT + "/"
+            + ":"
+            + AURORA_POSTGRES_PORT
+            + "/"
             + AURORA_POSTGRES_DB
-            + "?user=" + AURORA_POSTGRES_USERNAME
-            + "&password=" + AURORA_POSTGRES_PASSWORD);
+            + "?user="
+            + AURORA_POSTGRES_USERNAME
+            + "&password="
+            + AURORA_POSTGRES_PASSWORD);
 
     Connection conn = ds.getConnection();
 
@@ -259,7 +259,13 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB);
+    ds.setJdbcUrl(
+        DB_CONN_STR_PREFIX
+            + POSTGRES_CLUSTER_URL
+            + ":"
+            + AURORA_POSTGRES_PORT
+            + "/"
+            + AURORA_POSTGRES_DB);
 
     Connection conn = ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);
 
@@ -334,7 +340,13 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB);
+    ds.setJdbcUrl(
+        DB_CONN_STR_PREFIX
+            + POSTGRES_CLUSTER_URL
+            + ":"
+            + AURORA_POSTGRES_PORT
+            + "/"
+            + AURORA_POSTGRES_DB);
 
     Connection conn = ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);
 
@@ -354,10 +366,14 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
             + POSTGRES_CLUSTER_URL
-            + ":" + AURORA_POSTGRES_PORT + "/"
+            + ":"
+            + AURORA_POSTGRES_PORT
+            + "/"
             + AURORA_POSTGRES_DB
-            + "?user=" + AURORA_POSTGRES_USERNAME
-            + "&password=" + AURORA_POSTGRES_PASSWORD);
+            + "?user="
+            + AURORA_POSTGRES_USERNAME
+            + "&password="
+            + AURORA_POSTGRES_PASSWORD);
 
     Connection conn = ds.getConnection();
 
@@ -405,9 +421,7 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/");
 
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection("", AURORA_POSTGRES_PASSWORD));
+    assertThrows(PSQLException.class, () -> ds.getConnection("", AURORA_POSTGRES_PASSWORD));
   }
 
   @Test
@@ -418,15 +432,19 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/");
 
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(AURORA_POSTGRES_USERNAME, ""));
+    assertThrows(PSQLException.class, () -> ds.getConnection(AURORA_POSTGRES_USERNAME, ""));
   }
 
   @Test
   public void testConnectionWithUrlMissingPropertyNames() {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB);
+    ds.setJdbcUrl(
+        DB_CONN_STR_PREFIX
+            + POSTGRES_CLUSTER_URL
+            + ":"
+            + AURORA_POSTGRES_PORT
+            + "/"
+            + AURORA_POSTGRES_DB);
 
     assertThrows(
         PSQLException.class,

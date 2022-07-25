@@ -59,14 +59,14 @@ class ClusterAwareReaderFailoverHandlerTest {
 
   private AutoCloseable closeable;
   private final Properties properties = new Properties();
-  private final List<HostSpec> defaultHosts = Arrays.asList(
-      new HostSpec("writer", 1234, HostRole.WRITER),
-      new HostSpec("reader1", 1234, HostRole.READER),
-      new HostSpec("reader2", 1234, HostRole.READER),
-      new HostSpec("reader3", 1234, HostRole.READER),
-      new HostSpec("reader4", 1234, HostRole.READER),
-      new HostSpec("reader5", 1234, HostRole.READER)
-  );
+  private final List<HostSpec> defaultHosts =
+      Arrays.asList(
+          new HostSpec("writer", 1234, HostRole.WRITER),
+          new HostSpec("reader1", 1234, HostRole.READER),
+          new HostSpec("reader2", 1234, HostRole.READER),
+          new HostSpec("reader3", 1234, HostRole.READER),
+          new HostSpec("reader4", 1234, HostRole.READER),
+          new HostSpec("reader5", 1234, HostRole.READER));
 
   @BeforeEach
   void setUp() {
@@ -105,10 +105,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     when(mockHostListProvider.getDownHosts()).thenReturn(downHosts);
 
     final ReaderFailoverHandler target =
-        new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties);
+        new ClusterAwareReaderFailoverHandler(mockHostListProvider, mockPluginService, properties);
     final ReaderFailoverResult result = target.failover(hosts, hosts.get(currentHostIndex));
 
     assertTrue(result.isConnected());
@@ -133,10 +130,12 @@ class ClusterAwareReaderFailoverHandlerTest {
     final int currentHostIndex = 2;
     for (HostSpec host : hosts) {
       when(mockPluginService.connect(host, properties))
-          .thenAnswer((Answer<Connection>) invocation -> {
-            Thread.sleep(20000);
-            return mockConnection;
-          });
+          .thenAnswer(
+              (Answer<Connection>)
+                  invocation -> {
+                    Thread.sleep(20000);
+                    return mockConnection;
+                  });
     }
 
     final Set<String> downHosts = new HashSet<>();
@@ -148,44 +147,30 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties,
-            5000,
-            30000);
-    final ReaderFailoverResult result =
-        target.failover(hosts, hosts.get(currentHostIndex));
+            mockHostListProvider, mockPluginService, properties, 5000, 30000);
+    final ReaderFailoverResult result = target.failover(hosts, hosts.get(currentHostIndex));
 
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertEquals(FailoverConnectionPlugin.NO_CONNECTION_INDEX, result.getConnectionIndex());
   }
 
   @Test
   public void testFailover_nullOrEmptyHostList() throws SQLException {
     final ClusterAwareReaderFailoverHandler target =
-        new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties);
+        new ClusterAwareReaderFailoverHandler(mockHostListProvider, mockPluginService, properties);
     final HostSpec currentHost = new HostSpec("writer", 1234);
 
     ReaderFailoverResult result = target.failover(null, currentHost);
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertEquals(FailoverConnectionPlugin.NO_CONNECTION_INDEX, result.getConnectionIndex());
 
     final List<HostSpec> hosts = new ArrayList<>();
     result = target.failover(hosts, currentHost);
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertEquals(FailoverConnectionPlugin.NO_CONNECTION_INDEX, result.getConnectionIndex());
   }
 
   @Test
@@ -194,7 +179,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     // first connection attempt to return succeeds, second attempt cancelled
     // expected test result: successful connection for host at index 2
     when(mockHostListProvider.getDownHosts()).thenReturn(new HashSet<>());
-    final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
+    final List<HostSpec> hosts =
+        defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     final HostSpec slowHost = hosts.get(1);
     final HostSpec fastHost = hosts.get(2);
     when(mockPluginService.connect(slowHost, properties))
@@ -207,10 +193,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     when(mockPluginService.connect(eq(fastHost), eq(properties))).thenReturn(mockConnection);
 
     final ReaderFailoverHandler target =
-        new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties);
+        new ClusterAwareReaderFailoverHandler(mockHostListProvider, mockPluginService, properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
     assertTrue(result.isConnected());
@@ -227,29 +210,25 @@ class ClusterAwareReaderFailoverHandlerTest {
     // first connection attempt to return fails
     // expected test result: failure to get reader
     when(mockHostListProvider.getDownHosts()).thenReturn(new HashSet<>());
-    final List<HostSpec> hosts = defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
-    when(mockPluginService.connect(any(), eq(properties))).thenThrow(new SQLException("exception", "08S01", null));
+    final List<HostSpec> hosts =
+        defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
+    when(mockPluginService.connect(any(), eq(properties)))
+        .thenThrow(new SQLException("exception", "08S01", null));
 
     final int currentHostIndex = 2;
 
     final ReaderFailoverHandler target =
-        new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties);
+        new ClusterAwareReaderFailoverHandler(mockHostListProvider, mockPluginService, properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertEquals(FailoverConnectionPlugin.NO_CONNECTION_INDEX, result.getConnectionIndex());
 
     final HostSpec currentHost = hosts.get(currentHostIndex);
     verify(mockHostListProvider, atLeastOnce()).addToDownHostList(eq(currentHost));
     verify(mockHostListProvider, never())
-        .addToDownHostList(
-            eq(hosts.get(FailoverConnectionPlugin.WRITER_CONNECTION_INDEX)));
+        .addToDownHostList(eq(hosts.get(FailoverConnectionPlugin.WRITER_CONNECTION_INDEX)));
   }
 
   @Test
@@ -258,7 +237,8 @@ class ClusterAwareReaderFailoverHandlerTest {
     // first connection attempt to return times out
     // expected test result: failure to get reader
     when(mockHostListProvider.getDownHosts()).thenReturn(new HashSet<>());
-    final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
+    final List<HostSpec> hosts =
+        defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     when(mockPluginService.connect(any(), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
@@ -273,18 +253,12 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties,
-            60000,
-            1000);
+            mockHostListProvider, mockPluginService, properties, 60000, 1000);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertEquals(FailoverConnectionPlugin.NO_CONNECTION_INDEX, result.getConnectionIndex());
 
     verify(mockHostListProvider, never()).addToDownHostList(any());
   }
@@ -300,10 +274,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     }
 
     final ClusterAwareReaderFailoverHandler target =
-        new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties);
+        new ClusterAwareReaderFailoverHandler(mockHostListProvider, mockPluginService, properties);
     final List<ClusterAwareReaderFailoverHandler.HostTuple> tuplesByPriority =
         target.getHostTuplesByPriority(originalHosts, downHosts);
 
@@ -349,10 +320,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     }
 
     final ClusterAwareReaderFailoverHandler target =
-        new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
-            mockPluginService,
-            properties);
+        new ClusterAwareReaderFailoverHandler(mockHostListProvider, mockPluginService, properties);
     final List<ClusterAwareReaderFailoverHandler.HostTuple> readerTuples =
         target.getReaderTuplesByPriority(originalHosts, downHosts);
 

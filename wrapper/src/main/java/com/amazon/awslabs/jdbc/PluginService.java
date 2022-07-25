@@ -18,11 +18,6 @@
 
 package com.amazon.awslabs.jdbc;
 
-import com.amazon.awslabs.jdbc.ConnectionPlugin;
-import com.amazon.awslabs.jdbc.HostAvailability;
-import com.amazon.awslabs.jdbc.HostListProvider;
-import com.amazon.awslabs.jdbc.HostSpec;
-import com.amazon.awslabs.jdbc.NodeChangeOptions;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -33,7 +28,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
+ * Interface for retrieving the current active {@link Connection} and its {@link
+ * com.amazon.awslabs.jdbc.HostSpec}.
  */
 public interface PluginService {
 

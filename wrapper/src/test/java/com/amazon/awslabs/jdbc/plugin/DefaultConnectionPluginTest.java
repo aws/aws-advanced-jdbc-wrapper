@@ -86,8 +86,7 @@ class DefaultConnectionPluginTest {
         Arguments.of("START/* COMMENT */TRANSACTION;", true),
         Arguments.of("START      /* COMMENT */    TRANSACTION;", true),
         Arguments.of("START   /*COMMENT*/TRANSACTION;", true),
-        Arguments.of("commit", false)
-    );
+        Arguments.of("commit", false));
   }
 
   private static Stream<Arguments> closeTransactionQueries() {
@@ -95,8 +94,7 @@ class DefaultConnectionPluginTest {
         Arguments.of("rollback;", true),
         Arguments.of("commit;", true),
         Arguments.of("end", true),
-        Arguments.of("abort;", true)
-    );
+        Arguments.of("abort;", true));
   }
 
   private static Stream<Arguments> multiStatementQueries() {
@@ -105,7 +103,6 @@ class DefaultConnectionPluginTest {
         Arguments.of(null, new ArrayList<String>()),
         Arguments.of("  ", new ArrayList<String>()),
         Arguments.of("some  \t  \r  \n   query;", Collections.singletonList("some query")),
-        Arguments.of("some\t\t\r\n query;query2", Arrays.asList("some query", "query2"))
-    );
+        Arguments.of("some\t\t\r\n query;query2", Arrays.asList("some query", "query2")));
   }
 }

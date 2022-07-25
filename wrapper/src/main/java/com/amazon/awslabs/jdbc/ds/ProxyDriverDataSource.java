@@ -94,13 +94,15 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
     if (!isNullOrEmpty(this.targetDataSourceClassName)) {
       final DataSource targetDataSource = createTargetDataSource();
 
-      if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(props.getProperty(this.databasePropertyName))) {
+      if (!isNullOrEmpty(this.databasePropertyName)
+          && !isNullOrEmpty(props.getProperty(this.databasePropertyName))) {
         props.put(DATABASE_PROPERTY_NAME, props.getProperty(this.databasePropertyName));
       }
 
       // If the url is set explicitly through setJdbcUrl or the connection properties.
       if (!isNullOrEmpty(this.jdbcUrl)
-          || (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+          || (!isNullOrEmpty(this.urlPropertyName)
+              && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
         setJdbcUrlOrUrlProperty(props);
         setDatabasePropertyFromUrl(props);
         if (isNullOrEmpty(this.user) || isNullOrEmpty(this.password)) {
@@ -108,15 +110,16 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
         }
 
       } else {
-        this.jdbcUrl = buildUrl(
-            this.jdbcProtocol,
-            null,
-            this.serverPropertyName,
-            this.portPropertyName,
-            this.databasePropertyName,
-            this.userPropertyName,
-            this.passwordPropertyName,
-            props);
+        this.jdbcUrl =
+            buildUrl(
+                this.jdbcProtocol,
+                null,
+                this.serverPropertyName,
+                this.portPropertyName,
+                this.databasePropertyName,
+                this.userPropertyName,
+                this.passwordPropertyName,
+                props);
       }
 
       if (isNullOrEmpty(this.jdbcUrl)) {
@@ -152,9 +155,7 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
           props,
           this.jdbcUrl,
           new DriverConnectionProvider(
-              targetDriver,
-              this.userPropertyName,
-              this.passwordPropertyName));
+              targetDriver, this.userPropertyName, this.passwordPropertyName));
     }
   }
 
@@ -305,7 +306,8 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
       props.setProperty(USER_PROPERTY_NAME, this.user);
 
       // If username was provided in targetDataSourceProperties and a userPropertyName is set.
-    } else if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(this.userPropertyName))) {
+    } else if (!isNullOrEmpty(this.userPropertyName)
+        && !isNullOrEmpty(props.getProperty(this.userPropertyName))) {
       props.setProperty(USER_PROPERTY_NAME, props.getProperty(this.userPropertyName));
       this.user = props.getProperty(this.userPropertyName);
     }
@@ -336,13 +338,15 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
   }
 
   private void setCredentialPropertiesFromUrl(Properties props) {
-    final String userFromUrl = ConnectionUrlParser.parseUserFromUrl(this.jdbcUrl, this.userPropertyName);
+    final String userFromUrl =
+        ConnectionUrlParser.parseUserFromUrl(this.jdbcUrl, this.userPropertyName);
     if (isNullOrEmpty(this.user) && !isNullOrEmpty(userFromUrl)) {
       props.setProperty(USER_PROPERTY_NAME, userFromUrl);
       this.user = userFromUrl;
     }
 
-    final String passwordFromUrl = ConnectionUrlParser.parsePasswordFromUrl(this.jdbcUrl, this.passwordPropertyName);
+    final String passwordFromUrl =
+        ConnectionUrlParser.parsePasswordFromUrl(this.jdbcUrl, this.passwordPropertyName);
     if (isNullOrEmpty(this.password) && !isNullOrEmpty(passwordFromUrl)) {
       props.setProperty(PASSWORD_PROPERTY_NAME, passwordFromUrl);
       this.password = passwordFromUrl;
@@ -352,11 +356,13 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
   private void setJdbcUrlOrUrlProperty(Properties props) {
     // If the jdbc url wasn't set, use the url property if it exists.
     if (isNullOrEmpty(this.jdbcUrl)
-        && (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+        && (!isNullOrEmpty(this.urlPropertyName)
+            && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
       this.jdbcUrl = props.getProperty(this.urlPropertyName);
 
       // If the jdbc url and the url property have both been set, use the provided jdbc url.
-    } else if ((!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+    } else if ((!isNullOrEmpty(this.urlPropertyName)
+        && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
       props.setProperty(this.urlPropertyName, this.jdbcUrl);
     }
   }

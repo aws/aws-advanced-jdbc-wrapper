@@ -111,9 +111,11 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     this.originalUrl = originalUrl;
     this.clusterId = UUID.randomUUID().toString();
     this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
-    this.clusterInstanceTemplate = PropertyDefinition.CLUSTER_INSTANCE_HOST_PATTERN.get(this.properties) == null
-        ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
-        : new HostSpec(PropertyDefinition.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
+    this.clusterInstanceTemplate =
+        PropertyDefinition.CLUSTER_INSTANCE_HOST_PATTERN.get(this.properties) == null
+            ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
+            : new HostSpec(
+                PropertyDefinition.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
     validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
 
     this.rdsUrlType = rdsHelper.identifyRdsType(originalUrl);
@@ -154,7 +156,8 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
    * @return a list of hosts that describes cluster topology. A writer is always at position 0.
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    */
-  public List<HostSpec> getTopology(final Connection conn, final boolean forceUpdate) throws SQLException {
+  public List<HostSpec> getTopology(final Connection conn, final boolean forceUpdate)
+      throws SQLException {
     final HostSpec hostSpec = this.pluginService.getCurrentHostSpec();
 
     if (rdsUrlType.isRdsCluster()) {
@@ -272,9 +275,10 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     String hostName = resultSet.getString(FIELD_SERVER_ID);
     hostName = hostName == null ? "?" : hostName;
     final String endpoint = getHostEndpoint(hostName);
-    final int port = this.clusterInstanceTemplate.isPortSpecified()
-        ? this.clusterInstanceTemplate.getPort()
-        : this.pluginService.getCurrentHostSpec().getPort();
+    final int port =
+        this.clusterInstanceTemplate.isPortSpecified()
+            ? this.clusterInstanceTemplate.getPort()
+            : this.pluginService.getCurrentHostSpec().getPort();
 
     final HostSpec hostSpec =
         new HostSpec(endpoint, port, isWriter ? HostRole.WRITER : HostRole.READER);
@@ -420,7 +424,8 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
         instanceName = resultSet.getString(instanceNameCol);
       }
       ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
-      return instanceNameToHost(instanceName, clusterTopologyInfo == null ? null : clusterTopologyInfo.hosts);
+      return instanceNameToHost(
+          instanceName, clusterTopologyInfo == null ? null : clusterTopologyInfo.hosts);
     } catch (SQLException e) {
       return null;
     }
@@ -439,18 +444,14 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     return null;
   }
 
-  /**
-   * Clear topology cache for all clusters.
-   */
+  /** Clear topology cache for all clusters. */
   public void clearAll() {
     synchronized (cacheLock) {
       topologyCache.clear();
     }
   }
 
-  /**
-   * Clear topology cache for the current cluster.
-   */
+  /** Clear topology cache for the current cluster. */
   public void clear() {
     synchronized (cacheLock) {
       topologyCache.remove(this.clusterId);
@@ -461,14 +462,15 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   public List<HostSpec> refresh() throws SQLException {
     Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection == null) {
-      currentConnection = this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
-      this.pluginService.setCurrentConnection(currentConnection, this.pluginService.getCurrentHostSpec());
+      currentConnection =
+          this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
+      this.pluginService.setCurrentConnection(
+          currentConnection, this.pluginService.getCurrentHostSpec());
     }
     final ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
     hostList =
         getTopology(
-            currentConnection,
-            clusterTopologyInfo != null && refreshNeeded(clusterTopologyInfo));
+            currentConnection, clusterTopologyInfo != null && refreshNeeded(clusterTopologyInfo));
     for (HostSpec hostSpec : hostList) {
       this.pluginService.setAvailability(hostSpec.getAliases(), hostSpec.getAvailability());
     }
@@ -479,8 +481,10 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   public List<HostSpec> forceRefresh() throws SQLException {
     Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection == null) {
-      currentConnection = this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
-      this.pluginService.setCurrentConnection(currentConnection, this.pluginService.getCurrentHostSpec());
+      currentConnection =
+          this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
+      this.pluginService.setCurrentConnection(
+          currentConnection, this.pluginService.getCurrentHostSpec());
     }
     hostList = getTopology(currentConnection, true);
     for (HostSpec hostSpec : hostList) {
@@ -506,7 +510,8 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(hostPattern);
     if (rdsUrlType == RdsUrlType.RDS_PROXY) {
       // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
-      final String message = Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
+      final String message =
+          Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
@@ -521,9 +526,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     }
   }
 
-  /**
-   * Class that holds the topology and additional information about the topology.
-   */
+  /** Class that holds the topology and additional information about the topology. */
   static class ClusterTopologyInfo {
 
     public Set<String> downHosts;

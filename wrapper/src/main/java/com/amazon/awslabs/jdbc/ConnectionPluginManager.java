@@ -55,18 +55,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class ConnectionPluginManager implements CanReleaseResources {
 
-  protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
-      new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
-        {
-          put("executionTime", ExecutionTimeConnectionPluginFactory.class);
-          put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
-          put("logQuery", LogQueryConnectionPluginFactory.class);
-          put("dataCache", DataCacheConnectionPluginFactory.class);
-          put("efm", HostMonitoringConnectionPluginFactory.class);
-          put("failover", FailoverConnectionPluginFactory.class);
-          put("iam", IamAuthConnectionPluginFactory.class);
-        }
-      };
+  protected static final Map<String, Class<? extends ConnectionPluginFactory>>
+      pluginFactoriesByCode =
+          new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
+            {
+              put("executionTime", ExecutionTimeConnectionPluginFactory.class);
+              put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
+              put("logQuery", LogQueryConnectionPluginFactory.class);
+              put("dataCache", DataCacheConnectionPluginFactory.class);
+              put("efm", HostMonitoringConnectionPluginFactory.class);
+              put("failover", FailoverConnectionPluginFactory.class);
+              put("iam", IamAuthConnectionPluginFactory.class);
+            }
+          };
 
   protected static final String DEFAULT_PLUGINS = "";
 

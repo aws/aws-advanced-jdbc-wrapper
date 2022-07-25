@@ -49,17 +49,16 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   public static final int PG_PORT = 5342;
   public static final int MYSQL_PORT = 3306;
 
-  protected static final ProxyDriverProperty SPECIFIED_PORT = new ProxyDriverProperty(
-          "iamDefaultPort", null,
-          "Overrides default port that is used to generate IAM token");
+  protected static final ProxyDriverProperty SPECIFIED_PORT =
+      new ProxyDriverProperty(
+          "iamDefaultPort", null, "Overrides default port that is used to generate IAM token");
 
-  protected static final ProxyDriverProperty SPECIFIED_REGION = new ProxyDriverProperty(
-          "iamRegion", null,
-          "Overrides AWS region that is used to generate IAM token");
+  protected static final ProxyDriverProperty SPECIFIED_REGION =
+      new ProxyDriverProperty(
+          "iamRegion", null, "Overrides AWS region that is used to generate IAM token");
 
-  protected static final ProxyDriverProperty SPECIFIED_EXPIRATION = new ProxyDriverProperty(
-          "iamExpiration", null,
-          "IAM token cache expiration in seconds");
+  protected static final ProxyDriverProperty SPECIFIED_EXPIRATION =
+      new ProxyDriverProperty("iamExpiration", null, "IAM token cache expiration in seconds");
 
   @Override
   public Set<String> getSubscribedMethods() {
@@ -68,19 +67,20 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-          final String driverProtocol,
-          final HostSpec hostSpec,
-          final Properties props,
-          final boolean isInitialConnection,
-          final JdbcCallable<Connection, SQLException> connectFunc)
-          throws SQLException {
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
 
     final String host = hostSpec.getHost();
 
     int port = hostSpec.getPort();
     if (!hostSpec.isPortSpecified()) {
       if (StringUtils.isNullOrEmpty(SPECIFIED_PORT.get(props))) {
-        if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith("jdbc:mysql:")) {
+        if (!driverProtocol.startsWith("jdbc:postgresql:")
+            && !driverProtocol.startsWith("jdbc:mysql:")) {
           throw new RuntimeException("Port is required");
         } else if (driverProtocol.startsWith("jdbc:mysql:")) {
           port = MYSQL_PORT;
@@ -90,8 +90,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       } else {
         port = SPECIFIED_PORT.getInteger(props);
         if (port <= 0) {
-          throw new IllegalArgumentException("Port number: " + port + " is not valid. "
-              + "Port number should be greater than zero.");
+          throw new IllegalArgumentException(
+              "Port number: "
+                  + port
+                  + " is not valid. "
+                  + "Port number should be greater than zero.");
         }
       }
     }
@@ -110,50 +113,43 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       tokenExpirationSec = SPECIFIED_EXPIRATION.getInteger(props);
     }
 
-    final String cacheKey = getCacheKey(
-            props.getProperty(ConnectionPropertyNames.USER_PROPERTY_NAME),
-            host,
-            port,
-            region);
+    final String cacheKey =
+        getCacheKey(
+            props.getProperty(ConnectionPropertyNames.USER_PROPERTY_NAME), host, port, region);
     final TokenInfo tokenInfo = tokenCache.get(cacheKey);
 
     if (tokenInfo != null && !tokenInfo.isExpired()) {
       LOGGER.log(Level.FINEST, "use cached IAM token = " + tokenInfo.getToken());
       props.setProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME, tokenInfo.getToken());
     } else {
-      final String token = generateAuthenticationToken(props.getProperty(ConnectionPropertyNames.USER_PROPERTY_NAME),
-              hostSpec.getHost(), port, region);
+      final String token =
+          generateAuthenticationToken(
+              props.getProperty(ConnectionPropertyNames.USER_PROPERTY_NAME),
+              hostSpec.getHost(),
+              port,
+              region);
       LOGGER.log(Level.FINEST, "generated new IAM token = " + token);
       props.setProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME, token);
       tokenCache.put(
-              cacheKey,
-              new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
+          cacheKey,
+          new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
     }
     return connectFunc.call();
   }
 
   String generateAuthenticationToken(
-          final String user,
-          final String hostname,
-          final int port,
-          final Region region) {
-    final RdsUtilities utilities = RdsUtilities.builder()
+      final String user, final String hostname, final int port, final Region region) {
+    final RdsUtilities utilities =
+        RdsUtilities.builder()
             .credentialsProvider(DefaultCredentialsProvider.create())
             .region(region)
             .build();
-    return utilities.generateAuthenticationToken((builder) ->
-            builder
-                    .hostname(hostname)
-                    .port(port)
-                    .username(user)
-    );
+    return utilities.generateAuthenticationToken(
+        (builder) -> builder.hostname(hostname).port(port).username(user));
   }
 
   private String getCacheKey(
-          final String user,
-          final String hostname,
-          final int port,
-          final Region region) {
+      final String user, final String hostname, final int port, final Region region) {
 
     return String.format("%s:%s:%d:%s", region, hostname, port, user);
   }
@@ -165,33 +161,36 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   private Region getRdsRegion(final String hostname) throws SQLException {
     // Check Hostname
     final Pattern auroraDnsPattern =
-            Pattern.compile(
-                    "(.+)\\.(proxy-|cluster-|cluster-ro-|cluster-custom-)?[a-zA-Z0-9]+"
-                        + "\\.([a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com",
-                    Pattern.CASE_INSENSITIVE);
+        Pattern.compile(
+            "(.+)\\.(proxy-|cluster-|cluster-ro-|cluster-custom-)?[a-zA-Z0-9]+"
+                + "\\.([a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com",
+            Pattern.CASE_INSENSITIVE);
     final Matcher matcher = auroraDnsPattern.matcher(hostname);
     if (!matcher.find()) {
       // Does not match Amazon's Hostname, throw exception
-      final String exceptionMessage = String.format("Unsupported AWS hostname '%s'. "
-              + "Amazon domain name in format *.AWS-Region.rds.amazonaws.com is expected", hostname);
+      final String exceptionMessage =
+          String.format(
+              "Unsupported AWS hostname '%s'. "
+                  + "Amazon domain name in format *.AWS-Region.rds.amazonaws.com is expected",
+              hostname);
 
       LOGGER.log(Level.FINEST, exceptionMessage);
-      throw new SQLException(
-              (exceptionMessage));
+      throw new SQLException((exceptionMessage));
     }
 
     // Get Region
     final String rdsRegion = matcher.group(3);
 
     // Check Region
-    final Optional<Region> regionOptional = Region.regions().stream()
-            .filter(r -> r.id().equalsIgnoreCase(rdsRegion))
-            .findFirst();
+    final Optional<Region> regionOptional =
+        Region.regions().stream().filter(r -> r.id().equalsIgnoreCase(rdsRegion)).findFirst();
 
     if (!regionOptional.isPresent()) {
-      final String exceptionMessage = String.format("Unsupported AWS region '%s'. "
-                      + "For supported regions, please read "
-                      + "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html\n",
+      final String exceptionMessage =
+          String.format(
+              "Unsupported AWS region '%s'. "
+                  + "For supported regions, please read "
+                  + "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html\n",
               rdsRegion);
 
       LOGGER.log(Level.FINEST, exceptionMessage);

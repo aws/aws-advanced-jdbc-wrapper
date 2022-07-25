@@ -18,7 +18,6 @@
 
 package com.amazon.awslabs.jdbc.plugin.efm;
 
-import com.amazon.awslabs.jdbc.plugin.efm.MonitorConnectionContext;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;

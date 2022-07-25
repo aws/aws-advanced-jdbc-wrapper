@@ -33,7 +33,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 class ConnectionUrlParserTest {
   @ParameterizedTest
   @MethodSource("testGetHostsFromConnectionUrlArguments")
-  void testGetHostsFromConnectionUrl_returnCorrectHostList(String testUrl, List<HostSpec> expected) {
+  void testGetHostsFromConnectionUrl_returnCorrectHostList(
+      String testUrl, List<HostSpec> expected) {
     final ConnectionUrlParser parser = new ConnectionUrlParser();
     final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl);
 
@@ -48,14 +49,17 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//", new ArrayList<HostSpec>()),
         Arguments.of("bar/", new ArrayList<HostSpec>()),
         Arguments.of("invalid-hosts?", new ArrayList<HostSpec>()),
-        Arguments.of("jdbc//host:3303/db?param=1", Collections.singletonList(new HostSpec("host", 3303))),
-        Arguments.of("protocol//host2:3303", Collections.singletonList(new HostSpec("host2", 3303))),
+        Arguments.of(
+            "jdbc//host:3303/db?param=1", Collections.singletonList(new HostSpec("host", 3303))),
+        Arguments.of(
+            "protocol//host2:3303", Collections.singletonList(new HostSpec("host2", 3303))),
         Arguments.of("foo//host:3303/?#", Collections.singletonList(new HostSpec("host", 3303))),
-        Arguments.of("jdbc:mysql:replication://host:badInt?param=",
+        Arguments.of(
+            "jdbc:mysql:replication://host:badInt?param=",
             Collections.singletonList(new HostSpec("host"))),
-        Arguments.of("jdbc:driver:test://source,replica1:3303,host/test",
-            Arrays.asList(new HostSpec("source"), new HostSpec("replica1", 3303),
-                new HostSpec("host")))
-    );
+        Arguments.of(
+            "jdbc:driver:test://source,replica1:3303,host/test",
+            Arrays.asList(
+                new HostSpec("source"), new HostSpec("replica1", 3303), new HostSpec("host"))));
   }
 }

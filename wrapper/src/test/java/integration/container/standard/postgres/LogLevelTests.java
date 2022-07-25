@@ -47,7 +47,8 @@ public class LogLevelTests {
   @Test
   public void testSlf4j() throws IOException {
     org.slf4j.Logger logger =
-        LoggerFactory.getLogger("integration.container.standard.postgres.StandardPostgresIntegrationTest");
+        LoggerFactory.getLogger(
+            "integration.container.standard.postgres.StandardPostgresIntegrationTest");
 
     logger.debug("StandardPostgresIntegrationTest debug");
     logger.trace("StandardPostgresIntegrationTest trace");

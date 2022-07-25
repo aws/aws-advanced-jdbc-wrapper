@@ -34,16 +34,20 @@ import org.postgresql.PGProperty;
 public class StandardPostgresBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:postgresql://";
   protected static final String STANDARD_POSTGRES_HOST = System.getenv("STANDARD_POSTGRES_HOST");
-  protected static final int STANDARD_POSTGRES_PORT = Integer.parseInt(System.getenv("STANDARD_POSTGRES_PORT"));
+  protected static final int STANDARD_POSTGRES_PORT =
+      Integer.parseInt(System.getenv("STANDARD_POSTGRES_PORT"));
   protected static final String STANDARD_POSTGRES_DB = System.getenv("STANDARD_POSTGRES_DB");
-  protected static final String STANDARD_POSTGRES_USERNAME = System.getenv("STANDARD_POSTGRES_USERNAME");
-  protected static final String STANDARD_POSTGRES_PASSWORD = System.getenv("STANDARD_POSTGRES_PASSWORD");
+  protected static final String STANDARD_POSTGRES_USERNAME =
+      System.getenv("STANDARD_POSTGRES_USERNAME");
+  protected static final String STANDARD_POSTGRES_PASSWORD =
+      System.getenv("STANDARD_POSTGRES_PASSWORD");
 
   protected static final String TOXIPROXY_HOST = System.getenv("TOXIPROXY_HOST");
   protected static ToxiproxyClient toxiproxyClient;
   protected static final int TOXIPROXY_CONTROL_PORT = 8474;
 
-  protected static final String PROXIED_DOMAIN_NAME_SUFFIX = System.getenv("PROXIED_DOMAIN_NAME_SUFFIX");
+  protected static final String PROXIED_DOMAIN_NAME_SUFFIX =
+      System.getenv("PROXIED_DOMAIN_NAME_SUFFIX");
   protected static final String PROXY_PORT = System.getenv("PROXY_PORT");
   protected static Proxy proxy;
   protected static final Map<String, Proxy> proxyMap = new HashMap<>();
@@ -70,14 +74,20 @@ public class StandardPostgresBaseTest {
     proxyMap.forEach((instance, proxy) -> containerHelper.enableConnectivity(proxy));
   }
 
-  protected static Proxy getProxy(ToxiproxyClient proxyClient, String host, int port) throws IOException {
+  protected static Proxy getProxy(ToxiproxyClient proxyClient, String host, int port)
+      throws IOException {
     final String upstream = host + ":" + port;
     return proxyClient.getProxy(upstream);
   }
 
   protected String getUrl() {
     String url =
-        DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + ":" + STANDARD_POSTGRES_PORT + "/" + STANDARD_POSTGRES_DB;
+        DB_CONN_STR_PREFIX
+            + STANDARD_POSTGRES_HOST
+            + ":"
+            + STANDARD_POSTGRES_PORT
+            + "/"
+            + STANDARD_POSTGRES_DB;
     return url;
   }
 
@@ -86,8 +96,14 @@ public class StandardPostgresBaseTest {
   }
 
   protected String getProxiedUrl() {
-    String url = DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + PROXIED_DOMAIN_NAME_SUFFIX + ":" + PROXY_PORT + "/"
-        + STANDARD_POSTGRES_DB;
+    String url =
+        DB_CONN_STR_PREFIX
+            + STANDARD_POSTGRES_HOST
+            + PROXIED_DOMAIN_NAME_SUFFIX
+            + ":"
+            + PROXY_PORT
+            + "/"
+            + STANDARD_POSTGRES_DB;
     return url;
   }
 

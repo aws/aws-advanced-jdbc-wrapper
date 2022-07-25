@@ -33,16 +33,19 @@ import java.util.Properties;
 
 public class ConnectionUrlBuilder {
   // Builds a connection URL of the generic format: "protocol//[hosts][/database][?properties]"
-  public static String buildUrl(String jdbcProtocol,
-                                HostSpec hostSpec,
-                                String serverPropertyName,
-                                String portPropertyName,
-                                String databasePropertyName,
-                                String userPropertyName,
-                                String passwordPropertyName,
-                                Properties props) throws SQLException {
+  public static String buildUrl(
+      String jdbcProtocol,
+      HostSpec hostSpec,
+      String serverPropertyName,
+      String portPropertyName,
+      String databasePropertyName,
+      String userPropertyName,
+      String passwordPropertyName,
+      Properties props)
+      throws SQLException {
     if (isNullOrEmpty(jdbcProtocol)
-        || ((isNullOrEmpty(serverPropertyName) || isNullOrEmpty(props.getProperty(serverPropertyName)))
+        || ((isNullOrEmpty(serverPropertyName)
+                || isNullOrEmpty(props.getProperty(serverPropertyName)))
             && hostSpec == null)) {
       throw new SQLException("Missing JDBC protocol and/or host name. Could not construct URL.");
     }
@@ -89,7 +92,8 @@ public class ConnectionUrlBuilder {
       final String propertyValue = copy.getProperty(propertyName);
       if (propertyName.equals(USER_PROPERTY_NAME) && !isNullOrEmpty(userPropertyName)) {
         propertyName = userPropertyName;
-      } else if (propertyName.equals(PASSWORD_PROPERTY_NAME) && !isNullOrEmpty(passwordPropertyName)) {
+      } else if (propertyName.equals(PASSWORD_PROPERTY_NAME)
+          && !isNullOrEmpty(passwordPropertyName)) {
         propertyName = passwordPropertyName;
       }
 

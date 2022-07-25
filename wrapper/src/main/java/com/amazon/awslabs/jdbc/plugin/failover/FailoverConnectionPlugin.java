@@ -268,8 +268,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc,
       Supplier<HostListProvider> hostListProviderSupplier,
-      Function<AuroraHostListProvider, ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
-      Function<AuroraHostListProvider, ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
+      Function<AuroraHostListProvider, ClusterAwareReaderFailoverHandler>
+          readerFailoverHandlerSupplier,
+      Function<AuroraHostListProvider, ClusterAwareWriterFailoverHandler>
+          writerFailoverHandlerSupplier)
       throws SQLException {
     if (!this.enableFailoverSetting) {
       return;
@@ -289,7 +291,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private AuroraHostListProvider getHostListProvider() throws SQLException {
     final HostListProvider provider = this.pluginService.getHostListProvider();
     if (!(provider instanceof AuroraHostListProvider)) {
-      throw new SQLException(Messages.get("Failover.invalidHostListProvider", new Object[] {provider}));
+      throw new SQLException(
+          Messages.get("Failover.invalidHostListProvider", new Object[] {provider}));
     }
 
     return (AuroraHostListProvider) provider;
@@ -321,10 +324,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     LOGGER.fine(Messages.get("Failover.invalidNode", new Object[] {currentHost}));
   }
 
-  private boolean isNodeStillValid(final String node, Map<String, EnumSet<NodeChangeOptions>> changes) {
+  private boolean isNodeStillValid(
+      final String node, Map<String, EnumSet<NodeChangeOptions>> changes) {
     if (changes.containsKey(node)) {
       EnumSet<NodeChangeOptions> options = changes.get(node);
-      return !options.contains(NodeChangeOptions.NODE_DELETED) && !options.contains(NodeChangeOptions.WENT_DOWN);
+      return !options.contains(NodeChangeOptions.NODE_DELETED)
+          && !options.contains(NodeChangeOptions.WENT_DOWN);
     }
     return false;
   }
@@ -345,7 +350,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private void initSettings() {
-    this.enableFailoverSetting = PropertyDefinition.ENABLE_CLUSTER_AWARE_FAILOVER.getBoolean(this.properties);
+    this.enableFailoverSetting =
+        PropertyDefinition.ENABLE_CLUSTER_AWARE_FAILOVER.getBoolean(this.properties);
     this.failoverTimeoutMsSetting = FAILOVER_TIMEOUT_MS.getInteger(this.properties);
     this.failoverClusterTopologyRefreshRateMsSetting =
         FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(this.properties);
@@ -354,8 +360,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderConnectTimeoutMsSetting =
         FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
 
-    this.autoReconnectSetting = AUTO_RECONNECT.getBoolean(this.properties)
-        || AUTO_RECONNECT_FOR_POOLS.getBoolean(this.properties);
+    this.autoReconnectSetting =
+        AUTO_RECONNECT.getBoolean(this.properties)
+            || AUTO_RECONNECT_FOR_POOLS.getBoolean(this.properties);
   }
 
   private void invalidInvocationOnClosedConnection() throws SQLException {
@@ -564,10 +571,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param readOnly The new read-only status.
    * @throws SQLException if an error occurs
    */
-  protected void syncSessionState(
-      Connection source,
-      Connection target,
-      boolean readOnly) throws SQLException {
+  protected void syncSessionState(Connection source, Connection target, boolean readOnly)
+      throws SQLException {
     if (target != null) {
       target.setReadOnly(readOnly);
     }
@@ -603,13 +608,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private <E extends Exception> void dealWithOriginalException(
-      Throwable originalException,
-      Throwable wrapperException,
-      Class<E> exceptionClass) throws E {
+      Throwable originalException, Throwable wrapperException, Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
       LOGGER.finer(
-          String.format("%s:%s", Messages.get("Failover.failoverEnabled"), originalException.getMessage()));
+          String.format(
+              "%s:%s", Messages.get("Failover.failoverEnabled"), originalException.getMessage()));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
@@ -646,8 +650,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected <E extends Exception> void dealWithIllegalStateException(
-      IllegalStateException e,
-      Class<E> exceptionClass) throws E {
+      IllegalStateException e, Class<E> exceptionClass) throws E {
     dealWithOriginalException(e.getCause(), e, exceptionClass);
   }
 
@@ -672,7 +675,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       // restarting transaction."
       final String errorMessage = Messages.get("Failover.transactionResolutionUnknownError");
       LOGGER.severe(errorMessage);
-      throw new SQLException(errorMessage, SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
+      throw new SQLException(
+          errorMessage, SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
       // session state if required."
@@ -690,7 +694,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (failedHostSpec != null && failedHostSpec.getAvailability() == HostAvailability.AVAILABLE) {
       failedHost = failedHostSpec;
     }
-    ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+    ReaderFailoverResult result =
+        readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
 
     if (result != null) {
       final SQLException exception = result.getException();
@@ -718,7 +723,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected void failoverWriter() throws SQLException {
     LOGGER.fine(Messages.get("Failover.startWriterFailover"));
     final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
-    WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
+    WriterFailoverResult failoverResult =
+        this.writerFailoverHandler.failover(this.pluginService.getHosts());
     if (failoverResult != null) {
       final SQLException exception = failoverResult.getException();
       if (exception != null) {
@@ -846,7 +852,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param exception The exception that occurred while invoking the given method
    * @return an exception indicating the failure that occurred while invoking the given method
    */
-  private <E extends Exception> E wrapExceptionIfNeeded(Class<E> exceptionClass, Throwable exception) {
+  private <E extends Exception> E wrapExceptionIfNeeded(
+      Class<E> exceptionClass, Throwable exception) {
     if (exceptionClass.isAssignableFrom(exception.getClass())) {
       return exceptionClass.cast(exception);
     }

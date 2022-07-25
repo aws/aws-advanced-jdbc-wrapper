@@ -23,9 +23,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 
-/**
- * This class holds results of Writer Failover Process.
- */
+/** This class holds results of Writer Failover Process. */
 public class WriterFailoverResult {
 
   private final boolean isConnected;
@@ -35,9 +33,7 @@ public class WriterFailoverResult {
   private final String taskName;
   private final SQLException exception;
 
-  /**
-   * WriterFailoverResult constructor.
-   */
+  /** WriterFailoverResult constructor. */
   public WriterFailoverResult(
       boolean isConnected,
       boolean isNewHost,

@@ -43,7 +43,8 @@ public class StandardMysqlBaseTest {
   protected static ToxiproxyClient toxiproxyClient;
   protected static final int TOXIPROXY_CONTROL_PORT = 8474;
 
-  protected static final String PROXIED_DOMAIN_NAME_SUFFIX = System.getenv("PROXIED_DOMAIN_NAME_SUFFIX");
+  protected static final String PROXIED_DOMAIN_NAME_SUFFIX =
+      System.getenv("PROXIED_DOMAIN_NAME_SUFFIX");
   protected static final String PROXY_PORT = System.getenv("PROXY_PORT");
   protected static Proxy proxy;
   protected static final Map<String, Proxy> proxyMap = new HashMap<>();
@@ -68,14 +69,20 @@ public class StandardMysqlBaseTest {
     proxyMap.forEach((instance, proxy) -> containerHelper.enableConnectivity(proxy));
   }
 
-  protected static Proxy getProxy(ToxiproxyClient proxyClient, String host, int port) throws IOException {
+  protected static Proxy getProxy(ToxiproxyClient proxyClient, String host, int port)
+      throws IOException {
     final String upstream = host + ":" + port;
     return proxyClient.getProxy(upstream);
   }
 
   protected String getUrl() {
     String url =
-        DB_CONN_STR_PREFIX + STANDARD_MYSQL_HOST + ":" + STANDARD_MYSQL_PORT + "/" + STANDARD_MYSQL_DB;
+        DB_CONN_STR_PREFIX
+            + STANDARD_MYSQL_HOST
+            + ":"
+            + STANDARD_MYSQL_PORT
+            + "/"
+            + STANDARD_MYSQL_DB;
     return url;
   }
 
@@ -84,8 +91,14 @@ public class StandardMysqlBaseTest {
   }
 
   protected String getProxiedUrl() {
-    String url = DB_CONN_STR_PREFIX + STANDARD_MYSQL_HOST + PROXIED_DOMAIN_NAME_SUFFIX + ":" + PROXY_PORT + "/"
-        + STANDARD_MYSQL_DB;
+    String url =
+        DB_CONN_STR_PREFIX
+            + STANDARD_MYSQL_HOST
+            + PROXIED_DOMAIN_NAME_SUFFIX
+            + ":"
+            + PROXY_PORT
+            + "/"
+            + STANDARD_MYSQL_DB;
     return url;
   }
 

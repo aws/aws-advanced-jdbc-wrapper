@@ -21,10 +21,7 @@ package com.amazon.awslabs.jdbc.plugin.failover;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-/**
- * This class holds results of Reader Failover Process.
- */
-
+/** This class holds results of Reader Failover Process. */
 public class ReaderFailoverResult {
 
   private final Connection newConnection;
@@ -32,9 +29,7 @@ public class ReaderFailoverResult {
   private final boolean isConnected;
   private final SQLException exception;
 
-  /**
-   * ReaderFailoverResult constructor.
-   */
+  /** ReaderFailoverResult constructor. */
   public ReaderFailoverResult(
       Connection newConnection, int newConnectionIndex, boolean isConnected) {
     this(newConnection, newConnectionIndex, isConnected, null);
@@ -54,7 +49,8 @@ public class ReaderFailoverResult {
   /**
    * Get new connection to a host.
    *
-   * @return {@link Connection} New connection to a host. Returns null if no connection is established.
+   * @return {@link Connection} New connection to a host. Returns null if no connection is
+   *     established.
    */
   public Connection getConnection() {
     return newConnection;
@@ -63,7 +59,8 @@ public class ReaderFailoverResult {
   /**
    * Get index of newly connected host.
    *
-   * @return Index of connected host in topology Returns -1 (NO_CONNECTION_INDEX) if no connection is established.
+   * @return Index of connected host in topology Returns -1 (NO_CONNECTION_INDEX) if no connection
+   *     is established.
    */
   public int getConnectionIndex() {
     return newConnectionIndex;

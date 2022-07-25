@@ -76,7 +76,6 @@ public class RdsUtils {
   public boolean isRdsProxyDns(String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return false;
-
     }
     return AURORA_PROXY_DNS_PATTERN.matcher(host).find();
   }
@@ -134,7 +133,8 @@ public class RdsUtils {
   }
 
   public boolean isIPv6(final String ip) {
-    return !StringUtils.isNullOrEmpty(ip) && IP_V6.matcher(ip).matches() || IP_V6_COMPRESSED.matcher(ip).matches();
+    return !StringUtils.isNullOrEmpty(ip) && IP_V6.matcher(ip).matches()
+        || IP_V6_COMPRESSED.matcher(ip).matches();
   }
 
   public boolean isDnsPatternValid(String pattern) {

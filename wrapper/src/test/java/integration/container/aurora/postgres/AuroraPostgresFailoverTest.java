@@ -37,8 +37,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   /* Writer connection failover tests. */
 
   /**
-   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer. Driver failover
-   * occurs when executing a method against the connection
+   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new
+   * writer. Driver failover occurs when executing a method against the connection
    */
   @Test
   public void test_failFromWriterToNewWriter_failOnConnectionInvocation()
@@ -46,8 +46,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn =
-        connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
-            initDefaultProps())) {
+        connectToInstance(
+            initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initDefaultProps())) {
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
@@ -62,9 +62,9 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   }
 
   /**
-   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer Driver failover
-   * occurs when executing a method against an object bound to the connection (eg a Statement object created by the
-   * connection).
+   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new
+   * writer Driver failover occurs when executing a method against an object bound to the connection
+   * (eg a Statement object created by the connection).
    */
   @Test
   public void test_failFromWriterToNewWriter_failOnConnectionBoundObjectInvocation()
@@ -72,8 +72,9 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
-        initDefaultProps())) {
+    try (final Connection conn =
+        connectToInstance(
+            initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initDefaultProps())) {
       final Statement stmt = conn.createStatement();
 
       // Crash Instance1 and nominate a new writer
@@ -90,8 +91,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   }
 
   /**
-   * Current reader dies, no other reader instance, failover to writer, then writer dies, failover to another available
-   * reader instance.
+   * Current reader dies, no other reader instance, failover to writer, then writer dies, failover
+   * to another available reader instance.
    */
   @Test
   public void test_failFromReaderToWriterToAnyAvailableInstance()
@@ -108,8 +109,9 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     // Connect to Instance2 which is the only reader that is up.
     final String instanceId = instanceIDs[1];
 
-    try (final Connection conn = connectToInstance(instanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        POSTGRES_PROXY_PORT)) {
+    try (final Connection conn =
+        connectToInstance(
+            instanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
       // Crash Instance2
       Proxy instanceProxy = proxyMap.get(instanceId);
       containerHelper.disableConnectivity(instanceProxy);
@@ -144,17 +146,16 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
   /* Failure when within a transaction tests. */
 
-  /**
-   * Writer fails within a transaction. Open transaction with setAutoCommit(false)
-   */
+  /** Writer fails within a transaction. Open transaction with setAutoCommit(false) */
   @Test
   public void test_writerFailWithinTransaction_setAutoCommitFalse()
       throws SQLException, InterruptedException {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
-        initDefaultProps())) {
+    try (final Connection conn =
+        connectToInstance(
+            initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_2");
       testStmt1.executeUpdate(
@@ -170,7 +171,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
       final SQLException exception =
           assertThrows(
               SQLException.class,
-              () -> testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (2, 'test field string 2')"));
+              () ->
+                  testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (2, 'test field string 2')"));
       assertEquals("08007", exception.getSQLState());
 
       // Attempt to query the instance id.
@@ -193,17 +195,16 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     }
   }
 
-  /**
-   * Writer fails within a transaction. Open transaction with "START TRANSACTION".
-   */
+  /** Writer fails within a transaction. Open transaction with "START TRANSACTION". */
   @Test
   public void test_writerFailWithinTransaction_startTransaction()
       throws SQLException, InterruptedException {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
-        initDefaultProps())) {
+    try (final Connection conn =
+        connectToInstance(
+            initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_3");
       testStmt1.executeUpdate(
@@ -219,7 +220,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
       final SQLException exception =
           assertThrows(
               SQLException.class,
-              () -> testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (2, 'test field string 2')"));
+              () ->
+                  testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (2, 'test field string 2')"));
       assertEquals("08007", exception.getSQLState());
 
       // Attempt to query the instance id.
@@ -242,16 +244,15 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     }
   }
 
-  /**
-   * Writer fails within NO transaction.
-   */
+  /** Writer fails within NO transaction. */
   @Test
   public void test_writerFailWithNoTransaction() throws SQLException, InterruptedException {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
-        initDefaultProps())) {
+    try (final Connection conn =
+        connectToInstance(
+            initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_4");
       testStmt1.executeUpdate(
@@ -265,7 +266,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
       final SQLException exception =
           assertThrows(
               SQLException.class,
-              () -> testStmt2.executeUpdate("INSERT INTO test3_4 VALUES (2, 'test field string 2')"));
+              () ->
+                  testStmt2.executeUpdate("INSERT INTO test3_4 VALUES (2, 'test field string 2')"));
       assertEquals("08S02", exception.getSQLState());
 
       // Attempt to query the instance id.
@@ -294,12 +296,11 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
   /* Pooled connection tests. */
 
-  /**
-   * Writer connection failover within the connection pool.
-   */
+  /** Writer connection failover within the connection pool. */
   @Test
   @Disabled // TODO: enable test once datasource is supported
-  public void test_pooledWriterConnection_BasicFailover() throws SQLException, InterruptedException {
+  public void test_pooledWriterConnection_BasicFailover()
+      throws SQLException, InterruptedException {
 
     final String initialWriterId = instanceIDs[0];
     final String nominatedWriterId = instanceIDs[1];
@@ -332,16 +333,16 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     final Properties props = initDefaultProps();
     props.setProperty("defaultRowFetchSize", String.valueOf(newRowFetchSize));
 
-    // Establish the topology cache so that we can later assert that testConnection does not inherit properties from
+    // Establish the topology cache so that we can later assert that testConnection does not inherit
+    // properties from
     // establishCacheConnection either before or after failover
     final String url = DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + "/" + AURORA_POSTGRES_DB;
-    final Connection establishCacheConnection = DriverManager.getConnection(
-        url,
-        props);
+    final Connection establishCacheConnection = DriverManager.getConnection(url, props);
     establishCacheConnection.close();
 
     props.setProperty("defaultRowFetchSize", String.valueOf(newRowFetchSize));
-    try (final Connection conn = connectToInstance(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT, props)) {
+    try (final Connection conn =
+        connectToInstance(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT, props)) {
       // Verify that connection accepts multi-statement sql
       final Statement testStmt1 = conn.createStatement();
       assertEquals(newRowFetchSize, testStmt1.getFetchSize());
@@ -368,7 +369,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     waitUntilClusterHasRightState();
     while (true) {
       try {
-        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
+        rdsClient.failoverDBCluster(
+            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
         break;
       } catch (final Exception e) {
         TimeUnit.MILLISECONDS.sleep(1000);
@@ -377,8 +379,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   }
 
   private void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterWriterId,
-      String targetInstanceId) throws InterruptedException {
+      String clusterWriterId, String targetInstanceId) throws InterruptedException {
     failoverClusterWithATargetInstance(targetInstanceId);
     waitUntilWriterInstanceChanged(clusterWriterId);
   }
@@ -390,8 +391,10 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     while (true) {
       try {
         rdsClient.failoverDBCluster(
-            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
-                .targetDBInstanceIdentifier(targetInstanceId));
+            (builder) ->
+                builder
+                    .dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
+                    .targetDBInstanceIdentifier(targetInstanceId));
         break;
       } catch (final Exception e) {
         TimeUnit.MILLISECONDS.sleep(1000);

@@ -90,7 +90,8 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     when(mockHostListProvider.getTopology(any(Connection.class), eq(true))).thenReturn(topology);
 
-    when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList())).thenThrow(SQLException.class);
+    when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
+        .thenThrow(SQLException.class);
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
@@ -126,7 +127,8 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockPluginService.connect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
 
     when(mockHostListProvider.getTopology(eq(mockWriterConnection), eq(true))).thenReturn(topology);
-    when(mockHostListProvider.getTopology(eq(mockReaderAConnection), eq(true))).thenReturn(newTopology);
+    when(mockHostListProvider.getTopology(eq(mockReaderAConnection), eq(true)))
+        .thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenAnswer(
@@ -216,12 +218,16 @@ class ClusterAwareWriterFailoverHandlerTest {
                   Thread.sleep(5000);
                   return mockWriterConnection;
                 });
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenReturn(mockNewWriterConnection);
+    when(mockPluginService.connect(refEq(readerA), eq(properties)))
+        .thenReturn(mockReaderAConnection);
+    when(mockPluginService.connect(refEq(readerB), eq(properties)))
+        .thenReturn(mockReaderBConnection);
+    when(mockPluginService.connect(refEq(newWriterHost), eq(properties)))
+        .thenReturn(mockNewWriterConnection);
 
     when(mockHostListProvider.getTopology(eq(mockWriterConnection), eq(true))).thenReturn(topology);
-    when(mockHostListProvider.getTopology(eq(mockReaderAConnection), eq(true))).thenReturn(newTopology);
+    when(mockHostListProvider.getTopology(eq(mockReaderAConnection), eq(true)))
+        .thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenReturn(new ReaderFailoverResult(mockReaderAConnection, 1, true));
@@ -257,8 +263,10 @@ class ClusterAwareWriterFailoverHandlerTest {
   @Test
   public void testConnectToReaderA_taskADefers() throws SQLException {
     when(mockPluginService.connect(writer, properties)).thenReturn(mockConnection);
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
+    when(mockPluginService.connect(refEq(readerA), eq(properties)))
+        .thenReturn(mockReaderAConnection);
+    when(mockPluginService.connect(refEq(readerB), eq(properties)))
+        .thenReturn(mockReaderBConnection);
     when(mockPluginService.connect(refEq(newWriterHost), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
@@ -312,8 +320,10 @@ class ClusterAwareWriterFailoverHandlerTest {
                   Thread.sleep(30000);
                   return mockWriterConnection;
                 });
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
+    when(mockPluginService.connect(refEq(readerA), eq(properties)))
+        .thenReturn(mockReaderAConnection);
+    when(mockPluginService.connect(refEq(readerB), eq(properties)))
+        .thenReturn(mockReaderBConnection);
     when(mockPluginService.connect(refEq(newWriterHost), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
@@ -356,11 +366,14 @@ class ClusterAwareWriterFailoverHandlerTest {
    */
   @Test
   public void testFailedToConnect_taskAException_taskBWriterException() throws SQLException {
-    when(mockPluginService.connect(refEq(writer), eq(properties))).thenThrow(
-        new SQLException("exception", "08S01", null));
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenThrow(SQLException.class);
+    when(mockPluginService.connect(refEq(writer), eq(properties)))
+        .thenThrow(new SQLException("exception", "08S01", null));
+    when(mockPluginService.connect(refEq(readerA), eq(properties)))
+        .thenReturn(mockReaderAConnection);
+    when(mockPluginService.connect(refEq(readerB), eq(properties)))
+        .thenReturn(mockReaderBConnection);
+    when(mockPluginService.connect(refEq(newWriterHost), eq(properties)))
+        .thenThrow(SQLException.class);
 
     when(mockHostListProvider.getTopology(any(Connection.class), any(Boolean.class)))
         .thenReturn(newTopology);

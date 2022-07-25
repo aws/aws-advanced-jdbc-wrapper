@@ -80,12 +80,14 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.targetDriverProtocol = getProtocol(url);
 
     ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider);
-    PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
+    PluginServiceImpl pluginService =
+        new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
 
     init(props, pluginManager, pluginService, pluginService, pluginService);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
-      this.openConnectionStacktrace = new Throwable("Unclosed connection was instantiated at this point:");
+      this.openConnectionStacktrace =
+          new Throwable("Unclosed connection was instantiated at this point:");
     }
   }
 
@@ -102,7 +104,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException("url");
     }
 
-    init(props, connectionPluginManager, pluginService, hostListProviderService, pluginManagerService);
+    init(
+        props,
+        connectionPluginManager,
+        pluginService,
+        hostListProviderService,
+        pluginManagerService);
   }
 
   protected void init(
@@ -110,7 +117,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       ConnectionPluginManager connectionPluginManager,
       PluginService pluginService,
       HostListProviderService hostListProviderService,
-      PluginManagerService pluginManagerService) throws SQLException {
+      PluginManagerService pluginManagerService)
+      throws SQLException {
     this.pluginManager = connectionPluginManager;
     this.pluginService = pluginService;
     this.hostListProviderService = hostListProviderService;
@@ -820,7 +828,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     try {
       if (this.openConnectionStacktrace != null) {
-        LOGGER.log(Level.WARNING, "Finalizing a connection that was never closed.", this.openConnectionStacktrace);
+        LOGGER.log(
+            Level.WARNING,
+            "Finalizing a connection that was never closed.",
+            this.openConnectionStacktrace);
         this.openConnectionStacktrace = null;
       }
 

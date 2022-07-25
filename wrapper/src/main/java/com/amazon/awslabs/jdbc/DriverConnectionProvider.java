@@ -29,8 +29,8 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
- * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and returns a connection
- * provided by a target driver or a data source.
+ * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
+ * returns a connection provided by a target driver or a data source.
  */
 public class DriverConnectionProvider implements ConnectionProvider {
 
@@ -42,7 +42,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
     this(driver, null, null);
   }
 
-  public DriverConnectionProvider(final java.sql.Driver driver, String userPropertyName, String passwordPropertyName) {
+  public DriverConnectionProvider(
+      final java.sql.Driver driver, String userPropertyName, String passwordPropertyName) {
     this.driver = driver;
     this.userPropertyName = userPropertyName;
     this.passwordPropertyName = passwordPropertyName;
@@ -53,7 +54,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
    *
    * @param protocol The connection protocol (example "jdbc:mysql://")
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props    The Properties to use for the connection
+   * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
@@ -65,15 +66,19 @@ public class DriverConnectionProvider implements ConnectionProvider {
       throws SQLException {
 
     final String databaseName =
-        props.getProperty(DATABASE_PROPERTY_NAME) != null ? props.getProperty(DATABASE_PROPERTY_NAME) : "";
+        props.getProperty(DATABASE_PROPERTY_NAME) != null
+            ? props.getProperty(DATABASE_PROPERTY_NAME)
+            : "";
     final StringBuilder urlBuilder = new StringBuilder();
     urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
 
-    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.userPropertyName)
+        && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
       props.setProperty(this.userPropertyName, props.getProperty(USER_PROPERTY_NAME));
     }
 
-    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
+    if (!isNullOrEmpty(this.passwordPropertyName)
+        && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
       props.setProperty(this.passwordPropertyName, props.getProperty(PASSWORD_PROPERTY_NAME));
     }
 
@@ -83,7 +88,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param url   The connection URL
+   * @param url The connection URL
    * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs

@@ -61,8 +61,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   @Disabled // TODO: check
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcUrl(
-        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
+    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
 
     Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
 

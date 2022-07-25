@@ -70,8 +70,8 @@ public class ContainerHelper {
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
-    Long exitCode = execInContainer(container, consumer, "./gradlew", task,
-        "--no-parallel", "--no-daemon");
+    Long exitCode =
+        execInContainer(container, consumer, "./gradlew", task, "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
   }
@@ -80,8 +80,9 @@ public class ContainerHelper {
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
-    Long exitCode = execInContainer(container, consumer, "./gradlew", task,
-        "--debug-jvm", "--no-parallel", "--no-daemon");
+    Long exitCode =
+        execInContainer(
+            container, consumer, "./gradlew", task, "--debug-jvm", "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
   }
@@ -92,8 +93,7 @@ public class ContainerHelper {
 
   public GenericContainer<?> createTestContainer(
       String dockerImageName, String testContainerImageName) {
-    class FixedExposedPortContainer<T extends GenericContainer<T>>
-        extends GenericContainer<T> {
+    class FixedExposedPortContainer<T extends GenericContainer<T>> extends GenericContainer<T> {
 
       public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
         super(withDockerfileFromBuilder);
@@ -107,16 +107,16 @@ public class ContainerHelper {
     }
 
     return new FixedExposedPortContainer<>(
-        new ImageFromDockerfile(dockerImageName, true)
-            .withDockerfileFromBuilder(
-                builder ->
-                    builder
-                        .from(testContainerImageName)
-                        .run("mkdir", "app")
-                        .workDir("/app")
-                        .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
-                        .expose(5005) // Exposing ports for debugger to be attached
-                        .build()))
+            new ImageFromDockerfile(dockerImageName, true)
+                .withDockerfileFromBuilder(
+                    builder ->
+                        builder
+                            .from(testContainerImageName)
+                            .run("mkdir", "app")
+                            .workDir("/app")
+                            .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
+                            .expose(5005) // Exposing ports for debugger to be attached
+                            .build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind(
             "./build/reports/tests",
@@ -191,7 +191,9 @@ public class ContainerHelper {
 
   protected boolean isRunning(InspectContainerResponse containerInfo) {
     try {
-      return containerInfo != null && containerInfo.getState() != null && containerInfo.getState().getRunning();
+      return containerInfo != null
+          && containerInfo.getState() != null
+          && containerInfo.getState().getRunning();
     } catch (DockerException e) {
       return false;
     }
@@ -265,7 +267,7 @@ public class ContainerHelper {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement()) {
+        final Statement stmt = conn.createStatement()) {
       // Get instances
       try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
         while (resultSet.next()) {
@@ -284,7 +286,7 @@ public class ContainerHelper {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement()) {
+        final Statement stmt = conn.createStatement()) {
       // Get instances
       try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
         while (resultSet.next()) {
@@ -315,8 +317,7 @@ public class ContainerHelper {
       final Network network, String hostEndpoint, String proxyDomainNameSuffix) {
     return new ToxiproxyContainer(TOXIPROXY_IMAGE)
         .withNetwork(network)
-        .withNetworkAliases(
-            "toxiproxy-instance", hostEndpoint + proxyDomainNameSuffix);
+        .withNetworkAliases("toxiproxy-instance", hostEndpoint + proxyDomainNameSuffix);
   }
 
   // return db cluster instance proxy port
@@ -371,9 +372,7 @@ public class ContainerHelper {
     return 1;
   }
 
-  /**
-   * Stops all traffic to and from server.
-   */
+  /** Stops all traffic to and from server. */
   public void disableConnectivity(Proxy proxy) throws IOException {
     proxy
         .toxics()
@@ -384,9 +383,7 @@ public class ContainerHelper {
         .bandwidth("UP-STREAM", ToxicDirection.UPSTREAM, 0); // from driver towards database server
   }
 
-  /**
-   * Allow traffic to and from server.
-   */
+  /** Allow traffic to and from server. */
   public void enableConnectivity(Proxy proxy) {
     try {
       proxy.toxics().get("DOWN-STREAM").remove();

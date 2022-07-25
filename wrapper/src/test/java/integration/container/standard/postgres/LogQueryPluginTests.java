@@ -36,8 +36,7 @@ import org.junit.jupiter.api.Test;
 public class LogQueryPluginTests extends StandardPostgresBaseTest {
 
   @Test
-  public void testStatementExecuteQueryWithArg()
-      throws SQLException, UnsupportedEncodingException {
+  public void testStatementExecuteQueryWithArg() throws SQLException, UnsupportedEncodingException {
 
     Logger logger = Logger.getLogger(""); // get root logger
     ByteArrayOutputStream os = new ByteArrayOutputStream();

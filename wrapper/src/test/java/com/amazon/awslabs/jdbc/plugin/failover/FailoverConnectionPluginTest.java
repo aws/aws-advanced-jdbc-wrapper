@@ -154,15 +154,18 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
 
-    assertThrows(SQLException.class, () -> plugin.initHostProvider(
-        "driverProtocol",
-        "initialUrl",
-        properties,
-        mockHostListProviderService,
-        mockInitHostProviderFunc,
-        () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler));
+    assertThrows(
+        SQLException.class,
+        () ->
+            plugin.initHostProvider(
+                "driverProtocol",
+                "initialUrl",
+                properties,
+                mockHostListProviderService,
+                mockInitHostProviderFunc,
+                () -> mockHostListProvider,
+                (mockHostListProvider) -> mockReaderFailoverHandler,
+                (mockHostListProvider) -> mockWriterFailoverHandler));
 
     verify(mockHostListProviderService).isStaticHostListProvider();
   }
@@ -189,7 +192,8 @@ class FailoverConnectionPluginTest {
     plugin.notifyNodeListChanged(changes);
 
     when(mockHostSpec.getUrl()).thenReturn("cluster-url");
-    when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("instance")));
+    when(mockHostSpec.getAliases())
+        .thenReturn(new HashSet<>(Collections.singletonList("instance")));
 
     verify(mockPluginService).getCurrentHostSpec();
     verify(mockHostSpec).getAliases();
@@ -273,8 +277,10 @@ class FailoverConnectionPluginTest {
     doNothing().when(spyPlugin).failoverWriter();
     when(spyPlugin.shouldPerformWriterFailover()).thenReturn(true);
 
-    SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
-    assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
+    SQLException exception =
+        assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
+    assertEquals(
+        SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
     verify(spyPlugin).failoverWriter();
   }
 
@@ -287,7 +293,8 @@ class FailoverConnectionPluginTest {
     doNothing().when(spyPlugin).failoverReader(eq(mockHostSpec));
     when(spyPlugin.shouldPerformWriterFailover()).thenReturn(false);
 
-    SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
+    SQLException exception =
+        assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
     assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
     verify(spyPlugin).failoverReader(eq(mockHostSpec));
   }
@@ -443,7 +450,8 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getPort()).thenReturn(123);
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
 
-    final HostSpec expectedHostSpec = new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec expectedHostSpec =
+        new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
 
     initializePlugin();
     plugin.invalidateCurrentConnection();
@@ -453,7 +461,8 @@ class FailoverConnectionPluginTest {
     doThrow(new SQLException()).when(mockConnection).rollback();
     assertDoesNotThrow(() -> plugin.invalidateCurrentConnection());
 
-    verify(mockPluginService, times(2)).setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
+    verify(mockPluginService, times(2))
+        .setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
     assertEquals(expectedHostSpec, hostSpecArgumentCaptor.getValue());
   }
 
@@ -463,13 +472,15 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getHost()).thenReturn("host");
     when(mockHostSpec.getPort()).thenReturn(123);
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
-    final HostSpec expectedHostSpec = new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec expectedHostSpec =
+        new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
 
     initializePlugin();
     plugin.invalidateCurrentConnection();
 
     verify(mockPluginService).isInTransaction();
-    verify(mockPluginService).setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
+    verify(mockPluginService)
+        .setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
     assertEquals(expectedHostSpec, hostSpecArgumentCaptor.getValue());
   }
 
@@ -480,7 +491,8 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getHost()).thenReturn("host");
     when(mockHostSpec.getPort()).thenReturn(123);
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
-    final HostSpec expectedHostSpec = new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec expectedHostSpec =
+        new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
 
     initializePlugin();
     plugin.invalidateCurrentConnection();
@@ -490,7 +502,8 @@ class FailoverConnectionPluginTest {
 
     verify(mockConnection, times(2)).isClosed();
     verify(mockConnection, times(2)).close();
-    verify(mockPluginService, times(2)).setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
+    verify(mockPluginService, times(2))
+        .setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
     assertEquals(expectedHostSpec, hostSpecArgumentCaptor.getValue());
   }
 
@@ -530,13 +543,16 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.getHostListProvider()).thenReturn(new FooHostListProvider());
 
     initializePlugin();
-    assertThrows(SQLException.class, () -> plugin.execute(
-        ResultSet.class,
+    assertThrows(
         SQLException.class,
-        MONITOR_METHOD_INVOKE_ON,
-        MONITOR_METHOD_NAME,
-        mockSqlFunction,
-        EMPTY_ARGS));
+        () ->
+            plugin.execute(
+                ResultSet.class,
+                SQLException.class,
+                MONITOR_METHOD_INVOKE_ON,
+                MONITOR_METHOD_NAME,
+                mockSqlFunction,
+                EMPTY_ARGS));
   }
 
   private void initializePlugin() {

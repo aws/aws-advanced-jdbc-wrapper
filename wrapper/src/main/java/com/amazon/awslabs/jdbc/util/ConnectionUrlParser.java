@@ -32,7 +32,8 @@ public class ConnectionUrlParser {
   static final String HOST_PORT_SEPARATOR = ":";
   static final Pattern CONNECTION_STRING_PATTERN =
       Pattern.compile(
-          "(?<protocol>[\\w(\\-\\w)?\\+:%]+)\\s*" // Driver protocol. "word1:word2:..." or "word1-word2:word3:..."
+          "(?<protocol>[\\w(\\-\\w)?\\+:%]+)\\s*" // Driver protocol. "word1:word2:..." or
+              // "word1-word2:word3:..."
               + "(?://(?<hosts>[^/?#]*))?\\s*" // Optional list of host(s) starting with // and
               // follows by any char except "/", "?" or "#"
               + "(?:[/?#].*)?"); // Anything starting with either "/", "?" or "#"
@@ -46,15 +47,15 @@ public class ConnectionUrlParser {
     }
     final String hosts = matcher.group("hosts") == null ? null : matcher.group("hosts").trim();
     if (hosts != null) {
-      Arrays
-          .stream(hosts.split(HOSTS_SEPARATOR))
-          .forEach(hostString -> {
-            final HostSpec host = parseHostPortPair(hostString);
-            if (host.getHost().isEmpty()) {
-              return;
-            }
-            hostsList.add(host);
-          });
+      Arrays.stream(hosts.split(HOSTS_SEPARATOR))
+          .forEach(
+              hostString -> {
+                final HostSpec host = parseHostPortPair(hostString);
+                if (host.getHost().isEmpty()) {
+                  return;
+                }
+                hostsList.add(host);
+              });
     }
 
     return hostsList;

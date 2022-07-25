@@ -87,7 +87,8 @@ public class DataCachePluginTests extends StandardMysqlBaseTest {
 
     // The following SQL statement isn't in the cache so data is fetched from DB
     Statement statementFromDb = conn.createStatement();
-    ResultSet resultSetFromDb = statementFromDb.executeQuery("select id, name from testTable where id > 0");
+    ResultSet resultSetFromDb =
+        statementFromDb.executeQuery("select id, name from testTable where id > 0");
     assertTrue(resultSetFromDb.next());
     assertEquals(10, resultSetFromDb.getObject(1));
     assertEquals("name10", resultSetFromDb.getObject(2));

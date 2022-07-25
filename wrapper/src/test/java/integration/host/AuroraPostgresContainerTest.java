@@ -97,7 +97,8 @@ public class AuroraPostgresContainerTest {
   private static final boolean TEST_WITH_EXISTING_DB = EXISTING_DB_CONN_SUFFIX != null;
 
   private static final ContainerHelper containerHelper = new ContainerHelper();
-  private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
+  private static final AuroraTestUtility auroraUtil =
+      new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
 
   @BeforeAll
   static void setUp() throws SQLException, InterruptedException, UnknownHostException {
@@ -108,8 +109,12 @@ public class AuroraPostgresContainerTest {
     if (TEST_WITH_EXISTING_DB) {
       dbConnStrSuffix = EXISTING_DB_CONN_SUFFIX;
     } else {
-      dbConnStrSuffix = auroraUtil.createCluster(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, AURORA_POSTGRES_DB,
-          AURORA_POSTGRES_CLUSTER_IDENTIFIER);
+      dbConnStrSuffix =
+          auroraUtil.createCluster(
+              AURORA_POSTGRES_USERNAME,
+              AURORA_POSTGRES_PASSWORD,
+              AURORA_POSTGRES_DB,
+              AURORA_POSTGRES_CLUSTER_IDENTIFIER);
       runnerIP = auroraUtil.getPublicIPAddress();
       auroraUtil.ec2AuthorizeIP(runnerIP);
     }
@@ -239,8 +244,7 @@ public class AuroraPostgresContainerTest {
 
       // Add proxies
       container.addEnv(
-              "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS",
-              "toxiproxy-instance-" + (i + 1));
+          "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS", "toxiproxy-instance-" + (i + 1));
     }
     container.addEnv("AURORA_POSTGRES_PORT", Integer.toString(AURORA_POSTGRES_PORT));
     container.addEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX);
