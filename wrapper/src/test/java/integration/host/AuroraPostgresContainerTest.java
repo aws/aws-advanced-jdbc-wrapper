@@ -103,7 +103,6 @@ public class AuroraPostgresContainerTest {
   static void setUp() throws SQLException, InterruptedException, UnknownHostException {
     Assertions.assertNotNull(AWS_ACCESS_KEY_ID);
     Assertions.assertNotNull(AWS_SECRET_ACCESS_KEY);
-    Assertions.assertNotNull(AWS_SESSION_TOKEN);
 
     if (TEST_WITH_EXISTING_DB) {
       dbConnStrSuffix = EXISTING_DB_CONN_SUFFIX;
@@ -212,7 +211,7 @@ public class AuroraPostgresContainerTest {
   protected static GenericContainer<?> initializeTestContainer(
       final Network network, List<String> postgresInstances) {
 
-    final GenericContainer<?> container =
+    GenericContainer<?> container =
         containerHelper
             .createTestContainer("aws/rds-test-container")
             .withNetworkAliases(AURORA_POSTGRES_TEST_HOST_NAME)
@@ -229,8 +228,10 @@ public class AuroraPostgresContainerTest {
                 "PROXIED_CLUSTER_TEMPLATE", "?." + dbConnStrSuffix + PROXIED_DOMAIN_NAME_SUFFIX)
             .withEnv("DB_CONN_STR_SUFFIX", "." + dbConnStrSuffix)
             .withEnv("AWS_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID)
-            .withEnv("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY)
-            .withEnv("AWS_SESSION_TOKEN", AWS_SESSION_TOKEN);
+            .withEnv("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY);
+    if (AWS_SESSION_TOKEN != null) {
+      container = container.withEnv("AWS_SESSION_TOKEN", AWS_SESSION_TOKEN);
+    }
 
     // Add postgres instances & proxies to container env
     for (int i = 0; i < postgresInstances.size(); i++) {
