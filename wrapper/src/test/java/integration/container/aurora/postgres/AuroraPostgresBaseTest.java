@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.amazon.awslabs.jdbc.Driver;
 import com.amazon.awslabs.jdbc.PropertyDefinition;
+import com.amazon.awslabs.jdbc.hostlistprovider.AuroraHostListProvider;
+import com.amazon.awslabs.jdbc.plugin.failover.FailoverConnectionPlugin;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
@@ -69,7 +71,7 @@ public abstract class AuroraPostgresBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:postgresql://";
+  protected static final String DB_CONN_STR_PREFIX = "aws-jdbc-wrapper:postgresql://";
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
   static final String POSTGRES_INSTANCE_1_URL = System.getenv("POSTGRES_INSTANCE_1_URL");
@@ -219,7 +221,7 @@ public abstract class AuroraPostgresBaseTest {
     props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
-    props.setProperty("proxyDriverPlugins", "failover");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
 
     return props;
   }
@@ -234,23 +236,14 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Properties initDefaultProxiedProps() {
     final Properties props = initDefaultProps();
-    PropertyDefinition.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
-
-    return props;
-  }
-
-  protected Properties initAwsIamProps(String user, String password) {
-    final Properties props = initDefaultProps();
-    PropertyDefinition.USE_AWS_IAM.set(props, Boolean.TRUE.toString());
-    props.setProperty(PGProperty.USER.getName(), user);
-    props.setProperty(PGProperty.PASSWORD.getName(), password);
+    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
 
     return props;
   }
 
   protected Properties initFailoverDisabledProps() {
     final Properties props = initDefaultProps();
-    PropertyDefinition.ENABLE_CLUSTER_AWARE_FAILOVER.set(props, "false");
+    FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER.set(props, "false");
 
     return props;
   }

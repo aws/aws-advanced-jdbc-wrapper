@@ -32,7 +32,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 
 public class StandardMysqlBaseTest {
-  protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:mysql://";
+  protected static final String DB_CONN_STR_PREFIX = "aws-jdbc-wrapper:mysql://";
   protected static final String STANDARD_MYSQL_HOST = System.getenv("STANDARD_MYSQL_HOST");
   protected static final String STANDARD_MYSQL_PORT = System.getenv("STANDARD_MYSQL_PORT");
   protected static final String STANDARD_MYSQL_DB = System.getenv("STANDARD_MYSQL_DB");

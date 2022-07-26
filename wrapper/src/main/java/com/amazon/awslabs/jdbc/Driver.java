@@ -16,8 +16,6 @@
 
 package com.amazon.awslabs.jdbc;
 
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.DATABASE_PROPERTY_NAME;
-
 import com.amazon.awslabs.jdbc.util.DriverInfo;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
@@ -34,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Driver implements java.sql.Driver {
 
-  private static final String PROTOCOL_PREFIX = "aws-proxy-jdbc:";
+  private static final String PROTOCOL_PREFIX = "aws-jdbc-wrapper:";
   private static final Logger PARENT_LOGGER = Logger.getLogger("com.amazon.awslabs.jdbc");
   private static final Logger LOGGER = Logger.getLogger("com.amazon.awslabs.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
@@ -131,7 +129,7 @@ public class Driver implements java.sql.Driver {
     if (dPos != -1) {
       String database = urlServer.substring(dPos + 1);
       if (!database.isEmpty()) {
-        propertiesFromUrl.setProperty(DATABASE_PROPERTY_NAME, database);
+        PropertyDefinition.DATABASE_NAME.set(propertiesFromUrl, database);
       }
     }
 

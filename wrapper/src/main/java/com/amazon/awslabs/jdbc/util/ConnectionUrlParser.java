@@ -125,10 +125,10 @@ public class ConnectionUrlParser {
 
   // Get the properties from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static Properties parsePropertiesFromUrl(String url, Properties props) {
+  public static void parsePropertiesFromUrl(String url, Properties props) {
     String[] urlParameters = url.split("\\?");
     if (urlParameters.length == 1) {
-      return null;
+      return;
     }
 
     String[] listOfParameters = urlParameters[1].split("&");
@@ -143,7 +143,5 @@ public class ConnectionUrlParser {
 
       props.setProperty(currentParameterName, currentParameterValue);
     }
-
-    return props;
   }
 }

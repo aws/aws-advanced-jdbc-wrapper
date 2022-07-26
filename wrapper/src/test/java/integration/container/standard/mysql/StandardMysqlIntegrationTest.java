@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.amazon.awslabs.jdbc.PropertyDefinition;
 import com.amazon.awslabs.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import com.amazon.awslabs.jdbc.profile.DriverConfigurationProfiles;
 import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
@@ -67,7 +68,7 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
   public void testOpenConnection() throws SQLException {
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverPlugins", "executionTime");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "executionTime");
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
@@ -98,7 +99,7 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
   public void testOpenConnectionWithUnknownProfile() {
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverProfileName", "unknownProfile");
+    props.setProperty(PropertyDefinition.PROFILE_NAME.name, "unknownProfile");
 
     SQLException actualException = assertThrows(SQLException.class, () -> {
       DriverManager.getConnection(getUrl(), props);
@@ -111,7 +112,7 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
   public void testOpenConnectionWithProfile() throws SQLException {
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverProfileName", "testProfile");
+    props.setProperty(PropertyDefinition.PROFILE_NAME.name, "testProfile");
 
     DriverConfigurationProfiles.clear();
     DriverConfigurationProfiles.addOrReplaceProfile("testProfile",
@@ -151,7 +152,7 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     logger.addHandler(new StreamHandler(os, new SimpleFormatter()));
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverLogUnclosedConnections", "true");
+    props.setProperty(PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.name, "true");
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
@@ -194,7 +195,7 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     logger.addHandler(new StreamHandler(os, new SimpleFormatter()));
 
     Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("proxyDriverLogUnclosedConnections", "true");
+    props.setProperty(PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.name, "true");
 
     Connection conn = DriverManager.getConnection(getUrl(), props);
 

@@ -16,15 +16,13 @@
 
 package com.amazon.awslabs.jdbc.ds;
 
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.DATABASE_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.PASSWORD_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.USER_PROPERTY_NAME;
 import static com.amazon.awslabs.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import static com.amazon.awslabs.jdbc.util.ConnectionUrlParser.parsePropertiesFromUrl;
 
 import com.amazon.awslabs.jdbc.DataSourceConnectionProvider;
 import com.amazon.awslabs.jdbc.Driver;
 import com.amazon.awslabs.jdbc.DriverConnectionProvider;
+import com.amazon.awslabs.jdbc.PropertyDefinition;
 import com.amazon.awslabs.jdbc.util.ConnectionUrlParser;
 import com.amazon.awslabs.jdbc.util.PropertyUtils;
 import com.amazon.awslabs.jdbc.util.SqlState;
@@ -89,11 +87,12 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
 
     Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
     setCredentialProperties(props);
+
     if (!isNullOrEmpty(this.targetDataSourceClassName)) {
       final DataSource targetDataSource = createTargetDataSource();
 
       if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(props.getProperty(this.databasePropertyName))) {
-        props.put(DATABASE_PROPERTY_NAME, props.getProperty(this.databasePropertyName));
+        PropertyDefinition.DATABASE_NAME.set(props, props.getProperty(this.databasePropertyName));
       }
 
       // If the url is set explicitly through setJdbcUrl or the connection properties.
@@ -143,8 +142,9 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
         throw new SQLException("Can't find a suitable driver for " + this.jdbcUrl);
       }
 
-      setDatabasePropertyFromUrl(props);
       parsePropertiesFromUrl(this.jdbcUrl, props);
+      setCredentialProperties(props);
+      setDatabasePropertyFromUrl(props);
 
       return new ConnectionWrapper(
           props,
@@ -299,21 +299,21 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
 
   private void setCredentialProperties(Properties props) {
     // If username was provided as a get connection parameter and a userPropertyName is set.
-    if (!isNullOrEmpty(this.user) && !isNullOrEmpty(this.userPropertyName)) {
-      props.setProperty(USER_PROPERTY_NAME, this.user);
+    if (!isNullOrEmpty(this.user)) {
+      PropertyDefinition.USER.set(props, this.user);
 
       // If username was provided in targetDataSourceProperties and a userPropertyName is set.
     } else if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(this.userPropertyName))) {
-      props.setProperty(USER_PROPERTY_NAME, props.getProperty(this.userPropertyName));
+      PropertyDefinition.USER.set(props, props.getProperty(this.userPropertyName));
       this.user = props.getProperty(this.userPropertyName);
     }
 
-    if (!isNullOrEmpty(this.password) && !isNullOrEmpty(this.passwordPropertyName)) {
-      props.setProperty(PASSWORD_PROPERTY_NAME, this.password);
+    if (!isNullOrEmpty(this.password)) {
+      PropertyDefinition.PASSWORD.set(props, this.password);
 
     } else if (!isNullOrEmpty(this.passwordPropertyName)
         && !isNullOrEmpty(props.getProperty(this.passwordPropertyName))) {
-      props.setProperty(PASSWORD_PROPERTY_NAME, props.getProperty(this.passwordPropertyName));
+      PropertyDefinition.PASSWORD.set(props, props.getProperty(this.passwordPropertyName));
       this.password = props.getProperty(this.passwordPropertyName);
     }
   }
@@ -329,20 +329,20 @@ public class ProxyDriverDataSource implements DataSource, Referenceable, Seriali
   private void setDatabasePropertyFromUrl(Properties props) {
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(this.jdbcUrl);
     if (!isNullOrEmpty(databaseName)) {
-      props.setProperty(DATABASE_PROPERTY_NAME, databaseName);
+      PropertyDefinition.DATABASE_NAME.set(props, databaseName);
     }
   }
 
   private void setCredentialPropertiesFromUrl(Properties props) {
     final String userFromUrl = ConnectionUrlParser.parseUserFromUrl(this.jdbcUrl, this.userPropertyName);
     if (isNullOrEmpty(this.user) && !isNullOrEmpty(userFromUrl)) {
-      props.setProperty(USER_PROPERTY_NAME, userFromUrl);
+      PropertyDefinition.USER.set(props, userFromUrl);
       this.user = userFromUrl;
     }
 
     final String passwordFromUrl = ConnectionUrlParser.parsePasswordFromUrl(this.jdbcUrl, this.passwordPropertyName);
     if (isNullOrEmpty(this.password) && !isNullOrEmpty(passwordFromUrl)) {
-      props.setProperty(PASSWORD_PROPERTY_NAME, passwordFromUrl);
+      PropertyDefinition.PASSWORD.set(props, passwordFromUrl);
       this.password = passwordFromUrl;
     }
   }

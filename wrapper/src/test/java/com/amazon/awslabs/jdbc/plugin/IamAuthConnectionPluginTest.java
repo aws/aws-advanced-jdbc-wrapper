@@ -23,10 +23,10 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.amazon.awslabs.jdbc.ConnectionPropertyNames;
 import com.amazon.awslabs.jdbc.Driver;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.JdbcCallable;
+import com.amazon.awslabs.jdbc.PropertyDefinition;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -63,9 +63,9 @@ class IamAuthConnectionPluginTest {
   public void init() {
     MockitoAnnotations.openMocks(this);
     props = new Properties();
-    props.setProperty(ConnectionPropertyNames.USER_PROPERTY_NAME, "postgresqlUser");
-    props.setProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME, "postgresqlPassword");
-    props.setProperty("proxyDriverPlugins", "iam");
+    props.setProperty(PropertyDefinition.USER.name, "postgresqlUser");
+    props.setProperty(PropertyDefinition.PASSWORD.name, "postgresqlPassword");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     IamAuthConnectionPlugin.clearCache();
   }
 
@@ -90,8 +90,8 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testMySqlConnectValidTokenInCache() throws SQLException {
-    props.setProperty(ConnectionPropertyNames.USER_PROPERTY_NAME, "mysqlUser");
-    props.setProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME, "mysqlPassword");
+    props.setProperty(PropertyDefinition.USER.name, "mysqlUser");
+    props.setProperty(PropertyDefinition.PASSWORD.name, "mysqlPassword");
     IamAuthConnectionPlugin.tokenCache.put(MYSQL_CACHE_KEY,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
@@ -153,7 +153,7 @@ class IamAuthConnectionPluginTest {
     });
     verify(mockLambda, times(1)).call();
 
-    assertEquals(TEST_TOKEN, props.getProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME));
+    assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
   }
 
   private void testGenerateToken(final String protocol, final HostSpec hostSpec) throws SQLException {
@@ -162,7 +162,7 @@ class IamAuthConnectionPluginTest {
 
     doReturn(GENERATED_TOKEN).when(spyPlugin)
         .generateAuthenticationToken(
-            props.getProperty(ConnectionPropertyNames.USER_PROPERTY_NAME),
+            PropertyDefinition.USER.getString(props),
             hostSpec.getHost(),
             DEFAULT_PG_PORT,
             Region.US_EAST_2);
@@ -173,7 +173,7 @@ class IamAuthConnectionPluginTest {
     });
     verify(mockLambda, times(1)).call();
 
-    assertEquals(GENERATED_TOKEN, props.getProperty(ConnectionPropertyNames.PASSWORD_PROPERTY_NAME));
+    assertEquals(GENERATED_TOKEN, PropertyDefinition.PASSWORD.getString(props));
     assertEquals(GENERATED_TOKEN, IamAuthConnectionPlugin.tokenCache.get(PG_CACHE_KEY).getToken());
   }
 }

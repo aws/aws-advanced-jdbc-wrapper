@@ -20,11 +20,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.amazon.awslabs.jdbc.ds.ProxyDriverDataSource;
+import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class DataSourceTests extends StandardMysqlBaseTest {
@@ -35,13 +35,14 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   }
 
   @Test
-  @Disabled // TODO: check
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
@@ -50,7 +51,8 @@ public class DataSourceTests extends StandardMysqlBaseTest {
 
     Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
 
-    assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
+    assertTrue(conn instanceof ConnectionWrapper);
+    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
     assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
     assertTrue(conn.isValid(10));
@@ -58,15 +60,16 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   }
 
   @Test
-  @Disabled // TODO: check
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcUrl(
-        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
+    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
 
     Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
 
-    assertTrue(conn instanceof com.mysql.cj.jdbc.ConnectionImpl);
+    assertTrue(conn instanceof ConnectionWrapper);
+    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
     assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
     assertTrue(conn.isValid(10));
@@ -74,13 +77,14 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   }
 
   @Test
-  @Disabled // TODO: check
   public void testOpenConnectionWithMariaDbDataSourceClassName() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
 
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
     ds.setUrlPropertyName("url");
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
@@ -90,7 +94,8 @@ public class DataSourceTests extends StandardMysqlBaseTest {
 
     Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
 
-    assertTrue(conn instanceof org.mariadb.jdbc.Connection);
+    assertTrue(conn instanceof ConnectionWrapper);
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
     assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
     assertTrue(conn.isValid(10));
@@ -98,15 +103,16 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   }
 
   @Test
-  @Disabled // TODO: check
   public void testOpenConnectionWithMariaDbUrl() throws SQLException {
     ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcUrl(
-        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
 
     Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
 
-    assertTrue(conn instanceof org.mariadb.jdbc.Connection);
+    assertTrue(conn instanceof ConnectionWrapper);
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
     assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
     assertTrue(conn.isValid(10));

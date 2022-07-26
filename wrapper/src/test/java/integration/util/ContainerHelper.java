@@ -219,8 +219,7 @@ public class ContainerHelper {
             "--max_allowed_packet=40M",
             "--max-connections=2048",
             "--secure-file-priv=/var/lib/mysql",
-            "--log-error-verbosity=4",
-            "--default-authentication-plugin=sha256_password");
+            "--log-error-verbosity=4");
   }
 
   public PostgreSQLContainer<?> createPostgresContainer(

@@ -18,6 +18,7 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.amazon.awslabs.jdbc.PropertyDefinition;
 import java.util.Properties;
 import java.util.Random;
 import javax.sql.DataSource;
@@ -45,7 +46,7 @@ public class SpringTests extends StandardMysqlBaseTest {
     dataSource.setPassword(STANDARD_MYSQL_PASSWORD);
 
     Properties props = new Properties();
-    props.setProperty("proxyDriverLoggerLevel", "ALL");
+    props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");
     dataSource.setConnectionProperties(props);
 
     return dataSource;

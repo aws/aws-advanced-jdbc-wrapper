@@ -26,28 +26,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
 
-  public static final ProxyDriverProperty CLUSTER_INSTANCE_HOST_PATTERN =
-      new ProxyDriverProperty(
-          "clusterInstanceHostPattern",
-          null,
-          "The cluster instance DNS pattern that will be used to build a complete instance endpoint. "
-              + "A \"?\" character in this pattern should be used as a placeholder for cluster instance names. "
-              + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
-              + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
-
-  public static final ProxyDriverProperty ENABLE_CLUSTER_AWARE_FAILOVER =
-      new ProxyDriverProperty(
-          "enableClusterAwareFailover", "true",
-          "Enable/disable cluster-aware failover logic");
-
   public static final ProxyDriverProperty LOG_UNCLOSED_CONNECTIONS =
       new ProxyDriverProperty(
-          "proxyDriverLogUnclosedConnections", "false",
+          "wrapperLogUnclosedConnections", "false",
           "Allows the driver to track a point in the code where connection has been opened and never closed after");
 
   public static final ProxyDriverProperty LOGGER_LEVEL =
       new ProxyDriverProperty(
-          "proxyDriverLoggerLevel",
+          "wrapperLoggerLevel",
           null,
           "Logger level of the driver",
           false,
@@ -57,21 +43,23 @@ public class PropertyDefinition {
 
   public static final ProxyDriverProperty PLUGINS =
       new ProxyDriverProperty(
-          "proxyDriverPlugins", null, "Comma separated list of connection plugin codes");
+          "wrapperPlugins", null, "Comma separated list of connection plugin codes");
 
   public static final ProxyDriverProperty PROFILE_NAME =
       new ProxyDriverProperty(
-          "proxyDriverProfileName", null, "Driver configuration profile name");
+          "wrapperProfileName", null, "Driver configuration profile name");
 
-  public static final ProxyDriverProperty USE_AWS_IAM =
+  public static final ProxyDriverProperty USER =
       new ProxyDriverProperty(
-          "useAwsIam", "false", "Set to true to use AWS IAM database authentication");
+          "wrapperUser", null, "Driver user name");
 
-  public static final ProxyDriverProperty CLUSTER_ID = new ProxyDriverProperty(
-      "clusterId", "",
-      "A unique identifier for the cluster. "
-          + "Connections with the same cluster id share a cluster topology cache. "
-          + "If unspecified, a cluster id is automatically created for AWS RDS clusters.");
+  public static final ProxyDriverProperty PASSWORD =
+      new ProxyDriverProperty(
+          "wrapperPassword", null, "Driver password");
+
+  public static final ProxyDriverProperty DATABASE_NAME =
+      new ProxyDriverProperty(
+          "wrapperDatabaseName", null, "Driver database name");
 
   private static final Map<String, ProxyDriverProperty> PROPS_BY_NAME =
       new HashMap<String, ProxyDriverProperty>();

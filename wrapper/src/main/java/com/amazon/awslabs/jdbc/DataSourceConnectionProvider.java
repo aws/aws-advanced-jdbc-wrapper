@@ -16,9 +16,6 @@
 
 package com.amazon.awslabs.jdbc;
 
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.DATABASE_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.PASSWORD_PROPERTY_NAME;
-import static com.amazon.awslabs.jdbc.ConnectionPropertyNames.USER_PROPERTY_NAME;
 import static com.amazon.awslabs.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import static com.amazon.awslabs.jdbc.util.StringUtils.isNullOrEmpty;
 
@@ -90,16 +87,17 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.put(this.portPropertyName, hostSpec.getPort());
     }
 
-    if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(props.getProperty(DATABASE_PROPERTY_NAME))) {
-      copy.setProperty(this.databasePropertyName, props.getProperty(DATABASE_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.databasePropertyName)
+        && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
+      copy.setProperty(this.databasePropertyName, PropertyDefinition.DATABASE_NAME.getString(props));
     }
 
-    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
-      copy.setProperty(this.userPropertyName, props.getProperty(USER_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
+      copy.setProperty(this.userPropertyName, PropertyDefinition.USER.getString(props));
     }
 
-    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
-      copy.setProperty(this.passwordPropertyName, props.getProperty(PASSWORD_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(PropertyDefinition.PASSWORD.getString(props))) {
+      copy.setProperty(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
     }
 
     if (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
@@ -120,6 +118,10 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
               urlProperties));
     }
 
+    copy.remove(PropertyDefinition.DATABASE_NAME.name);
+    copy.remove(PropertyDefinition.USER.name);
+    copy.remove(PropertyDefinition.PASSWORD.name);
+
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();
   }
@@ -139,17 +141,22 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.setProperty(this.urlPropertyName, url);
     }
 
-    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(props.getProperty(USER_PROPERTY_NAME))) {
-      copy.put(this.userPropertyName, props.getProperty(USER_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
+      copy.put(this.userPropertyName, PropertyDefinition.USER.getString(props));
     }
 
-    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(props.getProperty(PASSWORD_PROPERTY_NAME))) {
-      copy.put(this.passwordPropertyName, props.getProperty(PASSWORD_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(PropertyDefinition.PASSWORD.getString(props))) {
+      copy.put(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
     }
 
-    if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(props.getProperty(DATABASE_PROPERTY_NAME))) {
-      copy.put(this.databasePropertyName, props.getProperty(DATABASE_PROPERTY_NAME));
+    if (!isNullOrEmpty(this.databasePropertyName)
+        && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
+      copy.put(this.databasePropertyName, PropertyDefinition.DATABASE_NAME.getString(props));
     }
+
+    copy.remove(PropertyDefinition.DATABASE_NAME.name);
+    copy.remove(PropertyDefinition.USER.name);
+    copy.remove(PropertyDefinition.PASSWORD.name);
 
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();

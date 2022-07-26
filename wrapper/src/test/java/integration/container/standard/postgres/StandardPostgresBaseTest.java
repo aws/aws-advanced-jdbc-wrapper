@@ -32,7 +32,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.postgresql.PGProperty;
 
 public class StandardPostgresBaseTest {
-  protected static final String DB_CONN_STR_PREFIX = "aws-proxy-jdbc:postgresql://";
+  protected static final String DB_CONN_STR_PREFIX = "aws-jdbc-wrapper:postgresql://";
   protected static final String STANDARD_POSTGRES_HOST = System.getenv("STANDARD_POSTGRES_HOST");
   protected static final int STANDARD_POSTGRES_PORT = Integer.parseInt(System.getenv("STANDARD_POSTGRES_PORT"));
   protected static final String STANDARD_POSTGRES_DB = System.getenv("STANDARD_POSTGRES_DB");
