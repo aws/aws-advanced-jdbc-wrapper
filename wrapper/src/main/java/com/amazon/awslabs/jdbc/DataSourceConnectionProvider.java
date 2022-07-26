@@ -87,7 +87,8 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.put(this.portPropertyName, hostSpec.getPort());
     }
 
-    if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
+    if (!isNullOrEmpty(this.databasePropertyName)
+        && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
       copy.setProperty(this.databasePropertyName, PropertyDefinition.DATABASE_NAME.getString(props));
     }
 
@@ -148,7 +149,8 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.put(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
     }
 
-    if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
+    if (!isNullOrEmpty(this.databasePropertyName)
+        && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
       copy.put(this.databasePropertyName, PropertyDefinition.DATABASE_NAME.getString(props));
     }
 
