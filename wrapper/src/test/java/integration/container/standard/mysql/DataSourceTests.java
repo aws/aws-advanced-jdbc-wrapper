@@ -19,7 +19,7 @@ package integration.container.standard.mysql;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazon.awslabs.jdbc.ds.ProxyDriverDataSource;
+import com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource;
 import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -36,7 +36,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
 
   @Test
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
     ds.setServerPropertyName("serverName");
@@ -61,7 +61,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
 
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setJdbcUrl("jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
@@ -78,7 +78,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
 
   @Test
   public void testOpenConnectionWithMariaDbDataSourceClassName() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
@@ -104,7 +104,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
 
   @Test
   public void testOpenConnectionWithMariaDbUrl() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
