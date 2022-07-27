@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazon.awslabs.jdbc.ds.ProxyDriverDataSource;
+import com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -28,10 +28,13 @@ import org.junit.jupiter.api.Test;
 import org.postgresql.util.PSQLException;
 
 public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
+
+  public static String postgresProtocolPrefix = "jdbc:postgresql://";
+
   @Test
   public void testConnectionWithDataSourceClassName() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -55,8 +58,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameAndCredentialProperties() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -82,7 +85,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingProtocol() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -102,8 +105,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingServer() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
@@ -121,8 +124,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingDatabase() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
@@ -140,8 +143,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingUser() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setPasswordPropertyName("password");
@@ -160,8 +163,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingPassword() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -180,8 +183,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingPropertyNames() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -197,8 +200,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameUsingUrl() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -208,7 +211,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     Properties targetDataSourceProps = new Properties();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
 
     Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD);
 
@@ -221,8 +224,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameUsingUrlWithCredentials() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -231,7 +234,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     ds.setJdbcUrl(
-        DB_CONN_STR_PREFIX
+        postgresProtocolPrefix
             + STANDARD_POSTGRES_HOST
             + ":" + STANDARD_POSTGRES_PORT + "/"
             + STANDARD_POSTGRES_DB
@@ -249,8 +252,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameUsingUrlWithPort() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -260,7 +263,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     ds.setJdbcUrl(
-        DB_CONN_STR_PREFIX
+        postgresProtocolPrefix
         + STANDARD_POSTGRES_HOST
         + ":" + STANDARD_POSTGRES_PORT + "/"
         + STANDARD_POSTGRES_DB);
@@ -276,8 +279,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameUsingUrlAndProperties() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -288,7 +291,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     targetDataSourceProps.setProperty("databaseName", "proxy-driver-test-db");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
 
     Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD);
 
@@ -301,12 +304,12 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameUsingUrlMissingPropertyNames() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
 
     assertThrows(
         PSQLException.class,
@@ -315,8 +318,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameUsingUrlMissingDatabase() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
-    ds.setJdbcProtocol(DB_CONN_STR_PREFIX);
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
@@ -325,7 +328,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     Properties targetDataSourceProps = new Properties();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/");
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/");
 
     assertThrows(
         PSQLException.class,
@@ -334,7 +337,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithUrl() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
@@ -355,7 +358,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithUrlWithCredentials() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
@@ -378,7 +381,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithUrlMissingPort() throws SQLException {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
@@ -394,7 +397,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithUrlMissingDatabase() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
@@ -407,7 +410,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithUrlMissingUser() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
@@ -420,7 +423,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithUrlMissingPassword() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
@@ -433,7 +436,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
   @Test
   public void testConnectionWithUrlMissingPropertyNames() {
-    ProxyDriverDataSource ds = new ProxyDriverDataSource();
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
         + STANDARD_POSTGRES_HOST

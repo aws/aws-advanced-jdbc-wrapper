@@ -43,9 +43,9 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class ProxyDriverDataSource implements DataSource, Referenceable, Serializable {
+public class AwsWrapperDataSource implements DataSource, Referenceable, Serializable {
 
-  private static final Logger LOGGER = Logger.getLogger(ProxyDriverDataSource.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(AwsWrapperDataSource.class.getName());
 
   static {
     try {
