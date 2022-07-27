@@ -21,7 +21,6 @@ import com.amazon.awslabs.jdbc.HostListProvider;
 import com.amazon.awslabs.jdbc.HostRole;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.PluginService;
-import com.amazon.awslabs.jdbc.PropertyDefinition;
 import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.util.ExpiringCache;
 import com.amazon.awslabs.jdbc.util.Messages;
