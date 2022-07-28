@@ -74,7 +74,7 @@ public class Driver implements java.sql.Driver {
       return null;
     }
 
-    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.get(info);
+    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
     if (logLevelStr != null && !logLevelStr.isEmpty()) {
       LOGGER.setLevel(Level.parse(logLevelStr));
     }
@@ -88,7 +88,12 @@ public class Driver implements java.sql.Driver {
     }
 
     Properties props = parseProperties(url, info);
-    return new ConnectionWrapper(props, driverUrl, new DriverConnectionProvider(driver));
+    ConnectionProvider connectionProvider = new DriverConnectionProvider(
+        driver,
+        PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.getString(info),
+        PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.getString(info));
+
+    return new ConnectionWrapper(props, driverUrl, connectionProvider);
   }
 
   @Override

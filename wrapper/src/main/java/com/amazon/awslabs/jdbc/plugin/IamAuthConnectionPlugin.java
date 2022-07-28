@@ -43,7 +43,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(IamAuthConnectionPlugin.class.getName());
   static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60;
-  public static final int PG_PORT = 5342;
+  public static final int PG_PORT = 5432;
   public static final int MYSQL_PORT = 3306;
 
   protected static final ProxyDriverProperty SPECIFIED_PORT = new ProxyDriverProperty(
@@ -78,7 +78,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     int port = hostSpec.getPort();
     if (!hostSpec.isPortSpecified()) {
-      if (StringUtils.isNullOrEmpty(SPECIFIED_PORT.get(props))) {
+      if (StringUtils.isNullOrEmpty(SPECIFIED_PORT.getString(props))) {
         if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith("jdbc:mysql:")) {
           throw new RuntimeException("Port is required");
         } else if (driverProtocol.startsWith("jdbc:mysql:")) {
@@ -96,14 +96,14 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     final Region region;
-    if (StringUtils.isNullOrEmpty(SPECIFIED_REGION.get(props))) {
+    if (StringUtils.isNullOrEmpty(SPECIFIED_REGION.getString(props))) {
       region = getRdsRegion(host);
     } else {
-      region = Region.of(SPECIFIED_REGION.get(props));
+      region = Region.of(SPECIFIED_REGION.getString(props));
     }
 
     final int tokenExpirationSec;
-    if (StringUtils.isNullOrEmpty(SPECIFIED_EXPIRATION.get(props))) {
+    if (StringUtils.isNullOrEmpty(SPECIFIED_EXPIRATION.getString(props))) {
       tokenExpirationSec = DEFAULT_TOKEN_EXPIRATION_SEC;
     } else {
       tokenExpirationSec = SPECIFIED_EXPIRATION.getInteger(props);

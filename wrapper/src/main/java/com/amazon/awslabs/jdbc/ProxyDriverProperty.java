@@ -46,12 +46,8 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
     this.choices = choices;
   }
 
-  public @Nullable String get(Properties properties) {
+  public @Nullable String getString(Properties properties) {
     return properties.getProperty(name, defaultValue);
-  }
-
-  public String getString(Properties properties) {
-    return String.valueOf(properties.getProperty(name, defaultValue));
   }
 
   public boolean getBoolean(Properties properties) {
@@ -79,7 +75,7 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
   }
 
   public DriverPropertyInfo toDriverPropertyInfo(Properties properties) {
-    DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, get(properties));
+    DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, getString(properties));
     propertyInfo.required = required;
     propertyInfo.description = description;
     propertyInfo.choices = choices;

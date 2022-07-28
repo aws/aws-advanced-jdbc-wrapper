@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
@@ -61,6 +62,16 @@ public class PropertyDefinition {
       new ProxyDriverProperty(
           "wrapperDatabaseName", null, "Driver database name");
 
+  public static final ProxyDriverProperty TARGET_DRIVER_USER_PROPERTY_NAME =
+      new ProxyDriverProperty(
+          "wrapperTargetDriverUserPropertyName", null, "Target driver user property name");
+
+  public static final ProxyDriverProperty TARGET_DRIVER_PASSWORD_PROPERTY_NAME =
+      new ProxyDriverProperty(
+          "wrapperTargetDriverPasswordPropertyName",
+          null,
+          "Target driver password property name");
+
   private static final Map<String, ProxyDriverProperty> PROPS_BY_NAME =
       new HashMap<String, ProxyDriverProperty>();
 
@@ -94,5 +105,9 @@ public class PropertyDefinition {
 
   public static Collection<ProxyDriverProperty> allProperties() {
     return PROPS_BY_NAME.values();
+  }
+
+  public static void removeAll(Properties props) {
+    PROPS_BY_NAME.keySet().forEach((propName) -> props.remove(propName));
   }
 }

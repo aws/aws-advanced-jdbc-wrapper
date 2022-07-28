@@ -124,14 +124,14 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     this.originalUrl = originalUrl;
     this.clusterId = UUID.randomUUID().toString();
     this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
-    this.clusterInstanceTemplate = CLUSTER_INSTANCE_HOST_PATTERN.get(this.properties) == null
+    this.clusterInstanceTemplate = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
         ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
         : new HostSpec(CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
     validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
 
     this.rdsUrlType = rdsHelper.identifyRdsType(originalUrl);
 
-    final String clusterIdSetting = CLUSTER_ID.get(this.properties);
+    final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
     if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
       this.clusterId = clusterIdSetting;
     } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {

@@ -41,10 +41,6 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private final @Nullable String userPropertyName;
   private final @Nullable String passwordPropertyName;
 
-  public DataSourceConnectionProvider(final DataSource dataSource) {
-    this(dataSource, null, null, null, null, null, null);
-  }
-
   public DataSourceConnectionProvider(final @NonNull DataSource dataSource,
                                       final @Nullable String serverPropertyName,
                                       final @Nullable String portPropertyName,
@@ -118,10 +114,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
               urlProperties));
     }
 
-    copy.remove(PropertyDefinition.DATABASE_NAME.name);
-    copy.remove(PropertyDefinition.USER.name);
-    copy.remove(PropertyDefinition.PASSWORD.name);
-
+    PropertyDefinition.removeAll(copy);
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();
   }
@@ -154,10 +147,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.put(this.databasePropertyName, PropertyDefinition.DATABASE_NAME.getString(props));
     }
 
-    copy.remove(PropertyDefinition.DATABASE_NAME.name);
-    copy.remove(PropertyDefinition.USER.name);
-    copy.remove(PropertyDefinition.PASSWORD.name);
-
+    PropertyDefinition.removeAll(copy);
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();
   }
