@@ -20,6 +20,7 @@ import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.JdbcCallable;
 import com.amazon.awslabs.jdbc.PropertyDefinition;
 import com.amazon.awslabs.jdbc.ProxyDriverProperty;
+import com.amazon.awslabs.jdbc.util.RdsUtils;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -33,8 +34,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsUtilities;
@@ -58,6 +57,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   protected static final ProxyDriverProperty SPECIFIED_EXPIRATION = new ProxyDriverProperty(
           "iamExpiration", null,
           "IAM token cache expiration in seconds");
+
+  protected final RdsUtils rdsUtils = new RdsUtils();
 
   @Override
   public Set<String> getSubscribedMethods() {
@@ -161,25 +162,19 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private Region getRdsRegion(final String hostname) throws SQLException {
-    // Check Hostname
-    final Pattern auroraDnsPattern =
-            Pattern.compile(
-                    "(.+)\\.(proxy-|cluster-|cluster-ro-|cluster-custom-)?[a-zA-Z0-9]+"
-                        + "\\.([a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com",
-                    Pattern.CASE_INSENSITIVE);
-    final Matcher matcher = auroraDnsPattern.matcher(hostname);
-    if (!matcher.find()) {
-      // Does not match Amazon's Hostname, throw exception
-      final String exceptionMessage = String.format("Unsupported AWS hostname '%s'. "
-              + "Amazon domain name in format *.AWS-Region.rds.amazonaws.com is expected", hostname);
-
-      LOGGER.log(Level.FINEST, exceptionMessage);
-      throw new SQLException(
-              (exceptionMessage));
-    }
 
     // Get Region
-    final String rdsRegion = matcher.group(3);
+    final String rdsRegion = rdsUtils.getRdsRegion(hostname);
+
+    if (StringUtils.isNullOrEmpty(rdsRegion)) {
+      // Does not match Amazon's Hostname, throw exception
+      final String exceptionMessage = String.format("Unsupported AWS hostname '%s'. "
+          + "Amazon domain name in format *.AWS-Region.rds.amazonaws.com or "
+          + "*.rds.AWS-Region.amazonaws.com.cn is expected", hostname);
+
+      LOGGER.log(Level.FINEST, exceptionMessage);
+      throw new SQLException(exceptionMessage);
+    }
 
     // Check Region
     final Optional<Region> regionOptional = Region.regions().stream()
@@ -191,10 +186,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
                       + "For supported regions, please read "
                       + "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html\n",
               rdsRegion);
-
       LOGGER.log(Level.FINEST, exceptionMessage);
       throw new SQLException((exceptionMessage));
     }
+
     return regionOptional.get();
   }
 
