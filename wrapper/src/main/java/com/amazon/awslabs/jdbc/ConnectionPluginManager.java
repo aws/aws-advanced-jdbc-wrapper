@@ -84,14 +84,6 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionProvider = connectionProvider;
   }
 
-  public ConnectionPluginManager(java.sql.Driver targetDriver) {
-    this.connectionProvider = new DriverConnectionProvider(targetDriver);
-  }
-
-  public ConnectionPluginManager(DataSource targetDataSource) {
-    this.connectionProvider = new DataSourceConnectionProvider(targetDataSource);
-  }
-
   /** This constructor is for testing purposes only. */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
@@ -129,7 +121,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     this.props = props;
 
-    String profileName = PropertyDefinition.PROFILE_NAME.get(props);
+    String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
 
     List<Class<? extends ConnectionPluginFactory>> pluginFactories;
 
@@ -142,7 +134,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     } else {
 
-      String pluginCodes = PropertyDefinition.PLUGINS.get(props);
+      String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
 
       if (pluginCodes == null) {
         pluginCodes = DEFAULT_PLUGINS;

@@ -43,7 +43,7 @@ class IamAuthConnectionPluginTest {
 
   private static final String GENERATED_TOKEN = "generatedToken";
   private static final String TEST_TOKEN = "testToken";
-  private static final int DEFAULT_PG_PORT = 5342;
+  private static final int DEFAULT_PG_PORT = 5432;
   private static final int DEFAULT_MYSQL_PORT = 3306;
   private static final String PG_CACHE_KEY = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
       + String.valueOf(DEFAULT_PG_PORT) + ":postgresqlUser";

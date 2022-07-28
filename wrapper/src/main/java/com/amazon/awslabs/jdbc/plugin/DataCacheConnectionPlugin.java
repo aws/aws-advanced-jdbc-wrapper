@@ -69,7 +69,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
   protected final String dataCacheTriggerCondition;
 
   public DataCacheConnectionPlugin(Properties props) {
-    this.dataCacheTriggerCondition = DATA_CACHE_TRIGGER_CONDITION.get(props);
+    this.dataCacheTriggerCondition = DATA_CACHE_TRIGGER_CONDITION.getString(props);
   }
 
   public static void clearCache() {

@@ -34,10 +34,6 @@ public class DriverConnectionProvider implements ConnectionProvider {
   private final String userPropertyName;
   private final String passwordPropertyName;
 
-  public DriverConnectionProvider(final java.sql.Driver driver) {
-    this(driver, null, null);
-  }
-
   public DriverConnectionProvider(final java.sql.Driver driver, String userPropertyName, String passwordPropertyName) {
     this.driver = driver;
     this.userPropertyName = userPropertyName;
@@ -76,9 +72,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
       copy.setProperty(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
     }
 
-    copy.remove(PropertyDefinition.DATABASE_NAME.name);
-    copy.remove(PropertyDefinition.USER.name);
-    copy.remove(PropertyDefinition.PASSWORD.name);
+    PropertyDefinition.removeAll(copy);
 
     return this.driver.connect(urlBuilder.toString(), copy);
   }
