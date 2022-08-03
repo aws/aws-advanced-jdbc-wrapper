@@ -71,7 +71,7 @@ public abstract class AuroraPostgresBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static final String DB_CONN_STR_PREFIX = "aws-jdbc-wrapper:postgresql://";
+  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:postgresql://";
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
   static final String POSTGRES_INSTANCE_1_URL = System.getenv("POSTGRES_INSTANCE_1_URL");
