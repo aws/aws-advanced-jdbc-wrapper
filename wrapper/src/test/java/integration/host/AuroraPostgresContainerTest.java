@@ -71,7 +71,7 @@ public class AuroraPostgresContainerTest {
   private static final String AWS_SECRET_ACCESS_KEY = System.getenv("AWS_SECRET_ACCESS_KEY");
   private static final String AWS_SESSION_TOKEN = System.getenv("AWS_SESSION_TOKEN");
 
-  private static final String DB_CONN_STR_PREFIX = "aws-jdbc-wrapper:postgresql://";
+  private static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:postgresql://";
   private static String dbConnStrSuffix = "";
   private static final String DB_CONN_PROP = "?enabledTLSProtocols=TLSv1.2";
 

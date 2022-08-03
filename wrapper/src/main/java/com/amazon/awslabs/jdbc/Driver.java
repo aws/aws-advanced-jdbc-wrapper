@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class Driver implements java.sql.Driver {
 
-  private static final String PROTOCOL_PREFIX = "aws-jdbc-wrapper:";
+  private static final String PROTOCOL_PREFIX = "jdbc:aws-wrapper:";
   private static final Logger PARENT_LOGGER = Logger.getLogger("com.amazon.awslabs.jdbc");
   private static final Logger LOGGER = Logger.getLogger("com.amazon.awslabs.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
