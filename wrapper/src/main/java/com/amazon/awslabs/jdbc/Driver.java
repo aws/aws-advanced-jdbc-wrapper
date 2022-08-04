@@ -26,6 +26,8 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collection;
 import java.util.Properties;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -74,11 +76,6 @@ public class Driver implements java.sql.Driver {
       return null;
     }
 
-    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
-    if (logLevelStr != null && !logLevelStr.isEmpty()) {
-      PARENT_LOGGER.setLevel(Level.parse(logLevelStr));
-    }
-
     String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
     java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 
@@ -88,6 +85,22 @@ public class Driver implements java.sql.Driver {
     }
 
     Properties props = parseProperties(url, info);
+
+    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
+    if (!StringUtils.isNullOrEmpty(logLevelStr)) {
+      Level logLevel = Level.parse(logLevelStr);
+      Logger rootLogger = Logger.getLogger("");
+      for (Handler handler : rootLogger.getHandlers()) {
+        if (handler instanceof ConsoleHandler) {
+          if (handler.getLevel().intValue() > logLevel.intValue()) {
+            // Set higher (more detailed) level as requested
+            handler.setLevel(logLevel);
+          }
+        }
+      }
+      PARENT_LOGGER.setLevel(logLevel);
+    }
+
     ConnectionProvider connectionProvider = new DriverConnectionProvider(
         driver,
         PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.getString(info),
