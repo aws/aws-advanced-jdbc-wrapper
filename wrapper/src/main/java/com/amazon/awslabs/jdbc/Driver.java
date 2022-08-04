@@ -76,7 +76,7 @@ public class Driver implements java.sql.Driver {
 
     String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
     if (logLevelStr != null && !logLevelStr.isEmpty()) {
-      LOGGER.setLevel(Level.parse(logLevelStr));
+      PARENT_LOGGER.setLevel(Level.parse(logLevelStr));
     }
 
     String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
