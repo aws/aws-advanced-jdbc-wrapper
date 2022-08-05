@@ -6,9 +6,9 @@
 The figure above shows a simplified workflow of Enhanced Failure Monitoring (EFM). Enhanced Failure Monitoring is a feature available from the Host Monitoring connection plugin. There is a monitor that will periodically check the connected database node's health, or availability. If a database node is determined to be unhealthy, the connection will be aborted. The Host Monitoring connection plugin uses the [Enhanced Failure Monitoring Parameters](#enhanced-failure-monitoring-parameters) and a database node's responsiveness to determine whether a node is healthy.
 
 ### The Benefits Enhanced Failure Monitoring
-Enhanced Failure Monitoring helps user applications detect failures earlier. When a user application executes a query, EFM may detect that the connected database node is unavailable. When this happens, the query is cancelled and the connection will be aborted. This allows queries to fail fast instead of failing due to a timeout.
+Enhanced Failure Monitoring helps user applications detect failures earlier. When a user application executes a query, EFM may detect that the connected database node is unavailable. When this happens, the query is cancelled and the connection will be aborted. This allows queries to fail fast instead of waiting indefinitely or failing due to a timeout.
 
-One case in which EFM is particularly helpful is when it is used in conjunction with the [Failover connection plugin](./UsingTheFailoverPlugin.md). When EFM discovers a database node failure, the connection will be aborted. Without the Failover plugin, the connection would be terminated up to the user application level. With the Failover plugin, the JDBC Wrapper can attempt to failover to a different, healthy database node where the query can be retried.
+One case in which EFM is particularly helpful is when it is used in conjunction with the [Failover connection plugin](./UsingTheFailoverPlugin.md). When EFM discovers a database node failure, the connection will be aborted. Without the Failover plugin, the connection would be terminated up to the user application level. With the Failover plugin, the JDBC Wrapper can attempt to failover to a different, healthy database node where the query can be executed.
 
 Not all user applications will have a need for Enhanced Failure Monitoring. If a user application's query times are predictable and short, and the application does not execute any long-running SQL queries, Enhanced Failure Monitoring may be replaced with an alternative that consumes fewer resources and is simpler to configure. Two [alternatives](#enhanced-failure-monitoring-alternatives) are setting a [simple network timeout](#simple-network-timeout), or using [TCP Keepalive](#tcp-keepalive).
 
@@ -17,7 +17,7 @@ Although these alternatives are available, EFM is more configurable than simple 
 ### Enhanced Failure Monitoring Alternatives
 
 #### Simple Network Timeout
-This option is useful when a user application executes quick statements that run for predictable lengths of time. In this case, the network timeout should be set to a value such that 95%-99% of queries run by the user application will finish within that timeout value. One way to do this is with the `setNetworkTimeout` method.
+This option is useful when a user application executes quick statements that run for predictable lengths of time. In this case, the network timeout should be set to a value such as the 95th to 99th percentile. One way to do this is with the `setNetworkTimeout` method.
 
 #### TCP Keepalive
 This option is useful because it is built into the TCP protocol. How to enable it depends on the underlying driver provided to the JDBC Wrapper. For example, to enable TCP Keepalive with an underlying PostgreSQL driver, the user will need to set the property `tcpKeepAlive` to `true`. TCP Keepalive settings, which are similar to some Enhanced Failure Monitoring parameters, can all be configured. However, this is specific to operating systems, so users should verify what they need to do to configure TCP Keepalive on their system before using this alternative.
