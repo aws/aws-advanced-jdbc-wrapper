@@ -1,0 +1,39 @@
+name: 'Release to Maven'
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  ubuntu-latest-jdbc-wrapper-release-to-maven:
+    name: 'Build And Release to Maven'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Clone Repository'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@v1
+        with:
+          java-version: 8
+      - name: 'Build Driver'
+        run: |
+          ./gradlew --no-parallel --no-daemon -x test build
+      - name: "Decode Key Ring"
+        run: |
+          echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
+          base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
+      - name: 'Install GPG Secret Key'
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v4
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: 'Publish to Maven'
+        run: |
+          ./gradlew --no-parallel --no-daemon publishAllPublicationsToOSSRHRepository -Psigning.keyId=${{secrets.GPG_KEY_ID}} -Psigning.password=${{secrets.GPG_PASSPHRASE}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg)
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}

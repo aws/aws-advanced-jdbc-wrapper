@@ -14,7 +14,7 @@ permissions:
   repository-projects: write
 
 jobs:
-  ubuntu-latest-aurora-release-gh-draft:
+  ubuntu-latest-jdbc-wrapper-release-gh-draft:
     name: 'Build And Release Draft'
     runs-on: ubuntu-latest
     steps:

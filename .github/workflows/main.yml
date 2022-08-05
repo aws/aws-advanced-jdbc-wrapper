@@ -9,6 +9,8 @@ on:
     branches:
       - '*'
     paths-ignore:
+      - '**/release_draft.yml'
+      - '**/maven*.yml'
       - '**/*.md'
 
 concurrency:
