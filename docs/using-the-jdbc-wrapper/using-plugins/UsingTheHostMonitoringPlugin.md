@@ -30,12 +30,15 @@ Enhanced Failure Monitoring will NOT be enabled unless the Host Monitoring plugi
 ### Enhanced Failure Monitoring Parameters
 <div style="text-align:center"><img src="../../images/efm_monitor_process.png" /></div>
 
-The parameters `failureDetectionTime`, `failureDetectionInterval`, and `failureDetectionCount` are similar to TCP Keepalive parameters. Each connection has its own set of parameters. The `failureDetectionTime` is how long the monitor waits after a SQL query is started to send a probe to a database node. The `failureDetectionInterval` is how often the monitor sends a probe to a database node. The `failureDetectionCount` is how many times a monitor probe can go unacknowledged before the database node is deemed unhealthy. To determine the health of a database node, the monitor will first wait for a time equivalent to the `failureDetectionTime`. Then, every `failureDetectionInterval`, the monitor will send a probe to the database node. If the probe is not acknowledged by the database node, a counter is incremented. If the counter reaches the `failureDetectionCount`, the database node will be deemed unhealthy and the connection will be aborted.
+The parameters `failureDetectionTime`, `failureDetectionInterval`, and `failureDetectionCount` are similar to TCP Keepalive parameters. Each connection has its own set of parameters. The `failureDetectionTime` is how long the monitor waits after a SQL query is started to send a probe to a database node. The `failureDetectionInterval` is how often the monitor sends a probe to a database node. The `failureDetectionCount` is how many times a monitor probe can go unacknowledged before the database node is deemed unhealthy. 
+
+To determine the health of a database node: 
+1. The monitor will first wait for a time equivalent to the `failureDetectionTime`. 
+2. Then, every `failureDetectionInterval`, the monitor will send a probe to the database node. 
+3. If the probe is not acknowledged by the database node, a counter is incremented. 
+4. If the counter reaches the `failureDetectionCount`, the database node will be deemed unhealthy and the connection will be aborted.
 
 If a more aggressive approach to failure checking is necessary, all of these parameters can be reduced to reflect that. However, increased failure checking may also lead to an increase in false positives. For example, if the `failureDetectionInterval` was shortened, the plugin may complete several connection checks that all fail. The database node would then be considered unhealthy, but it may have been about to recover and the connection checks were completed before that could happen.
-
-<details>
-<summary>Enhanced Failure Monitoring Parameters</summary>
 
 | Parameter                  |  Value  | Required | Description                                                                                                  | Default Value |
 |----------------------------|:-------:|:--------:|:-------------------------------------------------------------------------------------------------------------|---------------|
@@ -44,7 +47,6 @@ If a more aggressive approach to failure checking is necessary, all of these par
 | `failureDetectionInterval` | Integer |    No    | Interval in milliseconds between probes to database node.                                                    | `5000`        |
 | `failureDetectionTime`     | Integer |    No    | Interval in milliseconds between sending a SQL query to the server and the first probe to the database node. | `30000`       |
 | `monitorDisposalTime`      | Integer |    No    | Interval in milliseconds for a monitor to be considered inactive and to be disposed.                         | `60000`       |
-</details>
 
 >### :warning: Warnings About Usage of the AWS Advanced JDBC Wrapper with RDS Proxy
 > It is recommended to either disable the Host Monitoring plugin, or to avoid using RDS Proxy endpoints when the Host Monitoring plugin is active.
