@@ -10,7 +10,7 @@ Enhanced Failure Monitoring helps user applications detect failures earlier. Whe
 
 One use case is to pair EFM with the [Failover Connection Plugin](./UsingTheFailoverPlugin.md). When EFM discovers a database node failure, the connection will be aborted. Without the Failover Connection Plugin, the connection would be terminated up to the user application level. With the Failover Connection Plugin, the JDBC Wrapper can attempt to failover to a different, healthy database node where the query can be executed.
 
-Not all user applications will have a need for Enhanced Failure Monitoring. If a user application's query times are predictable and short, and the application does not execute any long-running SQL queries, Enhanced Failure Monitoring may be replaced with an alternative that consumes fewer resources and is simpler to configure. 
+Not all user applications will have a need for Enhanced Failure Monitoring. If a user application's query times are predictable and short, and the application does not execute any long-running SQL queries, Enhanced Failure Monitoring may be replaced with one of the following alternatives that consumes fewer resources and is simpler to configure. 
 
 Two [alternatives](#enhanced-failure-monitoring-alternatives) are: 
 1. setting a [simple network timeout](#simple-network-timeout), or 
