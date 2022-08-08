@@ -37,7 +37,7 @@ GitHub issues are intended for bug reports and feature requests. Keeping the lis
 When opening a new issue, please include a reproduction case and logs for the issue to help expedite the investigation process.
 
 ## How to Contribute
-1. Set up your environment by following the directions in the [Development Guide](docs/development-guide/DevelopmentGuide.md)
+1. Set up your environment by following the directions in the [Development Guide](docs/development-guide/DevelopmentGuide.md).
 2. To contribute, first make a fork of this project. 
 3. Make any changes on your fork. Make sure you are aware of the requirements for the project (e.g. do not require Java 7 if we are supporting Java 8 and higher).
 4. Create a pull request from your fork. 
