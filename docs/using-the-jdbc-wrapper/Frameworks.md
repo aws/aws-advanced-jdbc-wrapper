@@ -2,7 +2,7 @@
 
 ## Hibernate
 
-You can configure database access using an XML configuraiton file `hibernate.cfg.xml`
+You can configure database access using an XML configuration file `hibernate.cfg.xml`.
 If you use Hibernate with a connection pool, please check a page corresponding to a particular pool on suggested configuration.
 ```hibernate.cfg.xml
 <?xml version="1.0" encoding="utf-8"?>
