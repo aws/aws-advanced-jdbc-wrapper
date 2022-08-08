@@ -1,5 +1,5 @@
 # Using the AWS Advanced JDBC Wrapper
-The AWS Advanced JDBC Wrapper leverages existing community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, only the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc) is supported.
+The AWS Advanced JDBC Wrapper leverages community JDBC drivers and enables support of AWS and Aurora functionalities. Currently, only the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc) is supported.
 The JDBC Wrapper also supports [connection pooling](./DataSource.md#Using-the-AwsWrapperDataSource-with-Connection-Pooling-Frameworks).
 
 ## Wrapper Protocol
@@ -9,13 +9,11 @@ The JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the J
 To get a connection from the JDBC Wrapper, the user application can either connect with a DriverManager or with a DataSource. The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers, but getting a connection with a DataSource may require some additional steps. See [here](./DataSource.md) for more details.
 
 ## Logging
-The JDBC Wrapper uses the Java Util Logger to log information.
+The JDBC Wrapper uses the Java Util Logger built-in library functionality to log information. To enable logging and see information logged by the driver:
 
-To enable logging and see information logged by the driver:
-
-1. Create a `.properties` file and configure the logging level
-2. Specify the `.properties` file with the `java.util.logging.config.file` VM option when running the program
-   `-Djava.util.logging.config.file=absolute\path\to\logging.properties`
+1. Create a `.properties` file and configure the logging level.
+2. Specify the `.properties` file with the `java.util.logging.config.file` option; for example, 
+   `-Djava.util.logging.config.file=absolute\path\to\logging.properties`.
 
 An example  `.properties` file is as follows:
 
@@ -38,7 +36,7 @@ These parameters are applicable to any instance of the JDBC Wrapper.
 
 | Parameter                                 | Value     | Required | Description                                                                                                                                                                 | Default Value |
 |-------------------------------------------|-----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `wrapperLogUnclosedConnections`           | `Boolean` | No       | Allows the JDBC Wrapper to track a point in the code where connection has been opened and never closed after.                                                               | `false`       |
+| `wrapperLogUnclosedConnections`           | `Boolean` | No       | Allows the JDBC Wrapper to track a point in the code where connection has been opened but not closed.                                                                       | `false`       |
 | `wrapperLoggerLevel`                      | `String`  | No       | Logger level of the driver. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. | `null`        |
 | `wrapperUser`                             | `String`  | No       | Driver user name.                                                                                                                                                           | `null`        |
 | `wrapperPassword`                         | `String`  | No       | Driver password.                                                                                                                                                            | `null`        |
@@ -48,10 +46,9 @@ These parameters are applicable to any instance of the JDBC Wrapper.
 </details>
 
 ## Plugins
-The JDBC Wrapper uses the plugins to execute JDBC methods.
-One can think of the plugins as extensible code modules that add extra logic around any JDBC method calls.
-The JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use.
-Plugins are loaded and managed through the Connection Plugin Manager and may be identified by a `String` name in the form of a plugin code.
+The JDBC Wrapper uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use. 
+
+Plugins are loaded and managed through the Connection Plugin Manager and may be identified by a `String` name in the form of plugin code.
 
 ### Connection Plugin Manager Parameters
 <details>
@@ -73,12 +70,9 @@ properties.setProperty("wrapperPlugins", "failover,efm");
 > :exclamation:**NOTE**: The plugins will be initialized and executed in the order they have been specified.
 
 ### Configuration Profiles
-As an alternative way of loading plugins is to use a configuration profile.
-Users are able to create configuration profiles that specify which plugins the JDBC Wrapper should load.
-Once the profile is created, the [`wrapperProfileName`](#connection-plugin-manager-parameters) parameter can be set to the name of the created profile.
-Although it's possible to use this method of loading plugins,
-this will most often be used by those who require custom plugins that cannot be loaded with the [`wrapperPlugins`](#connection-plugin-manager-parameters) parameter.
-See below for a sample on how to create and set a configuration profile.
+An alternative way of loading plugins is to use a configuration profile. You can create custom configuration profiles that specify which plugins the JDBC Wrapper should load. After creating the profile, set the [`wrapperProfileName`](#connection-plugin-manager-parameters) parameter to the name of the created profile.
+Although you can use this method of loading plugins, this method will most often be used by those who require custom plugins that cannot be loaded with the [`wrapperPlugins`](#connection-plugin-manager-parameters) parameter.
+The following example creates and sets a configuration profile:
 
 ```java
 properties.setProperty("wrapperProfileName", "testProfile");
