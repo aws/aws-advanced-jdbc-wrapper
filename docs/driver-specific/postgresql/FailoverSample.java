@@ -20,27 +20,53 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import org.postgresql.PGProperty;
 
-/**
- * Example Throwing Failover Exception Codes.
- */
 public class FailoverSample {
+  public static class FailoverFailedException extends SQLException {
+    public FailoverFailedException(SQLException e) {
+      super("User application should reconnect to new instance and restart business transaction", e);
+    }
+  }
+
+  public static class TransactionStateUnknownException extends SQLException {
+    public TransactionStateUnknownException(SQLException e) {
+      super("User application should restart the business transaction", e);
+    }
+  }
+
+  public static class UnknownSampleException extends SQLException {
+    public UnknownSampleException(SQLException e) {
+      super("Other exception: should be handled by application", e);
+    }
+  }
+
+  // User configures connection properties here
+  public static final String POSTGRESQL_CONNECTION_STRING =
+      "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/failoverSample";
+  public static final String USERNAME = "username";
+  public static final String PASSWORD = "password";
 
   public static void main(String[] args) throws SQLException {
 
     final Properties props = new Properties();
 
-    // User configures connection properties here
-    public static final String POSTGRESQL_CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/failoverSample";
-    private static final String USERNAME = "username";
-    private static final String PASSWORD = "password";
-
     // Enable failover plugin and set properties
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
     props.setProperty(PropertyDefinition.USER.name, USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
+    // postgres properties
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
+    // Setup Step: Open connection and create tables - uncomment this section to create table and test values
+
+//     final Connection connection = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props);
+//     setInitialSessionSettings(connection);
+//     updateQueryWithFailoverHandling(connection, "CREATE TABLE bank_test (name varchar(40), account_balance int)");
+//     updateQueryWithFailoverHandling(connection, "INSERT INTO bank_test VALUES ('Jane Doe', 200), ('John Smith', 200)");
+
+
+    // Transaction Step: Open connection and perform transaction
     try (final Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
       setInitialSessionSettings(conn);
 
@@ -48,19 +74,20 @@ public class FailoverSample {
         // Begin business transaction
         conn.setAutoCommit(false);
 
-        // Comment out if test database and values already created
-        updateQueryWithFailoverHandling(conn, "CREATE TABLE bank_test (name varchar(40), account_balance int)");
-        updateQueryWithFailoverHandling(conn, "INSERT INTO bank_test VALUES ('Jane Doe', 200), ('John Smith', 200)");
-
         // Example business transaction
-        updateQueryWithFailoverHandling(conn, "UPDATE bank_test SET account_balance=account_balance - 100 WHERE name='Jane Doe'");
-        updateQueryWithFailoverHandling(conn, "UPDATE bank_test SET account_balance=account_balance + 100 WHERE name='John Smith'");
+        updateQueryWithFailoverHandling(conn,
+            "UPDATE bank_test SET account_balance=account_balance - 100 WHERE name='Jane Doe'");
+        updateQueryWithFailoverHandling(conn,
+            "UPDATE bank_test SET account_balance=account_balance + 100 WHERE name='John Smith'");
 
         // Commit business transaction
         updateQueryWithFailoverHandling(conn, "commit");
 
       } catch (SQLException e) {
-        conn.rollback();
+        if (e instanceof FailoverFailedException || e instanceof TransactionStateUnknownException) {
+          throw e;
+        }
+        throw new UnknownSampleException(e);
       }
     }
   }
@@ -79,8 +106,7 @@ public class FailoverSample {
     } catch (SQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
       if ("08S01".equalsIgnoreCase(e.getSQLState())) {
-        // User application should reconnect to new instance and restart business transaction here.
-        throw e;
+        throw new FailoverFailedException(e);
       }
       // Connection failed and JDBC wrapper successfully failed over to a new elected writer node
       if ("08S02".equalsIgnoreCase(e.getSQLState())) {
@@ -95,10 +121,9 @@ public class FailoverSample {
       // Connection failed while executing a business transaction.
       // Transaction status is unknown. The driver has successfully reconnected to a new writer.
       if ("08007".equalsIgnoreCase(e.getSQLState())) {
-        // User application should restart the business transaction here.
-        throw e;
+        throw new TransactionStateUnknownException(e);
       }
-      throw e;
+      throw new UnknownSampleException(e);
     }
   }
 }

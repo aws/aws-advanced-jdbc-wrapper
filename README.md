@@ -36,7 +36,7 @@ To configure logging, check out the [Logging](./docs/using-the-jdbc-wrapper/Usin
 2. To contribute, first make a fork of this project. 
 3. Make any changes on your fork. Make sure you are aware of the requirements for the project (e.g. do not require Java 7 if we are supporting Java 8 and higher).
 4. Create a pull request from your fork. 
-5. Pull requests need to be approved and merged by maintainers into the master branch. <br />
+5. Pull requests need to be approved and merged by maintainers into the main branch. <br />
 **Note:** Before making a pull request, [run all tests](./docs/development-guide/DevelopmentGuide.md#running-the-tests) and verify everything is passing.
 
 ### Code Style
