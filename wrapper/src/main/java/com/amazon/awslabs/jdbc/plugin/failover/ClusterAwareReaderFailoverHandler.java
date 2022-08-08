@@ -294,7 +294,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         }
 
         try {
-          TimeUnit.MILLISECONDS.sleep(1);
+          TimeUnit.SECONDS.sleep(1);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.1"), "70100", e);

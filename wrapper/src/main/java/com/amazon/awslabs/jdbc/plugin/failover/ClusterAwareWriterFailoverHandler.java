@@ -343,7 +343,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           // ignore
         }
         LOGGER.fine(Messages.get("ClusterAwareWriterFailoverHandler.12"));
-        TimeUnit.MILLISECONDS.sleep(1);
+        TimeUnit.SECONDS.sleep(1);
       }
     }
 

@@ -186,14 +186,17 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
         || refreshNeeded(clusterTopologyInfo)) {
 
       final ClusterTopologyInfo latestTopologyInfo = queryForTopology(conn);
-
+      List<HostSpec> hosts;
       if (!latestTopologyInfo.hosts.isEmpty()) {
         clusterTopologyInfo = updateCache(clusterTopologyInfo, latestTopologyInfo);
+        hosts = clusterTopologyInfo.hosts;
       } else {
-        return (clusterTopologyInfo == null || forceUpdate)
+        hosts = (clusterTopologyInfo == null || forceUpdate)
             ? new ArrayList<>()
             : clusterTopologyInfo.hosts;
       }
+      logTopology(hosts);
+      return hosts;
     }
 
     return clusterTopologyInfo.hosts;
@@ -534,6 +537,19 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
+  }
+
+  private void logTopology(final List<HostSpec> topology) {
+    StringBuilder msg = new StringBuilder();
+    for (int i = 0; i < topology.size(); i++) {
+      HostSpec hostInfo = topology.get(i);
+      msg.append("\n   [")
+          .append(i)
+          .append("]: ")
+          .append(hostInfo == null ? "<null>" : hostInfo.getHost());
+    }
+    LOGGER.finer(
+        Messages.get("Failover.topologyObtained", new Object[] {msg.toString()}));
   }
 
   /**
