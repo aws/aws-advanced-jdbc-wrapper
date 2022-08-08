@@ -93,4 +93,3 @@ jobs:
           name: 'junit-report'
           path: ./wrapper/build/reports/tests/
           retention-days: 5
-          
