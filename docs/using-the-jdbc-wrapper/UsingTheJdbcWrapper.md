@@ -8,6 +8,9 @@ The JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the J
 ## Getting a Connection
 To get a connection from the JDBC Wrapper, the user application can either connect with a DriverManager or with a DataSource. The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers, but getting a connection with a DataSource may require some additional steps. See [here](./DataSource.md) for more details.
 
+## Integration with 3rd Party Frameworks
+The JDBC Wrapper can be used with different frameworks and tools. More details for some frameworks can be found [here](./Frameworks.md).
+
 ## Logging
 The JDBC Wrapper uses the Java Util Logger to log information.
 
