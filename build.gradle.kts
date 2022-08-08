@@ -16,16 +16,19 @@
 
 import com.github.vlsi.gradle.dsl.configureEach
 import com.amazon.awslabs.jdbc.buildtools.JavaCommentPreprocessorTask
+import com.github.vlsi.gradle.publishing.dsl.simplifyXml
 
 plugins {
     java
+    publishing
+    signing
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.stage-vote-release")
     id("com.github.vlsi.ide")
 }
 
 val String.v: String get() = rootProject.extra["$this.version"] as String
-val buildVersion = "aws-advanced-jdbc-wrapper".v + releaseParams.snapshotSuffix
+val buildVersion = "aws-advanced-jdbc-wrapper".v
 
 allprojects {
     group = "com.amazon.awslabs.jdbc"
@@ -34,6 +37,10 @@ allprojects {
     repositories {
         mavenCentral()
     }
+
+    apply(plugin = "java")
+    apply(plugin = "signing")
+    apply(plugin = "maven-publish")
 
     tasks {
         configureEach<JavaCommentPreprocessorTask> {
@@ -50,6 +57,80 @@ allprojects {
                 put("version.minor", minor)
                 put("version.patch", patch.ifBlank { "0" })
             }
+        }
+    }
+
+    java {
+        withJavadocJar()
+        withSourcesJar()
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    publishing {
+        publications {
+            create<MavenPublication>(project.name) {
+                groupId = "com.amazon.awslabs.jdbc"
+                artifactId = "aws-advanced-jdbc-wrapper"
+                version = buildVersion
+
+                from(components["java"])
+                suppressAllPomMetadataWarnings()
+
+                pom {
+                    simplifyXml()
+                    name.set("AWS Advanced JDBC Wrapper")
+                    description.set(project.description ?: "Amazon Web Services (AWS) Advanced JDBC Wrapper")
+                    url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
+                    licenses {
+                        license {
+                            name.set("Apache 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                        }
+                    }
+                    developers {
+                        developer {
+                            id.set("amazonwebservices")
+                            organization.set("Amazon Web Services")
+                            organizationUrl.set("https://aws.amazon.com")
+                            email.set("aws-rds-oss@amazon.com")
+                        }
+                    }
+                    scm {
+                        connection.set("scm:git:https://github.com/awslabs/aws-advanced-jdbc-wrapper.git")
+                        developerConnection.set("scm:git@github.com:awslabs/aws-advanced-jdbc-wrapper.git")
+                        url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
+                    }
+                    issueManagement {
+                        system.set("GitHub issues")
+                        url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues")
+                    }
+                }
+            }
+        }
+        repositories {
+            maven {
+                name = "OSSRH"
+                url = uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/")
+                credentials {
+                    username = System.getenv("MAVEN_USERNAME")
+                    password = System.getenv("MAVEN_PASSWORD")
+                }
+            }
+
+            mavenLocal()
+        }
+    }
+
+    signing {
+        if (project.hasProperty("signing.keyId")
+            && project.property("signing.keyId") != ""
+            && project.hasProperty("signing.password")
+            && project.property("signing.password") != ""
+            && project.hasProperty("signing.secretKeyRingFile")
+            && project.property("signing.secretKeyRingFile") != ""
+        ) {
+            sign(publishing.publications["maven"])
         }
     }
 }

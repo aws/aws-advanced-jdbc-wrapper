@@ -33,9 +33,6 @@ public class WriterFailoverResult {
   private final String taskName;
   private final SQLException exception;
 
-  /**
-   * WriterFailoverResult constructor.
-   */
   public WriterFailoverResult(
       boolean isConnected,
       boolean isNewHost,
