@@ -23,20 +23,20 @@ import java.util.Properties;
 
 public class FailoverSample {
   public static class FailoverFailedException extends SQLException {
-    public FailoverFailedException(SQLException e) {
-      super("User application should open a new connection, check the results of the failed transaction and re-run it if needed.", e);
+    public FailoverFailedException(String message, SQLException e) {
+      super(message, e);
     }
   }
 
   public static class TransactionStateUnknownException extends SQLException {
-    public TransactionStateUnknownException(SQLException e) {
-      super("User application should check the status of the failed transaction and restart it if needed.", e);
+    public TransactionStateUnknownException(String message, SQLException e) {
+      super(message, e);
     }
   }
 
   public static class UnknownSampleException extends SQLException {
-    public UnknownSampleException(SQLException e) {
-      super("Other exception: should be handled by application.", e);
+    public UnknownSampleException(String message, SQLException e) {
+      super(message, e);
     }
   }
 
@@ -68,26 +68,23 @@ public class FailoverSample {
     // Transaction Step: Open connection and perform transaction
     try (final Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
       setInitialSessionSettings(conn);
+      // Begin business transaction
+      conn.setAutoCommit(false);
 
-      try {
-        // Begin business transaction
-        conn.setAutoCommit(false);
+      // Example business transaction
+      updateQueryWithFailoverHandling(conn,
+          "UPDATE bank_test SET account_balance=account_balance - 100 WHERE name='Jane Doe'");
+      updateQueryWithFailoverHandling(conn,
+          "UPDATE bank_test SET account_balance=account_balance + 100 WHERE name='John Smith'");
 
-        // Example business transaction
-        updateQueryWithFailoverHandling(conn,
-            "UPDATE bank_test SET account_balance=account_balance - 100 WHERE name='Jane Doe'");
-        updateQueryWithFailoverHandling(conn,
-            "UPDATE bank_test SET account_balance=account_balance + 100 WHERE name='John Smith'");
-
-        // Commit business transaction
-        updateQueryWithFailoverHandling(conn, "commit");
-      } catch (FailoverFailedException e) {
-        throw e;
-      } catch (TransactionStateUnknownException e) {
-        throw e;
-      } catch (UnknownSampleException e) {
-        throw e;
-      }
+      // Commit business transaction
+      updateQueryWithFailoverHandling(conn, "commit");
+    } catch (FailoverFailedException e) {
+      throw e;
+    } catch (TransactionStateUnknownException e) {
+      throw e;
+    } catch (SQLException e) {
+      throw new UnknownSampleException("Other exception: should be handled by application.", e);
     }
   }
 
@@ -105,7 +102,7 @@ public class FailoverSample {
     } catch (SQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
       if ("08001".equalsIgnoreCase(e.getSQLState())) {
-        throw new FailoverFailedException(e);
+        throw new FailoverFailedException("User application should open a new connection, check the results of the failed transaction and re-run it if needed.", e);
       }
       // Query execution failed and JDBC wrapper successfully failed over to a new elected writer node
       if ("08S02".equalsIgnoreCase(e.getSQLState())) {
@@ -115,14 +112,15 @@ public class FailoverSample {
         // Re-run query
         Statement stmt = conn.createStatement();
         stmt.executeQuery(query);
+        return;
       }
 
       // Connection failed while executing a business transaction.
       // Transaction status is unknown. The driver has successfully reconnected to a new writer.
       if ("08007".equalsIgnoreCase(e.getSQLState())) {
-        throw new TransactionStateUnknownException(e);
+        throw new TransactionStateUnknownException("User application should check the status of the failed transaction and restart it if needed.", e);
       }
-      throw new UnknownSampleException(e);
+      throw e;
     }
   }
 }
