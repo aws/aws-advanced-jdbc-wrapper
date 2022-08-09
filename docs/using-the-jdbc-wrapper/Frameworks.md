@@ -2,8 +2,8 @@
 
 ## Hibernate
 
-You can configure database access using an XML configuration file `hibernate.cfg.xml`.
-If you use Hibernate with a connection pool, please check a page corresponding to a particular pool on suggested configuration.
+If you are using [Hibernate](https://hibernate.org/orm/), you can configure database access in the `hibernate.cfg.xml` XML configuration file. If you are using a connection pooler with Hibernate, please review [the Hibernate documentation](https://docs.jboss.org/hibernate/orm/current/quickstart/html_single/#hibernate-gsg-tutorial-basic-config) for configuration information.
+
 ```hibernate.cfg.xml
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE hibernate-configuration PUBLIC "-//Hibernate/Hibernate Configuration DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
@@ -17,13 +17,9 @@ If you use Hibernate with a connection pool, please check a page corresponding t
 </hibernate-configuration>
 ```
 
-### References
-- [Hibernate ORM](https://hibernate.org/orm/)
-- [The Hibernate configuration file](https://docs.jboss.org/hibernate/orm/current/quickstart/html_single/#hibernate-gsg-tutorial-basic-config)
-
 ## Spring Framework
 
-You can use the following sample code as a reference to configure DB access in your application.
+If you are using Spring, you can use the following sample code as a reference to configure DB access in your application. For more information about Spring, [visit the project website](https://spring.io/).
 
 ```SpringJdbcConfig.java
 @Configuration
