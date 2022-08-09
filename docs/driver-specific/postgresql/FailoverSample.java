@@ -21,7 +21,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 
-public class SampleCode {
+public class FailoverSample {
   public static class FailoverFailedException extends SQLException {
     public FailoverFailedException(SQLException e) {
       super("User application should open a new connection, check the results of the failed transaction and re-run it if needed.", e);
