@@ -16,10 +16,10 @@
 
 package com.amazon.awslabs.jdbc.plugin;
 
+import com.amazon.awslabs.jdbc.AwsWrapperProperty;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.JdbcCallable;
 import com.amazon.awslabs.jdbc.PropertyDefinition;
-import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.util.RdsUtils;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import java.sql.Connection;
@@ -46,15 +46,15 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   public static final int PG_PORT = 5432;
   public static final int MYSQL_PORT = 3306;
 
-  protected static final ProxyDriverProperty SPECIFIED_PORT = new ProxyDriverProperty(
+  protected static final AwsWrapperProperty SPECIFIED_PORT = new AwsWrapperProperty(
           "iamDefaultPort", null,
           "Overrides default port that is used to generate IAM token");
 
-  protected static final ProxyDriverProperty SPECIFIED_REGION = new ProxyDriverProperty(
+  protected static final AwsWrapperProperty SPECIFIED_REGION = new AwsWrapperProperty(
           "iamRegion", null,
           "Overrides AWS region that is used to generate IAM token");
 
-  protected static final ProxyDriverProperty SPECIFIED_EXPIRATION = new ProxyDriverProperty(
+  protected static final AwsWrapperProperty SPECIFIED_EXPIRATION = new AwsWrapperProperty(
           "iamExpiration", null,
           "IAM token cache expiration in seconds");
 

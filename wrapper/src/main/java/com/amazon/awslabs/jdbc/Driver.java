@@ -199,10 +199,10 @@ public class Driver implements java.sql.Driver {
       copy = parse;
     }
 
-    Collection<ProxyDriverProperty> knownProperties = PropertyDefinition.allProperties();
+    Collection<AwsWrapperProperty> knownProperties = PropertyDefinition.allProperties();
     DriverPropertyInfo[] props = new DriverPropertyInfo[knownProperties.size()];
     int i = 0;
-    for (ProxyDriverProperty prop : knownProperties) {
+    for (AwsWrapperProperty prop : knownProperties) {
       props[i++] = prop.toDriverPropertyInfo(copy);
     }
 

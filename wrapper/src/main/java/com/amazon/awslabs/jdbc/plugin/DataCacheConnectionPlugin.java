@@ -16,8 +16,8 @@
 
 package com.amazon.awslabs.jdbc.plugin;
 
+import com.amazon.awslabs.jdbc.AwsWrapperProperty;
 import com.amazon.awslabs.jdbc.JdbcCallable;
-import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import java.io.InputStream;
 import java.io.Reader;
@@ -60,7 +60,7 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
           "PreparedStatement.execute", "PreparedStatement.executeQuery",
           "CallableStatement.execute", "CallableStatement.executeQuery")));
 
-  public static final ProxyDriverProperty DATA_CACHE_TRIGGER_CONDITION = new ProxyDriverProperty(
+  public static final AwsWrapperProperty DATA_CACHE_TRIGGER_CONDITION = new AwsWrapperProperty(
       "dataCacheTriggerCondition", "false",
       "A regular expression that, if it's matched, allows the plugin to cache SQL results.");
 

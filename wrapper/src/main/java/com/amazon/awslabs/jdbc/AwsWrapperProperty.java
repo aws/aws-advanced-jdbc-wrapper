@@ -20,20 +20,20 @@ import java.sql.DriverPropertyInfo;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class ProxyDriverProperty extends DriverPropertyInfo {
+public class AwsWrapperProperty extends DriverPropertyInfo {
 
   public final @Nullable String defaultValue;
 
-  public ProxyDriverProperty(String name, @Nullable String defaultValue, String description) {
+  public AwsWrapperProperty(String name, @Nullable String defaultValue, String description) {
     this(name, defaultValue, description, false);
   }
 
-  public ProxyDriverProperty(
+  public AwsWrapperProperty(
       String name, @Nullable String defaultValue, String description, boolean required) {
     this(name, defaultValue, description, required, (String[]) null);
   }
 
-  public ProxyDriverProperty(
+  public AwsWrapperProperty(
       String name,
       @Nullable String defaultValue,
       String description,

@@ -16,6 +16,7 @@
 
 package com.amazon.awslabs.jdbc.plugin.failover;
 
+import com.amazon.awslabs.jdbc.AwsWrapperProperty;
 import com.amazon.awslabs.jdbc.HostAvailability;
 import com.amazon.awslabs.jdbc.HostListProvider;
 import com.amazon.awslabs.jdbc.HostListProviderService;
@@ -26,8 +27,6 @@ import com.amazon.awslabs.jdbc.NodeChangeOptions;
 import com.amazon.awslabs.jdbc.OldConnectionSuggestedAction;
 import com.amazon.awslabs.jdbc.PluginManagerService;
 import com.amazon.awslabs.jdbc.PluginService;
-import com.amazon.awslabs.jdbc.PropertyDefinition;
-import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.hostlistprovider.AuroraHostListProvider;
 import com.amazon.awslabs.jdbc.plugin.AbstractConnectionPlugin;
 import com.amazon.awslabs.jdbc.util.ConnectionUrlParser;
@@ -96,8 +95,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private PluginManagerService pluginManagerService;
   private boolean isInTransaction = false;
 
-  public static final ProxyDriverProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
+      new AwsWrapperProperty(
           "failoverClusterTopologyRefreshRateMs",
           "2000",
           "Cluster topology refresh rate in millis during a writer failover process. "
@@ -105,29 +104,29 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               + "cluster topology may be refreshed at a faster pace than normal to speed up "
               + "discovery of the newly promoted writer.");
 
-  public static final ProxyDriverProperty FAILOVER_TIMEOUT_MS =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty FAILOVER_TIMEOUT_MS =
+      new AwsWrapperProperty(
           "failoverTimeoutMs",
           "300000",
           "Cluster topology refresh rate in millis. "
               + "The cached topology for the cluster will be invalidated after the specified time, "
               + "after which it will be updated during the next interaction with the connection.");
 
-  public static final ProxyDriverProperty FAILOVER_WRITER_RECONNECT_INTERVAL_MS =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty FAILOVER_WRITER_RECONNECT_INTERVAL_MS =
+      new AwsWrapperProperty(
           "failoverWriterReconnectIntervalMs",
           "2000",
           "Interval of time to wait between attempts to reconnect to a failed writer during a "
               + "writer failover process.");
 
-  public static final ProxyDriverProperty FAILOVER_READER_CONNECT_TIMEOUT_MS =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty FAILOVER_READER_CONNECT_TIMEOUT_MS =
+      new AwsWrapperProperty(
           "failoverReaderConnectTimeoutMs",
           "30000",
           "Reader connection attempt timeout during a reader failover process.");
 
-  public static final ProxyDriverProperty ENABLE_CLUSTER_AWARE_FAILOVER =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty ENABLE_CLUSTER_AWARE_FAILOVER =
+      new AwsWrapperProperty(
           "enableClusterAwareFailover", "true",
           "Enable/disable cluster-aware failover logic");
 
