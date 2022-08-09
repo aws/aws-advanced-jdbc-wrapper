@@ -55,15 +55,16 @@ public class FailoverSample {
     props.setProperty(PropertyDefinition.USER.name, USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 
-    // AWS wrapper driver configuration
+    // AWS Advanced JDBC Wrapper configuration
     props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
     props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
     // Setup Step: Open connection and create tables - uncomment this section to create table and test values
-    // final Connection connection = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props);
+    // try (final Connection connection = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
     // setInitialSessionSettings(connection);
     // updateQueryWithFailoverHandling(connection, "CREATE TABLE bank_test (name varchar(40), account_balance int)");
     // updateQueryWithFailoverHandling(connection, "INSERT INTO bank_test VALUES ('Jane Doe', 200), ('John Smith', 200)");
+    // }
 
     // Transaction Step: Open connection and perform transaction
     try (final Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
