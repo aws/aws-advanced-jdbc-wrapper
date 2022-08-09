@@ -42,9 +42,9 @@ public class SampleCode {
 
   // User configures connection properties here
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://database-pg.cluster-czygpppufgy4.us-east-2.rds.amazonaws.com:5432/postgres";
-  public static final String USERNAME = "pgadmin";
-  public static final String PASSWORD = "my_password_2020";
+      "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/failoverSample";
+  private static final String USERNAME = "username";
+  private static final String PASSWORD = "password";
 
   public static void main(String[] args) throws SQLException {
 
@@ -82,11 +82,11 @@ public class SampleCode {
         // Commit business transaction
         updateQueryWithFailoverHandling(conn, "commit");
       } catch (FailoverFailedException e) {
-        throw new FailoverFailedException(e);
+        throw e;
       } catch (TransactionStateUnknownException e) {
-        throw new TransactionStateUnknownException(e);
+        throw e;
       } catch (UnknownSampleException e) {
-        throw new UnknownSampleException(e);
+        throw e;
       }
     }
   }
