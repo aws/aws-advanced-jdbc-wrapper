@@ -30,9 +30,6 @@ public class ReaderFailoverResult {
   private final boolean isConnected;
   private final SQLException exception;
 
-  /**
-   * ReaderFailoverResult constructor.
-   */
   public ReaderFailoverResult(
       Connection newConnection, int newConnectionIndex, boolean isConnected) {
     this(newConnection, newConnectionIndex, isConnected, null);

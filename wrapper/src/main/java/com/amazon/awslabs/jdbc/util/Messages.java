@@ -27,6 +27,7 @@ public class Messages {
   /**
    * Retrieve the localized error message associated with the provided key.
    *
+   * @param key The key mapped to an error message.
    * @return The associated localized error message.
    */
   public static String get(String key) {

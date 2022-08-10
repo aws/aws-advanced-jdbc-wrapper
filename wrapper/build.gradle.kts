@@ -131,13 +131,6 @@ ide {
     )
 }
 
-java {
-    withJavadocJar()
-    withSourcesJar()
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-}
-
 tasks.jar {
     from("${project.rootDir}") {
         include("README")

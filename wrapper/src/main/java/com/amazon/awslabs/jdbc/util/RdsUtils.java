@@ -21,6 +21,46 @@ import java.util.regex.Pattern;
 
 public class RdsUtils {
 
+  // Aurora DB clusters support different endpoints. More details about Aurora RDS endpoints
+  // can be found at
+  // https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html
+  //
+  // Details how to use RDS Proxy endpoints can be found at
+  // https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/rds-proxy-endpoints.html
+  //
+  // Values like "<...>" depend on particular Aurora cluster.
+  // For example: "<database-cluster-name>"
+  //
+  //
+  //
+  // Cluster (Writer) Endpoint: <database-cluster-name>.cluster-<xyz>.<aws-region>.rds.amazonaws.com
+  // Example: test-postgres.cluster-123456789012.us-east-2.rds.amazonaws.com
+  //
+  // Cluster Reader Endpoint: <database-cluster-name>.cluster-ro-<xyz>.<aws-region>.rds.amazonaws.com
+  // Example: test-postgres.cluster-ro-123456789012.us-east-2.rds.amazonaws.com
+  //
+  // Cluster Custom Endpoint: <cluster-name-alias>.cluster-custom-<xyz>.<aws-region>.rds.amazonaws.com
+  // Example: test-postgres-alias.cluster-custom-123456789012.us-east-2.rds.amazonaws.com
+  //
+  // Instance Endpoint: <instance-name>.<xyz>.<aws-region>.rds.amazonaws.com
+  // Example: test-postgres-instance-1.123456789012.us-east-2.rds.amazonaws.com
+  //
+  //
+  //
+  // Similar endpoints for China regions have different structure and are presented below.
+  //
+  // Cluster (Writer) Endpoint: <database-cluster-name>.cluster-<xyz>.rds.<aws-region>.amazonaws.com.cn
+  // Example: test-postgres.cluster-123456789012.rds.cn-northwest-1.amazonaws.com.cn
+  //
+  // Cluster Reader Endpoint: <database-cluster-name>.cluster-ro-<xyz>.rds.<aws-region>.amazonaws.com.cn
+  // Example: test-postgres.cluster-ro-123456789012.rds.cn-northwest-1.amazonaws.com.cn
+  //
+  // Cluster Custom Endpoint: <cluster-name-alias>.cluster-custom-<xyz>.rds.<aws-region>.amazonaws.com.cn
+  // Example: test-postgres-alias.cluster-custom-123456789012.rds.cn-northwest-1.amazonaws.com.cn
+  //
+  // Instance Endpoint: <instance-name>.<xyz>.rds.<aws-region>.amazonaws.com.cn
+  // Example: test-postgres-instance-1.123456789012.rds.cn-northwest-1.amazonaws.com.cn
+
   private static final Pattern AURORA_DNS_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
