@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-package com.amazon.awslabs.jdbc;
+package com.amazon.awslabs.jdbc.plugin;
 
+import com.amazon.awslabs.jdbc.ConnectionPlugin;
+import com.amazon.awslabs.jdbc.ConnectionPluginFactory;
+import com.amazon.awslabs.jdbc.PluginService;
+import java.sql.SQLException;
 import java.util.Properties;
 
-/**
- * Interface for connection plugin factories. This class implements ways to initialize a connection
- * plugin.
- */
-public interface ConnectionPluginFactory {
-
-  ConnectionPlugin getInstance(PluginService pluginService, Properties props) throws InstantiationException;
+public class AwsSecretsManagerConnectionPluginFactory implements ConnectionPluginFactory {
+  @Override
+  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) throws InstantiationException {
+    return new AwsSecretsManagerConnectionPlugin(props);
+  }
 }

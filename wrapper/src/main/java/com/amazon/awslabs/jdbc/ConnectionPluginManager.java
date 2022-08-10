@@ -18,6 +18,7 @@ package com.amazon.awslabs.jdbc;
 
 import com.amazon.awslabs.jdbc.cleanup.CanReleaseResources;
 import com.amazon.awslabs.jdbc.plugin.AuroraHostListConnectionPluginFactory;
+import com.amazon.awslabs.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import com.amazon.awslabs.jdbc.plugin.DataCacheConnectionPluginFactory;
 import com.amazon.awslabs.jdbc.plugin.DefaultConnectionPlugin;
 import com.amazon.awslabs.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
@@ -63,6 +64,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("efm", HostMonitoringConnectionPluginFactory.class);
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
+          put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
         }
       };
 
