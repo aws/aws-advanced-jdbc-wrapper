@@ -55,15 +55,17 @@ public class FailoverSample {
     props.setProperty(PropertyDefinition.USER.name, USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 
-    // AWS Advanced JDBC Wrapper configuration
+    // AWS wrapper driver configuration
     props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
     props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
     // Setup Step: Open connection and create tables - uncomment this section to create table and test values
     // try (final Connection connection = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
     // setInitialSessionSettings(connection);
-    // updateQueryWithFailoverHandling(connection, "CREATE TABLE bank_test (name varchar(40), account_balance int)");
-    // updateQueryWithFailoverHandling(connection, "INSERT INTO bank_test VALUES ('Jane Doe', 200), ('John Smith', 200)");
+    // updateQueryWithFailoverHandling(connection,
+    //     "CREATE TABLE bank_test (name varchar(40), account_balance int)");
+    // updateQueryWithFailoverHandling(connection,
+    //    "INSERT INTO bank_test VALUES ('Jane Doe', 200), ('John Smith', 200)");
     // }
 
     // Transaction Step: Open connection and perform transaction
@@ -103,7 +105,8 @@ public class FailoverSample {
     } catch (SQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
       if ("08001".equalsIgnoreCase(e.getSQLState())) {
-        throw new FailoverFailedException("User application should open a new connection, check the results of the failed transaction and re-run it if needed.", e);
+        throw new FailoverFailedException("User application should open a new connection, check the results of the" +
+            " failed transaction and re-run it if needed.", e);
       }
       // Query execution failed and JDBC wrapper successfully failed over to a new elected writer node
       if ("08S02".equalsIgnoreCase(e.getSQLState())) {
@@ -119,7 +122,8 @@ public class FailoverSample {
       // Connection failed while executing a business transaction.
       // Transaction status is unknown. The driver has successfully reconnected to a new writer.
       if ("08007".equalsIgnoreCase(e.getSQLState())) {
-        throw new TransactionStateUnknownException("User application should check the status of the failed transaction and restart it if needed.", e);
+        throw new TransactionStateUnknownException("User application should check the status" +
+            " of the failed transaction and restart it if needed.", e);
       }
       throw e;
     }
