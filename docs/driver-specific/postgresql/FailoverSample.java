@@ -55,7 +55,7 @@ public class FailoverSample {
     props.setProperty(PropertyDefinition.USER.name, USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 
-    // AWS wrapper driver configuration
+    // AWS Advanced JDBC Wrapper configuration
     props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
     props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
@@ -99,8 +99,7 @@ public class FailoverSample {
   }
 
   public static void updateQueryWithFailoverHandling(Connection conn, String query) throws SQLException {
-    try {
-      Statement stmt = conn.createStatement();
+    try (Statement stmt = conn.createStatement()) {
       stmt.executeUpdate(query);
     } catch (SQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
@@ -115,7 +114,7 @@ public class FailoverSample {
 
         // Re-run query
         try (Statement stmt = conn.createStatement()) {
-          stmt.executeQuery(query);
+          stmt.executeUpdate(query);
         }
         return;
       }
