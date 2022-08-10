@@ -658,6 +658,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Initiates the failover procedure. This process tries to establish a new connection to an
    * instance in the topology.
    *
+   * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
    */
   protected synchronized void failover(final HostSpec failedHost) throws SQLException {

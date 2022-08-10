@@ -34,6 +34,7 @@ public interface ReaderFailoverHandler {
    * @param hosts Cluster current topology.
    * @param currentHost The currently connected host that has failed.
    * @return {@link ReaderFailoverResult} The results of this process.
+   * @throws SQLException indicating whether the failover attempt was successful.
    */
   ReaderFailoverResult failover(List<HostSpec> hosts, HostSpec currentHost) throws SQLException;
 
@@ -43,6 +44,7 @@ public interface ReaderFailoverHandler {
    *
    * @param hostList Cluster current topology.
    * @return {@link ReaderFailoverResult} The results of this process.
+   * @throws SQLException if any error occurred while attempting a reader connection.
    */
   ReaderFailoverResult getReaderConnection(List<HostSpec> hostList) throws SQLException;
 }

@@ -8,6 +8,9 @@ The JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the J
 ## Getting a Connection
 To get a connection from the JDBC Wrapper, the user application can either connect with a DriverManager or with a DataSource. The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers, but getting a connection with a DataSource may require some additional steps. See [here](./DataSource.md) for more details.
 
+## Integration with 3rd Party Frameworks
+The JDBC Wrapper can be used with different frameworks and tools. More details for some frameworks can be found [here](./Frameworks.md).
+
 ## Logging
 The JDBC Wrapper uses the Java Util Logger to log information.
 
@@ -33,9 +36,6 @@ The JDBC Wrapper also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc
 ## AWS Advanced JDBC Wrapper Parameters
 These parameters are applicable to any instance of the JDBC Wrapper.
 
-<details>
-<summary>AWS Advanced JDBC Wrapper Parameters</summary>
-
 | Parameter                                 | Value     | Required | Description                                                                                                                                                                 | Default Value |
 |-------------------------------------------|-----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
 | `wrapperLogUnclosedConnections`           | `Boolean` | No       | Allows the JDBC Wrapper to track a point in the code where connection has been opened and never closed after.                                                               | `false`       |
@@ -45,7 +45,6 @@ These parameters are applicable to any instance of the JDBC Wrapper.
 | `wrapperDatabaseName`                     | `String`  | No       | Driver database name.                                                                                                                                                       | `null`        |
 | `wrapperTargetDriverUserPropertyName`     | `String`  | No       | Target driver user property name.                                                                                                                                           | `null`        |
 | `wrapperTargetDriverPasswordPropertyName` | `String`  | No       | Target driver password property name.                                                                                                                                       | `null`        |
-</details>
 
 ## Plugins
 The JDBC Wrapper uses the plugins to execute JDBC methods.
@@ -54,14 +53,11 @@ The JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) 
 Plugins are loaded and managed through the Connection Plugin Manager and may be identified by a `String` name in the form of a plugin code.
 
 ### Connection Plugin Manager Parameters
-<details>
-<summary>Connection Plugin Manager Parameters</summary>
 
 | Parameter            | Value    | Required | Description                                                                                                                                                                                          | Default Value |
 |----------------------|----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
 | `wrapperPlugins`     | `String` | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm`                                                                                                                     | `null`        | 
 | `wrapperProfileName` | `String` | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`        |
-</details>
 
 To use a built-in plugin, specify its relevant plugin code for the `wrapperPlugins`.
 For instance, to use the [FailoverConnectionPlugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/failover/FailoverConnectionPlugin.java) and the [Host Monitoring Connection Plugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java):

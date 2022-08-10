@@ -59,9 +59,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   protected ReaderFailoverHandler readerFailoverHandler;
   private static final WriterFailoverResult DEFAULT_RESULT = new WriterFailoverResult(false, false, null, null, "None");
 
-  /**
-   * ClusterAwareWriterFailoverHandler constructor.
-   */
   public ClusterAwareWriterFailoverHandler(
       AuroraHostListProvider hostListProvider,
       PluginService pluginService,
@@ -73,9 +70,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     this.initialConnectionProps = initialConnectionProps;
   }
 
-  /**
-   * ClusterAwareWriterFailoverHandler constructor.
-   */
   public ClusterAwareWriterFailoverHandler(
       AuroraHostListProvider hostListProvider,
       PluginService pluginService,
