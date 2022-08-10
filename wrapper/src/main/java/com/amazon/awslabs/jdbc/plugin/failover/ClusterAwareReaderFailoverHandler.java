@@ -26,6 +26,7 @@ import com.amazon.awslabs.jdbc.util.Utils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -429,6 +430,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     public int getIndex() {
       return index;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("host: %s, index: %d", host, index);
     }
   }
 }

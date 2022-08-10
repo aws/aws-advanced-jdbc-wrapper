@@ -24,6 +24,7 @@ import com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PSQLException;
 

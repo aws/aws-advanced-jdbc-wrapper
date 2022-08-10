@@ -372,10 +372,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           if (!topology.isEmpty()) {
             this.currentTopology = topology;
             HostSpec writerCandidate = this.currentTopology.get(WRITER_CONNECTION_INDEX);
-            logTopology();
 
             if (!isSame(writerCandidate, this.originalWriterHost)) {
               // new writer is available and it's different from the previous writer
+              logTopology();
               if (connectToWriter(writerCandidate)) {
                 return true;
               }

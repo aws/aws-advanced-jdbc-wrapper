@@ -35,12 +35,13 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -98,7 +99,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   private final int refreshRateInMilliseconds;
   private List<HostSpec> hostList = new ArrayList<>();
 
-  static final ExpiringCache<String, ClusterTopologyInfo> topologyCache =
+  protected static final ExpiringCache<String, ClusterTopologyInfo> topologyCache =
       new ExpiringCache<>(DEFAULT_CACHE_EXPIRE_MS);
   private static final Object cacheLock = new Object();
 
@@ -224,7 +225,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // ignore
     }
 
-    return new ClusterTopologyInfo(hosts, new HashSet<>(), Instant.now(), false);
+    return new ClusterTopologyInfo(hosts, ConcurrentHashMap.newKeySet(), Instant.now(), false);
   }
 
   /**
@@ -362,7 +363,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
       return clusterTopologyInfo != null && clusterTopologyInfo.downHosts != null
           ? clusterTopologyInfo.downHosts
-          : new HashSet<>();
+          : ConcurrentHashMap.newKeySet();
     }
   }
 
@@ -379,10 +380,10 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
       if (clusterTopologyInfo == null) {
         clusterTopologyInfo =
-            new ClusterTopologyInfo(new ArrayList<>(), new HashSet<>(), Instant.now(), false);
+            new ClusterTopologyInfo(new ArrayList<>(), ConcurrentHashMap.newKeySet(), Instant.now(), false);
         topologyCache.put(this.clusterId, clusterTopologyInfo);
       } else if (clusterTopologyInfo.downHosts == null) {
-        clusterTopologyInfo.downHosts = new HashSet<>();
+        clusterTopologyInfo.downHosts = ConcurrentHashMap.newKeySet();
       }
       clusterTopologyInfo.downHosts.add(downHost.getUrl());
       this.pluginService.setAvailability(downHost.getAliases(), HostAvailability.NOT_AVAILABLE);
