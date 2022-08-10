@@ -72,7 +72,7 @@ public class FailoverSample {
     try (final Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
       setInitialSessionSettings(conn);
       // Begin business transaction
-      conn.setAutoCommit(true);
+      conn.setAutoCommit(false);
 
       // Example business transaction
       updateQueryWithFailoverHandling(conn,
