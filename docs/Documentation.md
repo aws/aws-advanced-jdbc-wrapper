@@ -7,6 +7,7 @@
   - [JDBC Wrapper Parameters](./using-the-jdbc-wrapper/UsingTheJdbcWrapper.md#aws-advanced-jdbc-wrapper-parameters)
   - [Plugins](./using-the-jdbc-wrapper/UsingTheJdbcWrapper.md#plugins)
     - [Failover Plugin](./using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md)
+      - [Failover Configuration Guide](./development-guide/FailoverConfigurationGuide.md)
     - [Host Monitoring Plugin](./using-the-jdbc-wrapper/using-plugins/UsingTheHostMonitoringPlugin.md)
     - [IAM Authentication Plugin](./using-the-jdbc-wrapper/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - [Development Guide](./development-guide/DevelopmentGuide.md)
