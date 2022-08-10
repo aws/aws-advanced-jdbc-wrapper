@@ -107,6 +107,8 @@ public class MonitorServiceImpl implements MonitorService {
   @Override
   public void stopMonitoring(@NonNull MonitorConnectionContext context) {
 
+    context.invalidate();
+
     // Any 1 node is enough to find the monitor containing the context
     // All nodes will map to the same monitor
     final String node = this.threadContainer.getNode(context.getHostAliases());
@@ -118,7 +120,10 @@ public class MonitorServiceImpl implements MonitorService {
       return;
     }
 
-    this.threadContainer.getMonitor(node).stopMonitoring(context);
+    final Monitor monitor = this.threadContainer.getMonitor(node);
+    if (monitor != null) {
+      monitor.stopMonitoring(context);
+    }
   }
 
   @Override
@@ -131,8 +136,10 @@ public class MonitorServiceImpl implements MonitorService {
       return;
     }
     final Monitor monitor = this.threadContainer.getMonitor(node);
-    monitor.clearContexts();
-    this.threadContainer.resetResource(monitor);
+    if (monitor != null) {
+      monitor.clearContexts();
+      this.threadContainer.resetResource(monitor);
+    }
   }
 
   @Override
