@@ -107,9 +107,9 @@ public class FailoverSample {
         throw new FailoverFailedException("User application should open a new connection, check the results of the" +
             " failed transaction and re-run it if needed.", e);
       }
-      // Query execution failed and JDBC wrapper successfully failed over to a new elected writer node
+      // Query execution failed and JDBC wrapper successfully failed over to a new elected writer node.
       if ("08S02".equalsIgnoreCase(e.getSQLState())) {
-        // Reconfigure the connection.
+        // Reconfigure the connection
         setInitialSessionSettings(conn);
 
         // Re-run query
