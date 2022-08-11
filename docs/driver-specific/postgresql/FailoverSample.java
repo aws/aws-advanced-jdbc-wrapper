@@ -83,11 +83,17 @@ public class FailoverSample {
       // Commit business transaction
       updateQueryWithFailoverHandling(conn, "commit");
     } catch (FailoverFailedException e) {
+      // User application should open a new connection, check the results of the failed transaction and re-run it if
+      // needed. See:
+      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
       throw e;
     } catch (TransactionStateUnknownException e) {
+      // User application should check the status of the failed transaction and restart it if needed. See:
+      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08s02---communication-link
       throw e;
     } catch (SQLException e) {
-      throw new UnknownSampleException("Other exception: should be handled by application.", e);
+      // Unexpected exception: not failover related exception
+      throw e;
     }
   }
 
@@ -125,7 +131,7 @@ public class FailoverSample {
         throw new TransactionStateUnknownException("User application should check the status" +
             " of the failed transaction and restart it if needed.", e);
       }
-      throw e;
+      throw new UnknownSampleException("Other exception: should be handled by application.", e);
     }
   }
 }
