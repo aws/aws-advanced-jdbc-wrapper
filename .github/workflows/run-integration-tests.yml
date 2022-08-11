@@ -48,9 +48,9 @@ jobs:
           echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
-      - name: 'Run integration tests'
+      - name: 'Run integration tests (OpenJDK)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-integration-aurora-postgres
+          ./gradlew --no-parallel --no-daemon --rerun-tasks test-integration-aurora-postgres
         env:
           AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
           AURORA_POSTGRES_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
@@ -59,16 +59,16 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-      - name: 'Archive junit results'
+      - name: 'Archive junit results (OpenJDK)'
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: 'junit-report'
+          name: 'junit-report-openjdk'
           path: ./wrapper/build/reports/tests/
           retention-days: 5
       - name: 'Run integration tests (GraalVM)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-integration-aurora-postgres
+          ./gradlew --no-parallel --no-daemon --rerun-tasks test-integration-aurora-postgres
         env:
           AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
           AURORA_POSTGRES_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
@@ -82,7 +82,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: 'junit-report'
+          name: 'junit-report-graalvm'
           path: ./wrapper/build/reports/tests/
           retention-days: 5
 
@@ -99,22 +99,22 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 8
-      - name: 'Run integration tests'
+      - name: 'Run integration tests (OpenJDK)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-integration-standard-postgres
+          ./gradlew --no-parallel --no-daemon --rerun-tasks test-integration-standard-postgres
         env:
           TEST_USERNAME: ${{ secrets.STANDARD_POSTGRES_USERNAME }}
           TEST_PASSWORD: ${{ secrets.STANDARD_POSTGRES_PASSWORD }}
-      - name: 'Archive junit results'
+      - name: 'Archive junit results (OpenJDK)'
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: 'junit-report'
+          name: 'junit-report-openjdk'
           path: ./wrapper/build/reports/tests/
           retention-days: 5
       - name: 'Run integration tests (GraalVM)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-integration-standard-postgres
+          ./gradlew --no-parallel --no-daemon --rerun-tasks test-integration-standard-postgres
         env:
           TEST_USERNAME: ${{ secrets.STANDARD_POSTGRES_USERNAME }}
           TEST_PASSWORD: ${{ secrets.STANDARD_POSTGRES_PASSWORD }}
@@ -123,6 +123,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: 'junit-report'
+          name: 'junit-report-graalvm'
           path: ./wrapper/build/reports/tests/
           retention-days: 5
