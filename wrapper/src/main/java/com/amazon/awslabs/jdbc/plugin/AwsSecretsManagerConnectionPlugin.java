@@ -65,7 +65,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private final Pair<String, Region> secretKey;
   private Secret secret;
 
-  public AwsSecretsManagerConnectionPlugin(Properties props){
+  public AwsSecretsManagerConnectionPlugin(Properties props) {
 
     this(
         props,
