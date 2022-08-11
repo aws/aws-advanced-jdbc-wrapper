@@ -125,9 +125,6 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           .secretId(secretId)
           .build();
     }
-
-    Secret test = new Secret("test", "test");
-    SECRET_CACHE.put(this.secretKey, test);
   }
 
   @Override
