@@ -95,10 +95,6 @@ public class AuroraPostgresContainerTest {
 
   private static Network network;
   private static final boolean TEST_WITH_EXISTING_DB = EXISTING_DB_CONN_SUFFIX != null;
-  private static final boolean DELETE_EXISTING_DB =
-      !StringUtils.isNullOrEmpty(System.getenv("DELETE_EXISTING_DB"))
-        ? Boolean.parseBoolean(System.getenv("DELETE_EXISTING_DB"))
-        : true;
 
   private static final ContainerHelper containerHelper = new ContainerHelper();
   private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
@@ -170,16 +166,14 @@ public class AuroraPostgresContainerTest {
 
   @AfterAll
   static void tearDown() {
-    if (DELETE_EXISTING_DB) {
-      if (!TEST_WITH_EXISTING_DB) {
-        if (StringUtils.isNullOrEmpty(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
-          auroraUtil.deleteCluster();
-        } else {
-          auroraUtil.deleteCluster(AURORA_POSTGRES_CLUSTER_IDENTIFIER);
-        }
-
-        auroraUtil.ec2DeauthorizesIP(runnerIP);
+    if (!TEST_WITH_EXISTING_DB) {
+      if (StringUtils.isNullOrEmpty(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
+        auroraUtil.deleteCluster();
+      } else {
+        auroraUtil.deleteCluster(AURORA_POSTGRES_CLUSTER_IDENTIFIER);
       }
+
+      auroraUtil.ec2DeauthorizesIP(runnerIP);
     }
 
     for (ToxiproxyContainer proxy : proxyContainers) {
