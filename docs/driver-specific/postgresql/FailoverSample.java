@@ -131,7 +131,8 @@ public class FailoverSample {
         throw new TransactionStateUnknownException("User application should check the status" +
             " of the failed transaction and restart it if needed.", e);
       }
-      throw new UnexpectedSampleException("Unexpected exception unrelated to failover. This should be handled by the user application.", e);
+      throw new UnexpectedSampleException("Unexpected exception unrelated to failover. This should be handled by the" +
+          " user application.", e);
     }
   }
 }
