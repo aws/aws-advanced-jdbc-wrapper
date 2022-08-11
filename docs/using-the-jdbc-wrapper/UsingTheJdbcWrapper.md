@@ -8,6 +8,11 @@ The JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the J
 ## Getting a Connection
 To get a connection from the JDBC Wrapper, the user application can either connect with a DriverManager or with a DataSource. The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers, but getting a connection with a DataSource may require some additional steps. See [here](./DataSource.md) for more details.
 
+### Connections with Different Query Lengths
+It is recommended that user applications use different settings for connections or connection pools that execute queries of varying lengths. Long and short running queries have different preferred settings. For example, if the network timeout is set to 1 minute, given an application that executes both short running (~5 seconds) and long running (~1 minute) queries, the user would be waiting a large amount of time for the short running queries to time out. Alternatively, if the timeout is set to 5 seconds, the user would experience large numbers of false negatives in which the long queries are consistently failing due to the timeout. 
+<br>
+**Note:** User applications with queries of varying lengths should also take into consideration any plugin configuration parameters that could be utilized to facilitate needs of the application.
+
 ## Integration with 3rd Party Frameworks
 The JDBC Wrapper can be used with different frameworks and tools. More details for some frameworks can be found [here](./Frameworks.md).
 
