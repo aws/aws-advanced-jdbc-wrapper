@@ -46,6 +46,9 @@ public class StandardPostgresContainerTest {
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_POSTGRES_PASSWORD"))
           ? System.getenv("STANDARD_POSTGRES_PASSWORD") : "test-password";
 
+  // "openjdk" or "graalvm". Default is "openjdk"
+  private static final String TEST_CONTAINER_TYPE = System.getenv("TEST_CONTAINER_TYPE");
+
   private static PostgreSQLContainer<?> postgresContainer;
   private static GenericContainer<?> integrationTestContainer;
   private static ToxiproxyContainer proxyContainer;
@@ -81,9 +84,15 @@ public class StandardPostgresContainerTest {
 
   @AfterAll
   static void tearDown() {
-    proxyContainer.stop();
-    postgresContainer.stop();
-    integrationTestContainer.stop();
+    if (proxyContainer != null) {
+      proxyContainer.stop();
+    }
+    if (postgresContainer != null) {
+      postgresContainer.stop();
+    }
+    if (integrationTestContainer != null) {
+      integrationTestContainer.stop();
+    }
   }
 
   @Test
@@ -101,7 +110,7 @@ public class StandardPostgresContainerTest {
   }
 
   protected static GenericContainer<?> createTestContainer() {
-    return containerHelper.createTestContainer("aws/rds-test-container")
+    return containerHelper.createTestContainerByType(TEST_CONTAINER_TYPE, "aws/rds-test-container")
         .withNetworkAliases(STANDARD_POSTGRES_TEST_RUNNER_NAME)
         .withNetwork(network)
         .withEnv("STANDARD_POSTGRES_HOST", STANDARD_POSTGRES_HOST)

@@ -46,6 +46,8 @@ public class StandardMysqlContainerTest {
       !StringUtils.isNullOrEmpty(System.getenv("STANDARD_MYSQL_PASSWORD"))
           ? System.getenv("STANDARD_MYSQL_PASSWORD") : "test";
 
+  private static final String TEST_CONTAINER_TYPE = System.getenv("TEST_CONTAINER_TYPE");
+
   private static MySQLContainer<?> mysqlContainer;
   private static GenericContainer<?> integrationTestContainer;
   private static ToxiproxyContainer proxyContainer;
@@ -79,9 +81,15 @@ public class StandardMysqlContainerTest {
 
   @AfterAll
   static void tearDown() {
-    proxyContainer.stop();
-    mysqlContainer.stop();
-    integrationTestContainer.stop();
+    if (proxyContainer != null) {
+      proxyContainer.stop();
+    }
+    if (mysqlContainer != null) {
+      mysqlContainer.stop();
+    }
+    if (integrationTestContainer != null) {
+      integrationTestContainer.stop();
+    }
   }
 
   @Test
@@ -99,7 +107,7 @@ public class StandardMysqlContainerTest {
   }
 
   protected static GenericContainer<?> createTestContainer() {
-    return containerHelper.createTestContainer("aws/rds-test-container")
+    return containerHelper.createTestContainerByType(TEST_CONTAINER_TYPE, "aws/rds-test-container")
         .withNetworkAliases(STANDARD_TEST_RUNNER_NAME)
         .withNetwork(network)
         .withEnv("STANDARD_MYSQL_HOST", STANDARD_MYSQL_HOST)

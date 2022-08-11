@@ -99,6 +99,8 @@ public class AuroraPostgresContainerTest {
   private static final ContainerHelper containerHelper = new ContainerHelper();
   private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
 
+  private static final String TEST_CONTAINER_TYPE = System.getenv("TEST_CONTAINER_TYPE");
+
   @BeforeAll
   static void setUp() throws SQLException, InterruptedException, UnknownHostException {
     Assertions.assertNotNull(AWS_ACCESS_KEY_ID);
@@ -213,7 +215,7 @@ public class AuroraPostgresContainerTest {
 
     GenericContainer<?> container =
         containerHelper
-            .createTestContainer("aws/rds-test-container")
+            .createTestContainerByType(TEST_CONTAINER_TYPE, "aws/rds-test-container")
             .withNetworkAliases(AURORA_POSTGRES_TEST_HOST_NAME)
             .withNetwork(network)
             .withEnv("AURORA_POSTGRES_USERNAME", AURORA_POSTGRES_USERNAME)
