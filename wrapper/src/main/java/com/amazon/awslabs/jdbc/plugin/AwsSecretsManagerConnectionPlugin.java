@@ -223,10 +223,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    */
   private void applySecretToProperties(Properties properties) {
     if (this.secret != null) {
-      properties
-          .put(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.getString(properties), secret.getUsername());
-      properties
-          .put(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.getString(properties), secret.getPassword());
+      PropertyDefinition.USER.set(properties, secret.getUsername());
+      PropertyDefinition.PASSWORD.set(properties, secret.getPassword());
     }
   }
 
