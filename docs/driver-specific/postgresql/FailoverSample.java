@@ -92,7 +92,7 @@ public class FailoverSample {
       // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08s02---communication-link
       throw e;
     } catch (SQLException e) {
-      // Unexpected exception: not failover related exception
+      // Unexpected exception unrelated to failover. This should be handled by the user application
       throw e;
     }
   }
@@ -131,7 +131,7 @@ public class FailoverSample {
         throw new TransactionStateUnknownException("User application should check the status" +
             " of the failed transaction and restart it if needed.", e);
       }
-      throw new UnknownSampleException("Other exception: should be handled by application.", e);
+      throw new UnknownSampleException("Unexpected exception unrelated to failover. This should be handled by the user application.", e);
     }
   }
 }
