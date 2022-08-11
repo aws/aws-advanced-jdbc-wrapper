@@ -55,7 +55,8 @@ import org.testcontainers.utility.MountableFile;
 import org.testcontainers.utility.TestEnvironment;
 
 public class ContainerHelper {
-  private static final String TEST_CONTAINER_IMAGE_NAME = "openjdk:8-jdk-alpine";
+  private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK = "openjdk:8-jdk-alpine";
+  private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM = "ghcr.io/graalvm/jdk:22.2.0";
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.28";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final DockerImageName TOXIPROXY_IMAGE =
@@ -70,6 +71,7 @@ public class ContainerHelper {
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
+    execInContainer(container, consumer, "java", "-version");
     Long exitCode = execInContainer(container, consumer, "./gradlew", task,
         "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
@@ -80,14 +82,24 @@ public class ContainerHelper {
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
+    execInContainer(container, consumer, "java", "-version");
     Long exitCode = execInContainer(container, consumer, "./gradlew", task,
         "--debug-jvm", "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
   }
 
-  public GenericContainer<?> createTestContainer(String dockerImageName) {
-    return createTestContainer(dockerImageName, TEST_CONTAINER_IMAGE_NAME);
+  public GenericContainer<?> createTestContainerByType(String containerType, String dockerImageName) {
+    if (containerType == null) {
+      containerType = "";
+    }
+    switch (containerType.toLowerCase()) {
+      case "graalvm":
+        return createTestContainer(dockerImageName, TEST_CONTAINER_IMAGE_NAME_GRAALVM);
+      case "openjdk":
+      default:
+        return createTestContainer(dockerImageName, TEST_CONTAINER_IMAGE_NAME_OPENJDK);
+    }
   }
 
   public GenericContainer<?> createTestContainer(
