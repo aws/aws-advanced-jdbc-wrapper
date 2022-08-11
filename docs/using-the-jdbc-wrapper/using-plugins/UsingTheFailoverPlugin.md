@@ -35,11 +35,11 @@ When connecting to Aurora clusters, the [`clusterInstanceHostPattern`](#failover
 
 ## Failover Exception Codes
 
-| Exceptions                                 | Is the connection valid? | Can the connection be reused? | Has the session state changed? | Does the session need to be reconfigured? | Does the last statement need to be re-executed | Does the transaction need to be restarted |
-| ------------------------------------------ | ------------------------ | ----------------------------- | ------------------------------ | ----------------------------------------- | ---------------------------------------------- | ----------------------------------------- |
-| 08001 - Unable to Establish SQL Connection | No                       | No                            | Yes                            | Yes                                       | Yes                                            | Yes                                       |
-| 08S02 - Communication Link                 | Yes                      | Yes                           | Yes                            | Yes                                       | Yes                                            | No                                        |
-| 08007 - Transaction Resolution Unknown     | Yes                      | Yes                           | Yes                            | Yes                                       | Yes                                            | Yes                                       |
+| Exceptions                                 | Is the connection valid? | Can the connection be reused? | Has the session state changed? | Does the session need to be reconfigured? | Does the last statement need to be re-executed? | Does the transaction need to be restarted? |
+| ------------------------------------------ | ------------------------ | ----------------------------- | ------------------------------ | ----------------------------------------- | ----------------------------------------------- | ------------------------------------------ |
+| 08001 - Unable to Establish SQL Connection | No                       | No                            | N/A                            | N/A                                       | Yes                                             | Yes                                        |
+| 08S02 - Communication Link                 | Yes                      | Yes                           | Yes                            | Yes                                       | Yes                                             | N/A                                        |
+| 08007 - Transaction Resolution Unknown     | Yes                      | Yes                           | Yes                            | Yes                                       | Yes                                             | Yes                                        |
 
 ### 08001 - Unable to Establish SQL Connection
 When the JDBC Wrapper throws a SQLException with code ```08001```, the original connection has failed, and the JDBC Wrapper tried to failover to a new instance, but was unable to. There are various reasons this may happen: no nodes were available, a network failure occurred, and so on. In this scenario, please wait until the server is up or other problems are solved. (Exception will be thrown.)
