@@ -3,16 +3,35 @@
 ## Tips to Keep in Mind
 
 ### Failover with Different Query Lengths
-Failover configuration should be tailored to the length or execution time of the queries. See [here](#failover-time-configuration) for more information on failover aggressiveness configuration. Additionally, it is recommended that user applications use different settings for connections or connection pools that execute queries of varying lengths because there are preferred settings for long running queries that differ from short running queries. 
+Failover configuration should be tailored to the length or execution time of the queries. See [here](#failover-time-configuration) for more information on failover aggressiveness configuration. Additionally, it is recommended that user applications use different settings for connections or connection pools that execute queries of varying lengths because there are preferred settings for long running queries that differ from short running queries. For example, if the query timeout is set to 1 minute given an application that executes both short running (~5 seconds) and long running (~1 minute) queries, the user would be waiting an excessive amount of time for our short running queries to time out. Alternatively, if the timeout is set to 5 seconds, the user would experience large numbers of false negatives in which the long queries are consistently failing due to timeout.    
 
-### Failover Time Configuration
-Failover time refers to the `failoverTimeoutMs` parameter which determines how long is given for failover to complete and defines the aggressiveness of failover. Failover should be completed within 5 minutes by default. If the connection is not re-established during this time, then the failover process times out and fails. Users can use the `failoverTimeoutMs` configuration parameter to adjust the aggressiveness of the failover and fulfill the needs of their specific application. For example, a user could take a more aggressive approach and shorten the time limit on failover to promote a fail-fast approach for an application that does not tolerate database outages. <br><br>**:warning:Note**: Aggressive failover does come with its side effects. Since the time limit on failover is shorter, it becomes more likely that a problem is caused not by a failure, but rather because of a timeout.
+### Failover Time Profiles
+A failover time profile refers to the `failoverTimeoutMs` and `failoverReaderConnectTimeoutMs` parameters which determine how long is given for failover to complete and defines the aggressiveness of failover. Failover should be completed within 5 minutes by default. If the connection is not re-established during this time, then the failover process times out and fails. Users can use the `failoverTimeoutMs` and `failoverReaderConnectTimeoutMs` configuration parameters to adjust the aggressiveness of the failover and fulfill the needs of their specific application. For example, a user could take a more aggressive approach and shorten the time limit on failover to promote a fail-fast approach for an application that does not tolerate database outages. 
+<br><br>
+**:warning:Note**: Aggressive failover does come with its side effects. Since the time limit on failover is shorter, it becomes more likely that a problem is caused not by a failure, but rather because of a timeout.
+<br><br>
+#### Example of the configuration for an aggressive failover time profile:
+| Parameter                              | Value   |
+|----------------------------------------|---------|
+| `failoverTimeoutMs`                    | `30000` |
+| `failoverWriterReconnectIntervalMs`    | `2000`  |
+| `failoverReaderConnectTimeoutMs`       | `10000` |
+| `failoverClusterTopologyRefreshRateMs` | `2000`  |
+
+
+#### Example of the configuration for a normal failover time profile:
+| Parameter                              | Value     |
+|----------------------------------------|-----------|
+| `failoverTimeoutMs`                    | `180000 ` |
+| `failoverWriterReconnectIntervalMs`    | `2000`    |
+| `failoverReaderConnectTimeoutMs`       | `30000`   |
+| `failoverClusterTopologyRefreshRateMs` | `2000`    |
 
 ### Writer Cluster Endpoints After Failover
 Connecting to a writer cluster endpoint after failover can result in a faulty connection because DNS causes a delay in changing the writer cluster. On the AWS DNS server, this change is updated usually between 15-20 seconds, but the other DNS servers sitting between the application and the AWS DNS server may not be updated in time. Using this stale DNS data will most likely cause problems for users, so it is important to keep this is mind.
 
 ### 2-Node Clusters
-Using failover with a 2-node cluster is not beneficial because during the failover process with a 2-node cluster, the two nodes simply switch roles; the reader becomes the writer and the writer becomes the reader. If failover is triggered because one of the nodes has a problem, this problem will persist because there aren't any extra nodes to take the responsibility of the one that is broken. Three or more database nodes are recommended to improve the stability of the cluster.
+Using failover with a 2-node cluster is not beneficial because during the failover process involving one writer node and one reader node, the two nodes simply switch roles; the reader becomes the writer and the writer becomes the reader. If failover is triggered because one of the nodes has a problem, this problem will persist because there aren't any extra nodes to take the responsibility of the one that is broken. Three or more database nodes are recommended to improve the stability of the cluster.
 
 ### Node Availability
 It seems as though just one node, the one triggering the failover, will be unavailable during the failover process; this is actually not true. When failover is triggered, all nodes become unavailable for a short time. This is because the control plane, which orchestrates the failover process, first shuts down all nodes, then starts the writer node, and finally starts and connects the remaining nodes to the writer. In short, failover requires each node to be reconfigured and thus, all nodes must become unavailable for a short period of time. One additional note to point out is that if your failover time is aggressive, then this may cause failover to fail because some nodes may still be unavailable by the time your failover times out.
