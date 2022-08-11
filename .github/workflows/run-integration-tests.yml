@@ -59,6 +59,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
+          DELETE_EXISTING_DB: 'false'
       - name: 'Archive junit results (OpenJDK)'
         if: always()
         uses: actions/upload-artifact@v2
@@ -67,6 +68,7 @@ jobs:
           path: ./wrapper/build/reports/tests/
           retention-days: 5
       - name: 'Run integration tests (GraalVM)'
+        if: always()
         run: |
           ./gradlew --no-parallel --no-daemon --rerun-tasks test-integration-aurora-postgres
         env:
@@ -78,6 +80,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
           TEST_CONTAINER_TYPE: 'graalvm'
+          DB_CONN_SUFFIX: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
+          DELETE_EXISTING_DB: 'true'
       - name: 'Archive junit results (GraalVM)'
         if: always()
         uses: actions/upload-artifact@v2
@@ -113,6 +117,7 @@ jobs:
           path: ./wrapper/build/reports/tests/
           retention-days: 5
       - name: 'Run integration tests (GraalVM)'
+        if: always()
         run: |
           ./gradlew --no-parallel --no-daemon --rerun-tasks test-integration-standard-postgres
         env:
