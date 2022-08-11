@@ -66,6 +66,25 @@ jobs:
           name: 'junit-report'
           path: ./wrapper/build/reports/tests/
           retention-days: 5
+      - name: 'Run integration tests (GraalVM)'
+        run: |
+          ./gradlew --no-parallel --no-daemon test-integration-aurora-postgres
+        env:
+          AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
+          AURORA_POSTGRES_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
+          AURORA_POSTGRES_PASSWORD: ${{ secrets.AURORA_POSTGRES_PASSWORD }}
+          AURORA_POSTGRES_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
+          TEST_CONTAINER_TYPE: 'graalvm'
+      - name: 'Archive junit results (GraalVM)'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: 'junit-report'
+          path: ./wrapper/build/reports/tests/
+          retention-days: 5
 
   standard-postgres-integration-tests:
     concurrency: IntegrationTests
@@ -87,6 +106,20 @@ jobs:
           TEST_USERNAME: ${{ secrets.STANDARD_POSTGRES_USERNAME }}
           TEST_PASSWORD: ${{ secrets.STANDARD_POSTGRES_PASSWORD }}
       - name: 'Archive junit results'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: 'junit-report'
+          path: ./wrapper/build/reports/tests/
+          retention-days: 5
+      - name: 'Run integration tests (GraalVM)'
+        run: |
+          ./gradlew --no-parallel --no-daemon test-integration-standard-postgres
+        env:
+          TEST_USERNAME: ${{ secrets.STANDARD_POSTGRES_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.STANDARD_POSTGRES_PASSWORD }}
+          TEST_CONTAINER_TYPE: 'graalvm'
+      - name: 'Archive junit results (GraalVM)'
         if: always()
         uses: actions/upload-artifact@v2
         with:
