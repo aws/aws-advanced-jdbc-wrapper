@@ -28,7 +28,7 @@ plugins {
 }
 
 val String.v: String get() = rootProject.extra["$this.version"] as String
-val buildVersion = "aws-advanced-jdbc-wrapper".v
+val buildVersion = "aws-advanced-jdbc-wrapper".v + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
 
 allprojects {
     group = "com.amazon.awslabs.jdbc"
