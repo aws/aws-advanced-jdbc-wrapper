@@ -20,48 +20,74 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import org.postgresql.PGProperty;
 
-/**
- * Example Throwing Failover Exception Codes.
- */
 public class FailoverSample {
+  public static class FailoverFailedException extends SQLException {
+    public FailoverFailedException(String message, SQLException e) {
+      super(message, e);
+    }
+  }
+
+  public static class TransactionStateUnknownException extends SQLException {
+    public TransactionStateUnknownException(String message, SQLException e) {
+      super(message, e);
+    }
+  }
+
+  // User configures connection properties here
+  public static final String POSTGRESQL_CONNECTION_STRING =
+      "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/failoverSample";
+  private static final String USERNAME = "username";
+  private static final String PASSWORD = "password";
 
   public static void main(String[] args) throws SQLException {
 
     final Properties props = new Properties();
-
-    // User configures connection properties here
-    public static final String POSTGRESQL_CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/failoverSample";
-    private static final String USERNAME = "username";
-    private static final String PASSWORD = "password";
 
     // Enable failover plugin and set properties
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
     props.setProperty(PropertyDefinition.USER.name, USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 
+    // AWS Advanced JDBC Wrapper configuration
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
+
+    // Setup Step: Open connection and create tables - uncomment this section to create table and test values
+    // try (final Connection connection = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
+    //   setInitialSessionSettings(connection);
+    //   updateQueryWithFailoverHandling(connection,
+    //       "CREATE TABLE bank_test (name varchar(40), account_balance int)");
+    //   updateQueryWithFailoverHandling(connection,
+    //       "INSERT INTO bank_test VALUES ('Jane Doe', 200), ('John Smith', 200)");
+    // }
+
+    // Transaction Step: Open connection and perform transaction
     try (final Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
       setInitialSessionSettings(conn);
+      // Begin business transaction
+      conn.setAutoCommit(false);
 
-      try {
-        // Begin business transaction
-        conn.setAutoCommit(false);
+      // Example business transaction
+      updateQueryWithFailoverHandling(conn,
+          "UPDATE bank_test SET account_balance=account_balance - 100 WHERE name='Jane Doe'");
+      updateQueryWithFailoverHandling(conn,
+          "UPDATE bank_test SET account_balance=account_balance + 100 WHERE name='John Smith'");
 
-        // Comment out if test database and values already created
-        updateQueryWithFailoverHandling(conn, "CREATE TABLE bank_test (name varchar(40), account_balance int)");
-        updateQueryWithFailoverHandling(conn, "INSERT INTO bank_test VALUES ('Jane Doe', 200), ('John Smith', 200)");
-
-        // Example business transaction
-        updateQueryWithFailoverHandling(conn, "UPDATE bank_test SET account_balance=account_balance - 100 WHERE name='Jane Doe'");
-        updateQueryWithFailoverHandling(conn, "UPDATE bank_test SET account_balance=account_balance + 100 WHERE name='John Smith'");
-
-        // Commit business transaction
-        updateQueryWithFailoverHandling(conn, "commit");
-
-      } catch (SQLException e) {
-        conn.rollback();
-      }
+      // Commit business transaction
+      updateQueryWithFailoverHandling(conn, "commit");
+    } catch (FailoverFailedException e) {
+      // User application should open a new connection, check the results of the failed transaction and re-run it if
+      // needed. See:
+      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
+      throw e;
+    } catch (TransactionStateUnknownException e) {
+      // User application should check the status of the failed transaction and restart it if needed. See:
+      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08007---transaction-resolution-unknown
+      throw e;
+    } catch (SQLException e) {
+      // Unexpected exception unrelated to failover. This should be handled by the user application.
+      throw e;
     }
   }
 
@@ -73,30 +99,31 @@ public class FailoverSample {
   }
 
   public static void updateQueryWithFailoverHandling(Connection conn, String query) throws SQLException {
-    try {
-      Statement stmt = conn.createStatement();
+    try (Statement stmt = conn.createStatement()) {
       stmt.executeUpdate(query);
     } catch (SQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
-      if ("08S01".equalsIgnoreCase(e.getSQLState())) {
-        // User application should reconnect to new instance and restart business transaction here.
-        throw e;
+      if ("08001".equalsIgnoreCase(e.getSQLState())) {
+        throw new FailoverFailedException("User application should open a new connection, check the results of the" +
+            " failed transaction and re-run it if needed.", e);
       }
-      // Connection failed and JDBC wrapper successfully failed over to a new elected writer node
+      // Query execution failed and JDBC wrapper successfully failed over to a new elected writer node.
       if ("08S02".equalsIgnoreCase(e.getSQLState())) {
-        // Reconfigure the connection.
+        // Reconfigure the connection
         setInitialSessionSettings(conn);
 
         // Re-run query
-        Statement stmt = conn.createStatement();
-        stmt.executeQuery(query);
+        try (Statement stmt = conn.createStatement()) {
+          stmt.executeUpdate(query);
+        }
+        return;
       }
 
       // Connection failed while executing a business transaction.
       // Transaction status is unknown. The driver has successfully reconnected to a new writer.
       if ("08007".equalsIgnoreCase(e.getSQLState())) {
-        // User application should restart the business transaction here.
-        throw e;
+        throw new TransactionStateUnknownException("User application should check the status" +
+            " of the failed transaction and restart it if needed.", e);
       }
       throw e;
     }
