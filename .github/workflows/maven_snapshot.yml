@@ -3,7 +3,7 @@ name: 'Snapshot to Maven'
 on:
   push:
     branches:
-      - rds-998
+      - main
   workflow_dispatch:
 
 jobs:
