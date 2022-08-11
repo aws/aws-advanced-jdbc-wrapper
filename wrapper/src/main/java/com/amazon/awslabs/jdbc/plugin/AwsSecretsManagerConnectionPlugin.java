@@ -16,8 +16,6 @@
 
 package com.amazon.awslabs.jdbc.plugin;
 
-import static software.amazon.awssdk.regions.Region.regions;
-
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.JdbcCallable;
 import com.amazon.awslabs.jdbc.PropertyDefinition;
@@ -118,7 +116,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     }
 
     final Region region = Region.of(regionString);
-    if (!regions().contains(region)) {
+    if (!Region.regions().contains(region)) {
       throw new InstantiationException(String.format("Region '%s' is not valid.", regionString));
     }
     this.secretKey = Pair.of(secretId, region);
