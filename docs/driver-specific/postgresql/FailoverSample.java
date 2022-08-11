@@ -34,12 +34,6 @@ public class FailoverSample {
     }
   }
 
-  public static class UnexpectedSampleException extends SQLException {
-    public UnexpectedSampleException(String message, SQLException e) {
-      super(message, e);
-    }
-  }
-
   // User configures connection properties here
   public static final String POSTGRESQL_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/failoverSample";
@@ -89,10 +83,10 @@ public class FailoverSample {
       throw e;
     } catch (TransactionStateUnknownException e) {
       // User application should check the status of the failed transaction and restart it if needed. See:
-      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08s02---communication-link
+      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08007---transaction-resolution-unknown
       throw e;
     } catch (SQLException e) {
-      // Unexpected exception unrelated to failover. This should be handled by the user application
+      // Unexpected exception unrelated to failover. This should be handled by the user application.
       throw e;
     }
   }
@@ -131,8 +125,7 @@ public class FailoverSample {
         throw new TransactionStateUnknownException("User application should check the status" +
             " of the failed transaction and restart it if needed.", e);
       }
-      throw new UnexpectedSampleException("Unexpected exception unrelated to failover. This should be handled by the" +
-          " user application.", e);
+      throw e;
     }
   }
 }
