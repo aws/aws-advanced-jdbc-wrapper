@@ -24,7 +24,7 @@ import java.util.Properties;
 
 public class AwsSecretsManagerConnectionPluginFactory implements ConnectionPluginFactory {
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) throws InstantiationException {
+  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
     return new AwsSecretsManagerConnectionPlugin(props);
   }
 }

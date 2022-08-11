@@ -24,5 +24,5 @@ import java.util.Properties;
  */
 public interface ConnectionPluginFactory {
 
-  ConnectionPlugin getInstance(PluginService pluginService, Properties props) throws InstantiationException;
+  ConnectionPlugin getInstance(PluginService pluginService, Properties props);
 }

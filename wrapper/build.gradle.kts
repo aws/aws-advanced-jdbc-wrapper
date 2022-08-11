@@ -29,7 +29,7 @@ plugins {
 dependencies {
     implementation("org.checkerframework:checker-qual:3.22.+")
     compileOnly("software.amazon.awssdk:rds:2.17.165")
-    compileOnly("software.amazon.awssdk:secretsmanager:2.17.243")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.17.250")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.8.+")
@@ -55,7 +55,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.17.191")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.17.250")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 }
 

@@ -20,6 +20,7 @@ import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.JdbcCallable;
 import com.amazon.awslabs.jdbc.PropertyDefinition;
 import com.amazon.awslabs.jdbc.ProxyDriverProperty;
+import com.amazon.awslabs.jdbc.util.Messages;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -51,17 +52,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       "secretsManagerSecretId", null,
       "The name or the ARN of the secret to retrieve.");
   protected static final ProxyDriverProperty REGION_PROPERTY = new ProxyDriverProperty(
-      "secretsManagerRegion", null,
+      "secretsManagerRegion", "us-east-1",
       "The region of the secret to retrieve.");
 
-  private static final String ERROR_MISSING_DEPENDENCY_SECRETS =
-      "[AwsSecretsManagerConnectionPlugin] Required dependency 'AWS Java SDK for AWS Secrets Manager' is not on the "
-      + "classpath";
-  private static final String ERROR_MISSING_DEPENDENCY_JACKSON =
-      "[AwsSecretsManagerConnectionPlugin] Required dependency 'Jackson Databind' is not on the classpath";
-  static final String ERROR_GET_SECRETS_FAILED =
-      "[AwsSecretsManagerConnectionPlugin] Was not able to either fetch or read the database credentials from AWS "
-      + "Secrets Manager. Ensure the correct secretId and region properties have been provided";
+  // Error code "28P01" is specific to PostgreSQL.
   static final List<String> SQLSTATE_ACCESS_ERROR = Arrays.asList("28000", "28P01");
 
   protected static final Map<Pair<String, Region>, Secret> SECRET_CACHE = new ConcurrentHashMap<>();
@@ -71,7 +65,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private final Pair<String, Region> secretKey;
   private Secret secret;
 
-  public AwsSecretsManagerConnectionPlugin(Properties props) throws InstantiationException {
+  public AwsSecretsManagerConnectionPlugin(Properties props){
 
     this(
         props,
@@ -83,26 +77,24 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   AwsSecretsManagerConnectionPlugin(
       Properties props,
       SecretsManagerClient secretsManagerClient,
-      GetSecretValueRequest getSecretValueRequest) throws InstantiationException {
+      GetSecretValueRequest getSecretValueRequest) {
 
     try {
       Class.forName("software.amazon.awssdk.services.secretsmanager.SecretsManagerClient");
     } catch (ClassNotFoundException e) {
-      LOGGER.log(Level.WARNING, ERROR_MISSING_DEPENDENCY_SECRETS);
-      throw new InstantiationException(ERROR_MISSING_DEPENDENCY_SECRETS);
+      throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.1"));
     }
 
     try {
       Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
     } catch (ClassNotFoundException e) {
-      LOGGER.log(Level.WARNING, ERROR_MISSING_DEPENDENCY_JACKSON);
-      throw new InstantiationException(ERROR_MISSING_DEPENDENCY_JACKSON);
+      throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.2"));
     }
 
     final String secretId = SECRET_ID_PROPERTY.getString(props);
     if (StringUtils.isNullOrEmpty(secretId)) {
       throw new
-          InstantiationException(
+          RuntimeException(
               String.format("Configuration parameter '%s' is required.",
               SECRET_ID_PROPERTY.name));
     }
@@ -110,14 +102,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     final String regionString = REGION_PROPERTY.getString(props);
     if (StringUtils.isNullOrEmpty(regionString)) {
       throw new
-          InstantiationException(
+          RuntimeException(
               String.format("Configuration parameter '%s' is required.",
               REGION_PROPERTY.name));
     }
 
     final Region region = Region.of(regionString);
     if (!Region.regions().contains(region)) {
-      throw new InstantiationException(String.format("Region '%s' is not valid.", regionString));
+      throw new RuntimeException(String.format("Region '%s' is not valid.", regionString));
     }
     this.secretKey = Pair.of(secretId, region);
 
@@ -133,6 +125,9 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           .secretId(secretId)
           .build();
     }
+
+    Secret test = new Secret("test", "test");
+    SECRET_CACHE.put(this.secretKey, test);
   }
 
   @Override
@@ -175,7 +170,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   }
 
   /**
-   * Called to update credentials from the cache, or from AWS Secrets Manager service.
+   * Called to update credentials from the cache, or from the AWS Secrets Manager service.
    *
    * @param forceReFetch Allows ignoring cached credentials and force fetches the latest credentials from the service.
    * @return true, if credentials were fetched from the service.
@@ -193,8 +188,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           SECRET_CACHE.put(this.secretKey, this.secret);
         }
       } catch (SecretsManagerException | JsonProcessingException exception) {
-        LOGGER.log(Level.WARNING, ERROR_GET_SECRETS_FAILED, exception);
-        throw new SQLException(ERROR_GET_SECRETS_FAILED, exception);
+        LOGGER.log(Level.WARNING, Messages.get("AwsSecretsManagerConnectionPlugin.3"), exception);
+        throw new SQLException(Messages.get("AwsSecretsManagerConnectionPlugin.3"), exception);
       }
     }
     return fetched;
@@ -204,7 +199,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * Fetches the current credentials from AWS Secrets Manager service.
    *
    * @return a Secret object containing the credentials fetched from the AWS Secrets Manager service.
-   * @throws SecretsManagerException If credentials can't be fetched from AWS Secrets Manager service.
+   * @throws SecretsManagerException If credentials can't be fetched from the AWS Secrets Manager service.
    * @throws JsonProcessingException If credentials can't be mapped to a Secret object.
    */
   Secret fetchLatestCredentials() throws SecretsManagerException, JsonProcessingException {
