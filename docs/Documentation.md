@@ -9,6 +9,7 @@
     - [Failover Plugin](./using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md)
     - [Host Monitoring Plugin](./using-the-jdbc-wrapper/using-plugins/UsingTheHostMonitoringPlugin.md)
     - [IAM Authentication Plugin](./using-the-jdbc-wrapper/using-plugins/UsingTheIamAuthenticationPlugin.md)
+    - [AWS Secrets Manager Plugin](./using-the-jdbc-wrapper/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 - [Development Guide](./development-guide/DevelopmentGuide.md)
   - [Setup](./development-guide/DevelopmentGuide.md#setup)
   - [Building the AWS Advanced JDBC Wrapper](./development-guide/DevelopmentGuide.md#building-the-aws-advanced-jdbc-wrapper)
