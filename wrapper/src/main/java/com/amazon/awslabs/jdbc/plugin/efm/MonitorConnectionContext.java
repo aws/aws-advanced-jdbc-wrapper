@@ -19,6 +19,7 @@ package com.amazon.awslabs.jdbc.plugin.efm;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -42,7 +43,7 @@ public class MonitorConnectionContext {
   private long invalidNodeStartTime; // in nanos
   private long failureCount;
   private boolean nodeUnhealthy;
-  private AtomicBoolean activeContext = new AtomicBoolean(true);
+  private final AtomicBoolean activeContext = new AtomicBoolean(true);
 
   /**
    * Constructor.
@@ -158,7 +159,7 @@ public class MonitorConnectionContext {
 
     final long totalElapsedTimeNano = currentTime - this.startMonitorTime;
 
-    if (totalElapsedTimeNano > (this.failureDetectionTimeMillis * 1000000L)) {
+    if (totalElapsedTimeNano > TimeUnit.MILLISECONDS.toNanos(this.failureDetectionTimeMillis)) {
       this.setConnectionValid(isValid, statusCheckStartTime, currentTime);
     }
   }
@@ -190,10 +191,10 @@ public class MonitorConnectionContext {
 
       final long invalidNodeDurationNano = currentTime - this.getInvalidNodeStartTime();
       final long maxInvalidNodeDurationMillis =
-          (long) this.getFailureDetectionIntervalMillis()
+          this.getFailureDetectionIntervalMillis()
               * Math.max(0, this.getFailureDetectionCount());
 
-      if (invalidNodeDurationNano >= (maxInvalidNodeDurationMillis * 1000000L)) {
+      if (invalidNodeDurationNano >= TimeUnit.MILLISECONDS.toNanos(maxInvalidNodeDurationMillis)) {
         LOGGER.log(Level.FINE, String.format("Host %s is *dead*.", hostAliases));
         this.setNodeUnhealthy(true);
         this.abortConnection();

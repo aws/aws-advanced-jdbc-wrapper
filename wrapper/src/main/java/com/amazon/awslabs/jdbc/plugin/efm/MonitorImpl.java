@@ -135,10 +135,10 @@ public class MonitorImpl implements Monitor {
           }
 
           TimeUnit.MILLISECONDS.sleep(
-              Math.max(0, this.getConnectionCheckIntervalMillis() - (status.elapsedTime / 1000000L)));
+              Math.max(0, this.getConnectionCheckIntervalMillis() - TimeUnit.NANOSECONDS.toMillis(status.elapsedTime)));
         } else {
           if ((this.getCurrentTimeNano() - this.lastContextUsedTimestamp.get())
-              >= (this.monitorDisposalTimeMillis * 1000000L)) {
+              >= TimeUnit.MILLISECONDS.toNanos(this.monitorDisposalTimeMillis)) {
             monitorService.notifyUnused(this);
             break;
           }

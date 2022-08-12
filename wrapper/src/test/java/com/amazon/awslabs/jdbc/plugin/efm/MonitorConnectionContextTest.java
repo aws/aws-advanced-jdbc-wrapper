@@ -16,10 +16,10 @@
 
 package com.amazon.awslabs.jdbc.plugin.efm;
 
-import com.amazon.awslabs.jdbc.plugin.efm.MonitorConnectionContext;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,12 +95,12 @@ class MonitorConnectionContextTest {
     // wait 250 msec in total
     for (int i = 0; i < 5; i++) {
       long statusCheckStartTime = currentTimeNano;
-      long statusCheckEndTime = currentTimeNano + (VALIDATION_INTERVAL_MILLIS * 1000000);
+      long statusCheckEndTime = currentTimeNano + TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
 
       context.setConnectionValid(false, statusCheckStartTime, statusCheckEndTime);
       Assertions.assertFalse(context.isNodeUnhealthy());
 
-      currentTimeNano += (VALIDATION_INTERVAL_MILLIS * 1000000L);
+      currentTimeNano += TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
     }
 
     // Simulate waiting another 50 msec that makes total waiting time to 300 msec
@@ -109,7 +109,7 @@ class MonitorConnectionContextTest {
     // waiting time.
 
     long statusCheckStartTime = currentTimeNano;
-    long statusCheckEndTime = currentTimeNano + (VALIDATION_INTERVAL_MILLIS * 1000000L);
+    long statusCheckEndTime = currentTimeNano + TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
 
     context.setConnectionValid(false, statusCheckStartTime, statusCheckEndTime);
     Assertions.assertTrue(context.isNodeUnhealthy());

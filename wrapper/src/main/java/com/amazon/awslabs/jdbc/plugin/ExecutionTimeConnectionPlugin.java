@@ -20,6 +20,7 @@ import com.amazon.awslabs.jdbc.JdbcCallable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,8 +50,8 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
     T result = jdbcMethodFunc.call();
 
-    final long elapsedTime = (System.nanoTime() - startTime) / 1000000;
-    LOGGER.log(Level.FINE, "Executed {0} in {1} ms", new Object[] {methodName, elapsedTime});
+    final long elapsedTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+    LOGGER.log(Level.FINE, "Executed {0} in {1} ms", new Object[] {methodName, elapsedTimeMillis});
 
     return result;
   }

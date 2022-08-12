@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -260,7 +261,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
      */
     boolean isExpire(long expireTimeMs) {
       final long elapsedTimeNano = System.nanoTime() - this.time;
-      return elapsedTimeNano >= (expireTimeMs * 1000000L);
+      return elapsedTimeNano >= TimeUnit.MILLISECONDS.toNanos(expireTimeMs);
     }
   }
 }
