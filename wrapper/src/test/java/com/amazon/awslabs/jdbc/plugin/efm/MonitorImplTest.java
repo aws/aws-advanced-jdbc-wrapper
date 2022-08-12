@@ -36,7 +36,7 @@ import static org.mockito.Mockito.when;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.PluginService;
 import com.mysql.cj.conf.BooleanProperty;
-import com.mysql.cj.conf.IntegerProperty;
+import com.mysql.cj.conf.LongProperty;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
@@ -59,15 +59,15 @@ class MonitorImplTest {
   @Mock MonitorConnectionContext contextWithShortInterval;
   @Mock MonitorConnectionContext contextWithLongInterval;
   @Mock BooleanProperty booleanProperty;
-  @Mock IntegerProperty integerProperty;
+  @Mock LongProperty longProperty;
   @Mock ExecutorServiceInitializer executorServiceInitializer;
   @Mock ExecutorService executorService;
   @Mock Future<?> futureResult;
   @Mock MonitorServiceImpl monitorService;
 
-  private static final int SHORT_INTERVAL_MILLIS = 30;
-  private static final int SHORT_INTERVAL_SECONDS = SHORT_INTERVAL_MILLIS / 1000;
-  private static final int LONG_INTERVAL_MILLIS = 300;
+  private static final long SHORT_INTERVAL_MILLIS = 30;
+  private static final long SHORT_INTERVAL_SECONDS = SHORT_INTERVAL_MILLIS / 1000;
+  private static final long LONG_INTERVAL_MILLIS = 300;
 
   private AutoCloseable closeable;
   private MonitorImpl monitor;
@@ -80,17 +80,13 @@ class MonitorImplTest {
         .thenReturn(SHORT_INTERVAL_MILLIS);
     when(contextWithLongInterval.getFailureDetectionIntervalMillis())
         .thenReturn(LONG_INTERVAL_MILLIS);
-    //    when(properties.getProperty("monitorDisposalTime"))
-    //        .thenReturn("60000");
     when(booleanProperty.getStringValue()).thenReturn(Boolean.TRUE.toString());
-    //    when(properties.getIntegerProperty(any(PropertyKey.class)))
-    //        .thenReturn(integerProperty);
-    when(integerProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
+    when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
     when(pluginService.connect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
     MonitorThreadContainer.getInstance(executorServiceInitializer);
 
-    monitor = spy(new MonitorImpl(pluginService, hostSpec, properties, 0, monitorService));
+    monitor = spy(new MonitorImpl(pluginService, hostSpec, properties, 0L, monitorService));
   }
 
   @AfterEach
@@ -152,7 +148,7 @@ class MonitorImplTest {
 
   @Test
   void test_6_isConnectionHealthyWithExistingConnection() throws SQLException {
-    when(connection.isValid(eq(SHORT_INTERVAL_SECONDS))).thenReturn(Boolean.TRUE, Boolean.FALSE);
+    when(connection.isValid(eq((int) SHORT_INTERVAL_SECONDS))).thenReturn(Boolean.TRUE, Boolean.FALSE);
     when(connection.isClosed()).thenReturn(Boolean.FALSE);
 
     // Start up a monitoring connection.
@@ -201,7 +197,7 @@ class MonitorImplTest {
         .when(monitorService)
         .notifyUnused(any(Monitor.class));
 
-    doReturn((long) SHORT_INTERVAL_MILLIS).when(monitor).getCurrentTimeMillis();
+    doReturn(SHORT_INTERVAL_MILLIS).when(monitor).getCurrentTimeNano();
 
     // Put monitor into container map
     final String nodeKey = "monitorA";

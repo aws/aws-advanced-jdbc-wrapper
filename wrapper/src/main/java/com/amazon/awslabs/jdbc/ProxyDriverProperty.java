@@ -66,6 +66,14 @@ public class ProxyDriverProperty extends DriverPropertyInfo {
     return Integer.parseInt(properties.getProperty(name, defaultValue));
   }
 
+  public long getLong(Properties properties) {
+    Object value = properties.get(name);
+    if (value instanceof Long) {
+      return (Long) value;
+    }
+    return Long.parseLong(properties.getProperty(name, defaultValue));
+  }
+
   public void set(Properties properties, @Nullable String value) {
     if (value == null) {
       properties.remove(name);
