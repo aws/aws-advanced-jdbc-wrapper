@@ -408,7 +408,6 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
    * revive previously down reader instance.
    */
   @Test
-  @Disabled
   public void test_failoverBackToThePreviouslyDownReader() throws Exception {
 
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");

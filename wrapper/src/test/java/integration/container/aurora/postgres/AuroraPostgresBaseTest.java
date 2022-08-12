@@ -214,6 +214,7 @@ public abstract class AuroraPostgresBaseTest {
         clusterSize >= 2); // many tests assume that cluster contains at least a writer and a reader
     assertTrue(isDBInstanceWriter(instanceIDs[0]));
     makeSureInstancesUp(instanceIDs);
+    TestAuroraHostListProvider.clearCache();
   }
 
   protected Properties initDefaultPropsNoTimeouts() {
