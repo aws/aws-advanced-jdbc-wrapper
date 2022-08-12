@@ -31,16 +31,16 @@ public class MonitorConnectionContext {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
 
-  private final int failureDetectionIntervalMillis;
-  private final int failureDetectionTimeMillis;
-  private final int failureDetectionCount;
+  private final long failureDetectionIntervalMillis;
+  private final long failureDetectionTimeMillis;
+  private final long failureDetectionCount;
 
   private final Set<String> hostAliases;
   private final Connection connectionToAbort;
 
-  private long startMonitorTime;
-  private long invalidNodeStartTime;
-  private int failureCount;
+  private long startMonitorTime; // in nanos
+  private long invalidNodeStartTime; // in nanos
+  private long failureCount;
   private boolean nodeUnhealthy;
   private AtomicBoolean activeContext = new AtomicBoolean(true);
 
@@ -58,9 +58,9 @@ public class MonitorConnectionContext {
   public MonitorConnectionContext(
       Connection connectionToAbort,
       Set<String> hostAliases,
-      int failureDetectionTimeMillis,
-      int failureDetectionIntervalMillis,
-      int failureDetectionCount) {
+      long failureDetectionTimeMillis,
+      long failureDetectionIntervalMillis,
+      long failureDetectionCount) {
     this.connectionToAbort = connectionToAbort;
     this.hostAliases = hostAliases;
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
@@ -68,36 +68,36 @@ public class MonitorConnectionContext {
     this.failureDetectionCount = failureDetectionCount;
   }
 
-  void setStartMonitorTime(long startMonitorTime) {
-    this.startMonitorTime = startMonitorTime;
+  void setStartMonitorTime(long startMonitorTimeNano) {
+    this.startMonitorTime = startMonitorTimeNano;
   }
 
   Set<String> getHostAliases() {
     return this.hostAliases;
   }
 
-  public int getFailureDetectionTimeMillis() {
+  public long getFailureDetectionTimeMillis() {
     return failureDetectionTimeMillis;
   }
 
-  public int getFailureDetectionIntervalMillis() {
+  public long getFailureDetectionIntervalMillis() {
     return failureDetectionIntervalMillis;
   }
 
-  public int getFailureDetectionCount() {
+  public long getFailureDetectionCount() {
     return failureDetectionCount;
   }
 
-  public int getFailureCount() {
+  public long getFailureCount() {
     return this.failureCount;
   }
 
-  void setFailureCount(int failureCount) {
+  void setFailureCount(long failureCount) {
     this.failureCount = failureCount;
   }
 
-  void setInvalidNodeStartTime(long invalidNodeStartTimeMillis) {
-    this.invalidNodeStartTime = invalidNodeStartTimeMillis;
+  void setInvalidNodeStartTime(long invalidNodeStartTimeNano) {
+    this.invalidNodeStartTime = invalidNodeStartTimeNano;
   }
 
   void resetInvalidNodeStartTime() {
@@ -147,8 +147,8 @@ public class MonitorConnectionContext {
    * Update whether the connection is still valid if the total elapsed time has passed the grace
    * period.
    *
-   * @param statusCheckStartTime The time when connection status check started in milliseconds.
-   * @param currentTime The time when connection status check ended in milliseconds.
+   * @param statusCheckStartTime The time when connection status check started in nanos.
+   * @param currentTime The time when connection status check ended in nanos.
    * @param isValid Whether the connection is valid.
    */
   public void updateConnectionStatus(long statusCheckStartTime, long currentTime, boolean isValid) {
@@ -156,9 +156,9 @@ public class MonitorConnectionContext {
       return;
     }
 
-    final long totalElapsedTimeMillis = currentTime - this.startMonitorTime;
+    final long totalElapsedTimeNano = currentTime - this.startMonitorTime;
 
-    if (totalElapsedTimeMillis > this.failureDetectionTimeMillis) {
+    if (totalElapsedTimeNano > (this.failureDetectionTimeMillis * 1000000L)) {
       this.setConnectionValid(isValid, statusCheckStartTime, currentTime);
     }
   }
@@ -176,8 +176,8 @@ public class MonitorConnectionContext {
    * </ul>
    *
    * @param connectionValid Boolean indicating whether the server is still responsive.
-   * @param statusCheckStartTime The time when connection status check started in milliseconds.
-   * @param currentTime The time when connection status check ended in milliseconds.
+   * @param statusCheckStartTime The time when connection status check started in nanos.
+   * @param currentTime The time when connection status check ended in nanos.
    */
   void setConnectionValid(boolean connectionValid, long statusCheckStartTime, long currentTime) {
 
@@ -188,12 +188,12 @@ public class MonitorConnectionContext {
         this.setInvalidNodeStartTime(statusCheckStartTime);
       }
 
-      final long invalidNodeDurationMillis = currentTime - this.getInvalidNodeStartTime();
+      final long invalidNodeDurationNano = currentTime - this.getInvalidNodeStartTime();
       final long maxInvalidNodeDurationMillis =
           (long) this.getFailureDetectionIntervalMillis()
               * Math.max(0, this.getFailureDetectionCount());
 
-      if (invalidNodeDurationMillis >= maxInvalidNodeDurationMillis) {
+      if (invalidNodeDurationNano >= (maxInvalidNodeDurationMillis * 1000000L)) {
         LOGGER.log(Level.FINE, String.format("Host %s is *dead*.", hostAliases));
         this.setNodeUnhealthy(true);
         this.abortConnection();
