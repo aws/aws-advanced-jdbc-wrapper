@@ -1,16 +1,16 @@
 # AWS Secrets Manager Plugin
 
-The AWS Advanced JDBC Wrapper supports usage of database credentials stored in the [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) through the AWS Secrets Manager Connection Plugin. When a user creates a new connection with this plugin enabled, the plugin will retrieve the secret and the connection will be created using those credentials.
+The AWS Advanced JDBC Wrapper supports usage of database credentials stored in the [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) through the AWS Secrets Manager Connection Plugin. When you create a new connection with this plugin enabled, the plugin will retrieve the secret and the connection will be created with those credentials.
 
 ## Enabling the AWS Secrets Manager Connection Plugin
 > **Note:** To use this plugin, you must include the runtime dependencies [Jackson Databind](https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://mvnrepository.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These parameters are required for the JDBC Wrapper to pass database credentials to the underlying driver.
 
-The AWS Secrets Manager Connection Plugin can be enabled by adding the plugin code `awsSecretsManager` to the [`wrapperPlugins`](../UsingTheJdbcWrapper.md#connection-plugin-manager-parameters) value, or by adding it to the current [driver profile](../UsingTheJdbcWrapper.md#connection-plugin-manager-parameters).
+To enable the AWS Secrets Manager Connection Plugin, add the plugin code `awsSecretsManager` to the [`wrapperPlugins`](../UsingTheJdbcWrapper.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcWrapper.md#connection-plugin-manager-parameters).
 
 ## AWS Secrets Manager Parameters
 The following properties are required for the AWS Secrets Manager Connection Plugin to retrieve database credentials from the AWS Secrets Manager. 
 
-> **Note:** In addition to these Secrets Manager specific parameters, users will also need to set the JDBC Wrapper parameters [`wrapperTargetDriverUserPropertyName`](../UsingTheJdbcWrapper.md#aws-advanced-jdbc-wrapper-parameters) and [`wrapperTargetDriverPasswordPropertyName`](../UsingTheJdbcWrapper.md#aws-advanced-jdbc-wrapper-parameters) to use this plugin.
+> **Note:** To use this plugin, you will need to set the following AWS Secrets Manager specific parameters, as well as the [`wrapperTargetDriverUserPropertyName`](../UsingTheJdbcWrapper.md#aws-advanced-jdbc-wrapper-parameters) and [`wrapperTargetDriverPasswordPropertyName`](../UsingTheJdbcWrapper.md#aws-advanced-jdbc-wrapper-parameters) JDBC Wrapper parameters.
 
 | Parameter                | Value  | Required | Description                                             | Example     | Default Value |
 |--------------------------|:------:|:--------:|:--------------------------------------------------------|:------------|---------------|
@@ -18,7 +18,7 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 | `secretsManagerRegion`   | String |   Yes    | Set this value to be the region your secret is in.      | `us-east-1` | `us-east-1`   |
 
 ### Example
-The following sample code is an example of how the JDBC Wrapper can be used to make a connection to a PostgreSQL database using credentials fetched from the AWS Secrets Manager.
+The following example demonstrates using the JDBC Wrapper to make a connection to a PostgreSQL database using credentials fetched from the AWS Secrets Manager:
 
 ```java
 import java.sql.Connection;
