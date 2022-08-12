@@ -82,7 +82,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
-  protected boolean autoReconnectSetting;
   protected boolean explicitlyAutoCommit = true;
   Boolean explicitlyReadOnly = false;
   private boolean closedExplicitly = false;
@@ -126,25 +125,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "failoverReaderConnectTimeoutMs",
           "30000",
           "Reader connection attempt timeout during a reader failover process.");
-
-  public static final ProxyDriverProperty AUTO_RECONNECT =
-      new ProxyDriverProperty(
-          "wrapperAutoReconnect",
-          "false",
-          "Should the driver try to re-establish stale and/or dead connections? "
-              + "If enabled the driver will throw an exception for a queries issued on a stale or dead connection, "
-              + "which belong to the current transaction, but will attempt reconnect before the next query issued "
-              + "on the connection in a new transaction. "
-              + "The use of this feature is not recommended, because it has side effects related to session state "
-              + "and data consistency when applications don''t handle SQLExceptions properly, "
-              + "and is only designed to be used when you are unable to configure your application to handle "
-              + "SQLExceptions resulting from dead and stale connections properly. ");
-
-  public static final ProxyDriverProperty AUTO_RECONNECT_FOR_POOLS =
-      new ProxyDriverProperty(
-          "wrapperAutoReconnectForPools",
-          "false",
-          "Use a reconnection strategy appropriate for connection pools (defaults to ''false'')");
 
   public static final ProxyDriverProperty ENABLE_CLUSTER_AWARE_FAILOVER =
       new ProxyDriverProperty(
@@ -356,13 +336,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         FAILOVER_WRITER_RECONNECT_INTERVAL_MS.getInteger(this.properties);
     this.failoverReaderConnectTimeoutMsSetting =
         FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
-
-    this.autoReconnectSetting = AUTO_RECONNECT.getBoolean(this.properties)
-        || AUTO_RECONNECT_FOR_POOLS.getBoolean(this.properties);
   }
 
   private void invalidInvocationOnClosedConnection() throws SQLException {
-    if (this.autoReconnectSetting && !this.closedExplicitly) {
+    if (!this.closedExplicitly) {
       this.isClosed = false;
       this.closedReason = null;
       pickNewConnection();
