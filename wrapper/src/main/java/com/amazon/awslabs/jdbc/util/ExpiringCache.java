@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -35,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class ExpiringCache<K, V> implements Map<K, V> {
 
-  private int expireTimeMs;
+  private long expireTimeMs;
 
   /** The HashMap which stores the key-value pair. */
   private final LinkedHashMap<K, Hit<V>> linkedHashMap =
@@ -60,7 +61,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    *
    * @param expireTimeMs The expired time in Ms
    */
-  public ExpiringCache(int expireTimeMs) {
+  public ExpiringCache(long expireTimeMs) {
     this.expireTimeMs = expireTimeMs;
   }
 
@@ -69,7 +70,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    *
    * @param expireTimeMs The expired time in Ms
    */
-  public void setExpireTime(int expireTimeMs) {
+  public void setExpireTime(long expireTimeMs) {
     this.expireTimeMs = expireTimeMs;
   }
 
@@ -78,7 +79,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    *
    * @return Returns the time it takes for the cache to be "expired"
    */
-  public int getExpireTime() {
+  public long getExpireTime() {
     return this.expireTimeMs;
   }
 
@@ -239,7 +240,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   private static class Hit<V> {
 
-    private final long time;
+    private final long time; // in nanos
     private final V payload;
 
     /**
@@ -248,7 +249,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
      * @param payload The value to store
      */
     Hit(V payload) {
-      this.time = System.currentTimeMillis();
+      this.time = System.nanoTime();
       this.payload = payload;
     }
 
@@ -258,8 +259,9 @@ public class ExpiringCache<K, V> implements Map<K, V> {
      * @param expireTimeMs The expired time
      * @return True if the object is expired
      */
-    boolean isExpire(int expireTimeMs) {
-      return (System.currentTimeMillis() - this.time) >= expireTimeMs;
+    boolean isExpire(long expireTimeMs) {
+      final long elapsedTimeNano = System.nanoTime() - this.time;
+      return elapsedTimeNano >= TimeUnit.MILLISECONDS.toNanos(expireTimeMs);
     }
   }
 }
