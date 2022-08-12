@@ -12,12 +12,12 @@ on:
       - '**/*.md'
 
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   aurora-postgres-integration-tests:
-    concurrency: IntegrationTests
+    concurrency: IntegrationTests-Aurora-OpenJDK
     name: 'Run Aurora Postgres container integration tests'
     runs-on: ubuntu-latest
     steps:
@@ -68,7 +68,7 @@ jobs:
           retention-days: 5
 
   standard-postgres-integration-tests:
-    concurrency: IntegrationTests
+    concurrency: IntegrationTests-Standard-OpenJDK
     name: 'Run Standard Postgres container integration tests'
     runs-on: ubuntu-latest
     steps:
