@@ -117,7 +117,7 @@ If there is an unreleased feature you would like to try, it may be available in 
 ```xml
 <dependencies>
   <dependency>
-    <groupId>software.aws.rds</groupId>
+    <groupId>software.amazon.jdbc</groupId>
     <artifactId>aws-advanced-jdbc-wrapper</artifactId>
     <version>1.0.0</version>
     <scope>system</scope>
