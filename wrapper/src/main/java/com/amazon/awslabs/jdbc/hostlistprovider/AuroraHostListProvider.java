@@ -540,6 +540,10 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   }
 
   private void logTopology(final List<HostSpec> topology) {
+    if (!LOGGER.isLoggable(Level.FINER)) {
+      return;
+    }
+
     StringBuilder msg = new StringBuilder();
     for (int i = 0; i < topology.size(); i++) {
       HostSpec hostInfo = topology.get(i);
