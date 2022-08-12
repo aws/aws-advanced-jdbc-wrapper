@@ -111,7 +111,7 @@ In addition to the built-in plugins, you can also create custom plugins more sui
 For more information, see [Custom Plugins](../development-guide/LoadablePlugins.md#using-custom-plugins).
 
 ### Using a Snapshot of the Driver
-If there is an unreleased feature you would like to try, it may be available in a snapshot build of the driver. Snapshot builds can be found [here](https://aws.oss.sonatype.org/content/repositories/snapshots/software/aws/rds/aws-mysql-jdbc/). To use a snapshot, find the desired `.jar` file, which will be named `aws-advanced-jdbc-wrapper-<version>-<date>-<time>-<snapshot-number>.jar`, and add it to your project as a dependency.
+If there is an unreleased feature you would like to try, it may be available in a snapshot build of the driver. Snapshot builds can be found [here](https://aws.oss.sonatype.org/content/repositories/snapshots/software/aws/rds/aws-advanced-jdbc-wrapper/). To use a snapshot, find the desired `.jar` file, which will be named `aws-advanced-jdbc-wrapper-<version>-<date>-<time>-<snapshot-number>.jar`, and add it to your project as a dependency.
 
 #### As a Maven dependency
 ```xml
