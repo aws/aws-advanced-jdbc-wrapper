@@ -30,9 +30,6 @@ plugins {
 val versionMajor = project.property("aws-advanced-jdbc-wrapper.version.major")
 val versionMinor = project.property("aws-advanced-jdbc-wrapper.version.minor")
 val versionSubminor = Integer.parseInt(project.property("aws-advanced-jdbc-wrapper.version.subminor").toString()) + if (project.property("snapshot") == "true") 1 else 0
-//val String.v: String get() = rootProject.extra["$this.version"] as String
-//val buildVersion = "aws-advanced-jdbc-wrapper".v + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
-//val buildVersion = "aws-advanced-jdbc-wrapper.version" + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
 val buildVersion = "$versionMajor.$versionMinor.$versionSubminor" + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
 
 allprojects {
