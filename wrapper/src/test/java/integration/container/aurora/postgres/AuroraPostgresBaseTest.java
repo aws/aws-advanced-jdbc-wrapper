@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.amazon.awslabs.jdbc.Driver;
 import com.amazon.awslabs.jdbc.PropertyDefinition;
+import com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource;
 import com.amazon.awslabs.jdbc.hostlistprovider.AuroraHostListProvider;
 import com.amazon.awslabs.jdbc.plugin.failover.FailoverConnectionPlugin;
 import com.amazon.awslabs.jdbc.util.StringUtils;
@@ -320,16 +321,28 @@ public abstract class AuroraPostgresBaseTest {
     assertEquals(expectedSQLErrorCode, exception.getSQLState(), "Unexpected SQL Exception: " + exception.getMessage());
   }
 
-  protected Connection createPooledConnectionWithInstanceId(String instanceID) throws SQLException {
-    final BasicDataSource ds = new BasicDataSource();
-    ds.setUrl(DB_CONN_STR_PREFIX + instanceID + DB_CONN_STR_SUFFIX + "/" + AURORA_POSTGRES_DB);
-    ds.setUsername(AURORA_POSTGRES_USERNAME);
-    ds.setPassword(AURORA_POSTGRES_PASSWORD);
-    ds.setMinIdle(CP_MIN_IDLE);
-    ds.setMaxIdle(CP_MAX_IDLE);
-    ds.setMaxOpenPreparedStatements(CP_MAX_OPEN_PREPARED_STATEMENTS);
+  protected Connection createPooledConnectionWithFailoverUsingInstanceId(String instanceID) throws SQLException {
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
-    return ds.getConnection();
+    // Configure the property names for the underlying driver-specific data source:
+    ds.setJdbcProtocol("jdbc:postgresql:");
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
+    ds.setDatabasePropertyName("databaseName");
+    ds.setServerPropertyName("serverName");
+    ds.setPortPropertyName("port");
+
+    // Specify the driver-specific data source:
+    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+
+    // Configure the driver-specific data source:
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", instanceID + DB_CONN_STR_SUFFIX);
+    targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
+    targetDataSourceProps.setProperty("wrapperPlugins", "failover");
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
+
+    return ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);
   }
 
   protected DBCluster getDBCluster() {

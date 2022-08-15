@@ -18,13 +18,13 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource;
 import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class HikariTests extends StandardMysqlBaseTest {
@@ -51,15 +51,27 @@ public class HikariTests extends StandardMysqlBaseTest {
   }
 
   @Test
-  @Disabled // TODO: check
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
-    ds.setDataSourceClassName("com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource");
+    ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
+
+    // Configure the connection pool:
     ds.setUsername(STANDARD_MYSQL_USERNAME);
     ds.setPassword(STANDARD_MYSQL_PASSWORD);
+
+    // Configure AwsWrapperDataSource:
+    ds.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
+    ds.addDataSourceProperty("userPropertyName", "user");
+    ds.addDataSourceProperty("passwordPropertyName", "password");
+    ds.addDataSourceProperty("databasePropertyName", "databaseName");
+    ds.addDataSourceProperty("portPropertyName", "port");
+    ds.addDataSourceProperty("serverPropertyName", "serverName");
+
+    // Specify the driver-specific data source for AwsWrapperDataSource:
     ds.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
 
+    // Configuring MysqlDataSource:
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
     targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
