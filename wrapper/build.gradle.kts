@@ -34,7 +34,7 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-engine:1.8.+")
     testImplementation("org.junit.platform:junit-platform-launcher:1.8.+")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.8.+")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.+")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
