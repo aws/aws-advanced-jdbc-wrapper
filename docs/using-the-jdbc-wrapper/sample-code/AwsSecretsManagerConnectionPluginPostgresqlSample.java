@@ -26,8 +26,6 @@ public class AwsSecretsManagerConnectionPluginPostgresqlSample {
   private static final String CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/employees";
 
   public static void main(String[] args) throws SQLException, ClassNotFoundException {
-    Class.forName("com.amazon.awslabs.jdbc.Driver");
-
     // Set the AWS Secrets Manager Connection Plugin parameters and the JDBC Wrapper parameters.
     final Properties properties = new Properties();
     properties.setProperty("secretsManagerRegion", "us-east-2");

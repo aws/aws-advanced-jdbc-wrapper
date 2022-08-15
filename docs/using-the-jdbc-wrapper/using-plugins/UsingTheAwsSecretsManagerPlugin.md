@@ -15,7 +15,7 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 | Parameter                | Value  | Required | Description                                             | Example     | Default Value |
 |--------------------------|:------:|:--------:|:--------------------------------------------------------|:------------|---------------|
 | `secretsManagerSecretId` | String |   Yes    | Set this value to be the secret name or the secret ARN. | `secretId`  | `null`        |
-| `secretsManagerRegion`   | String |   Yes    | Set this value to be the region your secret is in.      | `us-east-1` | `us-east-1`   |
+| `secretsManagerRegion`   | String |   Yes    | Set this value to be the region your secret is in.      | `us-east-2` | `us-east-1`   |
 
 ### Example
 The following example demonstrates using the JDBC Wrapper to make a connection to a PostgreSQL database using credentials fetched from the AWS Secrets Manager:
@@ -33,8 +33,6 @@ public class AwsSecretsManagerConnectionPluginPostgresqlSample {
   private static final String CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/employees";
 
   public static void main(String[] args) throws SQLException, ClassNotFoundException {
-    Class.forName("com.amazon.awslabs.jdbc.Driver");
-
     // Set the AWS Secrets Manager Connection Plugin parameters and the JDBC Wrapper parameters.
     final Properties properties = new Properties();
     properties.setProperty("secretsManagerRegion", "us-east-2");
