@@ -98,6 +98,7 @@ class FailoverConnectionPluginTest {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
+    when(mockHostListProvider.getRdsUrlType()).thenReturn(RdsUrlType.RDS_WRITER_CLUSTER);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(mockHostSpec);
     when(mockPluginService.connect(any(HostSpec.class), eq(properties))).thenReturn(mockConnection);
@@ -521,20 +522,6 @@ class FailoverConnectionPluginTest {
         EMPTY_ARGS);
     verify(mockSqlFunction).call();
     verify(mockHostListProvider, never()).getRdsUrlType();
-  }
-
-  @Test
-  void test_execute_withInvalidHostListProvider() {
-    when(mockPluginService.getHostListProvider()).thenReturn(new FooHostListProvider());
-
-    initializePlugin();
-    assertThrows(SQLException.class, () -> plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        MONITOR_METHOD_INVOKE_ON,
-        MONITOR_METHOD_NAME,
-        mockSqlFunction,
-        EMPTY_ARGS));
   }
 
   private void initializePlugin() {

@@ -28,13 +28,13 @@ plugins {
 
 dependencies {
     implementation("org.checkerframework:checker-qual:3.22.+")
-    compileOnly("software.amazon.awssdk:rds:2.17.165")
+    compileOnly("software.amazon.awssdk:rds:2.17.252")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.8.+")
     testImplementation("org.junit.platform:junit-platform-engine:1.8.+")
     testImplementation("org.junit.platform:junit-platform-launcher:1.8.+")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.8.+")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.+")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 

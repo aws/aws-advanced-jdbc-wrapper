@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -343,7 +344,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           // ignore
         }
         LOGGER.fine(Messages.get("ClusterAwareWriterFailoverHandler.12"));
-        TimeUnit.MILLISECONDS.sleep(1);
+        TimeUnit.SECONDS.sleep(1);
       }
     }
 
@@ -371,10 +372,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           if (!topology.isEmpty()) {
             this.currentTopology = topology;
             HostSpec writerCandidate = this.currentTopology.get(WRITER_CONNECTION_INDEX);
-            logTopology();
 
             if (!isSame(writerCandidate, this.originalWriterHost)) {
               // new writer is available and it's different from the previous writer
+              logTopology();
               if (connectToWriter(writerCandidate)) {
                 return true;
               }
@@ -448,6 +449,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
 
     private void logTopology() {
+      if (!LOGGER.isLoggable(Level.FINER)) {
+        return;
+      }
+
       StringBuilder msg = new StringBuilder();
       for (int i = 0; i < this.currentTopology.size(); i++) {
         HostSpec hostInfo = this.currentTopology.get(i);

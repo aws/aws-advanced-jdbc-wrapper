@@ -170,19 +170,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    try {
-      final RdsUrlType type = this.getHostListProvider().getRdsUrlType();
-      if (type.isRdsCluster()) {
-        this.explicitlyReadOnly = (type == RdsUrlType.RDS_READER_CLUSTER);
-        LOGGER.finer(
-            Messages.get(
-                "Failover.parameterValue",
-                new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
-      }
-    } catch (SQLException ex) {
-      throw wrapExceptionIfNeeded(exceptionClass, ex);
-    }
-
     if (this.isClosed && !allowedOnClosedConnection(methodName)) {
       try {
         invalidInvocationOnClosedConnection();
@@ -267,6 +254,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.writerFailoverHandler = writerFailoverHandlerSupplier.apply(hostListProvider);
 
     initHostProviderFunc.call();
+
+    final RdsUrlType type = this.getHostListProvider().getRdsUrlType();
+    if (type.isRdsCluster()) {
+      this.explicitlyReadOnly = (type == RdsUrlType.RDS_READER_CLUSTER);
+      LOGGER.finer(
+          Messages.get(
+              "Failover.parameterValue",
+              new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
+    }
   }
 
   private AuroraHostListProvider getHostListProvider() throws SQLException {
@@ -345,7 +341,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       pickNewConnection();
 
       // "The active SQL connection has changed. Please re-configure session state if required."
-      LOGGER.severe(Messages.get("Failover.connectionChangedError"));
+      LOGGER.info(Messages.get("Failover.connectionChangedError"));
       throw new SQLException(
           Messages.get("Failover.connectionChangedError"),
           SqlState.COMMUNICATION_LINK_CHANGED.getState());
@@ -652,7 +648,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       // "Transaction resolution unknown. Please re-configure session state if required and try
       // restarting transaction."
       final String errorMessage = Messages.get("Failover.transactionResolutionUnknownError");
-      LOGGER.severe(errorMessage);
+      LOGGER.info(errorMessage);
       throw new SQLException(errorMessage, SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
