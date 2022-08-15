@@ -41,7 +41,7 @@ public class WrapperUtilsTest {
 
   @BeforeEach
   @SuppressWarnings("unchecked")
-  private void init() {
+  void init() {
     final ReentrantLock pluginManagerLock = new ReentrantLock();
     final ReentrantLock testLock = new ReentrantLock();
     closeable = MockitoAnnotations.openMocks(this);
