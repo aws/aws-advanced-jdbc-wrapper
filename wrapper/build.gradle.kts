@@ -27,7 +27,7 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.22.+")
+    implementation("org.checkerframework:checker-qual:3.24.+")
     compileOnly("software.amazon.awssdk:rds:2.17.252")
     compileOnly("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
 
