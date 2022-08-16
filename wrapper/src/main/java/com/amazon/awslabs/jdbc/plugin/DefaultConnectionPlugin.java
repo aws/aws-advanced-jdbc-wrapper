@@ -125,7 +125,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     // omitted.
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
-
     return conn;
   }
 

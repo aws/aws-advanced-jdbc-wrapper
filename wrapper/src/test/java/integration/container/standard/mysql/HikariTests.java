@@ -55,7 +55,6 @@ public class HikariTests extends StandardMysqlBaseTest {
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
-    ds.setExceptionOverrideClassName("com.amazon.awslabs.jdbc.util.HikariCPSQLException");
     ds.setDataSourceClassName("com.amazon.awslabs.jdbc.ds.ProxyDriverDataSource");
     ds.setUsername(STANDARD_MYSQL_USERNAME);
     ds.setPassword(STANDARD_MYSQL_PASSWORD);
