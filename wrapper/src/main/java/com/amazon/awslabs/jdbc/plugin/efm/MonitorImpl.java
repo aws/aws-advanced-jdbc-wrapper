@@ -87,10 +87,12 @@ public class MonitorImpl implements Monitor {
     this.properties = properties;
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;
     this.monitorService = monitorService;
+
+    this.lastContextUsedTimestamp.set(this.getCurrentTimeNano());
   }
 
   @Override
-  public synchronized void startMonitoring(MonitorConnectionContext context) {
+  public void startMonitoring(MonitorConnectionContext context) {
     this.connectionCheckIntervalMillis =
         Math.min(this.connectionCheckIntervalMillis, context.getFailureDetectionIntervalMillis());
     final long currentTime = this.getCurrentTimeNano();
@@ -100,7 +102,7 @@ public class MonitorImpl implements Monitor {
   }
 
   @Override
-  public synchronized void stopMonitoring(MonitorConnectionContext context) {
+  public void stopMonitoring(MonitorConnectionContext context) {
     if (context == null) {
       LOGGER.log(Level.WARNING, "Parameter 'context' should not be null.");
       return;
@@ -190,7 +192,8 @@ public class MonitorImpl implements Monitor {
       }
 
       start = this.getCurrentTimeNano();
-      boolean isValid = this.monitoringConn.isValid((int) (shortestFailureDetectionIntervalMillis / 1000L));
+      boolean isValid = this.monitoringConn.isValid(
+          (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis));
       return new ConnectionStatus(isValid, this.getCurrentTimeNano() - start);
     } catch (SQLException sqlEx) {
       // LOGGER.log(Level.FINEST, String.format("[Monitor] Error checking connection status: %s",
@@ -219,13 +222,10 @@ public class MonitorImpl implements Monitor {
   }
 
   private long findShortestIntervalMillis() {
-    if (this.contexts.isEmpty()) {
-      return Long.MAX_VALUE;
+    long currentMin = Long.MAX_VALUE;
+    for (MonitorConnectionContext context : this.contexts) {
+      currentMin = Math.min(currentMin, context.getFailureDetectionIntervalMillis());
     }
-
-    return this.contexts.stream()
-        .min(Comparator.comparing(MonitorConnectionContext::getFailureDetectionIntervalMillis))
-        .map(MonitorConnectionContext::getFailureDetectionIntervalMillis)
-        .orElse(0L);
+    return currentMin;
   }
 }
