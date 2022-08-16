@@ -72,7 +72,15 @@ When the JDBC Wrapper throws a SQLException with code ```08007```, the original 
 The AWS Advanced JDBC Wrapper is compatible with [connection pooling](../DataSource.md#Using-the-AwsWrapperDataSource-with-Connection-Pooling-Frameworks), but some connection pooling libraries may contain additional behaviour when dealing with SQL exceptions. This means the exceptions created by the JDBC Wrapper may not be recognized, and depending on the connection pool, connections may be closed prematurely due to the unrecognized SQL exceptions. Users are recommended to investigate the connection pooling library of their choice, and to implement any required additional code to allow the connection pool to accept the exceptions raised by the driver.
 
 ### HikariCP
-The HikariCP library provides an interface that you can use to prevent connections from being closed immediately after failover, as shown below.
+The failover plugin throws failover-related exceptions that need to be handled explicitly by HikariCP,
+otherwise connections will be closed immediately after failover.
+When using HikariCP with the failover plugin, you need to provide a custom exception override class.
+The JDBC Wrapper provides a custom exception override class for HikariCP, to use it,
+configure the HikariDataSource like the following:
+```java
+HikariDataSource ds = new HikariDataSource();
+ds.setExceptionOverrideClassName("com.amazon.awslabs.jdbc.util.HikariCPSQLException");
+```
 
 #### Sample Code
 ```java
