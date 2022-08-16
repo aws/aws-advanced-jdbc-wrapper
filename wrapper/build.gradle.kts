@@ -31,7 +31,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:rds:2.17.252")
     compileOnly("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.8.+")
+    testImplementation("org.junit.platform:junit-platform-commons:1.9.+")
     testImplementation("org.junit.platform:junit-platform-engine:1.8.+")
     testImplementation("org.junit.platform:junit-platform-launcher:1.8.+")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.9.+")
