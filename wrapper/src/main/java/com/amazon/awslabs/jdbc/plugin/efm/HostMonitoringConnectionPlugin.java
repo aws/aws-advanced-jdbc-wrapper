@@ -108,6 +108,11 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
       final @NonNull Supplier<MonitorService> monitorServiceSupplier) {
+    if (pluginService == null) {
+      throw new IllegalArgumentException("pluginService");
+    } else if (properties == null) {
+      throw new IllegalArgumentException("properties");
+    }
 
     this.pluginService = pluginService;
     this.properties = properties;
