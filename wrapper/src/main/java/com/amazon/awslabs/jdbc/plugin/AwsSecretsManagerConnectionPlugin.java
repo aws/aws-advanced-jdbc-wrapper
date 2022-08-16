@@ -196,8 +196,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * Fetches the current credentials from AWS Secrets Manager service.
    *
    * @return a Secret object containing the credentials fetched from the AWS Secrets Manager service.
-   * @throws SecretsManagerException If credentials can't be fetched from the AWS Secrets Manager service.
-   * @throws JsonProcessingException If credentials can't be mapped to a Secret object.
+   * @throws SecretsManagerException if credentials can't be fetched from the AWS Secrets Manager service.
+   * @throws JsonProcessingException if credentials can't be mapped to a Secret object.
    */
   Secret fetchLatestCredentials() throws SecretsManagerException, JsonProcessingException {
     final GetSecretValueResponse valueResponse = this.secretsManagerClient.getSecretValue(this.getSecretValueRequest);
