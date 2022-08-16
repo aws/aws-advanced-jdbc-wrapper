@@ -16,12 +16,12 @@
 
 package com.amazon.awslabs.jdbc.hostlistprovider;
 
+import com.amazon.awslabs.jdbc.AwsWrapperProperty;
 import com.amazon.awslabs.jdbc.HostAvailability;
 import com.amazon.awslabs.jdbc.HostListProvider;
 import com.amazon.awslabs.jdbc.HostRole;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.PluginService;
-import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.util.ExpiringCache;
 import com.amazon.awslabs.jdbc.util.Messages;
 import com.amazon.awslabs.jdbc.util.RdsUrlType;
@@ -48,22 +48,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class AuroraHostListProvider implements HostListProvider, DynamicHostListProvider {
 
-  public static final ProxyDriverProperty CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
+      new AwsWrapperProperty(
           "clusterTopologyRefreshRateMs",
           "30000",
           "Cluster topology refresh rate in millis. "
               + "The cached topology for the cluster will be invalidated after the specified time, "
               + "after which it will be updated during the next interaction with the connection.");
 
-  public static final ProxyDriverProperty CLUSTER_ID = new ProxyDriverProperty(
+  public static final AwsWrapperProperty CLUSTER_ID = new AwsWrapperProperty(
       "clusterId", "",
       "A unique identifier for the cluster. "
           + "Connections with the same cluster id share a cluster topology cache. "
           + "If unspecified, a cluster id is automatically created for AWS RDS clusters.");
 
-  public static final ProxyDriverProperty CLUSTER_INSTANCE_HOST_PATTERN =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty CLUSTER_INSTANCE_HOST_PATTERN =
+      new AwsWrapperProperty(
           "clusterInstanceHostPattern",
           null,
           "The cluster instance DNS pattern that will be used to build a complete instance endpoint. "

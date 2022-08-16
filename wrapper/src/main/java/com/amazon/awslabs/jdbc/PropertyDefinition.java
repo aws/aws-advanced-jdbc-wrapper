@@ -27,13 +27,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
 
-  public static final ProxyDriverProperty LOG_UNCLOSED_CONNECTIONS =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty LOG_UNCLOSED_CONNECTIONS =
+      new AwsWrapperProperty(
           "wrapperLogUnclosedConnections", "false",
           "Allows the driver to track a point in the code where connection has been opened and never closed after");
 
-  public static final ProxyDriverProperty LOGGER_LEVEL =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty LOGGER_LEVEL =
+      new AwsWrapperProperty(
           "wrapperLoggerLevel",
           null,
           "Logger level of the driver",
@@ -42,38 +42,38 @@ public class PropertyDefinition {
               "OFF", "SEVERE", "WARNING", "INFO", "CONFIG", "FINE", "FINER", "FINEST", "ALL"
           });
 
-  public static final ProxyDriverProperty PLUGINS =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty PLUGINS =
+      new AwsWrapperProperty(
           "wrapperPlugins", null, "Comma separated list of connection plugin codes");
 
-  public static final ProxyDriverProperty PROFILE_NAME =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty PROFILE_NAME =
+      new AwsWrapperProperty(
           "wrapperProfileName", null, "Driver configuration profile name");
 
-  public static final ProxyDriverProperty USER =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty USER =
+      new AwsWrapperProperty(
           "wrapperUser", null, "Driver user name");
 
-  public static final ProxyDriverProperty PASSWORD =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty PASSWORD =
+      new AwsWrapperProperty(
           "wrapperPassword", null, "Driver password");
 
-  public static final ProxyDriverProperty DATABASE_NAME =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty DATABASE_NAME =
+      new AwsWrapperProperty(
           "wrapperDatabaseName", null, "Driver database name");
 
-  public static final ProxyDriverProperty TARGET_DRIVER_USER_PROPERTY_NAME =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty TARGET_DRIVER_USER_PROPERTY_NAME =
+      new AwsWrapperProperty(
           "wrapperTargetDriverUserPropertyName", null, "Target driver user property name");
 
-  public static final ProxyDriverProperty TARGET_DRIVER_PASSWORD_PROPERTY_NAME =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty TARGET_DRIVER_PASSWORD_PROPERTY_NAME =
+      new AwsWrapperProperty(
           "wrapperTargetDriverPasswordPropertyName",
           null,
           "Target driver password property name");
 
-  private static final Map<String, ProxyDriverProperty> PROPS_BY_NAME =
-      new HashMap<String, ProxyDriverProperty>();
+  private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
+      new HashMap<String, AwsWrapperProperty>();
 
   static {
     PROPS_BY_NAME.clear();
@@ -81,14 +81,14 @@ public class PropertyDefinition {
     Arrays.stream(PropertyDefinition.class.getDeclaredFields())
         .filter(
             f ->
-                f.getType() == ProxyDriverProperty.class
+                f.getType() == AwsWrapperProperty.class
                     && Modifier.isPublic(f.getModifiers())
                     && Modifier.isStatic(f.getModifiers()))
         .forEach(
             f -> {
-              ProxyDriverProperty prop = null;
+              AwsWrapperProperty prop = null;
               try {
-                prop = (ProxyDriverProperty) f.get(ProxyDriverProperty.class);
+                prop = (AwsWrapperProperty) f.get(AwsWrapperProperty.class);
               } catch (IllegalArgumentException | IllegalAccessException ex) {
                 // ignore exception
               }
@@ -99,11 +99,11 @@ public class PropertyDefinition {
             });
   }
 
-  public static @Nullable ProxyDriverProperty byName(String name) {
+  public static @Nullable AwsWrapperProperty byName(String name) {
     return PROPS_BY_NAME.get(name);
   }
 
-  public static Collection<ProxyDriverProperty> allProperties() {
+  public static Collection<AwsWrapperProperty> allProperties() {
     return PROPS_BY_NAME.values();
   }
 
