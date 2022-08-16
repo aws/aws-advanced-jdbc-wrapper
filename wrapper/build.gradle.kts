@@ -30,6 +30,8 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.23.+")
     compileOnly("software.amazon.awssdk:rds:2.17.+")
     compileOnly("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
+    compileOnly("software.amazon.awssdk:secretsmanager:2.17.250")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.+")
     testImplementation("org.junit.platform:junit-platform-engine:1.9.+")
@@ -54,6 +56,8 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.17.250")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 }
 
 repositories {
