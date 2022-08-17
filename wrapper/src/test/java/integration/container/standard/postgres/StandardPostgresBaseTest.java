@@ -16,7 +16,6 @@
 
 package integration.container.standard.postgres;
 
-import com.amazon.awslabs.jdbc.Driver;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.util.ContainerHelper;
@@ -30,6 +29,7 @@ import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.postgresql.PGProperty;
+import software.aws.jdbc.Driver;
 
 public class StandardPostgresBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:postgresql://";

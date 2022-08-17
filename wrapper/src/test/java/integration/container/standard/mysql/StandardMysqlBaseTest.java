@@ -16,7 +16,6 @@
 
 package integration.container.standard.mysql;
 
-import com.amazon.awslabs.jdbc.Driver;
 import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
@@ -30,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import software.aws.jdbc.Driver;
 
 public class StandardMysqlBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";

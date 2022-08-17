@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -33,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import software.aws.jdbc.wrapper.ConnectionWrapper;
 
 public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
 

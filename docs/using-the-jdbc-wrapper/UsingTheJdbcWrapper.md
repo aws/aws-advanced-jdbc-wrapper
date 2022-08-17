@@ -30,8 +30,8 @@ An example  `.properties` file is as follows:
 .level=INFO
 handlers=java.util.logging.ConsoleHandler
 java.util.logging.ConsoleHandler.level=ALL
-com.amazon.awslabs.jdbc.Driver.level=FINER
-com.amazon.awslabs.jdbc.plugin.level=FINER
+software.aws.jdbc.Driver.level=FINER
+software.aws.jdbc.plugin.level=FINER
 ```
 
 The JDBC Wrapper also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc-wrapper-parameters), to configure the logging level.

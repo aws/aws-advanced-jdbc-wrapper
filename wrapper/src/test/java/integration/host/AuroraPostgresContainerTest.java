@@ -16,8 +16,6 @@
 
 package integration.host;
 
-import com.amazon.awslabs.jdbc.Driver;
-import com.amazon.awslabs.jdbc.util.StringUtils;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;
@@ -32,6 +30,8 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
+import software.aws.jdbc.Driver;
+import software.aws.jdbc.util.StringUtils;
 
 /**
  * Integration tests against RDS Aurora cluster. Uses {@link AuroraTestUtility} which requires AWS
