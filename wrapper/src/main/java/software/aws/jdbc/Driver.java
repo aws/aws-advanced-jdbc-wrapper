@@ -16,9 +16,6 @@
 
 package software.aws.jdbc;
 
-import software.aws.jdbc.util.DriverInfo;
-import software.aws.jdbc.util.StringUtils;
-import software.aws.jdbc.wrapper.ConnectionWrapper;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
@@ -31,6 +28,9 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.util.DriverInfo;
+import software.aws.jdbc.util.StringUtils;
+import software.aws.jdbc.wrapper.ConnectionWrapper;
 
 public class Driver implements java.sql.Driver {
 

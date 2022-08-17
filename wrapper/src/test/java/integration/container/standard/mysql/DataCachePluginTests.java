@@ -20,9 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.plugin.DataCacheConnectionPlugin;
-import software.aws.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -30,6 +27,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.plugin.DataCacheConnectionPlugin;
+import software.aws.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 
 public class DataCachePluginTests extends StandardMysqlBaseTest {
 

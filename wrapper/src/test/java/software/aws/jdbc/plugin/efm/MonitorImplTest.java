@@ -26,15 +26,12 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.PluginService;
 import com.mysql.cj.conf.BooleanProperty;
 import com.mysql.cj.conf.LongProperty;
 import java.sql.Connection;
@@ -49,6 +46,8 @@ import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.PluginService;
 
 class MonitorImplTest {
 

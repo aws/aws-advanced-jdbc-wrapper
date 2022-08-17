@@ -16,10 +16,10 @@
 
 package software.aws.jdbc.plugin.failover;
 
+import java.util.Properties;
 import software.aws.jdbc.ConnectionPlugin;
 import software.aws.jdbc.ConnectionPluginFactory;
 import software.aws.jdbc.PluginService;
-import java.util.Properties;
 
 public class FailoverConnectionPluginFactory implements ConnectionPluginFactory {
 

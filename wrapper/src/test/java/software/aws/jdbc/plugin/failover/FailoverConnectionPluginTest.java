@@ -30,18 +30,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import software.aws.jdbc.HostAvailability;
-import software.aws.jdbc.HostListProvider;
-import software.aws.jdbc.HostListProviderService;
-import software.aws.jdbc.HostRole;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.NodeChangeOptions;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.aws.jdbc.hostlistprovider.DynamicHostListProvider;
-import software.aws.jdbc.util.RdsUrlType;
-import software.aws.jdbc.util.SqlState;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -63,6 +51,18 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.HostAvailability;
+import software.aws.jdbc.HostListProvider;
+import software.aws.jdbc.HostListProviderService;
+import software.aws.jdbc.HostRole;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.NodeChangeOptions;
+import software.aws.jdbc.PluginService;
+import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.aws.jdbc.hostlistprovider.DynamicHostListProvider;
+import software.aws.jdbc.util.RdsUrlType;
+import software.aws.jdbc.util.SqlState;
 
 class FailoverConnectionPluginTest {
 

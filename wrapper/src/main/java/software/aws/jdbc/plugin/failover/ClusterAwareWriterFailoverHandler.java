@@ -16,12 +16,6 @@
 
 package software.aws.jdbc.plugin.failover;
 
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.aws.jdbc.util.Messages;
-import software.aws.jdbc.util.SqlState;
-import software.aws.jdbc.util.Utils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -37,6 +31,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.PluginService;
+import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.aws.jdbc.util.Messages;
+import software.aws.jdbc.util.SqlState;
+import software.aws.jdbc.util.Utils;
 
 /**
  * An implementation of WriterFailoverHandler.

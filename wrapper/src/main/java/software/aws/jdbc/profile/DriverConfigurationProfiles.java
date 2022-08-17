@@ -16,11 +16,11 @@
 
 package software.aws.jdbc.profile;
 
-import software.aws.jdbc.ConnectionPluginFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.ConnectionPluginFactory;
 
 public class DriverConfigurationProfiles {
 

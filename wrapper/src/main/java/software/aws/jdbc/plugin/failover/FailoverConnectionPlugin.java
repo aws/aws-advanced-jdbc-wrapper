@@ -16,6 +16,19 @@
 
 package software.aws.jdbc.plugin.failover;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 import software.aws.jdbc.AwsWrapperProperty;
 import software.aws.jdbc.HostAvailability;
 import software.aws.jdbc.HostListProvider;
@@ -35,19 +48,6 @@ import software.aws.jdbc.util.RdsUrlType;
 import software.aws.jdbc.util.RdsUtils;
 import software.aws.jdbc.util.SqlState;
 import software.aws.jdbc.util.Utils;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.logging.Logger;
 
 /**
  * This plugin provides cluster-aware failover features. The plugin switches connections upon

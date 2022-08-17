@@ -18,8 +18,6 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.plugin.LogQueryConnectionPlugin;
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
@@ -34,6 +32,8 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
 import org.junit.jupiter.api.Test;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.plugin.LogQueryConnectionPlugin;
 
 public class LogQueryPluginTests extends StandardMysqlBaseTest {
 

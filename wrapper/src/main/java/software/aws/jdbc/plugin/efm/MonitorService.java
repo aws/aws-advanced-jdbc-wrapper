@@ -16,10 +16,10 @@
 
 package software.aws.jdbc.plugin.efm;
 
-import software.aws.jdbc.HostSpec;
 import java.sql.Connection;
 import java.util.Properties;
 import java.util.Set;
+import software.aws.jdbc.HostSpec;
 
 /**
  * Interface for monitor services. This class implements ways to start and stop monitoring servers

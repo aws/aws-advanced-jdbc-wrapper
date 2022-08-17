@@ -18,11 +18,11 @@ package software.aws.jdbc;
 
 import static software.aws.jdbc.util.StringUtils.isNullOrEmpty;
 
-import software.aws.jdbc.util.PropertyUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.util.PropertyUtils;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and returns a connection
@@ -80,7 +80,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param url   The connection URL
+   * @param url The connection URL
    * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs

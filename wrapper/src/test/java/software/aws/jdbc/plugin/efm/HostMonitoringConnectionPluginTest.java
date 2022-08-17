@@ -27,9 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.PluginService;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -46,6 +43,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.PluginService;
 
 class HostMonitoringConnectionPluginTest {
 

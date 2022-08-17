@@ -16,15 +16,6 @@
 
 package software.aws.jdbc.plugin.efm;
 
-import software.aws.jdbc.AwsWrapperProperty;
-import software.aws.jdbc.HostAvailability;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.NodeChangeOptions;
-import software.aws.jdbc.OldConnectionSuggestedAction;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.cleanup.CanReleaseResources;
-import software.aws.jdbc.plugin.AbstractConnectionPlugin;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -40,6 +31,15 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.AwsWrapperProperty;
+import software.aws.jdbc.HostAvailability;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.NodeChangeOptions;
+import software.aws.jdbc.OldConnectionSuggestedAction;
+import software.aws.jdbc.PluginService;
+import software.aws.jdbc.cleanup.CanReleaseResources;
+import software.aws.jdbc.plugin.AbstractConnectionPlugin;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure

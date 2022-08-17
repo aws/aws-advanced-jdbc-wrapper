@@ -16,16 +16,6 @@
 
 package software.aws.jdbc.plugin;
 
-import software.aws.jdbc.ConnectionPlugin;
-import software.aws.jdbc.ConnectionProvider;
-import software.aws.jdbc.HostAvailability;
-import software.aws.jdbc.HostListProviderService;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.NodeChangeOptions;
-import software.aws.jdbc.OldConnectionSuggestedAction;
-import software.aws.jdbc.PluginManagerService;
-import software.aws.jdbc.PluginService;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -40,6 +30,16 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import software.aws.jdbc.ConnectionPlugin;
+import software.aws.jdbc.ConnectionProvider;
+import software.aws.jdbc.HostAvailability;
+import software.aws.jdbc.HostListProviderService;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.NodeChangeOptions;
+import software.aws.jdbc.OldConnectionSuggestedAction;
+import software.aws.jdbc.PluginManagerService;
+import software.aws.jdbc.PluginService;
 
 /**
  * This connection plugin will always be the last plugin in the connection plugin chain, and will

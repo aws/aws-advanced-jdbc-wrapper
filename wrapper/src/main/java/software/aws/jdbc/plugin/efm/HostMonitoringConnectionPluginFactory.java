@@ -16,10 +16,10 @@
 
 package software.aws.jdbc.plugin.efm;
 
+import java.util.Properties;
 import software.aws.jdbc.ConnectionPlugin;
 import software.aws.jdbc.ConnectionPluginFactory;
 import software.aws.jdbc.PluginService;
-import java.util.Properties;
 
 /** Class initializing a {@link HostMonitoringConnectionPlugin}. */
 public class HostMonitoringConnectionPluginFactory implements ConnectionPluginFactory {

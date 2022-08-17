@@ -16,9 +16,6 @@
 
 package software.aws.jdbc.plugin.efm;
 
-import software.aws.jdbc.AwsWrapperProperty;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.PluginService;
 import java.sql.Connection;
 import java.util.Properties;
 import java.util.Set;
@@ -26,6 +23,9 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.AwsWrapperProperty;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.PluginService;
 
 /**
  * This class handles the creation and clean up of monitoring threads to servers with one or more

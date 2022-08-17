@@ -16,14 +16,14 @@
 
 package software.aws.jdbc.mock;
 
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Properties;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
 
 public class TestPluginThree extends TestPluginOne {
 

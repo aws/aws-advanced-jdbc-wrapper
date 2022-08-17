@@ -16,9 +16,6 @@
 
 package software.aws.jdbc.plugin.efm;
 
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.util.PropertyUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -30,6 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.PluginService;
+import software.aws.jdbc.util.PropertyUtils;
 
 /**
  * This class uses a background thread to monitor a particular server with one or more active {@link

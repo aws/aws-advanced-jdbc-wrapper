@@ -20,12 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import software.aws.jdbc.Driver;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.ds.AwsWrapperDataSource;
-import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.aws.jdbc.plugin.failover.FailoverConnectionPlugin;
-import software.aws.jdbc.util.StringUtils;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.util.AuroraTestUtility;
@@ -56,6 +50,12 @@ import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
+import software.aws.jdbc.Driver;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.ds.AwsWrapperDataSource;
+import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.aws.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.aws.jdbc.util.StringUtils;
 
 public abstract class AuroraPostgresBaseTest {
 

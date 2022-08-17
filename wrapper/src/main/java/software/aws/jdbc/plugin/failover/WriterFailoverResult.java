@@ -16,10 +16,10 @@
 
 package software.aws.jdbc.plugin.failover;
 
-import software.aws.jdbc.HostSpec;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import software.aws.jdbc.HostSpec;
 
 /**
  * This class holds results of Writer Failover Process.

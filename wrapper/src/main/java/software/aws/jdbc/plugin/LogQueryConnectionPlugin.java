@@ -16,10 +16,6 @@
 
 package software.aws.jdbc.plugin;
 
-import software.aws.jdbc.AwsWrapperProperty;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.util.StringUtils;
-import software.aws.jdbc.util.WrapperUtils;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,6 +25,10 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import software.aws.jdbc.AwsWrapperProperty;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.util.StringUtils;
+import software.aws.jdbc.util.WrapperUtils;
 
 /*
  * The plugin logs a SQL statement to be executed. When SQL statement isn't passed as a method parameter,

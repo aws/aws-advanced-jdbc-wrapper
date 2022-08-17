@@ -16,8 +16,8 @@
 
 package software.aws.jdbc.plugin.efm;
 
-import software.aws.jdbc.HostSpec;
 import java.util.Properties;
+import software.aws.jdbc.HostSpec;
 
 /** Interface for initialize a new {@link MonitorImpl}. */
 @FunctionalInterface

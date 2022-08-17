@@ -16,17 +16,6 @@
 
 package software.aws.jdbc.wrapper;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.ConnectionProvider;
-import software.aws.jdbc.HostListProviderService;
-import software.aws.jdbc.PluginManagerService;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.PluginServiceImpl;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.cleanup.CanReleaseResources;
-import software.aws.jdbc.util.SqlState;
-import software.aws.jdbc.util.StringUtils;
-import software.aws.jdbc.util.WrapperUtils;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -49,6 +38,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.ConnectionProvider;
+import software.aws.jdbc.HostListProviderService;
+import software.aws.jdbc.PluginManagerService;
+import software.aws.jdbc.PluginService;
+import software.aws.jdbc.PluginServiceImpl;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.cleanup.CanReleaseResources;
+import software.aws.jdbc.util.SqlState;
+import software.aws.jdbc.util.StringUtils;
+import software.aws.jdbc.util.WrapperUtils;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
 

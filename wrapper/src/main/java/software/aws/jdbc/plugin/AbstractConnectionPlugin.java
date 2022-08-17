@@ -16,18 +16,18 @@
 
 package software.aws.jdbc.plugin;
 
-import software.aws.jdbc.ConnectionPlugin;
-import software.aws.jdbc.HostListProviderService;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.NodeChangeOptions;
-import software.aws.jdbc.OldConnectionSuggestedAction;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import software.aws.jdbc.ConnectionPlugin;
+import software.aws.jdbc.HostListProviderService;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.NodeChangeOptions;
+import software.aws.jdbc.OldConnectionSuggestedAction;
 
 public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 

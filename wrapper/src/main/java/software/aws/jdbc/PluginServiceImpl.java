@@ -16,9 +16,6 @@
 
 package software.aws.jdbc;
 
-import software.aws.jdbc.cleanup.CanReleaseResources;
-import software.aws.jdbc.hostlistprovider.ConnectionStringHostListProvider;
-import software.aws.jdbc.hostlistprovider.StaticHostListProvider;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -34,6 +31,9 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.cleanup.CanReleaseResources;
+import software.aws.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.aws.jdbc.hostlistprovider.StaticHostListProvider;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources, HostListProviderService,
     PluginManagerService {

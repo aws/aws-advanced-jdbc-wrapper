@@ -20,8 +20,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.JdbcCallable;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +30,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.JdbcCallable;
 
 public class WrapperUtilsTest {
 

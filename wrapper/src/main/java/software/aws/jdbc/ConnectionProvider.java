@@ -42,7 +42,7 @@ public interface ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param url   The connection URL
+   * @param url The connection URL
    * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs

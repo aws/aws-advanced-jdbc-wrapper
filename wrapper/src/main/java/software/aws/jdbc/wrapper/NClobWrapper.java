@@ -16,8 +16,6 @@
 
 package software.aws.jdbc.wrapper;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.util.WrapperUtils;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
@@ -26,6 +24,8 @@ import java.sql.Clob;
 import java.sql.NClob;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.util.WrapperUtils;
 
 public class NClobWrapper implements NClob {
 

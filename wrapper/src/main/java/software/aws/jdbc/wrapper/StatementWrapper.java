@@ -16,14 +16,14 @@
 
 package software.aws.jdbc.wrapper;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.util.WrapperUtils;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.util.WrapperUtils;
 
 public class StatementWrapper implements Statement {
 

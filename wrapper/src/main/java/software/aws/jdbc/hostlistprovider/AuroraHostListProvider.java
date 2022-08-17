@@ -16,17 +16,6 @@
 
 package software.aws.jdbc.hostlistprovider;
 
-import software.aws.jdbc.AwsWrapperProperty;
-import software.aws.jdbc.HostAvailability;
-import software.aws.jdbc.HostListProvider;
-import software.aws.jdbc.HostRole;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.util.ExpiringCache;
-import software.aws.jdbc.util.Messages;
-import software.aws.jdbc.util.RdsUrlType;
-import software.aws.jdbc.util.RdsUtils;
-import software.aws.jdbc.util.StringUtils;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -44,6 +33,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.AwsWrapperProperty;
+import software.aws.jdbc.HostAvailability;
+import software.aws.jdbc.HostListProvider;
+import software.aws.jdbc.HostRole;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.PluginService;
+import software.aws.jdbc.util.ExpiringCache;
+import software.aws.jdbc.util.Messages;
+import software.aws.jdbc.util.RdsUrlType;
+import software.aws.jdbc.util.RdsUtils;
+import software.aws.jdbc.util.StringUtils;
 
 public class AuroraHostListProvider implements HostListProvider, DynamicHostListProvider {
 

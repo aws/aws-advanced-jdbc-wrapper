@@ -16,13 +16,6 @@
 
 package software.aws.jdbc.plugin.efm;
 
-import software.aws.jdbc.ConnectionPlugin;
-import software.aws.jdbc.HostAvailability;
-import software.aws.jdbc.HostListProvider;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.NodeChangeOptions;
-import software.aws.jdbc.PluginService;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -58,6 +51,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import software.aws.jdbc.ConnectionPlugin;
+import software.aws.jdbc.HostAvailability;
+import software.aws.jdbc.HostListProvider;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.NodeChangeOptions;
+import software.aws.jdbc.PluginService;
 
 @Disabled
 @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")

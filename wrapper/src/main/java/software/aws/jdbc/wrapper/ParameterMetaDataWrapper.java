@@ -16,11 +16,11 @@
 
 package software.aws.jdbc.wrapper;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.util.WrapperUtils;
 import java.sql.ParameterMetaData;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.util.WrapperUtils;
 
 public class ParameterMetaDataWrapper implements ParameterMetaData {
 

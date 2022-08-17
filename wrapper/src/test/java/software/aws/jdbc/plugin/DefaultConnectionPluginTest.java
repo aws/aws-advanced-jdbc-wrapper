@@ -18,9 +18,6 @@ package software.aws.jdbc.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import software.aws.jdbc.ConnectionProvider;
-import software.aws.jdbc.PluginManagerService;
-import software.aws.jdbc.PluginService;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,6 +30,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.ConnectionProvider;
+import software.aws.jdbc.PluginManagerService;
+import software.aws.jdbc.PluginService;
 
 class DefaultConnectionPluginTest {
 

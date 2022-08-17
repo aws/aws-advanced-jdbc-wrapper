@@ -16,13 +16,13 @@
 
 package software.aws.jdbc.wrapper;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.util.WrapperUtils;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.sql.Blob;
 import java.sql.SQLException;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.util.WrapperUtils;
 
 public class BlobWrapper implements Blob {
 

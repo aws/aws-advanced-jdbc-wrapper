@@ -29,15 +29,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import software.aws.jdbc.ConnectionPlugin;
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.HostAvailability;
-import software.aws.jdbc.HostListProvider;
-import software.aws.jdbc.HostRole;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.NodeChangeOptions;
-import software.aws.jdbc.OldConnectionSuggestedAction;
-import software.aws.jdbc.PluginServiceImpl;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;

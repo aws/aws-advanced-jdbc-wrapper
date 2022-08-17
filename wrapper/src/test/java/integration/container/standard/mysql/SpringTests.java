@@ -18,13 +18,13 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import software.aws.jdbc.PropertyDefinition;
 import java.util.Properties;
 import java.util.Random;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import software.aws.jdbc.PropertyDefinition;
 
 public class SpringTests extends StandardMysqlBaseTest {
 

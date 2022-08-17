@@ -16,7 +16,6 @@
 
 package integration.host;
 
-import software.aws.jdbc.Driver;
 import com.mysql.cj.util.StringUtils;
 import integration.util.ContainerHelper;
 import java.io.IOException;
@@ -28,6 +27,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
+import software.aws.jdbc.Driver;
 
 public class StandardPostgresContainerTest {
 

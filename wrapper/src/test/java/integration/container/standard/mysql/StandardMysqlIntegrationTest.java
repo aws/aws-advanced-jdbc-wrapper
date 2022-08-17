@@ -22,12 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
-import software.aws.jdbc.profile.DriverConfigurationProfiles;
-import software.aws.jdbc.wrapper.ConnectionWrapper;
-import software.aws.jdbc.wrapper.ResultSetWrapper;
-import software.aws.jdbc.wrapper.StatementWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -43,6 +37,12 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
 import org.junit.jupiter.api.Test;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.aws.jdbc.profile.DriverConfigurationProfiles;
+import software.aws.jdbc.wrapper.ConnectionWrapper;
+import software.aws.jdbc.wrapper.ResultSetWrapper;
+import software.aws.jdbc.wrapper.StatementWrapper;
 
 public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
 

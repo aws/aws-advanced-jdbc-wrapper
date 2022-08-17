@@ -18,7 +18,6 @@ package software.aws.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import software.aws.jdbc.HostSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +26,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import software.aws.jdbc.HostSpec;
 
 class ConnectionUrlParserTest {
   @ParameterizedTest

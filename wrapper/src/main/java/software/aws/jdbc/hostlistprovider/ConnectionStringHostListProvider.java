@@ -16,14 +16,14 @@
 
 package software.aws.jdbc.hostlistprovider;
 
-import software.aws.jdbc.HostListProvider;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.util.ConnectionUrlParser;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import software.aws.jdbc.HostListProvider;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.util.ConnectionUrlParser;
 
 public class ConnectionStringHostListProvider implements HostListProvider, StaticHostListProvider {
 

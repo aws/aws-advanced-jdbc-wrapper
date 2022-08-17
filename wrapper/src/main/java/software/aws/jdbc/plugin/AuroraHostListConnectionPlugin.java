@@ -16,17 +16,17 @@
 
 package software.aws.jdbc.plugin;
 
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Properties;
+import java.util.Set;
 import software.aws.jdbc.HostListProvider;
 import software.aws.jdbc.HostListProviderService;
 import software.aws.jdbc.JdbcCallable;
 import software.aws.jdbc.PluginService;
 import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.aws.jdbc.util.Messages;
-import java.sql.SQLException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
 
 public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 

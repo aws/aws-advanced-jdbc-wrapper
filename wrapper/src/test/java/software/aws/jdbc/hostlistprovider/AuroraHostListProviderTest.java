@@ -28,9 +28,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.hostlistprovider.AuroraHostListProvider.ClusterTopologyInfo;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -52,6 +49,9 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.PluginService;
+import software.aws.jdbc.hostlistprovider.AuroraHostListProvider.ClusterTopologyInfo;
 
 class AuroraHostListProviderTest {
 

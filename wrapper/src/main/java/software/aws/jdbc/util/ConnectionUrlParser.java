@@ -16,13 +16,13 @@
 
 package software.aws.jdbc.util;
 
-import software.aws.jdbc.HostSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import software.aws.jdbc.HostSpec;
 
 public class ConnectionUrlParser {
 

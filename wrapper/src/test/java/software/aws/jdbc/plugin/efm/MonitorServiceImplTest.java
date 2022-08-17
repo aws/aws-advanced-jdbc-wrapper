@@ -28,7 +28,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import software.aws.jdbc.HostSpec;
 import com.mysql.cj.jdbc.JdbcConnection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -42,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.HostSpec;
 
 class MonitorServiceImplTest {
 

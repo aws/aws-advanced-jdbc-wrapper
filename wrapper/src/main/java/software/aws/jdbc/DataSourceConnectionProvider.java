@@ -19,13 +19,13 @@ package software.aws.jdbc;
 import static software.aws.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import static software.aws.jdbc.util.StringUtils.isNullOrEmpty;
 
-import software.aws.jdbc.util.PropertyUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.util.PropertyUtils;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -41,13 +41,14 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private final @Nullable String userPropertyName;
   private final @Nullable String passwordPropertyName;
 
-  public DataSourceConnectionProvider(final @NonNull DataSource dataSource,
-                                      final @Nullable String serverPropertyName,
-                                      final @Nullable String portPropertyName,
-                                      final @Nullable String urlPropertyName,
-                                      final @Nullable String databasePropertyName,
-                                      final @Nullable String usernamePropertyName,
-                                      final @Nullable String passwordPropertyName) {
+  public DataSourceConnectionProvider(
+      final @NonNull DataSource dataSource,
+      final @Nullable String serverPropertyName,
+      final @Nullable String portPropertyName,
+      final @Nullable String urlPropertyName,
+      final @Nullable String databasePropertyName,
+      final @Nullable String usernamePropertyName,
+      final @Nullable String passwordPropertyName) {
     this.dataSource = dataSource;
     this.serverPropertyName = serverPropertyName;
     this.portPropertyName = portPropertyName;

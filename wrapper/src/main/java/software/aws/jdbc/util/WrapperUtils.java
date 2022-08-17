@@ -16,28 +16,6 @@
 
 package software.aws.jdbc.util;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.JdbcRunnable;
-import software.aws.jdbc.wrapper.ArrayWrapper;
-import software.aws.jdbc.wrapper.BlobWrapper;
-import software.aws.jdbc.wrapper.CallableStatementWrapper;
-import software.aws.jdbc.wrapper.ClobWrapper;
-import software.aws.jdbc.wrapper.ConnectionWrapper;
-import software.aws.jdbc.wrapper.DatabaseMetaDataWrapper;
-import software.aws.jdbc.wrapper.NClobWrapper;
-import software.aws.jdbc.wrapper.ParameterMetaDataWrapper;
-import software.aws.jdbc.wrapper.PreparedStatementWrapper;
-import software.aws.jdbc.wrapper.RefWrapper;
-import software.aws.jdbc.wrapper.ResultSetMetaDataWrapper;
-import software.aws.jdbc.wrapper.ResultSetWrapper;
-import software.aws.jdbc.wrapper.SQLDataWrapper;
-import software.aws.jdbc.wrapper.SQLInputWrapper;
-import software.aws.jdbc.wrapper.SQLOutputWrapper;
-import software.aws.jdbc.wrapper.SQLTypeWrapper;
-import software.aws.jdbc.wrapper.SavepointWrapper;
-import software.aws.jdbc.wrapper.StatementWrapper;
-import software.aws.jdbc.wrapper.StructWrapper;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.sql.Array;
@@ -72,6 +50,28 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.JdbcRunnable;
+import software.aws.jdbc.wrapper.ArrayWrapper;
+import software.aws.jdbc.wrapper.BlobWrapper;
+import software.aws.jdbc.wrapper.CallableStatementWrapper;
+import software.aws.jdbc.wrapper.ClobWrapper;
+import software.aws.jdbc.wrapper.ConnectionWrapper;
+import software.aws.jdbc.wrapper.DatabaseMetaDataWrapper;
+import software.aws.jdbc.wrapper.NClobWrapper;
+import software.aws.jdbc.wrapper.ParameterMetaDataWrapper;
+import software.aws.jdbc.wrapper.PreparedStatementWrapper;
+import software.aws.jdbc.wrapper.RefWrapper;
+import software.aws.jdbc.wrapper.ResultSetMetaDataWrapper;
+import software.aws.jdbc.wrapper.ResultSetWrapper;
+import software.aws.jdbc.wrapper.SQLDataWrapper;
+import software.aws.jdbc.wrapper.SQLInputWrapper;
+import software.aws.jdbc.wrapper.SQLOutputWrapper;
+import software.aws.jdbc.wrapper.SQLTypeWrapper;
+import software.aws.jdbc.wrapper.SavepointWrapper;
+import software.aws.jdbc.wrapper.StatementWrapper;
+import software.aws.jdbc.wrapper.StructWrapper;
 
 public class WrapperUtils {
 

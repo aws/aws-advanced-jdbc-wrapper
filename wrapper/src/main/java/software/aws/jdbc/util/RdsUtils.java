@@ -147,7 +147,6 @@ public class RdsUtils {
   public boolean isRdsProxyDns(String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return false;
-
     }
     return AURORA_PROXY_DNS_PATTERN.matcher(host).find() || AURORA_CHINA_PROXY_DNS_PATTERN.matcher(host).find();
   }

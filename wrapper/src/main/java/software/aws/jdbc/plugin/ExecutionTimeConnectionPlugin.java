@@ -16,13 +16,13 @@
 
 package software.aws.jdbc.plugin;
 
-import software.aws.jdbc.JdbcCallable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import software.aws.jdbc.JdbcCallable;
 
 public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 

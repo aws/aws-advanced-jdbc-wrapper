@@ -20,15 +20,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
-import software.aws.jdbc.mock.TestPluginOne;
-import software.aws.jdbc.mock.TestPluginThree;
-import software.aws.jdbc.mock.TestPluginThrowException;
-import software.aws.jdbc.mock.TestPluginTwo;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import software.aws.jdbc.mock.TestPluginOne;
+import software.aws.jdbc.mock.TestPluginThree;
+import software.aws.jdbc.mock.TestPluginThrowException;
+import software.aws.jdbc.mock.TestPluginTwo;
 
 public class ConnectionPluginManagerTests {
 

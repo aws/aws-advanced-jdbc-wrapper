@@ -18,14 +18,14 @@ package software.aws.jdbc.util;
 
 import static software.aws.jdbc.util.StringUtils.isNullOrEmpty;
 
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.PropertyDefinition;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Enumeration;
 import java.util.Properties;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.PropertyDefinition;
 
 public class ConnectionUrlBuilder {
   // Builds a connection URL of the generic format: "protocol//[hosts][/database][?properties]"

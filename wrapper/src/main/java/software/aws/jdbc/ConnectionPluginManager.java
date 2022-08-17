@@ -16,19 +16,6 @@
 
 package software.aws.jdbc;
 
-import software.aws.jdbc.cleanup.CanReleaseResources;
-import software.aws.jdbc.plugin.AuroraHostListConnectionPluginFactory;
-import software.aws.jdbc.plugin.DataCacheConnectionPluginFactory;
-import software.aws.jdbc.plugin.DefaultConnectionPlugin;
-import software.aws.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
-import software.aws.jdbc.plugin.IamAuthConnectionPluginFactory;
-import software.aws.jdbc.plugin.LogQueryConnectionPluginFactory;
-import software.aws.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
-import software.aws.jdbc.plugin.failover.FailoverConnectionPluginFactory;
-import software.aws.jdbc.profile.DriverConfigurationProfiles;
-import software.aws.jdbc.util.SqlState;
-import software.aws.jdbc.util.StringUtils;
-import software.aws.jdbc.util.WrapperUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -43,6 +30,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.cleanup.CanReleaseResources;
+import software.aws.jdbc.plugin.AuroraHostListConnectionPluginFactory;
+import software.aws.jdbc.plugin.DataCacheConnectionPluginFactory;
+import software.aws.jdbc.plugin.DefaultConnectionPlugin;
+import software.aws.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.aws.jdbc.plugin.IamAuthConnectionPluginFactory;
+import software.aws.jdbc.plugin.LogQueryConnectionPluginFactory;
+import software.aws.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
+import software.aws.jdbc.plugin.failover.FailoverConnectionPluginFactory;
+import software.aws.jdbc.profile.DriverConfigurationProfiles;
+import software.aws.jdbc.util.SqlState;
+import software.aws.jdbc.util.StringUtils;
+import software.aws.jdbc.util.WrapperUtils;
 
 /**
  * This class creates and handles a chain of {@link ConnectionPlugin} for each connection.

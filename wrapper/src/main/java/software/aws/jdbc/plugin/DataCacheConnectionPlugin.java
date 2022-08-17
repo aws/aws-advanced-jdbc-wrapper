@@ -16,9 +16,6 @@
 
 package software.aws.jdbc.plugin;
 
-import software.aws.jdbc.AwsWrapperProperty;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.util.StringUtils;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -50,6 +47,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import software.aws.jdbc.AwsWrapperProperty;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.util.StringUtils;
 
 public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
 

@@ -19,15 +19,6 @@ package software.aws.jdbc.ds;
 import static software.aws.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import static software.aws.jdbc.util.ConnectionUrlParser.parsePropertiesFromUrl;
 
-import software.aws.jdbc.DataSourceConnectionProvider;
-import software.aws.jdbc.Driver;
-import software.aws.jdbc.DriverConnectionProvider;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.util.ConnectionUrlParser;
-import software.aws.jdbc.util.PropertyUtils;
-import software.aws.jdbc.util.SqlState;
-import software.aws.jdbc.util.WrapperUtils;
-import software.aws.jdbc.wrapper.ConnectionWrapper;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.sql.Connection;
@@ -42,6 +33,15 @@ import javax.naming.Referenceable;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.aws.jdbc.DataSourceConnectionProvider;
+import software.aws.jdbc.Driver;
+import software.aws.jdbc.DriverConnectionProvider;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.util.ConnectionUrlParser;
+import software.aws.jdbc.util.PropertyUtils;
+import software.aws.jdbc.util.SqlState;
+import software.aws.jdbc.util.WrapperUtils;
+import software.aws.jdbc.wrapper.ConnectionWrapper;
 
 public class AwsWrapperDataSource implements DataSource, Referenceable, Serializable {
 

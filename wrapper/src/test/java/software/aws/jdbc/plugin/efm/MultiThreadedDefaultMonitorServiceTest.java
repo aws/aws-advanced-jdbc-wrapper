@@ -27,7 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import software.aws.jdbc.HostSpec;
 import com.mysql.cj.jdbc.JdbcConnection;
 import java.sql.Connection;
 import java.util.ArrayList;
@@ -54,6 +53,7 @@ import org.junit.jupiter.api.TestInfo;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.aws.jdbc.HostSpec;
 
 /**
  * Multithreaded tests for {@link MultiThreadedDefaultMonitorServiceTest}. Repeats each testcase

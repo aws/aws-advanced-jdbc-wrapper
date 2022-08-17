@@ -16,12 +16,12 @@
 
 package software.aws.jdbc.wrapper;
 
-import software.aws.jdbc.ConnectionPluginManager;
-import software.aws.jdbc.util.WrapperUtils;
 import java.sql.SQLException;
 import java.sql.Struct;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.aws.jdbc.ConnectionPluginManager;
+import software.aws.jdbc.util.WrapperUtils;
 
 public class StructWrapper implements Struct {
 

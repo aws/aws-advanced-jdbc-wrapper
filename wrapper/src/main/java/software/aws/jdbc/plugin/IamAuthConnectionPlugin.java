@@ -16,12 +16,6 @@
 
 package software.aws.jdbc.plugin;
 
-import software.aws.jdbc.AwsWrapperProperty;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.util.RdsUtils;
-import software.aws.jdbc.util.StringUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -37,6 +31,12 @@ import java.util.logging.Logger;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsUtilities;
+import software.aws.jdbc.AwsWrapperProperty;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.util.RdsUtils;
+import software.aws.jdbc.util.StringUtils;
 
 public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 

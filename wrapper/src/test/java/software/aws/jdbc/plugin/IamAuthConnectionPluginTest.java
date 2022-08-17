@@ -23,10 +23,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import software.aws.jdbc.Driver;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.PropertyDefinition;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -38,6 +34,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.regions.Region;
+import software.aws.jdbc.Driver;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.PropertyDefinition;
 
 class IamAuthConnectionPluginTest {
 

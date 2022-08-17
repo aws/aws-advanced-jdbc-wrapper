@@ -16,9 +16,9 @@
 
 package software.aws.jdbc.plugin.failover;
 
-import software.aws.jdbc.HostSpec;
 import java.sql.SQLException;
 import java.util.List;
+import software.aws.jdbc.HostSpec;
 
 /**
  * Interface for Writer Failover Process handler. This handler implements all necessary logic to try

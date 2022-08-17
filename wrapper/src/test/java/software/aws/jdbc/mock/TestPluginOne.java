@@ -16,12 +16,6 @@
 
 package software.aws.jdbc.mock;
 
-import software.aws.jdbc.ConnectionPlugin;
-import software.aws.jdbc.HostListProviderService;
-import software.aws.jdbc.HostSpec;
-import software.aws.jdbc.JdbcCallable;
-import software.aws.jdbc.NodeChangeOptions;
-import software.aws.jdbc.OldConnectionSuggestedAction;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -31,6 +25,12 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import software.aws.jdbc.ConnectionPlugin;
+import software.aws.jdbc.HostListProviderService;
+import software.aws.jdbc.HostSpec;
+import software.aws.jdbc.JdbcCallable;
+import software.aws.jdbc.NodeChangeOptions;
+import software.aws.jdbc.OldConnectionSuggestedAction;
 
 public class TestPluginOne implements ConnectionPlugin {
 
