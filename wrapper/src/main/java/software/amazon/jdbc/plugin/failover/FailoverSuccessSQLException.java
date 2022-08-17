@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package software.aws.jdbc.plugin.failover;
+package software.amazon.jdbc.plugin.failover;
 
-import software.aws.jdbc.util.Messages;
-import software.aws.jdbc.util.SqlState;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SqlState;
 
 public class FailoverSuccessSQLException extends FailoverSQLException {
 

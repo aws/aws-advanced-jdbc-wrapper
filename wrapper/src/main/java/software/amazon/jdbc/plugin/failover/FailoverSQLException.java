@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.aws.jdbc.plugin.failover;
+package software.amazon.jdbc.plugin.failover;
 
 import java.sql.SQLException;
 
