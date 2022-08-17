@@ -341,9 +341,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       // "The active SQL connection has changed. Please re-configure session state if required."
       LOGGER.info(Messages.get("Failover.connectionChangedError"));
-      throw new SQLException(
-          Messages.get("Failover.connectionChangedError"),
-          SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      throw new FailoverSuccessSQLException();
     } else {
       String reason = "No operations allowed after connection closed.";
       if (this.closedReason != null) {
@@ -483,7 +481,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private void processFailoverFailure(String message) throws SQLException {
     LOGGER.severe(message);
-    throw new SQLException(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
+    throw new FailoverFailedSQLException(message);
   }
 
   private boolean shouldAttemptReaderConnection() {
@@ -648,13 +646,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       // restarting transaction."
       final String errorMessage = Messages.get("Failover.transactionResolutionUnknownError");
       LOGGER.info(errorMessage);
-      throw new SQLException(errorMessage, SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
+      throw new TransactionStateUnknownSQLException();
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
       // session state if required."
       final String errorMessage = Messages.get("Failover.connectionChangedError");
       LOGGER.severe(errorMessage);
-      throw new SQLException(errorMessage, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      throw new FailoverSuccessSQLException();
     }
   }
 
