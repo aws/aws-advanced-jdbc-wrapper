@@ -56,8 +56,37 @@ import software.amazon.jdbc.util.Utils;
 public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(FailoverConnectionPlugin.class.getName());
+  private static final List<String> pgNetworkMethods = Arrays.asList(
+      "initHostProvider",
+      "Connection.sendQueryCancel",
+      "Connection.connect",
+      "Connection.isValid",
+      "Connection.setReadOnly",
+      "Connection.setAutoCommit",
+      "Statement.executeQuery",
+      "Statement.executeUpdate",
+      "Statement.execute",
+      "Statement.executeWithFlags",
+      "Statement.executeLargeBatch",
+      "Statement.executeLargeUpdate",
+      "Statement.executeBatch",
+      "Statement.cancel",
+      "PreparedStatement.execute",
+      "PreparedStatement.executeQuery",
+      "PreparedStatement.executeUpdate",
+      "PreparedStatement.executeLargeUpdate",
+      "PreparedStatement.executeWithFlags",
+      "PreparedStatement.executeBatch",
+      "PreparedStatement.getParameterMetaData",
+      "CallableStatement.execute",
+      "CallableStatement.executeWithFlags",
+      "CallableStatement.executeQuery",
+      "CallableStatement.executeUpdate",
+      "CallableStatement.executeLargeUpdate"
+  );
+
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
+      Collections.unmodifiableSet(new HashSet<>(pgNetworkMethods));
 
   static final String METHOD_SET_READ_ONLY = "setReadOnly";
   static final String METHOD_SET_AUTO_COMMIT = "setAutoCommit";
