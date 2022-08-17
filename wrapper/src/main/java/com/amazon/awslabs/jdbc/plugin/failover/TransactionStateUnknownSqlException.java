@@ -25,6 +25,10 @@ public class TransactionStateUnknownSqlException extends FailoverSqlException {
     super(Messages.get("Failover.transactionResolutionUnknownError"), SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), cause);
   }
 
+  public TransactionStateUnknownSqlException(String message) {
+    super(message, SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
+  }
+
   public TransactionStateUnknownSqlException() {
     super(Messages.get("Failover.transactionResolutionUnknownError"), SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
   }

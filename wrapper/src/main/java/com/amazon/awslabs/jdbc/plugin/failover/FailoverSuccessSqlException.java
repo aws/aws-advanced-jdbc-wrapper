@@ -25,6 +25,10 @@ public class FailoverSuccessSqlException extends FailoverSqlException {
     super(Messages.get("Failover.connectionChangedError"), SqlState.COMMUNICATION_LINK_CHANGED.getState(), cause);
   }
 
+  public FailoverSuccessSqlException(String message) {
+    super(message, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+  }
+
   public FailoverSuccessSqlException() {
     super(Messages.get("Failover.connectionChangedError"), SqlState.COMMUNICATION_LINK_CHANGED.getState());
   }
