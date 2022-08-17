@@ -182,7 +182,7 @@ class MonitorImplTest {
         });
   }
 
-  @RepeatedTest(1000)
+  @Test
   void test_8_runWithoutContext() {
     final MonitorThreadContainer container =
         MonitorThreadContainer.getInstance(executorServiceInitializer);
@@ -196,8 +196,6 @@ class MonitorImplTest {
             })
         .when(monitorService)
         .notifyUnused(any(Monitor.class));
-
-    doReturn(SHORT_INTERVAL_MILLIS).when(monitor).getCurrentTimeNano();
 
     // Put monitor into container map
     final String nodeKey = "monitorA";

@@ -156,24 +156,27 @@ public class WrapperUtils {
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
       Object... jdbcMethodArgs) {
 
-    Object[] argsCopy =
-        jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
-
     pluginManager.lock();
 
-    T result =
-        pluginManager.execute(
-            resultClass,
-            RuntimeException.class,
-            methodInvokeOn,
-            methodName,
-            jdbcMethodFunc,
-            argsCopy);
-
     try {
-      return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
-    } catch (InstantiationException e) {
-      throw new RuntimeException(e);
+      Object[] argsCopy =
+          jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
+
+      T result =
+          pluginManager.execute(
+              resultClass,
+              RuntimeException.class,
+              methodInvokeOn,
+              methodName,
+              jdbcMethodFunc,
+              argsCopy);
+
+      try {
+        return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
+      } catch (InstantiationException e) {
+        throw new RuntimeException(e);
+      }
+
     } finally {
       pluginManager.unlock();
     }
@@ -189,19 +192,22 @@ public class WrapperUtils {
       Object... jdbcMethodArgs)
       throws E {
 
-    Object[] argsCopy =
-        jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
-
     pluginManager.lock();
 
-    T result =
-        pluginManager.execute(
-            resultClass, exceptionClass, methodInvokeOn, methodName, jdbcMethodFunc, argsCopy);
-
     try {
-      return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
-    } catch (InstantiationException e) {
-      throw new RuntimeException(e);
+      Object[] argsCopy =
+          jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
+
+      T result =
+          pluginManager.execute(
+              resultClass, exceptionClass, methodInvokeOn, methodName, jdbcMethodFunc, argsCopy);
+
+      try {
+        return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
+      } catch (InstantiationException e) {
+        throw new RuntimeException(e);
+      }
+
     } finally {
       pluginManager.unlock();
     }
@@ -448,7 +454,7 @@ public class WrapperUtils {
         field.setAccessible(true);
       }
 
-      Object fieldValue = null;
+      Object fieldValue;
       try {
         fieldValue = field.get(target);
       } catch (Exception ex) {

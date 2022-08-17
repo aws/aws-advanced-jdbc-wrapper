@@ -1,13 +1,15 @@
 # Getting Started
 
 ## Minimum Requirements
-You need to install Amazon Corretto 8+ or Java 8+ before using the AWS Advanced JDBC Wrapper.
 
-Please note that in addition to obtaining the AWS Advanced JDBC Wrapper, you will need to include a dependency on the underlying driver of your choice to your project.
+Before using the AWS Advanced JDBC Wrapper, you must install:
 
-To use the AWS Advanced JDBC Wrapper for Aurora with PostgreSQL compatibility, you will need to install the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
+- Amazon Corretto 8+ or Java 8+.
+- The AWS Advanced JDBC Wrapper.
+- Your choice of underlying JDBC driver. To use the wrapper with Aurora with PostgreSQL compatibility, you need to install the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
 
-For example, to use the PostgreSQL JDBC Driver as the underlying driver in a Gradle project, the ```build.gradle``` file would include the following.
+If you are using the wrapper as part of a Gradle project, include the wrapper and underlying driver as dependencies.  For example, to include the AWS Advanced JDBC Wrapper and the PostgreSQL JDBC Driver as dependencies in a Gradle project, update the ```build.gradle``` file as follows:
+
 ```gradle
 dependencies {
     implementation group: 'com.amazon.awslabs.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.0'
@@ -17,24 +19,26 @@ dependencies {
 
 ## Obtaining the AWS Advanced JDBC Wrapper
 
-### Direct Download
-The AWS Advanced JDBC Wrapper can be installed from pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases) or [Maven Central](https://search.maven.org/search?q=g:com.amazon.awslabs.jdbc). To install the AWS Advanced JDBC Wrapper, obtain the corresponding JAR file and include it in the application's CLASSPATH.
+### Direct Download and Installation
 
-**Example - Direct Download via wget**
+You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases) or [Maven Central](https://search.maven.org/search?q=g:com.amazon.awslabs.jdbc) to install the AWS Advanced JDBC Wrapper. After downloading the wrapper, install the wrapper by including the .jar file in the application's CLASSPATH.
+
+For example, the following command uses wget to download the wrapper:
 
 ```bash
 wget https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/download/1.0.0/aws-advanced-jdbc-wrapper-1.0.0.jar
 ```
 
-**Example - Adding the JDBC Wrapper to the CLASSPATH**
+Then, the following command adds the JDBC wrapper to the CLASSPATH:
+
 ```bash
 export CLASSPATH=$CLASSPATH:/home/userx/libs/aws-advanced-jdbc-wrapper-1.0.0.jar
 ```
 
 ### As a Maven Dependency
-You can use [Maven's dependency management](https://search.maven.org/search?q=g:com.amazon.awslabs.jdbc) to obtain the JDBC Wrapper by adding the following configuration in the application's Project Object Model (POM) file:
 
-**Example - Maven**
+You can use [Maven's dependency management](https://search.maven.org/search?q=g:com.amazon.awslabs.jdbc) to obtain the JDBC Wrapper by adding the following configuration to the application's Project Object Model (POM) file:
+
 ```xml
 <dependencies>
     <dependency>
@@ -44,16 +48,18 @@ You can use [Maven's dependency management](https://search.maven.org/search?q=g:
     </dependency>
 </dependencies>
 ```
-### As a Gradle Dependency
-You can use [Gradle's dependency management](https://search.maven.org/search?q=g:com.amazon.awslabs.jdbc) to obtain the JDBC Wrapper by adding the following configuration in the application's ```build.gradle``` file:
 
-**Example - Gradle**
+### As a Gradle Dependency
+
+You can use [Gradle's dependency management](https://search.maven.org/search?q=g:com.amazon.awslabs.jdbc) to obtain the JDBC Wrapper by adding the following configuration to the application's ```build.gradle``` file:
 
 ```gradle
 dependencies {
     implementation group: 'com.amazon.awslabs.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.0'
 }
 ```
+
+To add a Gradle dependency in a Kotlin syntax, use the following configuration:
 
 ```kotlin
 dependencies {
@@ -62,4 +68,5 @@ dependencies {
 ```
 
 ## Using the AWS Advanced JDBC Wrapper
-For more detailed information on how to use and configure the JDBC Wrapper, please visit [this page](./using-the-jdbc-wrapper/UsingTheJdbcWrapper.md).
+
+For more detailed information about how to use and configure the JDBC Wrapper, please visit [this page](./using-the-jdbc-wrapper/UsingTheJdbcWrapper.md).

@@ -18,21 +18,26 @@ In an Amazon Aurora database (DB) cluster, failover is a mechanism by which Auro
 Although Aurora is able to provide maximum availability through the use of failover, existing client drivers do not currently support this functionality. This is partially due to the time required for the DNS of the new primary DB instance to be fully resolved in order to properly direct the connection. The AWS Advanced JDBC Wrapper allows customers to continue using their existing community drivers in addition to having the JDBC Wrapper fully exploit failover behavior by maintaining a cache of the Aurora cluster topology and each DB instance's role (Aurora Replica or primary DB instance). This topology is provided via a direct query to the Aurora DB, essentially providing a shortcut to bypass the delays caused by DNS resolution. With this knowledge, the AWS Advanced JDBC Wrapper can more closely monitor the Aurora DB cluster status so that a connection to the new primary DB instance can be established as fast as possible. Additionally, as noted above, the AWS Advanced JDBC Wrapper is designed to augment existing JDBC community drivers and be a unified connector to JDBC workflows for Aurora.
 
 ## Getting Started
-For more information on how to obtain the JDBC Wrapper, minimum requirements to use it, and how to integrate the JDBC Wrapper into your project, please visit the [getting started page](./docs/GettingStarted.md).
+For more information on how to obtain the JDBC Wrapper, minimum requirements to use it, and how to integrate the JDBC Wrapper into your project, please visit the [Getting Started page](./docs/GettingStarted.md).
+
+## Using the Wrapper
+Please refer to the JDBC Wrapper's [Documentation page](./docs/Documentation.md) for details about using the JDBC Wrapper. 
+
+## Logging
+To configure logging, check out the [Logging](./docs/using-the-jdbc-wrapper/UsingTheJdbcWrapper.md#logging) section.
 
 ## Documentation
-Please refer to the JDBC Wrapper's [documentation](./docs/Documentation.md) for details on how to use the JDBC Wrapper and for a development guide. All technical documentation regarding the functionality of the AWS Advanced JDBC Wrapper will be contained in this GitHub repository. Since the JDBC Wrapper requires an underlying JDBC Driver, please refer to the individual driver's documentation for driver specific information.
+Technical documentation regarding the functionality of the AWS Advanced JDBC Wrapper will be maintained in this GitHub repository. Since the JDBC Wrapper requires an underlying JDBC Driver, please refer to the individual driver's documentation for driver specific information.
 
 ## Getting Help and Opening Issues
 If you encounter a bug with the AWS Advanced JDBC Wrapper, we would like to hear about it.
-Please search the [existing issues](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues) to see if others are also experiencing the issue before opening a new issue.
-The GitHub issues are intended for bug reports and feature requests. Keeping the list of open issues lean will help us respond in a timely manner.
+Please search the [existing issues](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue.
+GitHub issues are intended for bug reports and feature requests. Keeping the list of open issues lean will help us respond in a timely manner.
 
 When opening a new issue, please include a reproduction case and logs for the issue to help expedite the investigation process.
-To configure logging, check out the [Logging](./docs/using-the-jdbc-wrapper/UsingTheJdbcWrapper.md#logging) section.
 
 ## How to Contribute
-1. Set up your environment by following the [Development Guide](docs/development-guide/DevelopmentGuide.md)
+1. Set up your environment by following the directions in the [Development Guide](docs/development-guide/DevelopmentGuide.md).
 2. To contribute, first make a fork of this project. 
 3. Make any changes on your fork. Make sure you are aware of the requirements for the project (e.g. do not require Java 7 if we are supporting Java 8 and higher).
 4. Create a pull request from your fork. 

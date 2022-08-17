@@ -28,7 +28,7 @@ pluginManagement {
         fun PluginDependenciesSpec.idv(id: String, key: String = id) = id(id) version key.v()
 
         id("com.github.spotbugs") version "5.0.+"
-        id("com.diffplug.spotless") version "6.8.+"
+        id("com.diffplug.spotless") version "6.9.+"
         id("com.github.vlsi.gradle-extensions") version "1.+"
         id("com.github.vlsi.stage-vote-release") version "1.+"
         id("com.github.vlsi.ide") version "1.+"

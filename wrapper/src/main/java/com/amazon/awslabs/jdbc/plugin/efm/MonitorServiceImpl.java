@@ -16,9 +16,9 @@
 
 package com.amazon.awslabs.jdbc.plugin.efm;
 
+import com.amazon.awslabs.jdbc.AwsWrapperProperty;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.PluginService;
-import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import java.sql.Connection;
 import java.util.Properties;
 import java.util.Set;
@@ -35,8 +35,8 @@ public class MonitorServiceImpl implements MonitorService {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
 
-  protected static final ProxyDriverProperty MONITOR_DISPOSAL_TIME_MS =
-      new ProxyDriverProperty(
+  protected static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
+      new AwsWrapperProperty(
           "monitorDisposalTime",
           "60000",
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
@@ -99,7 +99,6 @@ public class MonitorServiceImpl implements MonitorService {
             failureDetectionCount);
 
     monitor.startMonitoring(context);
-    this.threadContainer.addTask(monitor);
 
     return context;
   }
@@ -111,34 +110,31 @@ public class MonitorServiceImpl implements MonitorService {
 
     // Any 1 node is enough to find the monitor containing the context
     // All nodes will map to the same monitor
-    final String node = this.threadContainer.getNode(context.getHostAliases());
 
-    if (node == null) {
-      LOGGER.log(
-          Level.WARNING,
-          "Invalid context passed into DefaultMonitorService. Could not find any NodeKey from context.");
-      return;
+    Monitor monitor;
+    for (String nodeKey : context.getHostAliases()) {
+      monitor = this.threadContainer.getMonitor(nodeKey);
+      if (monitor != null) {
+        monitor.stopMonitoring(context);
+        return;
+      }
     }
 
-    final Monitor monitor = this.threadContainer.getMonitor(node);
-    if (monitor != null) {
-      monitor.stopMonitoring(context);
-    }
+    LOGGER.log(
+        Level.FINEST,
+        "Can't find monitor for context passed into MonitorServiceImpl.");
   }
 
   @Override
   public void stopMonitoringForAllConnections(@NonNull Set<String> nodeKeys) {
-    final String node = this.threadContainer.getNode(nodeKeys);
-    if (node == null) {
-      LOGGER.log(
-          Level.FINEST,
-          "Invalid node key passed into DefaultMonitorService. No existing monitor for the given set of node keys.");
-      return;
-    }
-    final Monitor monitor = this.threadContainer.getMonitor(node);
-    if (monitor != null) {
-      monitor.clearContexts();
-      this.threadContainer.resetResource(monitor);
+    Monitor monitor;
+    for (String nodeKey : nodeKeys) {
+      monitor = this.threadContainer.getMonitor(nodeKey);
+      if (monitor != null) {
+        monitor.clearContexts();
+        this.threadContainer.resetResource(monitor);
+        return;
+      }
     }
   }
 
@@ -149,7 +145,7 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
-  public synchronized void notifyUnused(Monitor monitor) {
+  public void notifyUnused(Monitor monitor) {
     if (monitor == null) {
       LOGGER.log(Level.WARNING, "Parameter 'monitor' should not be null.");
       return;

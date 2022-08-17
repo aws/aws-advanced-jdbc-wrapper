@@ -27,18 +27,19 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.22.+")
-    compileOnly("software.amazon.awssdk:rds:2.17.252")
+    implementation("org.checkerframework:checker-qual:3.23.+")
+    compileOnly("software.amazon.awssdk:rds:2.17.+")
+    compileOnly("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.8.+")
-    testImplementation("org.junit.platform:junit-platform-engine:1.8.+")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.8.+")
-    testImplementation("org.junit.platform:junit-platform-suite-engine:1.8.+")
+    testImplementation("org.junit.platform:junit-platform-commons:1.9.+")
+    testImplementation("org.junit.platform:junit-platform-engine:1.9.+")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.9.+")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.9.+")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.+")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-    testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
+    testImplementation("org.apache.commons:commons-dbcp2:2.9.+")
     testImplementation("org.postgresql:postgresql:42.+")
     testImplementation("mysql:mysql-connector-java:8.0.+")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.+")
@@ -53,6 +54,10 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
+}
+
+repositories {
+    mavenCentral()
 }
 
 tasks.check {

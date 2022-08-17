@@ -38,7 +38,7 @@ public class DataSourceSample {
     ds.setServerPropertyName("serverName");
     ds.setPortPropertyName("port");
 
-    // Specify ther driver-specific data source:
+    // Specify the driver-specific data source:
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     // Configure the driver-specific data source:

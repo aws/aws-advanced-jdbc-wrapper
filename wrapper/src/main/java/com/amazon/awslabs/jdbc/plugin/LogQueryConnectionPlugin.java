@@ -16,8 +16,8 @@
 
 package com.amazon.awslabs.jdbc.plugin;
 
+import com.amazon.awslabs.jdbc.AwsWrapperProperty;
 import com.amazon.awslabs.jdbc.JdbcCallable;
-import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.util.StringUtils;
 import com.amazon.awslabs.jdbc.util.WrapperUtils;
 import java.util.Arrays;
@@ -90,8 +90,8 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
         }
       };
 
-  public static final ProxyDriverProperty ENHANCED_LOG_QUERY_ENABLED =
-      new ProxyDriverProperty(
+  public static final AwsWrapperProperty ENHANCED_LOG_QUERY_ENABLED =
+      new AwsWrapperProperty(
           "enhancedLogQueryEnabled",
           "false",
           "Allows the 'logQuery' plugin to inspect object internals to get prepared SQL statements and batches.");

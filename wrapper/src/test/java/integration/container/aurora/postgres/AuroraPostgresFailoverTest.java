@@ -298,13 +298,12 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
    * Writer connection failover within the connection pool.
    */
   @Test
-  @Disabled // TODO: enable test once datasource is supported
   public void test_pooledWriterConnection_BasicFailover() throws SQLException, InterruptedException {
 
     final String initialWriterId = instanceIDs[0];
     final String nominatedWriterId = instanceIDs[1];
 
-    try (final Connection conn = createPooledConnectionWithInstanceId(initialWriterId)) {
+    try (final Connection conn = createPooledConnectionWithFailoverUsingInstanceId(initialWriterId)) {
       // Crash writer Instance1 and nominate Instance2 as the new writer
       failoverClusterToATargetAndWaitUntilWriterChanged(initialWriterId, nominatedWriterId);
 

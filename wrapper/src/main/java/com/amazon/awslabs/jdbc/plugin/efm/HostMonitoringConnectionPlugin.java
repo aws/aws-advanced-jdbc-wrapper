@@ -16,13 +16,13 @@
 
 package com.amazon.awslabs.jdbc.plugin.efm;
 
+import com.amazon.awslabs.jdbc.AwsWrapperProperty;
 import com.amazon.awslabs.jdbc.HostAvailability;
 import com.amazon.awslabs.jdbc.HostSpec;
 import com.amazon.awslabs.jdbc.JdbcCallable;
 import com.amazon.awslabs.jdbc.NodeChangeOptions;
 import com.amazon.awslabs.jdbc.OldConnectionSuggestedAction;
 import com.amazon.awslabs.jdbc.PluginService;
-import com.amazon.awslabs.jdbc.ProxyDriverProperty;
 import com.amazon.awslabs.jdbc.cleanup.CanReleaseResources;
 import com.amazon.awslabs.jdbc.plugin.AbstractConnectionPlugin;
 import java.sql.Connection;
@@ -51,26 +51,26 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   private static final Logger LOGGER =
       Logger.getLogger(HostMonitoringConnectionPlugin.class.getName());
 
-  protected static final ProxyDriverProperty FAILURE_DETECTION_ENABLED =
-      new ProxyDriverProperty(
+  protected static final AwsWrapperProperty FAILURE_DETECTION_ENABLED =
+      new AwsWrapperProperty(
           "failureDetectionEnabled",
           "true",
           "Enable failure detection logic (aka node monitoring thread).");
 
-  protected static final ProxyDriverProperty FAILURE_DETECTION_TIME =
-      new ProxyDriverProperty(
+  protected static final AwsWrapperProperty FAILURE_DETECTION_TIME =
+      new AwsWrapperProperty(
           "failureDetectionTime",
           "30000",
           "Interval in millis between sending SQL to the server and the first probe to database node.");
 
-  protected static final ProxyDriverProperty FAILURE_DETECTION_INTERVAL =
-      new ProxyDriverProperty(
+  protected static final AwsWrapperProperty FAILURE_DETECTION_INTERVAL =
+      new AwsWrapperProperty(
           "failureDetectionInterval",
           "5000",
           "Interval in millis between probes to database node.");
 
-  protected static final ProxyDriverProperty FAILURE_DETECTION_COUNT =
-      new ProxyDriverProperty(
+  protected static final AwsWrapperProperty FAILURE_DETECTION_COUNT =
+      new AwsWrapperProperty(
           "failureDetectionCount",
           "3",
           "Number of failed connection checks before considering database node unhealthy.");
@@ -108,6 +108,11 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
       final @NonNull Supplier<MonitorService> monitorServiceSupplier) {
+    if (pluginService == null) {
+      throw new IllegalArgumentException("pluginService");
+    } else if (properties == null) {
+      throw new IllegalArgumentException("properties");
+    }
 
     this.pluginService = pluginService;
     this.properties = properties;
@@ -154,7 +159,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           Level.FINEST, String.format("Executing method %s, monitoring is activated", methodName));
 
       this.nodeKeys.clear();
-      this.nodeKeys.addAll(this.pluginService.getCurrentHostSpec().getAliases());
+      this.nodeKeys.addAll(this.pluginService.getCurrentHostSpec().asAliases());
 
       monitorContext =
           this.monitorService.startMonitoring(
@@ -172,7 +177,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       if (monitorContext != null) {
         this.monitorService.stopMonitoring(monitorContext);
 
-        boolean isConnectionClosed = false;
+        boolean isConnectionClosed;
         try {
           isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
         } catch (SQLException e) {
