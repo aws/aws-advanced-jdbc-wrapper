@@ -20,11 +20,11 @@ import com.amazon.awslabs.jdbc.util.SqlState;
 
 public class FailoverFailedSqlException extends FailoverSqlException {
 
-  public FailoverFailedSqlException(Throwable cause) {
-    super("message", SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
+  public FailoverFailedSqlException(String message, Throwable cause) {
+    super(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
   }
 
-  public FailoverFailedSqlException() {
-    super("message", SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
+  public FailoverFailedSqlException(String message) {
+    super(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
   }
 }

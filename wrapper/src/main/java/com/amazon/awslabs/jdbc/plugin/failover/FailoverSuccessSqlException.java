@@ -16,15 +16,16 @@
 
 package com.amazon.awslabs.jdbc.plugin.failover;
 
+import com.amazon.awslabs.jdbc.util.Messages;
 import com.amazon.awslabs.jdbc.util.SqlState;
 
 public class FailoverSuccessSqlException extends FailoverSqlException {
 
   public FailoverSuccessSqlException(Throwable cause) {
-    super("message", SqlState.COMMUNICATION_LINK_CHANGED.getState(), cause);
+    super(Messages.get("Failover.connectionChangedError"), SqlState.COMMUNICATION_LINK_CHANGED.getState(), cause);
   }
 
   public FailoverSuccessSqlException() {
-    super("message", SqlState.COMMUNICATION_LINK_CHANGED.getState());
+    super(Messages.get("Failover.connectionChangedError"), SqlState.COMMUNICATION_LINK_CHANGED.getState());
   }
 }
