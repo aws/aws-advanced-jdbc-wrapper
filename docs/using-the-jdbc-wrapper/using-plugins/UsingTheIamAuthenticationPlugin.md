@@ -41,7 +41,7 @@ IAM database authentication use is limited to certain database engines. For more
 
 ## Sample code
 ```java
-import software.aws.jdbc.PropertyDefinition;
+import software.amazon.jdbc.PropertyDefinition;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;

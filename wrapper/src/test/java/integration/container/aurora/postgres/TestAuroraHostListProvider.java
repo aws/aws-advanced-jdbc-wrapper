@@ -17,8 +17,8 @@
 package integration.container.aurora.postgres;
 
 import java.util.Properties;
-import software.aws.jdbc.PluginService;
-import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 public class TestAuroraHostListProvider extends AuroraHostListProvider {
 

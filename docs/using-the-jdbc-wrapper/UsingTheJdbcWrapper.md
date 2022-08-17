@@ -30,8 +30,8 @@ An example  `.properties` file is as follows:
 .level=INFO
 handlers=java.util.logging.ConsoleHandler
 java.util.logging.ConsoleHandler.level=ALL
-software.aws.jdbc.Driver.level=FINER
-software.aws.jdbc.plugin.level=FINER
+software.amazon.jdbc.Driver.level=FINER
+software.amazon.jdbc.plugin.level=FINER
 ```
 
 The JDBC Wrapper also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc-wrapper-parameters), to configure the logging level.
@@ -62,7 +62,7 @@ Plugins are loaded and managed through the Connection Plugin Manager and may be 
 | `wrapperProfileName` | `String` | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`        |
 
 To use a built-in plugin, specify its relevant plugin code for the `wrapperPlugins`.
-For instance, to use the [FailoverConnectionPlugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/failover/FailoverConnectionPlugin.java) and the [Host Monitoring Connection Plugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java):
+For instance, to use the [FailoverConnectionPlugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java) and the [Host Monitoring Connection Plugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java):
 
 ```java
 properties.setProperty("wrapperPlugins", "failover,efm");

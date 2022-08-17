@@ -1,5 +1,5 @@
 # Connecting with a DataSource
-You can use the `DriverManager` class or a datasource to establish a new connection when using the JDBC Wrapper. The JDBC Wrapper has a built-in datasource class named [AwsWrapperDataSource](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/ds/AwsWrapperDataSource.java) that allows the JDBC Wrapper to work with various driver-specific datasources.
+You can use the `DriverManager` class or a datasource to establish a new connection when using the JDBC Wrapper. The JDBC Wrapper has a built-in datasource class named [AwsWrapperDataSource](../../wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java) that allows the JDBC Wrapper to work with various driver-specific datasources.
 
 ## Using the AwsWrapperDataSource
 
@@ -37,7 +37,7 @@ The JDBC Wrapper also supports establishing a connection with a connection pooli
 To use the JDBC Wrapper with a connection pool, you must:
 
 1. Configure the connection pool.
-2. Set the datasource class name to `software.aws.jdbc.ds.AwsWrapperDataSource` for the connection pool.
+2. Set the datasource class name to `software.amazon.jdbc.ds.AwsWrapperDataSource` for the connection pool.
 3. Configure the `AwsWrapperDataSource`.
 4. Configure the driver-specific datasource.
 
@@ -56,7 +56,7 @@ To use the JDBC Wrapper with a connection pool, you must:
    ds.setPassword(PASSWORD);
    ```
 
-2. Set the datasource class name to `software.aws.jdbc.ds.AwsWrapperDataSource`:
+2. Set the datasource class name to `software.amazon.jdbc.ds.AwsWrapperDataSource`:
    ```java
    ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
    ```

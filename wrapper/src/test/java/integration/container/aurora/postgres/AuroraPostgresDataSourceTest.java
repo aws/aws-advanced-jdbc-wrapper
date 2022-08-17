@@ -25,7 +25,7 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PSQLException;
-import software.aws.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 
 public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
 

@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import software.aws.jdbc.Driver;
+import software.amazon.jdbc.Driver;
 
 public class StandardMysqlBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";

@@ -27,9 +27,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.plugin.DataCacheConnectionPlugin;
-import software.aws.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
+import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 
 public class DataCachePluginTests extends StandardMysqlBaseTest {
 

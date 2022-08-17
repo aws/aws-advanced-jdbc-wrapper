@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import software.aws.jdbc.buildtools.JavaCommentPreprocessorTask
+import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
 
 plugins {
     checkstyle
@@ -152,7 +152,7 @@ tasks.jar {
         mkdir("${buildDir}/META-INF/services/")
         val driverFile = File("${buildDir}/META-INF/services/java.sql.Driver")
         if (driverFile.createNewFile()) {
-            driverFile.writeText("software.aws.jdbc.Driver")
+            driverFile.writeText("software.amazon.jdbc.Driver")
         }
     }
 }

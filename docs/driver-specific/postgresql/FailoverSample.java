@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-import software.aws.jdbc.PropertyDefinition;
+import software.amazon.jdbc.PropertyDefinition;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;

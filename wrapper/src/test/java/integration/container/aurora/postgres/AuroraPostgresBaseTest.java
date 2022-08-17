@@ -50,12 +50,12 @@ import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
-import software.aws.jdbc.Driver;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.ds.AwsWrapperDataSource;
-import software.aws.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.aws.jdbc.plugin.failover.FailoverConnectionPlugin;
-import software.aws.jdbc.util.StringUtils;
+import software.amazon.jdbc.Driver;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.StringUtils;
 
 public abstract class AuroraPostgresBaseTest {
 

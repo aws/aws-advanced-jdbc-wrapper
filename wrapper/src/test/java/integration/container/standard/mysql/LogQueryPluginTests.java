@@ -32,8 +32,8 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
 import org.junit.jupiter.api.Test;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.plugin.LogQueryConnectionPlugin;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 
 public class LogQueryPluginTests extends StandardMysqlBaseTest {
 

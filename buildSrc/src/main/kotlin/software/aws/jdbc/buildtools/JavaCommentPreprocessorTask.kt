@@ -16,7 +16,7 @@
  *
  */
 
-package software.aws.jdbc.buildtools
+package software.amazon.jdbc.buildtools
 
 import com.igormaznitsa.jcp.JcpPreprocessor
 import com.igormaznitsa.jcp.context.PreprocessorContext

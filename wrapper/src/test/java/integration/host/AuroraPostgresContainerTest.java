@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
-import software.aws.jdbc.Driver;
-import software.aws.jdbc.util.StringUtils;
+import software.amazon.jdbc.Driver;
+import software.amazon.jdbc.util.StringUtils;
 
 /**
  * Integration tests against RDS Aurora cluster. Uses {@link AuroraTestUtility} which requires AWS
