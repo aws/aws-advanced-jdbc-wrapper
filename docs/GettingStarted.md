@@ -59,7 +59,7 @@ dependencies {
 }
 ```
 
-To add a Gradle dependency for a Kotlin project, use the following syntax:
+To add a Gradle dependency in a Kotlin syntax, use the following configuration:
 
 ```kotlin
 dependencies {
