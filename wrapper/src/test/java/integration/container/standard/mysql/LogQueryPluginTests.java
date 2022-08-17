@@ -18,8 +18,8 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazon.awslabs.jdbc.PropertyDefinition;
-import com.amazon.awslabs.jdbc.plugin.LogQueryConnectionPlugin;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.plugin.LogQueryConnectionPlugin;
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;

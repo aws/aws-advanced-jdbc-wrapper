@@ -16,7 +16,7 @@
 
 package integration.container.standard.postgres;
 
-import com.amazon.awslabs.jdbc.Driver;
+import software.aws.jdbc.Driver;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.util.ContainerHelper;

@@ -18,8 +18,8 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource;
-import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
+import software.aws.jdbc.ds.AwsWrapperDataSource;
+import software.aws.jdbc.wrapper.ConnectionWrapper;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
 import java.sql.Connection;

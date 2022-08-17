@@ -79,7 +79,7 @@ The JDBC Wrapper provides a custom exception override class for HikariCP, to use
 configure the HikariDataSource like the following:
 ```java
 HikariDataSource ds = new HikariDataSource();
-ds.setExceptionOverrideClassName("com.amazon.awslabs.jdbc.util.HikariCPSQLException");
+ds.setExceptionOverrideClassName("software.aws.jdbc.util.HikariCPSQLException");
 ```
 
 #### Sample Code

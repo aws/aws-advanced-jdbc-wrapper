@@ -18,7 +18,7 @@ package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.amazon.awslabs.jdbc.PropertyDefinition;
+import software.aws.jdbc.PropertyDefinition;
 import java.util.Properties;
 import java.util.Random;
 import javax.sql.DataSource;
@@ -40,7 +40,7 @@ public class SpringTests extends StandardMysqlBaseTest {
 
   private DataSource mysqlDataSource() {
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
-    dataSource.setDriverClassName("com.amazon.awslabs.jdbc.Driver");
+    dataSource.setDriverClassName("software.aws.jdbc.Driver");
     dataSource.setUrl(getUrl());
     dataSource.setUsername(STANDARD_MYSQL_USERNAME);
     dataSource.setPassword(STANDARD_MYSQL_PASSWORD);

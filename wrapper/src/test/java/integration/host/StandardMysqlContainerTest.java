@@ -16,7 +16,7 @@
 
 package integration.host;
 
-import com.amazon.awslabs.jdbc.Driver;
+import software.aws.jdbc.Driver;
 import com.mysql.cj.util.StringUtils;
 import integration.util.ContainerHelper;
 import java.io.IOException;

@@ -22,12 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazon.awslabs.jdbc.PropertyDefinition;
-import com.amazon.awslabs.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
-import com.amazon.awslabs.jdbc.profile.DriverConfigurationProfiles;
-import com.amazon.awslabs.jdbc.wrapper.ConnectionWrapper;
-import com.amazon.awslabs.jdbc.wrapper.ResultSetWrapper;
-import com.amazon.awslabs.jdbc.wrapper.StatementWrapper;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.aws.jdbc.profile.DriverConfigurationProfiles;
+import software.aws.jdbc.wrapper.ConnectionWrapper;
+import software.aws.jdbc.wrapper.ResultSetWrapper;
+import software.aws.jdbc.wrapper.StatementWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;

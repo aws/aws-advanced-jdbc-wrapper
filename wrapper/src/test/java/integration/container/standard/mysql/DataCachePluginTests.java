@@ -20,9 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.amazon.awslabs.jdbc.PropertyDefinition;
-import com.amazon.awslabs.jdbc.plugin.DataCacheConnectionPlugin;
-import com.amazon.awslabs.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
+import software.aws.jdbc.PropertyDefinition;
+import software.aws.jdbc.plugin.DataCacheConnectionPlugin;
+import software.aws.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;

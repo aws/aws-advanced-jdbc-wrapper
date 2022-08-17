@@ -16,7 +16,7 @@
 
 package integration.util;
 
-import com.amazon.awslabs.jdbc.util.StringUtils;
+import software.aws.jdbc.util.StringUtils;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;

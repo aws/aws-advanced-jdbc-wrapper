@@ -16,7 +16,7 @@
 
 package integration.container.standard.mysql;
 
-import com.amazon.awslabs.jdbc.Driver;
+import software.aws.jdbc.Driver;
 import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;

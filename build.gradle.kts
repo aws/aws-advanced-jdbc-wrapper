@@ -15,7 +15,7 @@
  */
 
 import com.github.vlsi.gradle.dsl.configureEach
-import com.amazon.awslabs.jdbc.buildtools.JavaCommentPreprocessorTask
+import software.aws.jdbc.buildtools.JavaCommentPreprocessorTask
 import com.github.vlsi.gradle.publishing.dsl.simplifyXml
 
 plugins {
@@ -33,7 +33,7 @@ val versionSubminor = Integer.parseInt(project.property("aws-advanced-jdbc-wrapp
 val buildVersion = "$versionMajor.$versionMinor.$versionSubminor" + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
 
 allprojects {
-    group = "com.amazon.awslabs.jdbc"
+    group = "software.aws.jdbc"
     version = buildVersion
 
     repositories {
@@ -72,7 +72,7 @@ allprojects {
     publishing {
         publications {
             create<MavenPublication>(project.name) {
-                groupId = "com.amazon.awslabs.jdbc"
+                groupId = "software.aws.jdbc"
                 artifactId = "aws-advanced-jdbc-wrapper"
                 version = buildVersion
 

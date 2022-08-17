@@ -16,8 +16,8 @@
 
 package integration.host;
 
-import com.amazon.awslabs.jdbc.Driver;
-import com.amazon.awslabs.jdbc.util.StringUtils;
+import software.aws.jdbc.Driver;
+import software.aws.jdbc.util.StringUtils;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;

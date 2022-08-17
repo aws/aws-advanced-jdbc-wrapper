@@ -37,7 +37,7 @@ The JDBC Wrapper also supports establishing a connection with a connection pooli
 To use the JDBC Wrapper with a connection pool, you must:
 
 1. Configure the connection pool.
-2. Set the datasource class name to `com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource` for the connection pool.
+2. Set the datasource class name to `software.aws.jdbc.ds.AwsWrapperDataSource` for the connection pool.
 3. Configure the `AwsWrapperDataSource`.
 4. Configure the driver-specific datasource.
 
@@ -56,7 +56,7 @@ To use the JDBC Wrapper with a connection pool, you must:
    ds.setPassword(PASSWORD);
    ```
 
-2. Set the datasource class name to `com.amazon.awslabs.jdbc.ds.AwsWrapperDataSource`:
+2. Set the datasource class name to `software.aws.jdbc.ds.AwsWrapperDataSource`:
    ```java
    ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
    ```
