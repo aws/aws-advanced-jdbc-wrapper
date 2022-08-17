@@ -24,8 +24,8 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import software.aws.jdbc.ds.AwsWrapperDataSource;
-import software.aws.jdbc.wrapper.ConnectionWrapper;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class DataSourceTests extends StandardMysqlBaseTest {
 

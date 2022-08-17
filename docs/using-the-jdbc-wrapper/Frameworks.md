@@ -9,7 +9,7 @@ If you are using [Hibernate](https://hibernate.org/orm/), you can configure data
 <!DOCTYPE hibernate-configuration PUBLIC "-//Hibernate/Hibernate Configuration DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
 <hibernate-configuration>
     <session-factory>
-        <property name="hibernate.connection.driver_class">software.aws.jdbc.Driver</property>
+        <property name="hibernate.connection.driver_class">software.amazon.jdbc.Driver</property>
         <property name="hibernate.connection.url">aws-jdbc-wrapper:postgresql://localhost/mydatabase</property>
         <property name="hibernate.connection.username">myuser</property>
         <property name="hibernate.connection.password">secret</property>
@@ -28,7 +28,7 @@ public class SpringJdbcConfig {
     @Bean
     public DataSource mysqlDataSource() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName("software.aws.jdbc.Driver");
+        dataSource.setDriverClassName("software.amazon.jdbc.Driver");
         dataSource.setUrl("jdbc:postgresql://localhost:5432/testDatabase");
         dataSource.setUsername("guest_user");
         dataSource.setPassword("guest_password");

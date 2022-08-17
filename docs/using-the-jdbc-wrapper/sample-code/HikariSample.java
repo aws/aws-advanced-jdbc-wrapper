@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import software.aws.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;

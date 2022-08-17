@@ -37,12 +37,12 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
 import org.junit.jupiter.api.Test;
-import software.aws.jdbc.PropertyDefinition;
-import software.aws.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
-import software.aws.jdbc.profile.DriverConfigurationProfiles;
-import software.aws.jdbc.wrapper.ConnectionWrapper;
-import software.aws.jdbc.wrapper.ResultSetWrapper;
-import software.aws.jdbc.wrapper.StatementWrapper;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.wrapper.ConnectionWrapper;
+import software.amazon.jdbc.wrapper.ResultSetWrapper;
+import software.amazon.jdbc.wrapper.StatementWrapper;
 
 public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
 

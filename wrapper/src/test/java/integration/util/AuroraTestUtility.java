@@ -35,7 +35,7 @@ import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
-import software.aws.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.StringUtils;
 
 /**
  * Creates and destroys AWS RDS Clusters and Instances. To use this functionality the following

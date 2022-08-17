@@ -29,7 +29,7 @@ import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.postgresql.PGProperty;
-import software.aws.jdbc.Driver;
+import software.amazon.jdbc.Driver;
 
 public class StandardPostgresBaseTest {
   protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:postgresql://";
