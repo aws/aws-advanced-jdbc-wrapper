@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
@@ -40,7 +41,7 @@ public class MonitorThreadContainer {
   private final Map<Monitor, Future<?>> tasksMap = new ConcurrentHashMap<>();
   private final Queue<Monitor> availableMonitors = new ConcurrentLinkedDeque<>();
   private final ExecutorService threadPool;
-  private static final Object LOCK_OBJECT = new Object();
+  private static final ReentrantLock LOCK_OBJECT = new ReentrantLock();
 
   /**
    * Create an instance of the {@link MonitorThreadContainer}.
@@ -53,10 +54,15 @@ public class MonitorThreadContainer {
 
   static MonitorThreadContainer getInstance(ExecutorServiceInitializer executorServiceInitializer) {
     if (singleton == null) {
-      synchronized (LOCK_OBJECT) {
-        singleton = new MonitorThreadContainer(executorServiceInitializer);
+      LOCK_OBJECT.lock();
+      try {
+        if (singleton == null) {
+          singleton = new MonitorThreadContainer(executorServiceInitializer);
+          CLASS_USAGE_COUNT.set(0);
+        }
+      } finally {
+        LOCK_OBJECT.unlock();
       }
-      CLASS_USAGE_COUNT.set(0);
     }
     CLASS_USAGE_COUNT.getAndIncrement();
     return singleton;
@@ -72,9 +78,15 @@ public class MonitorThreadContainer {
     }
 
     if (CLASS_USAGE_COUNT.decrementAndGet() <= 0) {
-      synchronized (LOCK_OBJECT) {
-        singleton.releaseResources();
-        singleton = null;
+      LOCK_OBJECT.lock();
+      try {
+        if (singleton != null) {
+          singleton.releaseResources();
+          singleton = null;
+          CLASS_USAGE_COUNT.set(0);
+        }
+      } finally {
+        LOCK_OBJECT.unlock();
       }
     }
   }
@@ -95,14 +107,6 @@ public class MonitorThreadContainer {
     return threadPool;
   }
 
-  String getNode(Set<String> nodeKeys) {
-    return getNode(nodeKeys, null);
-  }
-
-  String getNode(Set<String> nodeKeys, String defaultValue) {
-    return nodeKeys.stream().filter(monitorMap::containsKey).findAny().orElse(defaultValue);
-  }
-
   Monitor getMonitor(String node) {
     return monitorMap.get(node);
   }
@@ -111,27 +115,40 @@ public class MonitorThreadContainer {
     if (nodeKeys.isEmpty()) {
       throw new IllegalArgumentException("Provided node keys are empty.");
     }
-    final String anyNodeKey = nodeKeys.iterator().next();
-    final String node = getNode(nodeKeys, anyNodeKey);
-    final Monitor monitor =
-        monitorMap.computeIfAbsent(
-            node,
-            k -> {
-              if (!availableMonitors.isEmpty()) {
-                final Monitor availableMonitor = availableMonitors.remove();
-                if (!availableMonitor.isStopped()) {
-                  return availableMonitor;
-                }
-                tasksMap.computeIfPresent(
-                    availableMonitor,
-                    (key, v) -> {
-                      v.cancel(true);
-                      return null;
-                    });
-              }
 
-              return monitorSupplier.get();
-            });
+    Monitor monitor = null;
+    String anyNodeKey = null;
+    for (String nodeKey : nodeKeys) {
+      monitor = monitorMap.get(nodeKey);
+      anyNodeKey = nodeKey;
+      if (monitor != null) {
+        break;
+      }
+    }
+
+    if (monitor == null) {
+      monitor = monitorMap.computeIfAbsent(
+          anyNodeKey,
+          k -> {
+            if (!availableMonitors.isEmpty()) {
+              final Monitor availableMonitor = availableMonitors.remove();
+              if (!availableMonitor.isStopped()) {
+                return availableMonitor;
+              }
+              tasksMap.computeIfPresent(
+                  availableMonitor,
+                  (key, v) -> {
+                    v.cancel(true);
+                    return null;
+                  });
+            }
+
+            Monitor newMonitor = monitorSupplier.get();
+            addTask(newMonitor);
+
+            return newMonitor;
+          });
+    }
 
     populateMonitorMap(nodeKeys, monitor);
     return monitor;
@@ -158,8 +175,7 @@ public class MonitorThreadContainer {
       return;
     }
 
-    final List<Monitor> monitorList = Collections.singletonList(monitor);
-    monitorMap.values().removeAll(monitorList);
+    monitorMap.entrySet().removeIf(e -> e.getValue() == monitor);
     availableMonitors.add(monitor);
   }
 

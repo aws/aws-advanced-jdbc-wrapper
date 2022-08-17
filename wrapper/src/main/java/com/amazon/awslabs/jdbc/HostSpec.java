@@ -31,33 +31,38 @@ public class HostSpec {
   protected HostAvailability availability;
   protected HostRole role;
   protected Set<String> aliases = new HashSet<>();
+  protected Set<String> allAliases = new HashSet<>();
 
-  public HostSpec(String host) {
+  public HostSpec(final String host) {
     this.host = host;
     this.port = NO_PORT;
     this.availability = HostAvailability.AVAILABLE;
     this.role = HostRole.WRITER;
+    this.allAliases.add(this.asAlias());
   }
 
-  public HostSpec(String host, int port) {
+  public HostSpec(final String host, int port) {
     this.host = host;
     this.port = port;
     this.availability = HostAvailability.AVAILABLE;
     this.role = HostRole.WRITER;
+    this.allAliases.add(this.asAlias());
   }
 
-  public HostSpec(String host, int port, HostRole role) {
+  public HostSpec(final String host, int port, final HostRole role) {
     this.host = host;
     this.port = port;
     this.availability = HostAvailability.AVAILABLE;
     this.role = role;
+    this.allAliases.add(this.asAlias());
   }
 
-  public HostSpec(String host, int port, HostRole role, HostAvailability availability) {
+  public HostSpec(final String host, int port, final HostRole role, final HostAvailability availability) {
     this.host = host;
     this.port = port;
     this.availability = availability;
     this.role = role;
+    this.allAliases.add(this.asAlias());
   }
 
   public String getHost() {
@@ -93,14 +98,20 @@ public class HostSpec {
       return;
     }
 
-    this.aliases.addAll(Arrays.asList(alias));
+    Arrays.asList(alias).forEach(x -> {
+      this.aliases.add(x);
+      this.allAliases.add(x);
+    });
   }
 
   public void removeAlias(String... alias) {
     if (alias == null || alias.length < 1) {
       return;
     }
-    Arrays.asList(alias).forEach(this.aliases::remove);
+    Arrays.asList(alias).forEach(x -> {
+      this.aliases.remove(x);
+      this.allAliases.remove(x);
+    });
   }
 
   public String getUrl() {
@@ -116,10 +127,7 @@ public class HostSpec {
   }
 
   public Set<String> asAliases() {
-    Set<String> allAliases = new HashSet<>();
-    allAliases.add(this.asAlias());
-    allAliases.addAll(this.aliases);
-    return Collections.unmodifiableSet(allAliases);
+    return Collections.unmodifiableSet(this.allAliases);
   }
 
   public String toString() {

@@ -159,7 +159,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           Level.FINEST, String.format("Executing method %s, monitoring is activated", methodName));
 
       this.nodeKeys.clear();
-      this.nodeKeys.addAll(this.pluginService.getCurrentHostSpec().getAliases());
+      this.nodeKeys.addAll(this.pluginService.getCurrentHostSpec().asAliases());
 
       monitorContext =
           this.monitorService.startMonitoring(
@@ -177,7 +177,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       if (monitorContext != null) {
         this.monitorService.stopMonitoring(monitorContext);
 
-        boolean isConnectionClosed = false;
+        boolean isConnectionClosed;
         try {
           isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
         } catch (SQLException e) {
