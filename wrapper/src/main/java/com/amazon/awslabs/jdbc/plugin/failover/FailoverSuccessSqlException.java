@@ -16,15 +16,15 @@
 
 package com.amazon.awslabs.jdbc.plugin.failover;
 
-import java.sql.SQLException;
+import com.amazon.awslabs.jdbc.util.SqlState;
 
-public class FailoverSqlException extends SQLException {
+public class FailoverSuccessSqlException extends FailoverSqlException {
 
-  public FailoverSqlException(String reason, String sqlState, Throwable cause) {
-    super(reason, sqlState, cause);
+  public FailoverSuccessSqlException(Throwable cause) {
+    super("message", SqlState.COMMUNICATION_LINK_CHANGED.getState(), cause);
   }
 
-  public FailoverSqlException(String reason, String sqlState) {
-    super(reason, sqlState);
+  public FailoverSuccessSqlException() {
+    super("message", SqlState.COMMUNICATION_LINK_CHANGED.getState());
   }
 }

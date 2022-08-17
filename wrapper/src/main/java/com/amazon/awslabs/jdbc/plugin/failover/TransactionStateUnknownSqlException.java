@@ -16,15 +16,11 @@
 
 package com.amazon.awslabs.jdbc.plugin.failover;
 
-import java.sql.SQLException;
+import com.amazon.awslabs.jdbc.util.SqlState;
 
-public class FailoverSqlException extends SQLException {
+public class TransactionStateUnknownSqlException extends FailoverSqlException {
 
-  public FailoverSqlException(String reason, String sqlState, Throwable cause) {
-    super(reason, sqlState, cause);
-  }
-
-  public FailoverSqlException(String reason, String sqlState) {
-    super(reason, sqlState);
+  public TransactionStateUnknownSqlException(Throwable cause) {
+    super("message", SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), cause);
   }
 }
