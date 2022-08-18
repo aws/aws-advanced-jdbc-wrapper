@@ -68,7 +68,16 @@ public class FailoverSample {
 
       // Commit business transaction
       updateQueryWithFailoverHandling(conn, "commit");
-    }  catch (SQLException e) {
+    } catch (FailoverFailedSQLException e)  {
+      // User application should open a new connection, check the results of the failed transaction and re-run it if
+      // needed. See:
+      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
+      throw e;
+    } catch (TransactionStateUnknownSQLException e) {
+      // User application should check the status of the failed transaction and restart it if needed. See:
+      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08007---transaction-resolution-unknown
+      throw e;
+    } catch (SQLException e) {
       // Unexpected exception unrelated to failover. This should be handled by the user application.
       throw e;
     }
@@ -86,9 +95,6 @@ public class FailoverSample {
       stmt.executeUpdate(query);
     } catch (FailoverFailedSQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
-      // User application should open a new connection, check the results of the failed transaction and re-run it if
-      // needed. See:
-      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
       throw e;
     } catch (FailoverSuccessSQLException e) {
       // Query execution failed and JDBC wrapper successfully failed over to a new elected writer node.
@@ -102,8 +108,6 @@ public class FailoverSample {
     } catch (TransactionStateUnknownSQLException e) {
       // Connection failed while executing a business transaction.
       // Transaction status is unknown. The driver has successfully reconnected to a new writer.
-      // User application should check the status of the failed transaction and restart it if needed. See:
-      // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08007---transaction-resolution-unknown
       throw e;
     }
   }
