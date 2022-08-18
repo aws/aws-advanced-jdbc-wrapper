@@ -32,9 +32,9 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
-#      - name: 'Upload Snapshot to Maven'
-#        run: |
-#          ./gradlew --no-parallel --no-daemon publishAllPublicationsToOSSRHRepository -Psnapshot=${{secrets.ENABLE_SNAPSHOT}} -Psigning.keyId=${{secrets.GPG_KEY_ID}} -Psigning.password=${{secrets.GPG_PASSPHRASE}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg)
-#        env:
-#          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-#          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+      - name: 'Upload Snapshot to Maven'
+        run: |
+          ./gradlew --no-parallel --no-daemon publishAllPublicationsToOSSRHRepository -Psnapshot=${{secrets.ENABLE_SNAPSHOT}} -Psigning.keyId=${{secrets.GPG_KEY_ID}} -Psigning.password=${{secrets.GPG_PASSPHRASE}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/secring.gpg)
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
