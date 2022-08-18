@@ -132,7 +132,7 @@ allprojects {
             && project.hasProperty("signing.secretKeyRingFile")
             && project.property("signing.secretKeyRingFile") != ""
         ) {
-            sign(publishing.publications["maven"])
+            sign(publishing.publications["aws-advanced-jdbc-wrapper"])
         }
     }
 }
