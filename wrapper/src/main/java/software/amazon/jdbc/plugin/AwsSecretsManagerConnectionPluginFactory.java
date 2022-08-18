@@ -16,10 +16,10 @@
 
 package software.amazon.jdbc.plugin;
 
+import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
-import java.util.Properties;
 
 public class AwsSecretsManagerConnectionPluginFactory implements ConnectionPluginFactory {
   @Override

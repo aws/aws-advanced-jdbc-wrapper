@@ -39,7 +39,7 @@ public class AwsSecretsManagerConnectionPluginPostgresqlSample {
         "awsSecretsManager");
 
     // Try and make a connection:
-    try (final Connection conn = DriverManager.getConnection(CONNECTION_STRING);
+    try (final Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);
          final Statement statement = conn.createStatement();
          final ResultSet rs = statement.executeQuery("SELECT * FROM employees")) {
       while (rs.next()) {

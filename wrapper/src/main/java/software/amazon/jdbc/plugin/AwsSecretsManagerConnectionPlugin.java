@@ -16,12 +16,6 @@
 
 package software.amazon.jdbc.plugin;
 
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -44,6 +38,12 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
 import software.amazon.awssdk.utils.Pair;
+import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.StringUtils;
 
 public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
