@@ -20,19 +20,10 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
+import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 
 public class FailoverSample {
-  public static class FailoverFailedException extends SQLException {
-    public FailoverFailedException(String message, SQLException e) {
-      super(message, e);
-    }
-  }
-
-  public static class TransactionStateUnknownException extends SQLException {
-    public TransactionStateUnknownException(String message, SQLException e) {
-      super(message, e);
-    }
-  }
 
   // User configures connection properties here
   public static final String POSTGRESQL_CONNECTION_STRING =
@@ -76,12 +67,12 @@ public class FailoverSample {
 
       // Commit business transaction
       updateQueryWithFailoverHandling(conn, "commit");
-    } catch (FailoverFailedException e) {
+    } catch (FailoverFailedSQLException e) {
       // User application should open a new connection, check the results of the failed transaction and re-run it if
       // needed. See:
       // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
       throw e;
-    } catch (TransactionStateUnknownException e) {
+    } catch (TransactionStateUnknownSQLException e) {
       // User application should check the status of the failed transaction and restart it if needed. See:
       // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08007---transaction-resolution-unknown
       throw e;
@@ -104,8 +95,8 @@ public class FailoverSample {
     } catch (SQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
       if ("08001".equalsIgnoreCase(e.getSQLState())) {
-        throw new FailoverFailedException("User application should open a new connection, check the results of the" +
-            " failed transaction and re-run it if needed.", e);
+        throw new FailoverFailedSQLException("User application should open a new connection, check the results of the" +
+            " failed transaction and re-run it if needed.");
       }
       // Query execution failed and JDBC wrapper successfully failed over to a new elected writer node.
       if ("08S02".equalsIgnoreCase(e.getSQLState())) {
@@ -122,8 +113,8 @@ public class FailoverSample {
       // Connection failed while executing a business transaction.
       // Transaction status is unknown. The driver has successfully reconnected to a new writer.
       if ("08007".equalsIgnoreCase(e.getSQLState())) {
-        throw new TransactionStateUnknownException("User application should check the status" +
-            " of the failed transaction and restart it if needed.", e);
+        throw new TransactionStateUnknownSQLException("User application should check the status" +
+            " of the failed transaction and restart it if needed.");
       }
       throw e;
     }
