@@ -68,7 +68,7 @@ public class FailoverSample {
 
       // Commit business transaction
       updateQueryWithFailoverHandling(conn, "commit");
-    } catch (FailoverFailedSQLException e)  {
+    } catch (FailoverFailedSQLException e) {
       // User application should open a new connection, check the results of the failed transaction and re-run it if
       // needed. See:
       // https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md#08001---unable-to-establish-sql-connection
