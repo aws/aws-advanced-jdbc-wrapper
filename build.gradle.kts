@@ -113,7 +113,7 @@ allprojects {
         repositories {
             maven {
                 name = "OSSRH"
-                url = if(project.property("snapshot") == true) {
+                url = if(project.property("snapshot") == "true") {
                     uri("https://aws.oss.sonatype.org/content/repositories/snapshots/")
                 } else {
                     uri("https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/")
