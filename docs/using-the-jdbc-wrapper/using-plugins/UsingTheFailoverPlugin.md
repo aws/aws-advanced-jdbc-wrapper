@@ -13,7 +13,7 @@ Over the course of the application's lifetime, it executes various statements ag
 
 If the primary DB instance has failed, the JDBC Wrapper will use its internal topology cache to temporarily connect to an active Aurora Replica. This Aurora Replica will be periodically queried for the DB cluster topology until the new primary DB instance is identified (DB instance A or B in this case).
 
-At this point, the JDBC Wrapper will connect to the new primary DB instance and return control to the application by raising a SQLException with SQLState 08S02 so you can reconfigure the session state as needed. Although the DNS endpoint for the DB cluster might not yet resolve to the new primary DB instance, the JDBC Wrapper has already discovered this new DB instance during its failover process, and will be directly connected to it when the application continues executing statements. In this way the JDBC Wrapper provides a faster way to reconnect to a newly promoted DB instance, thus increasing the availability of the DB cluster.
+At this point, the JDBC Wrapper will connect to the new primary DB instance and return control to the application by raising a FailoverSuccessSQLException with SQLState 08S02 so you can reconfigure the session state as needed. Although the DNS endpoint for the DB cluster might not yet resolve to the new primary DB instance, the JDBC Wrapper has already discovered this new DB instance during its failover process, and will be directly connected to it when the application continues executing statements. In this way the JDBC Wrapper provides a faster way to reconnect to a newly promoted DB instance, thus increasing the availability of the DB cluster.
 
 ## Using the Failover Plugin
 The failover plugin will NOT be loaded unless you explicitly include it by adding the plugin code failover to the [`wrapperPlugins`](../UsingTheJdbcWrapper.md#connection-plugin-manager-parameters) value, or add it to the current [driver profile](../UsingTheJdbcWrapper.md#connection-plugin-manager-parameters). After you load the plugin, the failover plugin will be enabled (by default) and the enableClusterAwareFailover parameter will be set to true. <br> <br> Please refer to the [failover configuration guide](../FailoverConfigurationGuide.md) for tips to keep in mind when using the failover plugin.
@@ -42,17 +42,17 @@ When connecting to Aurora clusters, the [`clusterInstanceHostPattern`](#failover
 | 08007 - Transaction Resolution Unknown     | Yes                      | Yes                           | Yes                            | Yes                                       | Yes                                             | Yes                                        |
 
 ### 08001 - Unable to Establish SQL Connection
-When the JDBC Wrapper throws a SQLException with code ```08001```, the original connection has failed, and the JDBC Wrapper tried to failover to a new instance, but was unable to. There are various reasons this may happen: no nodes were available, a network failure occurred, and so on. In this scenario, please wait until the server is up or other problems are solved. (Exception will be thrown.)
+When the JDBC Wrapper throws a FailoverFailedSQLException, the original connection has failed, and the JDBC Wrapper tried to failover to a new instance, but was unable to. There are various reasons this may happen: no nodes were available, a network failure occurred, and so on. In this scenario, please wait until the server is up or other problems are solved. (Exception will be thrown.)
 
 ### 08S02 - Communication Link
-When the JDBC Wrapper throws a SQLException with code ```08S02```, the original connection has failed while ```autocommit``` was set to ```true```, and the JDBC Wrapper successfully failed over to another available instance in the cluster. However, any session state configuration of the initial connection is now lost. In this scenario, you should:
+When the JDBC Wrapper throws a FailoverSuccessSQLException, the original connection has failed while ```autocommit``` was set to ```true```, and the JDBC Wrapper successfully failed over to another available instance in the cluster. However, any session state configuration of the initial connection is now lost. In this scenario, you should:
 
 - Reuse and reconfigure the original connection (e.g., reconfigure session state to be the same as the original connection).
 
 - Repeat that query that was executed when the connection failed, and continue work as desired.
 
 ### 08007 - Transaction Resolution Unknown
-When the JDBC Wrapper throws a SQLException with code ```08007```, the original connection has failed within a transaction (while ```autocommit``` was set to ```false```). In this scenario, the JDBC Wrapper first attempts to rollback the transaction and then fails over to another available instance in the cluster. Note that the rollback might be unsuccessful as the initial connection may be broken at the time that the JDBC Wrapper recognizes the problem. Note also that any session state configuration of the initial connection is now lost. In this scenario, you should:
+When the JDBC Wrapper throws a TransactionStateUnknownSQLException, the original connection has failed within a transaction (while ```autocommit``` was set to ```false```). In this scenario, the JDBC Wrapper first attempts to rollback the transaction and then fails over to another available instance in the cluster. Note that the rollback might be unsuccessful as the initial connection may be broken at the time that the JDBC Wrapper recognizes the problem. Note also that any session state configuration of the initial connection is now lost. In this scenario, you should:
 
 - Reuse and reconfigure the original connection (e.g: reconfigure session state to be the same as the original connection).
 
