@@ -139,9 +139,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // identification
       this.clusterId = this.pluginService.getCurrentHostSpec().getUrl();
     } else if (rdsUrlType.isRds()) {
-      this.clusterId = this.rdsHelper.getRdsClusterHostUrl(originalUrl);
-      if (!StringUtils.isNullOrEmpty(this.clusterId)) {
-        this.clusterId = this.clusterId + ":" + this.clusterInstanceTemplate.getPort();
+      final String clusterRdsHostUrl = this.rdsHelper.getRdsClusterHostUrl(originalUrl);
+      if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
+        this.clusterId = clusterRdsHostUrl + ":" + this.clusterInstanceTemplate.getPort();
       }
     }
 
