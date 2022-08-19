@@ -332,6 +332,8 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       clusterTopologyInfo = latestTopologyInfo;
     } else {
       clusterTopologyInfo.hosts = latestTopologyInfo.hosts;
+      clusterTopologyInfo.downHosts = latestTopologyInfo.downHosts;
+      clusterTopologyInfo.isMultiWriterCluster = latestTopologyInfo.isMultiWriterCluster;
     }
     clusterTopologyInfo.lastUpdated = Instant.now();
 
