@@ -16,6 +16,17 @@
 
 package software.amazon.jdbc.plugin;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,23 +39,11 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
+import software.amazon.awssdk.utils.Pair;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.awssdk.utils.Pair;
 import software.amazon.jdbc.util.Messages;
-
-import java.sql.SQLException;
-import java.util.Properties;
-import java.sql.Connection;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class AwsSecretsManagerConnectionPluginTest {
 
@@ -155,13 +154,13 @@ public class AwsSecretsManagerConnectionPluginTest {
     doThrow(failedFirstConnectionGenericException).when(connectFunc).call();
 
     final SQLException connectionFailedException = assertThrows(
-      SQLException.class,
-      () -> this.plugin.connect(
-        TEST_PROTOCOL,
-        TEST_HOSTSPEC,
-        TEST_PROPS,
-        true,
-        this.connectFunc));
+        SQLException.class,
+        () -> this.plugin.connect(
+          TEST_PROTOCOL,
+          TEST_HOSTSPEC,
+          TEST_PROPS,
+          true,
+          this.connectFunc));
 
     assertEquals(TEST_SQL_ERROR, connectionFailedException.getMessage());
     verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
