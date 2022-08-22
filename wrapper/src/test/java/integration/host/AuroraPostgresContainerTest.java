@@ -67,6 +67,7 @@ public class AuroraPostgresContainerTest {
 
   protected static final String EXISTING_DB_CONN_SUFFIX = System.getenv("DB_CONN_SUFFIX");
 
+  private static final String REPEAT_TIMES = System.getenv("REPEAT_TIMES");
   private static final String AWS_ACCESS_KEY_ID = System.getenv("AWS_ACCESS_KEY_ID");
   private static final String AWS_SECRET_ACCESS_KEY = System.getenv("AWS_SECRET_ACCESS_KEY");
   private static final String AWS_SESSION_TOKEN = System.getenv("AWS_SESSION_TOKEN");
@@ -229,6 +230,7 @@ public class AuroraPostgresContainerTest {
             .withEnv(
                 "PROXIED_CLUSTER_TEMPLATE", "?." + dbConnStrSuffix + PROXIED_DOMAIN_NAME_SUFFIX)
             .withEnv("DB_CONN_STR_SUFFIX", "." + dbConnStrSuffix)
+            .withEnv("REPEAT_TIMES", REPEAT_TIMES)
             .withEnv("AWS_ACCESS_KEY_ID", AWS_ACCESS_KEY_ID)
             .withEnv("AWS_SECRET_ACCESS_KEY", AWS_SECRET_ACCESS_KEY);
     if (AWS_SESSION_TOKEN != null) {

@@ -55,6 +55,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
+    testImplementation("org.apache.poi:poi-ooxml:5.2.2")
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
     testImplementation("software.amazon.awssdk:secretsmanager:2.17.250")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
@@ -192,7 +193,7 @@ tasks.register<Test>("debug-integration-aurora-postgres") {
 
 tasks.register<Test>("debug-performance-aurora-postgres") {
     group = "verification"
-    filter.includeTestsMatching("testsuite.integration.host.AuroraPostgresContainerTest.debugPerformanceTestInContainer")
+    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.debugPerformanceTestInContainer")
 }
 
 // Run standard Postgres integration tests in container with debugger
