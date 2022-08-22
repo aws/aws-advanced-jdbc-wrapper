@@ -8,9 +8,11 @@ The JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the J
 ## Getting a Connection
 To get a connection from the JDBC Wrapper, the user application can either connect with a DriverManager or with a DataSource.
 
-The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers, see [here](../driver-specific/postgresql/ConnectionTestSample.java) for an example to establish a connection with the PostgreSQL JDBC driver.
+The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers;
+[this example](../driver-specific/postgresql/ConnectionTestSample.java) demonstrates establishing a connection with the PostgreSQL JDBC driver.
 
-Getting a connection with a DataSource may require some additional steps, see [here](./DataSource.md) for more details.
+Establishing a connection with a DataSource may require some additional steps.
+For detailed information and examples, review the [Datasource](./DataSource.md) documentation.
 
 ### Connections with Different Query Lengths
 It is recommended that user applications use different settings for connections or connection pools that execute queries of varying lengths. Long and short running queries have different preferred settings. For example, if the network timeout is set to 1 minute, given an application that executes both short running (~5 seconds) and long running (~1 minute) queries, the user would be waiting a large amount of time for the short running queries to time out. Alternatively, if the timeout is set to 5 seconds, the user would experience large numbers of false negatives in which the long queries are consistently failing due to the timeout. 
