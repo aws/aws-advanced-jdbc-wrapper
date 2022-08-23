@@ -25,11 +25,13 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.Referenceable;
+import javax.naming.StringRefAddr;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -289,8 +291,27 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
   @Override
   public Reference getReference() throws NamingException {
-    // TODO
-    return null;
+    final Reference reference =
+        new Reference(getClass().getName(), AwsWrapperDataSourceFactory.class.getName(), null);
+    reference.add(new StringRefAddr("user", getUser()));
+    reference.add(new StringRefAddr("password", getPassword()));
+    reference.add(new StringRefAddr("jdbcUrl", getJdbcUrl()));
+    reference.add(new StringRefAddr("targetDataSourceClassName", getTargetDataSourceClassName()));
+    reference.add(new StringRefAddr("jdbcProtocol", getJdbcProtocol()));
+    reference.add(new StringRefAddr("serverPropertyName", getServerPropertyName()));
+    reference.add(new StringRefAddr("portPropertyName", getPortPropertyName()));
+    reference.add(new StringRefAddr("urlPropertyName", getUrlPropertyName()));
+    reference.add(new StringRefAddr("databasePropertyName", getDatabasePropertyName()));
+    reference.add(new StringRefAddr("userPropertyName", getUserPropertyName()));
+    reference.add(new StringRefAddr("passwordPropertyName", getPasswordPropertyName()));
+
+    if (this.targetDataSourceProperties != null) {
+      for (Map.Entry<Object, Object> entry : this.targetDataSourceProperties.entrySet()) {
+        reference.add(new StringRefAddr(entry.getKey().toString(), entry.getValue().toString()));
+      }
+    }
+
+    return reference;
   }
 
   protected boolean isNullOrEmpty(final String str) {

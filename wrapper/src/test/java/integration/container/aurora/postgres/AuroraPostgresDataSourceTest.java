@@ -17,12 +17,20 @@
 package integration.container.aurora.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import integration.util.SimpleJndiContextFactory;
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Hashtable;
 import java.util.Properties;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PSQLException;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
@@ -429,5 +437,48 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     assertThrows(
         PSQLException.class,
         () -> ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD));
+  }
+
+  @Test
+  public void testConnectionWithDataSourceClassNameFromJndiLookup()
+      throws SQLException, NamingException, IllegalAccessException {
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setServerPropertyName("serverName");
+    ds.setDatabasePropertyName("databaseName");
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
+
+    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", POSTGRES_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
+
+    Hashtable<String, Object> env = new Hashtable<String, Object>();
+    env.put(Context.INITIAL_CONTEXT_FACTORY, SimpleJndiContextFactory.class.getName());
+    InitialContext context = new InitialContext(env);
+    context.bind("wrapperDataSource", ds);
+    AwsWrapperDataSource dsFromJndiLookup = (AwsWrapperDataSource) context.lookup("wrapperDataSource");
+    if (dsFromJndiLookup == null) {
+      fail();
+    }
+
+    assertNotSame(ds, dsFromJndiLookup);
+    Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
+    assertEquals(targetDataSourceProps, jndiDsProperties);
+
+    for (Field f : ds.getClass().getFields()) {
+      assertEquals(f.get(ds), f.get(dsFromJndiLookup));
+    }
+
+    Connection conn = dsFromJndiLookup.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);
+
+    assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
+    assertEquals(conn.getCatalog(), AURORA_POSTGRES_DB);
+
+    assertTrue(conn.isValid(10));
+    conn.close();
   }
 }
