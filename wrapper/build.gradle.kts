@@ -28,7 +28,7 @@ plugins {
 
 dependencies {
     implementation("org.checkerframework:checker-qual:3.23.+")
-    compileOnly("software.amazon.awssdk:rds:2.17.+")
+    compileOnly("software.amazon.awssdk:rds:2.17.259")
     compileOnly("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.17.250")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.3")
@@ -48,8 +48,8 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
     testImplementation("org.mockito:mockito-inline:4.+")
-    testImplementation("software.amazon.awssdk:rds:2.17.+")
-    testImplementation("software.amazon.awssdk:ec2:2.17.+")
+    testImplementation("software.amazon.awssdk:rds:2.17.259")
+    testImplementation("software.amazon.awssdk:ec2:2.17.259")
     testImplementation("org.testcontainers:testcontainers:1.17.+")
     testImplementation("org.testcontainers:mysql:1.17.+")
     testImplementation("org.testcontainers:postgresql:1.17.+")

@@ -128,7 +128,6 @@ public class WrapperUtils {
     }
   };
 
-  // TODO: choose a better name to distinguish runWithPlugins and executeWithPlugins
   public static void runWithPlugins(
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,

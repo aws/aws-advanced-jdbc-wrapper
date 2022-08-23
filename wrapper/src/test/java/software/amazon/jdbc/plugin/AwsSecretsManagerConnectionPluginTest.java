@@ -105,12 +105,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     // Add initial cached secret to be used for a connection.
     AwsSecretsManagerConnectionPlugin.SECRET_CACHE.put(SECRET_CACHE_KEY, TEST_SECRET);
 
-    this.plugin.connect(
-        TEST_PROTOCOL,
-        TEST_HOSTSPEC,
-        TEST_PROPS,
-        true,
-        this.connectFunc);
+    this.plugin.connect(TEST_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
     assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
     verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
@@ -120,20 +115,15 @@ public class AwsSecretsManagerConnectionPluginTest {
   }
 
   /**
-   * The plugin will attempt to open a connection with an empty secret cache. The plugin will fetch the secret from
-   * the AWS Secrets Manager.
+   * The plugin will attempt to open a connection with an empty secret cache. The plugin will fetch
+   * the secret from the AWS Secrets Manager.
    */
   @Test
   public void testConnectWithNewSecrets() throws SQLException {
     when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
         .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
 
-    this.plugin.connect(
-        TEST_PROTOCOL,
-        TEST_HOSTSPEC,
-        TEST_PROPS,
-        true,
-        this.connectFunc);
+    this.plugin.connect(TEST_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
     assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
@@ -141,7 +131,6 @@ public class AwsSecretsManagerConnectionPluginTest {
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
   }
-
 
   /**
    * The plugin will attempt to open a connection with a cached secret, but it will fail with a generic SQL exception.

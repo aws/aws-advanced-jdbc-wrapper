@@ -60,7 +60,8 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
       hostListProviderService.setHostListProvider(
           new AuroraHostListProvider(driverProtocol, pluginService, props, initialUrl));
     } else if (!(provider instanceof AuroraHostListProvider)) {
-      throw new SQLException(Messages.get("Failover.invalidHostListProvider", new Object[] {provider}));
+      throw new SQLException(Messages.get("AuroraHostListConnectionPlugin.providerAlreadySet",
+          new Object[] {provider.getClass().getName()}));
     }
     initHostProviderFunc.call();
   }

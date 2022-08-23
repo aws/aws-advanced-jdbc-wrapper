@@ -42,13 +42,12 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
+import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 class ClusterAwareWriterFailoverHandlerTest {
 
-  @Mock AuroraHostListProvider mockHostListProvider;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
   @Mock ReaderFailoverHandler mockReaderFailover;
@@ -86,13 +85,12 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockPluginService.connect(refEq(readerA), eq(properties))).thenThrow(SQLException.class);
     when(mockPluginService.connect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
 
-    when(mockHostListProvider.getTopology(any(Connection.class), eq(true))).thenReturn(topology);
+    when(mockPluginService.getHosts()).thenReturn(topology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList())).thenThrow(SQLException.class);
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             mockReaderFailover,
             properties,
@@ -105,38 +103,36 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isNewHost());
     assertSame(result.getNewConnection(), mockConnection);
 
-    final InOrder inOrder = Mockito.inOrder(mockHostListProvider);
-    inOrder.verify(mockHostListProvider).addToDownHostList(refEq(writer));
-    inOrder.verify(mockHostListProvider).removeFromDownHostList(refEq(writer));
+    final InOrder inOrder = Mockito.inOrder(mockPluginService);
+    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
   /**
    * Verify that writer failover handler can re-connect to a current writer node.
    *
-   * <p>topology: no changes seen by task A, changes to [new-writer, reader-A, reader-B] for taskB
-   * taskA: successfully re-connect to initial writer; return new connection taskB: successfully
-   * connect to readerA and then new writer, but it takes more time than taskA expected test result:
-   * new connection by taskA
+   * <p>Topology: no changes seen by task A, changes to [new-writer, reader-A, reader-B] for taskB.
+   * TaskA: successfully re-connect to initial writer; return new connection.
+   * TaskB: successfully connect to readerA and then new writer, but it takes more time than taskA.
+   * Expected test result: new connection by taskA.
    */
   @Test
   public void testReconnectToWriter_SlowReaderA() throws SQLException {
     when(mockPluginService.connect(refEq(writer), eq(properties))).thenReturn(mockWriterConnection);
     when(mockPluginService.connect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
-
-    when(mockHostListProvider.getTopology(eq(mockWriterConnection), eq(true))).thenReturn(topology);
-    when(mockHostListProvider.getTopology(eq(mockReaderAConnection), eq(true))).thenReturn(newTopology);
+    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenReturn(mockNewWriterConnection);
+    when(mockPluginService.getHosts()).thenReturn(topology).thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenAnswer(
             (Answer<ReaderFailoverResult>)
                 invocation -> {
                   Thread.sleep(5000);
-                  return new ReaderFailoverResult(mockReaderAConnection, 1, true);
+                  return new ReaderFailoverResult(mockReaderAConnection, readerA, true);
                 });
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             mockReaderFailover,
             properties,
@@ -149,17 +145,18 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isNewHost());
     assertSame(result.getNewConnection(), mockWriterConnection);
 
-    final InOrder inOrder = Mockito.inOrder(mockHostListProvider);
-    inOrder.verify(mockHostListProvider).addToDownHostList(refEq(writer));
-    inOrder.verify(mockHostListProvider).removeFromDownHostList(refEq(writer));
+    final InOrder inOrder = Mockito.inOrder(mockPluginService);
+    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
   /**
    * Verify that writer failover handler can re-connect to a current writer node.
    *
-   * <p>topology: no changes taskA: successfully re-connect to writer; return new connection taskB:
-   * successfully connect to readerA and retrieve topology, but latest writer is not new (defer to
-   * taskA) expected test result: new connection by taskA
+   * <p>Topology: no changes.
+   * TaskA: successfully re-connect to writer; return new connection.
+   * TaskB: successfully connect to readerA and retrieve topology, but latest writer is not new (defer to taskA).
+   * Expected test result: new connection by taskA.
    */
   @Test
   public void testReconnectToWriter_taskBDefers() throws SQLException {
@@ -172,14 +169,13 @@ class ClusterAwareWriterFailoverHandlerTest {
                 });
     when(mockPluginService.connect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
 
-    when(mockHostListProvider.getTopology(any(Connection.class), eq(true))).thenReturn(topology);
+    when(mockPluginService.getHosts()).thenReturn(topology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
-        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, 1, true));
+        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             mockReaderFailover,
             properties,
@@ -192,18 +188,19 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isNewHost());
     assertSame(result.getNewConnection(), mockWriterConnection);
 
-    final InOrder inOrder = Mockito.inOrder(mockHostListProvider);
-    inOrder.verify(mockHostListProvider).addToDownHostList(refEq(writer));
-    inOrder.verify(mockHostListProvider).removeFromDownHostList(refEq(writer));
+    final InOrder inOrder = Mockito.inOrder(mockPluginService);
+    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
   /**
    * Verify that writer failover handler can re-connect to a new writer node.
    *
-   * <p>topology: changes to [new-writer, reader-A, reader-B] for taskB, taskA sees no changes
-   * taskA: successfully re-connect to writer; return connection to initial writer but it takes more
-   * time than taskB taskB: successfully connect to readerA and then to new-writer expected test
-   * result: new connection to writer by taskB
+   * <p>Topology: changes to [new-writer, reader-A, reader-B] for taskB, taskA sees no changes.
+   * taskA: successfully re-connect to writer; return connection to initial writer, but it takes more
+   * time than taskB.
+   * TaskB: successfully connect to readerA and then to new-writer.
+   * Expected test result: new connection to writer by taskB.
    */
   @Test
   public void testConnectToReaderA_SlowWriter() throws SQLException {
@@ -218,15 +215,13 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
     when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenReturn(mockNewWriterConnection);
 
-    when(mockHostListProvider.getTopology(eq(mockWriterConnection), eq(true))).thenReturn(topology);
-    when(mockHostListProvider.getTopology(eq(mockReaderAConnection), eq(true))).thenReturn(newTopology);
+    when(mockPluginService.getHosts()).thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
-        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, 1, true));
+        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             mockReaderFailover,
             properties,
@@ -241,16 +236,17 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertEquals(3, result.getTopology().size());
     assertEquals("new-writer-host", result.getTopology().get(0).getHost());
 
-    verify(mockHostListProvider, times(1)).addToDownHostList(refEq(writer));
-    verify(mockHostListProvider, times(1)).removeFromDownHostList(refEq(newWriterHost));
+    verify(mockPluginService, times(1)).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+    verify(mockPluginService, times(1)).setAvailability(eq(newWriterHost.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
   /**
    * Verify that writer failover handler can re-connect to a new writer node.
    *
-   * <p>topology: changes to [new-writer, initial-writer, reader-A, reader-B] taskA: successfully
-   * reconnect, but initial-writer is now a reader (defer to taskB) taskB: successfully connect to
-   * readerA and then to new-writer expected test result: new connection to writer by taskB
+   * <p>Topology: changes to [new-writer, initial-writer, reader-A, reader-B].
+   * TaskA: successfully reconnect, but initial-writer is now a reader (defer to taskB).
+   * TaskB: successfully connect to readerA and then to new-writer.
+   * Expected test result: new connection to writer by taskB.
    */
   @Test
   public void testConnectToReaderA_taskADefers() throws SQLException {
@@ -266,15 +262,13 @@ class ClusterAwareWriterFailoverHandlerTest {
                 });
 
     final List<HostSpec> newTopology = Arrays.asList(newWriterHost, writer, readerA, readerB);
-
-    when(mockHostListProvider.getTopology(any(Connection.class), eq(true))).thenReturn(newTopology);
+    when(mockPluginService.getHosts()).thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
-        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, 1, true));
+        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             mockReaderFailover,
             properties,
@@ -289,17 +283,18 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertEquals(4, result.getTopology().size());
     assertEquals("new-writer-host", result.getTopology().get(0).getHost());
 
-    verify(mockHostListProvider, times(1)).addToDownHostList(refEq(writer));
-    verify(mockHostListProvider, times(1)).removeFromDownHostList(refEq(newWriterHost));
+    verify(mockPluginService, atLeastOnce()).forceRefreshHostList(any(Connection.class));
+    verify(mockPluginService, times(1)).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+    verify(mockPluginService, times(1)).setAvailability(eq(newWriterHost.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
   /**
    * Verify that writer failover handler fails to re-connect to any writer node.
    *
-   * <p>topology: no changes seen by task A, changes to [new-writer, reader-A, reader-B] for taskB
-   * taskA: fail to re-connect to writer due to failover timeout taskB: successfully connect to
-   * readerA and then fail to connect to writer due to failover timeout expected test result: no
-   * connection
+   * <p>Topology: no changes seen by task A, changes to [new-writer, reader-A, reader-B] for taskB.
+   * TaskA: fail to re-connect to writer due to failover timeout.
+   * TaskB: successfully connect to readerA and then fail to connect to writer due to failover timeout.
+   * Expected test result: no connection.
    */
   @Test
   public void testFailedToConnect_failoverTimeout() throws SQLException {
@@ -319,18 +314,13 @@ class ClusterAwareWriterFailoverHandlerTest {
                   Thread.sleep(30000);
                   return mockNewWriterConnection;
                 });
-
-    when(mockHostListProvider.getTopology(eq(mockWriterConnection), any(Boolean.class)))
-        .thenReturn(topology);
-    when(mockHostListProvider.getTopology(eq(mockNewWriterConnection), any(Boolean.class)))
-        .thenReturn(newTopology);
+    when(mockPluginService.getHosts()).thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
-        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, 1, true));
+        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             mockReaderFailover,
             properties,
@@ -342,15 +332,17 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isConnected());
     assertFalse(result.isNewHost());
 
-    verify(mockHostListProvider, times(1)).addToDownHostList(refEq(writer));
+    verify(mockPluginService, atLeastOnce()).forceRefreshHostList(any(Connection.class));
+    verify(mockPluginService, times(1)).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
   }
 
   /**
    * Verify that writer failover handler fails to re-connect to any writer node.
    *
-   * <p>topology: changes to [new-writer, reader-A, reader-B] for taskB taskA: fail to re-connect to
-   * writer due to exception taskB: successfully connect to readerA and then fail to connect to
-   * writer due to exception expected test result: no connection
+   * <p>Topology: changes to [new-writer, reader-A, reader-B] for taskB.
+   * TaskA: fail to re-connect to writer due to exception.
+   * TaskB: successfully connect to readerA and then fail to connect to writer due to exception.
+   * Expected test result: no connection.
    */
   @Test
   public void testFailedToConnect_taskAException_taskBWriterException() throws SQLException {
@@ -360,15 +352,13 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
     when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenThrow(SQLException.class);
 
-    when(mockHostListProvider.getTopology(any(Connection.class), any(Boolean.class)))
-        .thenReturn(newTopology);
+    when(mockPluginService.getHosts()).thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
-        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, 1, true));
+        .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             mockReaderFailover,
             properties,
@@ -380,7 +370,9 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isConnected());
     assertFalse(result.isNewHost());
 
-    verify(mockHostListProvider, times(1)).addToDownHostList(refEq(writer));
-    verify(mockHostListProvider, atLeastOnce()).addToDownHostList(refEq(newWriterHost));
+    verify(mockPluginService, times(1))
+        .setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+    verify(mockPluginService, atLeastOnce())
+        .setAvailability(eq(newWriterHost.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
   }
 }

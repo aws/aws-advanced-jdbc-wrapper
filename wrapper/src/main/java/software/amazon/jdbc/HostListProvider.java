@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -23,5 +24,9 @@ public interface HostListProvider {
 
   List<HostSpec> refresh() throws SQLException;
 
+  List<HostSpec> refresh(Connection connection) throws SQLException;
+
   List<HostSpec> forceRefresh() throws SQLException;
+
+  List<HostSpec> forceRefresh(Connection connection) throws SQLException;
 }

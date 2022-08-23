@@ -42,6 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
+
   protected String currWriter;
   protected String currReader;
 

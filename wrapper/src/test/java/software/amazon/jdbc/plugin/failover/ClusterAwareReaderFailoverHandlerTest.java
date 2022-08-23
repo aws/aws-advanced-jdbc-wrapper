@@ -34,24 +34,21 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
+import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 class ClusterAwareReaderFailoverHandlerTest {
 
-  @Mock AuroraHostListProvider mockHostListProvider;
   @Mock PluginService mockPluginService;
   @Mock Connection mockConnection;
 
@@ -95,28 +92,25 @@ class ClusterAwareReaderFailoverHandlerTest {
       }
     }
 
-    final Set<String> downHosts = new HashSet<>();
-    final List<Integer> downHostIndexes = Arrays.asList(2, 4);
-    for (int hostIndex : downHostIndexes) {
-      downHosts.add(hosts.get(hostIndex).getUrl());
-    }
-    when(mockHostListProvider.getDownHosts()).thenReturn(downHosts);
+    hosts.get(2).setAvailability(HostAvailability.NOT_AVAILABLE);
+    hosts.get(4).setAvailability(HostAvailability.NOT_AVAILABLE);
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties);
     final ReaderFailoverResult result = target.failover(hosts, hosts.get(currentHostIndex));
 
     assertTrue(result.isConnected());
     assertSame(mockConnection, result.getConnection());
-    assertEquals(successHostIndex, result.getConnectionIndex());
+    assertEquals(hosts.get(successHostIndex), result.getHost());
 
     final HostSpec successHost = hosts.get(successHostIndex);
-    verify(mockHostListProvider, atLeast(4)).addToDownHostList(any());
-    verify(mockHostListProvider, never()).addToDownHostList(eq(successHost));
-    verify(mockHostListProvider, times(1)).removeFromDownHostList(eq(successHost));
+    verify(mockPluginService, atLeast(4)).setAvailability(any(), eq(HostAvailability.NOT_AVAILABLE));
+    verify(mockPluginService, never())
+        .setAvailability(eq(successHost.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+    verify(mockPluginService, times(1))
+        .setAvailability(eq(successHost.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
   @Test
@@ -137,16 +131,11 @@ class ClusterAwareReaderFailoverHandlerTest {
           });
     }
 
-    final Set<String> downHosts = new HashSet<>();
-    final List<Integer> downHostIndexes = Arrays.asList(2, 4);
-    for (int hostIndex : downHostIndexes) {
-      downHosts.add(hosts.get(hostIndex).getUrl());
-    }
-    when(mockHostListProvider.getDownHosts()).thenReturn(downHosts);
+    hosts.get(2).setAvailability(HostAvailability.NOT_AVAILABLE);
+    hosts.get(4).setAvailability(HostAvailability.NOT_AVAILABLE);
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties,
             5000,
@@ -156,16 +145,13 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertNull(result.getHost());
   }
 
   @Test
   public void testFailover_nullOrEmptyHostList() throws SQLException {
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties);
     final HostSpec currentHost = new HostSpec("writer", 1234);
@@ -173,17 +159,13 @@ class ClusterAwareReaderFailoverHandlerTest {
     ReaderFailoverResult result = target.failover(null, currentHost);
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertNull(result.getHost());
 
     final List<HostSpec> hosts = new ArrayList<>();
     result = target.failover(hosts, currentHost);
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
+    assertNull(result.getHost());
   }
 
   @Test
@@ -191,7 +173,6 @@ class ClusterAwareReaderFailoverHandlerTest {
     // even number of connection attempts
     // first connection attempt to return succeeds, second attempt cancelled
     // expected test result: successful connection for host at index 2
-    when(mockHostListProvider.getDownHosts()).thenReturn(new HashSet<>());
     final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     final HostSpec slowHost = hosts.get(1);
     final HostSpec fastHost = hosts.get(2);
@@ -206,17 +187,17 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
     assertTrue(result.isConnected());
     assertSame(mockConnection, result.getConnection());
-    assertEquals(2, result.getConnectionIndex());
+    assertEquals(hosts.get(2), result.getHost());
 
-    verify(mockHostListProvider, never()).addToDownHostList(any());
-    verify(mockHostListProvider, times(1)).removeFromDownHostList(eq(fastHost));
+    verify(mockPluginService, never()).setAvailability(any(), eq(HostAvailability.NOT_AVAILABLE));
+    verify(mockPluginService, times(1))
+        .setAvailability(eq(fastHost.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
   @Test
@@ -224,7 +205,6 @@ class ClusterAwareReaderFailoverHandlerTest {
     // odd number of connection attempts
     // first connection attempt to return fails
     // expected test result: failure to get reader
-    when(mockHostListProvider.getDownHosts()).thenReturn(new HashSet<>());
     final List<HostSpec> hosts = defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
     when(mockPluginService.connect(any(), eq(properties))).thenThrow(new SQLException("exception", "08S01", null));
 
@@ -232,22 +212,13 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
-
-    final HostSpec currentHost = hosts.get(currentHostIndex);
-    verify(mockHostListProvider, atLeastOnce()).addToDownHostList(eq(currentHost));
-    verify(mockHostListProvider, never())
-        .addToDownHostList(
-            eq(hosts.get(FailoverConnectionPlugin.WRITER_CONNECTION_INDEX)));
+    assertNull(result.getHost());
   }
 
   @Test
@@ -255,7 +226,6 @@ class ClusterAwareReaderFailoverHandlerTest {
     // connection attempts time out before they can succeed
     // first connection attempt to return times out
     // expected test result: failure to get reader
-    when(mockHostListProvider.getDownHosts()).thenReturn(new HashSet<>());
     final List<HostSpec> hosts = defaultHosts.subList(0, 3); // 2 connection attempts (writer not attempted)
     when(mockPluginService.connect(any(), eq(properties)))
         .thenAnswer(
@@ -271,7 +241,6 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties,
             60000,
@@ -280,98 +249,76 @@ class ClusterAwareReaderFailoverHandlerTest {
 
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
-    assertEquals(
-        FailoverConnectionPlugin.NO_CONNECTION_INDEX,
-        result.getConnectionIndex());
-
-    verify(mockHostListProvider, never()).addToDownHostList(any());
+    assertNull(result.getHost());
   }
 
   @Test
   public void testGetHostTuplesByPriority() {
     final List<HostSpec> originalHosts = defaultHosts;
-
-    final Set<String> downHosts = new HashSet<>();
-    final List<Integer> downHostIndexes = Arrays.asList(2, 4, 5);
-    for (int hostIndex : downHostIndexes) {
-      downHosts.add(originalHosts.get(hostIndex).getUrl());
-    }
+    originalHosts.get(2).setAvailability(HostAvailability.NOT_AVAILABLE);
+    originalHosts.get(4).setAvailability(HostAvailability.NOT_AVAILABLE);
+    originalHosts.get(5).setAvailability(HostAvailability.NOT_AVAILABLE);
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties);
-    final List<ClusterAwareReaderFailoverHandler.HostTuple> tuplesByPriority =
-        target.getHostTuplesByPriority(originalHosts, downHosts);
+    final List<HostSpec> hostsByPriority = target.getHostsByPriority(originalHosts);
 
-    final int activeReaderOriginalIndex = 1;
-    final int downReaderOriginalIndex = 5;
+    int i = 0;
 
-    // get new positions of active reader, writer, down reader in tuplesByPriority
-    final int activeReaderTupleIndex =
-        getHostTupleIndexFromOriginalIndex(activeReaderOriginalIndex, tuplesByPriority);
-    final int writerTupleIndex =
-        getHostTupleIndexFromOriginalIndex(
-            FailoverConnectionPlugin.WRITER_CONNECTION_INDEX, tuplesByPriority);
-    final int downReaderTupleIndex =
-        getHostTupleIndexFromOriginalIndex(downReaderOriginalIndex, tuplesByPriority);
-
-    // assert the following priority ordering: active readers, writer, down readers
-    final int numActiveReaders = 2;
-    assertTrue(writerTupleIndex > activeReaderTupleIndex);
-    assertEquals(numActiveReaders, writerTupleIndex);
-    assertTrue(downReaderTupleIndex > writerTupleIndex);
-    assertEquals(6, tuplesByPriority.size());
-  }
-
-  private int getHostTupleIndexFromOriginalIndex(
-      int originalIndex, List<ClusterAwareReaderFailoverHandler.HostTuple> tuples) {
-    for (int i = 0; i < tuples.size(); i++) {
-      ClusterAwareReaderFailoverHandler.HostTuple tuple = tuples.get(i);
-      if (tuple.getIndex() == originalIndex) {
-        return i;
-      }
+    // expecting active readers
+    while (i < hostsByPriority.size()
+        && hostsByPriority.get(i).getRole() == HostRole.READER
+        && hostsByPriority.get(i).getAvailability() == HostAvailability.AVAILABLE) {
+      i++;
     }
-    return -1;
+
+    // expecting a writer
+    while (i < hostsByPriority.size()
+        && hostsByPriority.get(i).getRole() == HostRole.WRITER) {
+      i++;
+    }
+
+    // expecting down readers
+    while (i < hostsByPriority.size()
+        && hostsByPriority.get(i).getRole() == HostRole.READER
+        && hostsByPriority.get(i).getAvailability() == HostAvailability.NOT_AVAILABLE) {
+      i++;
+    }
+
+    assertEquals(hostsByPriority.size(), i);
   }
 
   @Test
   public void testGetReaderTuplesByPriority() {
     final List<HostSpec> originalHosts = defaultHosts;
-
-    final Set<String> downHosts = new HashSet<>();
-    final List<Integer> downHostIndexes = Arrays.asList(2, 4, 5);
-    for (int hostIndex : downHostIndexes) {
-      downHosts.add(originalHosts.get(hostIndex).getUrl());
-    }
+    originalHosts.get(2).setAvailability(HostAvailability.NOT_AVAILABLE);
+    originalHosts.get(4).setAvailability(HostAvailability.NOT_AVAILABLE);
+    originalHosts.get(5).setAvailability(HostAvailability.NOT_AVAILABLE);
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
-            mockHostListProvider,
             mockPluginService,
             properties);
-    final List<ClusterAwareReaderFailoverHandler.HostTuple> readerTuples =
-        target.getReaderTuplesByPriority(originalHosts, downHosts);
+    final List<HostSpec> hostsByPriority = target.getReaderHostsByPriority(originalHosts);
 
-    final int activeReaderOriginalIndex = 1;
-    final int downReaderOriginalIndex = 5;
+    int i = 0;
 
-    // get new positions of active reader, down reader in readerTuples
-    final int activeReaderTupleIndex =
-        getHostTupleIndexFromOriginalIndex(activeReaderOriginalIndex, readerTuples);
-    final int downReaderTupleIndex =
-        getHostTupleIndexFromOriginalIndex(downReaderOriginalIndex, readerTuples);
+    // expecting active readers
+    while (i < hostsByPriority.size()
+        && hostsByPriority.get(i).getRole() == HostRole.READER
+        && hostsByPriority.get(i).getAvailability() == HostAvailability.AVAILABLE) {
+      i++;
+    }
 
-    // assert the following priority ordering: active readers, down readers
-    final int numActiveReaders = 2;
-    final ClusterAwareReaderFailoverHandler.HostTuple writerTuple =
-        new ClusterAwareReaderFailoverHandler.HostTuple(
-            originalHosts.get(FailoverConnectionPlugin.WRITER_CONNECTION_INDEX),
-            FailoverConnectionPlugin.WRITER_CONNECTION_INDEX);
-    assertTrue(downReaderTupleIndex > activeReaderTupleIndex);
-    assertTrue(downReaderTupleIndex >= numActiveReaders);
-    assertFalse(readerTuples.contains(writerTuple));
-    assertEquals(5, readerTuples.size());
+    // expecting down readers
+    while (i < hostsByPriority.size()
+        && hostsByPriority.get(i).getRole() == HostRole.READER
+        && hostsByPriority.get(i).getAvailability() == HostAvailability.NOT_AVAILABLE) {
+      i++;
+    }
+
+    assertEquals(hostsByPriority.size(), i);
   }
 }

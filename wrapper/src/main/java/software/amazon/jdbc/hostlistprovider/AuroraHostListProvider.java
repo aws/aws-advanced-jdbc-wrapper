@@ -27,14 +27,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -135,7 +132,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
       this.clusterId = clusterIdSetting;
     } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
-      // Each proxy is associated with a single cluster so it's safe to use RDS Proxy Url as cluster
+      // Each proxy is associated with a single cluster, so it's safe to use RDS Proxy Url as cluster
       // identification
       this.clusterId = this.pluginService.getCurrentHostSpec().getUrl();
     } else if (rdsUrlType.isRds()) {
@@ -224,7 +221,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // ignore
     }
 
-    return new ClusterTopologyInfo(hosts, ConcurrentHashMap.newKeySet(), Instant.now(), false);
+    return new ClusterTopologyInfo(hosts, Instant.now(), false);
   }
 
   /**
@@ -353,62 +350,6 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   }
 
   /**
-   * Get a set of instance names that were marked down.
-   *
-   * @return A set of instance dns names with port (example: "instance-1.my-domain.com:3306")
-   */
-  public Set<String> getDownHosts() {
-    synchronized (cacheLock) {
-      ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
-      return clusterTopologyInfo != null && clusterTopologyInfo.downHosts != null
-          ? clusterTopologyInfo.downHosts
-          : ConcurrentHashMap.newKeySet();
-    }
-  }
-
-  /**
-   * Mark the host as down. Host stays marked down until the next topology refreshes.
-   *
-   * @param downHost The {@link HostSpec} object representing the host to mark as down
-   */
-  public void addToDownHostList(HostSpec downHost) {
-    if (downHost == null) {
-      return;
-    }
-    synchronized (cacheLock) {
-      ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
-      if (clusterTopologyInfo == null) {
-        clusterTopologyInfo =
-            new ClusterTopologyInfo(new ArrayList<>(), ConcurrentHashMap.newKeySet(), Instant.now(), false);
-        topologyCache.put(this.clusterId, clusterTopologyInfo);
-      } else if (clusterTopologyInfo.downHosts == null) {
-        clusterTopologyInfo.downHosts = ConcurrentHashMap.newKeySet();
-      }
-      clusterTopologyInfo.downHosts.add(downHost.getUrl());
-      this.pluginService.setAvailability(downHost.getAliases(), HostAvailability.NOT_AVAILABLE);
-    }
-  }
-
-  /**
-   * Unmark host as down. The host is removed from the list of down hosts
-   *
-   * @param host The {@link HostSpec} object representing the host to remove from the list of down
-   *     hosts
-   */
-  public void removeFromDownHostList(HostSpec host) {
-    if (host == null) {
-      return;
-    }
-    synchronized (cacheLock) {
-      ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
-      if (clusterTopologyInfo != null && clusterTopologyInfo.downHosts != null) {
-        clusterTopologyInfo.downHosts.remove(host.getUrl());
-        this.pluginService.setAvailability(host.getAliases(), HostAvailability.AVAILABLE);
-      }
-    }
-  }
-
-  /**
    * Check if cached topology belongs to multi-writer cluster.
    *
    * @return True, if it's multi-writer cluster.
@@ -417,7 +358,6 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     synchronized (cacheLock) {
       ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
       return (clusterTopologyInfo != null
-          && clusterTopologyInfo.downHosts != null
           && clusterTopologyInfo.isMultiWriterCluster);
     }
   }
@@ -477,7 +417,12 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
 
   @Override
   public List<HostSpec> refresh() throws SQLException {
-    Connection currentConnection = this.pluginService.getCurrentConnection();
+    return this.refresh(this.pluginService.getCurrentConnection());
+  }
+
+  @Override
+  public List<HostSpec> refresh(Connection connection) throws SQLException {
+    Connection currentConnection = connection != null ? connection : this.pluginService.getCurrentConnection();
     if (currentConnection == null) {
       currentConnection = this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
       this.pluginService.setCurrentConnection(currentConnection, this.pluginService.getCurrentHostSpec());
@@ -495,7 +440,12 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
 
   @Override
   public List<HostSpec> forceRefresh() throws SQLException {
-    Connection currentConnection = this.pluginService.getCurrentConnection();
+    return this.forceRefresh(this.pluginService.getCurrentConnection());
+  }
+
+  @Override
+  public List<HostSpec> forceRefresh(Connection connection) throws SQLException {
+    Connection currentConnection = connection != null ? connection : this.pluginService.getCurrentConnection();
     if (currentConnection == null) {
       currentConnection = this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
       this.pluginService.setCurrentConnection(currentConnection, this.pluginService.getCurrentHostSpec());
@@ -561,7 +511,6 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
    */
   static class ClusterTopologyInfo {
 
-    public Set<String> downHosts;
     public List<HostSpec> hosts;
     public Instant lastUpdated;
     public boolean isMultiWriterCluster;
@@ -574,11 +523,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
      */
     ClusterTopologyInfo(
         List<HostSpec> hosts,
-        Set<String> downHosts,
         final Instant lastUpdated,
         final boolean isMultiWriterCluster) {
       this.hosts = hosts;
-      this.downHosts = downHosts;
       this.lastUpdated = lastUpdated;
       this.isMultiWriterCluster = isMultiWriterCluster;
     }
