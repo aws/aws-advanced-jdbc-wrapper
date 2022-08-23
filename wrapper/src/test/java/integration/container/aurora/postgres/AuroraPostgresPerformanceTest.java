@@ -39,13 +39,14 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import software.amazon.jdbc.util.StringUtils;
 
 public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
 
-  private static final int REPEAT_TIMES = System.getenv("REPEAT_TIMES") == null
+  private static final int REPEAT_TIMES = StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
       ? 5
       : Integer.parseInt(System.getenv("REPEAT_TIMES"));
-  private static final int CONNECT_TIMEOUT = 3;
+  private static final int CONNECT_TIMEOUT = 10;
   private static final int FAILOVER_TIMEOUT_MS = 40000;
   private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList =
       new ArrayList<>();
