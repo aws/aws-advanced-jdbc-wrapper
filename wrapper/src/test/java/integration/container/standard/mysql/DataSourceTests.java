@@ -17,9 +17,9 @@
 package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.util.SimpleJndiContextFactory;
 import java.lang.reflect.Field;
@@ -105,9 +105,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     InitialContext context = new InitialContext(env);
     context.bind("wrapperDataSource", ds);
     AwsWrapperDataSource dsFromJndiLookup = (AwsWrapperDataSource) context.lookup("wrapperDataSource");
-    if (dsFromJndiLookup == null) {
-      fail();
-    }
+    assertNotNull(dsFromJndiLookup);
 
     assertNotSame(ds, dsFromJndiLookup);
     Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
@@ -192,9 +190,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     InitialContext context = new InitialContext(env);
     context.bind("wrapperDataSource", ds);
     AwsWrapperDataSource dsFromJndiLookup = (AwsWrapperDataSource) context.lookup("wrapperDataSource");
-    if (dsFromJndiLookup == null) {
-      fail();
-    }
+    assertNotNull(dsFromJndiLookup);
 
     assertNotSame(ds, dsFromJndiLookup);
     Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
