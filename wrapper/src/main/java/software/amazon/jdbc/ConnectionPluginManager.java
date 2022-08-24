@@ -80,6 +80,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
   protected final ConnectionProvider connectionProvider;
+  protected PluginService pluginService;
 
   public ConnectionPluginManager(ConnectionProvider connectionProvider) {
     this.connectionProvider = connectionProvider;
@@ -121,6 +122,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throws SQLException {
 
     this.props = props;
+    this.pluginService = pluginService;
 
     String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
 
@@ -240,6 +242,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
         pluginPipeline.call(plugin, null);
       }
     }
+  }
+
+  public PluginService getPluginService() {
+    return this.pluginService;
   }
 
   public <T, E extends Exception> T execute(

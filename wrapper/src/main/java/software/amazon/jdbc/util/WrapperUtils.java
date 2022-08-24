@@ -22,7 +22,6 @@ import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
 import java.sql.Clob;
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.NClob;
 import java.sql.ParameterMetaData;
@@ -42,6 +41,7 @@ import java.sql.Struct;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -83,7 +83,6 @@ public class WrapperUtils {
   private static final Map<Class<?>, Class<?>> availableWrappers =
       new HashMap<Class<?>, Class<?>>() {
         {
-          put(Connection.class, ConnectionWrapper.class);
           put(CallableStatement.class, CallableStatementWrapper.class);
           put(PreparedStatement.class, PreparedStatementWrapper.class);
           put(Statement.class, StatementWrapper.class);
@@ -104,6 +103,30 @@ public class WrapperUtils {
           put(SQLType.class, SQLTypeWrapper.class);
         }
       };
+
+  private static Set<Class<?>> allWrapperClasses = new HashSet<Class<?>>() {
+    {
+      add(ArrayWrapper.class);
+      add(BlobWrapper.class);
+      add(CallableStatementWrapper.class);
+      add(ClobWrapper.class);
+      add(ConnectionWrapper.class);
+      add(DatabaseMetaDataWrapper.class);
+      add(NClobWrapper.class);
+      add(ParameterMetaDataWrapper.class);
+      add(PreparedStatementWrapper.class);
+      add(RefWrapper.class);
+      add(ResultSetMetaDataWrapper.class);
+      add(ResultSetWrapper.class);
+      add(SavepointWrapper.class);
+      add(SQLDataWrapper.class);
+      add(SQLInputWrapper.class);
+      add(SQLOutputWrapper.class);
+      add(SQLTypeWrapper.class);
+      add(StatementWrapper.class);
+      add(StructWrapper.class);
+    }
+  };
 
   // TODO: choose a better name to distinguish runWithPlugins and executeWithPlugins
   public static void runWithPlugins(
@@ -223,6 +246,10 @@ public class WrapperUtils {
 
     // Exceptional case
     if (toProxy instanceof RowId || toProxy instanceof SQLXML) {
+      return toProxy;
+    }
+
+    if (allWrapperClasses.contains(toProxy.getClass())) {
       return toProxy;
     }
 
