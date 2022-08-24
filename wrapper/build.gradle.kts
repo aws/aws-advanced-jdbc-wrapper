@@ -202,10 +202,22 @@ tasks.register<Test>("debug-integration-standard-postgres") {
     filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
 }
 
+// Run Aurora Mysql integrations tests in container
+tasks.register<Test>("test-integration-aurora-mysql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.AuroraMysqlContainerTest.runTestInContainer")
+}
+
 // Run standard Mysql tests in container
 tasks.register<Test>("test-integration-standard-mysql") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.runTestInContainer")
+}
+
+// Run Aurora Mysql integration tests in container with debugger
+tasks.register<Test>("debug-integration-aurora-mysql") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.AuroraMysqlContainerTest.debugTestInContainer")
 }
 
 // Run standard Mysql integration tests in container with debugger

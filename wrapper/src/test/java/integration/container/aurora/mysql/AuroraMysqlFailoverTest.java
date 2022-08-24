@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.postgres;
+package integration.container.aurora.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
@@ -32,7 +33,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
-public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
+public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
   /* Writer connection failover tests. */
 
   /**
@@ -45,8 +46,8 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn =
-        connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
-            initDefaultProps())) {
+             connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
+                 initDefaultProps())) {
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
@@ -71,7 +72,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
+    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
         initDefaultProps())) {
       final Statement stmt = conn.createStatement();
 
@@ -108,7 +109,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     final String instanceId = instanceIDs[1];
 
     try (final Connection conn = connectToInstance(instanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        POSTGRES_PROXY_PORT)) {
+        MYSQL_PROXY_PORT)) {
       // Crash Instance2
       Proxy instanceProxy = proxyMap.get(instanceId);
       containerHelper.disableConnectivity(instanceProxy);
@@ -152,7 +153,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
+    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
         initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_2");
@@ -201,7 +202,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
+    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
         initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_3");
@@ -249,7 +250,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT,
+    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
         initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_4");
@@ -312,7 +313,6 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
       assertEquals(nextWriterId, currentConnectionId);
       assertEquals(nominatedWriterId, currentConnectionId);
 
-      // Assert that the connection is valid.
       assertTrue(conn.isValid(IS_VALID_TIMEOUT));
     }
   }
@@ -320,24 +320,23 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   @Test
   public void test_takeOverConnectionProperties() throws SQLException, InterruptedException {
     final String initialWriterId = instanceIDs[0];
-    final int newRowFetchSize = 70;
 
     final Properties props = initDefaultProps();
-    props.setProperty("defaultRowFetchSize", String.valueOf(newRowFetchSize));
+    props.setProperty(PropertyKey.allowMultiQueries.getKeyName(), "false");
 
     // Establish the topology cache so that we can later assert that testConnection does not inherit properties from
     // establishCacheConnection either before or after failover
-    final String url = DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + "/" + AURORA_POSTGRES_DB;
+    final String url = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB;
     final Connection establishCacheConnection = DriverManager.getConnection(
         url,
         props);
     establishCacheConnection.close();
 
-    props.setProperty("defaultRowFetchSize", String.valueOf(newRowFetchSize));
-    try (final Connection conn = connectToInstance(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT, props)) {
+    props.setProperty(PropertyKey.allowMultiQueries.getKeyName(), "true");
+    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
       // Verify that connection accepts multi-statement sql
       final Statement testStmt1 = conn.createStatement();
-      assertEquals(newRowFetchSize, testStmt1.getFetchSize());
+      testStmt1.executeQuery("select @@aurora_server_id; select 1; select 2;");
 
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
@@ -346,7 +345,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
-      assertEquals(newRowFetchSize, testStmt2.getFetchSize());
+      testStmt2.executeQuery("select @@aurora_server_id; select 1; select 2;");
     }
   }
 

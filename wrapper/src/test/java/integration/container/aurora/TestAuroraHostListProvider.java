@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.postgres;
+package integration.container.aurora;
 
 import java.util.Properties;
 import software.amazon.jdbc.PluginService;

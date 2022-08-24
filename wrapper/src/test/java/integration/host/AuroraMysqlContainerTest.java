@@ -16,6 +16,8 @@
 
 package integration.host;
 
+import static org.junit.jupiter.api.Assertions.fail;
+
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;
@@ -47,22 +49,22 @@ import software.amazon.jdbc.util.StringUtils;
  * <p>TEST_DB_CLUSTER_IDENTIFIER=database-cluster-name TEST_USERNAME=user-name
  * TEST_PASSWORD=user-secret-password
  */
-public class AuroraPostgresContainerTest {
+public class AuroraMysqlContainerTest {
 
-  private static final int AURORA_POSTGRES_PORT = 5432;
-  private static final String AURORA_POSTGRES_TEST_HOST_NAME = "test-container";
+  private static final int AURORA_MYSQL_PORT = 3306;
+  private static final String AURORA_MYSQL_TEST_HOST_NAME = "test-container";
 
-  private static final String AURORA_POSTGRES_USERNAME =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_USERNAME"))
-          ? System.getenv("AURORA_POSTGRES_USERNAME")
+  private static final String AURORA_MYSQL_USERNAME =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_USERNAME"))
+          ? System.getenv("AURORA_MYSQL_USERNAME")
           : "my_test_username";
-  private static final String AURORA_POSTGRES_PASSWORD =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_PASSWORD"))
-          ? System.getenv("AURORA_POSTGRES_PASSWORD")
+  private static final String AURORA_MYSQL_PASSWORD =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_PASSWORD"))
+          ? System.getenv("AURORA_MYSQL_PASSWORD")
           : "my_test_password";
-  protected static final String AURORA_POSTGRES_DB =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB"))
-          ? System.getenv("AURORA_POSTGRES_DB")
+  protected static final String AURORA_MYSQL_DB =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB"))
+          ? System.getenv("AURORA_MYSQL_DB")
           : "test";
 
   protected static final String EXISTING_DB_CONN_SUFFIX = System.getenv("DB_CONN_SUFFIX");
@@ -72,23 +74,23 @@ public class AuroraPostgresContainerTest {
   private static final String AWS_SECRET_ACCESS_KEY = System.getenv("AWS_SECRET_ACCESS_KEY");
   private static final String AWS_SESSION_TOKEN = System.getenv("AWS_SESSION_TOKEN");
 
-  private static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:postgresql://";
+  private static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
   private static String dbConnStrSuffix = "";
   private static final String DB_CONN_PROP = "?enabledTLSProtocols=TLSv1.2";
 
-  private static final String AURORA_POSTGRES_DB_REGION =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB_REGION"))
-          ? System.getenv("AURORA_POSTGRES_DB_REGION")
+  private static final String AURORA_MYSQL_DB_REGION =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB_REGION"))
+          ? System.getenv("AURORA_MYSQL_DB_REGION")
           : "us-east-1";
-  private static final String AURORA_POSTGRES_CLUSTER_IDENTIFIER =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER"))
-          ? System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER")
+  private static final String AURORA_MYSQL_CLUSTER_IDENTIFIER =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_CLUSTER_IDENTIFIER"))
+          ? System.getenv("AURORA_MYSQL_CLUSTER_IDENTIFIER")
           : "test-identifier";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static List<ToxiproxyContainer> proxyContainers = new ArrayList<>();
-  private static List<String> postgresInstances = new ArrayList<>();
+  private static List<String> mysqlInstances = new ArrayList<>();
 
-  private static int postgresProxyPort;
+  private static int mysqlProxyPort;
   private static GenericContainer<?> integrationTestContainer;
   private static String dbHostCluster = "";
   private static String dbHostClusterRo = "";
@@ -98,7 +100,7 @@ public class AuroraPostgresContainerTest {
   private static final boolean TEST_WITH_EXISTING_DB = EXISTING_DB_CONN_SUFFIX != null;
 
   private static final ContainerHelper containerHelper = new ContainerHelper();
-  private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
+  private static final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_MYSQL_DB_REGION);
 
   private static final String TEST_CONTAINER_TYPE = System.getenv("TEST_CONTAINER_TYPE");
 
@@ -110,17 +112,19 @@ public class AuroraPostgresContainerTest {
     if (TEST_WITH_EXISTING_DB) {
       dbConnStrSuffix = EXISTING_DB_CONN_SUFFIX;
     } else {
-      dbConnStrSuffix = auroraUtil.createCluster(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, AURORA_POSTGRES_DB,
-          AURORA_POSTGRES_CLUSTER_IDENTIFIER);
+      dbConnStrSuffix = auroraUtil.createCluster(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, AURORA_MYSQL_DB,
+          AURORA_MYSQL_CLUSTER_IDENTIFIER);
       runnerIP = auroraUtil.getPublicIPAddress();
       auroraUtil.ec2AuthorizeIP(runnerIP);
     }
 
-    dbHostCluster = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
-    dbHostClusterRo = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;
+    dbHostCluster = AURORA_MYSQL_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
+    dbHostClusterRo = AURORA_MYSQL_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;
 
-    if (!org.postgresql.Driver.isRegistered()) {
-      org.postgresql.Driver.register();
+    try {
+      Class.forName("com.mysql.cj.jdbc.Driver");
+    } catch (ClassNotFoundException e) {
+      fail("MySQL driver not found");
     }
 
     if (!Driver.isRegistered()) {
@@ -128,22 +132,22 @@ public class AuroraPostgresContainerTest {
     }
 
     network = Network.newNetwork();
-    postgresInstances =
+    mysqlInstances =
         containerHelper.getAuroraInstanceEndpoints(
-            DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_POSTGRES_DB + DB_CONN_PROP,
-            AURORA_POSTGRES_USERNAME,
-            AURORA_POSTGRES_PASSWORD,
+            DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_MYSQL_DB + DB_CONN_PROP,
+            AURORA_MYSQL_USERNAME,
+            AURORA_MYSQL_PASSWORD,
             dbConnStrSuffix,
-            "postgres");
+            "mysql");
     proxyContainers =
         containerHelper.createProxyContainers(
-            network, postgresInstances, PROXIED_DOMAIN_NAME_SUFFIX);
+            network, mysqlInstances, PROXIED_DOMAIN_NAME_SUFFIX);
     for (ToxiproxyContainer container : proxyContainers) {
       container.start();
     }
-    postgresProxyPort =
+    mysqlProxyPort =
         containerHelper.createInstanceProxies(
-            postgresInstances, proxyContainers, AURORA_POSTGRES_PORT);
+            mysqlInstances, proxyContainers, AURORA_MYSQL_PORT);
 
     proxyContainers.add(
         containerHelper.createAndStartProxyContainer(
@@ -151,8 +155,8 @@ public class AuroraPostgresContainerTest {
             "toxiproxy-instance-cluster",
             dbHostCluster + PROXIED_DOMAIN_NAME_SUFFIX,
             dbHostCluster,
-            AURORA_POSTGRES_PORT,
-            postgresProxyPort));
+            AURORA_MYSQL_PORT,
+            mysqlProxyPort));
 
     proxyContainers.add(
         containerHelper.createAndStartProxyContainer(
@@ -160,19 +164,19 @@ public class AuroraPostgresContainerTest {
             "toxiproxy-ro-instance-cluster",
             dbHostClusterRo + PROXIED_DOMAIN_NAME_SUFFIX,
             dbHostClusterRo,
-            AURORA_POSTGRES_PORT,
-            postgresProxyPort));
+            AURORA_MYSQL_PORT,
+            mysqlProxyPort));
 
-    integrationTestContainer = initializeTestContainer(network, postgresInstances);
+    integrationTestContainer = initializeTestContainer(network, mysqlInstances);
   }
 
   @AfterAll
   static void tearDown() {
     if (!TEST_WITH_EXISTING_DB) {
-      if (StringUtils.isNullOrEmpty(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
+      if (StringUtils.isNullOrEmpty(AURORA_MYSQL_CLUSTER_IDENTIFIER)) {
         auroraUtil.deleteCluster();
       } else {
-        auroraUtil.deleteCluster(AURORA_POSTGRES_CLUSTER_IDENTIFIER);
+        auroraUtil.deleteCluster(AURORA_MYSQL_CLUSTER_IDENTIFIER);
       }
 
       auroraUtil.ec2DeauthorizesIP(runnerIP);
@@ -188,42 +192,42 @@ public class AuroraPostgresContainerTest {
   public void runTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.runTest(integrationTestContainer, "in-container-aurora-postgres");
+    containerHelper.runTest(integrationTestContainer, "in-container-aurora-mysql");
   }
 
   @Test
   public void runPerformanceTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.runTest(integrationTestContainer, "in-container-aurora-postgres-performance");
+    containerHelper.runTest(integrationTestContainer, "in-container-aurora-mysql-performance");
   }
 
   @Test
   public void debugTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.debugTest(integrationTestContainer, "in-container-aurora-postgres");
+    containerHelper.debugTest(integrationTestContainer, "in-container-aurora-mysql");
   }
 
   @Test
   public void debugPerformanceTestInContainer()
       throws UnsupportedOperationException, IOException, InterruptedException {
 
-    containerHelper.debugTest(integrationTestContainer, "in-container-aurora-postgres-performance");
+    containerHelper.debugTest(integrationTestContainer, "in-container-aurora-mysql-performance");
   }
 
   protected static GenericContainer<?> initializeTestContainer(
-      final Network network, List<String> postgresInstances) {
+      final Network network, List<String> mysqlInstances) {
 
     GenericContainer<?> container =
         containerHelper
             .createTestContainerByType(TEST_CONTAINER_TYPE, "aws/rds-test-container")
-            .withNetworkAliases(AURORA_POSTGRES_TEST_HOST_NAME)
+            .withNetworkAliases(AURORA_MYSQL_TEST_HOST_NAME)
             .withNetwork(network)
-            .withEnv("AURORA_POSTGRES_USERNAME", AURORA_POSTGRES_USERNAME)
-            .withEnv("AURORA_POSTGRES_PASSWORD", AURORA_POSTGRES_PASSWORD)
-            .withEnv("AURORA_POSTGRES_DB", AURORA_POSTGRES_DB)
-            .withEnv("AURORA_POSTGRES_DB_REGION", AURORA_POSTGRES_DB_REGION)
+            .withEnv("AURORA_MYSQL_USERNAME", AURORA_MYSQL_USERNAME)
+            .withEnv("AURORA_MYSQL_PASSWORD", AURORA_MYSQL_PASSWORD)
+            .withEnv("AURORA_MYSQL_DB", AURORA_MYSQL_DB)
+            .withEnv("AURORA_MYSQL_DB_REGION", AURORA_MYSQL_DB_REGION)
             .withEnv("DB_CLUSTER_CONN", dbHostCluster)
             .withEnv("DB_RO_CLUSTER_CONN", dbHostClusterRo)
             .withEnv("TOXIPROXY_CLUSTER_NETWORK_ALIAS", "toxiproxy-instance-cluster")
@@ -238,22 +242,22 @@ public class AuroraPostgresContainerTest {
       container = container.withEnv("AWS_SESSION_TOKEN", AWS_SESSION_TOKEN);
     }
 
-    // Add postgres instances & proxies to container env
-    for (int i = 0; i < postgresInstances.size(); i++) {
+    // Add mysql instances & proxies to container env
+    for (int i = 0; i < mysqlInstances.size(); i++) {
       // Add instance
-      container.addEnv("POSTGRES_INSTANCE_" + (i + 1) + "_URL", postgresInstances.get(i));
+      container.addEnv("MYSQL_INSTANCE_" + (i + 1) + "_URL", mysqlInstances.get(i));
 
       // Add proxies
       container.addEnv(
-              "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS",
-              "toxiproxy-instance-" + (i + 1));
+          "TOXIPROXY_INSTANCE_" + (i + 1) + "_NETWORK_ALIAS",
+          "toxiproxy-instance-" + (i + 1));
     }
-    container.addEnv("AURORA_POSTGRES_PORT", Integer.toString(AURORA_POSTGRES_PORT));
+    container.addEnv("AURORA_MYSQL_PORT", Integer.toString(AURORA_MYSQL_PORT));
     container.addEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX);
-    container.addEnv("POSTGRES_PROXY_PORT", Integer.toString(postgresProxyPort));
+    container.addEnv("MYSQL_PROXY_PORT", Integer.toString(mysqlProxyPort));
 
-    System.out.println("Toxiproxy Instances port: " + postgresProxyPort);
-    System.out.println("Instances Proxied: " + postgresInstances.size());
+    System.out.println("Toxiproxy Instances port: " + mysqlProxyPort);
+    System.out.println("Instances Proxied: " + mysqlInstances.size());
 
     container.start();
 
