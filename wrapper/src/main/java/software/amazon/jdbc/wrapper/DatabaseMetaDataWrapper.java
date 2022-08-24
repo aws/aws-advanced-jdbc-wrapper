@@ -1793,7 +1793,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         "DatabaseMetaData.getConnection",
-        () -> this.databaseMetaData.getConnection());
+        () -> this.pluginManager.getPluginService().getCurrentConnection());
   }
 
   @SuppressWarnings("SpellCheckingInspection")
