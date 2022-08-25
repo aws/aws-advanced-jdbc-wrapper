@@ -44,6 +44,7 @@ import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
  * This class creates and handles a chain of {@link ConnectionPlugin} for each connection.
@@ -80,19 +81,23 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
   protected final ConnectionProvider connectionProvider;
+  protected ConnectionWrapper connectionWrapper;
 
-  public ConnectionPluginManager(ConnectionProvider connectionProvider) {
+  public ConnectionPluginManager(ConnectionProvider connectionProvider, ConnectionWrapper connectionWrapper) {
     this.connectionProvider = connectionProvider;
+    this.connectionWrapper = connectionWrapper;
   }
 
   /** This constructor is for testing purposes only. */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
-      ArrayList<ConnectionPlugin> plugins) {
+      ArrayList<ConnectionPlugin> plugins,
+      ConnectionWrapper connectionWrapper) {
     this.connectionProvider = connectionProvider;
     this.props = props;
     this.plugins = plugins;
+    this.connectionWrapper = connectionWrapper;
   }
 
   public void lock() {
@@ -240,6 +245,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
         pluginPipeline.call(plugin, null);
       }
     }
+  }
+
+  public ConnectionWrapper getConnectionWrapper() {
+    return this.connectionWrapper;
   }
 
   public <T, E extends Exception> T execute(
