@@ -312,7 +312,7 @@ public class PreparedStatementWrapper implements PreparedStatement {
         this.pluginManager,
         this.statement,
         "PreparedStatement.getConnection",
-        () -> this.pluginManager.getPluginService().getCurrentConnection());
+        () -> this.pluginManager.getConnectionWrapper());
   }
 
   @SuppressWarnings("MagicConstant")

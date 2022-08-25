@@ -77,7 +77,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.originalUrl = url;
     this.targetDriverProtocol = getProtocol(url);
 
-    ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider);
+    ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider, this);
     PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
 
     init(props, pluginManager, pluginService, pluginService, pluginService);

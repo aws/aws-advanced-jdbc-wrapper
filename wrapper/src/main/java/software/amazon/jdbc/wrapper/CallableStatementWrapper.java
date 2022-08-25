@@ -519,7 +519,7 @@ public class CallableStatementWrapper implements CallableStatement {
         this.pluginManager,
         this.statement,
         "CallableStatement.getConnection",
-        () -> this.pluginManager.getPluginService().getCurrentConnection());
+        () -> this.pluginManager.getConnectionWrapper());
   }
 
   @Override

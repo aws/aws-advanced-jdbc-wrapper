@@ -433,7 +433,7 @@ public class StatementWrapper implements Statement {
         this.pluginManager,
         this.statement,
         "Statement.getConnection",
-        () -> this.pluginManager.getPluginService().getCurrentConnection());
+        () -> this.pluginManager.getConnectionWrapper());
   }
 
   @Override
