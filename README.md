@@ -2,6 +2,7 @@
 
 [![build_status](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/main.yml/badge.svg)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Qodana](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml/badge.svg)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml)
 
 The **Amazon Web Services (AWS) Advanced JDBC Wrapper** allows an application to take advantage of the features of clustered Aurora databases. The AWS Advanced JDBC Wrapper does not implement connectivity to any database but will enable support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice.
 
