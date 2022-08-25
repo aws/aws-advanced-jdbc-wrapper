@@ -47,14 +47,11 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-          REPEAT_TIMES: ${{ env.REPEAT_TIMES }}
+          REPEAT_TIMES: ${{ secrets.REPEAT_TIMES }}
       - name: 'Archive junit results (OpenJDK)'
         if: always()
         uses: actions/upload-artifact@v2
         with:
           name: 'junit-report-performance'
-          path: |
-            ./wrapper/build/reports/FailoverPerformanceResults_SocketTimeout.xlsx
-            ./wrapper/build/reports/FailureDetectionPerformanceResults_FailoverAndEnhancedMonitoringEnabled.xlsx
-            ./wrapper/build/reports/FailureDetectionPerformanceResults_EnhancedMonitoringEnabled.xlsx
+          path: ./wrapper/build/reports/tests/
           retention-days: 5

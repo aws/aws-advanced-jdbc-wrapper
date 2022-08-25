@@ -39,13 +39,14 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import software.amazon.jdbc.util.StringUtils;
 
 public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
 
-  private static final int REPEAT_TIMES = System.getenv("REPEAT_TIMES") == null
+  private static final int REPEAT_TIMES = StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
       ? 5
       : Integer.parseInt(System.getenv("REPEAT_TIMES"));
-  private static final int CONNECT_TIMEOUT = 3;
+  private static final int TIMEOUT = 1;
   private static final int FAILOVER_TIMEOUT_MS = 40000;
   private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList =
       new ArrayList<>();
@@ -110,7 +111,8 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("monitoring-connectTimeout", Integer.toString(CONNECT_TIMEOUT));
+    props.setProperty("monitoring-loginTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
     // this performance test measures efm failure detection time after disconnecting the network
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
     props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
@@ -134,7 +136,8 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("monitoring-connectTimeout", Integer.toString(CONNECT_TIMEOUT));
+    props.setProperty("monitoring-loginTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
     // this performance test measures failover and efm failure detection time after disconnecting the network
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
     props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
