@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.failover;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import software.amazon.jdbc.HostSpec;
 
 /**
  * This class holds results of Reader Failover Process.
@@ -26,22 +27,22 @@ import java.sql.SQLException;
 public class ReaderFailoverResult {
 
   private final Connection newConnection;
-  private final int newConnectionIndex;
   private final boolean isConnected;
   private final SQLException exception;
+  private final HostSpec newHost;
 
   public ReaderFailoverResult(
-      Connection newConnection, int newConnectionIndex, boolean isConnected) {
-    this(newConnection, newConnectionIndex, isConnected, null);
+      Connection newConnection, HostSpec newHost, boolean isConnected) {
+    this(newConnection, newHost, isConnected, null);
   }
 
   public ReaderFailoverResult(
       Connection newConnection,
-      int newConnectionIndex,
+      HostSpec newHost,
       boolean isConnected,
       SQLException exception) {
     this.newConnection = newConnection;
-    this.newConnectionIndex = newConnectionIndex;
+    this.newHost = newHost;
     this.isConnected = isConnected;
     this.exception = exception;
   }
@@ -56,12 +57,12 @@ public class ReaderFailoverResult {
   }
 
   /**
-   * Get index of newly connected host.
+   * Get newly connected host spec.
    *
-   * @return Index of connected host in topology Returns -1 (NO_CONNECTION_INDEX) if no connection is established.
+   * @return Newly connected host. Returns null if no connection is established.
    */
-  public int getConnectionIndex() {
-    return newConnectionIndex;
+  public HostSpec getHost() {
+    return this.newHost;
   }
 
   /**

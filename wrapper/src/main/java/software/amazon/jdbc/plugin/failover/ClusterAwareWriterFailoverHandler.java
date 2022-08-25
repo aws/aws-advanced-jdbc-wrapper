@@ -31,9 +31,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import software.amazon.jdbc.HostAvailability;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
@@ -49,30 +50,26 @@ import software.amazon.jdbc.util.Utils;
 public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler {
 
   private static final Logger LOGGER = Logger.getLogger(ClusterAwareReaderFailoverHandler.class.getName());
-  static final int WRITER_CONNECTION_INDEX = 0;
 
   protected int maxFailoverTimeoutMs = 60000; // 60 sec
   protected int readTopologyIntervalMs = 5000; // 5 sec
   protected int reconnectWriterIntervalMs = 5000; // 5 sec
   protected Properties initialConnectionProps;
-  protected AuroraHostListProvider hostListProvider;
   protected PluginService pluginService;
   protected ReaderFailoverHandler readerFailoverHandler;
-  private static final WriterFailoverResult DEFAULT_RESULT = new WriterFailoverResult(false, false, null, null, "None");
+  private static final WriterFailoverResult DEFAULT_RESULT =
+      new WriterFailoverResult(false, false, null, null, "None");
 
   public ClusterAwareWriterFailoverHandler(
-      AuroraHostListProvider hostListProvider,
       PluginService pluginService,
       ReaderFailoverHandler readerFailoverHandler,
       Properties initialConnectionProps) {
-    this.hostListProvider = hostListProvider;
     this.pluginService = pluginService;
     this.readerFailoverHandler = readerFailoverHandler;
     this.initialConnectionProps = initialConnectionProps;
   }
 
   public ClusterAwareWriterFailoverHandler(
-      AuroraHostListProvider hostListProvider,
       PluginService pluginService,
       ReaderFailoverHandler readerFailoverHandler,
       Properties initialConnectionProps,
@@ -80,7 +77,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       int readTopologyIntervalMs,
       int reconnectWriterIntervalMs) {
     this(
-        hostListProvider,
         pluginService,
         readerFailoverHandler,
         initialConnectionProps);
@@ -127,11 +123,24 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
   }
 
+  private HostSpec getWriter(List<HostSpec> topology) {
+    if (topology == null || topology.isEmpty()) {
+      return null;
+    }
+
+    for (HostSpec host : topology) {
+      if (host.getRole() == HostRole.WRITER) {
+        return host;
+      }
+    }
+    return null;
+  }
+
   private void submitTasks(
       List<HostSpec> currentTopology, ExecutorService executorService,
       CompletionService<WriterFailoverResult> completionService) {
-    HostSpec writerHost = currentTopology.get(WRITER_CONNECTION_INDEX);
-    this.hostListProvider.addToDownHostList(writerHost);
+    HostSpec writerHost = this.getWriter(currentTopology);
+    this.pluginService.setAvailability(writerHost.asAliases(), HostAvailability.NOT_AVAILABLE);
     completionService.submit(new ReconnectToWriterHandler(writerHost));
     completionService.submit(new WaitForNewWriterHandler(
         currentTopology,
@@ -179,7 +188,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       return;
     }
 
-    String newWriterHost = topology.get(WRITER_CONNECTION_INDEX).getUrl();
+    if (!LOGGER.isLoggable(Level.FINE)) {
+      return;
+    }
+
+    final HostSpec writerHost = getWriter(topology);
+    String newWriterHost = writerHost == null ? null : writerHost.getUrl();
     if (result.isNewHost()) {
       LOGGER.fine(Messages.get(
           "ClusterAwareWriterFailoverHandler.4",
@@ -228,7 +242,8 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
             }
 
             conn = pluginService.connect(this.originalWriterHost, initialConnectionProps);
-            latestTopology = hostListProvider.getTopology(conn, true);
+            pluginService.forceRefreshHostList(conn);
+            latestTopology = pluginService.getHosts();
 
           } catch (SQLException exception) {
             // Propagate exceptions that are not caused by network errors.
@@ -244,7 +259,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         }
 
         success = isCurrentHostWriter(latestTopology);
-        hostListProvider.removeFromDownHostList(this.originalWriterHost);
+        pluginService.setAvailability(this.originalWriterHost.asAliases(), HostAvailability.AVAILABLE);
         return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, "TaskA");
       } catch (InterruptedException exception) {
         Thread.currentThread().interrupt();
@@ -266,7 +281,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
     private boolean isCurrentHostWriter(List<HostSpec> latestTopology) {
       final Set<String> currentAliases = this.originalWriterHost.getAliases();
-      final HostSpec latestWriter = latestTopology.get(WRITER_CONNECTION_INDEX);
+      final HostSpec latestWriter = getWriter(latestTopology);
       if (currentAliases == null) {
         return false;
       }
@@ -323,6 +338,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         throw ex;
       } finally {
         performFinalCleanup();
+        LOGGER.finer(Messages.get("ClusterAwareWriterFailoverHandler.10"));
       }
     }
 
@@ -332,12 +348,11 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           ReaderFailoverResult connResult = readerFailoverHandler.getReaderConnection(this.currentTopology);
           if (isValidReaderConnection(connResult)) {
             this.currentReaderConnection = connResult.getConnection();
-            this.currentReaderHost = this.currentTopology.get(connResult.getConnectionIndex());
+            this.currentReaderHost = connResult.getHost();
             LOGGER.fine(
                 Messages.get(
                     "ClusterAwareWriterFailoverHandler.11",
-                    new Object[] {connResult.getConnectionIndex(),
-                        this.currentReaderHost.getUrl()}));
+                    new Object[] {this.currentReaderHost.getUrl()}));
             break;
           }
         } catch (SQLException e) {
@@ -349,13 +364,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
 
     private boolean isValidReaderConnection(ReaderFailoverResult result) {
-      if (!result.isConnected() || result.getConnection() == null) {
+      if (!result.isConnected() || result.getConnection() == null || result.getHost() == null) {
         return false;
       }
-      int connIndex = result.getConnectionIndex();
-      return connIndex != FailoverConnectionPlugin.NO_CONNECTION_INDEX
-          && connIndex < this.currentTopology.size()
-          && this.currentTopology.get(connIndex) != null;
+      // Verify that connected host is presented in current topology
+      return this.currentTopology.stream()
+          .anyMatch(h -> h.getUrl().equals(result.getHost().getUrl()));
     }
 
     /**
@@ -366,15 +380,15 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     private boolean refreshTopologyAndConnectToNewWriter() throws InterruptedException {
       while (true) {
         try {
-          List<HostSpec> topology =
-              hostListProvider.getTopology(this.currentReaderConnection, true);
+          pluginService.forceRefreshHostList(this.currentReaderConnection);
+          List<HostSpec> topology = pluginService.getHosts();
 
           if (!topology.isEmpty()) {
             this.currentTopology = topology;
-            HostSpec writerCandidate = this.currentTopology.get(WRITER_CONNECTION_INDEX);
+            HostSpec writerCandidate = getWriter(this.currentTopology);
 
             if (!isSame(writerCandidate, this.originalWriterHost)) {
-              // new writer is available and it's different from the previous writer
+              // new writer is available, and it's different from the previous writer
               logTopology();
               if (connectToWriter(writerCandidate)) {
                 return true;
@@ -412,10 +426,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           this.currentConnection = pluginService.connect(writerCandidate, initialConnectionProps);
         }
 
-        hostListProvider.removeFromDownHostList(writerCandidate);
+        pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
         return true;
       } catch (SQLException exception) {
-        hostListProvider.addToDownHostList(writerCandidate);
+        pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
         return false;
       }
     }

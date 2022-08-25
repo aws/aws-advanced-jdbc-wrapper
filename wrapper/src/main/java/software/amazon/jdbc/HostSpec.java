@@ -131,7 +131,7 @@ public class HostSpec {
   }
 
   public String toString() {
-    return String.format("HostSpec[host=%s, port=%d]", this.host, this.port);
+    return String.format("HostSpec[host=%s, port=%d, %s, %s]", this.host, this.port, this.role, this.availability);
   }
 
   @Override

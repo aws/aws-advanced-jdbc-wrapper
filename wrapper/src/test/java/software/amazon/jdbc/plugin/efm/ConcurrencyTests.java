@@ -306,12 +306,18 @@ public class ConcurrencyTests {
 
     @Override
     public void refreshHostList() throws SQLException {
+    }
 
+    @Override
+    public void refreshHostList(Connection connection) throws SQLException {
     }
 
     @Override
     public void forceRefreshHostList() throws SQLException {
+    }
 
+    @Override
+    public void forceRefreshHostList(Connection connection) throws SQLException {
     }
 
     @Override

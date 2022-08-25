@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +50,17 @@ public class ConnectionStringHostListProvider implements HostListProvider, Stati
   }
 
   @Override
+  public List<HostSpec> refresh(Connection connection) throws SQLException {
+    return this.refresh();
+  }
+
+  @Override
   public List<HostSpec> forceRefresh() throws SQLException {
     return Collections.unmodifiableList(hostList);
+  }
+
+  @Override
+  public List<HostSpec> forceRefresh(Connection connection) throws SQLException {
+    return this.forceRefresh();
   }
 }

@@ -34,6 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
+import software.amazon.jdbc.util.Messages;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources, HostListProviderService,
     PluginManagerService {
@@ -271,8 +272,18 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   @Override
+  public void refreshHostList(Connection connection) throws SQLException {
+    setNodeList(this.hosts, this.getHostListProvider().refresh(connection));
+  }
+
+  @Override
   public void forceRefreshHostList() throws SQLException {
     setNodeList(this.hosts, this.getHostListProvider().forceRefresh());
+  }
+
+  @Override
+  public void forceRefreshHostList(Connection connection) throws SQLException {
+    setNodeList(this.hosts, this.getHostListProvider().forceRefresh(connection));
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,

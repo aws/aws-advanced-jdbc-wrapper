@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostAvailability;
@@ -73,8 +74,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   static final String METHOD_ABORT = "abort";
   static final String METHOD_CLOSE = "close";
   static final String METHOD_IS_CLOSED = "isClosed";
-  static final int NO_CONNECTION_INDEX = -1;
-  static final int WRITER_CONNECTION_INDEX = 0;
   private final PluginService pluginService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
@@ -87,7 +86,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private boolean closedExplicitly = false;
   protected boolean isClosed = false;
   protected String closedReason = null;
-  protected boolean isMultiWriterCluster = false;
   private final RdsUtils rdsHelper;
   private final ConnectionUrlParser connectionUrlParser;
   protected WriterFailoverHandler writerFailoverHandler = null;
@@ -95,6 +93,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Throwable lastExceptionDealtWith = null;
   private PluginManagerService pluginManagerService;
   private boolean isInTransaction = false;
+  private RdsUrlType rdsUrlType;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -213,16 +212,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         hostListProviderService,
         initHostProviderFunc,
         () -> new AuroraHostListProvider(driverProtocol, pluginService, props, initialUrl),
-        (hostListProvider) ->
+        () ->
             new ClusterAwareReaderFailoverHandler(
-                hostListProvider,
                 this.pluginService,
                 this.properties,
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting),
-        (hostListProvider) ->
+        () ->
             new ClusterAwareWriterFailoverHandler(
-                hostListProvider,
                 this.pluginService,
                 this.readerFailoverHandler,
                 this.properties,
@@ -238,9 +235,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc,
       Supplier<HostListProvider> hostListProviderSupplier,
-      Function<AuroraHostListProvider, ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
-      Function<AuroraHostListProvider, ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
+      Supplier<ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
+      Supplier<ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
       throws SQLException {
+
     if (!this.enableFailoverSetting) {
       return;
     }
@@ -249,29 +247,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       hostListProviderService.setHostListProvider(hostListProviderSupplier.get());
     }
 
-    final AuroraHostListProvider hostListProvider = this.getHostListProvider();
-    this.readerFailoverHandler = readerFailoverHandlerSupplier.apply(hostListProvider);
-    this.writerFailoverHandler = writerFailoverHandlerSupplier.apply(hostListProvider);
+    this.readerFailoverHandler = readerFailoverHandlerSupplier.get();
+    this.writerFailoverHandler = writerFailoverHandlerSupplier.get();
 
     initHostProviderFunc.call();
 
-    final RdsUrlType type = this.getHostListProvider().getRdsUrlType();
-    if (type.isRdsCluster()) {
-      this.explicitlyReadOnly = (type == RdsUrlType.RDS_READER_CLUSTER);
+    this.rdsUrlType = this.rdsHelper.identifyRdsType(initialUrl);
+    if (this.rdsUrlType.isRdsCluster()) {
+      this.explicitlyReadOnly = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER);
       LOGGER.finer(
           Messages.get(
               "Failover.parameterValue",
               new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
     }
-  }
-
-  private AuroraHostListProvider getHostListProvider() throws SQLException {
-    final HostListProvider provider = this.pluginService.getHostListProvider();
-    if (!(provider instanceof AuroraHostListProvider)) {
-      throw new SQLException(Messages.get("Failover.invalidHostListProvider", new Object[] {provider}));
-    }
-
-    return (AuroraHostListProvider) provider;
   }
 
   @Override
@@ -281,8 +269,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
+
     if (!this.enableFailoverSetting) {
       return;
+    }
+
+    if (LOGGER.isLoggable(Level.FINEST)) {
+      StringBuilder sb = new StringBuilder("Changes:");
+      for (Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
+        if (sb.length() > 0) {
+          sb.append("\n");
+        }
+        sb.append(String.format("Host '%s': %s", change.getKey(), change.getValue()));
+      }
+      LOGGER.finest(sb.toString());
     }
 
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
@@ -292,7 +292,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     for (String alias : currentHost.getAliases()) {
-      if (isNodeStillValid(alias, changes)) {
+      if (isNodeStillValid(alias + "/", changes)) {
         return;
       }
     }
@@ -305,22 +305,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       EnumSet<NodeChangeOptions> options = changes.get(node);
       return !options.contains(NodeChangeOptions.NODE_DELETED) && !options.contains(NodeChangeOptions.WENT_DOWN);
     }
-    return false;
+    return true;
+  }
+
+  // For testing purposes
+  void setRdsUrlType(final RdsUrlType rdsUrlType) {
+    this.rdsUrlType = rdsUrlType;
   }
 
   public boolean isFailoverEnabled() {
-    AuroraHostListProvider hostListProvider = null;
-    try {
-      hostListProvider = this.getHostListProvider();
-    } catch (SQLException e) {
-      // ignore
-    }
+    boolean isMultiWriterCluster = this.pluginService.getHosts().stream()
+        .filter(h -> h.getRole() == HostRole.WRITER)
+        .count() > 1;
 
     return this.enableFailoverSetting
-        && hostListProvider != null
-        && !RdsUrlType.RDS_PROXY.equals(hostListProvider.getRdsUrlType())
+        && !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
         && !Utils.isNullOrEmpty(this.pluginService.getHosts())
-        && !this.isMultiWriterCluster;
+        && !isMultiWriterCluster;
   }
 
   private void initSettings() {
@@ -410,18 +411,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Connects this dynamic failover connection proxy to the host pointed out by the given host
    * index.
    *
-   * @param hostIndex The host index in the global hosts list.
+   * @param host The host.
    * @throws SQLException if an error occurs
    */
-  private void connectTo(int hostIndex) throws SQLException {
+  private void connectTo(HostSpec host) throws SQLException {
     try {
-      switchCurrentConnectionTo(hostIndex, createConnectionForHostIndex(hostIndex));
+      switchCurrentConnectionTo(host, createConnectionForHost(host));
       LOGGER.fine(
           Messages.get(
               "Failover.establishedConnection",
-              new Object[] {this.pluginService.getHosts().get(hostIndex)}));
+              new Object[] {host}));
     } catch (SQLException e) {
-      final HostSpec host = this.pluginService.getCurrentHostSpec();
       if (this.pluginService.getCurrentConnection() != null) {
         StringBuilder msg =
             new StringBuilder("Connection to ")
@@ -438,7 +438,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private void connectToWriterIfRequired(Boolean readOnly) throws SQLException {
     if (shouldReconnectToWriter(readOnly) && !Utils.isNullOrEmpty(this.pluginService.getHosts())) {
       try {
-        connectTo(WRITER_CONNECTION_INDEX);
+        connectTo(getCurrentWriter());
       } catch (SQLException e) {
         failover(getCurrentWriter());
       }
@@ -486,9 +486,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private boolean shouldAttemptReaderConnection() {
-    return isExplicitlyReadOnly()
-        && this.pluginService.getHosts() != null
-        && this.pluginService.getHosts().size() > 1;
+    final List<HostSpec> topology = this.pluginService.getHosts();
+    if (topology == null || !isExplicitlyReadOnly()) {
+      return false;
+    }
+
+    for (HostSpec hostSpec : topology) {
+      if (hostSpec.getRole() == HostRole.READER) {
+        return true;
+      }
+    }
+    return false;
   }
 
   boolean shouldPerformWriterFailover() {
@@ -503,18 +511,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Replaces the previous underlying connection by the connection given. State from previous
    * connection, if any, is synchronized with the new one.
    *
-   * @param hostIndex The host index in the global hosts list that matches the given connection.
+   * @param host The host that matches the given connection.
    * @param connection The connection instance to switch to.
    * @throws SQLException if an error occurs
    */
-  private void switchCurrentConnectionTo(int hostIndex, Connection connection) throws SQLException {
+  private void switchCurrentConnectionTo(HostSpec host, Connection connection) throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection != connection) {
       invalidateCurrentConnection();
     }
 
     boolean readOnly;
-    if (isWriter(this.pluginService.getCurrentHostSpec())) {
+    if (isWriter(host)) {
       readOnly = isExplicitlyReadOnly();
     } else if (this.explicitlyReadOnly != null) {
       readOnly = this.explicitlyReadOnly;
@@ -524,7 +532,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       readOnly = false;
     }
     syncSessionState(currentConnection, connection, readOnly);
-    updateCurrentConnection(connection, hostIndex);
+    this.pluginService.setCurrentConnection(connection, host);
+
     if (this.pluginManagerService != null) {
       this.pluginManagerService.setInTransaction(false);
     }
@@ -556,34 +565,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     target.setTransactionIsolation(source.getTransactionIsolation());
   }
 
-  private void updateCurrentConnection(Connection connection, int hostIndex) throws SQLException {
-    updateCurrentConnection(connection, this.pluginService.getHosts().get(hostIndex));
-  }
-
-  private void updateCurrentConnection(Connection connection, HostSpec hostSpec)
-      throws SQLException {
-    this.pluginService.setCurrentConnection(connection, hostSpec);
-  }
-
-  /**
-   * Creates a new connection instance for host pointed out by the given host index.
-   *
-   * @param hostIndex The host index in the global hosts list.
-   * @return The new connection instance.
-   * @throws SQLException if an error occurs
-   */
-  private Connection createConnectionForHostIndex(int hostIndex) throws SQLException {
-    return createConnectionForHost(this.pluginService.getHosts().get(hostIndex));
-  }
-
   private <E extends Exception> void dealWithOriginalException(
       Throwable originalException,
       Throwable wrapperException,
       Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
-      LOGGER.finer(
-          String.format("%s:%s", Messages.get("Failover.failoverEnabled"), originalException.getMessage()));
+      LOGGER.finer(Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
@@ -680,7 +668,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    updateCurrentConnection(result.getConnection(), result.getConnectionIndex());
+    this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
+
     this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
     updateTopology(true);
 
@@ -692,6 +681,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void failoverWriter() throws SQLException {
     LOGGER.fine(Messages.get("Failover.startWriterFailover"));
+    final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
     WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
     if (failoverResult != null) {
@@ -707,9 +697,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     // successfully re-connected to the same writer node
-    updateCurrentConnection(
-        failoverResult.getNewConnection(),
-        failoverResult.getTopology().get(WRITER_CONNECTION_INDEX));
+    this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), currentHost);
     this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
 
     LOGGER.fine(
@@ -764,20 +752,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    if (isConnected() || Utils.isNullOrEmpty(this.pluginService.getHosts())) {
+    if (this.pluginService.getCurrentConnection() == null && !shouldAttemptReaderConnection()) {
+      try {
+        connectTo(getCurrentWriter());
+      } catch (SQLException e) {
+        failover(getCurrentWriter());
+      }
+    } else {
       failover(this.pluginService.getCurrentHostSpec());
-      return;
-    }
-
-    if (shouldAttemptReaderConnection()) {
-      failover(null);
-      return;
-    }
-
-    try {
-      connectTo(WRITER_CONNECTION_INDEX);
-    } catch (SQLException e) {
-      failover(getCurrentWriter());
     }
   }
 

@@ -119,8 +119,8 @@ class FailoverConnectionPluginTest {
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     verify(mockHostListProviderService, never()).isStaticHostListProvider();
   }
@@ -138,31 +138,31 @@ class FailoverConnectionPluginTest {
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     verify(mockHostListProviderService).isStaticHostListProvider();
     verify(mockHostListProviderService).setHostListProvider(eq(mockHostListProvider));
   }
 
   @Test
-  void test_initHostProvider_withDynamicHostListProvider() {
+  void test_initHostProvider_withDynamicHostListProvider() throws SQLException {
     when(mockHostListProviderService.isStaticHostListProvider()).thenReturn(false);
     when(mockPluginService.getHostListProvider()).thenReturn(new FooHostListProvider());
 
     initializePlugin();
 
-    assertThrows(SQLException.class, () -> plugin.initHostProvider(
+    plugin.initHostProvider(
         "driverProtocol",
         "initialUrl",
         properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler));
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
-    verify(mockHostListProviderService).isStaticHostListProvider();
+    verify(mockHostListProviderService, atLeastOnce()).isStaticHostListProvider();
   }
 
   @Test
@@ -180,17 +180,17 @@ class FailoverConnectionPluginTest {
   @Test
   void test_notifyNodeListChanged_withValidConnectionNotInTopology() {
     final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
-    changes.put("cluster-host", EnumSet.of(NodeChangeOptions.NODE_DELETED));
-    changes.put("instance", EnumSet.of(NodeChangeOptions.NODE_ADDED));
+    changes.put("cluster-host/", EnumSet.of(NodeChangeOptions.NODE_DELETED));
+    changes.put("instance/", EnumSet.of(NodeChangeOptions.NODE_ADDED));
 
     initializePlugin();
     plugin.notifyNodeListChanged(changes);
 
-    when(mockHostSpec.getUrl()).thenReturn("cluster-url");
+    when(mockHostSpec.getUrl()).thenReturn("cluster-url/");
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("instance")));
 
     verify(mockPluginService).getCurrentHostSpec();
-    verify(mockHostSpec).getAliases();
+    verify(mockHostSpec, never()).getAliases();
   }
 
   @Test
@@ -220,10 +220,10 @@ class FailoverConnectionPluginTest {
   @ValueSource(booleans = {true, false})
   void test_updateTopology_withForceUpdate(final boolean forceUpdate) throws SQLException {
 
-    when(mockHostListProvider.getRdsUrlType()).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockPluginService.getHosts()).thenReturn(Collections.singletonList(new HostSpec("host")));
     when(mockConnection.isClosed()).thenReturn(false);
     initializePlugin();
+    plugin.setRdsUrlType(RdsUrlType.RDS_INSTANCE);
 
     plugin.updateTopology(forceUpdate);
     if (forceUpdate) {
@@ -300,7 +300,7 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockReaderResult.isConnected()).thenReturn(true);
     when(mockReaderResult.getConnection()).thenReturn(mockConnection);
-    when(mockReaderResult.getConnectionIndex()).thenReturn(0);
+    when(mockReaderResult.getHost()).thenReturn(hostSpec);
 
     initializePlugin();
     plugin.initHostProvider(
@@ -310,8 +310,8 @@ class FailoverConnectionPluginTest {
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     final FailoverConnectionPlugin spyPlugin = spy(plugin);
     doNothing().when(spyPlugin).updateTopology(true);
@@ -331,7 +331,7 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getAvailability()).thenReturn(HostAvailability.AVAILABLE);
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockReaderResult.getException()).thenReturn(new SQLException());
-    when(mockReaderResult.getConnectionIndex()).thenReturn(0);
+    when(mockReaderResult.getHost()).thenReturn(hostSpec);
 
     initializePlugin();
     plugin.initHostProvider(
@@ -341,8 +341,8 @@ class FailoverConnectionPluginTest {
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     assertThrows(SQLException.class, () -> plugin.failoverReader(null));
     verify(mockReaderFailoverHandler).failover(eq(hosts), eq(null));
@@ -365,8 +365,8 @@ class FailoverConnectionPluginTest {
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     assertThrows(SQLException.class, () -> plugin.failoverWriter());
     verify(mockWriterFailoverHandler).failover(eq(hosts));
@@ -389,8 +389,8 @@ class FailoverConnectionPluginTest {
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     final SQLException exception = assertThrows(SQLException.class, () -> plugin.failoverWriter());
     assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
@@ -416,8 +416,8 @@ class FailoverConnectionPluginTest {
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
-        (mockHostListProvider) -> mockReaderFailoverHandler,
-        (mockHostListProvider) -> mockWriterFailoverHandler);
+        () -> mockReaderFailoverHandler,
+        () -> mockWriterFailoverHandler);
 
     final SQLException exception = assertThrows(SQLException.class, () -> plugin.failoverWriter());
     assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
@@ -535,7 +535,17 @@ class FailoverConnectionPluginTest {
     }
 
     @Override
+    public List<HostSpec> refresh(Connection connection) {
+      return new ArrayList<>();
+    }
+
+    @Override
     public List<HostSpec> forceRefresh() {
+      return new ArrayList<>();
+    }
+
+    @Override
+    public List<HostSpec> forceRefresh(Connection connection) {
       return new ArrayList<>();
     }
   }
