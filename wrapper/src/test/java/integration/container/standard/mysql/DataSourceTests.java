@@ -17,11 +17,19 @@
 package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.util.SimpleJndiContextFactory;
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Hashtable;
 import java.util.Properties;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
@@ -36,7 +44,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
 
   @Test
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
-    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
     ds.setServerPropertyName("serverName");
@@ -44,41 +52,79 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
     targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
+    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
-    assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-    assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
-
-    assertTrue(conn.isValid(10));
-    conn.close();
+      assertTrue(conn.isValid(10));
+    }
   }
 
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
-    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setJdbcUrl("jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
 
-    Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
+    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
-    assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-    assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertTrue(conn.isValid(10));
+    }
+  }
 
-    assertTrue(conn.isValid(10));
-    conn.close();
+  @Test
+  public void testOpenConnectionWithMysqlDataSourceClassNameFromJndiLookup()
+      throws SQLException, NamingException, IllegalAccessException {
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setServerPropertyName("serverName");
+    ds.setDatabasePropertyName("databaseName");
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
+
+    final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
+
+    final Hashtable<String, Object> env = new Hashtable<>();
+    env.put(Context.INITIAL_CONTEXT_FACTORY, SimpleJndiContextFactory.class.getName());
+    final InitialContext context = new InitialContext(env);
+    context.bind("wrapperDataSource", ds);
+    final AwsWrapperDataSource dsFromJndiLookup = (AwsWrapperDataSource) context.lookup("wrapperDataSource");
+    assertNotNull(dsFromJndiLookup);
+
+    assertNotSame(ds, dsFromJndiLookup);
+    final Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
+    assertEquals(targetDataSourceProps, jndiDsProperties);
+
+    for (Field f : ds.getClass().getFields()) {
+      assertEquals(f.get(ds), f.get(dsFromJndiLookup));
+    }
+
+    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+
+      assertTrue(conn.isValid(10));
+    }
   }
 
   @Test
   public void testOpenConnectionWithMariaDbDataSourceClassName() throws SQLException {
-    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
@@ -86,36 +132,76 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
         "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
+    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
+      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
-    assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-    assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
-
-    assertTrue(conn.isValid(10));
-    conn.close();
+      assertTrue(conn.isValid(10));
+    }
   }
 
   @Test
   public void testOpenConnectionWithMariaDbUrl() throws SQLException {
-    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD);
+    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
+      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
 
-    assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-    assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertTrue(conn.isValid(10));
+    }
+  }
 
-    assertTrue(conn.isValid(10));
-    conn.close();
+  @Test
+  public void testOpenConnectionWithMariaDbDataSourceClassNameFromJndiLookup()
+      throws SQLException, NamingException, IllegalAccessException {
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
+    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setUrlPropertyName("url");
+    ds.setUserPropertyName("user");
+    ds.setPasswordPropertyName("password");
+
+    final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty(
+        "url",
+        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
+
+    final Hashtable<String, Object> env = new Hashtable<>();
+    env.put(Context.INITIAL_CONTEXT_FACTORY, SimpleJndiContextFactory.class.getName());
+    final InitialContext context = new InitialContext(env);
+    context.bind("wrapperDataSource", ds);
+    final AwsWrapperDataSource dsFromJndiLookup = (AwsWrapperDataSource) context.lookup("wrapperDataSource");
+    assertNotNull(dsFromJndiLookup);
+
+    assertNotSame(ds, dsFromJndiLookup);
+    final Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
+    assertEquals(targetDataSourceProps, jndiDsProperties);
+
+    for (Field f : ds.getClass().getFields()) {
+      assertEquals(f.get(ds), f.get(dsFromJndiLookup));
+    }
+
+    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
+      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+
+      assertTrue(conn.isValid(10));
+    }
   }
 }
