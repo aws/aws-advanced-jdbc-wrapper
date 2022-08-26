@@ -52,6 +52,22 @@ If a more aggressive approach to failure checking is necessary, all of these par
 | `failureDetectionTime`     | Integer |    No    | Interval in milliseconds between sending a SQL query to the server and the first probe to the database node. | `30000`       |
 | `monitorDisposalTime`      | Integer |    No    | Interval in milliseconds for a monitor to be considered inactive and to be disposed.                         | `60000`       |
 
+The Host Monitoring Connection Plugin may create new monitoring connections to check the database node's availability. You can configure these connection with driver-specific configurations by adding the `monitoring-` prefix to the configuration parameters, like the following example:
+
+```java
+final Properties properties = new Properties();
+// Configure the timeout values for all, non-monitoring connections.
+properties.setProperty("connectTimeout", "30");
+properties.setProperty("socketTimeout", "30");
+// Configure different timeout values for the monitoring connections.
+properties.setProperty("monitoring-connectTimeout", "10");
+properties.setProperty("monitoring-socketTimeout", "10");
+```
+
+> :heavy_exclamation_mark: **Always ensure you provide a non-zero socket timeout value or a connect timeout value to the Host Monitoring Connection Plugin**
+>
+> The Host Monitoring Connection Plugin does not have default timeout values such as `connectTimeout` or `socketTimeout` since these values are driver specific. Most JDBC drivers use 0 as the default timeout value. If you **do not** override the default timeout value, the Host Monitoring Connection Plugin may wait forever to establish a monitoring connection in the event where the database node is unavailable.
+
 >### :warning: Warnings About Usage of the AWS Advanced JDBC Wrapper with RDS Proxy
 > It is recommended to either disable the Host Monitoring Connection Plugin, or to avoid using RDS Proxy endpoints when the Host Monitoring Connection Plugin is active.
 >
