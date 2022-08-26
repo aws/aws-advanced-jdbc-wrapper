@@ -148,7 +148,10 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     props.setProperty("failoverTimeoutMs", "10000");
 
     // Connect to cluster
-    try (final Connection testConnection = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
+    try (final Connection testConnection = connectToInstance(
+                 initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+                 MYSQL_PROXY_PORT,
+                 props)) {
       // Get writer
       currWriter = queryInstanceId(testConnection);
 
@@ -178,12 +181,16 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     String anyReaderId = instanceIDs[1];
 
     // Get Writer
-    try (final Connection checkWriterConnection = connectToInstance(currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
+    try (final Connection checkWriterConnection = connectToInstance(
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to cluster
-    try (final Connection testConnection = connectToInstance(anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
+    try (final Connection testConnection = connectToInstance(
+        anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
       assertNotEquals(currWriter, currReader);
@@ -218,14 +225,17 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     String anyReaderId = instanceIDs[1];
 
     // Get Writer
-    try (final Connection checkWriterConnection = connectToInstance(currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
+    try (final Connection checkWriterConnection = connectToInstance(
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     } catch (SQLException e) {
       fail(e);
     }
 
     // Connect to instance
-    try (final Connection testConnection = connectToInstance(anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
+    try (final Connection testConnection = connectToInstance(
+        anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
 
@@ -255,12 +265,16 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     String anyReaderId = instanceIDs[1];
 
     // Get Writer
-    try (final Connection checkWriterConnection = connectToInstance(currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
+    try (final Connection checkWriterConnection = connectToInstance(
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to instance
-    try (final Connection testConnection = connectToInstance(anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
+    try (final Connection testConnection = connectToInstance(
+        anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
 
@@ -314,7 +328,10 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
 
     Properties props = initDefaultProxiedProps();
     props.setProperty("failoverTimeoutMs", "10000");
-    try (Connection conn = connectToInstance(currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
+    try (Connection conn = connectToInstance(
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT,
+        props)) {
       // Put all but writer down first
       proxyMap.forEach((instance, proxy) -> {
         if (!instance.equalsIgnoreCase(currentWriterId)) {
@@ -356,7 +373,10 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     final String readerNode = instanceIDs[1];
 
     Properties props = initDefaultProxiedProps();
-    try (Connection conn = connectToInstance(readerNode + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
+    try (Connection conn = connectToInstance(
+        readerNode + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT,
+        props)) {
       // First kill all reader instances except one
       for (int i = 1; i < clusterSize - 1; i++) {
         final String instanceId = instanceIDs[i];
@@ -394,7 +414,10 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
-    try (Connection conn = connectToInstance(firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
+    try (Connection conn = connectToInstance(
+        firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT,
+        props)) {
       conn.setReadOnly(true);
 
       // Start crashing reader (Instance2).
@@ -427,7 +450,8 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
       readerInstanceIds.remove(secondReaderInstanceId);
       readerInstanceIds.remove(thirdReaderInstanceId);
 
-      final String fourthInstanceId = readerInstanceIds.stream().findFirst().orElseThrow(() -> new Exception("Empty instance Id"));
+      final String fourthInstanceId =
+          readerInstanceIds.stream().findFirst().orElseThrow(() -> new Exception("Empty instance Id"));
 
       // Crash the fourth reader instance.
       proxyInstance = proxyMap.get(fourthInstanceId);

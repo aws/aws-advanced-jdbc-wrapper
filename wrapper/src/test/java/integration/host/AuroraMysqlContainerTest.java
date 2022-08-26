@@ -67,8 +67,8 @@ public class AuroraMysqlContainerTest {
           ? System.getenv("AURORA_MYSQL_DB")
           : "test";
   private static final String AURORA_MYSQL_DB_USER =
-      !com.mysql.cj.util.StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB_USER")) ?
-          System.getenv("AURORA_MYSQL_DB_USER") : "jane_doe";
+      !com.mysql.cj.util.StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB_USER"))
+          ? System.getenv("AURORA_MYSQL_DB_USER") : "jane_doe";
 
   protected static final String EXISTING_DB_CONN_SUFFIX = System.getenv("DB_CONN_SUFFIX");
 
