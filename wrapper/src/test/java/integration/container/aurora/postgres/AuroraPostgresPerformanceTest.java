@@ -47,6 +47,7 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       ? 5
       : Integer.parseInt(System.getenv("REPEAT_TIMES"));
   private static final int TIMEOUT = 1;
+  private static final int CONNECT_TIMEOUT = 3;
   private static final int FAILOVER_TIMEOUT_MS = 40000;
   private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList =
       new ArrayList<>();
@@ -111,7 +112,7 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("monitoring-loginTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("monitoring-connectTimeout", Integer.toString(TIMEOUT));
     props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
     // this performance test measures efm failure detection time after disconnecting the network
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
@@ -136,8 +137,11 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("monitoring-loginTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("monitoring-connectTimeout", Integer.toString(TIMEOUT));
     props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("socketTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("connectTimeout", Integer.toString(CONNECT_TIMEOUT));
+
     // this performance test measures failover and efm failure detection time after disconnecting the network
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
     props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
@@ -160,6 +164,8 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
     final Properties props = initDefaultPropsNoTimeouts();
     // this performance test measures how socket timeout changes the overall failover time
     props.setProperty("socketTimeout", Integer.toString(socketTimeout));
+    props.setProperty("connectTimeout", Integer.toString(CONNECT_TIMEOUT));
+
     // Loads just failover plugin; don't load Enhanced Failure Monitoring plugin
     props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
     props.setProperty("wrapperPlugins", "failover");
