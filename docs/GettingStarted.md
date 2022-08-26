@@ -12,7 +12,7 @@ If you are using the wrapper as part of a Gradle project, include the wrapper an
 
 ```gradle
 dependencies {
-    implementation group: 'software.amazon.jdbc.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.0'
+    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.0'
     implementation group: 'org.postgresql', name: 'postgresql', version: '42.4.0'
 }
 ```
