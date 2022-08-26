@@ -319,6 +319,18 @@ public class ContainerHelper {
     return auroraInstances;
   }
 
+  public void addAuroraAwsIamUser(String connectionUrl, String userName, String password, String dbUser)
+      throws SQLException {
+
+    final String dropAwsIamUserSQL = "DROP USER IF EXISTS " + dbUser + ";";
+    final String createAwsIamUserSQL = "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
+    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
+         final Statement stmt = conn.createStatement()) {
+      stmt.execute(dropAwsIamUserSQL);
+      stmt.execute(createAwsIamUserSQL);
+    }
+  }
+
   public List<ToxiproxyContainer> createProxyContainers(
       final Network network, List<String> clusterInstances, String proxyDomainNameSuffix) {
     ArrayList<ToxiproxyContainer> containers = new ArrayList<>();

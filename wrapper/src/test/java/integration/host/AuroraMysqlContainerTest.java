@@ -66,6 +66,9 @@ public class AuroraMysqlContainerTest {
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB"))
           ? System.getenv("AURORA_MYSQL_DB")
           : "test";
+  private static final String AURORA_MYSQL_DB_USER =
+      !com.mysql.cj.util.StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB_USER")) ?
+          System.getenv("AURORA_MYSQL_DB_USER") : "jane_doe";
 
   protected static final String EXISTING_DB_CONN_SUFFIX = System.getenv("DB_CONN_SUFFIX");
 
@@ -130,6 +133,12 @@ public class AuroraMysqlContainerTest {
     if (!Driver.isRegistered()) {
       Driver.register();
     }
+
+    containerHelper.addAuroraAwsIamUser(
+        DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_MYSQL_DB + DB_CONN_PROP,
+        AURORA_MYSQL_USERNAME,
+        AURORA_MYSQL_PASSWORD,
+        AURORA_MYSQL_DB_USER);
 
     network = Network.newNetwork();
     mysqlInstances =
@@ -227,6 +236,7 @@ public class AuroraMysqlContainerTest {
             .withEnv("AURORA_MYSQL_USERNAME", AURORA_MYSQL_USERNAME)
             .withEnv("AURORA_MYSQL_PASSWORD", AURORA_MYSQL_PASSWORD)
             .withEnv("AURORA_MYSQL_DB", AURORA_MYSQL_DB)
+            .withEnv("AURORA_MYSQL_DB_USER", AURORA_MYSQL_DB_USER)
             .withEnv("AURORA_MYSQL_DB_REGION", AURORA_MYSQL_DB_REGION)
             .withEnv("DB_CLUSTER_CONN", dbHostCluster)
             .withEnv("DB_RO_CLUSTER_CONN", dbHostClusterRo)

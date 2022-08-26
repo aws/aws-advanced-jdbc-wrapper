@@ -74,6 +74,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           final JdbcCallable<Connection, SQLException> connectFunc)
           throws SQLException {
 
+    if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
+      throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
+    }
+
     final String host = hostSpec.getHost();
 
     int port = hostSpec.getPort();

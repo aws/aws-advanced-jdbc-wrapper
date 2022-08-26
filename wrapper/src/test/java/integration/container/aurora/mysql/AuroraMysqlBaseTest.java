@@ -65,6 +65,7 @@ public abstract class AuroraMysqlBaseTest {
   protected static final String AURORA_MYSQL_PASSWORD = System.getenv("AURORA_MYSQL_PASSWORD");
   protected static final String AURORA_MYSQL_DB =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB")) ? System.getenv("AURORA_MYSQL_DB") : "test";
+  protected static final String AURORA_MYSQL_DB_USER = System.getenv("AURORA_MYSQL_DB_USER");
 
   protected static final String QUERY_FOR_INSTANCE = "SELECT @@aurora_server_id";
 
@@ -223,10 +224,12 @@ public abstract class AuroraMysqlBaseTest {
 
   protected Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
-    props.setProperty(PropertyKey.USER.getKeyName(), AURORA_MYSQL_USERNAME);
-    props.setProperty(PropertyKey.PASSWORD.getKeyName(), AURORA_MYSQL_PASSWORD);
+    props.setProperty(PropertyDefinition.USER.name, AURORA_MYSQL_USERNAME);
+    props.setProperty(PropertyDefinition.PASSWORD.name, AURORA_MYSQL_PASSWORD);
     props.setProperty(PropertyKey.tcpKeepAlive.getKeyName(), Boolean.FALSE.toString());
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
     return props;
   }
@@ -243,6 +246,16 @@ public abstract class AuroraMysqlBaseTest {
     final Properties props = initDefaultProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
 
+    return props;
+  }
+
+  protected Properties initAwsIamProps(String user, String password) {
+    final Properties props = initDefaultProps();
+    props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+    props.setProperty(PropertyDefinition.USER.name, user);
+    props.setProperty(PropertyDefinition.PASSWORD.name, password);
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
     return props;
   }
 
