@@ -9,7 +9,7 @@ The JDBC Wrapper uses the protocol prefix `jdbc:aws-wrapper:`. Internally, the J
 To get a connection from the JDBC Wrapper, the user application can either connect with a DriverManager or with a DataSource.
 
 The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers;
-[this example](../driver-specific/postgresql/ConnectionTestSample.java) demonstrates establishing a connection with the PostgreSQL JDBC driver.
+[this example](../driver-specific/postgresql/ConnectionSample.java) demonstrates establishing a connection with the PostgreSQL JDBC driver.
 
 Establishing a connection with a DataSource may require some additional steps.
 For detailed information and examples, review the [Datasource](./DataSource.md) documentation.
