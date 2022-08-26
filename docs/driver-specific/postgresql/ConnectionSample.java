@@ -26,7 +26,18 @@ public class ConnectionTestSample {
   private static final String PASSWORD = "password";
 
   public static void main(String[] args) throws SQLException {
-    try (Connection conn = DriverManager.getConnection(CONNECTION_STRING, USERNAME, PASSWORD);
+    final Properties properties = new Properties();
+
+    // Configuring connection properties for the underlying JDBC driver.
+    properties.setProperty("user", USERNAME);
+    properties.setProperty("password", PASSWORD);
+    properties.setProperty("loginTimeout", "100");
+
+    // Configuring connection properties for the JDBC Wrapper.
+    properties.setProperty("wrapperPlugins", "failover,efm");
+    properties.setProperty("wrapperLogUnclosedConnections", "true");
+
+    try (Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);
          Statement stmt = conn.createStatement();
          ResultSet rs = stmt.executeQuery("SELECT 1")) {
       rs.next();
