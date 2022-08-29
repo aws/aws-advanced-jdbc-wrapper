@@ -21,6 +21,7 @@ import static software.amazon.jdbc.util.StringUtils.isNullOrEmpty;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.util.PropertyUtils;
 
@@ -29,6 +30,8 @@ import software.amazon.jdbc.util.PropertyUtils;
  * provided by a target driver or a data source.
  */
 public class DriverConnectionProvider implements ConnectionProvider {
+
+  private static final Logger LOGGER = Logger.getLogger(DriverConnectionProvider.class.getName());
 
   private final java.sql.Driver driver;
   private final String userPropertyName;
@@ -74,6 +77,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     PropertyDefinition.removeAll(copy);
 
+    LOGGER.finest(() -> "Connecting to " + urlBuilder);
+
     return this.driver.connect(urlBuilder.toString(), copy);
   }
 
@@ -87,6 +92,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
    */
   public Connection connect(@NonNull String url, @NonNull Properties props) throws SQLException {
 
+    LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);
   }
 }

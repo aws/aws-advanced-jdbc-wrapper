@@ -280,6 +280,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public HostSpec getInitialConnectionHostSpec() {
+      return null;
+    }
+
+    @Override
     public void setAvailability(Set<String> hostAliases, HostAvailability availability) {
 
     }

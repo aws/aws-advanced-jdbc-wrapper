@@ -29,11 +29,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
 
 public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   /* Writer connection failover tests. */
+
+  private static final Logger LOGGER = Logger.getLogger(AuroraPostgresFailoverTest.class.getName());
 
   /**
    * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer. Driver failover
@@ -106,6 +108,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     // Connect to Instance2 which is the only reader that is up.
     final String instanceId = instanceIDs[1];
+    LOGGER.finest("instanceId=" + instanceId);
 
     try (final Connection conn = connectToInstance(instanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         POSTGRES_PROXY_PORT)) {
@@ -347,66 +350,6 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
       assertEquals(newRowFetchSize, testStmt2.getFetchSize());
-    }
-  }
-
-  // Helpers
-  private void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
-      throws InterruptedException {
-    failoverCluster();
-    waitUntilWriterInstanceChanged(clusterWriterId);
-  }
-
-  private void failoverCluster() throws InterruptedException {
-    waitUntilClusterHasRightState();
-    while (true) {
-      try {
-        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
-        break;
-      } catch (final Exception e) {
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
-    }
-  }
-
-  private void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterWriterId,
-      String targetInstanceId) throws InterruptedException {
-    failoverClusterWithATargetInstance(targetInstanceId);
-    waitUntilWriterInstanceChanged(clusterWriterId);
-  }
-
-  private void failoverClusterWithATargetInstance(String targetInstanceId)
-      throws InterruptedException {
-    waitUntilClusterHasRightState();
-
-    while (true) {
-      try {
-        rdsClient.failoverDBCluster(
-            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
-                .targetDBInstanceIdentifier(targetInstanceId));
-        break;
-      } catch (final Exception e) {
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
-    }
-  }
-
-  private void waitUntilWriterInstanceChanged(String initialWriterInstanceId)
-      throws InterruptedException {
-    String nextClusterWriterId = getDBClusterWriterInstanceId();
-    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
-      TimeUnit.MILLISECONDS.sleep(3000);
-      // Calling the RDS API to get writer Id.
-      nextClusterWriterId = getDBClusterWriterInstanceId();
-    }
-  }
-
-  private void waitUntilClusterHasRightState() throws InterruptedException {
-    String status = getDBCluster().status();
-    while (!"available".equalsIgnoreCase(status)) {
-      TimeUnit.MILLISECONDS.sleep(1000);
-      status = getDBCluster().status();
     }
   }
 }

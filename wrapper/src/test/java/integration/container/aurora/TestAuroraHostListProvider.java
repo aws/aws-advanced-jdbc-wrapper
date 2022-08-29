@@ -17,14 +17,19 @@
 package integration.container.aurora;
 
 import java.util.Properties;
+import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 public class TestAuroraHostListProvider extends AuroraHostListProvider {
 
-  public TestAuroraHostListProvider(String driverProtocol, PluginService pluginService,
-      Properties properties, String originalUrl) {
-    super(driverProtocol, pluginService, properties, originalUrl);
+  public TestAuroraHostListProvider(
+      String driverProtocol,
+      HostListProviderService hostListProviderService,
+      Properties properties,
+      String originalUrl) {
+
+    super(driverProtocol, hostListProviderService, properties, originalUrl);
   }
 
   public static void clearCache() {
