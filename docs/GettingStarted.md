@@ -16,6 +16,7 @@ dependencies {
     implementation group: 'org.postgresql', name: 'postgresql', version: '42.4.0'
 }
 ```
+Technically you could use runtimeOnly ...
 
 ## Obtaining the AWS Advanced JDBC Wrapper
 

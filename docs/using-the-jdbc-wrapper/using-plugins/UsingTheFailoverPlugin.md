@@ -5,7 +5,7 @@ In an Amazon Aurora database (DB) cluster, failover is a mechanism by which Auro
 
 <div style="text-align:center"><img src="../../images/failover_diagram.png" /></div>
 
-The figure above provides a simplified overview of how the AWS Advanced JDBC Wrapper handles an Aurora failover encounter. Starting at the top of the diagram, an application with the AWS Advanced JDBC Wrapper on its class path uses the JDBC Wrapper to get a logical connection to an Aurora database.
+The figure above provides a simplified overview of how the AWS Advanced JDBC Wrapper handles an Aurora failover encounter. Starting at the top of the diagram, an application with the AWS Advanced JDBC Wrapper on its classpath uses the JDBC Wrapper to get a logical connection to an Aurora database.
 
 In this example, the application requests a connection using the Aurora DB cluster endpoint and is returned a logical connection that is physically connected to the primary DB instance in the DB cluster, DB instance C. By design, details about which specific DB instance the physical connection is connected to have been abstracted away.
 
