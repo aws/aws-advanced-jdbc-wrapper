@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Qodana](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml/badge.svg)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml)
 
-The **Amazon Web Services JDBC Driver** has been redesigned as an advanced JDBC wrapper. This wrapper extends the functionality of an existing JDBC driver to help an application take advantage of the features of clustered databases such as Amazon Aurora. The AWS JDBC wrapper does not implement connectivity on its own to any database but will enable support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice.
+The **Amazon Web Services JDBC Driver** has been redesigned as an advanced JDBC wrapper. This wrapper is complementary to and extends the functionality of an existing JDBC driver to help an application take advantage of the features of clustered databases such as Amazon Aurora. The AWS JDBC wrapper does not implement connectivity on its own to any database but will enable support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice.
 
 The JDBC wrapper is meant to work with any JDBC driver. Currently, the JDBC wrapper has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc). Support for the [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) are being evaluated.
 
-In conjunction with the PostgreSQL JDBC Driver, the AWS JDBC wrapper enables fast failover for Amazon Aurora with PostgreSQL compatibility. 
+In conjunction with the PostgreSQL JDBC Driver, the AWS JDBC wrapper enables fast failover for Amazon Aurora with PostgreSQL compatibility. It also supports integration with AWS Secrets Manager. We are investigating Read/Write splitting for a future release.
 
 ## About the Driver
 
