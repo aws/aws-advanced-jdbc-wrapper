@@ -82,34 +82,37 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     try {
       Class.forName("software.amazon.awssdk.services.secretsmanager.SecretsManagerClient");
     } catch (ClassNotFoundException e) {
-      throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.1"));
+      throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.javaSdkNotInClasspath"));
     }
 
     try {
       Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
     } catch (ClassNotFoundException e) {
-      throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.2"));
+      throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.jacksonDatabindNotInClasspath"));
     }
 
     final String secretId = SECRET_ID_PROPERTY.getString(props);
     if (StringUtils.isNullOrEmpty(secretId)) {
       throw new
           RuntimeException(
-              String.format("Configuration parameter '%s' is required.",
-              SECRET_ID_PROPERTY.name));
+          Messages.get(
+              "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
+              new Object[] {SECRET_ID_PROPERTY.name}));
     }
 
     final String regionString = REGION_PROPERTY.getString(props);
     if (StringUtils.isNullOrEmpty(regionString)) {
-      throw new
-          RuntimeException(
-              String.format("Configuration parameter '%s' is required.",
-              REGION_PROPERTY.name));
+      throw new RuntimeException(
+          Messages.get(
+              "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
+              new Object[] {REGION_PROPERTY.name}));
     }
 
     final Region region = Region.of(regionString);
     if (!Region.regions().contains(region)) {
-      throw new RuntimeException(String.format("Region '%s' is not valid.", regionString));
+      throw new RuntimeException(Messages.get(
+          "AwsSecretsManagerConnectionPlugin.unsupportedRegion",
+          new Object[] {regionString}));
     }
     this.secretKey = Pair.of(secretId, region);
 
@@ -161,7 +164,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
       throw exception;
     } catch (Exception exception) {
-      LOGGER.log(Level.WARNING, "Unhandled exception: ", exception);
+      LOGGER.warning(
+          () -> Messages.get(
+              "AwsSecretsManagerConnectionPlugin.unhandledException",
+              new Object[] {exception}));
       throw new SQLException(exception);
     }
   }
@@ -185,8 +191,12 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           SECRET_CACHE.put(this.secretKey, this.secret);
         }
       } catch (SecretsManagerException | JsonProcessingException exception) {
-        LOGGER.log(Level.WARNING, Messages.get("AwsSecretsManagerConnectionPlugin.3"), exception);
-        throw new SQLException(Messages.get("AwsSecretsManagerConnectionPlugin.3"), exception);
+        LOGGER.log(
+            Level.WARNING,
+            exception,
+            () -> Messages.get(
+                "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
+        throw new SQLException(Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"), exception);
       }
     }
     return fetched;
@@ -225,7 +235,12 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * @return true, if specified exception is caused by unsuccessful login attempt.
    */
   private boolean isLoginUnsuccessful(SQLException exception) {
-    LOGGER.log(Level.WARNING, "Login failed. SQLState=" + exception.getSQLState(), exception);
+    LOGGER.log(
+        Level.WARNING,
+        exception,
+        () -> Messages.get(
+            "AwsSecretsManagerConnectionPlugin.failedLogin",
+            new Object[] {exception.getSQLState()}));
     return SQLSTATE_ACCESS_ERROR.contains(exception.getSQLState());
   }
 

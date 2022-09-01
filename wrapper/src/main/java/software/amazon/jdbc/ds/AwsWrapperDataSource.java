@@ -40,6 +40,7 @@ import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.ConnectionUrlParser;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -84,7 +85,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     this.password = password;
 
     if (isNullOrEmpty(this.targetDataSourceClassName) && isNullOrEmpty(this.jdbcUrl)) {
-      throw new SQLException("Target data source class name or JDBC url is required.");
+      throw new SQLException(Messages.get("AwsWrapperDataSource.missingTarget"));
     }
 
     Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
@@ -119,8 +120,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       }
 
       if (isNullOrEmpty(this.jdbcUrl)) {
-        throw new SQLException(
-            "No JDBC URL was provided, or a JDBC URL couldn't be built from the provided information.");
+        throw new SQLException(Messages.get("AwsWrapperDataSource.missingUrl"));
       }
       PropertyUtils.applyProperties(targetDataSource, props);
 
@@ -141,7 +141,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       java.sql.Driver targetDriver = DriverManager.getDriver(this.jdbcUrl);
 
       if (targetDriver == null) {
-        throw new SQLException("Can't find a suitable driver for " + this.jdbcUrl);
+        throw new SQLException(Messages.get("AwsWrapperDataSource.missingDriver", new Object[] {this.jdbcUrl}));
       }
 
       parsePropertiesFromUrl(this.jdbcUrl, props);

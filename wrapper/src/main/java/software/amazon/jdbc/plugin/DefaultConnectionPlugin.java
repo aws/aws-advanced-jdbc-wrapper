@@ -40,6 +40,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
@@ -89,7 +90,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       Object[] jdbcMethodArgs)
       throws E {
 
-    LOGGER.log(Level.FINEST, String.format("Executing method %s", methodName));
+    LOGGER.finest(
+        () -> Messages.get(
+            "DefaultConnectionPlugin.executingMethod",
+            new Object[] {methodName}));
     final T result = jdbcMethodFunc.call();
 
     if (!(methodName.contains("execute") && jdbcMethodArgs != null && jdbcMethodArgs.length >= 1)) {

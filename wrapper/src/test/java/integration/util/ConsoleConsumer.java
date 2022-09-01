@@ -18,6 +18,7 @@ package integration.util;
 
 import org.testcontainers.containers.output.BaseConsumer;
 import org.testcontainers.containers.output.OutputFrame;
+import software.amazon.jdbc.util.Messages;
 
 public class ConsoleConsumer
     extends BaseConsumer<org.testcontainers.containers.output.Slf4jLogConsumer> {
@@ -57,7 +58,10 @@ public class ConsoleConsumer
         }
         break;
       default:
-        throw new IllegalArgumentException("Unexpected outputType " + outputType);
+        throw new IllegalArgumentException(
+            Messages.get(
+                "ConsoleConsumer.unexpectedOutputType",
+                new Object[] {outputType}));
     }
   }
 }
