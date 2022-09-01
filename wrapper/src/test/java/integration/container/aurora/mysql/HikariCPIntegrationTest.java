@@ -106,7 +106,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   }
 
   /**
-   * After getting successful connections from the pool, the cluster becomes unavailable
+   * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @Test
   public void test_1_1_hikariCP_lost_connection() throws SQLException {
@@ -126,7 +126,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   /**
    * After getting a successful connection from the pool, the connected instance becomes unavailable and the
    * connection fails over to another instance. A connection is then retrieved to check that connections
-   * to failed instances are not returned
+   * to failed instances are not returned.
    */
   @Test
   public void test_1_2_hikariCP_get_dead_connection() throws SQLException {
@@ -165,7 +165,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
 
   /**
    * After getting a successful connection from the pool, the connected instance becomes unavailable and the
-   * connection fails over to another instance through the Enhanced Failure Monitor
+   * connection fails over to another instance through the Enhanced Failure Monitor.
    */
   @Test
   public void test_2_1_hikariCP_efm_failover() throws SQLException {

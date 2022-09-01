@@ -16,17 +16,9 @@
 
 package integration.container.aurora.mysql;
 
-import com.mysql.cj.conf.PropertyKey;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import com.mysql.cj.conf.PropertyKey;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,10 +31,16 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
-import software.amazon.jdbc.PropertyDefinition;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
-
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
   private static final int REPEAT_TIMES = 5;
@@ -59,9 +57,12 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
 
   @AfterAll
   public static void cleanUp() throws IOException {
-    doWritePerfDataToFile("./build/reports/tests/FailureDetectionResults_EnhancedMonitoring.xlsx", enhancedFailureMonitoringPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/FailoverPerformanceResults_EnhancedMonitoring.xlsx", failoverWithEfmPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/FailoverPerformanceResults_SocketTimeout.xlsx", failoverWithSocketTimeoutPerfDataList);
+    doWritePerfDataToFile("./build/reports/tests/FailureDetectionResults_EnhancedMonitoring.xlsx",
+        enhancedFailureMonitoringPerfDataList);
+    doWritePerfDataToFile("./build/reports/tests/FailoverPerformanceResults_EnhancedMonitoring.xlsx",
+        failoverWithEfmPerfDataList);
+    doWritePerfDataToFile("./build/reports/tests/FailoverPerformanceResults_SocketTimeout.xlsx",
+        failoverWithSocketTimeoutPerfDataList);
   }
 
   private static void doWritePerfDataToFile(String fileName, List<? extends PerfStatBase> dataList) throws IOException {
@@ -132,7 +133,7 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
     props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
     props.setProperty("failureDetectionCount", Integer.toString(detectionCount));
-//    props.setProperty("enableClusterAwareFailover", Boolean.TRUE.toString());
+    //  props.setProperty("enableClusterAwareFailover", Boolean.TRUE.toString());
     props.setProperty("wrapperPlugins", "failover,efm");
     props.setProperty("failoverTimeoutMs", Integer.toString(40000));
 
@@ -153,7 +154,7 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
     props.setProperty(PropertyKey.socketTimeout.getKeyName(), Integer.toString(socketTimeout));
     // Loads just failover plugin; don't load Enhanced Failure Monitoring plugin
     props.setProperty("connectionPluginFactories", FailoverConnectionPluginFactory.class.getName());
-//    props.setProperty("enableClusterAwareFailover", Boolean.TRUE.toString());
+    //  props.setProperty("enableClusterAwareFailover", Boolean.TRUE.toString());
     props.setProperty("wrapperPlugins", "failover");
     props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
 
@@ -188,7 +189,8 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
         }
       });
 
-      try (final Connection conn = openConnectionWithRetry(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props);
+      try (final Connection conn = openConnectionWithRetry(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX,
+          MYSQL_PROXY_PORT, props);
           final Statement statement = conn.createStatement()) {
 
         conn.setReadOnly(openReadOnlyConnection);
@@ -211,12 +213,12 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
 
     int min = elapsedTimes.stream().min(Integer::compare).orElse(0);
     int max = elapsedTimes.stream().max(Integer::compare).orElse(0);
-    int avg = (int)elapsedTimes.stream().mapToInt(a -> a).summaryStatistics().getAverage();
+    int avg = (int) elapsedTimes.stream().mapToInt(a -> a).summaryStatistics().getAverage();
 
-    data.paramNetworkOutageDelayMillis = sleepDelayMillis;
     data.minFailureDetectionTimeMillis = min;
     data.maxFailureDetectionTimeMillis = max;
     data.avgFailureDetectionTimeMillis = avg;
+    data.paramNetworkOutageDelayMillis = sleepDelayMillis;
   }
 
   private Connection openConnectionWithRetry(String url, int port, Properties props) {
@@ -283,6 +285,7 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
     public int avgFailureDetectionTimeMillis;
 
     public abstract void writeHeader(Row row);
+
     public abstract void writeData(Row row);
   }
 
