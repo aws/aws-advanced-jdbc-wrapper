@@ -57,11 +57,11 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
 
   @AfterAll
   public static void cleanUp() throws IOException {
-    doWritePerfDataToFile("./build/reports/tests/FailureDetectionResults_EnhancedMonitoring.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
         enhancedFailureMonitoringPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/FailoverPerformanceResults_EnhancedMonitoring.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/MysqlFailoverPerformanceResults_EnhancedMonitoring.xlsx",
         failoverWithEfmPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/FailoverPerformanceResults_SocketTimeout.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/MysqlFailoverPerformanceResults_SocketTimeout.xlsx",
         failoverWithSocketTimeoutPerfDataList);
   }
 
