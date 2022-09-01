@@ -34,7 +34,7 @@ IAM database authentication use is limited to certain database engines. For more
 | `iamRegion`                               | String  |    No    | This property will override the default region that is used to generate the IAM token. The default region is parsed from the connection string.                                                                                                                                                                        | `us-east-2`   |
 | `iamExpiration`                           | Integer |    No    | This property will override the default expiration time that is assigned to the generated IAM token. The default expiration time is set to be 15 minutes.                                                                                                                                                              | `600`         |
 
-**Note:** While using the IAM Authentication plugin, we need to pass the username and token to underlying driver. This is why it is necessary to have the parameters `wrapperTargetDriverUserPropertyName` and `wrapperTargetDriverPasswordPropertyName`. These properties help the wrapper driver recognize and pass credentials to the underlying driver. 
+**Note:** While using the IAM Authentication plugin, we need to pass the username and token to underlying driver. This is why it is necessary to have the parameters `wrapperTargetDriverUserPropertyName` and `wrapperTargetDriverPasswordPropertyName`. These properties help the JDBC Driver recognize and pass credentials to the underlying driver. 
 
 
 

@@ -1,5 +1,5 @@
 # Connecting with a DataSource
-You can use the `DriverManager` class or a datasource to establish a new connection when using the JDBC Wrapper. The JDBC Wrapper has a built-in datasource class named [AwsWrapperDataSource](../../wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java) that allows the JDBC Wrapper to work with various driver-specific datasources.
+You can use the `DriverManager` class or a datasource to establish a new connection when using the JDBC Driver. The JDBC Driver has a built-in datasource class named [AwsWrapperDataSource](../../wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java) that allows the wrapper to work with various driver-specific datasources.
 
 ## Using the AwsWrapperDataSource
 
@@ -11,7 +11,7 @@ To establish a connection with the AwsWrapperDataSource, you must:
 
 ### Configurable DataSource Properties
 
-To allow the AWS Advanced JDBC Wrapper to work with multiple driver-specific datasources,
+To allow the AWS Advanced JDBC Driver to work with multiple driver-specific datasources,
 you need to specify what property names the underlying datasource uses.
 For example, one datasource implementation could use the method `setUser` to set the datasource username,
 while another might use the method `setUsername` for the same task. See the table below for a list of configurable property names.
@@ -28,13 +28,13 @@ while another might use the method `setUsername` for the same task. See the tabl
 | Password name               | `setPasswordPropertyName`      | The name of the password property.                                                             | `String` | No                                                                                                    | `password`                             |
 | JDBC URL                    | `setJdbcUrl`                   | The URL to connect with.                                                                       | `String` | No, if there is enough information provided by the other properties that can be used to create a URL. | `jdbc:postgresql://localhost/postgres` |
 | JDBC protocol               | `setJdbcProtocol`              | The JDBC protocol that will be used.                                                           | `String` | Yes, if the JDBC URL has not been set.                                                                | `jdbc:postgresql:`                     |
-| Underlying DataSource class | `setTargetDataSourceClassName` | The fully qualified class name of the underlying DataSource class the JDBC Wrapper should use. | `String` | Yes, if the JDBC URL has not been set.                                                                | `org.postgresql.ds.PGSimpleDataSource` |
+| Underlying DataSource class | `setTargetDataSourceClassName` | The fully qualified class name of the underlying DataSource class the JDBC Driver should use. | `String` | Yes, if the JDBC URL has not been set.                                                                | `org.postgresql.ds.PGSimpleDataSource` |
 
 ## Using the AwsWrapperDataSource with Connection Pooling Frameworks
 
-The JDBC Wrapper also supports establishing a connection with a connection pooling framework.
+The JDBC Driver also supports establishing a connection with a connection pooling framework.
 
-To use the JDBC Wrapper with a connection pool, you must:
+To use the JDBC Driver with a connection pool, you must:
 
 1. Configure the connection pool.
 2. Set the datasource class name to `software.amazon.jdbc.ds.AwsWrapperDataSource` for the connection pool.
