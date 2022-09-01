@@ -41,6 +41,7 @@ import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -134,7 +135,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
     if (profileName != null) {
 
       if (!DriverConfigurationProfiles.contains(profileName)) {
-        throw new SQLException(String.format("Configuration profile '%s' not found.", profileName));
+        throw new SQLException(
+            Messages.get(
+                "ConnectionPluginManager.configurationProfileNotFound",
+                new String[] {profileName}));
       }
       pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
 
@@ -151,7 +155,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
       for (String pluginCode : pluginCodeList) {
         if (!pluginFactoriesByCode.containsKey(pluginCode)) {
-          throw new SQLException(String.format("Unknown plugin code '%s'.", pluginCode));
+          throw new SQLException(
+              Messages.get(
+                  "ConnectionPluginManager.unknownPluginCode",
+                  new String[] {pluginCode}));
         }
         pluginFactories.add(pluginFactoriesByCode.get(pluginCode));
       }
@@ -163,7 +170,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
             WrapperUtils.loadClasses(
                     pluginFactories,
                     ConnectionPluginFactory.class,
-                    "Unable to load connection plugin factory '%s'.")
+                    Messages.get("ConnectionPluginManager.unableToLoadPlugin"))
                 .toArray(new ConnectionPluginFactory[0]);
 
         // make a chain of connection plugins

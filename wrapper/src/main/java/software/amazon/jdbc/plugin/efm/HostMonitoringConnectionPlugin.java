@@ -40,6 +40,7 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -156,7 +157,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
     try {
       LOGGER.log(
-          Level.FINEST, String.format("Executing method %s, monitoring is activated", methodName));
+          Level.FINEST,
+          Messages.get(
+              "HostMonitoringConnectionPlugin.1",
+              new String[] {methodName}));
 
       this.nodeKeys.clear();
       this.nodeKeys.addAll(this.pluginService.getCurrentHostSpec().asAliases());
@@ -193,14 +197,17 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
             throw castException(
                 exceptionClass,
                 new SQLException(
-                    String.format(
-                        "Node [%s] is unavailable.",
-                        this.pluginService.getCurrentHostSpec().asAlias())));
+                        Messages.get(
+                            "HostMonitoringConnectionPlugin.2",
+                            new String[] {this.pluginService.getCurrentHostSpec().asAlias()})));
           }
         }
       }
       LOGGER.log(
-          Level.FINEST, String.format("Executed method %s, monitoring is deactivated", methodName));
+          Level.FINEST,
+          Messages.get(
+              "HostMonitoringConnectionPlugin.1",
+              new String[] {methodName}));
     }
 
     return result;
@@ -279,7 +286,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
     } catch (SQLException sqlException) {
       // log and ignore
-      LOGGER.log(Level.FINEST, "Could not retrieve Host:Port for connection.");
+      LOGGER.log(Level.FINEST, Messages.get("HostMonitoringConnectionPlugin.3"));
     }
   }
 
@@ -290,7 +297,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       return MYSQL_RETRIEVE_HOST_PORT_SQL;
     } else {
       throw new UnsupportedOperationException(
-          String.format("Driver protocol '%s' is not supported.", driverProtocol));
+          Messages.get(
+              "HostMonitoringConnectionPlugin.4",
+              new String[] {driverProtocol}));
     }
   }
 

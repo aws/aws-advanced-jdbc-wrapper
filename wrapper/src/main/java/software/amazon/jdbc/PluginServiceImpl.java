@@ -72,7 +72,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   public HostSpec getCurrentHostSpec() {
     if (this.currentHostSpec == null) {
       if (this.getHosts().isEmpty()) {
-        throw new RuntimeException("Current host list is empty.");
+        throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
       }
       this.currentHostSpec = this.getHosts().get(0);
     }
@@ -184,7 +184,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       try {
         this.refreshHostList();
       } catch (SQLException e) {
-        LOGGER.log(Level.FINEST, "Exception while getting a host list.", e);
+        LOGGER.log(Level.FINEST, Messages.get("PluginServiceImpl.hostListException"), e);
       }
     }
     return this.hosts;
@@ -204,7 +204,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
         .collect(Collectors.toList());
 
     if (hostsToChange.isEmpty()) {
-      LOGGER.log(Level.FINEST, String.format("Can't find any host by the following aliases: %s.", hostAliases));
+      LOGGER.log(Level.FINEST, Messages.get("PluginServiceImpl.hostAliasNotFound", new Set[] {hostAliases}));
       return;
     }
 
@@ -344,7 +344,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
   @Override
   public void releaseResources() {
-    LOGGER.log(Level.FINE, "releasing resources");
+    LOGGER.log(Level.FINE, Messages.get("PluginServiceImpl.releaseResources"));
 
     try {
       if (this.currentConnection != null && !this.currentConnection.isClosed()) {

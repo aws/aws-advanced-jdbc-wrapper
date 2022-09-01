@@ -95,7 +95,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     if (StringUtils.isNullOrEmpty(secretId)) {
       throw new
           RuntimeException(
-              String.format("Configuration parameter '%s' is required.",
+              String.format("AwsSecretsManagerConnectionPlugin.4",
               SECRET_ID_PROPERTY.name));
     }
 
@@ -103,13 +103,15 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     if (StringUtils.isNullOrEmpty(regionString)) {
       throw new
           RuntimeException(
-              String.format("Configuration parameter '%s' is required.",
+              String.format("AwsSecretsManagerConnectionPlugin.4",
               REGION_PROPERTY.name));
     }
 
     final Region region = Region.of(regionString);
     if (!Region.regions().contains(region)) {
-      throw new RuntimeException(String.format("Region '%s' is not valid.", regionString));
+      throw new RuntimeException(Messages.get(
+          "IamAuthConnectionPlugin.unsupportedRegion",
+          new String[] {regionString}));
     }
     this.secretKey = Pair.of(secretId, region);
 
