@@ -62,7 +62,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
   }
 
   /**
-   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer Driver failover
+   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer. Driver failover
    * occurs when executing a method against an object bound to the connection (eg a Statement object created by the
    * connection).
    */

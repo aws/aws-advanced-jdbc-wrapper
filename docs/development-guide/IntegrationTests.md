@@ -17,13 +17,13 @@
 ### Aurora Integration Tests
 
 The Aurora integration tests are focused on testing connection strings and failover capabilities of any driver.
-The tests are run in docker but make a connection to test against an Aurora cluster.
+The tests are run in Docker but make a connection to test against an Aurora cluster.
 PostgreSQL and MySQL tests are currently supported.
 
 ### Standard Integration Tests
 
-The Standard integration tests are focused on testing connection strings against a local database inside a docker container.
-PostgreSQL and mySQL tests are currently supported.
+The Standard integration tests are focused on testing connection strings against a local database inside a Docker container.
+PostgreSQL and MySQL tests are currently supported.
 
 ### Running the Integration Tests
 Please view [this](/docs/driver-specific/postgresql/postgresql.md) page for further instructions on how to run the PostgreSQL integration tests.
