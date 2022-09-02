@@ -371,7 +371,7 @@ public class WrapperUtils {
       }
 
     } catch (Throwable t) {
-      throw new InstantiationException(String.format(errorMessage, className));
+      throw new InstantiationException(Messages.get(errorMessage, new String[] {className}));
     }
 
     return instances;
