@@ -394,7 +394,7 @@ public class WrapperUtils {
       }
 
     } catch (Throwable t) {
-      throw new InstantiationException(String.format(errorMessage, lastClass.getName()));
+      throw new InstantiationException(Messages.get(errorMessage, new String[] {lastClass.getName()}));
     }
 
     return instances;

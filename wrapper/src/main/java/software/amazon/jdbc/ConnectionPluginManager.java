@@ -170,7 +170,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
             WrapperUtils.loadClasses(
                     pluginFactories,
                     ConnectionPluginFactory.class,
-                    Messages.get("ConnectionPluginManager.unableToLoadPlugin"))
+                    "ConnectionPluginManager.unableToLoadPlugin")
                 .toArray(new ConnectionPluginFactory[0]);
 
         // make a chain of connection plugins
