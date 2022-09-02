@@ -12,7 +12,7 @@ to establish connections.
 
 The plugin service uses the host list provider to retrieve the most recent host information or topology information about the database.
 
-The JDBC Wrapper has two host list providers, the `ConnectionStringHostListProvider` and the `AuroraHostListPovider`.
+The JDBC Driver has two host list providers, the `ConnectionStringHostListProvider` and the `AuroraHostListPovider`.
 
 The `ConnectionStringHostListProvider` is the default provider, it parses the connection string for cluster information and stores the information.
 The provider supports having multiple hosts with the same port in the connection string:

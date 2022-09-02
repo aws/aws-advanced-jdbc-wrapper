@@ -3,7 +3,7 @@
 ### Setup
 Make sure you have Amazon Corretto 8+ or Java 8+ installed.
 
-Clone the JDBC Wrapper repository:
+Clone the JDBC Driver repository:
 
 ```bash
 git clone https://github.com/awslabs/aws-advanced-jdbc-wrapper.git
@@ -11,12 +11,12 @@ git clone https://github.com/awslabs/aws-advanced-jdbc-wrapper.git
 
 You can now make changes in the repository.
 
-### Building the AWS Advanced JDBC Wrapper
+### Building the AWS Advanced JDBC Driver
 Navigate to project root:
 ```bash
 cd aws-advanced-jdbc-wrapper
 ```
-To build the AWS Advanced JDBC Wrapper without running the tests:
+To build the AWS Advanced JDBC Driver without running the tests:
 Mac:
 ```bash
 ./gradlew build -x test
@@ -38,7 +38,7 @@ gradlew build
 ```
 
 ## Running the Tests
-After building the JDBC Wrapper you can now run the unit tests.
+After building the JDBC Driver you can now run the unit tests.
 This will also validate your environment is set up correctly.
 
 Mac:
@@ -59,4 +59,4 @@ For running driver-specific tests see these links: <br />
 [Connection Test Sample Code](/docs/driver-specific/postgresql/ConnectionTestSample.java)
 
 ## Architecture
-For more information on how the AWS Advanced JDBC Wrapper functions and how it is structured, please visit [Architecture](./Architecture.md).
+For more information on how the AWS Advanced JDBC Driver functions and how it is structured, please visit [Architecture](./Architecture.md).
