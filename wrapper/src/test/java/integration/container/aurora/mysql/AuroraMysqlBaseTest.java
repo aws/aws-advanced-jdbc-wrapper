@@ -295,7 +295,7 @@ public abstract class AuroraMysqlBaseTest {
     final String url =
         DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
     return this.containerHelper.getAuroraInstanceEndpoints(
-        url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, dbConnHostBase, "mysql");
+        url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, dbConnHostBase);
   }
 
   // Return list of instance Ids.

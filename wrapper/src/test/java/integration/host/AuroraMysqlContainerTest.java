@@ -146,8 +146,7 @@ public class AuroraMysqlContainerTest {
             DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_MYSQL_DB + DB_CONN_PROP,
             AURORA_MYSQL_USERNAME,
             AURORA_MYSQL_PASSWORD,
-            dbConnStrSuffix,
-            "mysql");
+            dbConnStrSuffix);
     proxyContainers =
         containerHelper.createProxyContainers(
             network, mysqlInstances, PROXIED_DOMAIN_NAME_SUFFIX);

@@ -44,7 +44,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 
 public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
   private static final int REPEAT_TIMES = 5;
-  private static final int TIMEOUT = 1;
+  private static final int TIMEOUT = 1000;
   private static final int FAILOVER_TIMEOUT_MS = 40000;
   private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList = new ArrayList<>();
   private static final List<PerfStatMonitoring> failoverWithEfmPerfDataList = new ArrayList<>();
@@ -57,11 +57,11 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
 
   @AfterAll
   public static void cleanUp() throws IOException {
-    doWritePerfDataToFile("./build/reports/tests/MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
         enhancedFailureMonitoringPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/MysqlFailoverPerformanceResults_EnhancedMonitoring.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/MysqlFailoverPerformanceResults_EnhancedMonitoring.xlsx",
         failoverWithEfmPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/MysqlFailoverPerformanceResults_SocketTimeout.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/MysqlFailoverPerformanceResults_SocketTimeout.xlsx",
         failoverWithSocketTimeoutPerfDataList);
   }
 

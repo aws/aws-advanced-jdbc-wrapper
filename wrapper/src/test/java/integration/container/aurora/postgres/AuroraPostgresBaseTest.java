@@ -279,7 +279,7 @@ public abstract class AuroraPostgresBaseTest {
     final String url =
         DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB;
     return this.containerHelper.getAuroraInstanceEndpoints(
-        url, AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, dbConnHostBase, "postgres");
+        url, AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, dbConnHostBase);
   }
 
   // Return list of instance Ids.

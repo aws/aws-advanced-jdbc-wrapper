@@ -133,8 +133,7 @@ public class AuroraPostgresContainerTest {
             DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_POSTGRES_DB + DB_CONN_PROP,
             AURORA_POSTGRES_USERNAME,
             AURORA_POSTGRES_PASSWORD,
-            dbConnStrSuffix,
-            "postgres");
+            dbConnStrSuffix);
     proxyContainers =
         containerHelper.createProxyContainers(
             network, postgresInstances, PROXIED_DOMAIN_NAME_SUFFIX);

@@ -274,10 +274,10 @@ public class ContainerHelper {
   }
 
   public List<String> getAuroraInstanceEndpoints(
-      String connectionUrl, String userName, String password, String hostBase, String database) throws SQLException {
+      String connectionUrl, String userName, String password, String hostBase) throws SQLException {
 
     String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
-    if (database.equals("mysql")) {
+    if (connectionUrl.contains("mysql")) {
       retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_MYSQL;
     }
     ArrayList<String> auroraInstances = new ArrayList<>();
