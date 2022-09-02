@@ -1,4 +1,4 @@
-# Using the PostgreSQL JDBC Driver with AWS Advanced JDBC Wrapper
+# Using the PostgreSQL JDBC Driver with AWS Advanced JDBC Driver
 
 ### Prerequisites
 
@@ -29,7 +29,7 @@ set AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY | set AWS_ACC
 
 The Aurora integration tests are focused on testing connection strings and failover capabilities of any driver
 PostgreSQL tests are currently supported, MySQL tests will be added in the future.
-The tests are run in docker but make a connection to test against an Aurora cluster.
+The tests are run in Docker but make a connection to test against an Aurora cluster.
 
 macOS:
 ```bash
@@ -41,7 +41,7 @@ cmd /c gradlew --no-parallel --no-daemon test-integration-aurora-postgres
 ```
 #### Standard Integration Tests
 
-The Standard integration tests are focused on testing connection strings against a local database inside a docker container.
+The Standard integration tests are focused on testing connection strings against a local database inside a Docker container.
 PostgreSQL and mySQL tests are currently supported.
 
 macOS:
