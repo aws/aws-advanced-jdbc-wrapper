@@ -465,26 +465,26 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // "Invalid value for the 'clusterInstanceHostPattern' configuration setting - the host
       // pattern must contain a '?'
       // character as a placeholder for the DB instance identifiers of the instances in the cluster"
-      final String message = Messages.get("AuroraHostListProvider.invalidPattern");
-      LOGGER.severe(() -> message);
+      LOGGER.severe(() -> Messages.get("AuroraHostListProvider.invalidPattern"));
       throw new RuntimeException(Messages.get("AuroraHostListProvider.invalidPattern"));
     }
 
     final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(hostPattern);
     if (rdsUrlType == RdsUrlType.RDS_PROXY) {
       // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
-      final String message = Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
-      LOGGER.severe(() -> message);
-      throw new RuntimeException(message);
+      LOGGER.severe(() -> Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy"));
+      throw new RuntimeException(
+          Messages.get(
+              "AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy"));
     }
 
     if (rdsUrlType == RdsUrlType.RDS_CUSTOM_CLUSTER) {
       // "An RDS Custom Cluster endpoint can't be used as the 'clusterInstanceHostPattern'
       // configuration setting."
-      final String message =
-          Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom");
-      LOGGER.severe(() -> message);
-      throw new RuntimeException(message);
+      LOGGER.severe(() -> Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom"));
+      throw new RuntimeException(
+          Messages.get(
+              "AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom"));
     }
   }
 

@@ -122,7 +122,7 @@ public class MonitorServiceImpl implements MonitorService {
       }
     }
 
-    LOGGER.finest(Messages.get("MonitorServiceImpl.monitorNotFoundForContext"));
+    LOGGER.finest(() -> Messages.get("MonitorServiceImpl.monitorNotFoundForContext"));
   }
 
   @Override
@@ -147,7 +147,7 @@ public class MonitorServiceImpl implements MonitorService {
   @Override
   public void notifyUnused(Monitor monitor) {
     if (monitor == null) {
-      LOGGER.warning(Messages.get("MonitorServiceImpl.nullMonitorParam"));
+      LOGGER.warning(() -> Messages.get("MonitorServiceImpl.nullMonitorParam"));
       return;
     }
 

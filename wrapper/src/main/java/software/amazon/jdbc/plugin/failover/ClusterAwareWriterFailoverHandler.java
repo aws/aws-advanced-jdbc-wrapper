@@ -95,7 +95,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   public WriterFailoverResult failover(List<HostSpec> currentTopology)
       throws SQLException {
     if (Utils.isNullOrEmpty(currentTopology)) {
-      LOGGER.severe(Messages.get("ClusterAwareWriterFailoverHandler.failoverCalledWithInvalidTopology"));
+      LOGGER.severe(() -> Messages.get("ClusterAwareWriterFailoverHandler.failoverCalledWithInvalidTopology"));
       return DEFAULT_RESULT;
     }
 
@@ -114,8 +114,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         return result;
       }
 
-      LOGGER.fine(
-          Messages.get("ClusterAwareWriterFailoverHandler.failedToConnectToWriterInstance"));
+      LOGGER.fine(() -> Messages.get("ClusterAwareWriterFailoverHandler.failedToConnectToWriterInstance"));
       return DEFAULT_RESULT;
     } finally {
       if (!executorService.isTerminated()) {
@@ -272,7 +271,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         Thread.currentThread().interrupt();
         return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, "TaskA");
       } catch (Exception ex) {
-        LOGGER.severe(ex.getMessage());
+        LOGGER.severe(() -> ex.getMessage());
         return new WriterFailoverResult(false, false, null, null, "TaskA");
       } finally {
         try {
@@ -366,7 +365,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         } catch (SQLException e) {
           // ignore
         }
-        LOGGER.fine(Messages.get("ClusterAwareWriterFailoverHandler.taskBFailedToConnectToAnyReader"));
+        LOGGER.fine(() -> Messages.get("ClusterAwareWriterFailoverHandler.taskBFailedToConnectToAnyReader"));
         TimeUnit.SECONDS.sleep(1);
       }
     }

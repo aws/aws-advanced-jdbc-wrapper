@@ -95,16 +95,17 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     if (StringUtils.isNullOrEmpty(secretId)) {
       throw new
           RuntimeException(
-              String.format("AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
-              SECRET_ID_PROPERTY.name));
+          Messages.get(
+              "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
+              new String[] {SECRET_ID_PROPERTY.name}));
     }
 
     final String regionString = REGION_PROPERTY.getString(props);
     if (StringUtils.isNullOrEmpty(regionString)) {
-      throw new
-          RuntimeException(
-              String.format("AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
-              REGION_PROPERTY.name));
+      throw new RuntimeException(
+          Messages.get(
+              "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
+              new String[] {REGION_PROPERTY.name}));
     }
 
     final Region region = Region.of(regionString);

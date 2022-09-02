@@ -432,7 +432,7 @@ public class WrapperUtils {
     } catch (Exception e) {
       throw new InstantiationException(
           Messages.get(
-              "WrapperUtils.noWrapperClassExists",
+              "WrapperUtils.failedToInitializeClass",
               new String[] {classToInstantiate.getName()}));
     }
   }
@@ -455,7 +455,7 @@ public class WrapperUtils {
     } catch (Exception e) {
       throw new InstantiationException(
           Messages.get(
-              "WrapperUtils.noWrapperClassExists",
+              "WrapperUtils.failedToInitializeClass",
               new String[] {className}));
     }
 

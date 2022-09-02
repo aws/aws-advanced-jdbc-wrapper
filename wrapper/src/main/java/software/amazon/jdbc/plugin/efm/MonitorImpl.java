@@ -103,7 +103,7 @@ public class MonitorImpl implements Monitor {
   @Override
   public void stopMonitoring(MonitorConnectionContext context) {
     if (context == null) {
-      LOGGER.warning(Messages.get("MonitorImpl.contextNullWarning"));
+      LOGGER.warning(() -> Messages.get("MonitorImpl.contextNullWarning"));
       return;
     }
 
@@ -195,8 +195,9 @@ public class MonitorImpl implements Monitor {
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis));
       return new ConnectionStatus(isValid, this.getCurrentTimeNano() - start);
     } catch (SQLException sqlEx) {
-      // LOGGER.log(Level.FINEST, String.format("[Monitor] Error checking connection status: %s",
-      // sqlEx.getMessage()));
+      // LOGGER.finest(
+      //     () -> Messages.get("MonitorImpl.errorConnectionStatus",
+      //         new String [] {sqlEx.getMessage()}));
       return new ConnectionStatus(false, this.getCurrentTimeNano() - start);
     }
   }

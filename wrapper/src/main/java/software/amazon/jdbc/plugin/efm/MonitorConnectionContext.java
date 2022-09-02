@@ -140,7 +140,7 @@ public class MonitorConnectionContext {
     } catch (SQLException sqlEx) {
       // ignore
       LOGGER.finest(
-          Messages.get(
+          () -> Messages.get(
               "MonitorConnectionContext.exceptionAbortingConnection",
               new String[] {sqlEx.getMessage()}));
     }

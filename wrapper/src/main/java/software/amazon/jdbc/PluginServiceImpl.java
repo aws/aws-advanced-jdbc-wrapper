@@ -184,7 +184,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       try {
         this.refreshHostList();
       } catch (SQLException e) {
-        LOGGER.finest(Messages.get("PluginServiceImpl.hostListException"));
+        LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostListException"));
       }
     }
     return this.hosts;
@@ -204,7 +204,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
         .collect(Collectors.toList());
 
     if (hostsToChange.isEmpty()) {
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostAliasNotFound", new Set[] {hostAliases}));
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostAliasNotFound", new Object[] {hostAliases}));
       return;
     }
 
@@ -344,7 +344,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
   @Override
   public void releaseResources() {
-    LOGGER.fine(Messages.get("PluginServiceImpl.releaseResources"));
+    LOGGER.fine(() -> Messages.get("PluginServiceImpl.releaseResources"));
 
     try {
       if (this.currentConnection != null && !this.currentConnection.isClosed()) {

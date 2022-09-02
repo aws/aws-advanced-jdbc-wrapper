@@ -282,7 +282,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
         sb.append(String.format("Host '%s': %s", change.getKey(), change.getValue()));
       }
-      LOGGER.finest(sb.toString());
+      LOGGER.finest(() -> sb.toString());
     }
 
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
@@ -429,7 +429,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                 .append(" host '")
                 .append(host.getUrl())
                 .append("' failed");
-        LOGGER.warning(String.format("%s: %s", msg, e.getMessage()));
+        LOGGER.warning(() -> String.format("%s: %s", msg, e.getMessage()));
       }
       throw e;
     }
@@ -646,7 +646,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
-    LOGGER.fine(Messages.get("Failover.startReaderFailover"));
+    LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
 
     HostSpec failedHost = null;
     final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
@@ -680,7 +680,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected void failoverWriter() throws SQLException {
-    LOGGER.fine(Messages.get("Failover.startWriterFailover"));
+    LOGGER.fine(() -> Messages.get("Failover.startWriterFailover"));
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
     WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
@@ -742,13 +742,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               HostAvailability.NOT_AVAILABLE));
       this.pluginService.setAvailability(originalHost.getAliases(), HostAvailability.NOT_AVAILABLE);
     } catch (SQLException e) {
-      LOGGER.fine(Messages.get("Failover.failedToUpdateCurrentHostspecAvailability"));
+      LOGGER.fine(() -> Messages.get("Failover.failedToUpdateCurrentHostspecAvailability"));
     }
   }
 
   protected synchronized void pickNewConnection() throws SQLException {
     if (this.isClosed && this.closedExplicitly) {
-      LOGGER.fine(Messages.get("Failover.transactionResolutionUnknownError"));
+      LOGGER.fine(() -> Messages.get("Failover.transactionResolutionUnknownError"));
       return;
     }
 
@@ -767,7 +767,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     // TODO: support other drivers
 
     if (!isFailoverEnabled()) {
-      LOGGER.fine(Messages.get("Failover.failoverDisabled"));
+      LOGGER.fine(() -> Messages.get("Failover.failoverDisabled"));
       return false;
     }
 

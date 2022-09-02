@@ -352,7 +352,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * connection.
    */
   public void releaseResources() {
-    LOGGER.fine(Messages.get("ConnectionPluginManager.releaseResources"));
+    LOGGER.fine(() -> Messages.get("ConnectionPluginManager.releaseResources"));
 
     // This step allows all connection plugins a chance to clean up any dangling resources or
     // perform any

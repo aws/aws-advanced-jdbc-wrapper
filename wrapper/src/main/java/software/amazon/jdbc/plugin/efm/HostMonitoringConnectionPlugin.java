@@ -196,9 +196,9 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
             throw castException(
                 exceptionClass,
                 new SQLException(
-                        Messages.get(
-                            "HostMonitoringConnectionPlugin.unavailableNode",
-                            new String[] {this.pluginService.getCurrentHostSpec().asAlias()})));
+                    Messages.get(
+                        "HostMonitoringConnectionPlugin.unavailableNode",
+                        new String[] {this.pluginService.getCurrentHostSpec().asAlias()})));
           }
         }
       }
@@ -284,7 +284,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
     } catch (SQLException sqlException) {
       // log and ignore
-      LOGGER.finest(Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
+      LOGGER.finest(() -> Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
     }
   }
 
