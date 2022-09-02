@@ -821,7 +821,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     try {
       if (this.openConnectionStacktrace != null) {
-        LOGGER.log(Level.WARNING,
+        LOGGER.log(
+            Level.WARNING,
             Messages.get(
                 "ConnectionWrapper.finalizingUnclosedConnection"),
             this.openConnectionStacktrace);

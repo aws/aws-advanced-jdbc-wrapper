@@ -185,7 +185,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           "IamAuthConnectionPlugin.unsupportedHostname",
           new String[] {hostname});
 
-      LOGGER.log(Level.FINEST, () -> exceptionMessage);
+      LOGGER.fine(() -> exceptionMessage);
       throw new SQLException(exceptionMessage);
     }
 
@@ -199,7 +199,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           "IamAuthConnectionPlugin.unsupportedRegion",
           new String[] {rdsRegion});
 
-      LOGGER.log(Level.FINEST, () -> exceptionMessage);
+      LOGGER.fine(() -> exceptionMessage);
       throw new SQLException((exceptionMessage));
     }
 

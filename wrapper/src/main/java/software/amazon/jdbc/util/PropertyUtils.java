@@ -74,11 +74,10 @@ public class PropertyUtils {
     }
 
     if (writeMethod == null) {
-      LOGGER.log(
-          Level.FINEST,
-          Messages.get(
+      LOGGER.finest(
+          () -> Messages.get(
               "PropertyUtils.setMethodDoesNotExistOnTarget",
-              new String[] {propName}), new Object[] {target.getClass()});
+              new Object[] {propName, target.getClass()}));
       return;
     }
 
@@ -96,10 +95,10 @@ public class PropertyUtils {
         writeMethod.invoke(target, propValue);
       }
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING,
-          Messages.get(
+      LOGGER.warning(
+          () -> Messages.get(
               "PropertyUtils.failedToSetProperty",
-              new String[] {propName}), new Object[] {target.getClass()});
+              new Object[] {propName, target.getClass()}));
     }
   }
 

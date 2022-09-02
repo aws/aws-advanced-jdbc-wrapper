@@ -83,9 +83,10 @@ public class MonitorServiceImpl implements MonitorService {
       int failureDetectionCount) {
 
     if (nodeKeys.isEmpty()) {
-      LOGGER.log(
-          Level.WARNING,
-          String.format("Empty alias set passed for %s. Set should not be empty.", hostSpec));
+      LOGGER.warning(
+          () -> Messages.get(
+              "MonitorServiceImpl.emptyAliasSet",
+              new Object[] {hostSpec}));
       hostSpec.addAlias(hostSpec.asAlias());
     }
 
@@ -121,9 +122,7 @@ public class MonitorServiceImpl implements MonitorService {
       }
     }
 
-    LOGGER.log(
-        Level.FINEST,
-        "Can't find monitor for context passed into MonitorServiceImpl.");
+    LOGGER.finest(Messages.get("MonitorServiceImpl.monitorNotFoundForContext"));
   }
 
   @Override
@@ -148,7 +147,7 @@ public class MonitorServiceImpl implements MonitorService {
   @Override
   public void notifyUnused(Monitor monitor) {
     if (monitor == null) {
-      LOGGER.log(Level.WARNING, Messages.get("MonitorServiceImpl.nullMonitorParam"));
+      LOGGER.warning(Messages.get("MonitorServiceImpl.nullMonitorParam"));
       return;
     }
 

@@ -52,8 +52,7 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
     T result = jdbcMethodFunc.call();
 
     final long elapsedTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-    LOGGER.log(
-        Level.FINE,
+    LOGGER.fine(
         () -> Messages.get(
             "ExecutionTimeConnectionPlugin.executionTime",
             new Object[] {methodName, elapsedTimeMillis}));

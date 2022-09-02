@@ -139,9 +139,10 @@ public class MonitorConnectionContext {
       this.connectionToAbort.close();
     } catch (SQLException sqlEx) {
       // ignore
-      LOGGER.log(
-          Level.FINEST,
-          Messages.get("MonitorConnectionContext.exceptionAbortingConnection", new String[] {sqlEx.getMessage()}));
+      LOGGER.finest(
+          Messages.get(
+              "MonitorConnectionContext.exceptionAbortingConnection",
+              new String[] {sqlEx.getMessage()}));
     }
   }
 
@@ -196,15 +197,14 @@ public class MonitorConnectionContext {
               * Math.max(0, this.getFailureDetectionCount());
 
       if (invalidNodeDurationNano >= TimeUnit.MILLISECONDS.toNanos(maxInvalidNodeDurationMillis)) {
-        LOGGER.log(Level.FINE, Messages.get("MonitorConnectionContext.hostDead", new Object[] {hostAliases}));
+        LOGGER.fine(() -> Messages.get("MonitorConnectionContext.hostDead", new Object[] {hostAliases}));
         this.setNodeUnhealthy(true);
         this.abortConnection();
         return;
       }
 
-      LOGGER.log(
-          Level.FINEST,
-              Messages.get(
+      LOGGER.finest(
+          () -> Messages.get(
                   "MonitorConnectionContext.hostNotResponding",
                   new Object[] {hostAliases, this.getFailureCount()}));
       return;
@@ -214,9 +214,8 @@ public class MonitorConnectionContext {
     this.resetInvalidNodeStartTime();
     this.setNodeUnhealthy(false);
 
-    LOGGER.log(
-        Level.FINEST,
-        Messages.get("MonitorConnectionContext.hostAlive",
+    LOGGER.finest(
+        () -> Messages.get("MonitorConnectionContext.hostAlive",
             new Object[] {hostAliases}));
   }
 }

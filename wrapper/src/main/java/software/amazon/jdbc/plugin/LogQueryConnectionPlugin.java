@@ -121,8 +121,7 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
     String sql = getQuery(methodInvokeOn, methodName, jdbcMethodArgs);
 
     if (!StringUtils.isNullOrEmpty(sql)) {
-      LOGGER.log(
-          Level.FINE,
+      LOGGER.fine(
           () -> Messages.get(
               "LogQueryConnectionPlugin.executingQuery",
               new Object[] {methodName, sql}));

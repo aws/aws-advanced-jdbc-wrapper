@@ -156,8 +156,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     MonitorConnectionContext monitorContext = null;
 
     try {
-      LOGGER.log(
-          Level.FINEST,
+      LOGGER.finest(
           () -> Messages.get(
               "HostMonitoringConnectionPlugin.activatedMonitoring",
               new String[] {methodName}));
@@ -203,8 +202,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           }
         }
       }
-      LOGGER.log(
-          Level.FINEST,
+      LOGGER.finest(
           () -> Messages.get(
               "HostMonitoringConnectionPlugin.activatedMonitoring",
               new String[] {methodName}));
@@ -286,7 +284,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
     } catch (SQLException sqlException) {
       // log and ignore
-      LOGGER.log(Level.FINEST, Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
+      LOGGER.finest(Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
     }
   }
 

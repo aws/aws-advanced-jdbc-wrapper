@@ -90,8 +90,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       Object[] jdbcMethodArgs)
       throws E {
 
-    LOGGER.log(
-        Level.FINEST,
+    LOGGER.finest(
         () -> Messages.get(
             "DefaultConnectionPlugin.executingMethod",
             new String[] {methodName}));
