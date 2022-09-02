@@ -123,7 +123,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   public ReaderFailoverResult failover(List<HostSpec> hosts, HostSpec currentHost)
       throws SQLException {
     if (Utils.isNullOrEmpty(hosts)) {
-      LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.6", new Object[] {"failover"}));
+      LOGGER.fine(() -> Messages.get("ClusterAwareReaderFailoverHandler.invalidTopology", new Object[] {"failover"}));
       return FAILED_READER_FAILOVER_RESULT;
     }
 
@@ -168,7 +168,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       return result == null ? defaultResult : result;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.1"), "70100", e);
+      throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.interruptedThread"), "70100", e);
     } catch (ExecutionException e) {
       return defaultResult;
     } catch (TimeoutException e) {
@@ -231,7 +231,10 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   public ReaderFailoverResult getReaderConnection(List<HostSpec> hostList)
       throws SQLException {
     if (Utils.isNullOrEmpty(hostList)) {
-      LOGGER.fine(Messages.get("ClusterAwareReaderFailover.6", new Object[] {"getReaderConnection"}));
+      LOGGER.fine(
+          () -> Messages.get(
+              "ClusterAwareReaderFailover.invalidTopology",
+              new Object[] {"getReaderConnection"}));
       return FAILED_READER_FAILOVER_RESULT;
     }
 
@@ -280,7 +283,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
           TimeUnit.SECONDS.sleep(1);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.1"), "70100", e);
+          throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.interruptedThread"), "70100", e);
         }
       }
 
@@ -336,7 +339,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       Thread.currentThread().interrupt();
       // "Thread was interrupted"
       throw new SQLException(
-          Messages.get("ClusterAwareReaderFailoverHandler.1"),
+          Messages.get("ClusterAwareReaderFailoverHandler.interruptedThread"),
           "70100",
           e);
     }
@@ -356,23 +359,23 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     @Override
     public ReaderFailoverResult call() {
       LOGGER.fine(
-          Messages.get(
-              "ClusterAwareReaderFailoverHandler.3",
+          () -> Messages.get(
+              "ClusterAwareReaderFailoverHandler.attemptingReaderConnection",
               new Object[] {this.newHost.getUrl()}));
 
       try {
         Connection conn = pluginService.connect(this.newHost, initialConnectionProps);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
         LOGGER.fine(
-            Messages.get(
-                "ClusterAwareReaderFailoverHandler.4",
+            () -> Messages.get(
+                "ClusterAwareReaderFailoverHandler.successfulReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
         return new ReaderFailoverResult(conn, this.newHost, true);
       } catch (SQLException e) {
         pluginService.setAvailability(newHost.asAliases(), HostAvailability.NOT_AVAILABLE);
         LOGGER.fine(
-            Messages.get(
-                "ClusterAwareReaderFailoverHandler.5",
+            () -> Messages.get(
+                "ClusterAwareReaderFailoverHandler.failedReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
         // Propagate exceptions that are not caused by network errors.
         if (!SqlState.isConnectionError(e)) {

@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * Monitoring context for each connection. This contains each connection's criteria for whether a
@@ -140,7 +141,7 @@ public class MonitorConnectionContext {
       // ignore
       LOGGER.log(
           Level.FINEST,
-          String.format("Exception during aborting connection: %s", sqlEx.getMessage()));
+          Messages.get("MonitorConnectionContext.exceptionAbortingConnection", new String[] {sqlEx.getMessage()}));
     }
   }
 
@@ -195,7 +196,7 @@ public class MonitorConnectionContext {
               * Math.max(0, this.getFailureDetectionCount());
 
       if (invalidNodeDurationNano >= TimeUnit.MILLISECONDS.toNanos(maxInvalidNodeDurationMillis)) {
-        LOGGER.log(Level.FINE, String.format("Host %s is *dead*.", hostAliases));
+        LOGGER.log(Level.FINE, Messages.get("MonitorConnectionContext.hostDead", new Object[] {hostAliases}));
         this.setNodeUnhealthy(true);
         this.abortConnection();
         return;
@@ -203,7 +204,9 @@ public class MonitorConnectionContext {
 
       LOGGER.log(
           Level.FINEST,
-          String.format("Host %s is not *responding* (%d).", hostAliases, this.getFailureCount()));
+              Messages.get(
+                  "MonitorConnectionContext.hostNotResponding",
+                  new Object[] {hostAliases, this.getFailureCount()}));
       return;
     }
 
@@ -211,6 +214,9 @@ public class MonitorConnectionContext {
     this.resetInvalidNodeStartTime();
     this.setNodeUnhealthy(false);
 
-    LOGGER.log(Level.FINEST, String.format("Host %s is *alive*.", hostAliases));
+    LOGGER.log(
+        Level.FINEST,
+        Messages.get("MonitorConnectionContext.hostAlive",
+            new Object[] {hostAliases}));
   }
 }

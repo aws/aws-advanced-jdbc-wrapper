@@ -40,7 +40,7 @@ public class ConnectionUrlBuilder {
     if (isNullOrEmpty(jdbcProtocol)
         || ((isNullOrEmpty(serverPropertyName) || isNullOrEmpty(props.getProperty(serverPropertyName)))
             && hostSpec == null)) {
-      throw new SQLException(Messages.get("ConnectionUrlBuilder.missingProtocol"));
+      throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
     }
 
     final Properties copy = PropertyUtils.copyProperties(props);

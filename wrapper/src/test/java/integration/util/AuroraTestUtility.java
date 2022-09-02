@@ -35,7 +35,6 @@ import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
@@ -114,10 +113,7 @@ public class AuroraTestUtility {
     if (regionOptional.isPresent()) {
       return regionOptional.get();
     }
-    throw new IllegalArgumentException(
-        Messages.get(
-            "IamAuthConnectionPlugin.unsupportedRegion",
-            new String[] {rdsRegion}));
+    throw new IllegalArgumentException(String.format("Unknown AWS region '%s'.", rdsRegion));
   }
 
   /**

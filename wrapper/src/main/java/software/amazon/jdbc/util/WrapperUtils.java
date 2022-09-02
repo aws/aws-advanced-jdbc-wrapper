@@ -264,7 +264,10 @@ public class WrapperUtils {
     }
 
     if (isJdbcInterface(toProxy.getClass())) {
-      throw new RuntimeException("No wrapper class exists for " + toProxy.getClass().getName());
+      throw new RuntimeException(
+          Messages.get(
+              "WrapperUtils.noWrapperClassExists",
+              new String[] {toProxy.getClass().getName()}));
     }
 
     return toProxy;
@@ -427,7 +430,10 @@ public class WrapperUtils {
       Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
       return resultClass.cast(constructor.newInstance(constructorArgs));
     } catch (Exception e) {
-      throw new InstantiationException("Can't initialize class " + classToInstantiate.getName());
+      throw new InstantiationException(
+          Messages.get(
+              "WrapperUtils.noWrapperClassExists",
+              new String[] {classToInstantiate.getName()}));
     }
   }
 
@@ -447,7 +453,10 @@ public class WrapperUtils {
     try {
       loaded = Class.forName(className);
     } catch (Exception e) {
-      throw new InstantiationException("Can't initialize class " + className);
+      throw new InstantiationException(
+          Messages.get(
+              "WrapperUtils.noWrapperClassExists",
+              new String[] {className}));
     }
 
     return createInstance(loaded, resultClass, null, constructorArgs);

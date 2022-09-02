@@ -60,7 +60,7 @@ public class ConsoleConsumer
       default:
         throw new IllegalArgumentException(
             Messages.get(
-                "ConsoleConsumer.1",
+                "ConsoleConsumer.unexpectedOutputType",
                 new Object[] {outputType}));
     }
   }

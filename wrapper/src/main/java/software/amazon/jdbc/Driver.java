@@ -81,7 +81,7 @@ public class Driver implements java.sql.Driver {
     java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 
     if (driver == null) {
-      LOGGER.log(Level.WARNING, Messages.get("AwsWrapperDataSource.missingDriver", new String[] {driverUrl}));
+      LOGGER.warning(() -> Messages.get("Driver.missingDriver", new String[] {driverUrl}));
       return null;
     }
 
@@ -184,10 +184,10 @@ public class Driver implements java.sql.Driver {
     try {
       return StringUtils.decode(url);
     } catch (IllegalArgumentException e) {
-      LOGGER.log(
-          Level.FINE,
-          "Url [{0}] parsing failed with error [{1}]",
-          new Object[] {url, e.getMessage()});
+      LOGGER.fine(
+          () -> Messages.get(
+              "Driver.urlParsingFailed",
+              new Object[] {url, e.getMessage()}));
     }
     return null;
   }

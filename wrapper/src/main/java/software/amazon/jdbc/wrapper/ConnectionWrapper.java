@@ -84,7 +84,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     init(props, pluginManager, pluginService, pluginService, pluginService);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
-      this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnection"));
+      this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
     }
   }
 
@@ -821,7 +821,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     try {
       if (this.openConnectionStacktrace != null) {
-        LOGGER.log(Level.WARNING, "ConnectionWrapper.finalizingUnclosedConnection", this.openConnectionStacktrace);
+        LOGGER.log(Level.WARNING,
+            Messages.get(
+                "ConnectionWrapper.finalizingUnclosedConnection"),
+            this.openConnectionStacktrace);
         this.openConnectionStacktrace = null;
       }
 

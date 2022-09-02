@@ -26,6 +26,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * This class handles the creation and clean up of monitoring threads to servers with one or more
@@ -147,7 +148,7 @@ public class MonitorServiceImpl implements MonitorService {
   @Override
   public void notifyUnused(Monitor monitor) {
     if (monitor == null) {
-      LOGGER.log(Level.WARNING, "Parameter 'monitor' should not be null.");
+      LOGGER.log(Level.WARNING, Messages.get("MonitorServiceImpl.nullMonitorParam"));
       return;
     }
 

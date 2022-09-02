@@ -255,8 +255,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     }
 
     if (writerCount == 0) {
-      LOGGER.log(
-          Level.SEVERE,
+      LOGGER.severe(
           "[AuroraHostListProvider] The topology query returned an invalid topology - no writer instance detected");
       hosts.clear();
     }
@@ -467,7 +466,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // pattern must contain a '?'
       // character as a placeholder for the DB instance identifiers of the instances in the cluster"
       final String message = Messages.get("AuroraHostListProvider.invalidPattern");
-      LOGGER.severe(message);
+      LOGGER.severe(() -> message);
       throw new RuntimeException(Messages.get("AuroraHostListProvider.invalidPattern"));
     }
 
@@ -475,7 +474,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     if (rdsUrlType == RdsUrlType.RDS_PROXY) {
       // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
       final String message = Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
-      LOGGER.severe(message);
+      LOGGER.severe(() -> message);
       throw new RuntimeException(message);
     }
 
@@ -484,7 +483,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // configuration setting."
       final String message =
           Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRdsCustom");
-      LOGGER.severe(message);
+      LOGGER.severe(() -> message);
       throw new RuntimeException(message);
     }
   }
@@ -503,7 +502,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
           .append(hostInfo == null ? "<null>" : hostInfo.getHost());
     }
     LOGGER.finer(
-        Messages.get("Failover.topologyObtained", new Object[] {msg.toString()}));
+        () -> Messages.get("Failover.topologyObtained", new Object[] {msg.toString()}));
   }
 
   /**

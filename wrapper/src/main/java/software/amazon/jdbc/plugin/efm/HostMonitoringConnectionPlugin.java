@@ -158,8 +158,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     try {
       LOGGER.log(
           Level.FINEST,
-          Messages.get(
-              "HostMonitoringConnectionPlugin.1",
+          () -> Messages.get(
+              "HostMonitoringConnectionPlugin.activatedMonitoring",
               new String[] {methodName}));
 
       this.nodeKeys.clear();
@@ -198,15 +198,15 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
                 exceptionClass,
                 new SQLException(
                         Messages.get(
-                            "HostMonitoringConnectionPlugin.2",
+                            "HostMonitoringConnectionPlugin.unavailableNode",
                             new String[] {this.pluginService.getCurrentHostSpec().asAlias()})));
           }
         }
       }
       LOGGER.log(
           Level.FINEST,
-          Messages.get(
-              "HostMonitoringConnectionPlugin.1",
+          () -> Messages.get(
+              "HostMonitoringConnectionPlugin.activatedMonitoring",
               new String[] {methodName}));
     }
 
@@ -286,7 +286,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
     } catch (SQLException sqlException) {
       // log and ignore
-      LOGGER.log(Level.FINEST, Messages.get("HostMonitoringConnectionPlugin.3"));
+      LOGGER.log(Level.FINEST, Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
     }
   }
 
@@ -298,7 +298,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     } else {
       throw new UnsupportedOperationException(
           Messages.get(
-              "HostMonitoringConnectionPlugin.4",
+              "HostMonitoringConnectionPlugin.unsupportedDriverProtocol",
               new String[] {driverProtocol}));
     }
   }

@@ -77,7 +77,7 @@ public class PropertyUtils {
       LOGGER.log(
           Level.FINEST,
           Messages.get(
-              "PropertyUtils.1",
+              "PropertyUtils.setMethodDoesNotExistOnTarget",
               new String[] {propName}), new Object[] {target.getClass()});
       return;
     }
@@ -98,7 +98,7 @@ public class PropertyUtils {
     } catch (Exception e) {
       LOGGER.log(Level.WARNING,
           Messages.get(
-              "PropertyUtils.2",
+              "PropertyUtils.failedToSetProperty",
               new String[] {propName}), new Object[] {target.getClass()});
     }
   }

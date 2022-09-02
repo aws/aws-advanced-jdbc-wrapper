@@ -85,7 +85,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     if (!hostSpec.isPortSpecified()) {
       if (StringUtils.isNullOrEmpty(SPECIFIED_PORT.getString(props))) {
         if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith("jdbc:mysql:")) {
-          throw new RuntimeException(Messages.get("Connection.12"));
+          throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.missingPort"));
         } else if (driverProtocol.startsWith("jdbc:mysql:")) {
           port = MYSQL_PORT;
         } else {
@@ -94,7 +94,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       } else {
         port = SPECIFIED_PORT.getInteger(props);
         if (port <= 0) {
-          throw new IllegalArgumentException(Messages.get("Connection.11", new String[] {String.valueOf(port)}));
+          throw new IllegalArgumentException(
+              Messages.get(
+                  "IamAuthConnectionPlugin.invalidPort",
+                  new String[] {String.valueOf(port)}));
         }
       }
     }
@@ -122,7 +125,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     if (tokenInfo != null && !tokenInfo.isExpired()) {
       LOGGER.finest(
-          Messages.get(
+          () -> Messages.get(
               "IamAuthConnectionPlugin.useCachedIamToken",
               new Object[] {tokenInfo.getToken()}));
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
@@ -130,7 +133,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       final String token = generateAuthenticationToken(PropertyDefinition.USER.getString(props),
               hostSpec.getHost(), port, region);
       LOGGER.finest(
-          Messages.get(
+          () -> Messages.get(
               "IamAuthConnectionPlugin.generatedNewIamToken",
               new String[] {token}));
       PropertyDefinition.PASSWORD.set(props, token);
@@ -182,7 +185,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           "IamAuthConnectionPlugin.unsupportedHostname",
           new String[] {hostname});
 
-      LOGGER.log(Level.FINEST, exceptionMessage);
+      LOGGER.log(Level.FINEST, () -> exceptionMessage);
       throw new SQLException(exceptionMessage);
     }
 
@@ -196,7 +199,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           "IamAuthConnectionPlugin.unsupportedRegion",
           new String[] {rdsRegion});
 
-      LOGGER.log(Level.FINEST, exceptionMessage);
+      LOGGER.log(Level.FINEST, () -> exceptionMessage);
       throw new SQLException((exceptionMessage));
     }
 

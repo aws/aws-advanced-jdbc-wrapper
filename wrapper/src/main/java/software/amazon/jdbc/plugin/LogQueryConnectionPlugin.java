@@ -27,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 
@@ -120,7 +121,11 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
     String sql = getQuery(methodInvokeOn, methodName, jdbcMethodArgs);
 
     if (!StringUtils.isNullOrEmpty(sql)) {
-      LOGGER.log(Level.FINE, "[{0}] Executing query: {1}", new Object[] {methodName, sql});
+      LOGGER.log(
+          Level.FINE,
+          () -> Messages.get(
+              "LogQueryConnectionPlugin.executingQuery",
+              new Object[] {methodName, sql}));
     }
 
     return jdbcMethodFunc.call();
