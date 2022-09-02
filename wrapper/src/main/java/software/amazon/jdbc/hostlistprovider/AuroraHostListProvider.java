@@ -256,7 +256,8 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
 
     if (writerCount == 0) {
       LOGGER.severe(
-          "[AuroraHostListProvider] The topology query returned an invalid topology - no writer instance detected");
+          () -> Messages.get(
+              "AuroraHostListProvider.invalidTopology"));
       hosts.clear();
     }
     return hosts;
