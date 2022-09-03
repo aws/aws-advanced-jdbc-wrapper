@@ -339,7 +339,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       Thread.currentThread().interrupt();
       // "Thread was interrupted"
       throw new SQLException(
-          Messages.get("ClusterAwareReaderFailoverHandler.interruptedThread"),
+          Messages.get(
+              "ClusterAwareReaderFailoverHandler.interruptedThread"),
           "70100",
           e);
     }

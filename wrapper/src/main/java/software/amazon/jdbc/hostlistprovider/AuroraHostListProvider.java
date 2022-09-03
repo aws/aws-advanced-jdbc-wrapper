@@ -503,7 +503,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
           .append(hostInfo == null ? "<null>" : hostInfo.getHost());
     }
     LOGGER.finer(
-        () -> Messages.get("Failover.topologyObtained", new Object[] {msg.toString()}));
+        () -> Messages.get(
+            "Failover.topologyObtained",
+            new Object[] {msg.toString()}));
   }
 
   /**
