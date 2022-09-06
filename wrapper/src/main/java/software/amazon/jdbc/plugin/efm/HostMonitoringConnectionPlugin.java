@@ -159,7 +159,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       LOGGER.finest(
           () -> Messages.get(
               "HostMonitoringConnectionPlugin.activatedMonitoring",
-              new String[] {methodName}));
+              new Object[] {methodName}));
 
       this.nodeKeys.clear();
       this.nodeKeys.addAll(this.pluginService.getCurrentHostSpec().asAliases());
@@ -198,14 +198,14 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
                 new SQLException(
                     Messages.get(
                         "HostMonitoringConnectionPlugin.unavailableNode",
-                        new String[] {this.pluginService.getCurrentHostSpec().asAlias()})));
+                        new Object[] {this.pluginService.getCurrentHostSpec().asAlias()})));
           }
         }
       }
       LOGGER.finest(
           () -> Messages.get(
               "HostMonitoringConnectionPlugin.activatedMonitoring",
-              new String[] {methodName}));
+              new Object[] {methodName}));
     }
 
     return result;
@@ -297,7 +297,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       throw new UnsupportedOperationException(
           Messages.get(
               "HostMonitoringConnectionPlugin.unsupportedDriverProtocol",
-              new String[] {driverProtocol}));
+              new Object[] {driverProtocol}));
     }
   }
 

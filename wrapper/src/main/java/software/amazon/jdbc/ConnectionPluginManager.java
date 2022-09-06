@@ -158,7 +158,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           throw new SQLException(
               Messages.get(
                   "ConnectionPluginManager.unknownPluginCode",
-                  new String[] {pluginCode}));
+                  new Object[] {pluginCode}));
         }
         pluginFactories.add(pluginFactoriesByCode.get(pluginCode));
       }

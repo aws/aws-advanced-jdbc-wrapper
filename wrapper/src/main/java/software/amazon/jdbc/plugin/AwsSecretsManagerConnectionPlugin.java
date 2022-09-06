@@ -97,7 +97,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           RuntimeException(
           Messages.get(
               "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
-              new String[] {SECRET_ID_PROPERTY.name}));
+              new Object[] {SECRET_ID_PROPERTY.name}));
     }
 
     final String regionString = REGION_PROPERTY.getString(props);
@@ -105,14 +105,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       throw new RuntimeException(
           Messages.get(
               "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
-              new String[] {REGION_PROPERTY.name}));
+              new Object[] {REGION_PROPERTY.name}));
     }
 
     final Region region = Region.of(regionString);
     if (!Region.regions().contains(region)) {
       throw new RuntimeException(Messages.get(
           "AwsSecretsManagerConnectionPlugin.unsupportedRegion",
-          new String[] {regionString}));
+          new Object[] {regionString}));
     }
     this.secretKey = Pair.of(secretId, region);
 
@@ -240,7 +240,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
         exception,
         () -> Messages.get(
             "AwsSecretsManagerConnectionPlugin.failedLogin",
-            new String[] {exception.getSQLState()}));
+            new Object[] {exception.getSQLState()}));
     return SQLSTATE_ACCESS_ERROR.contains(exception.getSQLState());
   }
 

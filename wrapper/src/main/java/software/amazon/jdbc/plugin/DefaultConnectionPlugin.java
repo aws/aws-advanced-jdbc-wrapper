@@ -93,7 +93,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     LOGGER.finest(
         () -> Messages.get(
             "DefaultConnectionPlugin.executingMethod",
-            new String[] {methodName}));
+            new Object[] {methodName}));
     final T result = jdbcMethodFunc.call();
 
     if (!(methodName.contains("execute") && jdbcMethodArgs != null && jdbcMethodArgs.length >= 1)) {

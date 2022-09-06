@@ -267,7 +267,7 @@ public class WrapperUtils {
       throw new RuntimeException(
           Messages.get(
               "WrapperUtils.noWrapperClassExists",
-              new String[] {toProxy.getClass().getName()}));
+              new Object[] {toProxy.getClass().getName()}));
     }
 
     return toProxy;
@@ -371,7 +371,7 @@ public class WrapperUtils {
       }
 
     } catch (Throwable t) {
-      throw new InstantiationException(Messages.get(errorMessage, new String[] {className}));
+      throw new InstantiationException(Messages.get(errorMessage, new Object[] {className}));
     }
 
     return instances;
@@ -394,7 +394,7 @@ public class WrapperUtils {
       }
 
     } catch (Throwable t) {
-      throw new InstantiationException(Messages.get(errorMessage, new String[] {lastClass.getName()}));
+      throw new InstantiationException(Messages.get(errorMessage, new Object[] {lastClass.getName()}));
     }
 
     return instances;
@@ -433,7 +433,7 @@ public class WrapperUtils {
       throw new InstantiationException(
           Messages.get(
               "WrapperUtils.failedToInitializeClass",
-              new String[] {classToInstantiate.getName()}));
+              new Object[] {classToInstantiate.getName()}));
     }
   }
 
@@ -456,7 +456,7 @@ public class WrapperUtils {
       throw new InstantiationException(
           Messages.get(
               "WrapperUtils.failedToInitializeClass",
-              new String[] {className}));
+              new Object[] {className}));
     }
 
     return createInstance(loaded, resultClass, null, constructorArgs);

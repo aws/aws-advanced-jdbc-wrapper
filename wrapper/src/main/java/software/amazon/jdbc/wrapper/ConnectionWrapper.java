@@ -140,7 +140,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException(
           Messages.get(
               "ConnectionWrapper.protocolNotFound",
-              new String[] {url}));
+              new Object[] {url}));
     }
     return url.substring(0, index + 2);
   }

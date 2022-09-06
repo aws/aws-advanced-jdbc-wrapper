@@ -135,7 +135,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(
           () -> Messages.get(
               "IamAuthConnectionPlugin.generatedNewIamToken",
-              new String[] {token}));
+              new Object[] {token}));
       PropertyDefinition.PASSWORD.set(props, token);
       tokenCache.put(
               cacheKey,
@@ -183,7 +183,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       // Does not match Amazon's Hostname, throw exception
       final String exceptionMessage = Messages.get(
           "IamAuthConnectionPlugin.unsupportedHostname",
-          new String[] {hostname});
+          new Object[] {hostname});
 
       LOGGER.fine(() -> exceptionMessage);
       throw new SQLException(exceptionMessage);
@@ -197,7 +197,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     if (!regionOptional.isPresent()) {
       final String exceptionMessage = Messages.get(
           "IamAuthConnectionPlugin.unsupportedRegion",
-          new String[] {rdsRegion});
+          new Object[] {rdsRegion});
 
       LOGGER.fine(() -> exceptionMessage);
       throw new SQLException((exceptionMessage));
