@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.postgres;
+package integration.container.aurora.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,21 +27,22 @@ import static org.junit.jupiter.api.Assertions.fail;
 import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.postgresql.PGProperty;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
+@TestMethodOrder(MethodOrderer.MethodName.class)
+public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
 
   protected String currWriter;
   protected String currReader;
@@ -58,78 +59,65 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     return Stream.of(
         // missing username
         Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            AURORA_POSTGRES_DB),
+                DB_CONN_STR_PREFIX,
+                MYSQL_INSTANCE_1_URL,
+                String.valueOf(AURORA_MYSQL_PORT),
+                AURORA_MYSQL_DB),
             "",
-            AURORA_POSTGRES_PASSWORD),
+            AURORA_MYSQL_PASSWORD),
         // missing password
         Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            AURORA_POSTGRES_DB),
-            AURORA_POSTGRES_USERNAME,
+                DB_CONN_STR_PREFIX,
+                MYSQL_INSTANCE_1_URL,
+                String.valueOf(AURORA_MYSQL_PORT),
+                AURORA_MYSQL_DB),
+            AURORA_MYSQL_USERNAME,
             ""),
         // missing connection prefix
         Arguments.of(buildConnectionString(
-            "",
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            AURORA_POSTGRES_DB),
-            AURORA_POSTGRES_USERNAME,
-            AURORA_POSTGRES_PASSWORD),
-        // missing port
-        Arguments.of(buildConnectionString(
-            DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-          "",
-            AURORA_POSTGRES_DB),
-            AURORA_POSTGRES_USERNAME,
-            AURORA_POSTGRES_PASSWORD),
+                "",
+                MYSQL_INSTANCE_1_URL,
+                String.valueOf(AURORA_MYSQL_PORT),
+                AURORA_MYSQL_DB),
+            AURORA_MYSQL_USERNAME,
+            AURORA_MYSQL_PASSWORD),
         // incorrect database name
         Arguments.of(buildConnectionString(DB_CONN_STR_PREFIX,
-            POSTGRES_INSTANCE_1_URL,
-            String.valueOf(AURORA_POSTGRES_PORT),
-            "failedDatabaseNameTest"),
-            AURORA_POSTGRES_USERNAME,
-            AURORA_POSTGRES_PASSWORD)
-    );
-  }
-
-  private static Stream<Arguments> generateConnectionString() {
-    return Stream.of(
-            Arguments.of(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT),
-            Arguments.of(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT),
-            Arguments.of(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT),
-            Arguments.of(POSTGRES_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT),
-            Arguments.of(POSTGRES_RO_CLUSTER_URL, AURORA_POSTGRES_PORT),
-            Arguments.of(POSTGRES_RO_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)
+                MYSQL_INSTANCE_1_URL,
+                String.valueOf(AURORA_MYSQL_PORT),
+                "failedDatabaseNameTest"),
+            AURORA_MYSQL_USERNAME,
+            AURORA_MYSQL_PASSWORD)
     );
   }
 
   @ParameterizedTest(name = "test_ConnectionString")
   @MethodSource("generateConnectionString")
   public void test_ConnectionString(String connStr, int port) throws SQLException {
-    try (final Connection conn = connectToInstance(connStr, port)) {
-      Statement stmt = conn.createStatement();
-      ResultSet rs = stmt.executeQuery("SELECT 1");
-      rs.next();
-      assertEquals(1, rs.getInt(1));
-      assertTrue(conn.isValid(3));
-    }
+    final Connection conn = connectToInstance(connStr, port);
+    assertTrue(conn.isValid(5));
+    conn.close();
+  }
+
+  private static Stream<Arguments> generateConnectionString() {
+    return Stream.of(
+        Arguments.of(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT),
+        Arguments.of(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT),
+        Arguments.of(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT),
+        Arguments.of(MYSQL_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT),
+        Arguments.of(MYSQL_RO_CLUSTER_URL, AURORA_MYSQL_PORT),
+        Arguments.of(MYSQL_RO_CLUSTER_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)
+    );
   }
 
   @Test
   public void test_ValidateConnectionWhenNetworkDown() throws SQLException, IOException {
-    final Connection conn =
-            connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT);
-    assertTrue(conn.isValid(3));
+    final Connection conn = connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT);
+    assertTrue(conn.isValid(5));
 
     containerHelper.disableConnectivity(proxyInstance_1);
 
-    assertFalse(conn.isValid(3));
+    assertFalse(conn.isValid(5));
 
     containerHelper.enableConnectivity(proxyInstance_1);
 
@@ -142,13 +130,12 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     assertThrows(Exception.class, () -> {
       // expected to fail since communication is cut
-      connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT);
+      connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT);
     });
 
     containerHelper.enableConnectivity(proxyInstance_1);
 
-    final Connection conn = connectToInstance(POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX,
-            POSTGRES_PROXY_PORT);
+    final Connection conn = connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT);
     conn.close();
   }
 
@@ -162,7 +149,9 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Connect to cluster
     try (final Connection testConnection = connectToInstance(
-            initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT, props)) {
+                 initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+                 MYSQL_PROXY_PORT,
+                 props)) {
       // Get writer
       currWriter = queryInstanceId(testConnection);
 
@@ -193,13 +182,15 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Get Writer
     try (final Connection checkWriterConnection = connectToInstance(
-            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to cluster
     try (final Connection testConnection = connectToInstance(
-            anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+        anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
       assertNotEquals(currWriter, currReader);
@@ -235,7 +226,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Get Writer
     try (final Connection checkWriterConnection = connectToInstance(
-            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     } catch (SQLException e) {
       fail(e);
@@ -243,7 +234,8 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Connect to instance
     try (final Connection testConnection = connectToInstance(
-            anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+        anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
 
@@ -274,13 +266,15 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Get Writer
     try (final Connection checkWriterConnection = connectToInstance(
-            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to instance
     try (final Connection testConnection = connectToInstance(
-            anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT)) {
+        anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
 
@@ -308,37 +302,36 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   @Test
   void test_ValidInvalidValidConnections() throws SQLException {
     final Properties validProp = initDefaultProps();
-    validProp.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
-    validProp.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
-    final Connection validConn = connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, validProp);
+    validProp.setProperty(PropertyDefinition.USER.name, AURORA_MYSQL_USERNAME);
+    validProp.setProperty(PropertyDefinition.PASSWORD.name, AURORA_MYSQL_PASSWORD);
+    final Connection validConn = connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, validProp);
     validConn.close();
 
     final Properties invalidProp = initDefaultProps();
-    invalidProp.setProperty(PGProperty.USER.getName(), "INVALID_" + AURORA_POSTGRES_USERNAME);
-    invalidProp.setProperty(PGProperty.PASSWORD.getName(), "INVALID_" + AURORA_POSTGRES_PASSWORD);
+    invalidProp.setProperty(PropertyDefinition.USER.name, "INVALID_" + AURORA_MYSQL_USERNAME);
+    invalidProp.setProperty(PropertyDefinition.PASSWORD.name, "INVALID_" + AURORA_MYSQL_PASSWORD);
     assertThrows(
-            SQLException.class,
-            () -> connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, invalidProp)
+        SQLException.class,
+        () -> connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, invalidProp)
     );
 
-    final Connection validConn2 = connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, validProp);
+    final Connection validConn2 = connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, validProp);
     validConn2.close();
   }
 
-  /**
-   * Current writer dies, no available reader instance, connection fails.
-   */
+  /** Current writer dies, no available reader instance, connection fails. */
   @Test
-  public void test_writerConnectionFailsDueToNoReader() throws SQLException, IOException {
+  public void test_writerConnectionFailsDueToNoReader()
+      throws SQLException, IOException {
 
     final String currentWriterId = instanceIDs[0];
 
     Properties props = initDefaultProxiedProps();
     props.setProperty("failoverTimeoutMs", "10000");
     try (Connection conn = connectToInstance(
-            currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-            POSTGRES_PROXY_PORT,
-            props)) {
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT,
+        props)) {
       // Put all but writer down first
       proxyMap.forEach((instance, proxy) -> {
         if (!instance.equalsIgnoreCase(currentWriterId)) {
@@ -370,17 +363,20 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   }
 
   /**
-   * Current reader dies, after failing to connect to several reader instances, failover to another reader.
+   * Current reader dies, after failing to connect to several reader instances, failover to another
+   * reader.
    */
   @Test
   public void test_failFromReaderToReaderWithSomeReadersAreDown()
-          throws SQLException, IOException {
+      throws SQLException, IOException {
     assertTrue(clusterSize >= 3, "Minimal cluster configuration: 1 writer + 2 readers");
     final String readerNode = instanceIDs[1];
 
     Properties props = initDefaultProxiedProps();
-    try (Connection conn = connectToInstance(readerNode + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-            POSTGRES_PROXY_PORT, props)) {
+    try (Connection conn = connectToInstance(
+        readerNode + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT,
+        props)) {
       // First kill all reader instances except one
       for (int i = 1; i < clusterSize - 1; i++) {
         final String instanceId = instanceIDs[i];
@@ -398,17 +394,18 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       // instance (Instance1).
       final String currentConnectionId = queryInstanceId(conn);
       assertTrue(
-              currentConnectionId.equals(instanceIDs[clusterSize - 1]) // Last reader
-                      || currentConnectionId.equals(instanceIDs[0])); // Writer
+          currentConnectionId.equals(instanceIDs[clusterSize - 1]) // Last reader
+              || currentConnectionId.equals(instanceIDs[0])); // Writer
     }
   }
 
   /**
-   * Current reader dies, failover to another reader repeat to loop through instances in the cluster testing ability to
-   * revive previously down reader instance.
+   * Current reader dies, failover to another reader repeat to loop through instances in the cluster
+   * testing ability to revive previously down reader instance.
    */
   @Test
-  public void test_failoverBackToThePreviouslyDownReader() throws Exception {
+  public void test_failoverBackToThePreviouslyDownReader()
+      throws Exception {
 
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");
 
@@ -417,8 +414,10 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
-    try (Connection conn = connectToInstance(firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-            POSTGRES_PROXY_PORT, props)) {
+    try (Connection conn = connectToInstance(
+        firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
+        MYSQL_PROXY_PORT,
+        props)) {
       conn.setReadOnly(true);
 
       // Start crashing reader (Instance2).
@@ -451,8 +450,8 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       readerInstanceIds.remove(secondReaderInstanceId);
       readerInstanceIds.remove(thirdReaderInstanceId);
 
-      final String fourthInstanceId = readerInstanceIds.stream().findFirst()
-              .orElseThrow(() -> new Exception("Empty instance Id"));
+      final String fourthInstanceId =
+          readerInstanceIds.stream().findFirst().orElseThrow(() -> new Exception("Empty instance Id"));
 
       // Crash the fourth reader instance.
       proxyInstance = proxyMap.get(fourthInstanceId);
@@ -477,8 +476,8 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       final String lastInstanceId = queryInstanceId(conn);
 
       assertTrue(
-              firstReaderInstanceId.equals(lastInstanceId)
-                      || secondReaderInstanceId.equals(lastInstanceId));
+          firstReaderInstanceId.equals(lastInstanceId)
+              || secondReaderInstanceId.equals(lastInstanceId));
     }
   }
 
@@ -487,18 +486,18 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     final String url = buildConnectionString(
         DB_CONN_STR_PREFIX,
-        POSTGRES_INSTANCE_1_URL,
-        String.valueOf(AURORA_POSTGRES_PORT),
-        AURORA_POSTGRES_DB);
+        MYSQL_INSTANCE_1_URL,
+        String.valueOf(AURORA_MYSQL_PORT),
+        AURORA_MYSQL_DB);
 
     Properties props = new Properties();
-    props.setProperty("user", AURORA_POSTGRES_USERNAME);
-    props.setProperty("password", AURORA_POSTGRES_PASSWORD);
+    props.setProperty("user", AURORA_MYSQL_USERNAME);
+    props.setProperty("password", AURORA_MYSQL_PASSWORD);
 
     Connection conn = connectToInstanceCustomUrl(url, props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
+    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
 
     assertTrue(conn.isValid(10));
     conn.close();
@@ -507,16 +506,16 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   @Test
   public void testSuccessOpenConnectionNoPort() throws SQLException {
 
-    final String url = DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL  + "/" + AURORA_POSTGRES_DB;
+    final String url = DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL  + "/" + AURORA_MYSQL_DB;
 
     Properties props = new Properties();
-    props.setProperty("user", AURORA_POSTGRES_USERNAME);
-    props.setProperty("password", AURORA_POSTGRES_PASSWORD);
+    props.setProperty("user", AURORA_MYSQL_USERNAME);
+    props.setProperty("password", AURORA_MYSQL_PASSWORD);
 
     Connection conn = connectToInstanceCustomUrl(url, props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
+    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
 
     assertTrue(conn.isValid(10));
     conn.close();
@@ -537,13 +536,13 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   public void testFailedHost() {
 
     Properties props = new Properties();
-    props.setProperty("user", AURORA_POSTGRES_USERNAME);
-    props.setProperty("password", AURORA_POSTGRES_PASSWORD);
+    props.setProperty("user", AURORA_MYSQL_USERNAME);
+    props.setProperty("password", AURORA_MYSQL_PASSWORD);
     String url = buildConnectionString(
         DB_CONN_STR_PREFIX,
         "",
-        String.valueOf(AURORA_POSTGRES_PORT),
-        AURORA_POSTGRES_DB);
+        String.valueOf(AURORA_MYSQL_PORT),
+        AURORA_MYSQL_DB);
     assertThrows(RuntimeException.class, () -> connectToInstanceCustomUrl(
         url, props));
   }

@@ -55,6 +55,8 @@ For running driver-specific tests see these links: <br />
 
 [PostgreSQL](/docs/driver-specific/postgresql/postgresql.md)
 
+[MySQL](/docs/driver-specific/mysql/mysql.md)
+
 ###### Sample Code
 [Connection Test Sample Code](/docs/driver-specific/postgresql/ConnectionTestSample.java)
 

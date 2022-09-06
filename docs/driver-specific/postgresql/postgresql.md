@@ -1,22 +1,9 @@
 # Using the PostgreSQL JDBC Driver with AWS Advanced JDBC Wrapper
 
-### Prerequisites
-
-- Docker Desktop:
-  - [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
-  - [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
-
-##### Aurora Test Requirements
-- An AWS account with:
-  - RDS permissions
-  - EC2 permissions so integration tests can whitelist the current IP address in the Aurora cluster's EC2 security group.
-  - For more information see: [Setting Up for Amazon RDS User Guide](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SettingUp.html).
-
-- An available Aurora PostgreSQL DB cluster is required if you're running the tests against an existing DB cluster.
-
 ### Running the Integration Tests
 
 First ensure you set up the needed environment variables (replace the variables with the appropriate values):
+
 macOS:
 ```bash
 export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY  AWS_ACCESS_KEY_ID=ASIAIOSFODNN7EXAMPLE AWS_SESSION_TOKEN=AQoDYXdzEJr...<remainder of session token> AURORA_POSTGRES_CLUSTER_IDENTIFIER=XYZ.us-east-2.rds.amazonaws.com AURORA_POSTGRES_USERNAME=username AURORA_POSTGRES_PASSWORD=password AURORA_POSTGRES_DB_REGION=us-east-2```
@@ -26,10 +13,7 @@ Windows:
 set AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY | set AWS_ACCESS_KEY_ID=ASIAIOSFODNN7EXAMPLE | set AWS_SESSION_TOKEN=AQoDYXdzEJr...<remainder of session token> | set AURORA_POSTGRES_CLUSTER_IDENTIFIER=XYZ.us-east-2.rds.amazonaws.com | set AURORA_POSTGRES_USERNAME=username | set AURORA_POSTGRES_PASSWORD=password | set AURORA_POSTGRES_DB_REGION=us-east-2```
 ```
 #### Aurora Integration Tests
-
-The Aurora integration tests are focused on testing connection strings and failover capabilities of any driver
-PostgreSQL tests are currently supported, MySQL tests will be added in the future.
-The tests are run in docker but make a connection to test against an Aurora cluster.
+Use the following command to run the PostgreSQL Aurora integration test suite.
 
 macOS:
 ```bash
@@ -40,16 +24,13 @@ Windows:
 cmd /c gradlew --no-parallel --no-daemon test-integration-aurora-postgres
 ```
 #### Standard Integration Tests
-
-The Standard integration tests are focused on testing connection strings against a local database inside a docker container.
-PostgreSQL and mySQL tests are currently supported.
+The following command will run the PostgreSQL standard integration test suite.
 
 macOS:
 ```bash
 ./gradlew --no-parallel --no-daemon test-integration-standard-postgres
 ```
 Windows:
-To run the integration tests on Windows, use the following command:
 ```bash
 cmd /c gradlew --no-parallel --no-daemon test-integration-standard-postgres
 ``` 

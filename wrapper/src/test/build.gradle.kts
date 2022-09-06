@@ -84,6 +84,12 @@ tasks.register<Test>("in-container-standard-postgres") {
 }
 
 // Integration tests are run in a specific order.
+// To add more tests, see integration.container.aurora.mysql.AuroraMysqlTestSuite.java
+tasks.register<Test>("in-container-aurora-mysql") {
+    filter.includeTestsMatching("integration.container.aurora.mysql.AuroraMysqlTestSuite")
+}
+
+// Integration tests are run in a specific order.
 // To add more tests, see integration.container.standard.mysql.StandardMysqlTestSuite.java
 tasks.register<Test>("in-container-standard-mysql") {
     filter.includeTestsMatching("integration.container.standard.mysql.StandardMysqlTestSuite")
