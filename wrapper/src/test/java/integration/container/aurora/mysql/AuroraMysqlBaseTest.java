@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.postgres;
+package integration.container.aurora.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
+import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.container.aurora.TestAuroraHostListProvider;
@@ -45,7 +47,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.postgresql.PGProperty;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBCluster;
@@ -58,42 +59,43 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
-public abstract class AuroraPostgresBaseTest {
+public abstract class AuroraMysqlBaseTest {
 
-  protected static final String AURORA_POSTGRES_USERNAME = System.getenv("AURORA_POSTGRES_USERNAME");
-  protected static final String AURORA_POSTGRES_PASSWORD = System.getenv("AURORA_POSTGRES_PASSWORD");
-  protected static final String AURORA_POSTGRES_DB =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB")) ? System.getenv("AURORA_POSTGRES_DB") : "test";
+  protected static final String AURORA_MYSQL_USERNAME = System.getenv("AURORA_MYSQL_USERNAME");
+  protected static final String AURORA_MYSQL_PASSWORD = System.getenv("AURORA_MYSQL_PASSWORD");
+  protected static final String AURORA_MYSQL_DB =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB")) ? System.getenv("AURORA_MYSQL_DB") : "test";
+  protected static final String AURORA_MYSQL_DB_USER = System.getenv("AURORA_MYSQL_DB_USER");
 
-  protected static final String QUERY_FOR_INSTANCE = "SELECT aurora_db_instance_identifier()";
+  protected static final String QUERY_FOR_INSTANCE = "SELECT @@aurora_server_id";
 
   protected static final String PROXIED_DOMAIN_NAME_SUFFIX =
       System.getenv("PROXIED_DOMAIN_NAME_SUFFIX");
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:postgresql://";
+  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
-  static final String POSTGRES_INSTANCE_1_URL = System.getenv("POSTGRES_INSTANCE_1_URL");
-  static final String POSTGRES_INSTANCE_2_URL = System.getenv("POSTGRES_INSTANCE_2_URL");
-  static final String POSTGRES_INSTANCE_3_URL = System.getenv("POSTGRES_INSTANCE_3_URL");
-  static final String POSTGRES_INSTANCE_4_URL = System.getenv("POSTGRES_INSTANCE_4_URL");
-  static final String POSTGRES_INSTANCE_5_URL = System.getenv("POSTGRES_INSTANCE_5_URL");
-  static final String POSTGRES_CLUSTER_URL = System.getenv("DB_CLUSTER_CONN");
-  static final String POSTGRES_RO_CLUSTER_URL = System.getenv("DB_RO_CLUSTER_CONN");
+  static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
+  static final String MYSQL_INSTANCE_2_URL = System.getenv("MYSQL_INSTANCE_2_URL");
+  static final String MYSQL_INSTANCE_3_URL = System.getenv("MYSQL_INSTANCE_3_URL");
+  static final String MYSQL_INSTANCE_4_URL = System.getenv("MYSQL_INSTANCE_4_URL");
+  static final String MYSQL_INSTANCE_5_URL = System.getenv("MYSQL_INSTANCE_5_URL");
+  static final String MYSQL_CLUSTER_URL = System.getenv("DB_CLUSTER_CONN");
+  static final String MYSQL_RO_CLUSTER_URL = System.getenv("DB_RO_CLUSTER_CONN");
 
   static final String DB_CLUSTER_IDENTIFIER =
-      !StringUtils.isNullOrEmpty(POSTGRES_CLUSTER_URL)
-          ? POSTGRES_CLUSTER_URL.substring(0, POSTGRES_CLUSTER_URL.indexOf('.'))
+      !StringUtils.isNullOrEmpty(MYSQL_CLUSTER_URL)
+          ? MYSQL_CLUSTER_URL.substring(0, MYSQL_CLUSTER_URL.indexOf('.'))
           : null;
-  protected static final String AURORA_POSTGRES_DB_REGION =
-      !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB_REGION"))
-          ? System.getenv("AURORA_POSTGRES_DB_REGION")
+  protected static final String AURORA_MYSQL_DB_REGION =
+      !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_DB_REGION"))
+          ? System.getenv("AURORA_MYSQL_DB_REGION")
           : "us-east-1";
 
-  protected static final int AURORA_POSTGRES_PORT = Integer.parseInt(System.getenv("AURORA_POSTGRES_PORT"));
-  protected static final int POSTGRES_PROXY_PORT = Integer.parseInt(System.getenv("POSTGRES_PROXY_PORT"));
+  protected static final int AURORA_MYSQL_PORT = Integer.parseInt(System.getenv("AURORA_MYSQL_PORT"));
+  protected static final int MYSQL_PROXY_PORT = Integer.parseInt(System.getenv("MYSQL_PROXY_PORT"));
 
   protected static final String TOXIPROXY_INSTANCE_1_NETWORK_ALIAS =
       System.getenv("TOXIPROXY_INSTANCE_1_NETWORK_ALIAS");
@@ -132,11 +134,11 @@ public abstract class AuroraPostgresBaseTest {
   protected int clusterSize = 0;
 
   protected final ContainerHelper containerHelper = new ContainerHelper();
-  protected final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_POSTGRES_DB_REGION);
+  protected final AuroraTestUtility auroraUtil = new AuroraTestUtility(AURORA_MYSQL_DB_REGION);
 
   protected final RdsClient rdsClient =
       RdsClient.builder()
-          .region(auroraUtil.getRegion(AURORA_POSTGRES_DB_REGION))
+          .region(auroraUtil.getRegion(AURORA_MYSQL_DB_REGION))
           .credentialsProvider(DefaultCredentialsProvider.create())
           .build();
 
@@ -165,29 +167,31 @@ public abstract class AuroraPostgresBaseTest {
     toxiproxyReadOnlyCluster =
         new ToxiproxyClient(TOXIPROXY_RO_CLUSTER_NETWORK_ALIAS, TOXIPROXY_CONTROL_PORT);
 
-    proxyInstance_1 = getProxy(toxiproxyClientInstance_1, POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT);
-    proxyInstance_2 = getProxy(toxiproxyClientInstance_2, POSTGRES_INSTANCE_2_URL, AURORA_POSTGRES_PORT);
-    proxyInstance_3 = getProxy(toxiproxyClientInstance_3, POSTGRES_INSTANCE_3_URL, AURORA_POSTGRES_PORT);
-    proxyInstance_4 = getProxy(toxiproxyClientInstance_4, POSTGRES_INSTANCE_4_URL, AURORA_POSTGRES_PORT);
-    proxyInstance_5 = getProxy(toxiproxyClientInstance_5, POSTGRES_INSTANCE_5_URL, AURORA_POSTGRES_PORT);
-    proxyCluster = getProxy(toxiproxyCluster, POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT);
-    proxyReadOnlyCluster = getProxy(toxiproxyReadOnlyCluster, POSTGRES_RO_CLUSTER_URL, AURORA_POSTGRES_PORT);
+    proxyInstance_1 = getProxy(toxiproxyClientInstance_1, MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT);
+    proxyInstance_2 = getProxy(toxiproxyClientInstance_2, MYSQL_INSTANCE_2_URL, AURORA_MYSQL_PORT);
+    proxyInstance_3 = getProxy(toxiproxyClientInstance_3, MYSQL_INSTANCE_3_URL, AURORA_MYSQL_PORT);
+    proxyInstance_4 = getProxy(toxiproxyClientInstance_4, MYSQL_INSTANCE_4_URL, AURORA_MYSQL_PORT);
+    proxyInstance_5 = getProxy(toxiproxyClientInstance_5, MYSQL_INSTANCE_5_URL, AURORA_MYSQL_PORT);
+    proxyCluster = getProxy(toxiproxyCluster, MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT);
+    proxyReadOnlyCluster = getProxy(toxiproxyReadOnlyCluster, MYSQL_RO_CLUSTER_URL, AURORA_MYSQL_PORT);
 
     proxyMap.put(
-        POSTGRES_INSTANCE_1_URL.substring(0, POSTGRES_INSTANCE_1_URL.indexOf('.')), proxyInstance_1);
+        MYSQL_INSTANCE_1_URL.substring(0, MYSQL_INSTANCE_1_URL.indexOf('.')), proxyInstance_1);
     proxyMap.put(
-        POSTGRES_INSTANCE_2_URL.substring(0, POSTGRES_INSTANCE_2_URL.indexOf('.')), proxyInstance_2);
+        MYSQL_INSTANCE_2_URL.substring(0, MYSQL_INSTANCE_2_URL.indexOf('.')), proxyInstance_2);
     proxyMap.put(
-        POSTGRES_INSTANCE_3_URL.substring(0, POSTGRES_INSTANCE_3_URL.indexOf('.')), proxyInstance_3);
+        MYSQL_INSTANCE_3_URL.substring(0, MYSQL_INSTANCE_3_URL.indexOf('.')), proxyInstance_3);
     proxyMap.put(
-        POSTGRES_INSTANCE_4_URL.substring(0, POSTGRES_INSTANCE_4_URL.indexOf('.')), proxyInstance_4);
+        MYSQL_INSTANCE_4_URL.substring(0, MYSQL_INSTANCE_4_URL.indexOf('.')), proxyInstance_4);
     proxyMap.put(
-        POSTGRES_INSTANCE_5_URL.substring(0, POSTGRES_INSTANCE_5_URL.indexOf('.')), proxyInstance_5);
-    proxyMap.put(POSTGRES_CLUSTER_URL, proxyCluster);
-    proxyMap.put(POSTGRES_RO_CLUSTER_URL, proxyReadOnlyCluster);
+        MYSQL_INSTANCE_5_URL.substring(0, MYSQL_INSTANCE_5_URL.indexOf('.')), proxyInstance_5);
+    proxyMap.put(MYSQL_CLUSTER_URL, proxyCluster);
+    proxyMap.put(MYSQL_RO_CLUSTER_URL, proxyReadOnlyCluster);
 
-    if (!org.postgresql.Driver.isRegistered()) {
-      org.postgresql.Driver.register();
+    try {
+      Class.forName("com.mysql.cj.jdbc.Driver");
+    } catch (ClassNotFoundException e) {
+      fail("MySQL driver not found");
     }
 
     if (!Driver.isRegistered()) {
@@ -220,18 +224,20 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
-    props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
-    props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
-    props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
+    props.setProperty(PropertyDefinition.USER.name, AURORA_MYSQL_USERNAME);
+    props.setProperty(PropertyDefinition.PASSWORD.name, AURORA_MYSQL_PASSWORD);
+    props.setProperty(PropertyKey.tcpKeepAlive.getKeyName(), Boolean.FALSE.toString());
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
     return props;
   }
 
   protected Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
+    props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3000");
+    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3000");
 
     return props;
   }
@@ -240,6 +246,16 @@ public abstract class AuroraPostgresBaseTest {
     final Properties props = initDefaultProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
 
+    return props;
+  }
+
+  protected Properties initAwsIamProps(String user, String password) {
+    final Properties props = initDefaultProps();
+    props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+    props.setProperty(PropertyDefinition.USER.name, user);
+    props.setProperty(PropertyDefinition.PASSWORD.name, password);
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
+    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
     return props;
   }
 
@@ -256,7 +272,7 @@ public abstract class AuroraPostgresBaseTest {
 
   protected Connection connectToInstance(String instanceUrl, int port, Properties props)
       throws SQLException {
-    final String url = DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_POSTGRES_DB;
+    final String url = DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_MYSQL_DB;
     return DriverManager.getConnection(url, props);
   }
 
@@ -277,21 +293,17 @@ public abstract class AuroraPostgresBaseTest {
         DB_CONN_STR_SUFFIX.startsWith(".") ? DB_CONN_STR_SUFFIX.substring(1) : DB_CONN_STR_SUFFIX;
 
     final String url =
-        DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB;
+        DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
     return this.containerHelper.getAuroraInstanceEndpoints(
-        url, AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, dbConnHostBase);
+        url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, dbConnHostBase);
   }
 
   // Return list of instance Ids.
   // Writer instance goes first.
   protected List<String> getTopologyIds() throws SQLException {
     final String url =
-        DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB;
-    return this.containerHelper.getAuroraInstanceIds(
-        url,
-        AURORA_POSTGRES_USERNAME,
-        AURORA_POSTGRES_PASSWORD,
-        "postgres");
+        DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
+    return this.containerHelper.getAuroraInstanceIds(url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, "mysql");
   }
 
   /* Helper functions. */
@@ -304,7 +316,7 @@ public abstract class AuroraPostgresBaseTest {
   protected String executeInstanceIdQuery(Statement stmt) throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(QUERY_FOR_INSTANCE)) {
       if (rs.next()) {
-        final String id = rs.getString("aurora_db_instance_identifier");
+        final String id = rs.getString("@@aurora_server_id");
         return id;
       }
     }
@@ -329,7 +341,7 @@ public abstract class AuroraPostgresBaseTest {
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     // Configure the property names for the underlying driver-specific data source:
-    ds.setJdbcProtocol("jdbc:postgresql:");
+    ds.setJdbcProtocol("jdbc:mysql:");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setDatabasePropertyName("databaseName");
@@ -337,16 +349,16 @@ public abstract class AuroraPostgresBaseTest {
     ds.setPortPropertyName("port");
 
     // Specify the driver-specific data source:
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     // Configure the driver-specific data source:
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", instanceID + DB_CONN_STR_SUFFIX);
-    targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     targetDataSourceProps.setProperty("wrapperPlugins", "failover");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    return ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);
+    return ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD);
   }
 
   protected DBCluster getDBCluster() {
@@ -407,8 +419,8 @@ public abstract class AuroraPostgresBaseTest {
           () -> {
             while (true) {
               try (final Connection conn =
-                  connectToInstance(
-                      id + DB_CONN_STR_SUFFIX, AURORA_POSTGRES_PORT, initFailoverDisabledProps())) {
+                       connectToInstance(
+                           id + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT, initFailoverDisabledProps())) {
                 remainingInstances.remove(id);
                 break;
               } catch (final SQLException ex) {

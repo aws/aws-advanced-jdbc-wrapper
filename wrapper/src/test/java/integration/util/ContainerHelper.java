@@ -62,9 +62,12 @@ public class ContainerHelper {
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 
-  private static final String RETRIEVE_TOPOLOGY_SQL =
+  private static final String RETRIEVE_TOPOLOGY_SQL_POSTGRES =
       "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
           + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
+  private static final String RETRIEVE_TOPOLOGY_SQL_MYSQL =
+      "SELECT SERVER_ID, SESSION_ID FROM information_schema.replica_host_status "
+          + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
   private static final String SERVER_ID = "SERVER_ID";
 
   public void runTest(GenericContainer<?> container, String task)
@@ -273,12 +276,16 @@ public class ContainerHelper {
   public List<String> getAuroraInstanceEndpoints(
       String connectionUrl, String userName, String password, String hostBase) throws SQLException {
 
+    String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
+    if (connectionUrl.contains("mysql")) {
+      retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_MYSQL;
+    }
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
          final Statement stmt = conn.createStatement()) {
       // Get instances
-      try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
+      try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
         while (resultSet.next()) {
           // Get Instance endpoints
           final String hostEndpoint = resultSet.getString(SERVER_ID) + "." + hostBase;
@@ -289,15 +296,19 @@ public class ContainerHelper {
     return auroraInstances;
   }
 
-  public List<String> getAuroraInstanceIds(String connectionUrl, String userName, String password)
+  public List<String> getAuroraInstanceIds(String connectionUrl, String userName, String password, String database)
       throws SQLException {
 
+    String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
+    if (database.equals("mysql")) {
+      retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_MYSQL;
+    }
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
          final Statement stmt = conn.createStatement()) {
       // Get instances
-      try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
+      try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
         while (resultSet.next()) {
           // Get Instance endpoints
           final String hostEndpoint = resultSet.getString(SERVER_ID);
@@ -306,6 +317,18 @@ public class ContainerHelper {
       }
     }
     return auroraInstances;
+  }
+
+  public void addAuroraAwsIamUser(String connectionUrl, String userName, String password, String dbUser)
+      throws SQLException {
+
+    final String dropAwsIamUserSQL = "DROP USER IF EXISTS " + dbUser + ";";
+    final String createAwsIamUserSQL = "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
+    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
+         final Statement stmt = conn.createStatement()) {
+      stmt.execute(dropAwsIamUserSQL);
+      stmt.execute(createAwsIamUserSQL);
+    }
   }
 
   public List<ToxiproxyContainer> createProxyContainers(

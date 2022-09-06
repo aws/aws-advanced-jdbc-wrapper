@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [1.0.0] - 2022-08-23
 The Amazon Web Services (AWS) Advanced JDBC Wrapper allows an application to take advantage of the features of clustered Aurora databases.
 
-## Added
+### Added
 * Support for PostgreSQL
 * The [Failover Connection Plugin](./docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md)
 * The [Host Monitoring Connection Plugin](./docs/using-the-jdbc-wrapper/using-plugins/UsingTheHostMonitoringPlugin.md)
