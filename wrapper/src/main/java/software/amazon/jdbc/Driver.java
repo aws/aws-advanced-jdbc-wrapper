@@ -81,7 +81,7 @@ public class Driver implements java.sql.Driver {
     java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 
     if (driver == null) {
-      LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Objectt[] {driverUrl}));
+      LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl}));
       return null;
     }
 
