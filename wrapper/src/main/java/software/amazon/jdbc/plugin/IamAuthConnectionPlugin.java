@@ -97,7 +97,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           throw new IllegalArgumentException(
               Messages.get(
                   "IamAuthConnectionPlugin.invalidPort",
-                  new String[] {String.valueOf(port)}));
+                  new Object[] {port}));
         }
       }
     }

@@ -138,7 +138,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
         throw new SQLException(
             Messages.get(
                 "ConnectionPluginManager.configurationProfileNotFound",
-                new String[] {profileName}));
+                new Object[] {profileName}));
       }
       pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
 

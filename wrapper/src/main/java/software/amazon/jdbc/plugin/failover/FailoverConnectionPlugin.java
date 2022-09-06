@@ -282,7 +282,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
         sb.append(String.format("Host '%s': %s", change.getKey(), change.getValue()));
       }
-      LOGGER.finest(() -> sb.toString());
+      LOGGER.finest(sb.toString());
     }
 
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
@@ -481,7 +481,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private void processFailoverFailure(String message) throws SQLException {
-    LOGGER.severe(() -> message);
+    LOGGER.severe(message);
     throw new FailoverFailedSQLException(message);
   }
 
@@ -639,8 +639,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
       // session state if required."
-      final String errorMessage = Messages.get("Failover.connectionChangedError");
-      LOGGER.severe(() -> errorMessage);
+      LOGGER.severe(() -> Messages.get("Failover.connectionChangedError"));
       throw new FailoverSuccessSQLException();
     }
   }

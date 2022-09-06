@@ -195,9 +195,6 @@ public class MonitorImpl implements Monitor {
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis));
       return new ConnectionStatus(isValid, this.getCurrentTimeNano() - start);
     } catch (SQLException sqlEx) {
-      // LOGGER.finest(
-      //     () -> Messages.get("MonitorImpl.errorConnectionStatus",
-      //         new String [] {sqlEx.getMessage()}));
       return new ConnectionStatus(false, this.getCurrentTimeNano() - start);
     }
   }
