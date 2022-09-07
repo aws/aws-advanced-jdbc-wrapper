@@ -40,7 +40,7 @@ public class ConnectionUrlBuilder {
     if (isNullOrEmpty(jdbcProtocol)
         || ((isNullOrEmpty(serverPropertyName) || isNullOrEmpty(props.getProperty(serverPropertyName)))
             && hostSpec == null)) {
-      throw new SQLException("Missing JDBC protocol and/or host name. Could not construct URL.");
+      throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
     }
 
     final Properties copy = PropertyUtils.copyProperties(props);
@@ -95,7 +95,7 @@ public class ConnectionUrlBuilder {
             .append("=")
             .append(URLEncoder.encode(propertyValue, StandardCharsets.UTF_8.toString()));
       } catch (UnsupportedEncodingException e) {
-        throw new SQLException("Was not able to encode connectionURL properties.", e);
+        throw new SQLException(Messages.get("ConnectionUrlBuilder.failureEncodingConnectionUrl"), e);
       }
     }
 

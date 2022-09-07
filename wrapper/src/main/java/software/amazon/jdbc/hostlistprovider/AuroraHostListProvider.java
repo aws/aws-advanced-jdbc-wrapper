@@ -255,9 +255,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     }
 
     if (writerCount == 0) {
-      LOGGER.log(
-          Level.SEVERE,
-          "[AuroraHostListProvider] The topology query returned an invalid topology - no writer instance detected");
+      LOGGER.severe(
+          () -> Messages.get(
+              "AuroraHostListProvider.invalidTopology"));
       hosts.clear();
     }
     return hosts;
@@ -466,15 +466,15 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // "Invalid value for the 'clusterInstanceHostPattern' configuration setting - the host
       // pattern must contain a '?'
       // character as a placeholder for the DB instance identifiers of the instances in the cluster"
-      final String message = Messages.get("AuroraHostListProvider.invalidPattern");
-      LOGGER.severe(message);
+      LOGGER.severe(() -> Messages.get("AuroraHostListProvider.invalidPattern"));
       throw new RuntimeException(Messages.get("AuroraHostListProvider.invalidPattern"));
     }
 
     final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(hostPattern);
     if (rdsUrlType == RdsUrlType.RDS_PROXY) {
       // "An RDS Proxy url can't be used as the 'clusterInstanceHostPattern' configuration setting."
-      final String message = Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
+      final String message =
+          Messages.get("AuroraHostListProvider.clusterInstanceHostPatternNotSupportedForRDSProxy");
       LOGGER.severe(message);
       throw new RuntimeException(message);
     }
@@ -503,7 +503,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
           .append(hostInfo == null ? "<null>" : hostInfo.getHost());
     }
     LOGGER.finer(
-        Messages.get("Failover.topologyObtained", new Object[] {msg.toString()}));
+        () -> Messages.get(
+            "Failover.topologyObtained",
+            new Object[] {msg.toString()}));
   }
 
   /**

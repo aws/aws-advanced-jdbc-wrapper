@@ -29,6 +29,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
+import software.amazon.jdbc.util.Messages;
 
 /**
  * This singleton class keeps track of all the monitoring threads and handles the creation and clean
@@ -113,7 +114,7 @@ public class MonitorThreadContainer {
 
   Monitor getOrCreateMonitor(Set<String> nodeKeys, Supplier<Monitor> monitorSupplier) {
     if (nodeKeys.isEmpty()) {
-      throw new IllegalArgumentException("Provided node keys are empty.");
+      throw new IllegalArgumentException(Messages.get("MonitorThreadContainer.emptyNodeKeys"));
     }
 
     Monitor monitor = null;

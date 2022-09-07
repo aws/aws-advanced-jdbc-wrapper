@@ -256,7 +256,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (this.rdsUrlType.isRdsCluster()) {
       this.explicitlyReadOnly = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER);
       LOGGER.finer(
-          Messages.get(
+          () -> Messages.get(
               "Failover.parameterValue",
               new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
     }
@@ -297,7 +297,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
     }
 
-    LOGGER.fine(Messages.get("Failover.invalidNode", new Object[] {currentHost}));
+    LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[] {currentHost}));
   }
 
   private boolean isNodeStillValid(final String node, Map<String, EnumSet<NodeChangeOptions>> changes) {
@@ -345,7 +345,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.info(Messages.get("Failover.connectionChangedError"));
       throw new FailoverSuccessSQLException();
     } else {
-      String reason = "No operations allowed after connection closed.";
+      String reason = Messages.get("Failover.noOperationsAfterConnectionClosed");
       if (this.closedReason != null) {
         reason += (" " + this.closedReason);
       }
@@ -418,7 +418,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     try {
       switchCurrentConnectionTo(host, createConnectionForHost(host));
       LOGGER.fine(
-          Messages.get(
+          () -> Messages.get(
               "Failover.establishedConnection",
               new Object[] {host}));
     } catch (SQLException e) {
@@ -429,7 +429,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                 .append(" host '")
                 .append(host.getUrl())
                 .append("' failed");
-        LOGGER.warning(String.format("%s: %s", msg, e.getMessage()));
+        LOGGER.warning(() -> String.format("%s: %s", msg, e.getMessage()));
       }
       throw e;
     }
@@ -473,7 +473,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (methodName.contains(METHOD_SET_READ_ONLY)) {
       this.explicitlyReadOnly = (Boolean) args[0];
       LOGGER.finer(
-          Messages.get(
+          () -> Messages.get(
               "Failover.parameterValue",
               new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
       connectToWriterIfRequired(this.explicitlyReadOnly);
@@ -571,7 +571,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
-      LOGGER.finer(Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
+      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
@@ -638,15 +638,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       throw new TransactionStateUnknownSQLException();
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
-      // session state if required."
-      final String errorMessage = Messages.get("Failover.connectionChangedError");
-      LOGGER.severe(errorMessage);
+      // session state if required. "
+      LOGGER.severe(() -> Messages.get("Failover.connectionChangedError"));
       throw new FailoverSuccessSQLException();
     }
   }
 
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
-    LOGGER.fine(Messages.get("Failover.startReaderFailover"));
+    LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
 
     HostSpec failedHost = null;
     final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
@@ -674,13 +673,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     updateTopology(true);
 
     LOGGER.fine(
-        Messages.get(
+        () -> Messages.get(
             "Failover.establishedConnection",
             new Object[] {this.pluginService.getCurrentHostSpec()}));
   }
 
   protected void failoverWriter() throws SQLException {
-    LOGGER.fine(Messages.get("Failover.startWriterFailover"));
+    LOGGER.fine(() -> Messages.get("Failover.startWriterFailover"));
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
     WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
@@ -701,7 +700,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
 
     LOGGER.fine(
-        Messages.get(
+        () -> Messages.get(
             "Failover.establishedConnection",
             new Object[] {this.pluginService.getCurrentHostSpec()}));
 
@@ -742,13 +741,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               HostAvailability.NOT_AVAILABLE));
       this.pluginService.setAvailability(originalHost.getAliases(), HostAvailability.NOT_AVAILABLE);
     } catch (SQLException e) {
-      LOGGER.fine("Failed to update current hostspec availability");
+      LOGGER.fine(() -> Messages.get("Failover.failedToUpdateCurrentHostspecAvailability"));
     }
   }
 
   protected synchronized void pickNewConnection() throws SQLException {
     if (this.isClosed && this.closedExplicitly) {
-      LOGGER.fine(Messages.get("Failover.transactionResolutionUnknownError"));
+      LOGGER.fine(() -> Messages.get("Failover.transactionResolutionUnknownError"));
       return;
     }
 
@@ -767,7 +766,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     // TODO: support other drivers
 
     if (!isFailoverEnabled()) {
-      LOGGER.fine(Messages.get("Failover.failoverDisabled"));
+      LOGGER.fine(() -> Messages.get("Failover.failoverDisabled"));
       return false;
     }
 
