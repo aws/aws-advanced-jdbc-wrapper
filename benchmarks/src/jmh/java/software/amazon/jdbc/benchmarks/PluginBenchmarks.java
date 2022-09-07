@@ -140,6 +140,7 @@ public class PluginBenchmarks {
         CONNECTION_STRING,
         mockConnectionProvider);
          Statement statement = wrapper.createStatement()) {
+      // Do nothing
     }
   }
 
@@ -152,6 +153,7 @@ public class PluginBenchmarks {
             mockConnectionProvider);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
+      // Do nothing
     }
   }
 
