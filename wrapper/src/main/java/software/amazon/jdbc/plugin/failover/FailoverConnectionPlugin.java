@@ -287,7 +287,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (sb.length() > 0) {
           sb.append("\n");
         }
-        sb.append(String.format("   Host '%s': %s", change.getKey(), change.getValue()));
+        sb.append(String.format("\tHost '%s': %s", change.getKey(), change.getValue()));
       }
       LOGGER.finest(sb.toString());
     }

@@ -313,13 +313,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     // Data is result set is ordered by last updated time so the latest records go last.
     // When adding hosts to a map, the newer records replace the older ones.
     while (resultSet.next()) {
-      if (!WRITER_SESSION_ID.equalsIgnoreCase(resultSet.getString(FIELD_SESSION_ID))) {
-        final HostSpec host = createHost(resultSet, false);
-        hostMap.put(host.getHost(), host);
-      } else {
-        final HostSpec host = createHost(resultSet, true);
-        hostMap.put(host.getHost(), host);
-      }
+      final boolean isWriter = WRITER_SESSION_ID.equalsIgnoreCase(resultSet.getString(FIELD_SESSION_ID));
+      final HostSpec host = createHost(resultSet, isWriter);
+      hostMap.put(host.getHost(), host);
     }
 
     int writerCount = 0;
