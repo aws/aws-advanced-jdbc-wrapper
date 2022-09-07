@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql;
+package integration.container.aurora.mysql.mysql_driver;
 
 import java.net.UnknownHostException;
 import java.sql.Connection;
