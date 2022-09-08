@@ -358,4 +358,9 @@ public class SQLOutputWrapper implements SQLOutput {
         () -> this.sqlOutput.writeSQLXML(x),
         x);
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.sqlOutput;
+  }
 }

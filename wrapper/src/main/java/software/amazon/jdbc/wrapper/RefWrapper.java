@@ -77,4 +77,9 @@ public class RefWrapper implements Ref {
         () -> this.ref.setObject(value),
         value);
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.ref;
+  }
 }

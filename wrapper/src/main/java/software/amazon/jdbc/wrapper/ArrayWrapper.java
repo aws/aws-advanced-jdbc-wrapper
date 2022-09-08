@@ -153,4 +153,9 @@ public class ArrayWrapper implements Array {
     WrapperUtils.runWithPlugins(
         SQLException.class, this.pluginManager, this.array, "Array.free", () -> this.array.free());
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.array;
+  }
 }

@@ -152,4 +152,9 @@ public class ParameterMetaDataWrapper implements ParameterMetaData {
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
     return this.parameterMetaData.isWrapperFor(iface);
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.parameterMetaData;
+  }
 }

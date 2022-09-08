@@ -295,4 +295,9 @@ public class ResultSetMetaDataWrapper implements ResultSetMetaData {
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
     return this.resultSetMetaData.isWrapperFor(iface);
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.resultSetMetaData;
+  }
 }
