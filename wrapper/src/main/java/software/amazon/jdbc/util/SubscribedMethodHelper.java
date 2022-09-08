@@ -22,7 +22,6 @@ import java.util.List;
 public class SubscribedMethodHelper {
 
   public static final List<String> NETWORK_BOUND_METHODS = Arrays.asList(
-      "initHostProvider",
       "Connection.sendQueryCancel",
       "Connection.connect",
       "Connection.isValid",

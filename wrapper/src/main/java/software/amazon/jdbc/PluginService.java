@@ -45,6 +45,8 @@ public interface PluginService {
 
   List<HostSpec> getHosts();
 
+  HostSpec getInitialConnectionHostSpec();
+
   void setAvailability(Set<String> hostAliases, HostAvailability availability);
 
   boolean isExplicitReadOnly();

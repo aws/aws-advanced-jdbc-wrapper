@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
@@ -282,14 +283,32 @@ public class ContainerHelper {
     }
     ArrayList<String> auroraInstances = new ArrayList<>();
 
-    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement()) {
-      // Get instances
-      try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
-        while (resultSet.next()) {
-          // Get Instance endpoints
-          final String hostEndpoint = resultSet.getString(SERVER_ID) + "." + hostBase;
-          auroraInstances.add(hostEndpoint);
+    int attemptCount = 10;
+    while (attemptCount-- > 0) {
+      try {
+        auroraInstances.clear();
+        try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
+            final Statement stmt = conn.createStatement()) {
+          // Get instances
+          try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
+            while (resultSet.next()) {
+              // Get Instance endpoints
+              final String hostEndpoint = resultSet.getString(SERVER_ID) + "." + hostBase;
+              auroraInstances.add(hostEndpoint);
+            }
+          }
+        }
+        return auroraInstances;
+
+      } catch (SQLException ex) {
+        System.err.println("Error getting cluster endpoints for " + connectionUrl + ". " + ex.getMessage());
+        if (attemptCount <= 0) {
+          throw ex;
+        }
+        try {
+          TimeUnit.SECONDS.sleep(10);
+        } catch (InterruptedException e) {
+          // ignore
         }
       }
     }

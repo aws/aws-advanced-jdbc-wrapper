@@ -25,22 +25,26 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProvider;
+import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.ExpiringCache;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.Utils;
 
 public class AuroraHostListProvider implements HostListProvider, DynamicHostListProvider {
 
@@ -71,15 +75,14 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
           // filter out nodes that haven't been updated in the last 5 minutes
           + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
-          + "ORDER BY LAST_UPDATE_TIMESTAMP DESC";
+          + "ORDER BY LAST_UPDATE_TIMESTAMP";
 
   static final String MYSQL_RETRIEVE_TOPOLOGY_SQL =
       "SELECT SERVER_ID, SESSION_ID, LAST_UPDATE_TIMESTAMP, REPLICA_LAG_IN_MILLISECONDS "
           + "FROM information_schema.replica_host_status "
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 " // 5 min
-          + "ORDER BY LAST_UPDATE_TIMESTAMP DESC";
+          + "ORDER BY LAST_UPDATE_TIMESTAMP";
   static final int DEFAULT_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
-  static final int WRITER_CONNECTION_INDEX = 0;
   static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
   static final String MYSQL_GET_INSTANCE_NAME_COL = "@@aurora_server_id";
   static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
@@ -87,13 +90,16 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   static final String FIELD_SERVER_ID = "SERVER_ID";
   static final String FIELD_SESSION_ID = "SESSION_ID";
-  private final PluginService pluginService;
+  private final HostListProviderService hostListProviderService;
   private final String originalUrl;
-  private final RdsUrlType rdsUrlType;
+  private RdsUrlType rdsUrlType;
   private final RdsUtils rdsHelper;
 
-  private final int refreshRateInMilliseconds;
+  private int refreshRateInMilliseconds;
   private List<HostSpec> hostList = new ArrayList<>();
+  private List<HostSpec> lastReturnedHostList;
+  private List<HostSpec> initialHostList = new ArrayList<>();
+  private HostSpec initialHostSpec;
 
   protected static final ExpiringCache<String, ClusterTopologyInfo> topologyCache =
       new ExpiringCache<>(DEFAULT_CACHE_EXPIRE_MS);
@@ -105,6 +111,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   private final String instanceNameCol;
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
+  protected ConnectionUrlParser connectionUrlParser;
+
+  protected boolean isInitialized = false;
 
   private static final Logger LOGGER = Logger.getLogger(AuroraHostListProvider.class.getName());
 
@@ -112,13 +121,49 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
 
   public AuroraHostListProvider(
       final String driverProtocol,
-      final PluginService pluginService,
+      final HostListProviderService hostListProviderService,
       final Properties properties,
       final String originalUrl) {
+    this(driverProtocol, hostListProviderService, properties, originalUrl, new ConnectionUrlParser());
+  }
+
+  public AuroraHostListProvider(
+      final String driverProtocol,
+      final HostListProviderService hostListProviderService,
+      final Properties properties,
+      final String originalUrl,
+      final ConnectionUrlParser connectionUrlParser) {
     this.rdsHelper = new RdsUtils();
-    this.pluginService = pluginService;
+    this.hostListProviderService = hostListProviderService;
     this.properties = properties;
     this.originalUrl = originalUrl;
+    this.connectionUrlParser = connectionUrlParser;
+
+    if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
+      retrieveTopologyQuery = PG_RETRIEVE_TOPOLOGY_SQL;
+      retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
+      instanceNameCol = PG_INSTANCE_NAME_COL;
+    } else {
+      retrieveTopologyQuery = MYSQL_RETRIEVE_TOPOLOGY_SQL;
+      retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
+      instanceNameCol = MYSQL_GET_INSTANCE_NAME_COL;
+    }
+  }
+
+  private void init() throws SQLException {
+    if (this.isInitialized) {
+      return;
+    }
+
+    // initial topology is based on connection string
+    this.initialHostList = this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl);
+    if (this.initialHostList == null || this.initialHostList.isEmpty()) {
+      throw new SQLException(Messages.get("AuroraHostListProvider.parsedListEmpty",
+          new Object[]{this.originalUrl}));
+    }
+    this.initialHostSpec = this.initialHostList.get(0);
+    this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
+
     this.clusterId = UUID.randomUUID().toString();
     this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
     this.clusterInstanceTemplate = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
@@ -134,23 +179,24 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
       // Each proxy is associated with a single cluster, so it's safe to use RDS Proxy Url as cluster
       // identification
-      this.clusterId = this.pluginService.getCurrentHostSpec().getUrl();
+      this.clusterId = this.initialHostSpec.getUrl();
     } else if (rdsUrlType.isRds()) {
-      final String clusterRdsHostUrl = this.rdsHelper.getRdsClusterHostUrl(originalUrl);
-      if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
-        this.clusterId = clusterRdsHostUrl + ":" + this.clusterInstanceTemplate.getPort();
+      final String suggestedClusterId =
+          getSuggestedClusterId(this.initialHostSpec.getUrl());
+      if (!StringUtils.isNullOrEmpty(suggestedClusterId)) {
+        this.clusterId = suggestedClusterId;
+      } else {
+        final String clusterRdsHostUrl =
+            this.rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getUrl());
+        if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
+          this.clusterId = this.clusterInstanceTemplate.isPortSpecified()
+              ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
+              : clusterRdsHostUrl;
+        }
       }
     }
 
-    if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
-      retrieveTopologyQuery = PG_RETRIEVE_TOPOLOGY_SQL;
-      retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = PG_INSTANCE_NAME_COL;
-    } else {
-      retrieveTopologyQuery = MYSQL_RETRIEVE_TOPOLOGY_SQL;
-      retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = MYSQL_GET_INSTANCE_NAME_COL;
-    }
+    this.isInitialized = true;
   }
 
   /**
@@ -165,15 +211,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
    *     Returns an empty list if isn't available or is invalid (doesn't contain a writer).
    * @throws SQLException if errors occurred while retrieving the topology.
    */
-  public List<HostSpec> getTopology(final Connection conn, final boolean forceUpdate) throws SQLException {
-    final HostSpec hostSpec = this.pluginService.getCurrentHostSpec();
-
-    if (rdsUrlType.isRdsCluster()) {
-      final HostSpec instance = this.getHostByName(this.pluginService.getCurrentConnection());
-      if (instance != null && instance.getAliases() != null) {
-        hostSpec.addAlias(instance.getAliases().toArray(new String[] {}));
-      }
-    }
+  public FetchTopologyResult getTopology(final Connection conn, final boolean forceUpdate) throws SQLException {
 
     ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
 
@@ -182,21 +220,56 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
         || forceUpdate
         || refreshNeeded(clusterTopologyInfo)) {
 
-      final ClusterTopologyInfo latestTopologyInfo = queryForTopology(conn);
-      List<HostSpec> hosts;
-      if (!latestTopologyInfo.hosts.isEmpty()) {
-        clusterTopologyInfo = updateCache(clusterTopologyInfo, latestTopologyInfo);
-        hosts = clusterTopologyInfo.hosts;
+      // need to re-fetch topology
+
+      if (conn == null) {
+        // can't fetch the latest topology since no connection
+        // return original hosts parsed from connection string
+        return new FetchTopologyResult(false, this.initialHostList);
+
       } else {
-        hosts = (clusterTopologyInfo == null || forceUpdate)
-            ? new ArrayList<>()
-            : clusterTopologyInfo.hosts;
+        // fetch topology from the DB
+        final ClusterTopologyInfo latestTopologyInfo = queryForTopology(conn);
+
+        if (latestTopologyInfo != null && !latestTopologyInfo.hosts.isEmpty()) {
+          // topology looks valid
+          clusterTopologyInfo = updateCache(clusterTopologyInfo, latestTopologyInfo);
+          return new FetchTopologyResult(false, clusterTopologyInfo.hosts);
+
+        } else {
+          if (clusterTopologyInfo != null && !forceUpdate) {
+            // use cached data
+            return new FetchTopologyResult(true, clusterTopologyInfo.hosts);
+          } else {
+            return new FetchTopologyResult(false, this.initialHostList);
+          }
+        }
       }
-      logTopology(hosts);
-      return hosts;
     }
 
-    return clusterTopologyInfo.hosts;
+    // return cached hosts
+    return new FetchTopologyResult(true, clusterTopologyInfo.hosts);
+  }
+
+  private String getSuggestedClusterId(final String url) {
+    synchronized (cacheLock) {
+      for (Entry<String, ClusterTopologyInfo> entry : topologyCache.entrySet()) {
+        if (entry.getKey().equals(url)) {
+          return url;
+        }
+        if (entry.getValue().hosts == null) {
+          continue;
+        }
+        for (HostSpec host : entry.getValue().hosts) {
+          if (host.getUrl().equals(url)) {
+            LOGGER.finest(() -> Messages.get("AuroraHostListProvider.suggestedClusterId",
+                new Object[]{entry.getKey(), url}));
+            return entry.getKey();
+          }
+        }
+      }
+    }
+    return null;
   }
 
   private boolean refreshNeeded(final ClusterTopologyInfo info) {
@@ -213,6 +286,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
    * @throws SQLException if errors occurred while retrieving the topology.
    */
   protected ClusterTopologyInfo queryForTopology(final Connection conn) throws SQLException {
+    init();
     List<HostSpec> hosts = new ArrayList<>();
     try (final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologyQuery)) {
@@ -233,25 +307,25 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
    *     (no writer instance).
    */
   private List<HostSpec> processQueryResults(final ResultSet resultSet) throws SQLException {
+
+    final HashMap<String, HostSpec> hostMap = new HashMap<>();
+
+    // Data is result set is ordered by last updated time so the latest records go last.
+    // When adding hosts to a map, the newer records replace the older ones.
+    while (resultSet.next()) {
+      final boolean isWriter = WRITER_SESSION_ID.equalsIgnoreCase(resultSet.getString(FIELD_SESSION_ID));
+      final HostSpec host = createHost(resultSet, isWriter);
+      hostMap.put(host.getHost(), host);
+    }
+
     int writerCount = 0;
     final List<HostSpec> hosts = new ArrayList<>();
 
-    while (resultSet.next()) {
-      if (!WRITER_SESSION_ID.equalsIgnoreCase(resultSet.getString(FIELD_SESSION_ID))) {
-        hosts.add(createHost(resultSet));
-        continue;
+    for (HostSpec host : hostMap.values()) {
+      if (host.getRole() == HostRole.WRITER) {
+        writerCount++;
       }
-
-      if (writerCount == 0) {
-        // store the first writer to its expected position [0]
-        hosts.add(WRITER_CONNECTION_INDEX, createHost(resultSet));
-      } else {
-        // during failover, there could temporarily be two writers. Because we sorted by the last
-        // updated timestamp, this host should be the obsolete writer, and it is about to become a
-        // reader
-        hosts.add(createHost(resultSet, false));
-      }
-      writerCount++;
+      hosts.add(host);
     }
 
     if (writerCount == 0) {
@@ -289,14 +363,11 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     final String endpoint = getHostEndpoint(hostName);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
         ? this.clusterInstanceTemplate.getPort()
-        : this.pluginService.getCurrentHostSpec().getPort();
+        : this.initialHostSpec.getPort();
 
     final HostSpec hostSpec =
         new HostSpec(endpoint, port, isWriter ? HostRole.WRITER : HostRole.READER);
-    hostSpec.addAlias(hostName, endpoint, hostSpec.getUrl());
-    if (!endpoint.endsWith("/")) {
-      hostSpec.addAlias(endpoint + "/");
-    }
+    hostSpec.addAlias(hostName);
     return hostSpec;
   }
 
@@ -417,47 +488,49 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
 
   @Override
   public List<HostSpec> refresh() throws SQLException {
-    return this.refresh(this.pluginService.getCurrentConnection());
+    return this.refresh(null);
   }
 
   @Override
   public List<HostSpec> refresh(Connection connection) throws SQLException {
-    Connection currentConnection = connection != null ? connection : this.pluginService.getCurrentConnection();
-    if (currentConnection == null) {
-      currentConnection = this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
-      this.pluginService.setCurrentConnection(currentConnection, this.pluginService.getCurrentHostSpec());
+    init();
+    Connection currentConnection = connection != null
+        ? connection
+        : this.hostListProviderService.getCurrentConnection();
+
+    final FetchTopologyResult results = getTopology(currentConnection, false);
+    LOGGER.finest(() -> Utils.logTopology(results.hosts));
+
+    if (results.isCachedData && this.lastReturnedHostList == results.hosts) {
+      return null; // no topology update
     }
-    final ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
-    hostList =
-        getTopology(
-            currentConnection,
-            clusterTopologyInfo != null && refreshNeeded(clusterTopologyInfo));
-    for (HostSpec hostSpec : hostList) {
-      this.pluginService.setAvailability(hostSpec.getAliases(), hostSpec.getAvailability());
-    }
+
+    this.hostList = results.hosts;
+    this.lastReturnedHostList = this.hostList;
     return Collections.unmodifiableList(hostList);
   }
 
   @Override
   public List<HostSpec> forceRefresh() throws SQLException {
-    return this.forceRefresh(this.pluginService.getCurrentConnection());
+    return this.forceRefresh(null);
   }
 
   @Override
   public List<HostSpec> forceRefresh(Connection connection) throws SQLException {
-    Connection currentConnection = connection != null ? connection : this.pluginService.getCurrentConnection();
-    if (currentConnection == null) {
-      currentConnection = this.pluginService.connect(this.pluginService.getCurrentHostSpec(), this.properties);
-      this.pluginService.setCurrentConnection(currentConnection, this.pluginService.getCurrentHostSpec());
-    }
-    hostList = getTopology(currentConnection, true);
-    for (HostSpec hostSpec : hostList) {
-      this.pluginService.setAvailability(hostSpec.getAliases(), hostSpec.getAvailability());
-    }
-    return Collections.unmodifiableList(hostList);
+    init();
+    Connection currentConnection = connection != null
+        ? connection
+        : this.hostListProviderService.getCurrentConnection();
+
+    final FetchTopologyResult results = getTopology(currentConnection, true);
+    LOGGER.finest(() -> Utils.logTopology(results.hosts));
+    this.hostList = results.hosts;
+    this.lastReturnedHostList = this.hostList;
+    return Collections.unmodifiableList(this.hostList);
   }
 
-  public RdsUrlType getRdsUrlType() {
+  public RdsUrlType getRdsUrlType() throws SQLException {
+    init();
     return this.rdsUrlType;
   }
 
@@ -466,8 +539,9 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // "Invalid value for the 'clusterInstanceHostPattern' configuration setting - the host
       // pattern must contain a '?'
       // character as a placeholder for the DB instance identifiers of the instances in the cluster"
-      LOGGER.severe(() -> Messages.get("AuroraHostListProvider.invalidPattern"));
-      throw new RuntimeException(Messages.get("AuroraHostListProvider.invalidPattern"));
+      final String message = Messages.get("AuroraHostListProvider.invalidPattern");
+      LOGGER.severe(message);
+      throw new RuntimeException(message);
     }
 
     final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(hostPattern);
@@ -489,23 +563,48 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     }
   }
 
-  private void logTopology(final List<HostSpec> topology) {
-    if (!LOGGER.isLoggable(Level.FINER)) {
-      return;
-    }
+  public static void logCache() {
+    LOGGER.finest(() -> {
+      StringBuilder sb = new StringBuilder();
+      final Set<Entry<String, ClusterTopologyInfo>> cacheEntries = topologyCache.entrySet();
 
-    StringBuilder msg = new StringBuilder();
-    for (int i = 0; i < topology.size(); i++) {
-      HostSpec hostInfo = topology.get(i);
-      msg.append("\n   [")
-          .append(i)
-          .append("]: ")
-          .append(hostInfo == null ? "<null>" : hostInfo.getHost());
+      if (cacheEntries.isEmpty()) {
+        sb.append("Cache is empty.");
+        return sb.toString();
+      }
+
+      for (Entry<String, ClusterTopologyInfo> entry : cacheEntries) {
+        if (sb.length() > 0) {
+          sb.append("\n");
+        }
+        sb.append("[").append(entry.getKey()).append("]:\n")
+            .append("   lastUpdated: ")
+            .append(entry.getValue().lastUpdated).append("\n")
+            .append("   isMultiWriterCluster: ")
+            .append(entry.getValue().isMultiWriterCluster).append("\n")
+            .append("   Hosts: ");
+
+        if (entry.getValue().hosts == null) {
+          sb.append("<null>");
+        } else {
+          for (HostSpec h : entry.getValue().hosts) {
+            sb.append("\n      ").append(h);
+          }
+        }
+      }
+      return sb.toString();
+    });
+  }
+
+  static class FetchTopologyResult {
+
+    public List<HostSpec> hosts;
+    public boolean isCachedData;
+
+    public FetchTopologyResult(boolean isCachedData, List<HostSpec> hosts) {
+      this.isCachedData = isCachedData;
+      this.hosts = hosts;
     }
-    LOGGER.finer(
-        () -> Messages.get(
-            "Failover.topologyObtained",
-            new Object[] {msg.toString()}));
   }
 
   /**

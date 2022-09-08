@@ -14,23 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.plugin.staledns;
 
-import java.sql.Connection;
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginService;
 
-public interface HostListProviderService {
+public class AuroraStaleDnsPluginFactory implements ConnectionPluginFactory  {
 
-  boolean isStaticHostListProvider();
-
-  HostListProvider getHostListProvider();
-
-  void setHostListProvider(HostListProvider hostListProvider);
-
-  void setInitialConnectionHostSpec(final HostSpec initialConnectionHostSpec);
-
-  HostSpec getInitialConnectionHostSpec();
-
-  Connection getCurrentConnection();
-
-  HostSpec getCurrentHostSpec();
+  @Override
+  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+    return new AuroraStaleDnsPlugin(pluginService, props);
+  }
 }
