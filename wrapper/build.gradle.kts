@@ -28,9 +28,9 @@ plugins {
 
 dependencies {
     implementation("org.checkerframework:checker-qual:3.23.+")
-    compileOnly("software.amazon.awssdk:rds:2.17.259")
+    compileOnly("software.amazon.awssdk:rds:2.17.267")
     compileOnly("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.17.250")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.17.267")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.+")
@@ -48,16 +48,16 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
     testImplementation("org.mockito:mockito-inline:4.+")
-    testImplementation("software.amazon.awssdk:rds:2.17.259")
-    testImplementation("software.amazon.awssdk:ec2:2.17.259")
+    testImplementation("software.amazon.awssdk:rds:2.17.267")
+    testImplementation("software.amazon.awssdk:ec2:2.17.267")
     testImplementation("org.testcontainers:testcontainers:1.17.+")
     testImplementation("org.testcontainers:mysql:1.17.+")
     testImplementation("org.testcontainers:postgresql:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
-    testImplementation("org.slf4j:slf4j-simple:1.7.+")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.17.250")
+    testImplementation("org.slf4j:slf4j-simple:2.0.+")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.17.267")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 }
 
