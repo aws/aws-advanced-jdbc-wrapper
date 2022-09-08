@@ -374,9 +374,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       if (!result.isConnected() || result.getConnection() == null || result.getHost() == null) {
         return false;
       }
-      // Verify that connected host is presented in current topology
-      return this.currentTopology.stream()
-          .anyMatch(h -> h.getUrl().equals(result.getHost().getUrl()));
+      return true;
     }
 
     /**
@@ -391,14 +389,27 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           List<HostSpec> topology = pluginService.getHosts();
 
           if (!topology.isEmpty()) {
-            this.currentTopology = topology;
-            HostSpec writerCandidate = getWriter(this.currentTopology);
 
-            if (!isSame(writerCandidate, this.originalWriterHost)) {
-              // new writer is available, and it's different from the previous writer
-              logTopology();
-              if (connectToWriter(writerCandidate)) {
-                return true;
+            if (topology.size() == 1) {
+              // The currently connected reader is in a middle of failover. It's not yet connected
+              // to a new writer adn works in as "standalone" node. The handler needs to
+              // wait till the reader gets connected to entire cluster and fetch a proper
+              // cluster topology.
+
+              // do nothing
+              LOGGER.finest(() -> Messages.get("ClusterAwareWriterFailoverHandler.standaloneNode",
+                  new Object[]{this.currentReaderHost.getUrl()}));
+
+            } else {
+              this.currentTopology = topology;
+              HostSpec writerCandidate = getWriter(this.currentTopology);
+
+              if (!isSame(writerCandidate, this.originalWriterHost)) {
+                // new writer is available, and it's different from the previous writer
+                LOGGER.finest(() -> Utils.logTopology(this.currentTopology, "[TaskB] "));
+                if (connectToWriter(writerCandidate)) {
+                  return true;
+                }
               }
             }
           }
@@ -415,32 +426,32 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
 
     private boolean isSame(HostSpec hostSpec1, HostSpec hostSpec2) {
-      if (hostSpec1 == null) {
+      if (hostSpec1 == null || hostSpec2 == null) {
         return false;
       }
 
-      return hostSpec1.getAliases().stream().anyMatch(hostSpec2.getAliases()::contains);
+      return hostSpec1.getUrl().equals(hostSpec2.getUrl());
     }
 
     private boolean connectToWriter(HostSpec writerCandidate) {
-      try {
+      if (isSame(writerCandidate, this.currentReaderHost)) {
+        LOGGER.finest(() -> Messages.get("ClusterAwareWriterFailoverHandler.alreadyWriter"));
+        this.currentConnection = this.currentReaderConnection;
+        return true;
+      } else {
         LOGGER.fine(
             () -> Messages.get(
                 "ClusterAwareWriterFailoverHandler.taskBAttemptConnectionToNewWriter",
                 new Object[] {writerCandidate.getUrl()}));
-
-        if (isSame(writerCandidate, this.currentReaderHost)) {
-          this.currentConnection = this.currentReaderConnection;
-        } else {
+        try {
           // connect to the new writer
           this.currentConnection = pluginService.connect(writerCandidate, initialConnectionProps);
+          pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
+          return true;
+        } catch (SQLException exception) {
+          pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
+          return false;
         }
-
-        pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
-        return true;
-      } catch (SQLException exception) {
-        pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.NOT_AVAILABLE);
-        return false;
       }
     }
 
@@ -470,25 +481,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
           // ignore
         }
       }
-    }
-
-    private void logTopology() {
-      if (!LOGGER.isLoggable(Level.FINER)) {
-        return;
-      }
-
-      StringBuilder msg = new StringBuilder();
-      for (int i = 0; i < this.currentTopology.size(); i++) {
-        HostSpec hostInfo = this.currentTopology.get(i);
-        msg.append("\n   [")
-            .append(i)
-            .append("]: ")
-            .append(hostInfo == null ? "<null>" : hostInfo.getHost());
-      }
-      LOGGER.finer(
-          () -> Messages.get(
-              "ClusterAwareWriterFailoverHandler.taskBTopologyObtained",
-              new Object[] {msg.toString()}));
     }
   }
 }

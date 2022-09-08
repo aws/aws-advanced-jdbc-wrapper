@@ -26,13 +26,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.Messages;
 
@@ -49,6 +47,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   protected List<HostSpec> hosts = new ArrayList<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
+  protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
   private boolean explicitReadOnly;
 
@@ -71,12 +70,40 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   @Override
   public HostSpec getCurrentHostSpec() {
     if (this.currentHostSpec == null) {
-      if (this.getHosts().isEmpty()) {
-        throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
+      this.currentHostSpec = this.initialConnectionHostSpec;
+
+      if (this.currentHostSpec == null) {
+        if (this.getHosts().isEmpty()) {
+          throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
+        }
+        this.currentHostSpec = this.getWriter(this.getHosts());
+        if (this.currentHostSpec == null) {
+          this.currentHostSpec = this.getHosts().get(0);
+        }
       }
-      this.currentHostSpec = this.getHosts().get(0);
+      if (this.currentHostSpec == null) {
+        throw new RuntimeException("Current host is undefined.");
+      }
+      LOGGER.finest(() -> "Set current host to " + this.currentHostSpec);
     }
     return this.currentHostSpec;
+  }
+
+  public void setInitialConnectionHostSpec(final @NonNull HostSpec initialConnectionHostSpec) {
+    this.initialConnectionHostSpec = initialConnectionHostSpec;
+  }
+
+  public HostSpec getInitialConnectionHostSpec() {
+    return this.initialConnectionHostSpec;
+  }
+
+  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
+    for (HostSpec hostSpec : hosts) {
+      if (hostSpec.getRole() == HostRole.WRITER) {
+        return hostSpec;
+      }
+    }
+    return null;
   }
 
   @Override
@@ -139,9 +166,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   protected EnumSet<NodeChangeOptions> compare(
-      final @NonNull Connection connA,
+      final @Nullable Connection connA,
       final @NonNull HostSpec hostSpecA,
-      final @NonNull Connection connB,
+      final @Nullable Connection connB,
       final @NonNull HostSpec hostSpecB) {
 
     EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
@@ -180,13 +207,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
   @Override
   public List<HostSpec> getHosts() {
-    if (this.hosts.isEmpty()) {
-      try {
-        this.refreshHostList();
-      } catch (SQLException e) {
-        LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostListException"));
-      }
-    }
     return this.hosts;
   }
 
@@ -255,25 +275,23 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
   @Override
   public HostListProvider getHostListProvider() {
-    if (this.hostListProvider == null) {
-      synchronized (this) {
-        if (this.hostListProvider == null) {
-          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);
-          this.currentHostSpec = this.getCurrentHostSpec();
-        }
-      }
-    }
     return this.hostListProvider;
   }
 
   @Override
   public void refreshHostList() throws SQLException {
-    setNodeList(this.hosts, this.getHostListProvider().refresh());
+    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
+    if (updatedHostList != null) {
+      setNodeList(this.hosts, updatedHostList);
+    }
   }
 
   @Override
   public void refreshHostList(Connection connection) throws SQLException {
-    setNodeList(this.hosts, this.getHostListProvider().refresh(connection));
+    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
+    if (updatedHostList != null) {
+      setNodeList(this.hosts, updatedHostList);
+    }
   }
 
   @Override

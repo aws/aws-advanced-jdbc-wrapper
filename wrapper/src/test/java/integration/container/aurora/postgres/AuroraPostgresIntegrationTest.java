@@ -544,7 +544,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
         "",
         String.valueOf(AURORA_POSTGRES_PORT),
         AURORA_POSTGRES_DB);
-    assertThrows(RuntimeException.class, () -> connectToInstanceCustomUrl(
+    assertThrows(SQLException.class, () -> connectToInstanceCustomUrl(
         url, props));
   }
 }

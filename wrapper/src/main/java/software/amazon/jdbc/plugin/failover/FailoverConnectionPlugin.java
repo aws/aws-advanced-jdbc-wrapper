@@ -25,10 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProvider;
@@ -59,7 +59,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(FailoverConnectionPlugin.class.getName());
 
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(SubscribedMethodHelper.NETWORK_BOUND_METHODS));
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+          add("initHostProvider");
+          add("connect");
+          add("notifyNodeListChanged");
+        }
+      });
 
   static final String METHOD_SET_READ_ONLY = "setReadOnly";
   static final String METHOD_SET_AUTO_COMMIT = "setAutoCommit";
@@ -211,7 +218,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         props,
         hostListProviderService,
         initHostProviderFunc,
-        () -> new AuroraHostListProvider(driverProtocol, pluginService, props, initialUrl),
+        () -> new AuroraHostListProvider(driverProtocol, hostListProviderService, props, initialUrl),
         () ->
             new ClusterAwareReaderFailoverHandler(
                 this.pluginService,
@@ -280,7 +287,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         if (sb.length() > 0) {
           sb.append("\n");
         }
-        sb.append(String.format("Host '%s': %s", change.getKey(), change.getValue()));
+        sb.append(String.format("\tHost '%s': %s", change.getKey(), change.getValue()));
       }
       LOGGER.finest(sb.toString());
     }
@@ -372,8 +379,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (topology == null) {
       return null;
     }
+    return getWriter(topology);
+  }
 
-    for (HostSpec hostSpec : topology) {
+  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
+    for (HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.WRITER) {
         return hostSpec;
       }
@@ -695,9 +705,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    // successfully re-connected to the same writer node
-    this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), currentHost);
-    this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
+    // successfully re-connected to a writer node
+    final HostSpec writerHostSpec = failoverResult.isNewHost()
+        ? getWriter(failoverResult.getTopology())
+        : currentHost;
+    this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
 
     LOGGER.fine(
         () -> Messages.get(
@@ -808,4 +820,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
     return exceptionClass.cast(new RuntimeException(exception));
   }
+
+  @Override
+  public Connection connect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+
+    Connection conn = connectFunc.call();
+
+    if (isInitialConnection) {
+      this.pluginService.refreshHostList(conn);
+    }
+
+    return conn;
+  }
+
 }
