@@ -189,7 +189,7 @@ public abstract class AuroraMysqlBaseTest {
     proxyMap.put(MYSQL_RO_CLUSTER_URL, proxyReadOnlyCluster);
 
     try {
-      Class.forName("com.mariadb.cj.jdbc.Driver");
+      Class.forName("org.mariadb.jdbc.Driver");
     } catch (ClassNotFoundException e) {
       fail("MariaDB driver not found");
     }
