@@ -53,6 +53,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.17.+")
     testImplementation("org.testcontainers:mysql:1.17.+")
     testImplementation("org.testcontainers:postgresql:1.17.+")
+    testImplementation("org.testcontainers:mariadb:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
@@ -224,6 +225,12 @@ tasks.register<Test>("debug-integration-aurora-mysql") {
 tasks.register<Test>("debug-integration-standard-mysql") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.debugTestInContainer")
+}
+
+// Run standard Mariadb tests in container
+tasks.register<Test>("test-integration-standard-mariadb") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.StandardMariadbContainerTest.runTestInContainer")
 }
 
 tasks.withType<Test> {

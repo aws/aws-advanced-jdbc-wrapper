@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.MariaDBContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
@@ -48,7 +49,7 @@ public class StandardMariadbContainerTest {
 
   private static final String TEST_CONTAINER_TYPE = System.getenv("TEST_CONTAINER_TYPE");
 
-  private static MySQLContainer<?> mariadbContainer;
+  private static MariaDBContainer<?> mariadbContainer;
   private static GenericContainer<?> integrationTestContainer;
   private static ToxiproxyContainer proxyContainer;
   private static int mariadbProxyPort;
@@ -57,7 +58,8 @@ public class StandardMariadbContainerTest {
 
   @BeforeAll
   static void setUp() throws SQLException, ClassNotFoundException {
-    Class.forName("com.mariadb.cj.jdbc.Driver");
+//    Class.forName("com.mariadb.cj.jdbc.Driver");
+    Class.forName("org.mariadb.jdbc.Driver");
 
     if (!Driver.isRegistered()) {
       Driver.register();
@@ -65,7 +67,7 @@ public class StandardMariadbContainerTest {
 
     network = Network.newNetwork();
 
-    mariadbContainer = containerHelper.createMysqlContainer(network, STANDARD_MARIADB_HOST,
+    mariadbContainer = containerHelper.createMariadbContainer(network, STANDARD_MARIADB_HOST,
         STANDARD_MARIADB_DB, STANDARD_MARIADB_USERNAME, STANDARD_MARIADB_PASSWORD);
     mariadbContainer.start();
 

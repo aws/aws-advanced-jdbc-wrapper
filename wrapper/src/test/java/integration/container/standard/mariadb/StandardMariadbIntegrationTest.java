@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import integration.container.standard.mysql.StandardMysqlBaseTest;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -45,7 +44,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.ResultSetWrapper;
 import software.amazon.jdbc.wrapper.StatementWrapper;
 
-public class StandardMariadbIntegrationTest extends StandardMysqlBaseTest {
+public class StandardMariadbIntegrationTest extends StandardMariadbBaseTest {
 
   @Test
   public void test_connect() throws SQLException, IOException {
