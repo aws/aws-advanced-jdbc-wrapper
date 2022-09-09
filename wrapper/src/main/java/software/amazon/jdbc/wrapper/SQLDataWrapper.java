@@ -67,4 +67,9 @@ public class SQLDataWrapper implements SQLData {
         () -> this.sqlData.writeSQL(stream),
         stream);
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.sqlData;
+  }
 }

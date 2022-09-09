@@ -2130,4 +2130,9 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
   public boolean isWrapperFor(Class<?> iface) throws SQLException {
     return this.databaseMetaData.isWrapperFor(iface);
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.databaseMetaData;
+  }
 }

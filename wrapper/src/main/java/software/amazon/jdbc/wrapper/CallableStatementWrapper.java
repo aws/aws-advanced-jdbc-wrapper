@@ -2765,4 +2765,9 @@ public class CallableStatementWrapper implements CallableStatement {
         "CallableStatement.wasNull",
         () -> this.statement.wasNull());
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.statement;
+  }
 }
