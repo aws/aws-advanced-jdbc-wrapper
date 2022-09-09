@@ -821,6 +821,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return this.pluginService.getCurrentConnection().unwrap(iface);
   }
 
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.pluginService.getCurrentConnection();
+  }
+
   @SuppressWarnings("checkstyle:NoFinalizer")
   protected void finalize() throws Throwable {
 

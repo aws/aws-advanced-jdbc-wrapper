@@ -164,4 +164,9 @@ public class BlobWrapper implements Blob {
     WrapperUtils.runWithPlugins(
         SQLException.class, this.pluginManager, this.blob, "Blob.free", () -> this.blob.free());
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.blob;
+  }
 }
