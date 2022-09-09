@@ -56,7 +56,7 @@ public class StandardMariadbBaseTest {
     proxy = getProxy(toxiproxyClient, STANDARD_MARIADB_HOST, Integer.parseInt(STANDARD_MARIADB_PORT));
     proxyMap.put(STANDARD_MARIADB_HOST, proxy);
 
-    Class.forName("com.mysql.cj.jdbc.Driver");
+    Class.forName("org.mariadb.jdbc.Driver");
 
     if (!Driver.isRegistered()) {
       Driver.register();

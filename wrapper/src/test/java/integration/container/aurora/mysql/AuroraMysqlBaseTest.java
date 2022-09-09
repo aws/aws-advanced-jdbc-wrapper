@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysql_driver;
+package integration.container.aurora.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -74,18 +74,19 @@ public abstract class AuroraMysqlBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
+  protected static final String MYSQL_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
+  protected static final String MARIADB_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
-  static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
-  static final String MYSQL_INSTANCE_2_URL = System.getenv("MYSQL_INSTANCE_2_URL");
-  static final String MYSQL_INSTANCE_3_URL = System.getenv("MYSQL_INSTANCE_3_URL");
-  static final String MYSQL_INSTANCE_4_URL = System.getenv("MYSQL_INSTANCE_4_URL");
-  static final String MYSQL_INSTANCE_5_URL = System.getenv("MYSQL_INSTANCE_5_URL");
-  static final String MYSQL_CLUSTER_URL = System.getenv("DB_CLUSTER_CONN");
-  static final String MYSQL_RO_CLUSTER_URL = System.getenv("DB_RO_CLUSTER_CONN");
+  protected static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
+  protected static final String MYSQL_INSTANCE_2_URL = System.getenv("MYSQL_INSTANCE_2_URL");
+  protected static final String MYSQL_INSTANCE_3_URL = System.getenv("MYSQL_INSTANCE_3_URL");
+  protected static final String MYSQL_INSTANCE_4_URL = System.getenv("MYSQL_INSTANCE_4_URL");
+  protected static final String MYSQL_INSTANCE_5_URL = System.getenv("MYSQL_INSTANCE_5_URL");
+  protected static final String MYSQL_CLUSTER_URL = System.getenv("DB_CLUSTER_CONN");
+  protected static final String MYSQL_RO_CLUSTER_URL = System.getenv("DB_RO_CLUSTER_CONN");
 
-  static final String DB_CLUSTER_IDENTIFIER =
+  protected static final String DB_CLUSTER_IDENTIFIER =
       !StringUtils.isNullOrEmpty(MYSQL_CLUSTER_URL)
           ? MYSQL_CLUSTER_URL.substring(0, MYSQL_CLUSTER_URL.indexOf('.'))
           : null;
@@ -272,7 +273,7 @@ public abstract class AuroraMysqlBaseTest {
 
   protected Connection connectToInstance(String instanceUrl, int port, Properties props)
       throws SQLException {
-    final String url = DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_MYSQL_DB;
+    final String url = MYSQL_DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_MYSQL_DB;
     return DriverManager.getConnection(url, props);
   }
 
@@ -293,7 +294,7 @@ public abstract class AuroraMysqlBaseTest {
         DB_CONN_STR_SUFFIX.startsWith(".") ? DB_CONN_STR_SUFFIX.substring(1) : DB_CONN_STR_SUFFIX;
 
     final String url =
-        DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
+        MYSQL_DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
     return this.containerHelper.getAuroraInstanceEndpoints(
         url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, dbConnHostBase);
   }
@@ -302,7 +303,7 @@ public abstract class AuroraMysqlBaseTest {
   // Writer instance goes first.
   protected List<String> getTopologyIds() throws SQLException {
     final String url =
-        DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
+        MYSQL_DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
     return this.containerHelper.getAuroraInstanceIds(url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, "mysql");
   }
 

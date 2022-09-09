@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysql_driver;
+package integration.container.aurora.mysql.mysqlDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import eu.rekawek.toxiproxy.Proxy;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -59,7 +60,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     return Stream.of(
         // missing username
         Arguments.of(buildConnectionString(
-                DB_CONN_STR_PREFIX,
+                MYSQL_DB_CONN_STR_PREFIX,
                 MYSQL_INSTANCE_1_URL,
                 String.valueOf(AURORA_MYSQL_PORT),
                 AURORA_MYSQL_DB),
@@ -67,7 +68,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
             AURORA_MYSQL_PASSWORD),
         // missing password
         Arguments.of(buildConnectionString(
-                DB_CONN_STR_PREFIX,
+                MYSQL_DB_CONN_STR_PREFIX,
                 MYSQL_INSTANCE_1_URL,
                 String.valueOf(AURORA_MYSQL_PORT),
                 AURORA_MYSQL_DB),
@@ -82,7 +83,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
             AURORA_MYSQL_USERNAME,
             AURORA_MYSQL_PASSWORD),
         // incorrect database name
-        Arguments.of(buildConnectionString(DB_CONN_STR_PREFIX,
+        Arguments.of(buildConnectionString(MYSQL_DB_CONN_STR_PREFIX,
                 MYSQL_INSTANCE_1_URL,
                 String.valueOf(AURORA_MYSQL_PORT),
                 "failedDatabaseNameTest"),
@@ -485,7 +486,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
   public void testSuccessOpenConnection() throws SQLException {
 
     final String url = buildConnectionString(
-        DB_CONN_STR_PREFIX,
+        MYSQL_DB_CONN_STR_PREFIX,
         MYSQL_INSTANCE_1_URL,
         String.valueOf(AURORA_MYSQL_PORT),
         AURORA_MYSQL_DB);
@@ -506,7 +507,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
   @Test
   public void testSuccessOpenConnectionNoPort() throws SQLException {
 
-    final String url = DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL  + "/" + AURORA_MYSQL_DB;
+    final String url = MYSQL_DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL  + "/" + AURORA_MYSQL_DB;
 
     Properties props = new Properties();
     props.setProperty("user", AURORA_MYSQL_USERNAME);
@@ -539,7 +540,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     props.setProperty("user", AURORA_MYSQL_USERNAME);
     props.setProperty("password", AURORA_MYSQL_PASSWORD);
     String url = buildConnectionString(
-        DB_CONN_STR_PREFIX,
+        MYSQL_DB_CONN_STR_PREFIX,
         "",
         String.valueOf(AURORA_MYSQL_PORT),
         AURORA_MYSQL_DB);

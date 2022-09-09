@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysql_driver;
+package integration.container.aurora.mysql.mysqlDriver;
 
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -35,7 +36,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends AuroraMysqlBaseTest {
 
     Assertions.assertThrows(
         SQLException.class,
-        () -> DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props)
+        () -> DriverManager.getConnection(MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props)
     );
   }
 
@@ -48,7 +49,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends AuroraMysqlBaseTest {
 
     Assertions.assertThrows(
         SQLException.class,
-        () -> DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props)
+        () -> DriverManager.getConnection(MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props)
     );
   }
 
@@ -73,7 +74,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends AuroraMysqlBaseTest {
   public void test_AwsIam_ValidConnectionProperties() throws SQLException {
     final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
 
-    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props);
+    final Connection conn = DriverManager.getConnection(MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props);
     Assertions.assertDoesNotThrow(conn::close);
   }
 
@@ -83,7 +84,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends AuroraMysqlBaseTest {
   @Test
   public void test_AwsIam_ValidConnectionPropertiesNoPassword() throws SQLException {
     final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, "");
-    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props);
+    final Connection conn = DriverManager.getConnection(MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props);
     Assertions.assertDoesNotThrow(conn::close);
   }
 
@@ -93,7 +94,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends AuroraMysqlBaseTest {
    */
   @Test
   void test_AwsIam_NoAwsProtocolConnection() throws SQLException {
-    final String dbConn = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL;
+    final String dbConn = MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL;
     final Properties validProp = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
     final Properties invalidProp =
         initAwsIamProps("WRONG_" + AURORA_MYSQL_DB_USER + "_USER", AURORA_MYSQL_PASSWORD);
@@ -112,7 +113,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends AuroraMysqlBaseTest {
    */
   @Test
   void test_AwsIam_UserInConnStr() throws SQLException {
-    final String dbConn = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL;
+    final String dbConn = MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL;
     final Properties awsIamProp = initDefaultProps();
     awsIamProp.remove(PropertyDefinition.USER.name);
     awsIamProp.setProperty(PropertyDefinition.PLUGINS.name, "iam");

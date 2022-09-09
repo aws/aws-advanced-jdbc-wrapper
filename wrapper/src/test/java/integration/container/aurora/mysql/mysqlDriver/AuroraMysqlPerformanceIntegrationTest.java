@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysql_driver;
+package integration.container.aurora.mysql.mysqlDriver;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.mysql.cj.conf.PropertyKey;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;

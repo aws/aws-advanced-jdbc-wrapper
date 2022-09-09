@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysql_driver;
+package integration.container.aurora.mysql.mysqlDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -29,6 +29,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import eu.rekawek.toxiproxy.Proxy;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -78,7 +79,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   public void setUpTest() throws SQLException {
     String writerEndpoint = clusterTopology.get(0);
 
-    String jdbcUrl = DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
+    String jdbcUrl = MYSQL_DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
     log.logDebug("Writer endpoint: " + jdbcUrl);
 
     final HikariConfig config = new HikariConfig();

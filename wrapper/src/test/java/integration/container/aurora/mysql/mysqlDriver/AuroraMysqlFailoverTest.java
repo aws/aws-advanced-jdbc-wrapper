@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysql_driver;
+package integration.container.aurora.mysql.mysqlDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -326,7 +327,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
 
     // Establish the topology cache so that we can later assert that testConnection does not inherit properties from
     // establishCacheConnection either before or after failover
-    final String url = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB;
+    final String url = MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB;
     final Connection establishCacheConnection = DriverManager.getConnection(
         url,
         props);
