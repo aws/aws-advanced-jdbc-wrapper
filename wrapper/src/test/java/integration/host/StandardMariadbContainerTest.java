@@ -57,7 +57,6 @@ public class StandardMariadbContainerTest {
 
   @BeforeAll
   static void setUp() throws SQLException, ClassNotFoundException {
-//    Class.forName("com.mariadb.cj.jdbc.Driver");
     Class.forName("org.mariadb.jdbc.Driver");
 
     if (!Driver.isRegistered()) {

@@ -233,6 +233,12 @@ tasks.register<Test>("test-integration-standard-mariadb") {
     filter.includeTestsMatching("integration.host.StandardMariadbContainerTest.runTestInContainer")
 }
 
+// Run standard Mariadb integration tests in container with debugger
+tasks.register<Test>("debug-integration-standard-mariadb") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.StandardMariadbContainerTest.debugTestInContainer")
+}
+
 tasks.withType<Test> {
     dependsOn("jar")
     this.testLogging {
