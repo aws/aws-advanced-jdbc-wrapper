@@ -18,11 +18,15 @@ package software.amazon.jdbc.hostlistprovider;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atMostOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -49,6 +53,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider.ClusterTopologyInfo;
@@ -81,7 +86,9 @@ class AuroraHostListProviderTest {
 
   @AfterEach
   void tearDown() throws Exception {
-    auroraHostListProvider.clearAll();
+    if (auroraHostListProvider != null) {
+      auroraHostListProvider.clearAll();
+    }
     closeable.close();
   }
 
@@ -92,7 +99,8 @@ class AuroraHostListProviderTest {
 
     final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
-    final ClusterTopologyInfo info = new ClusterTopologyInfo(expected, lastUpdated, false);
+    final ClusterTopologyInfo info = new ClusterTopologyInfo(
+        "any", expected, lastUpdated, false, false);
     AuroraHostListProvider.topologyCache.put(auroraHostListProvider.clusterId, info);
 
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, false);
@@ -107,11 +115,13 @@ class AuroraHostListProviderTest {
         new AuroraHostListProvider("", mockHostListProviderService, new Properties(), "url"));
 
     final Instant lastUpdated = Instant.now();
-    final ClusterTopologyInfo oldTopology = new ClusterTopologyInfo(hosts, lastUpdated, false);
+    final ClusterTopologyInfo oldTopology = new ClusterTopologyInfo(
+        "any", hosts, lastUpdated, false, false);
     AuroraHostListProvider.topologyCache.put(auroraHostListProvider.clusterId, oldTopology);
 
     final List<HostSpec> newHosts = Collections.singletonList(new HostSpec("newHost"));
-    final ClusterTopologyInfo newTopology = new ClusterTopologyInfo(newHosts, lastUpdated, false);
+    final ClusterTopologyInfo newTopology = new ClusterTopologyInfo(
+        "any", newHosts, lastUpdated, false, false);
     doReturn(newTopology).when(auroraHostListProvider).queryForTopology(mockConnection);
 
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
@@ -127,11 +137,12 @@ class AuroraHostListProviderTest {
 
     final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
-    final ClusterTopologyInfo oldTopology = new ClusterTopologyInfo(expected, lastUpdated, false);
+    final ClusterTopologyInfo oldTopology = new ClusterTopologyInfo(
+        "any", expected, lastUpdated, false, false);
     AuroraHostListProvider.topologyCache.put(auroraHostListProvider.clusterId, oldTopology);
 
     final ClusterTopologyInfo newTopology =
-        new ClusterTopologyInfo(new ArrayList<>(), lastUpdated, false);
+        new ClusterTopologyInfo("any", new ArrayList<>(), lastUpdated, false, false);
     doReturn(newTopology).when(auroraHostListProvider).queryForTopology(mockConnection);
 
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, false);
@@ -147,8 +158,8 @@ class AuroraHostListProviderTest {
     auroraHostListProvider.clear();
 
     final Instant lastUpdated = Instant.now();
-    final ClusterTopologyInfo newTopology = new ClusterTopologyInfo(new ArrayList<>(), lastUpdated,
-        false);
+    final ClusterTopologyInfo newTopology = new ClusterTopologyInfo(
+        "any", new ArrayList<>(), lastUpdated, false, false);
     doReturn(newTopology).when(auroraHostListProvider).queryForTopology(mockConnection);
 
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
@@ -202,7 +213,8 @@ class AuroraHostListProviderTest {
 
     final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
-    final ClusterTopologyInfo info = new ClusterTopologyInfo(expected, lastUpdated, false);
+    final ClusterTopologyInfo info = new ClusterTopologyInfo(
+        "any", expected, lastUpdated, false, false);
     AuroraHostListProvider.topologyCache.put(auroraHostListProvider.clusterId, info);
 
     final List<HostSpec> result = auroraHostListProvider.getCachedTopology();
@@ -220,9 +232,217 @@ class AuroraHostListProviderTest {
     auroraHostListProvider = new AuroraHostListProvider(
         "", mockHostListProviderService, new Properties(), "url");
     final Instant lastUpdated = Instant.now().minus(1, ChronoUnit.DAYS);
-    final ClusterTopologyInfo info = new ClusterTopologyInfo(hosts, lastUpdated, false);
+    final ClusterTopologyInfo info = new ClusterTopologyInfo("any", hosts, lastUpdated, false, false);
     AuroraHostListProvider.topologyCache.put(auroraHostListProvider.clusterId, info);
     // Test getCachedTopology with expired cache.
     assertNull(auroraHostListProvider.getCachedTopology());
+  }
+
+  @Test
+  void testTopologyCache_NoSuggestedClusterId() throws SQLException {
+    AuroraHostListProvider.topologyCache.clear();
+
+    AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://cluster-a.domain.com/"));
+    provider1.init();
+    final List<HostSpec> topologyClusterA = Arrays.asList(
+        new HostSpec("instance-a-1.domain.com", HostSpec.NO_PORT, HostRole.WRITER),
+        new HostSpec("instance-a-2.domain.com", HostSpec.NO_PORT, HostRole.READER),
+        new HostSpec("instance-a-3.domain.com", HostSpec.NO_PORT, HostRole.READER));
+
+    doReturn(new ClusterTopologyInfo(
+        provider1.clusterId,
+        topologyClusterA,
+        Instant.now(),
+        false,
+        provider1.isPrimaryClusterId)).when(provider1).queryForTopology(any(Connection.class));
+
+    assertTrue(AuroraHostListProvider.topologyCache.isEmpty());
+
+    final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider1);
+
+    AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://cluster-b.domain.com/"));
+    provider2.init();
+    assertNull(provider2.getCachedTopology());
+
+    final List<HostSpec> topologyClusterB = Arrays.asList(
+        new HostSpec("instance-b-1.domain.com", HostSpec.NO_PORT, HostRole.WRITER),
+        new HostSpec("instance-b-2.domain.com", HostSpec.NO_PORT, HostRole.READER),
+        new HostSpec("instance-b-3.domain.com", HostSpec.NO_PORT, HostRole.READER));
+    doReturn(new ClusterTopologyInfo(
+        provider2.clusterId,
+        topologyClusterB,
+        Instant.now(),
+        false,
+        provider2.isPrimaryClusterId)).when(provider2).queryForTopology(any(Connection.class));
+
+    final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterB, topologyProvider2);
+
+    assertEquals(2, AuroraHostListProvider.topologyCache.size());
+  }
+
+  @Test
+  void testTopologyCache_SuggestedClusterIdForRds() throws SQLException {
+    AuroraHostListProvider.topologyCache.clear();
+
+    AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    provider1.init();
+    final List<HostSpec> topologyClusterA = Arrays.asList(
+        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER),
+        new HostSpec("instance-a-2.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER),
+        new HostSpec("instance-a-3.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER));
+
+    doReturn(new ClusterTopologyInfo(
+        provider1.clusterId,
+        topologyClusterA,
+        Instant.now(),
+        false,
+        provider1.isPrimaryClusterId)).when(provider1).queryForTopology(any(Connection.class));
+
+    assertTrue(AuroraHostListProvider.topologyCache.isEmpty());
+
+    final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider1);
+
+    AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    provider2.init();
+
+    assertEquals(provider1.clusterId, provider2.clusterId);
+    assertTrue(provider1.isPrimaryClusterId);
+    assertTrue(provider2.isPrimaryClusterId);
+
+    final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider2);
+
+    assertEquals(1, AuroraHostListProvider.topologyCache.size());
+  }
+
+  @Test
+  void testTopologyCache_SuggestedClusterIdForInstance() throws SQLException {
+    AuroraHostListProvider.topologyCache.clear();
+
+    AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    provider1.init();
+    final List<HostSpec> topologyClusterA = Arrays.asList(
+        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER),
+        new HostSpec("instance-a-2.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER),
+        new HostSpec("instance-a-3.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER));
+
+    doReturn(new ClusterTopologyInfo(
+        provider1.clusterId,
+        topologyClusterA,
+        Instant.now(),
+        false,
+        provider1.isPrimaryClusterId)).when(provider1).queryForTopology(any(Connection.class));
+
+    assertTrue(AuroraHostListProvider.topologyCache.isEmpty());
+
+    final List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider1);
+
+    AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://instance-a-3.xyz.us-east-2.rds.amazonaws.com/"));
+    provider2.init();
+
+    assertEquals(provider1.clusterId, provider2.clusterId);
+    assertTrue(provider1.isPrimaryClusterId);
+    assertTrue(provider2.isPrimaryClusterId);
+
+    final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider2);
+
+    assertEquals(1, AuroraHostListProvider.topologyCache.size());
+  }
+
+  @Test
+  void testTopologyCache_AcceptSuggestion() throws SQLException, InterruptedException {
+    AuroraHostListProvider.topologyCache.clear();
+
+    AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://instance-a-2.xyz.us-east-2.rds.amazonaws.com/"));
+    provider1.init();
+    final List<HostSpec> topologyClusterA = Arrays.asList(
+        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER),
+        new HostSpec("instance-a-2.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER),
+        new HostSpec("instance-a-3.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER));
+
+    doAnswer(a -> {
+      return new ClusterTopologyInfo(
+          provider1.clusterId,
+          topologyClusterA,
+          Instant.now(),
+          false,
+          provider1.isPrimaryClusterId);
+    }).when(provider1).queryForTopology(any(Connection.class));
+
+    assertTrue(AuroraHostListProvider.topologyCache.isEmpty());
+
+    List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider1);
+
+    //AuroraHostListProvider.logCache();
+
+    AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
+        "jdbc:something://",
+        Mockito.spy(HostListProviderService.class),
+        new Properties(),
+        "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
+    provider2.init();
+
+    doAnswer(a -> {
+      return new ClusterTopologyInfo(
+          provider2.clusterId,
+          topologyClusterA,
+          Instant.now(),
+          false,
+          provider2.isPrimaryClusterId);
+    }).when(provider2).queryForTopology(any(Connection.class));
+
+    final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider2);
+
+    assertNotEquals(provider1.clusterId, provider2.clusterId);
+    assertFalse(provider1.isPrimaryClusterId);
+    assertTrue(provider2.isPrimaryClusterId);
+    assertEquals(2, AuroraHostListProvider.topologyCache.size());
+    assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/",
+        AuroraHostListProvider.topologyCache.get(provider1.clusterId).suggestedPrimaryCluster);
+
+    //AuroraHostListProvider.logCache();
+
+    topologyProvider1 = provider1.forceRefresh(Mockito.mock(Connection.class));
+    assertEquals(topologyClusterA, topologyProvider1);
+    assertEquals(provider1.clusterId, provider2.clusterId);
+    assertTrue(provider1.isPrimaryClusterId);
+    assertTrue(provider2.isPrimaryClusterId);
+
+    //AuroraHostListProvider.logCache();
   }
 }
