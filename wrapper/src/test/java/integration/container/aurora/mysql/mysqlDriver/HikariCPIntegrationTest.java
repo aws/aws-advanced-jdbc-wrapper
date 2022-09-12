@@ -29,7 +29,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import eu.rekawek.toxiproxy.Proxy;
-import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -41,7 +40,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.util.HikariCPSQLException;
 
-public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
+public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   private static Log log = null;
   private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
   private static HikariDataSource data_source = null;
@@ -49,7 +48,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
 
   private List<String> fetchTopology() {
     try {
-      List<String> topology = getTopologyEndpoints();
+      List<String> topology = getTopologyEndpoints(DB_CONN_STR_PREFIX);
       // topology should contain a writer and at least one reader
       if (topology == null || topology.size() < 2) {
         fail("Topology does not contain the required instances");
@@ -79,7 +78,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   public void setUpTest() throws SQLException {
     String writerEndpoint = clusterTopology.get(0);
 
-    String jdbcUrl = MYSQL_DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
+    String jdbcUrl = DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
     log.logDebug("Writer endpoint: " + jdbcUrl);
 
     final HikariConfig config = new HikariConfig();

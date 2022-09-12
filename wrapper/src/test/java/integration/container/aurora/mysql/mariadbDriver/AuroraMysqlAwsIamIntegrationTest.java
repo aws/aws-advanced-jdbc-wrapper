@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqlDriver;
+package integration.container.aurora.mysql.mariadbDriver;
 
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 
-public class AuroraMysqlAwsIamIntegrationTest extends MysqlAuroraMysqlBaseTest {
+public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest {
   /**
    * Attempt to connect using the wrong database username.
    */

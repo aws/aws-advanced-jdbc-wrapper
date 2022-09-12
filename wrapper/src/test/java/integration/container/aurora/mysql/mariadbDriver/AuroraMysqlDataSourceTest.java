@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqlDriver;
+package integration.container.aurora.mysql.mariadbDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,8 +35,8 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
-  public static String mysqlProtocolPrefix = "jdbc:mysql://";
+public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
+  public static String mysqlProtocolPrefix = "jdbc:mariadb://";
   
   @Test
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {

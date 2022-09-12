@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqlDriver;
+package integration.container.aurora.mysql.mariadbDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,7 +42,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
+public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
 
   protected String currWriter;
   protected String currReader;

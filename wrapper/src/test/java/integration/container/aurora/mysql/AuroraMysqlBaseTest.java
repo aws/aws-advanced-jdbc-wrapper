@@ -45,8 +45,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBCluster;
@@ -74,8 +72,9 @@ public abstract class AuroraMysqlBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static final String MYSQL_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
-  protected static final String MARIADB_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
+//  protected static final String MYSQL_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
+//  protected static final String MARIADB_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
+//  protected final String DB_CONN_STR_PREFIX = "";
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
   protected static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
@@ -152,8 +151,7 @@ public abstract class AuroraMysqlBaseTest {
       "Cannot get the id of the writer Instance in the cluster.";
   protected static final int IS_VALID_TIMEOUT = 5;
 
-  @BeforeAll
-  public static void setUp() throws IOException, SQLException {
+  protected static void setUp() throws IOException, SQLException {
     toxiproxyClientInstance_1 =
         new ToxiproxyClient(TOXIPROXY_INSTANCE_1_NETWORK_ALIAS, TOXIPROXY_CONTROL_PORT);
     toxiproxyClientInstance_2 =
@@ -206,12 +204,11 @@ public abstract class AuroraMysqlBaseTest {
     return proxyClient.getProxy(upstream);
   }
 
-  @BeforeEach
-  public void setUpEach() throws InterruptedException, SQLException {
+  protected void setUpEach(String DbConnStrPrefix) throws InterruptedException, SQLException {
     proxyMap.forEach((instance, proxy) -> containerHelper.enableConnectivity(proxy));
 
     // Always get the latest topology info with writer as first
-    List<String> latestTopology = getTopologyIds();
+    List<String> latestTopology = getTopologyIds(DbConnStrPrefix);
     instanceIDs = new String[latestTopology.size()];
     latestTopology.toArray(instanceIDs);
 
@@ -219,7 +216,7 @@ public abstract class AuroraMysqlBaseTest {
     assertTrue(
         clusterSize >= 2); // many tests assume that cluster contains at least a writer and a reader
     assertTrue(isDBInstanceWriter(instanceIDs[0]));
-    makeSureInstancesUp(instanceIDs);
+    makeSureInstancesUp(instanceIDs, DbConnStrPrefix);
     TestAuroraHostListProvider.clearCache();
   }
 
@@ -267,13 +264,14 @@ public abstract class AuroraMysqlBaseTest {
     return props;
   }
 
-  protected Connection connectToInstance(String instanceUrl, int port) throws SQLException {
-    return connectToInstance(instanceUrl, port, initDefaultProxiedProps());
+  protected Connection connectToInstance(String instanceUrl, int port, String DbConnStrPrefix) throws SQLException {
+    return connectToInstance(instanceUrl, port, initDefaultProxiedProps(), DbConnStrPrefix);
   }
 
-  protected Connection connectToInstance(String instanceUrl, int port, Properties props)
+  protected Connection connectToInstance(String instanceUrl, int port, Properties props,
+      String DbConnStrPrefix)
       throws SQLException {
-    final String url = MYSQL_DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_MYSQL_DB;
+    final String url = DbConnStrPrefix + instanceUrl + ":" + port + "/" + AURORA_MYSQL_DB;
     return DriverManager.getConnection(url, props);
   }
 
@@ -289,21 +287,21 @@ public abstract class AuroraMysqlBaseTest {
 
   // Return list of instance endpoints.
   // Writer instance goes first.
-  protected List<String> getTopologyEndpoints() throws SQLException {
+  protected List<String> getTopologyEndpoints(String DbConnStrPrefix) throws SQLException {
     final String dbConnHostBase =
         DB_CONN_STR_SUFFIX.startsWith(".") ? DB_CONN_STR_SUFFIX.substring(1) : DB_CONN_STR_SUFFIX;
 
     final String url =
-        MYSQL_DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
+        DbConnStrPrefix + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
     return this.containerHelper.getAuroraInstanceEndpoints(
         url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, dbConnHostBase);
   }
 
   // Return list of instance Ids.
   // Writer instance goes first.
-  protected List<String> getTopologyIds() throws SQLException {
+  protected List<String> getTopologyIds(String DbConnStrPrefix) throws SQLException {
     final String url =
-        MYSQL_DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
+        DbConnStrPrefix + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
     return this.containerHelper.getAuroraInstanceIds(url, AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, "mysql");
   }
 
@@ -405,11 +403,11 @@ public abstract class AuroraMysqlBaseTest {
     return !getMatchedDBClusterMember(instanceId).isClusterWriter();
   }
 
-  protected void makeSureInstancesUp(String[] instances) throws InterruptedException {
-    makeSureInstancesUp(instances, true);
+  protected void makeSureInstancesUp(String[] instances, String DbConnStrPrefix) throws InterruptedException {
+    makeSureInstancesUp(instances, true, DbConnStrPrefix);
   }
 
-  protected void makeSureInstancesUp(String[] instances, boolean finalCheck)
+  protected void makeSureInstancesUp(String[] instances, boolean finalCheck, String DbConnStrPrefix)
       throws InterruptedException {
     final ExecutorService executorService = Executors.newFixedThreadPool(instances.length);
     final ConcurrentHashMap<String, Boolean> remainingInstances = new ConcurrentHashMap<>();
@@ -421,7 +419,7 @@ public abstract class AuroraMysqlBaseTest {
             while (true) {
               try (final Connection conn =
                        connectToInstance(
-                           id + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT, initFailoverDisabledProps())) {
+                           id + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT, initFailoverDisabledProps(), DbConnStrPrefix)) {
                 remainingInstances.remove(id);
                 break;
               } catch (final SQLException ex) {

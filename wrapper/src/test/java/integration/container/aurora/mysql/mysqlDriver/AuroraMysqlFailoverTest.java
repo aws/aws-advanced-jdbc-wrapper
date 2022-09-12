@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
-import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -34,7 +33,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
-public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
+public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
   /* Writer connection failover tests. */
 
   /**
@@ -48,7 +47,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
 
     try (final Connection conn =
              connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-                 initDefaultProps())) {
+                 initDefaultProps(), DB_CONN_STR_PREFIX)) {
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
@@ -74,7 +73,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps())) {
+        initDefaultProps(), DB_CONN_STR_PREFIX)) {
       final Statement stmt = conn.createStatement();
 
       // Crash Instance1 and nominate a new writer
@@ -110,7 +109,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
     final String instanceId = instanceIDs[1];
 
     try (final Connection conn = connectToInstance(instanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT)) {
+        MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
       // Crash Instance2
       Proxy instanceProxy = proxyMap.get(instanceId);
       containerHelper.disableConnectivity(instanceProxy);
@@ -155,7 +154,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps())) {
+        initDefaultProps(), DB_CONN_STR_PREFIX)) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_2");
       testStmt1.executeUpdate(
@@ -204,7 +203,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps())) {
+        initDefaultProps(), DB_CONN_STR_PREFIX)) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_3");
       testStmt1.executeUpdate(
@@ -252,7 +251,7 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps())) {
+        initDefaultProps(), DB_CONN_STR_PREFIX)) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_4");
       testStmt1.executeUpdate(
@@ -327,14 +326,14 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
 
     // Establish the topology cache so that we can later assert that testConnection does not inherit properties from
     // establishCacheConnection either before or after failover
-    final String url = MYSQL_DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB;
+    final String url = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB;
     final Connection establishCacheConnection = DriverManager.getConnection(
         url,
         props);
     establishCacheConnection.close();
 
     props.setProperty(PropertyKey.allowMultiQueries.getKeyName(), "true");
-    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
+    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props, DB_CONN_STR_PREFIX)) {
       // Verify that connection accepts multi-statement sql
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeQuery("select @@aurora_server_id; select 1; select 2;");

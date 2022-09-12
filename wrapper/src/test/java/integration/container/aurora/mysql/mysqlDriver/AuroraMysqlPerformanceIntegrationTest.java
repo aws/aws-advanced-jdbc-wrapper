@@ -43,7 +43,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 
-public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
+public class AuroraMysqlPerformanceIntegrationTest extends MysqlAuroraMysqlBaseTest {
   private static final int REPEAT_TIMES = 5;
   private static final int TIMEOUT = 1000;
   private static final int FAILOVER_TIMEOUT_MS = 40000;
@@ -227,7 +227,7 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
     int connectCount = 0;
     while (conn == null && connectCount < 10) {
       try {
-        conn = connectToInstance(url, port, props);
+        conn = connectToInstance(url, port, props, DB_CONN_STR_PREFIX);
       } catch (SQLException sqlEx) {
         // ignore, try to connect again
       }
