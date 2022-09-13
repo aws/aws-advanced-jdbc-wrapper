@@ -53,14 +53,14 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -71,12 +71,12 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
-    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
+    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_HOST + "/" + STANDARD_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -94,8 +94,8 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -113,10 +113,10 @@ public class DataSourceTests extends StandardMysqlBaseTest {
       assertEquals(f.get(ds), f.get(dsFromJndiLookup));
     }
 
-    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -135,13 +135,13 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+        "jdbc:mysql://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -150,14 +150,14 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   @Test
   public void testOpenConnectionWithMariaDbUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -177,7 +177,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+        "jdbc:mysql://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -195,11 +195,11 @@ public class DataSourceTests extends StandardMysqlBaseTest {
       assertEquals(f.get(ds), f.get(dsFromJndiLookup));
     }
 
-    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
 
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }

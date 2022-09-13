@@ -34,8 +34,8 @@ public class HikariTests extends StandardMysqlBaseTest {
 
     HikariDataSource ds = new HikariDataSource();
     ds.setJdbcUrl(getUrl());
-    ds.setUsername(STANDARD_MYSQL_USERNAME);
-    ds.setPassword(STANDARD_MYSQL_PASSWORD);
+    ds.setUsername(STANDARD_USERNAME);
+    ds.setPassword(STANDARD_PASSWORD);
 
     Connection conn = ds.getConnection();
 
@@ -57,8 +57,8 @@ public class HikariTests extends StandardMysqlBaseTest {
     ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
     // Configure the connection pool:
-    ds.setUsername(STANDARD_MYSQL_USERNAME);
-    ds.setPassword(STANDARD_MYSQL_PASSWORD);
+    ds.setUsername(STANDARD_USERNAME);
+    ds.setPassword(STANDARD_PASSWORD);
 
     // Configure AwsWrapperDataSource:
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
@@ -73,8 +73,8 @@ public class HikariTests extends StandardMysqlBaseTest {
 
     // Configuring MysqlDataSource:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     Connection conn = ds.getConnection();

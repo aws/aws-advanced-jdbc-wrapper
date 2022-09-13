@@ -42,8 +42,8 @@ public class SpringTests extends StandardMysqlBaseTest {
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
     dataSource.setDriverClassName("software.amazon.jdbc.Driver");
     dataSource.setUrl(getUrl());
-    dataSource.setUsername(STANDARD_MYSQL_USERNAME);
-    dataSource.setPassword(STANDARD_MYSQL_PASSWORD);
+    dataSource.setUsername(STANDARD_USERNAME);
+    dataSource.setPassword(STANDARD_PASSWORD);
 
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");

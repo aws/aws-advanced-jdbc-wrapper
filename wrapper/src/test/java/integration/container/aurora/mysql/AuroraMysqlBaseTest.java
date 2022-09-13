@@ -59,6 +59,7 @@ import software.amazon.jdbc.util.StringUtils;
 
 public abstract class AuroraMysqlBaseTest {
 
+  protected static String DB_CONN_STR_PREFIX;
   protected static final String AURORA_MYSQL_USERNAME = System.getenv("AURORA_MYSQL_USERNAME");
   protected static final String AURORA_MYSQL_PASSWORD = System.getenv("AURORA_MYSQL_PASSWORD");
   protected static final String AURORA_MYSQL_DB =

@@ -51,13 +51,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    try (final Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -75,15 +75,15 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
-    targetDataSourceProps.setProperty("user", STANDARD_POSTGRES_USERNAME);
-    targetDataSourceProps.setProperty("password", STANDARD_POSTGRES_PASSWORD);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("user", STANDARD_USERNAME);
+    targetDataSourceProps.setProperty("password", STANDARD_PASSWORD);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection()) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -100,13 +100,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         SQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -120,12 +120,12 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         SQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -139,12 +139,12 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -158,13 +158,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection("", STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection("", STANDARD_PASSWORD));
   }
 
   @Test
@@ -178,13 +178,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, ""));
+        () -> ds.getConnection(STANDARD_USERNAME, ""));
   }
 
   @Test
@@ -195,13 +195,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         SQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -216,11 +216,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     final Properties targetDataSourceProps = new Properties();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -238,15 +238,15 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     ds.setJdbcUrl(
         postgresProtocolPrefix
-            + STANDARD_POSTGRES_HOST
-            + ":" + STANDARD_POSTGRES_PORT + "/"
-            + STANDARD_POSTGRES_DB
-            + "?user=" + STANDARD_POSTGRES_USERNAME
-            + "&password=" + STANDARD_POSTGRES_PASSWORD);
+            + STANDARD_HOST
+            + ":" + STANDARD_PORT + "/"
+            + STANDARD_DB
+            + "?user=" + STANDARD_USERNAME
+            + "&password=" + STANDARD_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -265,13 +265,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     ds.setJdbcUrl(
         postgresProtocolPrefix
-        + STANDARD_POSTGRES_HOST
-        + ":" + STANDARD_POSTGRES_PORT + "/"
-        + STANDARD_POSTGRES_DB);
+        + STANDARD_HOST
+        + ":" + STANDARD_PORT + "/"
+        + STANDARD_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -290,11 +290,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     targetDataSourceProps.setProperty("databaseName", "proxy-driver-test-db");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -306,11 +306,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -324,11 +324,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     final Properties targetDataSourceProps = new Properties();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_POSTGRES_HOST + "/");
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/");
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -339,13 +339,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
-        + STANDARD_POSTGRES_HOST
-        + ":" + STANDARD_POSTGRES_PORT + "/"
-        + STANDARD_POSTGRES_DB);
+        + STANDARD_HOST
+        + ":" + STANDARD_PORT + "/"
+        + STANDARD_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -359,15 +359,15 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
-            + STANDARD_POSTGRES_HOST
-            + ":" + STANDARD_POSTGRES_PORT + "/"
-            + STANDARD_POSTGRES_DB
-            + "?user=" + STANDARD_POSTGRES_USERNAME
-            + "&password=" + STANDARD_POSTGRES_PASSWORD);
+            + STANDARD_HOST
+            + ":" + STANDARD_PORT + "/"
+            + STANDARD_DB
+            + "?user=" + STANDARD_USERNAME
+            + "&password=" + STANDARD_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -378,11 +378,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB);
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + "/" + STANDARD_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -394,11 +394,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + ":" + STANDARD_POSTGRES_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -407,11 +407,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + ":" + STANDARD_POSTGRES_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection("", STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection("", STANDARD_PASSWORD));
   }
 
   @Test
@@ -420,11 +420,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + ":" + STANDARD_POSTGRES_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, ""));
+        () -> ds.getConnection(STANDARD_USERNAME, ""));
   }
 
   @Test
@@ -432,13 +432,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
-        + STANDARD_POSTGRES_HOST
-        + ":" + STANDARD_POSTGRES_PORT + "/"
-        + STANDARD_POSTGRES_DB);
+        + STANDARD_HOST
+        + ":" + STANDARD_PORT + "/"
+        + STANDARD_DB);
 
     assertThrows(
         PSQLException.class,
-        () -> ds.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD));
+        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -454,8 +454,8 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_POSTGRES_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_POSTGRES_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -474,9 +474,9 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     }
 
     try (final Connection conn =
-             dsFromJndiLookup.getConnection(STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD)) {
+             dsFromJndiLookup.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_POSTGRES_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }

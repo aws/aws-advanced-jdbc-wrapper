@@ -10,7 +10,9 @@ import org.junit.jupiter.api.BeforeEach;
 import software.amazon.jdbc.Driver;
 
 public abstract class MysqlAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
-  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
+  protected MysqlAuroraMysqlBaseTest() {
+    DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
+  }
   @BeforeAll
   public static void setUpMysql() throws SQLException, IOException {
     setUp();

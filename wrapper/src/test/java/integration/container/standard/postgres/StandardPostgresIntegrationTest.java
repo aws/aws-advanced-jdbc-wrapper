@@ -49,26 +49,26 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
         // missing connection prefix
         Arguments.of(buildConnectionString(
             "",
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
-            STANDARD_POSTGRES_DB)),
+            STANDARD_HOST,
+            String.valueOf(STANDARD_PORT),
+            STANDARD_DB)),
         // missing port
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
+            STANDARD_HOST,
             "",
-            STANDARD_POSTGRES_DB)),
+            STANDARD_DB)),
         // incorrect database name
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
+            STANDARD_HOST,
+            String.valueOf(STANDARD_PORT),
             "failedDatabaseNameTest")),
         // missing "/" at end of URL
         Arguments.of(DB_CONN_STR_PREFIX
-            + STANDARD_POSTGRES_HOST
+            + STANDARD_HOST
             + ":"
-            + STANDARD_POSTGRES_PORT)
+            + STANDARD_PORT)
     );
   }
 
@@ -77,18 +77,18 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
         // missing username
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
-            STANDARD_POSTGRES_DB),
+            STANDARD_HOST,
+            String.valueOf(STANDARD_PORT),
+            STANDARD_DB),
             "",
-            STANDARD_POSTGRES_PASSWORD),
+            STANDARD_PASSWORD),
         // missing password
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_POSTGRES_HOST,
-            String.valueOf(STANDARD_POSTGRES_PORT),
-             STANDARD_POSTGRES_DB),
-            STANDARD_POSTGRES_USERNAME,
+            STANDARD_HOST,
+            String.valueOf(STANDARD_PORT),
+             STANDARD_DB),
+            STANDARD_USERNAME,
             "")
         );
   }
@@ -125,7 +125,7 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
   @Test
   public void testSuccessOpenConnectionNoPort() throws SQLException {
     String url =
-        DB_CONN_STR_PREFIX + STANDARD_POSTGRES_HOST + "/" + STANDARD_POSTGRES_DB;
+        DB_CONN_STR_PREFIX + STANDARD_HOST + "/" + STANDARD_DB;
     try (Connection conn = connectCustomUrl(url, initDefaultProps())) {
 
       assertTrue(conn instanceof ConnectionWrapper);
@@ -159,8 +159,8 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
     String url = buildConnectionString(
         DB_CONN_STR_PREFIX,
         "",
-        String.valueOf(STANDARD_POSTGRES_PORT),
-        STANDARD_POSTGRES_DB);
+        String.valueOf(STANDARD_PORT),
+        STANDARD_DB);
     assertThrows(RuntimeException.class, () -> connectCustomUrl(url, initDefaultProps()));
   }
 }
