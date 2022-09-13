@@ -26,12 +26,14 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProvider;
@@ -102,7 +104,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   private HostSpec initialHostSpec;
 
   protected static final ExpiringCache<String, ClusterTopologyInfo> topologyCache =
-      new ExpiringCache<>(DEFAULT_CACHE_EXPIRE_MS);
+      new ExpiringCache<>(DEFAULT_CACHE_EXPIRE_MS, getOnEvict());
   private static final Object cacheLock = new Object();
 
   private static final String PG_DRIVER_PROTOCOL = "postgresql";
@@ -112,6 +114,10 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
   protected ConnectionUrlParser connectionUrlParser;
+
+  // A primary clusterId is a clusterId that is based off of a cluster endpoint URL
+  // (rather than a GUID or a value provided by the user).
+  protected boolean isPrimaryClusterId;
 
   protected boolean isInitialized = false;
 
@@ -150,7 +156,14 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     }
   }
 
-  private void init() throws SQLException {
+  private static ExpiringCache.OnEvictRunnable<ClusterTopologyInfo> getOnEvict() {
+    return (ClusterTopologyInfo evictedEntry) -> {
+      LOGGER.finest(() -> "Entry with clusterId '" + evictedEntry.clusterId
+          + "' has been evicted from the topology cache.");
+    };
+  }
+
+  protected void init() throws SQLException {
     if (this.isInitialized) {
       return;
     }
@@ -165,6 +178,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
 
     this.clusterId = UUID.randomUUID().toString();
+    this.isPrimaryClusterId = false;
     this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
     this.clusterInstanceTemplate = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
         ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
@@ -181,10 +195,11 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
       // identification
       this.clusterId = this.initialHostSpec.getUrl();
     } else if (rdsUrlType.isRds()) {
-      final String suggestedClusterId =
+      final ClusterSuggestedResult clusterSuggestedResult =
           getSuggestedClusterId(this.initialHostSpec.getUrl());
-      if (!StringUtils.isNullOrEmpty(suggestedClusterId)) {
-        this.clusterId = suggestedClusterId;
+      if (clusterSuggestedResult != null && !StringUtils.isNullOrEmpty(clusterSuggestedResult.clusterId)) {
+        this.clusterId = clusterSuggestedResult.clusterId;
+        this.isPrimaryClusterId = clusterSuggestedResult.isPrimaryClusterId;
       } else {
         final String clusterRdsHostUrl =
             this.rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getUrl());
@@ -192,6 +207,7 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
           this.clusterId = this.clusterInstanceTemplate.isPortSpecified()
               ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
               : clusterRdsHostUrl;
+          this.isPrimaryClusterId = true;
         }
       }
     }
@@ -215,6 +231,22 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
 
     ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
 
+    // Change clusterId by accepting a suggested one
+    if (clusterTopologyInfo != null
+        && !StringUtils.isNullOrEmpty(clusterTopologyInfo.suggestedPrimaryClusterId)
+        && !this.clusterId.equals(clusterTopologyInfo.suggestedPrimaryClusterId)) {
+
+      this.clusterId = clusterTopologyInfo.suggestedPrimaryClusterId;
+      this.isPrimaryClusterId = true;
+
+      clusterTopologyInfo = topologyCache.get(this.clusterId);
+    }
+
+    // This clusterId is a primary one and is about to create a new entry in the cache.
+    // When a primary entry is created it needs to be suggested for other (non-primary) entries.
+    // Remember a flag to do suggestion after cache is updated.
+    boolean needToSuggest = clusterTopologyInfo == null && this.isPrimaryClusterId;
+
     if (clusterTopologyInfo == null
         || clusterTopologyInfo.hosts.isEmpty()
         || forceUpdate
@@ -234,6 +266,11 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
         if (latestTopologyInfo != null && !latestTopologyInfo.hosts.isEmpty()) {
           // topology looks valid
           clusterTopologyInfo = updateCache(clusterTopologyInfo, latestTopologyInfo);
+
+          if (needToSuggest) {
+            this.suggestPrimaryCluster(clusterTopologyInfo);
+          }
+
           return new FetchTopologyResult(false, clusterTopologyInfo.hosts);
 
         } else {
@@ -251,25 +288,59 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
     return new FetchTopologyResult(true, clusterTopologyInfo.hosts);
   }
 
-  private String getSuggestedClusterId(final String url) {
-    synchronized (cacheLock) {
-      for (Entry<String, ClusterTopologyInfo> entry : topologyCache.entrySet()) {
-        if (entry.getKey().equals(url)) {
-          return url;
-        }
-        if (entry.getValue().hosts == null) {
-          continue;
-        }
-        for (HostSpec host : entry.getValue().hosts) {
-          if (host.getUrl().equals(url)) {
-            LOGGER.finest(() -> Messages.get("AuroraHostListProvider.suggestedClusterId",
-                new Object[]{entry.getKey(), url}));
-            return entry.getKey();
-          }
+  private ClusterSuggestedResult getSuggestedClusterId(final String url) {
+    for (Entry<String, ClusterTopologyInfo> entry : topologyCache.entrySet()) {
+      final String key = entry.getKey();
+      final ClusterTopologyInfo value = entry.getValue();
+      if (key.equals(url)) {
+        return new ClusterSuggestedResult(url, value.isPrimaryCluster);
+      }
+      if (value.hosts == null) {
+        continue;
+      }
+      for (HostSpec host : value.hosts) {
+        if (host.getUrl().equals(url)) {
+          LOGGER.finest(() -> Messages.get("AuroraHostListProvider.suggestedClusterId",
+              new Object[]{key, url}));
+          return new ClusterSuggestedResult(key, value.isPrimaryCluster);
         }
       }
     }
     return null;
+  }
+
+  protected void suggestPrimaryCluster(final @NonNull ClusterTopologyInfo primaryClusterTopologyInfo) {
+    if (Utils.isNullOrEmpty(primaryClusterTopologyInfo.hosts)) {
+      return;
+    }
+
+    final Set<String> primaryClusterHostUrls = new HashSet<>();
+    for (final HostSpec hostSpec : primaryClusterTopologyInfo.hosts) {
+      primaryClusterHostUrls.add(hostSpec.getUrl());
+    }
+
+    for (Entry<String, ClusterTopologyInfo> entry : topologyCache.entrySet()) {
+      if (entry.getValue().isPrimaryCluster
+          || !StringUtils.isNullOrEmpty(entry.getValue().suggestedPrimaryClusterId)
+          || Utils.isNullOrEmpty(entry.getValue().hosts)) {
+        continue;
+      }
+
+      // The entry is non-primary
+      for (HostSpec host : entry.getValue().hosts) {
+        if (primaryClusterHostUrls.contains(host.getUrl())) {
+          // Instance on this cluster matches with one of the instance on primary cluster
+          // Suggest the primary clusterId to this entry
+          try {
+            topologyCache.getLock().lock();
+            entry.getValue().suggestedPrimaryClusterId = primaryClusterTopologyInfo.clusterId;
+          } finally {
+            topologyCache.getLock().unlock();
+          }
+          break;
+        }
+      }
+    }
   }
 
   private boolean refreshNeeded(final ClusterTopologyInfo info) {
@@ -287,34 +358,34 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
    */
   protected ClusterTopologyInfo queryForTopology(final Connection conn) throws SQLException {
     init();
-    List<HostSpec> hosts = new ArrayList<>();
     try (final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologyQuery)) {
-      hosts = processQueryResults(resultSet);
+      return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       // ignore
     }
 
-    return new ClusterTopologyInfo(hosts, Instant.now(), false);
+    return new ClusterTopologyInfo(
+        this.clusterId, new ArrayList<>(), Instant.now(), false, this.isPrimaryClusterId);
   }
 
   /**
    * Form a list of hosts from the results of the topology query.
    *
    * @param resultSet The results of the topology query
-   * @return a list of {@link HostSpec} objects representing the topology that was returned by the
+   * @return topology details {@link ClusterTopologyInfo} with a list of {@link HostSpec} objects representing
+   *     the topology that was returned by the
    *     topology query. The list will be empty if the topology query returned an invalid topology
    *     (no writer instance).
    */
-  private List<HostSpec> processQueryResults(final ResultSet resultSet) throws SQLException {
+  private ClusterTopologyInfo processQueryResults(final ResultSet resultSet) throws SQLException {
 
     final HashMap<String, HostSpec> hostMap = new HashMap<>();
 
     // Data is result set is ordered by last updated time so the latest records go last.
     // When adding hosts to a map, the newer records replace the older ones.
     while (resultSet.next()) {
-      final boolean isWriter = WRITER_SESSION_ID.equalsIgnoreCase(resultSet.getString(FIELD_SESSION_ID));
-      final HostSpec host = createHost(resultSet, isWriter);
+      final HostSpec host = createHost(resultSet);
       hostMap.put(host.getHost(), host);
     }
 
@@ -334,7 +405,8 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
               "AuroraHostListProvider.invalidTopology"));
       hosts.clear();
     }
-    return hosts;
+    return new ClusterTopologyInfo(
+        this.clusterId, hosts, Instant.now(), writerCount > 1, this.isPrimaryClusterId);
   }
 
   /**
@@ -396,17 +468,58 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   private ClusterTopologyInfo updateCache(
       @Nullable ClusterTopologyInfo clusterTopologyInfo,
       final ClusterTopologyInfo latestTopologyInfo) {
-    if (clusterTopologyInfo == null) {
-      clusterTopologyInfo = latestTopologyInfo;
-    } else {
-      clusterTopologyInfo.hosts = latestTopologyInfo.hosts;
-    }
-    clusterTopologyInfo.lastUpdated = Instant.now();
 
-    synchronized (cacheLock) {
-      topologyCache.put(this.clusterId, clusterTopologyInfo);
+    if (clusterTopologyInfo == null) {
+      // Add a new entry to the cache
+      topologyCache.put(latestTopologyInfo.clusterId, latestTopologyInfo);
+      return latestTopologyInfo;
+
     }
-    return clusterTopologyInfo;
+
+    if (clusterTopologyInfo.clusterId.equals(latestTopologyInfo.clusterId)) {
+      // Updating the same item in the cache
+      try {
+        topologyCache.getLock().lock();
+
+        clusterTopologyInfo.hosts = latestTopologyInfo.hosts;
+        clusterTopologyInfo.lastUpdated = Instant.now();
+
+        // It's not necessary, but it forces the cache to check for entries to evict
+        topologyCache.put(clusterTopologyInfo.clusterId, clusterTopologyInfo);
+
+      } finally {
+        topologyCache.getLock().unlock();
+      }
+      return clusterTopologyInfo;
+
+    }
+
+    // Update existing entry in the cache
+    // This instance of AuroraHostListProvider accepts suggested clusterId
+    // and effectively needs to update the primary entry
+
+    ClusterTopologyInfo primaryClusterTopologyInfo = topologyCache.get(this.clusterId);
+
+    if (primaryClusterTopologyInfo != null) {
+      try {
+        topologyCache.getLock().lock();
+
+        primaryClusterTopologyInfo.hosts = latestTopologyInfo.hosts;
+        primaryClusterTopologyInfo.lastUpdated = Instant.now();
+
+        // It's not necessary, but it forces the cache to check for entries to evict
+        topologyCache.put(primaryClusterTopologyInfo.clusterId, primaryClusterTopologyInfo);
+
+      } finally {
+        topologyCache.getLock().unlock();
+      }
+      return primaryClusterTopologyInfo;
+    }
+
+    // That's suspicious path. Primary entry doesn't exist.
+    // Let's create it.
+    topologyCache.put(latestTopologyInfo.clusterId, latestTopologyInfo);
+    return latestTopologyInfo;
   }
 
   /**
@@ -578,17 +691,21 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
           sb.append("\n");
         }
         sb.append("[").append(entry.getKey()).append("]:\n")
-            .append("   lastUpdated: ")
+            .append("\tlastUpdated: ")
             .append(entry.getValue().lastUpdated).append("\n")
-            .append("   isMultiWriterCluster: ")
+            .append("\tisMultiWriterCluster: ")
             .append(entry.getValue().isMultiWriterCluster).append("\n")
-            .append("   Hosts: ");
+            .append("\tisPrimaryCluster: ")
+            .append(entry.getValue().isPrimaryCluster).append("\n")
+            .append("\tsuggestedPrimaryCluster: ")
+            .append(entry.getValue().suggestedPrimaryClusterId).append("\n")
+            .append("\tHosts: ");
 
         if (entry.getValue().hosts == null) {
           sb.append("<null>");
         } else {
           for (HostSpec h : entry.getValue().hosts) {
-            sb.append("\n      ").append(h);
+            sb.append("\n\t").append(h);
           }
         }
       }
@@ -612,23 +729,43 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
    */
   static class ClusterTopologyInfo {
 
+    public String clusterId;
     public List<HostSpec> hosts;
     public Instant lastUpdated;
     public boolean isMultiWriterCluster;
+    public boolean isPrimaryCluster;
+    public String suggestedPrimaryClusterId;
 
     /**
      * Constructor for ClusterTopologyInfo.
      *
+     * @param clusterId Associated ClusterId
      * @param hosts List of available instance hosts
      * @param lastUpdated Last updated topology time
+     * @param isMultiWriterCluster true if this cluster has more than one writer in the topology
+     * @param isPrimaryCluster true if ClusterId is a cluster endpoint url
      */
     ClusterTopologyInfo(
-        List<HostSpec> hosts,
+        final String clusterId,
+        final List<HostSpec> hosts,
         final Instant lastUpdated,
-        final boolean isMultiWriterCluster) {
+        final boolean isMultiWriterCluster,
+        final boolean isPrimaryCluster) {
+      this.clusterId = clusterId;
       this.hosts = hosts;
       this.lastUpdated = lastUpdated;
       this.isMultiWriterCluster = isMultiWriterCluster;
+      this.isPrimaryCluster = isPrimaryCluster;
+    }
+  }
+
+  static class ClusterSuggestedResult {
+    public String clusterId;
+    public boolean isPrimaryClusterId;
+
+    public ClusterSuggestedResult(final String clusterId, final boolean isPrimaryClusterId) {
+      this.clusterId = clusterId;
+      this.isPrimaryClusterId = isPrimaryClusterId;
     }
   }
 }
