@@ -38,7 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class ExpiringCache<K, V> implements Map<K, V> {
 
   private long expireTimeMs;
-  private @Nullable OnEvictRunnable onEvictRunnable;
+  private @Nullable OnEvictRunnable<V> onEvictRunnable;
   private final ReentrantLock reentrantLock = new ReentrantLock();
 
   /** The HashMap which stores the key-value pair. */
@@ -48,7 +48,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
         @Override
         protected boolean removeEldestEntry(Map.Entry<K, Hit<V>> eldest) {
 
-          // removeEldestEntry() method is called on inserting a new entry either.
+          // removeEldestEntry() method is always called on inserting a new entry.
           // It makes sense to skip processing of such a new entry.
           // When this method is called with an old and expired entry, we can
           // iterate through all entries and remove all expired ones.
@@ -91,7 +91,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    * @param expireTimeMs The expired time in Ms
    * @param onEvictRunnable A function that will be called on each evicted cache entry
    */
-  public ExpiringCache(long expireTimeMs, final @Nullable OnEvictRunnable onEvictRunnable) {
+  public ExpiringCache(long expireTimeMs, final @Nullable OnEvictRunnable<V> onEvictRunnable) {
     this.expireTimeMs = expireTimeMs;
     this.onEvictRunnable = onEvictRunnable;
   }
@@ -141,7 +141,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
     try {
       this.reentrantLock.lock();
 
-      return this.linkedHashMap.values().stream().allMatch(x -> x.isExpire(expireTimeMs));
+      return !this.linkedHashMap.values().stream().anyMatch(x -> !x.isExpire(expireTimeMs));
     } finally {
       this.reentrantLock.unlock();
     }
@@ -336,7 +336,7 @@ public class ExpiringCache<K, V> implements Map<K, V> {
     }
   }
 
-  public void setOnEvict(OnEvictRunnable onEvictRunnable) {
+  public void setOnEvictRunnable(OnEvictRunnable<V> onEvictRunnable) {
     try {
       this.reentrantLock.lock();
 

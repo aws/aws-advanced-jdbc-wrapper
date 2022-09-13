@@ -433,7 +433,7 @@ class AuroraHostListProviderTest {
     assertTrue(provider2.isPrimaryClusterId);
     assertEquals(2, AuroraHostListProvider.topologyCache.size());
     assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/",
-        AuroraHostListProvider.topologyCache.get(provider1.clusterId).suggestedPrimaryCluster);
+        AuroraHostListProvider.topologyCache.get(provider1.clusterId).suggestedPrimaryClusterId);
 
     //AuroraHostListProvider.logCache();
 
