@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
-
 plugins {
     checkstyle
     java
@@ -126,19 +124,6 @@ tasks.jacocoTestCoverageVerification {
             }
         }
     }
-}
-
-val preprocessVersion by tasks.registering(JavaCommentPreprocessorTask::class) {
-    baseDir.set(projectDir)
-    sourceFolders.add("src/main/version/")
-}
-
-ide {
-    generatedJavaSources(
-        preprocessVersion,
-        preprocessVersion.get().outputDirectory.get().asFile,
-        sourceSets.main
-    )
 }
 
 tasks.jar {
