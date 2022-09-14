@@ -62,8 +62,8 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
             + "PostgresFailureDetectionPerformanceResults_EnhancedMonitoringEnabled.xlsx",
         enhancedFailureMonitoringPerfDataList);
     doWritePerfDataToFile(
-        "./build/reports/tests/postgres/"
-            + "PostgresFailureDetectionPerformanceResults_FailoverAndEnhancedMonitoringEnabled.xlsx",
+        "./build/reports/tests/postgres/PostgresFailureDetectionPerformanceResults"
+        + "_FailoverAndEnhancedMonitoringEnabled.xlsx",
         failoverWithEfmPerfDataList);
     doWritePerfDataToFile(
         "./build/reports/tests/postgres/"

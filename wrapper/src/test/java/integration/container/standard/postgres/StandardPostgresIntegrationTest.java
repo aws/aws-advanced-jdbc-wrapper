@@ -161,6 +161,6 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
         "",
         String.valueOf(STANDARD_PORT),
         STANDARD_DB);
-    assertThrows(RuntimeException.class, () -> connectCustomUrl(url, initDefaultProps()));
+    assertThrows(SQLException.class, () -> connectCustomUrl(url, initDefaultProps()));
   }
 }

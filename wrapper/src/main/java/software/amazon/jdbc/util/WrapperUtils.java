@@ -264,7 +264,10 @@ public class WrapperUtils {
     }
 
     if (isJdbcInterface(toProxy.getClass())) {
-      throw new RuntimeException("No wrapper class exists for " + toProxy.getClass().getName());
+      throw new RuntimeException(
+          Messages.get(
+              "WrapperUtils.noWrapperClassExists",
+              new Object[] {toProxy.getClass().getName()}));
     }
 
     return toProxy;
@@ -353,7 +356,7 @@ public class WrapperUtils {
   }
 
   public static <T> List<T> loadClasses(
-      final String extensionClassNames, final Class<T> clazz, final String errorMessage)
+      final String extensionClassNames, final Class<T> clazz, final String errorMessageResourceKey)
       throws InstantiationException {
 
     List<T> instances = new LinkedList<>();
@@ -368,7 +371,7 @@ public class WrapperUtils {
       }
 
     } catch (Throwable t) {
-      throw new InstantiationException(String.format(errorMessage, className));
+      throw new InstantiationException(Messages.get(errorMessageResourceKey, new Object[] {className}));
     }
 
     return instances;
@@ -377,7 +380,7 @@ public class WrapperUtils {
   public static <T> List<T> loadClasses(
       final List<Class<? extends T>> extensionClassList,
       final Class<T> resultClass,
-      final String errorMessage)
+      final String errorMessageResourceKey)
       throws InstantiationException {
 
     List<T> instances = new LinkedList<>();
@@ -391,7 +394,7 @@ public class WrapperUtils {
       }
 
     } catch (Throwable t) {
-      throw new InstantiationException(String.format(errorMessage, lastClass.getName()));
+      throw new InstantiationException(Messages.get(errorMessageResourceKey, new Object[] {lastClass.getName()}));
     }
 
     return instances;
@@ -427,7 +430,10 @@ public class WrapperUtils {
       Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
       return resultClass.cast(constructor.newInstance(constructorArgs));
     } catch (Exception e) {
-      throw new InstantiationException("Can't initialize class " + classToInstantiate.getName());
+      throw new InstantiationException(
+          Messages.get(
+              "WrapperUtils.failedToInitializeClass",
+              new Object[] {classToInstantiate.getName()}));
     }
   }
 
@@ -447,7 +453,10 @@ public class WrapperUtils {
     try {
       loaded = Class.forName(className);
     } catch (Exception e) {
-      throw new InstantiationException("Can't initialize class " + className);
+      throw new InstantiationException(
+          Messages.get(
+              "WrapperUtils.failedToInitializeClass",
+              new Object[] {className}));
     }
 
     return createInstance(loaded, resultClass, null, constructorArgs);

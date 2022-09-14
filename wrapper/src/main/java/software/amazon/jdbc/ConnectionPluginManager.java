@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -40,7 +39,9 @@ import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
+import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -65,6 +66,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
+          put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
         }
       };
 
@@ -134,7 +136,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
     if (profileName != null) {
 
       if (!DriverConfigurationProfiles.contains(profileName)) {
-        throw new SQLException(String.format("Configuration profile '%s' not found.", profileName));
+        throw new SQLException(
+            Messages.get(
+                "ConnectionPluginManager.configurationProfileNotFound",
+                new Object[] {profileName}));
       }
       pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
 
@@ -151,7 +156,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
       for (String pluginCode : pluginCodeList) {
         if (!pluginFactoriesByCode.containsKey(pluginCode)) {
-          throw new SQLException(String.format("Unknown plugin code '%s'.", pluginCode));
+          throw new SQLException(
+              Messages.get(
+                  "ConnectionPluginManager.unknownPluginCode",
+                  new Object[] {pluginCode}));
         }
         pluginFactories.add(pluginFactoriesByCode.get(pluginCode));
       }
@@ -163,7 +171,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
             WrapperUtils.loadClasses(
                     pluginFactories,
                     ConnectionPluginFactory.class,
-                    "Unable to load connection plugin factory '%s'.")
+                    "ConnectionPluginManager.unableToLoadPlugin")
                 .toArray(new ConnectionPluginFactory[0]);
 
         // make a chain of connection plugins
@@ -345,7 +353,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * connection.
    */
   public void releaseResources() {
-    LOGGER.log(Level.FINE, "releasing resources");
+    LOGGER.fine(() -> Messages.get("ConnectionPluginManager.releaseResources"));
 
     // This step allows all connection plugins a chance to clean up any dangling resources or
     // perform any

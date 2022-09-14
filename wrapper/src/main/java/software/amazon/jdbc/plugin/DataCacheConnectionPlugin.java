@@ -45,10 +45,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
 public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
@@ -97,7 +97,10 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
       result = dataCache.get(sql);
       if (result == null) {
         needToCache = true;
-        LOGGER.log(Level.FINEST, "[{0}] Query results will be cached: {1}", new Object[]{methodName, sql});
+        LOGGER.finest(
+            () -> Messages.get(
+                "DataCacheConnectionPlugin.queryResultsCached",
+                new Object[]{methodName, sql}));
       } else {
         try {
           result.beforeFirst();
