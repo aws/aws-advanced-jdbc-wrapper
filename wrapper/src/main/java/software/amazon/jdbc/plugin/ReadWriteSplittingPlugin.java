@@ -35,10 +35,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
-
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
-
   private final PluginService pluginService;
   protected final Properties properties;
   private Connection writerConnection;
@@ -56,16 +54,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return subscribedMethods;
   }
 
-  /**
-   * Checks if the given host index points to the primary host.
-   *
-   * @param hostSpec The current host.
-   * @return true if so
-   */
-  private boolean isWriter(final HostSpec hostSpec) {
-    return hostSpec.getRole() == HostRole.WRITER;
-  }
-
   @Override
   public Connection connect(
       final String driverProtocol,
@@ -77,10 +65,9 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
     final Connection currentConnection = connectFunc.call();
     if (currentConnection == null) {
-      LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.failedCurrentConnection"));
+      LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.failedCurrentConnection"));
       throw new SQLException(Messages.get("ReadWriteSplittingPlugin.failedCurrentConnection"));
     }
-
     if (isWriter(this.pluginService.getCurrentHostSpec())) {
       setWriterConnection(currentConnection);
     } else {
@@ -89,14 +76,32 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return currentConnection;
   }
 
-  private void closeInternalConnection(Connection internalConnection, Connection currentConnection) {
-    try {
-      if (internalConnection != null && internalConnection != currentConnection && !internalConnection.isClosed()) {
-        internalConnection.close();
-      }
-    } catch (SQLException e) {
-      // ignore
-    }
+  /**
+   * Checks if the given host index points to the primary host.
+   *
+   * @param hostSpec The current host.
+   * @return true if so
+   */
+  private boolean isWriter(final HostSpec hostSpec) {
+    return hostSpec.getRole() == HostRole.WRITER;
+  }
+
+  private void setWriterConnection(Connection conn) {
+    this.writerConnection = conn;
+    LOGGER.fine(
+        () -> Messages.get(
+            "ReadWriteSplittingPlugin.setWriterConnection",
+            new Object[] {
+                this.pluginService.getCurrentHostSpec().getUrl()}));
+  }
+
+  private void setReaderConnection(Connection conn) {
+    this.readerConnection = conn;
+  }
+
+  @Override
+  public void releaseResources() {
+    closeAllConnections();
   }
 
   private void closeAllConnections() {
@@ -114,22 +119,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
   }
 
-  @Override
-  public void releaseResources() {
-    closeAllConnections();
-  }
-
-  private void setWriterConnection(Connection conn) {
-    this.writerConnection = conn;
-    LOGGER.fine(
-        () -> Messages.get(
-            "ReadWriteSplittingPlugin.setWriterConnection",
-            new Object[] {
-                this.pluginService.getCurrentHostSpec().getUrl()}));
-
-  }
-
-  private void setReaderConnection(Connection conn) {
-    this.readerConnection = conn;
+  private void closeInternalConnection(Connection internalConnection, Connection currentConnection) {
+    try {
+      if (internalConnection != null && internalConnection != currentConnection && !internalConnection.isClosed()) {
+        internalConnection.close();
+      }
+    } catch (SQLException e) {
+      // ignore
+    }
   }
 }
