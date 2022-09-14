@@ -15,6 +15,7 @@
  */
 
 import java.sql.*;
+import java.util.Properties;
 
 /**
  * Simple Connection Test.
@@ -29,8 +30,10 @@ public class ConnectionTestSample {
     final Properties properties = new Properties();
 
     // Configuring connection properties for the underlying JDBC driver.
-    properties.setProperty("user", USERNAME);
-    properties.setProperty("password", PASSWORD);
+    properties.setProperty(PropertyDefinition.USER.name, USERNAME);
+    properties.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
+    properties.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
+    properties.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
     properties.setProperty("loginTimeout", "100");
 
     // Configuring connection properties for the JDBC Wrapper.

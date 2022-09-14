@@ -55,6 +55,12 @@ These parameters are applicable to any instance of the JDBC Wrapper.
 | `wrapperTargetDriverUserPropertyName`     | `String`  | No       | Target driver user property name.                                                                                                                                                 | `null`        |
 | `wrapperTargetDriverPasswordPropertyName` | `String`  | No       | Target driver password property name.                                                                                                                                             | `null`        |
 
+![](../../docs/images/wrapper_parameters.png)
+
+These wrapper-specific parameters allow the JDBC Wrapper to configure the connections in a driver-agnostic manner. For instance, while MySQL Connector/J accepts `database` as a configuration parameter, the PostgreSQL JDBC driver accepts `PGDBNAME`. By setting the database name with `wrapperDatabaseName` instead of a driver-specific configuration key, you can switch out the native driver with less configuration. The configuration parameters `wrapperUser` and `wrapperPassword` achieve the same goal.
+
+Sometimes the JDBC Wrapper needs to recognize the property keys for username or password, such as when using the [AWS Secrets Manager Connection Plugin](./using-plugins/UsingTheAwsSecretsManagerPlugin.md). The AWS Secrets Manager Connection Plugin uses the AWS secret ID passed in to fetch the database credentials from AWS Secrets Manager, then pass that information to the native driver. To do so, the Wrapper needs to know which property keys to use for username and password via the configuration parameters `wrapperTargetDriverUserPropertyName` and `wrapperTargetDriverPasswordPropertyName`.
+
 ## Plugins
 The JDBC Wrapper uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use. 
 

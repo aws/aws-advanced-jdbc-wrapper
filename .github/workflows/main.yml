@@ -12,6 +12,7 @@ on:
       - '**/release_draft.yml'
       - '**/maven*.yml'
       - '**/*.md'
+      - 'docs/*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
