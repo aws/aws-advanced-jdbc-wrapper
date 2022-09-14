@@ -73,8 +73,6 @@ public abstract class AuroraMysqlBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-//  protected static final String MYSQL_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
-//  protected static final String MARIADB_DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
   protected static String DB_CONN_STR_PREFIX;
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
