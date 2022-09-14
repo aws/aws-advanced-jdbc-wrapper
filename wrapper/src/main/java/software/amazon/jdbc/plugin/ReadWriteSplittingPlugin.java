@@ -23,27 +23,26 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.plugin.efm.MonitorConnectionContext;
 import software.amazon.jdbc.util.Messages;
 
 public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
 
-  private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPlugin.class.getName());
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
   private final PluginService pluginService;
-  protected final Properties properties;
+  private final Properties properties;
   private Connection writerConnection;
   private Connection readerConnection;
 
   ReadWriteSplittingPlugin(
-      PluginService pluginService,
       Properties properties) {
     this.pluginService = pluginService;
     this.properties = properties;
@@ -60,14 +59,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
+      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
     final Connection currentConnection = connectFunc.call();
-    if (currentConnection == null) {
-      LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.failedCurrentConnection"));
-      throw new SQLException(Messages.get("ReadWriteSplittingPlugin.failedCurrentConnection"));
-    }
     if (isWriter(this.pluginService.getCurrentHostSpec())) {
       setWriterConnection(currentConnection);
     } else {
@@ -88,7 +83,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void setWriterConnection(Connection conn) {
     this.writerConnection = conn;
-    LOGGER.fine(
+    LOGGER.finest(
         () -> Messages.get(
             "ReadWriteSplittingPlugin.setWriterConnection",
             new Object[] {
@@ -97,6 +92,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void setReaderConnection(Connection conn) {
     this.readerConnection = conn;
+    LOGGER.finest(
+        () -> Messages.get(
+            "ReadWriteSplittingPlugin.setReaderConnection",
+            new Object[] {
+                this.pluginService.getCurrentHostSpec().getUrl()}));
   }
 
   @Override
@@ -105,7 +105,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void closeAllConnections() {
-    LOGGER.fine(() -> Messages.get("ReadWriteSplittingPlugin.closingInternalConnections"));
+    LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.closingInternalConnections"));
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     closeInternalConnection(this.readerConnection, currentConnection);
     closeInternalConnection(this.writerConnection, currentConnection);
