@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql.mariadbDriver;
+package integration.container.standard.mariadb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class DataSourceTests extends MariadbStandardMysqlBaseTest {
+public class DataSourceTests extends StandardMariadbBaseTest {
 
   @BeforeAll
   public static void setup() throws SQLException, ClassNotFoundException {
@@ -46,7 +46,8 @@ public class DataSourceTests extends MariadbStandardMysqlBaseTest {
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    // TODO: correct jdbc protocol? check property names
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -71,7 +72,7 @@ public class DataSourceTests extends MariadbStandardMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
-    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
@@ -86,9 +87,8 @@ public class DataSourceTests extends MariadbStandardMysqlBaseTest {
   public void testOpenConnectionWithMysqlDataSourceClassNameFromJndiLookup()
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    // TODO: classname org.mariadb.jdbc.MariadbDataSource ??
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
@@ -128,15 +128,16 @@ public class DataSourceTests extends MariadbStandardMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setUrlPropertyName("url");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
+    // TODO: permitMysqlScheme - need this only for mysql tests?
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mysql://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
+        "jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
@@ -170,7 +171,7 @@ public class DataSourceTests extends MariadbStandardMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setUrlPropertyName("url");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
@@ -178,7 +179,7 @@ public class DataSourceTests extends MariadbStandardMysqlBaseTest {
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mysql://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
+        "jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();

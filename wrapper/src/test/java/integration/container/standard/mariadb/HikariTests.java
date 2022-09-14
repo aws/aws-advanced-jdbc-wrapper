@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql.mariadbDriver;
+package integration.container.standard.mariadb;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,10 +27,10 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class HikariTests extends MariadbStandardMysqlBaseTest {
+public class HikariTests extends StandardMariadbBaseTest {
 
   @Test
-  public void testOpenConnectionWithMysqlUrl() throws SQLException {
+  public void testOpenConnectionWithMariadbUrl() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
     ds.setJdbcUrl(getUrl());
@@ -51,7 +51,7 @@ public class HikariTests extends MariadbStandardMysqlBaseTest {
   }
 
   @Test
-  public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
+  public void testOpenConnectionWithMariadbDataSourceClassName() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
     ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
@@ -61,7 +61,7 @@ public class HikariTests extends MariadbStandardMysqlBaseTest {
     ds.setPassword(STANDARD_PASSWORD);
 
     // Configure AwsWrapperDataSource:
-    ds.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
+    ds.addDataSourceProperty("jdbcProtocol", "jdbc:mariadb:");
     ds.addDataSourceProperty("userPropertyName", "user");
     ds.addDataSourceProperty("passwordPropertyName", "password");
     ds.addDataSourceProperty("databasePropertyName", "databaseName");
@@ -69,9 +69,9 @@ public class HikariTests extends MariadbStandardMysqlBaseTest {
     ds.addDataSourceProperty("serverPropertyName", "serverName");
 
     // Specify the driver-specific data source for AwsWrapperDataSource:
-    ds.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
+    ds.addDataSourceProperty("targetDataSourceClassName", "org.mariadb.jdbc.MariaDbDataSource");
 
-    // Configuring MysqlDataSource:
+    // Configuring MariadbDataSource:
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);

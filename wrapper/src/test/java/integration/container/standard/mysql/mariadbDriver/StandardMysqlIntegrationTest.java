@@ -73,19 +73,20 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
+    // TODO: What should class be?
     assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
 
     resultSet.next();
@@ -121,20 +122,20 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    // TODO: which class?
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
+    // TODO: What should class be?
     assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
 
     resultSet.next();
@@ -158,19 +159,20 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
+    // TODO: What should class be?
     assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
 
     resultSet.next();
@@ -201,19 +203,20 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
+    // TODO: What should class be?
     assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
 
     resultSet.next();

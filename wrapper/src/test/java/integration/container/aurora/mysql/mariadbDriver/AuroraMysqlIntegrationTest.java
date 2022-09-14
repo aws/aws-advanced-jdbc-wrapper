@@ -497,7 +497,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     Connection conn = connectToInstanceCustomUrl(url, props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
     conn.close();
@@ -515,7 +515,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     Connection conn = connectToInstanceCustomUrl(url, props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
     conn.close();

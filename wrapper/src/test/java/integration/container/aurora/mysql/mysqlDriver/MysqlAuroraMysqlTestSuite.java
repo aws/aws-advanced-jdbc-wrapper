@@ -28,4 +28,4 @@ import org.junit.platform.suite.api.Suite;
     AuroraMysqlAwsIamIntegrationTest.class,
     AuroraMysqlIntegrationTest.class
 })
-public class AuroraMysqlTestSuite {}
+public class MysqlAuroraMysqlTestSuite {}

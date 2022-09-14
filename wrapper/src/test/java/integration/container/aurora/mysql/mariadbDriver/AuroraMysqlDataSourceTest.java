@@ -46,9 +46,8 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
-
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    
+
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
@@ -56,7 +55,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -82,7 +81,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection()) {
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -194,7 +193,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -220,7 +219,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
             + "&password=" + AURORA_MYSQL_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -242,7 +241,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
         + "/" + AURORA_MYSQL_DB);
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -265,7 +264,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -294,7 +293,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB);
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -316,7 +315,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
             + "&password=" + AURORA_MYSQL_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -331,7 +330,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
@@ -407,7 +406,7 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
 
     try (final Connection conn = dsFromJndiLookup.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
