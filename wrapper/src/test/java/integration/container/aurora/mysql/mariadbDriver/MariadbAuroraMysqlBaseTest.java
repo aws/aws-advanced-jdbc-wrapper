@@ -31,6 +31,6 @@ public abstract class MariadbAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
 
   @BeforeEach
   public void setUpEachMysql() throws SQLException, InterruptedException {
-    setUpEach(DB_CONN_STR_PREFIX);
+    setUpEach();
   }
 }

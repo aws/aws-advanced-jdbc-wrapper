@@ -26,9 +26,4 @@ public abstract class MysqlAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
       Driver.register();
     }
   }
-
-  @BeforeEach
-  public void setUpEachMysql() throws SQLException, InterruptedException {
-    setUpEach(DB_CONN_STR_PREFIX);
-  }
 }

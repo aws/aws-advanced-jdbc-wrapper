@@ -47,7 +47,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
 
     try (final Connection conn =
              connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-                 initDefaultProps(), DB_CONN_STR_PREFIX)) {
+                 initDefaultProps())) {
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
@@ -73,7 +73,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps(), DB_CONN_STR_PREFIX)) {
+        initDefaultProps())) {
       final Statement stmt = conn.createStatement();
 
       // Crash Instance1 and nominate a new writer
@@ -109,7 +109,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     final String instanceId = instanceIDs[1];
 
     try (final Connection conn = connectToInstance(instanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
+        MYSQL_PROXY_PORT)) {
       // Crash Instance2
       Proxy instanceProxy = proxyMap.get(instanceId);
       containerHelper.disableConnectivity(instanceProxy);
@@ -154,7 +154,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps(), DB_CONN_STR_PREFIX)) {
+        initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_2");
       testStmt1.executeUpdate(
@@ -203,7 +203,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps(), DB_CONN_STR_PREFIX)) {
+        initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_3");
       testStmt1.executeUpdate(
@@ -251,7 +251,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-        initDefaultProps(), DB_CONN_STR_PREFIX)) {
+        initDefaultProps())) {
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_4");
       testStmt1.executeUpdate(
@@ -333,7 +333,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     establishCacheConnection.close();
 
     props.setProperty(PropertyKey.allowMultiQueries.getKeyName(), "true");
-    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props, DB_CONN_STR_PREFIX)) {
+    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
       // Verify that connection accepts multi-statement sql
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeQuery("select @@aurora_server_id; select 1; select 2;");

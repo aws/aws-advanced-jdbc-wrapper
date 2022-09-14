@@ -62,7 +62,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends MysqlAuroraMysqlBaseTest {
     final String hostIp = hostToIP(MYSQL_CLUSTER_URL);
     Assertions.assertThrows(
         SQLException.class,
-        () -> connectToInstance(hostIp, AURORA_MYSQL_PORT, props, DB_CONN_STR_PREFIX)
+        () -> connectToInstance(hostIp, AURORA_MYSQL_PORT, props)
     );
   }
 

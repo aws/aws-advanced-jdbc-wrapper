@@ -48,7 +48,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
 
   private List<String> fetchTopology() {
     try {
-      List<String> topology = getTopologyEndpoints(DB_CONN_STR_PREFIX);
+      List<String> topology = getTopologyEndpoints();
       // topology should contain a writer and at least one reader
       if (topology == null || topology.size() < 2) {
         fail("Topology does not contain the required instances");

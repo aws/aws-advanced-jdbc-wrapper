@@ -227,7 +227,7 @@ public class AuroraMysqlPerformanceIntegrationTest extends MysqlAuroraMysqlBaseT
     int connectCount = 0;
     while (conn == null && connectCount < 10) {
       try {
-        conn = connectToInstance(url, port, props, DB_CONN_STR_PREFIX);
+        conn = connectToInstance(url, port, props);
       } catch (SQLException sqlEx) {
         // ignore, try to connect again
       }

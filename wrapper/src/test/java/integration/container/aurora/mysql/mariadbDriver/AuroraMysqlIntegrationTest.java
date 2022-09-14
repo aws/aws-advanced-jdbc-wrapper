@@ -94,7 +94,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
   @ParameterizedTest(name = "test_ConnectionString")
   @MethodSource("generateConnectionString")
   public void test_ConnectionString(String connStr, int port) throws SQLException {
-    final Connection conn = connectToInstance(connStr, port, DB_CONN_STR_PREFIX);
+    final Connection conn = connectToInstance(connStr, port);
     assertTrue(conn.isValid(5));
     conn.close();
   }
@@ -112,7 +112,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
 
   @Test
   public void test_ValidateConnectionWhenNetworkDown() throws SQLException, IOException {
-    final Connection conn = connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX);
+    final Connection conn = connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT);
     assertTrue(conn.isValid(5));
 
     containerHelper.disableConnectivity(proxyInstance_1);
@@ -130,12 +130,12 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
 
     assertThrows(Exception.class, () -> {
       // expected to fail since communication is cut
-      connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX);
+      connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT);
     });
 
     containerHelper.enableConnectivity(proxyInstance_1);
 
-    final Connection conn = connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX);
+    final Connection conn = connectToInstance(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT);
     conn.close();
   }
 
@@ -151,7 +151,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     try (final Connection testConnection = connectToInstance(
                  initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
                  MYSQL_PROXY_PORT,
-                 props, DB_CONN_STR_PREFIX)) {
+                 props)) {
       // Get writer
       currWriter = queryInstanceId(testConnection);
 
@@ -183,14 +183,14 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     // Get Writer
     try (final Connection checkWriterConnection = connectToInstance(
         currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
+        MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to cluster
     try (final Connection testConnection = connectToInstance(
         anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
       assertNotEquals(currWriter, currReader);
@@ -226,7 +226,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
 
     // Get Writer
     try (final Connection checkWriterConnection = connectToInstance(
-        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
+        currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     } catch (SQLException e) {
       fail(e);
@@ -235,7 +235,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     // Connect to instance
     try (final Connection testConnection = connectToInstance(
         anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
 
@@ -267,14 +267,14 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     // Get Writer
     try (final Connection checkWriterConnection = connectToInstance(
         currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
+        MYSQL_PROXY_PORT)) {
       currWriter = queryInstanceId(checkWriterConnection);
     }
 
     // Connect to instance
     try (final Connection testConnection = connectToInstance(
         anyReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, DB_CONN_STR_PREFIX)) {
+        MYSQL_PROXY_PORT)) {
       // Get reader
       currReader = queryInstanceId(testConnection);
 
@@ -304,7 +304,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     final Properties validProp = initDefaultProps();
     validProp.setProperty(PropertyDefinition.USER.name, AURORA_MYSQL_USERNAME);
     validProp.setProperty(PropertyDefinition.PASSWORD.name, AURORA_MYSQL_PASSWORD);
-    final Connection validConn = connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, validProp, DB_CONN_STR_PREFIX);
+    final Connection validConn = connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, validProp);
     validConn.close();
 
     final Properties invalidProp = initDefaultProps();
@@ -312,10 +312,10 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     invalidProp.setProperty(PropertyDefinition.PASSWORD.name, "INVALID_" + AURORA_MYSQL_PASSWORD);
     assertThrows(
         SQLException.class,
-        () -> connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, invalidProp, DB_CONN_STR_PREFIX)
+        () -> connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, invalidProp)
     );
 
-    final Connection validConn2 = connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, validProp, DB_CONN_STR_PREFIX);
+    final Connection validConn2 = connectToInstance(MYSQL_INSTANCE_1_URL, AURORA_MYSQL_PORT, validProp);
     validConn2.close();
   }
 
@@ -331,7 +331,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     try (Connection conn = connectToInstance(
         currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         MYSQL_PROXY_PORT,
-        props, DB_CONN_STR_PREFIX)) {
+        props)) {
       // Put all but writer down first
       proxyMap.forEach((instance, proxy) -> {
         if (!instance.equalsIgnoreCase(currentWriterId)) {
@@ -376,7 +376,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     try (Connection conn = connectToInstance(
         readerNode + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         MYSQL_PROXY_PORT,
-        props, DB_CONN_STR_PREFIX)) {
+        props)) {
       // First kill all reader instances except one
       for (int i = 1; i < clusterSize - 1; i++) {
         final String instanceId = instanceIDs[i];
@@ -417,7 +417,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     try (Connection conn = connectToInstance(
         firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         MYSQL_PROXY_PORT,
-        props, DB_CONN_STR_PREFIX)) {
+        props)) {
       conn.setReadOnly(true);
 
       // Start crashing reader (Instance2).
