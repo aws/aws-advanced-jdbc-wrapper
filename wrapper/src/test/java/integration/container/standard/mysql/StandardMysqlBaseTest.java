@@ -34,16 +34,6 @@ public class StandardMysqlBaseTest extends StandardBaseTest {
     STANDARD_PASSWORD = System.getenv("STANDARD_MYSQL_PASSWORD");
   }
 
-  @BeforeAll
-  public static void setUpMysql() throws SQLException, IOException, ClassNotFoundException {
-    setUp();
-    Class.forName("com.mysql.cj.jdbc.Driver");
-
-    if (!Driver.isRegistered()) {
-      Driver.register();
-    }
-  }
-
   @Override
   protected Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();

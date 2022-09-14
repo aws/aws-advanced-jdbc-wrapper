@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mysql.mariadbDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class DataSourceTests extends StandardMysqlBaseTest {
+public class DataSourceTests extends MariadbStandardMysqlBaseTest {
 
   @BeforeAll
   public static void setup() throws SQLException, ClassNotFoundException {

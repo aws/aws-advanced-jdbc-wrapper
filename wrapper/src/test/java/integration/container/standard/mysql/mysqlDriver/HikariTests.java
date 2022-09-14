@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mysql.mysqlDriver;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
+import integration.container.standard.mysql.StandardMysqlBaseTest;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -27,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class HikariTests extends StandardMysqlBaseTest {
+public class HikariTests extends MysqlStandardMysqlBaseTest {
 
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {

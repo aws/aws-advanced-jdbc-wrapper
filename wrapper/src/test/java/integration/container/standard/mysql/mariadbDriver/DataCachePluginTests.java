@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mysql.mariadbDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,7 +31,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 
-public class DataCachePluginTests extends StandardMysqlBaseTest {
+public class DataCachePluginTests extends MariadbStandardMysqlBaseTest {
 
   @Test
   public void testQueryCacheable() throws SQLException {

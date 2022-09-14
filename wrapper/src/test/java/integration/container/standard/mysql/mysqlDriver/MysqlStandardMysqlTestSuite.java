@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mysql.mysqlDriver;
 
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
@@ -30,4 +30,4 @@ import org.junit.platform.suite.api.Suite;
   LogQueryPluginTests.class,
   SpringTests.class
 })
-public class StandardMysqlTestSuite {}
+public class MysqlStandardMysqlTestSuite {}

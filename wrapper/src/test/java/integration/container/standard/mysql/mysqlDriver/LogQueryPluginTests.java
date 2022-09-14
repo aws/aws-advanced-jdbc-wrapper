@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mysql.mysqlDriver;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.container.standard.mysql.StandardMysqlBaseTest;
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
@@ -35,7 +36,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 
-public class LogQueryPluginTests extends StandardMysqlBaseTest {
+public class LogQueryPluginTests extends MysqlStandardMysqlBaseTest {
 
   @Test
   public void testStatementExecuteQueryWithArg()

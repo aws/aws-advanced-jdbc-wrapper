@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mysql.mariadbDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -26,7 +26,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import software.amazon.jdbc.PropertyDefinition;
 
-public class SpringTests extends StandardMysqlBaseTest {
+public class SpringTests extends MariadbStandardMysqlBaseTest {
 
   @Test
   public void testOpenConnection() {

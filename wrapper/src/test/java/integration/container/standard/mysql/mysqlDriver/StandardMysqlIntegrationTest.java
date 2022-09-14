@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mysql.mysqlDriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.container.standard.mysql.StandardMysqlBaseTest;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -44,7 +45,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.ResultSetWrapper;
 import software.amazon.jdbc.wrapper.StatementWrapper;
 
-public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
+public class StandardMysqlIntegrationTest extends MysqlStandardMysqlBaseTest {
 
   @Test
   public void test_connect() throws SQLException, IOException {
