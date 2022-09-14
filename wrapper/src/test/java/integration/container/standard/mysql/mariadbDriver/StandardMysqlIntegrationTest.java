@@ -86,8 +86,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    // TODO: What should class be?
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);
@@ -135,8 +134,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    // TODO: What should class be?
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);
@@ -172,8 +170,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    // TODO: What should class be?
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);
@@ -216,8 +213,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    // TODO: What should class be?
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);

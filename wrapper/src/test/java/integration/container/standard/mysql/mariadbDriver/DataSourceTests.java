@@ -86,7 +86,6 @@ public class DataSourceTests extends MariadbStandardMysqlBaseTest {
   public void testOpenConnectionWithMysqlDataSourceClassNameFromJndiLookup()
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    // TODO: classname org.mariadb.jdbc.MariadbDataSource ??
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
     ds.setServerPropertyName("serverName");
