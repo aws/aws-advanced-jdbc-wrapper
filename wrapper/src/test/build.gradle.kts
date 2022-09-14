@@ -85,15 +85,19 @@ tasks.register<Test>("in-container-standard-postgres") {
 }
 
 // Integration tests are run in a specific order.
-// To add more tests, see integration.container.aurora.mysql.mysql_driver.AuroraMysqlTestSuite.java
+// To add more tests, see integration.container.aurora.mysql.mysqldriver.AuroraMysqlTestSuite.java
+// and integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite.java
 tasks.register<Test>("in-container-aurora-mysql") {
-    filter.includeTestsMatching("integration.container.aurora.mysql.mysql_driver.AuroraMysqlTestSuite")
+    filter.includeTestsMatching("integration.container.aurora.mysql.mysqldriver.MysqlAuroraMysqlTestSuite",
+        "integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite")
 }
 
 // Integration tests are run in a specific order.
-// To add more tests, see integration.container.standard.mysql.StandardMysqlTestSuite.java
+// To add more tests, see integration.container.standard.mysql.mysqldriver.StandardMysqlTestSuite.java
+// and integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite.java
 tasks.register<Test>("in-container-standard-mysql") {
-    filter.includeTestsMatching("integration.container.standard.mysql.StandardMysqlTestSuite")
+    filter.includeTestsMatching("integration.container.standard.mysql.mysqldriver.MysqlStandardMysqlTestSuite",
+        "integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite")
 }
 
 tasks.register<Test>("in-container-standard-mariadb") {
