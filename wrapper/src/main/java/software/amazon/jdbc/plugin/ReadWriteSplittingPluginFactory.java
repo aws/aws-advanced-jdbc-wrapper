@@ -24,6 +24,6 @@ import software.amazon.jdbc.PluginService;
 public class ReadWriteSplittingPluginFactory implements ConnectionPluginFactory {
   @Override
   public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new ReadWriteSplittingPlugin(props);
+    return new ReadWriteSplittingPlugin(pluginService, props);
   }
 }

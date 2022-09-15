@@ -43,7 +43,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private Connection readerConnection;
 
   ReadWriteSplittingPlugin(
-      Properties properties) {
+     PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
     this.properties = properties;
   }
@@ -77,7 +77,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
    * @param hostSpec The current host.
    * @return true if so
    */
-  private boolean isWriter(final HostSpec hostSpec) {
+  private boolean isWriter(final @NonNull HostSpec hostSpec) {
     return hostSpec.getRole() == HostRole.WRITER;
   }
 
