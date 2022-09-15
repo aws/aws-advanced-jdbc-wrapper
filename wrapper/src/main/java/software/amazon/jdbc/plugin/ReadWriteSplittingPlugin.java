@@ -30,13 +30,21 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPlugin.class.getName());
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+          add("connect");
+          add("Connection.setReadOnly");
+        }
+      });
+
   private final PluginService pluginService;
   private final Properties properties;
   private Connection writerConnection;
@@ -108,20 +116,19 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     closeInternalConnection(this.readerConnection, currentConnection);
     closeInternalConnection(this.writerConnection, currentConnection);
-
-    if (this.readerConnection != currentConnection) {
-      this.readerConnection = null;
-    }
-
-    if (this.writerConnection != currentConnection) {
-      this.readerConnection = null;
-    }
   }
 
   private void closeInternalConnection(Connection internalConnection, Connection currentConnection) {
     try {
       if (internalConnection != null && internalConnection != currentConnection && !internalConnection.isClosed()) {
         internalConnection.close();
+        if (writerConnection == internalConnection) {
+          writerConnection = null;
+        }
+
+        if (readerConnection == internalConnection) {
+          readerConnection = null;
+        }
       }
     } catch (SQLException e) {
       // ignore
