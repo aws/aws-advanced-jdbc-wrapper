@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -70,6 +71,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
         }
       };
 
+  protected static final Map<String, Object> PLUGIN_METHODS = new HashMap<>();
+
   protected static final String DEFAULT_PLUGINS = "";
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
@@ -90,7 +93,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionWrapper = connectionWrapper;
   }
 
-  /** This constructor is for testing purposes only. */
+  /**
+   * This constructor is for testing purposes only.
+   */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -111,15 +116,15 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   /**
-   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link
-   * ConnectionPluginFactory}. If {@code PropertyDefinition.PLUGINS} is provided by the user,
-   * initialize the chain with the given connection plugins in the order they are specified.
+   * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link ConnectionPluginFactory}. If
+   * {@code PropertyDefinition.PLUGINS} is provided by the user, initialize the chain with the given connection plugins
+   * in the order they are specified.
    *
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService A reference to a plugin service that plugin can use.
-   * @param props The configuration of the connection.
+   * @param pluginService        A reference to a plugin service that plugin can use.
+   * @param props                The configuration of the connection.
    * @param pluginManagerService A reference to a plugin manager service.
    * @throws SQLException if errors occurred during the execution.
    */
@@ -210,23 +215,46 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("jdbcMethodFunc");
     }
 
-    JdbcCallable<T, E> func = jdbcMethodFunc;
+    final Function<JdbcCallable<T, E>, T> callable = (Function<JdbcCallable<T, E>, T>) PLUGIN_METHODS.computeIfAbsent(
+        methodName, (name) -> {
+          Function<JdbcCallable<T, E>, T> func = (method) -> {
+            try {
+              return method.call();
+            } catch (Exception e) {
+              throw new WrappedException(e);
+            }
+          };
+          for (int i = this.plugins.size() - 1; i >= 0; i--) {
+            ConnectionPlugin plugin = this.plugins.get(i);
+            Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+            boolean isSubscribed =
+                pluginSubscribedMethods.contains(ALL_METHODS)
+                    || pluginSubscribedMethods.contains(methodName);
 
-    for (int i = this.plugins.size() - 1; i >= 0; i--) {
-      ConnectionPlugin plugin = this.plugins.get(i);
-      Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-      boolean isSubscribed =
-          pluginSubscribedMethods.contains(ALL_METHODS)
-              || pluginSubscribedMethods.contains(methodName);
+            if (isSubscribed) {
+              final Function<JdbcCallable<T, E>, T> finalFunc = func;
+              func = (jdbcCallable) -> {
+                try {
+                  return pluginPipeline.call(plugin, () -> finalFunc.apply(jdbcCallable));
+                } catch (Exception e) {
+                  throw new WrappedException(e);
+                }
+              };
+            }
+          }
 
-      if (isSubscribed) {
-        final JdbcCallable<T, E> finalFunc = func;
-        final JdbcCallable<T, E> nextLevelFunc = () -> pluginPipeline.call(plugin, finalFunc);
-        func = nextLevelFunc;
+          return func;
+        });
+
+    try {
+      return callable.apply(jdbcMethodFunc);
+    } catch (Exception e) {
+      Throwable cause = e;
+      while (cause instanceof WrappedException) {
+        cause = cause.getCause();
       }
+      throw (E) cause;
     }
-
-    return func.call();
   }
 
   protected <E extends Exception> void notifySubscribedPlugins(
@@ -239,8 +267,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("pluginPipeline");
     }
 
-    for (int i = 0; i < this.plugins.size(); i++) {
-      ConnectionPlugin plugin = this.plugins.get(i);
+    for (ConnectionPlugin plugin : this.plugins) {
       if (plugin == skipNotificationForThisPlugin) {
         continue;
       }
@@ -356,8 +383,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     LOGGER.fine(() -> Messages.get("ConnectionPluginManager.releaseResources"));
 
     // This step allows all connection plugins a chance to clean up any dangling resources or
-    // perform any
-    // last tasks before shutting down.
+    // perform any last tasks before shutting down.
 
     this.plugins.forEach(
         (plugin) -> {
@@ -365,10 +391,24 @@ public class ConnectionPluginManager implements CanReleaseResources {
             ((CanReleaseResources) plugin).releaseResources();
           }
         });
+    PLUGIN_METHODS.clear();
+  }
+
+  public static void releasePipelineCache() {
+    PLUGIN_METHODS.clear();
   }
 
   private interface PluginPipeline<T, E extends Exception> {
 
     T call(final ConnectionPlugin plugin, JdbcCallable<T, E> func) throws E;
   }
+
+  private class WrappedException extends RuntimeException {
+
+    public WrappedException(Throwable cause) {
+      super(cause);
+    }
+
+  }
+
 }

@@ -24,6 +24,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.mock.TestPluginOne;
 import software.amazon.jdbc.mock.TestPluginThree;
@@ -32,6 +33,11 @@ import software.amazon.jdbc.mock.TestPluginTwo;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ConnectionPluginManagerTests {
+
+  @BeforeEach
+  void setUp() {
+    ConnectionPluginManager.releasePipelineCache();
+  }
 
   @Test
   public void testExecuteJdbcCallA() throws Exception {
