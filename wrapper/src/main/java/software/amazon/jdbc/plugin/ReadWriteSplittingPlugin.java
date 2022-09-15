@@ -42,8 +42,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private Connection writerConnection;
   private Connection readerConnection;
 
-  ReadWriteSplittingPlugin(
-     PluginService pluginService, Properties properties) {
+  ReadWriteSplittingPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
     this.properties = properties;
   }
