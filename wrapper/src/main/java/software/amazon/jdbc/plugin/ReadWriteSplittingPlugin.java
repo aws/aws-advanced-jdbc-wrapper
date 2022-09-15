@@ -77,7 +77,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
    * @return true if so
    */
   private boolean isWriter(final @NonNull HostSpec hostSpec) {
-    return hostSpec.getRole() == HostRole.WRITER;
+    return HostRole.WRITER.equals(hostSpec.getRole());
   }
 
   private void setWriterConnection(Connection conn) {
