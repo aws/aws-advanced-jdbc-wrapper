@@ -83,7 +83,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
   protected final ConnectionProvider connectionProvider;
-  protected ConnectionWrapper connectionWrapper;
+  protected final ConnectionWrapper connectionWrapper;
+
+  @SuppressWarnings("rawtypes")
+  protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
   public ConnectionPluginManager(ConnectionProvider connectionProvider, ConnectionWrapper connectionWrapper) {
     this.connectionProvider = connectionProvider;
@@ -210,23 +213,45 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("jdbcMethodFunc");
     }
 
-    JdbcCallable<T, E> func = jdbcMethodFunc;
+    //noinspection unchecked
+    PluginChainJdbcCallable<T, E> pluginChainFunc = this.pluginChainFuncMap.get(methodName);
+
+    if (pluginChainFunc == null) {
+      pluginChainFunc = this.makePluginChainFunc(methodName);
+      this.pluginChainFuncMap.put(methodName, pluginChainFunc);
+    }
+
+    if (pluginChainFunc == null) {
+      throw new RuntimeException("Error processing this JDBC call.");
+    }
+
+    return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc);
+  }
+
+  @Nullable
+  protected <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
+      final @NonNull String methodName) {
+
+    PluginChainJdbcCallable<T, E> pluginChainFunc = null;
 
     for (int i = this.plugins.size() - 1; i >= 0; i--) {
-      ConnectionPlugin plugin = this.plugins.get(i);
+      final ConnectionPlugin plugin = this.plugins.get(i);
       Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
       boolean isSubscribed =
           pluginSubscribedMethods.contains(ALL_METHODS)
               || pluginSubscribedMethods.contains(methodName);
 
       if (isSubscribed) {
-        final JdbcCallable<T, E> finalFunc = func;
-        final JdbcCallable<T, E> nextLevelFunc = () -> pluginPipeline.call(plugin, finalFunc);
-        func = nextLevelFunc;
+        if (pluginChainFunc == null) {
+          pluginChainFunc = (pipelineFunc, jdbcFunc) -> pipelineFunc.call(plugin, jdbcFunc);
+        } else {
+          final PluginChainJdbcCallable<T, E> finalPluginChainFunc = pluginChainFunc;
+          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+              pipelineFunc.call(plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc));
+        }
       }
     }
-
-    return func.call();
+    return pluginChainFunc;
   }
 
   protected <E extends Exception> void notifySubscribedPlugins(
@@ -239,8 +264,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("pluginPipeline");
     }
 
-    for (int i = 0; i < this.plugins.size(); i++) {
-      ConnectionPlugin plugin = this.plugins.get(i);
+    for (ConnectionPlugin plugin : this.plugins) {
       if (plugin == skipNotificationForThisPlugin) {
         continue;
       }
@@ -369,6 +393,11 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   private interface PluginPipeline<T, E extends Exception> {
 
-    T call(final ConnectionPlugin plugin, JdbcCallable<T, E> func) throws E;
+    T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;
+  }
+
+  private interface PluginChainJdbcCallable<T, E extends Exception> {
+
+    T call(final @NonNull PluginPipeline<T, E> pipelineFunc, final @NonNull JdbcCallable<T, E> jdbcMethodFunc) throws E;
   }
 }
