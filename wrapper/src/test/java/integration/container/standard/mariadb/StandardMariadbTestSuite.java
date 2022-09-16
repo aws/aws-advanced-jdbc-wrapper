@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mariadb;
 
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
@@ -23,11 +23,12 @@ import org.junit.platform.suite.api.Suite;
 // To add additional tests, append it inside SelectClasses, comma-separated
 @Suite
 @SelectClasses({
-  StandardMysqlIntegrationTest.class,
-  DataCachePluginTests.class,
-  DataSourceTests.class,
-  HikariTests.class,
-  LogQueryPluginTests.class,
-  SpringTests.class
+    StandardMariadbIntegrationTest.class,
+    DataCachePluginTests.class,
+    DataSourceTests.class,
+    HikariTests.class,
+    LogQueryPluginTests.class,
+    SpringTests.class
 })
-public class StandardMysqlTestSuite {}
+
+public class StandardMariadbTestSuite {}

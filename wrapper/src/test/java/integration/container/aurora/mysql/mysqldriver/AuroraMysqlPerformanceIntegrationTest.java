@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.postgres;
+package integration.container.aurora.mysql.mysqldriver;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.mysql.cj.conf.PropertyKey;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,7 +30,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.apache.poi.ss.usermodel.Cell;
@@ -36,45 +37,39 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 
-public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
-
-  private static final int REPEAT_TIMES = StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
-      ? 5
-      : Integer.parseInt(System.getenv("REPEAT_TIMES"));
-  private static final int TIMEOUT = 1;
-  private static final int CONNECT_TIMEOUT = 3;
+public class AuroraMysqlPerformanceIntegrationTest extends MysqlAuroraMysqlBaseTest {
+  private static final int REPEAT_TIMES = 5;
+  private static final int TIMEOUT = 1000;
   private static final int FAILOVER_TIMEOUT_MS = 40000;
-  private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList =
-      new ArrayList<>();
+  private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList = new ArrayList<>();
   private static final List<PerfStatMonitoring> failoverWithEfmPerfDataList = new ArrayList<>();
-  private static final List<PerfStatSocketTimeout> failoverWithSocketTimeoutPerfDataList =
-      new ArrayList<>();
+  private static final List<PerfStatSocketTimeout> failoverWithSocketTimeoutPerfDataList = new ArrayList<>();
+
+  @BeforeAll
+  public static void setUp() throws IOException, SQLException {
+    AuroraMysqlBaseTest.setUp();
+  }
 
   @AfterAll
   public static void cleanUp() throws IOException {
-    doWritePerfDataToFile(
-        "./build/reports/tests/postgres/"
-            + "PostgresFailureDetectionPerformanceResults_EnhancedMonitoringEnabled.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/mysqlDriver/"
+            + "MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
         enhancedFailureMonitoringPerfDataList);
-    doWritePerfDataToFile(
-        "./build/reports/tests/postgres/PostgresFailureDetectionPerformanceResults"
-        + "_FailoverAndEnhancedMonitoringEnabled.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/mysqlDriver/"
+            + "MysqlFailoverPerformanceResults_EnhancedMonitoring.xlsx",
         failoverWithEfmPerfDataList);
-    doWritePerfDataToFile(
-        "./build/reports/tests/postgres/"
-            + "PostgresFailoverPerformanceResults_SocketTimeout.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/mysqlDriver/"
+            + "MysqlFailoverPerformanceResults_SocketTimeout.xlsx",
         failoverWithSocketTimeoutPerfDataList);
   }
 
-  private static void doWritePerfDataToFile(
-      String fileName,
-      List<? extends PerfStatBase> dataList)
-      throws IOException {
+  private static void doWritePerfDataToFile(String fileName, List<? extends PerfStatBase> dataList) throws IOException {
     if (dataList.isEmpty()) {
       return;
     }
@@ -117,7 +112,6 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
     final Properties props = initDefaultPropsNoTimeouts();
     props.setProperty("monitoring-connectTimeout", Integer.toString(TIMEOUT));
     props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
-    // this performance test measures efm failure detection time after disconnecting the network
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
     props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
     props.setProperty("failureDetectionCount", Integer.toString(detectionCount));
@@ -133,24 +127,19 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
 
   @ParameterizedTest
   @MethodSource("generateFailureDetectionTimeParams")
-  public void test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(
+  public void test_FailoverTime_EnhancedMonitoring(
       int detectionTime,
       int detectionInterval,
       int detectionCount,
       int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("monitoring-connectTimeout", Integer.toString(TIMEOUT));
-    props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
-    props.setProperty("socketTimeout", Integer.toString(TIMEOUT));
-    props.setProperty("connectTimeout", Integer.toString(CONNECT_TIMEOUT));
-
-    // this performance test measures failover and efm failure detection time after disconnecting the network
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
     props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
     props.setProperty("failureDetectionCount", Integer.toString(detectionCount));
+    //  props.setProperty("enableClusterAwareFailover", Boolean.TRUE.toString());
     props.setProperty("wrapperPlugins", "failover,efm");
-    props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
+    props.setProperty("failoverTimeoutMs", Integer.toString(40000));
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);
@@ -165,13 +154,13 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
   public void test_FailoverTime_SocketTimeout(int socketTimeout, int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    // this performance test measures how socket timeout changes the overall failover time
-    props.setProperty("socketTimeout", Integer.toString(socketTimeout));
-    props.setProperty("connectTimeout", Integer.toString(CONNECT_TIMEOUT));
-
+    // The goal of this performance test is to check how socket timeout changes overall failover time
+    props.setProperty(PropertyKey.socketTimeout.getKeyName(), Integer.toString(socketTimeout));
     // Loads just failover plugin; don't load Enhanced Failure Monitoring plugin
-    props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
+    props.setProperty("connectionPluginFactories", FailoverConnectionPluginFactory.class.getName());
+    //  props.setProperty("enableClusterAwareFailover", Boolean.TRUE.toString());
     props.setProperty("wrapperPlugins", "failover");
+    props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
 
     final PerfStatSocketTimeout data = new PerfStatSocketTimeout();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);
@@ -180,16 +169,12 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
   }
 
   private void doMeasurePerformance(
-      int sleepDelayMillis,
-      int repeatTimes,
-      Properties props,
-      boolean openReadOnlyConnection,
-      PerfStatBase data)
+      int sleepDelayMillis, int repeatTimes, Properties props, boolean openReadOnlyConnection, PerfStatBase data)
       throws SQLException {
 
-    final String QUERY = "SELECT pg_sleep(600)"; // 600s -> 10min
+    final String QUERY = "select sleep(600)"; // 600s -> 10min
     final AtomicLong downtime = new AtomicLong();
-    final List<Long> elapsedTimes = new ArrayList<>(repeatTimes);
+    final List<Integer> elapsedTimes = new ArrayList<>(repeatTimes);
 
     for (int i = 0; i < repeatTimes; i++) {
       downtime.set(0);
@@ -200,7 +185,7 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
           Thread.sleep(sleepDelayMillis);
           // Kill network
           containerHelper.disableConnectivity(proxyInstance_1);
-          downtime.set(System.nanoTime());
+          downtime.set(System.currentTimeMillis());
         } catch (IOException ioException) {
           fail("Toxics were already set, should not happen");
         } catch (InterruptedException interruptedException) {
@@ -208,10 +193,8 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
         }
       });
 
-      try (final Connection conn = openConnectionWithRetry(
-          POSTGRES_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX,
-          POSTGRES_PROXY_PORT,
-          props);
+      try (final Connection conn = openConnectionWithRetry(MYSQL_INSTANCE_1_URL + PROXIED_DOMAIN_NAME_SUFFIX,
+          MYSQL_PROXY_PORT, props);
           final Statement statement = conn.createStatement()) {
 
         conn.setReadOnly(openReadOnlyConnection);
@@ -222,7 +205,7 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
           fail("Sleep query finished, should not be possible with network downed.");
         } catch (SQLException throwables) { // Catching executing query
           // Calculate and add detection time
-          final long failureTime = (System.nanoTime() - downtime.get());
+          final int failureTime = (int) (System.currentTimeMillis() - downtime.get());
           elapsedTimes.add(failureTime);
         }
 
@@ -232,15 +215,14 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       }
     }
 
-    final long min = elapsedTimes.stream().min(Long::compare).orElse(0L);
-    final long max = elapsedTimes.stream().max(Long::compare).orElse(0L);
-    final long avg =
-        (long) elapsedTimes.stream().mapToLong(a -> a).summaryStatistics().getAverage();
+    int min = elapsedTimes.stream().min(Integer::compare).orElse(0);
+    int max = elapsedTimes.stream().max(Integer::compare).orElse(0);
+    int avg = (int) elapsedTimes.stream().mapToInt(a -> a).summaryStatistics().getAverage();
 
+    data.minFailureDetectionTimeMillis = min;
+    data.maxFailureDetectionTimeMillis = max;
+    data.avgFailureDetectionTimeMillis = avg;
     data.paramNetworkOutageDelayMillis = sleepDelayMillis;
-    data.minFailureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(min);
-    data.maxFailureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(max);
-    data.avgFailureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(avg);
   }
 
   private Connection openConnectionWithRetry(String url, int port, Properties props) {
@@ -290,22 +272,21 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
   }
 
   private static Stream<Arguments> generateFailoverSocketTimeoutTimeParams() {
-    // socketTimeout (seconds), sleepDelayMS
+    // socketTimeout, sleepDelayMS
     return Stream.of(
-        Arguments.of(30, 5000),
-        Arguments.of(30, 10000),
-        Arguments.of(30, 15000),
-        Arguments.of(30, 25000),
-        Arguments.of(30, 20000),
-        Arguments.of(30, 30000));
+        Arguments.of(30000, 5000),
+        Arguments.of(30000, 10000),
+        Arguments.of(30000, 15000),
+        Arguments.of(30000, 25000),
+        Arguments.of(30000, 20000),
+        Arguments.of(30000, 30000));
   }
 
   private abstract class PerfStatBase {
-
     public int paramNetworkOutageDelayMillis;
-    public long minFailureDetectionTimeMillis;
-    public long maxFailureDetectionTimeMillis;
-    public long avgFailureDetectionTimeMillis;
+    public int minFailureDetectionTimeMillis;
+    public int maxFailureDetectionTimeMillis;
+    public int avgFailureDetectionTimeMillis;
 
     public abstract void writeHeader(Row row);
 
@@ -313,7 +294,6 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
   }
 
   private class PerfStatMonitoring extends PerfStatBase {
-
     public int paramDetectionTime;
     public int paramDetectionInterval;
     public int paramDetectionCount;
@@ -329,11 +309,11 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       cell = row.createCell(3);
       cell.setCellValue("NetworkOutageDelayMillis");
       cell = row.createCell(4);
-      cell.setCellValue("MinFailureDetectionTimeMillis");
+      cell.setCellValue("MinFailureDetectionTime");
       cell = row.createCell(5);
-      cell.setCellValue("MaxFailureDetectionTimeMillis");
+      cell.setCellValue("MaxFailureDetectionTime");
       cell = row.createCell(6);
-      cell.setCellValue("AvgFailureDetectionTimeMillis");
+      cell.setCellValue("AvgFailureDetectionTime");
     }
 
     @Override
@@ -356,7 +336,6 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
   }
 
   private class PerfStatSocketTimeout extends PerfStatBase {
-
     public int paramSocketTimeout;
 
     @Override
@@ -366,11 +345,11 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       cell = row.createCell(1);
       cell.setCellValue("NetworkOutageDelayMillis");
       cell = row.createCell(2);
-      cell.setCellValue("MinFailureDetectionTimeMillis");
+      cell.setCellValue("MinFailureDetectionTime");
       cell = row.createCell(3);
-      cell.setCellValue("MaxFailureDetectionTimeMillis");
+      cell.setCellValue("MaxFailureDetectionTime");
       cell = row.createCell(4);
-      cell.setCellValue("AvgFailureDetectionTimeMillis");
+      cell.setCellValue("AvgFailureDetectionTime");
     }
 
     @Override
@@ -387,4 +366,5 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       cell.setCellValue(this.avgFailureDetectionTimeMillis);
     }
   }
+
 }

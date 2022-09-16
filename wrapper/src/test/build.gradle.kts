@@ -46,6 +46,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.17.+")
     testImplementation("org.testcontainers:mysql:1.17.+")
     testImplementation("org.testcontainers:postgresql:1.17.+")
+    testImplementation("org.testcontainers:mariadb:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
@@ -84,15 +85,23 @@ tasks.register<Test>("in-container-standard-postgres") {
 }
 
 // Integration tests are run in a specific order.
-// To add more tests, see integration.container.aurora.mysql.AuroraMysqlTestSuite.java
+// To add more tests, see integration.container.aurora.mysql.mysqldriver.AuroraMysqlTestSuite.java
+// and integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite.java
 tasks.register<Test>("in-container-aurora-mysql") {
-    filter.includeTestsMatching("integration.container.aurora.mysql.AuroraMysqlTestSuite")
+    filter.includeTestsMatching("integration.container.aurora.mysql.mysqldriver.MysqlAuroraMysqlTestSuite",
+        "integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite")
 }
 
 // Integration tests are run in a specific order.
-// To add more tests, see integration.container.standard.mysql.StandardMysqlTestSuite.java
+// To add more tests, see integration.container.standard.mysql.mysqldriver.StandardMysqlTestSuite.java
+// and integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite.java
 tasks.register<Test>("in-container-standard-mysql") {
-    filter.includeTestsMatching("integration.container.standard.mysql.StandardMysqlTestSuite")
+    filter.includeTestsMatching("integration.container.standard.mysql.mysqldriver.MysqlStandardMysqlTestSuite",
+        "integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite")
+}
+
+tasks.register<Test>("in-container-standard-mariadb") {
+    filter.includeTestsMatching("integration.container.standard.mariadb.StandardMariadbTestSuite")
 }
 
 tasks.withType<Test> {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mariadb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class DataSourceTests extends StandardMysqlBaseTest {
+public class DataSourceTests extends StandardMariadbBaseTest {
 
   @BeforeAll
   public static void setup() throws SQLException, ClassNotFoundException {
@@ -46,21 +46,21 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -71,12 +71,12 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
-    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB);
+    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -87,15 +87,15 @@ public class DataSourceTests extends StandardMysqlBaseTest {
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -113,10 +113,10 @@ public class DataSourceTests extends StandardMysqlBaseTest {
       assertEquals(f.get(ds), f.get(dsFromJndiLookup));
     }
 
-    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -127,7 +127,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setUrlPropertyName("url");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
@@ -135,13 +135,13 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+        "jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -150,14 +150,14 @@ public class DataSourceTests extends StandardMysqlBaseTest {
   @Test
   public void testOpenConnectionWithMariaDbUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    try (final Connection conn = ds.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -169,7 +169,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
-    ds.setJdbcProtocol("jdbc:mysql:");
+    ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setUrlPropertyName("url");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
@@ -177,7 +177,7 @@ public class DataSourceTests extends StandardMysqlBaseTest {
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mysql://" + STANDARD_MYSQL_HOST + "/" + STANDARD_MYSQL_DB + "?permitMysqlScheme");
+        "jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -195,11 +195,11 @@ public class DataSourceTests extends StandardMysqlBaseTest {
       assertEquals(f.get(ds), f.get(dsFromJndiLookup));
     }
 
-    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_MYSQL_USERNAME, STANDARD_MYSQL_PASSWORD)) {
+    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
 
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_MYSQL_DB);
+      assertEquals(conn.getCatalog(), STANDARD_DB);
 
       assertTrue(conn.isValid(10));
     }

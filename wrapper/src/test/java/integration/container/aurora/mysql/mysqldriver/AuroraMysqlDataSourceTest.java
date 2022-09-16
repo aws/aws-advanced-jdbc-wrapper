@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.postgres;
+package integration.container.aurora.mysql.mysqldriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -32,32 +32,32 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import org.junit.jupiter.api.Test;
-import org.postgresql.util.PSQLException;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
-
-  public static String postgresProtocolPrefix = "jdbc:postgresql://";
-
+public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
+  public static String mysqlProtocolPrefix = "jdbc:mysql://";
+  
   @Test
-  public void testConnectionWithDataSourceClassName() throws SQLException {
+  public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+    try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -66,24 +66,24 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
   @Test
   public void testConnectionWithDataSourceClassNameAndCredentialProperties() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
-    targetDataSourceProps.setProperty("user", STANDARD_USERNAME);
-    targetDataSourceProps.setProperty("password", STANDARD_PASSWORD);
+    targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
+    targetDataSourceProps.setProperty("user", AURORA_MYSQL_USERNAME);
+    targetDataSourceProps.setProperty("password", AURORA_MYSQL_PASSWORD);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection()) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -97,130 +97,105 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         SQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
   }
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingServer() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         SQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
-  }
-
-  @Test
-  public void testConnectionWithDataSourceClassNameMissingDatabase() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
-    ds.setServerPropertyName("serverName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
-
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
   }
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingUser() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection("", STANDARD_PASSWORD));
+        SQLException.class,
+        () -> ds.getConnection("", AURORA_MYSQL_PASSWORD));
   }
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingPassword() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, ""));
+        SQLException.class,
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, ""));
   }
 
   @Test
   public void testConnectionWithDataSourceClassNameMissingPropertyNames() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setJdbcProtocol(mysqlProtocolPrefix);
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
         SQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
   }
 
   @Test
-  public void testConnectionWithDataSourceClassNameUsingUrl() throws SQLException {
+  public void testOpenConnectionWithMysqlUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
+    ds.setJdbcUrl("jdbc:mysql://" + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
-    final Properties targetDataSourceProps = new Properties();
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
-
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+    try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -234,19 +209,19 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
     ds.setJdbcUrl(
-        postgresProtocolPrefix
-            + STANDARD_HOST
-            + ":" + STANDARD_PORT + "/"
-            + STANDARD_DB
-            + "?user=" + STANDARD_USERNAME
-            + "&password=" + STANDARD_PASSWORD);
+        mysqlProtocolPrefix
+            + MYSQL_CLUSTER_URL
+            + ":" + AURORA_MYSQL_PORT + "/"
+            + AURORA_MYSQL_DB
+            + "?user=" + AURORA_MYSQL_USERNAME
+            + "&password=" + AURORA_MYSQL_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -261,17 +236,14 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
-    ds.setJdbcUrl(
-        postgresProtocolPrefix
-        + STANDARD_HOST
-        + ":" + STANDARD_PORT + "/"
-        + STANDARD_DB);
+    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT
+        + "/" + AURORA_MYSQL_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+    try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -285,16 +257,16 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("databaseName", "proxy-driver-test-db");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+    try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -304,31 +276,13 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
   public void testConnectionWithDataSourceClassNameUsingUrlMissingPropertyNames() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
-
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
-  }
-
-  @Test
-  public void testConnectionWithDataSourceClassNameUsingUrlMissingDatabase() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setServerPropertyName("serverName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
-
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
-    final Properties targetDataSourceProps = new Properties();
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/");
+    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
     assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
+        SQLException.class,
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
   }
 
   @Test
@@ -337,15 +291,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(
-        DB_CONN_STR_PREFIX
-        + STANDARD_HOST
-        + ":" + STANDARD_PORT + "/"
-        + STANDARD_DB);
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+    try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -359,15 +309,15 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
-            + STANDARD_HOST
-            + ":" + STANDARD_PORT + "/"
-            + STANDARD_DB
-            + "?user=" + STANDARD_USERNAME
-            + "&password=" + STANDARD_PASSWORD);
+            + MYSQL_CLUSTER_URL
+            + ":" + AURORA_MYSQL_PORT + "/"
+            + AURORA_MYSQL_DB
+            + "?user=" + AURORA_MYSQL_USERNAME
+            + "&password=" + AURORA_MYSQL_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
@@ -378,27 +328,14 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+    try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
-  }
-
-  @Test
-  public void testConnectionWithUrlMissingDatabase() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
-    ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
-
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
   }
 
   @Test
@@ -407,11 +344,11 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/");
 
     assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection("", STANDARD_PASSWORD));
+        SQLException.class,
+        () -> ds.getConnection("", AURORA_MYSQL_PASSWORD));
   }
 
   @Test
@@ -420,42 +357,37 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/");
 
     assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, ""));
+        SQLException.class,
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, ""));
   }
 
   @Test
   public void testConnectionWithUrlMissingPropertyNames() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl(
-        DB_CONN_STR_PREFIX
-        + STANDARD_HOST
-        + ":" + STANDARD_PORT + "/"
-        + STANDARD_DB);
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB);
 
     assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD));
+        SQLException.class,
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
   }
 
   @Test
-  public void testConnectionWithDataSourceClassNameFromJndiLookup()
+  public void testOpenConnectionWithMysqlDataSourceClassNameFromJndiLookup()
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setJdbcProtocol("jdbc:mysql:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setUserPropertyName("user");
     ds.setPasswordPropertyName("password");
 
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
+    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -473,10 +405,10 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
       assertEquals(f.get(ds), f.get(dsFromJndiLookup));
     }
 
-    try (final Connection conn =
-             dsFromJndiLookup.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
+    try (final Connection conn = dsFromJndiLookup.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
+      assertTrue(conn instanceof ConnectionWrapper);
+      assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
 
       assertTrue(conn.isValid(10));
     }
