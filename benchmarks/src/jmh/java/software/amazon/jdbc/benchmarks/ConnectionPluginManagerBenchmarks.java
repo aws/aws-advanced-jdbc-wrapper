@@ -46,6 +46,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.NodeChangeOptions;
+import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -138,20 +139,22 @@ public class ConnectionPluginManagerBenchmarks {
   }
 
   @Benchmark
-  public void initConnectionPluginManagerWithNoPlugins() throws SQLException {
+  public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
     final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
     manager.init(mockPluginService, emptyProperties, mockPluginManagerService);
+    return manager;
   }
 
   @Benchmark
-  public void initConnectionPluginManagerWithPlugins() throws SQLException {
+  public ConnectionPluginManager initConnectionPluginManagerWithPlugins() throws SQLException {
     final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
     manager.init(mockPluginService, propertiesWithPlugins, mockPluginManagerService);
+    return manager;
   }
 
   @Benchmark
-  public void connectWithPlugins() throws SQLException {
-    pluginManager.connect(
+  public Connection connectWithPlugins() throws SQLException {
+    return pluginManager.connect(
         "driverProtocol",
         new HostSpec("host"),
         propertiesWithPlugins,
@@ -159,8 +162,8 @@ public class ConnectionPluginManagerBenchmarks {
   }
 
   @Benchmark
-  public void connectWithNoPlugins() throws SQLException {
-    pluginManagerWithNoPlugins.connect(
+  public Connection connectWithNoPlugins() throws SQLException {
+    return pluginManagerWithNoPlugins.connect(
         "driverProtocol",
         new HostSpec("host"),
         emptyProperties,
@@ -168,8 +171,8 @@ public class ConnectionPluginManagerBenchmarks {
   }
 
   @Benchmark
-  public void executeWithPlugins() {
-    pluginManager.execute(
+  public Integer executeWithPlugins() {
+    return pluginManager.execute(
         int.class,
         RuntimeException.class,
         mockStatement,
@@ -180,8 +183,8 @@ public class ConnectionPluginManagerBenchmarks {
   }
 
   @Benchmark
-  public void executeWithNoPlugins() {
-    pluginManagerWithNoPlugins.execute(
+  public Integer executeWithNoPlugins() {
+    return pluginManagerWithNoPlugins.execute(
         int.class,
         RuntimeException.class,
         mockStatement,
@@ -192,40 +195,44 @@ public class ConnectionPluginManagerBenchmarks {
   }
 
   @Benchmark
-  public void initHostProvidersWithPlugins() throws SQLException {
+  public ConnectionPluginManager initHostProvidersWithPlugins() throws SQLException {
     pluginManager.initHostProvider(
         "protocol",
         "url",
         propertiesWithPlugins,
         mockHostListProvider);
+    return pluginManager;
   }
 
   @Benchmark
-  public void initHostProvidersWithNoPlugins() throws SQLException {
+  public ConnectionPluginManager initHostProvidersWithNoPlugins() throws SQLException {
     pluginManagerWithNoPlugins.initHostProvider(
         "protocol",
         "url",
         emptyProperties,
         mockHostListProvider);
+    return pluginManager;
   }
 
   @Benchmark
-  public void notifyConnectionChangedWithPlugins() {
-    pluginManager.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION), null);
+  public EnumSet<OldConnectionSuggestedAction> notifyConnectionChangedWithPlugins() {
+    return pluginManager.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION), null);
   }
 
   @Benchmark
-  public void notifyConnectionChangedWithNoPlugins() {
-    pluginManagerWithNoPlugins.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION), null);
+  public EnumSet<OldConnectionSuggestedAction> notifyConnectionChangedWithNoPlugins() {
+    return pluginManagerWithNoPlugins.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION), null);
   }
 
   @Benchmark
-  public void releaseResourcesWithPlugins() {
+  public ConnectionPluginManager releaseResourcesWithPlugins() {
     pluginManager.releaseResources();
+    return pluginManager;
   }
 
   @Benchmark
-  public void releaseResourcesWithNoPlugins() {
+  public ConnectionPluginManager releaseResourcesWithNoPlugins() {
     pluginManagerWithNoPlugins.releaseResources();
+    return pluginManager;
   }
 }
