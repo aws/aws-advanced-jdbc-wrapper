@@ -46,7 +46,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    // TODO: correct jdbc protocol? check property names
     ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
@@ -134,7 +133,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
-    // TODO: permitMysqlScheme - need this only for mysql tests?
     targetDataSourceProps.setProperty(
         "url",
         "jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
