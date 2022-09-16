@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql;
+package integration.container.aurora.mysql.mariadbdriver;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.mysql.cj.conf.PropertyKey;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -42,7 +43,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 
-public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
+public class AuroraMysqlPerformanceIntegrationTest extends MariadbAuroraMysqlBaseTest {
   private static final int REPEAT_TIMES = 5;
   private static final int TIMEOUT = 1000;
   private static final int FAILOVER_TIMEOUT_MS = 40000;
@@ -57,11 +58,14 @@ public class AuroraMysqlPerformanceIntegrationTest extends AuroraMysqlBaseTest {
 
   @AfterAll
   public static void cleanUp() throws IOException {
-    doWritePerfDataToFile("./build/reports/tests/mysql/MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/mariadbDriver/"
+            + "MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
         enhancedFailureMonitoringPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/mysql/MysqlFailoverPerformanceResults_EnhancedMonitoring.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/mariadbDriver/"
+            + "MysqlFailoverPerformanceResults_EnhancedMonitoring.xlsx",
         failoverWithEfmPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/mysql/MysqlFailoverPerformanceResults_SocketTimeout.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/mysql/mariadbDriver/"
+            + "MysqlFailoverPerformanceResults_SocketTimeout.xlsx",
         failoverWithSocketTimeoutPerfDataList);
   }
 

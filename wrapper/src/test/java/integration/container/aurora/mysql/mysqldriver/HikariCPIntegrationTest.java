@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql;
+package integration.container.aurora.mysql.mysqldriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -40,7 +40,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.util.HikariCPSQLException;
 
-public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
+public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   private static Log log = null;
   private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
   private static HikariDataSource data_source = null;

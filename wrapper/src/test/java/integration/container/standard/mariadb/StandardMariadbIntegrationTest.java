@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql;
+package integration.container.standard.mariadb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,7 +44,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.ResultSetWrapper;
 import software.amazon.jdbc.wrapper.StatementWrapper;
 
-public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
+public class StandardMariadbIntegrationTest extends StandardMariadbBaseTest {
 
   @Test
   public void test_connect() throws SQLException, IOException {
@@ -73,20 +73,20 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);
@@ -121,20 +121,20 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);
@@ -157,20 +157,20 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);
@@ -200,20 +200,20 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     Connection conn = DriverManager.getConnection(getUrl(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
 
     Statement statement = conn.createStatement();
     assertNotNull(statement);
     assertTrue(statement instanceof StatementWrapper);
-    assertTrue(statement.isWrapperFor(com.mysql.cj.jdbc.StatementImpl.class));
+    assertTrue(statement.isWrapperFor(org.mariadb.jdbc.Statement.class));
 
     int rnd = new Random().nextInt(100);
     ResultSet resultSet = statement.executeQuery("SELECT " + rnd);
     assertNotNull(resultSet);
     assertTrue(resultSet instanceof ResultSetWrapper);
-    assertTrue(resultSet.isWrapperFor(com.mysql.cj.jdbc.result.ResultSetImpl.class));
+    assertTrue(resultSet.isWrapperFor(org.mariadb.jdbc.client.result.CompleteResult.class));
 
     resultSet.next();
     int result = resultSet.getInt(1);
@@ -230,3 +230,4 @@ public class StandardMysqlIntegrationTest extends StandardMysqlBaseTest {
     assertFalse(logMessages.contains("Finalizing a connection that was never closed."));
   }
 }
+
