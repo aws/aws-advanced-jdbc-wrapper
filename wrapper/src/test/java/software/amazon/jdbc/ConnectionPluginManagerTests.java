@@ -18,13 +18,17 @@ package software.amazon.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import software.amazon.jdbc.mock.TestPluginOne;
 import software.amazon.jdbc.mock.TestPluginThree;
 import software.amazon.jdbc.mock.TestPluginThrowException;
@@ -301,4 +305,81 @@ public class ConnectionPluginManagerTests {
     assertEquals("TestPluginThree:connection", calls.get(3));
     assertEquals("TestPluginThrowException:after", calls.get(4));
   }
+
+  @Test
+  public void testExecuteCachedJdbcCallA() throws Exception {
+
+    ArrayList<String> calls = new ArrayList<>();
+
+    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    testPlugins.add(new TestPluginOne(calls));
+    testPlugins.add(new TestPluginTwo(calls));
+    testPlugins.add(new TestPluginThree(calls));
+
+    Properties testProperties = new Properties();
+
+    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+
+    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+
+    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+
+    ConnectionPluginManager target = Mockito.spy(
+        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper));
+
+    Object result =
+        target.execute(
+            String.class,
+            Exception.class,
+            Connection.class,
+            "testJdbcCall_A",
+            () -> {
+              calls.add("targetCall");
+              return "resulTestValue";
+            },
+            testArgs);
+
+    assertEquals("resulTestValue", result);
+
+    // The method has been called just once to generate a final lambda and cache it.
+    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
+
+    assertEquals(7, calls.size());
+    assertEquals("TestPluginOne:before", calls.get(0));
+    assertEquals("TestPluginTwo:before", calls.get(1));
+    assertEquals("TestPluginThree:before", calls.get(2));
+    assertEquals("targetCall", calls.get(3));
+    assertEquals("TestPluginThree:after", calls.get(4));
+    assertEquals("TestPluginTwo:after", calls.get(5));
+    assertEquals("TestPluginOne:after", calls.get(6));
+
+    calls.clear();
+
+    result =
+        target.execute(
+            String.class,
+            Exception.class,
+            Connection.class,
+            "testJdbcCall_A",
+            () -> {
+              calls.add("targetCall");
+              return "anotherResulTestValue";
+            },
+            testArgs);
+
+    assertEquals("anotherResulTestValue", result);
+
+    // No additional calls to this method occurred. It's still been called once.
+    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
+
+    assertEquals(7, calls.size());
+    assertEquals("TestPluginOne:before", calls.get(0));
+    assertEquals("TestPluginTwo:before", calls.get(1));
+    assertEquals("TestPluginThree:before", calls.get(2));
+    assertEquals("targetCall", calls.get(3));
+    assertEquals("TestPluginThree:after", calls.get(4));
+    assertEquals("TestPluginTwo:after", calls.get(5));
+    assertEquals("TestPluginOne:after", calls.get(6));
+  }
+
 }
