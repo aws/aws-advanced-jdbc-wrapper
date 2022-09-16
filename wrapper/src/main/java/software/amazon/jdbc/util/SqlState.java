@@ -26,9 +26,12 @@ public class SqlState {
 
   public static final SqlState UNKNOWN_STATE = new SqlState("");
   public static final SqlState CONNECTION_FAILURE_DURING_TRANSACTION = new SqlState("08007");
+  public static final SqlState COMMUNICATION_ERROR = new SqlState("08S01");
   public static final SqlState COMMUNICATION_LINK_CHANGED = new SqlState("08S02");
   public static final SqlState CONNECTION_UNABLE_TO_CONNECT = new SqlState("08001");
   public static final SqlState CONNECTION_NOT_OPEN = new SqlState("08003");
+  public static final SqlState ACTIVE_SQL_TRANSACTION = new SqlState("25001");
+
   public static final SqlState ACTIVE_SQL_TRANSACTION = new SqlState("25001");
 
   // TODO: add custom error codes support

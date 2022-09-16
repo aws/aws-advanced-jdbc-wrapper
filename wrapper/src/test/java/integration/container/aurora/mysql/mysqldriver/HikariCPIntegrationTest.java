@@ -38,7 +38,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.HikariCPSQLException;
+import software.amazon.jdbc.util.SqlState;
 
 public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   private static Log log = null;
@@ -75,7 +79,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   }
 
   @BeforeEach
-  public void setUpTest() throws SQLException {
+  public void setUpTest() {
     String writerEndpoint = clusterTopology.get(0);
 
     String jdbcUrl = DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
@@ -91,11 +95,11 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
-    config.addDataSourceProperty("failoverTimeoutMs", "5000");
-    config.addDataSourceProperty("failoverReaderConnectTimeoutMs", "1000");
-    config.addDataSourceProperty("clusterInstanceHostPattern", PROXIED_CLUSTER_TEMPLATE);
-    config.addDataSourceProperty("failureDetectionTime", "3000");
-    config.addDataSourceProperty("failureDetectionInterval", "1500");
+    config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
+    config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
+    config.addDataSourceProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, PROXIED_CLUSTER_TEMPLATE);
+    config.addDataSourceProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
+    config.addDataSourceProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
 
     data_source = new HikariDataSource(config);
 
@@ -117,7 +121,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
       putDownAllInstances(true);
 
       final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals("08001", exception.getSQLState());
+      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
       assertFalse(conn.isValid(5));
     }
 
@@ -151,7 +155,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
       putDownInstance(currentInstance);
 
       final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals("08S02", exception.getSQLState());
+      assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
 
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
@@ -192,7 +196,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
       putDownInstance(writerIdentifier);
 
       final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals("08S02", exception.getSQLState());
+      assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
 
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
