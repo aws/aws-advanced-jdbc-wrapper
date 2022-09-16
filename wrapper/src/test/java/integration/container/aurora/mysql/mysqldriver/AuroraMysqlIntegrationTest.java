@@ -39,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -414,6 +415,7 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
+    props.setProperty(AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, "2000");
     try (Connection conn = connectToInstance(
         firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         MYSQL_PROXY_PORT,

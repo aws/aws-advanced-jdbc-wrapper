@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -46,15 +47,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginManager;
-import software.amazon.jdbc.HostAvailability;
-import software.amazon.jdbc.HostListProvider;
-import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.NodeChangeOptions;
-import software.amazon.jdbc.OldConnectionSuggestedAction;
-import software.amazon.jdbc.PluginServiceImpl;
 
 public class PluginServiceImplTests {
 
@@ -76,11 +68,13 @@ public class PluginServiceImplTests {
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     when(oldConnection.isClosed()).thenReturn(false);
+    PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
 
   @AfterEach
   void cleanUp() throws Exception {
     closeable.close();
+    PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
 
   @Test
@@ -488,5 +482,73 @@ public class PluginServiceImplTests {
     assertEquals(2, hostBChanges.size());
     assertTrue(hostBChanges.contains(NodeChangeOptions.NODE_CHANGED));
     assertTrue(hostBChanges.contains(NodeChangeOptions.WENT_UP));
+  }
+
+  @Test
+  void testRefreshHostList_withCachedHostAvailability() throws SQLException {
+    final List<HostSpec> newHostSpecs = Arrays.asList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE)
+    );
+    final List<HostSpec> expectedHostSpecs = Arrays.asList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
+        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+    final List<HostSpec> expectedHostSpecs2 = Arrays.asList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+
+    PluginServiceImpl.hostAvailabilityExpiringCache.put("hostA/", HostAvailability.NOT_AVAILABLE);
+    PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.NOT_AVAILABLE);
+    when(hostListProvider.refresh()).thenReturn(newHostSpecs);
+    when(hostListProvider.refresh(newConnection)).thenReturn(newHostSpecs);
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    when(target.getHostListProvider()).thenReturn(hostListProvider);
+
+    assertNotEquals(expectedHostSpecs, newHostSpecs);
+    target.refreshHostList();
+    assertEquals(expectedHostSpecs, newHostSpecs);
+
+    PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.AVAILABLE);
+    target.refreshHostList(newConnection);
+    assertEquals(expectedHostSpecs2, newHostSpecs);
+  }
+
+  @Test
+  void testForceRefreshHostList_withCachedHostAvailability() throws SQLException {
+    final List<HostSpec> newHostSpecs = Arrays.asList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE)
+    );
+    final List<HostSpec> expectedHostSpecs = Arrays.asList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
+        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+    final List<HostSpec> expectedHostSpecs2 = Arrays.asList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+
+    PluginServiceImpl.hostAvailabilityExpiringCache.put("hostA/", HostAvailability.NOT_AVAILABLE);
+    PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.NOT_AVAILABLE);
+    when(hostListProvider.forceRefresh()).thenReturn(newHostSpecs);
+    when(hostListProvider.forceRefresh(newConnection)).thenReturn(newHostSpecs);
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+    when(target.getHostListProvider()).thenReturn(hostListProvider);
+
+    assertNotEquals(expectedHostSpecs, newHostSpecs);
+    target.forceRefreshHostList();
+    assertEquals(expectedHostSpecs, newHostSpecs);
+
+    PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.AVAILABLE);
+    target.forceRefreshHostList(newConnection);
+    assertEquals(expectedHostSpecs2, newHostSpecs);
   }
 }

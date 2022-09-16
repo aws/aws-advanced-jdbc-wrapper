@@ -39,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.postgresql.PGProperty;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
@@ -417,6 +418,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
+    props.setProperty(AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, "2000");
     try (Connection conn = connectToInstance(firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
             POSTGRES_PROXY_PORT, props)) {
       conn.setReadOnly(true);
