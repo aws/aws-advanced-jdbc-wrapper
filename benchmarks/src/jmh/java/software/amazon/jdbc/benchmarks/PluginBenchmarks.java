@@ -104,48 +104,51 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
-  public void initAndReleaseWithAllPlugins() throws SQLException {
+  public ConnectionWrapper initAndReleaseWithAllPlugins() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
         useAllPlugins(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
+      return wrapper;
     }
   }
 
   @Benchmark
-  public void initAndReleaseWithExecutionTimePlugin() throws SQLException {
+  public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
         useExecutionPlugin(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
+      return wrapper;
     }
   }
 
   @Benchmark
-  public void initAndReleaseWithAuroraHostListPlugin() throws SQLException {
+  public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
         useAuroraHostList(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
+      return wrapper;
     }
   }
 
   @Benchmark
-  public void executeStatementBaseline() throws SQLException {
+  public Statement executeStatementBaseline() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
         useAuroraHostList(),
         CONNECTION_STRING,
         mockConnectionProvider);
          Statement statement = wrapper.createStatement()) {
-      // Do nothing
+      return statement;
     }
   }
 
   @Benchmark
-  public void executeStatementWithExecutionTimePlugin() throws SQLException {
+  public ResultSet executeStatementWithExecutionTimePlugin() throws SQLException {
     try (
         ConnectionWrapper wrapper = new ConnectionWrapper(
             useAuroraHostList(),
@@ -153,7 +156,7 @@ public class PluginBenchmarks {
             mockConnectionProvider);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
-      // Do nothing
+      return resultSet;
     }
   }
 
