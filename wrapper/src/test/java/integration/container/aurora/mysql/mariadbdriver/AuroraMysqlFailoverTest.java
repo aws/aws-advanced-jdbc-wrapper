@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql;
+package integration.container.aurora.mysql.mariadbdriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -33,7 +33,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
-public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
+public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
   /* Writer connection failover tests. */
 
   /**
@@ -46,8 +46,8 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn =
-             connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
-                 initDefaultProps())) {
+        connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT,
+            initDefaultProps())) {
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
@@ -409,3 +409,4 @@ public class AuroraMysqlFailoverTest extends AuroraMysqlBaseTest {
     }
   }
 }
+

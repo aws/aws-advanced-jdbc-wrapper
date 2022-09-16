@@ -45,7 +45,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.services.rds.RdsClient;
@@ -74,18 +73,18 @@ public abstract class AuroraMysqlBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
+  protected static String DB_CONN_STR_PREFIX;
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
-  static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
-  static final String MYSQL_INSTANCE_2_URL = System.getenv("MYSQL_INSTANCE_2_URL");
-  static final String MYSQL_INSTANCE_3_URL = System.getenv("MYSQL_INSTANCE_3_URL");
-  static final String MYSQL_INSTANCE_4_URL = System.getenv("MYSQL_INSTANCE_4_URL");
-  static final String MYSQL_INSTANCE_5_URL = System.getenv("MYSQL_INSTANCE_5_URL");
-  static final String MYSQL_CLUSTER_URL = System.getenv("DB_CLUSTER_CONN");
-  static final String MYSQL_RO_CLUSTER_URL = System.getenv("DB_RO_CLUSTER_CONN");
+  protected static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
+  protected static final String MYSQL_INSTANCE_2_URL = System.getenv("MYSQL_INSTANCE_2_URL");
+  protected static final String MYSQL_INSTANCE_3_URL = System.getenv("MYSQL_INSTANCE_3_URL");
+  protected static final String MYSQL_INSTANCE_4_URL = System.getenv("MYSQL_INSTANCE_4_URL");
+  protected static final String MYSQL_INSTANCE_5_URL = System.getenv("MYSQL_INSTANCE_5_URL");
+  protected static final String MYSQL_CLUSTER_URL = System.getenv("DB_CLUSTER_CONN");
+  protected static final String MYSQL_RO_CLUSTER_URL = System.getenv("DB_RO_CLUSTER_CONN");
 
-  static final String DB_CLUSTER_IDENTIFIER =
+  protected static final String DB_CLUSTER_IDENTIFIER =
       !StringUtils.isNullOrEmpty(MYSQL_CLUSTER_URL)
           ? MYSQL_CLUSTER_URL.substring(0, MYSQL_CLUSTER_URL.indexOf('.'))
           : null;
@@ -151,8 +150,7 @@ public abstract class AuroraMysqlBaseTest {
       "Cannot get the id of the writer Instance in the cluster.";
   protected static final int IS_VALID_TIMEOUT = 5;
 
-  @BeforeAll
-  public static void setUp() throws IOException, SQLException {
+  protected static void setUp() throws IOException, SQLException {
     toxiproxyClientInstance_1 =
         new ToxiproxyClient(TOXIPROXY_INSTANCE_1_NETWORK_ALIAS, TOXIPROXY_CONTROL_PORT);
     toxiproxyClientInstance_2 =

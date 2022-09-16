@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql;
+package integration.container.aurora.mysql.mariadbdriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,7 +42,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
+public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
 
   protected String currWriter;
   protected String currReader;
@@ -497,7 +497,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     Connection conn = connectToInstanceCustomUrl(url, props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
     conn.close();
@@ -515,7 +515,7 @@ public class AuroraMysqlIntegrationTest extends AuroraMysqlBaseTest {
     Connection conn = connectToInstanceCustomUrl(url, props);
 
     assertTrue(conn instanceof ConnectionWrapper);
-    assertTrue(conn.isWrapperFor(com.mysql.cj.jdbc.ConnectionImpl.class));
+    assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
 
     assertTrue(conn.isValid(10));
     conn.close();

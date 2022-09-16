@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql;
+package integration.container.standard.mysql.mariadbdriver;
 
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
@@ -23,9 +23,13 @@ import org.junit.platform.suite.api.Suite;
 // To add additional tests, append it inside SelectClasses, comma-separated
 @Suite
 @SelectClasses({
-    AuroraMysqlDataSourceTest.class,
-    AuroraMysqlFailoverTest.class,
-    AuroraMysqlAwsIamIntegrationTest.class,
-    AuroraMysqlIntegrationTest.class
+    StandardMysqlIntegrationTest.class,
+    DataCachePluginTests.class,
+    DataSourceTests.class,
+    HikariTests.class,
+    LogQueryPluginTests.class,
+    SpringTests.class
 })
-public class AuroraMysqlTestSuite {}
+public class MariadbStandardMysqlTestSuite {
+
+}
