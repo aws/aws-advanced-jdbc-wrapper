@@ -104,14 +104,21 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     submitTasks(currentTopology, executorService, completionService);
 
     try {
-      WriterFailoverResult result = getNextResult(executorService, completionService);
+      long startTimeNano = System.nanoTime();
+      WriterFailoverResult result = getNextResult(executorService, completionService, this.maxFailoverTimeoutMs);
       if (result.isConnected() || result.getException() != null) {
         return result;
       }
 
-      result = getNextResult(executorService, completionService);
-      if (result.isConnected() || result.getException() != null) {
-        return result;
+      long endTimeNano = System.nanoTime();
+      int durationMs = (int) TimeUnit.NANOSECONDS.toMillis(endTimeNano - startTimeNano);
+      int remainingTimeMs = this.maxFailoverTimeoutMs - durationMs;
+
+      if (remainingTimeMs > 0) {
+        result = getNextResult(executorService, completionService, remainingTimeMs);
+        if (result.isConnected() || result.getException() != null) {
+          return result;
+        }
       }
 
       LOGGER.fine(() -> Messages.get("ClusterAwareWriterFailoverHandler.failedToConnectToWriterInstance"));
@@ -150,10 +157,11 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
   private WriterFailoverResult getNextResult(
       ExecutorService executorService,
-      CompletionService<WriterFailoverResult> completionService) throws SQLException {
+      CompletionService<WriterFailoverResult> completionService,
+      int timeoutMs) throws SQLException {
     try {
       Future<WriterFailoverResult> firstCompleted = completionService.poll(
-          this.maxFailoverTimeoutMs, TimeUnit.MILLISECONDS);
+          timeoutMs, TimeUnit.MILLISECONDS);
       if (firstCompleted == null) {
         // The task was unsuccessful and we have timed out
         return DEFAULT_RESULT;

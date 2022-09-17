@@ -64,6 +64,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("initHostProvider");
           add("connect");
+          add("notifyConnectionChanged");
           add("notifyNodeListChanged");
         }
       });

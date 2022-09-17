@@ -166,9 +166,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   protected EnumSet<NodeChangeOptions> compare(
-      final @Nullable Connection connA,
+      final @NonNull Connection connA,
       final @NonNull HostSpec hostSpecA,
-      final @Nullable Connection connB,
+      final @NonNull Connection connB,
       final @NonNull HostSpec hostSpecB) {
 
     EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
@@ -176,6 +176,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
     if (connA != connB) {
       changes.add(NodeChangeOptions.CONNECTION_OBJECT_CHANGED);
     }
+
+    changes.addAll(compare(hostSpecA, hostSpecB));
+    return changes;
+  }
+
+  protected EnumSet<NodeChangeOptions> compare(
+      final @NonNull HostSpec hostSpecA,
+      final @NonNull HostSpec hostSpecB) {
+
+    EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
 
     if (!hostSpecA.getHost().equals(hostSpecB.getHost())
         || hostSpecA.getPort() != hostSpecB.getPort()) {
@@ -324,8 +334,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
         changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_DELETED));
       } else {
         // host maybe changed
-        EnumSet<NodeChangeOptions> hostChanges = compare(null, entry.getValue(), null,
-            correspondingNewHost);
+        EnumSet<NodeChangeOptions> hostChanges = compare(entry.getValue(), correspondingNewHost);
         if (!hostChanges.isEmpty()) {
           changes.put(entry.getKey(), hostChanges);
         }

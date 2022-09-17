@@ -32,6 +32,8 @@ import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.SqlState;
 
 public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
   /* Writer connection failover tests. */
@@ -346,6 +348,26 @@ public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeQuery("select @@aurora_server_id; select 1; select 2;");
+    }
+  }
+
+  @Test
+  public void test_failoverTimeoutMs() throws SQLException, IOException {
+    Properties props = initDefaultProps();
+    int maxTimeout = 10000; // 10 seconds
+    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
+    final String initialWriterId = instanceIDs[0];
+
+    try (final Connection conn = connectToInstance(
+        initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
+      Statement stmt = conn.createStatement();
+      containerHelper.disableConnectivity(proxyInstance_1);
+      long invokeStartTimeMs = System.currentTimeMillis();
+      SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
+      long invokeEndTimeMs = System.currentTimeMillis();
+      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
+      long duration = invokeEndTimeMs - invokeStartTimeMs;
+      assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
     }
   }
 
