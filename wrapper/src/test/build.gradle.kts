@@ -97,7 +97,7 @@ tasks.register<Test>("in-container-aurora-mysql") {
 // and integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite.java
 tasks.register<Test>("in-container-standard-mysql") {
     filter.includeTestsMatching("integration.container.standard.mysql.mysqldriver.MysqlStandardMysqlTestSuite")
-    filter.includeTestsMatching"integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite")
+    filter.includeTestsMatching("integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite")
 }
 
 tasks.register<Test>("in-container-standard-mariadb") {

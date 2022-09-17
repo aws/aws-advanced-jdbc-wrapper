@@ -18,11 +18,7 @@ package integration.container.standard.mysql;
 
 import com.mysql.cj.conf.PropertyKey;
 import integration.container.standard.StandardBaseTest;
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Properties;
-import org.junit.jupiter.api.BeforeAll;
-import software.amazon.jdbc.Driver;
 
 public class StandardMysqlBaseTest extends StandardBaseTest {
   protected StandardMysqlBaseTest() {
@@ -37,8 +33,8 @@ public class StandardMysqlBaseTest extends StandardBaseTest {
   @Override
   protected Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3");
-    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3");
+    props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3000");
+    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3000");
 
     return props;
   }
