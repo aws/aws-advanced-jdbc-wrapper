@@ -21,14 +21,6 @@ import integration.container.standard.StandardBaseTest;
 import java.util.Properties;
 
 public class StandardMysqlBaseTest extends StandardBaseTest {
-  protected StandardMysqlBaseTest() {
-    DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
-    STANDARD_HOST = System.getenv("STANDARD_MYSQL_HOST");
-    STANDARD_PORT = Integer.parseInt(System.getenv("STANDARD_MYSQL_PORT"));
-    STANDARD_DB = System.getenv("STANDARD_MYSQL_DB");
-    STANDARD_USERNAME = System.getenv("STANDARD_MYSQL_USERNAME");
-    STANDARD_PASSWORD = System.getenv("STANDARD_MYSQL_PASSWORD");
-  }
 
   @Override
   protected Properties initDefaultProps() {
