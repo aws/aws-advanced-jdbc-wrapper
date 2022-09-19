@@ -33,10 +33,10 @@ Usages for this pipeline include:
 - logging and measuring execution information
 - caching execution results
 
-An example of the execute pipeline is the [execution time connection plugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/ExecutionTimeConnectionPlugin.java).
+An example of the execute pipeline is the [execution time connection plugin](/wrapper/src/main/java/software/amazon/jdbc/plugin/ExecutionTimeConnectionPlugin.java).
 This plugin measures and logs the time required to execute a JDBC method.
 
-A more complex example of this would be the [failover connection plugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java).
+A more complex example of this would be the [failover connection plugin](/wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java).
 The failover connection plugin performs two main tasks before and after the JDBC method call:
 
 - updates the host lists before executing the JDBC method
@@ -54,13 +54,13 @@ setting a host list provider would override any previously set host list provide
 The host list providers are used to retrieve host information about the database server,
 either from the connection string or by querying the database server.
 For simple use cases where having up-to-date information on all existing database replicas is not necessary,
-using a simple host list provider such as the [connection string host list provider](../../wrapper/src/main/java/software/amazon/jdbc/hostlistprovider/ConnectionStringHostListProvider.java) would be necessary.
+using a simple host list provider such as the [connection string host list provider](/wrapper/src/main/java/software/amazon/jdbc/hostlistprovider/ConnectionStringHostListProvider.java) would be necessary.
 The connection string host list provider simply parses the host and port information from the connection string during initialization,
 it does not perform any additional work.
 
 For cases where keeping updated information on existing and available replicas is necessary,
 such as during the failover procedure, it is important to have a host list provider that can re-fetch information once in a while,
-like the [Aurora host list provider](../../wrapper/src/main/java/software/amazon/jdbc/plugin/AuroraHostListConnectionPlugin.java).
+like the [Aurora host list provider](/wrapper/src/main/java/software/amazon/jdbc/plugin/AuroraHostListConnectionPlugin.java).
 
 ## Connection Changed Notification Pipeline
 
@@ -68,7 +68,7 @@ Plugins can subscribe to this pipeline to perform special handling when the curr
 subscribed, plugins should override the `notifyConnectionChanged` method to implement any desired logic. This method 
 will be called whenever the current connection changes. Plugins can also provide suggestions of what to do with the old 
 connection by returning a 
-[suggested action](../../wrapper/src/main/java/software/amazon/jdbc/OldConnectionSuggestedAction.java).
+[suggested action](/wrapper/src/main/java/software/amazon/jdbc/OldConnectionSuggestedAction.java).
 
 ## Node List Changed Notification Pipeline
 
