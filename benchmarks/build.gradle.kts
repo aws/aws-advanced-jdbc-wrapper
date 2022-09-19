@@ -18,14 +18,20 @@ plugins {
     id("me.champeau.jmh")
 }
 
+val pgVersion : String by project
+val mysqlVersion : String by project
+val mariaVersion : String by project
+val jupiterVersion : String by project
+val mockitoVersion : String by project
+
 dependencies {
     jmhImplementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("org.postgresql:postgresql:42.+")
-    implementation("mysql:mysql-connector-java:8.0.+")
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.+")
+    implementation("org.postgresql:postgresql:$pgVersion")
+    implementation("mysql:mysql-connector-java:$mysqlVersion")
+    implementation("org.mariadb.jdbc:mariadb-java-client:$mariaVersion")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.2")
-    testImplementation("org.mockito:mockito-inline:4.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$jupiterVersion")
+    testImplementation("org.mockito:mockito-inline:$mockitoVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
