@@ -810,7 +810,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Check if the throwable is an instance of the given exception and throw it as the required
    * exception class, otherwise throw it as a runtime exception.
    *
-   * @param exceptionClass The exception class the exception is exepected to be
+   * @param exceptionClass The exception class the exception is expected to be
    * @param exception The exception that occurred while invoking the given method
    * @return an exception indicating the failure that occurred while invoking the given method
    */
