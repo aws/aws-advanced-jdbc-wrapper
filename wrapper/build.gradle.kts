@@ -55,7 +55,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.17.+")
     testImplementation("org.testcontainers:junit-jupiter:1.17.+")
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
-    testImplementation("org.apache.poi:poi-ooxml:5.2.2")
+    testImplementation("org.apache.poi:poi-ooxml:5.2.3")
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
     testImplementation("software.amazon.awssdk:secretsmanager:2.17.250")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
