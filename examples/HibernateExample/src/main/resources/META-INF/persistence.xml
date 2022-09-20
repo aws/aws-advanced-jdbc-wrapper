@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="http://java.sun.com/xml/ns/persistence" version="1.0">
+<persistence-unit name="Atlas">
+    <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+
+    <!-- Define the classes -->
+    <class>software.amazon.entity.User</class>
+    <class>software.amazon.entity.Address</class>
+
+    <properties>
+
+        <property name="hibernate.dialect" value="software.amazon.utility.AuroraPostgreSQLDialect"/>
+        <property name="hibernate.connection.driver_class" value="software.amazon.jdbc.Driver"/>
+        <property name="hibernate.connection.url" value="jdbc:aws-wrapper:postgresql://database-1-instance-1-us-east-1b.cgnh50a2ovor.us-east-1.rds.amazonaws.com/hibernate_orm_test"/>
+        <property name="hibernate.connection.username" value="hibernate_orm_test"/>
+        <property name="hibernate.connection.password" value="hibernate_orm_test"/>
+        <property name="hibernate.connection.wrapperPlugins" value="failover"/>
+
+        <property name="hibernate.connection.pool_size" value="5"/>
+
+        <property name="hibernate.show_sql" value="true"/>
+        <property name="hibernate.format_sql" value="true"/>
+
+        <property name="hibernate.hbm2ddl.auto" value="create-drop"/>
+    </properties>
+</persistence-unit>
+</persistence>
