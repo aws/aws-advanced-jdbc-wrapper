@@ -1,0 +1,166 @@
+From 43707c217eca019ce45a3987c3e5360aa06f587f Mon Sep 17 00:00:00 2001
+From: Dave Cramer <davecramer@gmail.com>
+Date: Thu, 15 Sep 2022 09:16:21 -0400
+Subject: [PATCH] Changes to run wrapper driver
+
+---
+ databases/amazon/matrix.gradle                |  9 +++++++
+ .../amazon/resources/hibernate.properties     | 26 +++++++++++++++++++
+ databases/pgsql/matrix.gradle                 |  2 +-
+ gradle/databases.gradle                       | 20 +++++++++++++-
+ gradle/java-module.gradle                     |  3 +++
+ hibernate-core/hibernate-core.gradle          |  1 +
+ settings.gradle                               |  4 ++-
+ 7 files changed, 62 insertions(+), 3 deletions(-)
+ create mode 100644 databases/amazon/matrix.gradle
+ create mode 100644 databases/amazon/resources/hibernate.properties
+
+diff --git a/databases/amazon/matrix.gradle b/databases/amazon/matrix.gradle
+new file mode 100644
+index 0000000000..d26b1875b7
+--- /dev/null
++++ b/databases/amazon/matrix.gradle
+@@ -0,0 +1,9 @@
++/*
++ * Hibernate, Relational Persistence for Idiomatic Java
++ *
++ * License: GNU Lesser General Public License (LGPL), version 2.1 or later.
++ * See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
++ */
++jdbcDependency 'software.amazon.jdbc:aws-advanced-jdbc-wrapper:0.1.0'
++
++
+diff --git a/databases/amazon/resources/hibernate.properties b/databases/amazon/resources/hibernate.properties
+new file mode 100644
+index 0000000000..9777362c6d
+--- /dev/null
++++ b/databases/amazon/resources/hibernate.properties
+@@ -0,0 +1,26 @@
++#
++# Hibernate, Relational Persistence for Idiomatic Java
++#
++# License: GNU Lesser General Public License (LGPL), version 2.1 or later.
++# See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
++#
++
++hibernate.dialect org.hibernate.dialect.PostgreSQL92Dialect
++hibernate.connection.driver_class software.amazon.jdbc.Driver
++hibernate.connection.url jdbc:aws-wrapper:postgresql://localhost:5432/hibernate_orm_test?preparedStatementCacheQueries=0
++hibernate.connection.username hibernate_orm_test
++hibernate.connection.password hibernate_orm_test
++hibernate.temp.use_jdbc_metadata_defaults true
++hibernate.connection.pool_size 5
++
++hibernate.show_sql false
++hibernate.format_sql true
++
++hibernate.max_fetch_depth 5
++
++hibernate.cache.region_prefix hibernate.test
++hibernate.cache.region.factory_class org.hibernate.testing.cache.CachingRegionFactory
++
++hibernate.service.allow_crawling=false
++hibernate.session.events.log=true
++
+diff --git a/databases/pgsql/matrix.gradle b/databases/pgsql/matrix.gradle
+index b8ac50d607..3b71b8e96a 100644
+--- a/databases/pgsql/matrix.gradle
++++ b/databases/pgsql/matrix.gradle
+@@ -4,4 +4,4 @@
+  * License: GNU Lesser General Public License (LGPL), version 2.1 or later.
+  * See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
+  */
+-jdbcDependency 'org.postgresql:postgresql:42.2.19'
++jdbcDependency 'org.postgresql:postgresql:42.5.1-SNAPSHOT'
+diff --git a/gradle/databases.gradle b/gradle/databases.gradle
+index 22e89b8a18..68739b6126 100644
+--- a/gradle/databases.gradle
++++ b/gradle/databases.gradle
+@@ -12,6 +12,24 @@ ext {
+         db = project.hasProperty('db') ? project.getProperty('db') : 'h2'
+         def dbHost = System.getProperty( 'dbHost', 'localhost' )
+         dbBundle = [
++                amazon_ci : [
++                        'db.dialect' : 'org.hibernate.dialect.PostgreSQLDialect',
++                        'jdbc.driver': 'software.amazon.jdbc.Driver',
++                        'jdbc.user'  : 'hibernate_orm_test',
++                        'jdbc.pass'  : 'hibernate_orm_test',
++                        // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
++                        'jdbc.url'   : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/hibernate_orm_test?preparedStatementCacheQueries=0',
++                        'connection.init_sql' : ''
++                ],
++                amazon_ci_mysql : [
++                        'db.dialect' : 'org.hibernate.dialect.MySQLDialect',
++                        'jdbc.driver': 'software.amazon.jdbc.Driver',
++                        'jdbc.user'  : 'hibernate_orm_test',
++                        'jdbc.pass'  : 'hibernate_orm_test',
++                        // Disable prepared statement caching due to https://www.postgresql.org/message-id/CAEcMXhmmRd4-%2BNQbnjDT26XNdUoXdmntV9zdr8%3DTu8PL9aVCYg%40mail.gmail.com
++                        'jdbc.url'   : 'jdbc:aws-wrapper:mysql://' + dbHost + '/hibernate_orm_test',
++                        'connection.init_sql' : ''
++                ],
+                 h2 : [
+                         'db.dialect' : 'org.hibernate.dialect.H2Dialect',
+                         'jdbc.driver': 'org.h2.Driver',
+@@ -354,4 +372,4 @@ def processTestResourcesTask = project.tasks.findByName( 'processTestResources'
+ if ( processTestResourcesTask != null ) {
+         processTestResourcesTask.inputs.property( 'db', db )
+         processTestResourcesTask.filter( ReplaceTokens, tokens: dbBundle[db] )
+-}
+\ No newline at end of file
++}
+diff --git a/gradle/java-module.gradle b/gradle/java-module.gradle
+index 34167c593a..3640f1ba22 100644
+--- a/gradle/java-module.gradle
++++ b/gradle/java-module.gradle
+@@ -94,6 +94,9 @@ dependencies {
+ 	// Since both the DB2 driver and HANA have a package "net.jpountz" we have to add dependencies conditionally
+ 	// This is due to the "no split-packages" requirement of Java 9+
+ 
++	testRuntimeOnly 'software.amazon.jdbc:aws-advanced-jdbc-wrapper:1.0.0'
++	testRuntimeOnly 'mysql:mysql-connector-java:8.0.27'
++
+ 	if ( db.startsWith( 'db2' ) ) {
+ 		testRuntimeOnly dbLibs.db2
+ 	}
+diff --git a/hibernate-core/hibernate-core.gradle b/hibernate-core/hibernate-core.gradle
+index 8dbb4be8b0..054c920aed 100644
+--- a/hibernate-core/hibernate-core.gradle
++++ b/hibernate-core/hibernate-core.gradle
+@@ -61,6 +61,7 @@ dependencies {
+         transitive = true
+     }
+     testImplementation "joda-time:joda-time:2.3"
++    testImplementation "mysql:mysql-connector-java:8.0.27"
+ 
+     testRuntimeOnly libs.byteBuddy
+     testRuntimeOnly testLibs.weld
+diff --git a/settings.gradle b/settings.gradle
+index 13745e13db..b9b89b6978 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -39,7 +39,7 @@ dependencyResolutionManagement {
+         maven {
+             url "https://jakarta.oss.sonatype.org/content/repositories/snapshots/"
+         }
+-
++        mavenLocal()
+         //Allow loading additional dependencies from a local path;
+         //useful to load JDBC drivers which can not be distributed in public.
+         if (System.env['ADDITIONAL_REPO'] != null) {
+@@ -165,11 +165,13 @@ dependencyResolutionManagement {
+             version( "mysql", "8.0.27" )
+             version( "oracle", "21.3.0.0" )
+ 
++            alias("amazon").to("software.amazon.jdbc", "aws-advanced-jdbc-wrapper").version("1.0.0")
+             alias( "h2" ).to( "com.h2database", "h2" ).versionRef( "h2" )
+             alias( "h2gis" ).to( "org.orbisgis", "h2gis" ).version( "2.0.0" )
+             alias( "hsqldb" ).to( "org.hsqldb", "hsqldb" ).version( "2.6.1" )
+             alias( "derby" ).to( "org.apache.derby", "derby" ).version( "10.14.2.0" )
+             alias( "postgresql" ).to( "org.postgresql", "postgresql" ).versionRef( "pgsql" )
++            alias( "amazon_mysql").to( "mysql", "mysql-connector-java" ).versionRef( "mysql" )
+             alias( "cockroachdb" ).to( "org.postgresql", "postgresql" ).version( "42.2.8" )
+             alias( "mysql" ).to( "mysql", "mysql-connector-java" ).versionRef( "mysql" )
+             alias( "tidb" ).to( "mysql", "mysql-connector-java" ).versionRef( "mysql" )
+-- 
+2.37.0 (Apple Git-136)
+
