@@ -157,7 +157,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private Connection getConnectionToHost(HostSpec hostSpec) throws SQLException {
-
     Connection conn = this.pluginService.connect(hostSpec, properties);
     return conn;
   }
