@@ -27,12 +27,9 @@ import software.amazon.jdbc.Driver;
 
 public abstract class MariadbAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
 
-  protected MariadbAuroraMysqlBaseTest() {
-    DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
-  }
-
   @BeforeAll
   public static void setUpMariadb() throws SQLException, IOException {
+    DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
     setUp();
     try {
       Class.forName("org.mariadb.jdbc.Driver");

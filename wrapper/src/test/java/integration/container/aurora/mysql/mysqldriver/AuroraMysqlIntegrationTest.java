@@ -543,7 +543,7 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
         "",
         String.valueOf(AURORA_MYSQL_PORT),
         AURORA_MYSQL_DB);
-    assertThrows(RuntimeException.class, () -> connectToInstanceCustomUrl(
+    assertThrows(SQLException.class, () -> connectToInstanceCustomUrl(
         url, props));
   }
 }
