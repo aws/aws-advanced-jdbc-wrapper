@@ -171,7 +171,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     if (!readOnly && pluginService.isInTransaction()) {
       LOGGER.severe(Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"));
       throw new SQLException(Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"),
-          SqlState.SQL_STATE_ACTIVE_SQL_TRANSACTION.getState());
+          SqlState.ACTIVE_SQL_TRANSACTION.getState());
     }
 
     this.explicitlyReadOnly = readOnly;
