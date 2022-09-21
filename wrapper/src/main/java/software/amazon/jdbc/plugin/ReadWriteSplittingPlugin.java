@@ -57,8 +57,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private final Properties properties;
   private Connection writerConnection;
   private Connection readerConnection;
+  private HostSpec readerHostSpec;
   private boolean explicitlyReadOnly = false;
-  private final Map<String, Connection> liveConnections = new HashMap<>();
   private List<HostSpec> hosts = new ArrayList<>();
 
 
@@ -108,21 +108,22 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       throws SQLException {
     final Connection currentConnection = connectFunc.call();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
+    updateInternalConnectionInfo(currentConnection, currentHost);
 
+    return currentConnection;
+  }
+
+  private void updateInternalConnectionInfo(Connection currentConnection, HostSpec currentHost) {
+    if (currentConnection == null || currentHost == null) {
+      return;
+    }
     if (isWriter(currentHost)) {
       setWriterConnection(currentConnection);
     } else {
       setReaderConnection(currentConnection, currentHost);
     }
-    return currentConnection;
   }
 
-  /**
-   * Checks if the given host index points to the primary host.
-   *
-   * @param hostSpec The current host.
-   * @return true if so
-   */
   private boolean isWriter(final @NonNull HostSpec hostSpec) {
     return HostRole.WRITER.equals(hostSpec.getRole());
   }
@@ -145,24 +146,20 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
                 this.pluginService.getCurrentHostSpec().getUrl()}));
   }
 
-  private Connection getConnectionToHost(HostSpec hostSpec) throws SQLException {
-    Connection conn = liveConnections.get(hostSpec.getUrl());
-    if (conn != null && !conn.isClosed()) {
-      return conn;
-    }
-
-    conn = this.pluginService.connect(hostSpec, properties);
-    liveConnections.put(hostSpec.getUrl(), conn);
-    return conn;
-  }
-
   private void setReaderConnection(Connection conn, HostSpec host) {
     this.readerConnection = conn;
+    this.readerHostSpec = host;
     LOGGER.finest(
         () -> Messages.get(
             "ReadWriteSplittingPlugin.setReaderConnection",
             new Object[] {
                 host.getUrl()}));
+  }
+
+  private Connection getConnectionToHost(HostSpec hostSpec) throws SQLException {
+
+    Connection conn = this.pluginService.connect(hostSpec, properties);
+    return conn;
   }
 
   void switchConnectionIfRequired(Boolean readOnly) throws SQLException {
@@ -214,18 +211,33 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     }
   }
-  private void switchCurrentConnectionTo(Connection oldConn, Connection newConn, int newConnIndex)
+
+  private synchronized void switchToWriterConnection(Connection currentConnection) throws SQLException {
+    HostSpec currentHost = this.pluginService.getCurrentHostSpec();
+    if (isWriter(currentHost) && isConnectionUsable(this.writerConnection)) {
+      return;
+    }
+    if (!isConnectionUsable(this.writerConnection)) {
+      getNewWriterConnection();
+    }
+    switchCurrentConnectionTo(currentConnection, this.writerConnection, this.hosts.get(WRITER_INDEX));
+    LOGGER.finer(Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
+        new Object[]{ this.hosts.get(WRITER_INDEX).getUrl() }));
+  }
+
+  private void switchCurrentConnectionTo(Connection oldConn, Connection newConn, HostSpec hostSpec)
       throws SQLException {
     if (oldConn == newConn) {
       return;
     }
 
-    syncSessionStateOnReadWriteSplit(oldConn, newConn);
-    final HostSpec hostSpec = this.hosts.get(newConnIndex);
+    syncSessionStateOnReadWriteSplit(oldConn, newConn);;
     this.pluginService.setCurrentConnection(newConn, hostSpec);
     this.pluginService.connect(hostSpec, properties);
-    LOGGER.finest(Messages.get("ReadWriteSplittingPlugin.24", new Object[]{this.pluginService.getCurrentHostSpec().getUrl()}));
-    //this.currentHostIndex = newConnIndex;
+    LOGGER.finest(Messages.get(
+        "ReadWriteSplittingPlugin.settingCurrentConnection",
+        new Object[]{
+            this.pluginService.getCurrentHostSpec().getUrl()}));
   }
 
   /**
@@ -260,21 +272,16 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       // The current connection may have changed; update it here in case it did.
       currentConnection = this.pluginService.getCurrentConnection();
     }
-    // TODO: add reader hostSpec field
-    //
-    //   final int readerHostIndex = getHostIndex(this.readerConnection, this.readerConnection.getHostPortPair());
-    //   HostSpec readerHostSpec = this.readerConnection
-    //    switchCurrentConnectionTo(currentConnection, this.readerConnection, readerHostIndex);
-    //    LOGGER.finer(Messages.get("ReadWriteSplittingPlugin.20",
-    //        new Object[]{this.hosts.get(readerHostIndex).getUrl()}));
+    switchCurrentConnectionTo(currentConnection, this.readerConnection, this.readerHostSpec);
+    LOGGER.finer(Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
+        new Object[]{this.readerHostSpec.getUrl()}));
   }
-
 
   private void initializeReaderConnection(Connection currentConnection) throws SQLException {
     if (this.hosts.size() == 1) {
       if (!isConnectionUsable(this.writerConnection)) {
         getNewWriterConnection();
-        switchCurrentConnectionTo(currentConnection, this.writerConnection, WRITER_INDEX);
+        switchCurrentConnectionTo(currentConnection, this.writerConnection, this.hosts.get(WRITER_INDEX));
       }
       setReaderConnection(this.writerConnection, this.hosts.get(WRITER_INDEX));
     } else if (this.hosts.size() == 2) {
@@ -286,7 +293,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void getNewReaderConnection(HostSpec host) throws SQLException {
-    final Connection conn = getConnectionToHost(host);
+    final Connection conn = pluginService.connect(host, this.properties);
     setReaderConnection(conn, host);
   }
 
@@ -298,19 +305,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final int minReaderIndex = 1;
     final int maxReaderIndex = this.hosts.size() - 1;
     return (int) (Math.random() * ((maxReaderIndex - minReaderIndex) + 1)) + minReaderIndex;
-  }
-
-  private synchronized void switchToWriterConnection(Connection currentConnection) throws SQLException {
-    HostSpec currentHost = this.pluginService.getCurrentHostSpec();
-    if (isWriter(currentHost) && isConnectionUsable(this.writerConnection)) {
-      return;
-    }
-    if (!isConnectionUsable(this.writerConnection)) {
-      getNewWriterConnection();
-    }
-    switchCurrentConnectionTo(currentConnection, this.writerConnection, WRITER_INDEX);
-    LOGGER.finer(Messages.get("ReadWriteSplittingPlugin.21",
-        new Object[]{ this.hosts.get(WRITER_INDEX).getUrl() }));
   }
 
   private boolean isConnectionUsable(Connection connection) throws SQLException {
