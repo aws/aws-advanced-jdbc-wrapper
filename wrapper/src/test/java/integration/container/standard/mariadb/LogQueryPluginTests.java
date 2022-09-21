@@ -31,10 +31,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 
+@Disabled
 public class LogQueryPluginTests extends StandardMariadbBaseTest {
 
   @Test
