@@ -22,7 +22,10 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
 }
-
+java {
+    sourceCompatibility=1.8
+    targetCompatibility=1.8
+}
 application {
     mainClass.set("software.amazon.JpaExample")
 }
