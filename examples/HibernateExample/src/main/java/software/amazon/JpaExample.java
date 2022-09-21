@@ -51,24 +51,27 @@ public class JpaExample {
         }
     }
     private static void insertUser(User user) throws Exception {
-        EntityManager entityManager = openEntityManager();
-        entityManager.getTransaction().begin();
-        entityManager.persist( user );
-        entityManager.getTransaction().commit();
+        try (EntityManager entityManager = openEntityManager()) {
+            entityManager.getTransaction().begin();
+            entityManager.persist(user);
+            entityManager.getTransaction().commit();
+        }
     }
     private static void insertAddress(Address address) throws Exception {
-        EntityManager entityManager = openEntityManager();
-        entityManager.getTransaction().begin();
-        entityManager.persist( address );
-        entityManager.getTransaction().commit();
+        try (EntityManager entityManager = openEntityManager()) {
+            entityManager.getTransaction().begin();
+            entityManager.persist(address);
+            entityManager.getTransaction().commit();
+        }
     }
     private static User getUser(int id) throws SQLException {
-        EntityManager entityManager = openEntityManager();
+        try (EntityManager entityManager = openEntityManager()) {
 
-        User user = entityManager.find( User.class, id );
-        Hibernate.initialize(user);
-        entityManager.close();
-        return user;
+            User user = entityManager.find(User.class, id);
+            Hibernate.initialize(user);
+
+            return user;
+        }
     }
 
     private static EntityManager openEntityManager() {

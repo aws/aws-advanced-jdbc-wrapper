@@ -11,7 +11,7 @@
 
         <property name="hibernate.dialect" value="software.amazon.utility.AuroraPostgreSQLDialect"/>
         <property name="hibernate.connection.driver_class" value="software.amazon.jdbc.Driver"/>
-        <property name="hibernate.connection.url" value="jdbc:aws-wrapper:postgresql://database-1-instance-1-us-east-1b.cgnh50a2ovor.us-east-1.rds.amazonaws.com/hibernate_orm_test"/>
+        <property name="hibernate.connection.url" value="jdbc:aws-wrapper:postgresql://hostname.amazonaws.com/hibernate_orm_test"/>
         <property name="hibernate.connection.username" value="hibernate_orm_test"/>
         <property name="hibernate.connection.password" value="hibernate_orm_test"/>
         <property name="hibernate.connection.wrapperPlugins" value="failover"/>

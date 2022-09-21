@@ -4,7 +4,7 @@ This example provides a custom AuroraPostgreSQLDialect for hibernate
 which over-rides the `HibernateDialect.buildSQLExceptionConversionDelegate()` function
 The purpose of this function is to map custom SQL state codes to Exceptions.
 
-In our case we have 4 states which are added by our driver.
+In our case we have 4 states which are added by the JDBC Wrapper.
 
 ### 08001 - Unable to Establish SQL Connection
 When the JDBC Wrapper returns this state, the original connection has 
@@ -16,7 +16,7 @@ We turn this into a `FailoverFailedException`
 
 ### 08S02 - Communication Link
 When the JDBC Wrapper returns this state, the original connection has failed while 
-```autocommit``` was set to ```true```, and the JDBC Wrapper successfully 
+`autocommit` was set to `true`, and the JDBC Wrapper successfully 
 failed over to another available instance in the cluster. However, any session state configuration 
 of the initial connection is now lost. The exception returned will be a `ConnectionStateUnknownException` 
 In this scenario, you should:
@@ -25,7 +25,7 @@ In this scenario, you should:
 
 ### 08007 - Transaction Resolution Unknown
 When the JDBC Wrapper returns this state, the original connection has failed within a 
-transaction (while ```autocommit``` was set to ```false```). 
+transaction (while `autocommit` was set to `false`). 
 In this scenario, the JDBC Wrapper first attempts to rollback the transaction and 
 then fails over to another available instance in the cluster. The exception returned will be 
 a `TransactionStateUnknownException`
