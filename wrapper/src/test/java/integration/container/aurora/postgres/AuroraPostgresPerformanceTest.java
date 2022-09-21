@@ -58,16 +58,14 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
   @AfterAll
   public static void cleanUp() throws IOException {
     doWritePerfDataToFile(
-        "./build/reports/tests/postgres/"
-            + "PostgresFailureDetectionPerformanceResults_EnhancedMonitoringEnabled.xlsx",
+        "./build/reports/tests/PostgresSQL_FailureDetectionPerformanceResults_EnhancedMonitoringEnabled.xlsx",
         enhancedFailureMonitoringPerfDataList);
     doWritePerfDataToFile(
-        "./build/reports/tests/postgres/PostgresFailureDetectionPerformanceResults"
-        + "_FailoverAndEnhancedMonitoringEnabled.xlsx",
+        "./build/reports/tests/"
+            + "PostgresSQL_FailureDetectionPerformanceResults_FailoverAndEnhancedMonitoringEnabled.xlsx",
         failoverWithEfmPerfDataList);
     doWritePerfDataToFile(
-        "./build/reports/tests/postgres/"
-            + "PostgresFailoverPerformanceResults_SocketTimeout.xlsx",
+        "./build/reports/tests/PostgresSQL_FailoverPerformanceResults_SocketTimeout.xlsx",
         failoverWithSocketTimeoutPerfDataList);
   }
 

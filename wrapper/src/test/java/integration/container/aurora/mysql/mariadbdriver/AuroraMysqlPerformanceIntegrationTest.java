@@ -58,13 +58,12 @@ public class AuroraMysqlPerformanceIntegrationTest extends MariadbAuroraMysqlBas
 
   @AfterAll
   public static void cleanUp() throws IOException {
-    doWritePerfDataToFile("./build/reports/tests/mysql/mariadbDriver/"
-            + "MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
+    doWritePerfDataToFile("./build/reports/tests/MariaDBDriver_MysqlFailureDetectionResults_EnhancedMonitoring.xlsx",
         enhancedFailureMonitoringPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/mysql/mariadbDriver/"
+    doWritePerfDataToFile("./build/reports/tests/MariaDBDriver_"
             + "MysqlFailoverPerformanceResults_EnhancedMonitoring.xlsx",
         failoverWithEfmPerfDataList);
-    doWritePerfDataToFile("./build/reports/tests/mysql/mariadbDriver/"
+    doWritePerfDataToFile("./build/reports/tests/MariaDBDriver_"
             + "MysqlFailoverPerformanceResults_SocketTimeout.xlsx",
         failoverWithSocketTimeoutPerfDataList);
   }
