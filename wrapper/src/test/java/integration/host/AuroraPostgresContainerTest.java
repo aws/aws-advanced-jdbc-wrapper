@@ -107,14 +107,14 @@ public class AuroraPostgresContainerTest {
     Assertions.assertNotNull(AWS_ACCESS_KEY_ID);
     Assertions.assertNotNull(AWS_SECRET_ACCESS_KEY);
 
-    if (TEST_WITH_EXISTING_DB) {
+    if (TEST_WITH_EXISTING_DB && auroraUtil.doesClusterExist(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
       dbConnStrSuffix = EXISTING_DB_CONN_SUFFIX;
     } else {
       dbConnStrSuffix = auroraUtil.createCluster(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, AURORA_POSTGRES_DB,
           AURORA_POSTGRES_CLUSTER_IDENTIFIER);
-      runnerIP = auroraUtil.getPublicIPAddress();
-      auroraUtil.ec2AuthorizeIP(runnerIP);
     }
+    runnerIP = auroraUtil.getPublicIPAddress();
+    auroraUtil.ec2AuthorizeIP(runnerIP);
 
     dbHostCluster = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
     dbHostClusterRo = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;

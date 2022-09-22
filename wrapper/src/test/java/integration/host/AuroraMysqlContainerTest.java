@@ -52,7 +52,10 @@ import software.amazon.jdbc.util.StringUtils;
 public class AuroraMysqlContainerTest {
 
   private static final int AURORA_MYSQL_PORT = 3306;
-  private static final String AURORA_MYSQL_TEST_HOST_NAME = "test-container";
+  private static final String MYSQL_DB_ENGINE = "aurora-mysql";
+  private static final String MYSQL_INSTANCE_CLASS = "db.r6g.large";
+  private static final String MYSQL_ENGINE_VERSION = "5.7.mysql_aurora.2.10.2";
+  private static final String AURORA_MYSQL_TEST_HOST_NAME = "db.r5.large";
 
   private static final String AURORA_MYSQL_USERNAME =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_MYSQL_USERNAME"))
@@ -112,14 +115,20 @@ public class AuroraMysqlContainerTest {
     Assertions.assertNotNull(AWS_ACCESS_KEY_ID);
     Assertions.assertNotNull(AWS_SECRET_ACCESS_KEY);
 
-    if (TEST_WITH_EXISTING_DB) {
+    if (TEST_WITH_EXISTING_DB && auroraUtil.doesClusterExist(AURORA_MYSQL_CLUSTER_IDENTIFIER)) {
       dbConnStrSuffix = EXISTING_DB_CONN_SUFFIX;
     } else {
-      dbConnStrSuffix = auroraUtil.createCluster(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, AURORA_MYSQL_DB,
-          AURORA_MYSQL_CLUSTER_IDENTIFIER);
-      runnerIP = auroraUtil.getPublicIPAddress();
-      auroraUtil.ec2AuthorizeIP(runnerIP);
+      dbConnStrSuffix = auroraUtil.createCluster(
+          AURORA_MYSQL_USERNAME,
+          AURORA_MYSQL_PASSWORD,
+          AURORA_MYSQL_DB,
+          AURORA_MYSQL_CLUSTER_IDENTIFIER,
+          MYSQL_DB_ENGINE,
+          MYSQL_INSTANCE_CLASS,
+          MYSQL_ENGINE_VERSION);
     }
+    runnerIP = auroraUtil.getPublicIPAddress();
+    auroraUtil.ec2AuthorizeIP(runnerIP);
 
     dbHostCluster = AURORA_MYSQL_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
     dbHostClusterRo = AURORA_MYSQL_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;
@@ -135,7 +144,7 @@ public class AuroraMysqlContainerTest {
     }
 
     containerHelper.addAuroraAwsIamUser(
-        DB_CONN_STR_PREFIX + dbHostCluster + "/" + AURORA_MYSQL_DB + DB_CONN_PROP,
+        DB_CONN_STR_PREFIX + dbHostCluster + DB_CONN_PROP,
         AURORA_MYSQL_USERNAME,
         AURORA_MYSQL_PASSWORD,
         AURORA_MYSQL_DB_USER);
@@ -193,7 +202,10 @@ public class AuroraMysqlContainerTest {
     for (ToxiproxyContainer proxy : proxyContainers) {
       proxy.stop();
     }
-    integrationTestContainer.stop();
+
+    if (integrationTestContainer != null) {
+      integrationTestContainer.stop();
+    }
   }
 
   @Test
