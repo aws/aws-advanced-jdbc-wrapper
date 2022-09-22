@@ -353,20 +353,20 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
 
   @Test
   public void test_failoverTimeoutMs() throws SQLException, IOException {
-    Properties props = initDefaultProps();
-    int maxTimeout = 10000; // 10 seconds
-    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
+    final int maxTimeout = 10000; // 10 seconds
     final String initialWriterId = instanceIDs[0];
+    final Properties props = initDefaultProps();
+    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
 
     try (final Connection conn = connectToInstance(
-        initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
-      Statement stmt = conn.createStatement();
+        initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props);
+         Statement stmt = conn.createStatement()) {
       containerHelper.disableConnectivity(proxyInstance_1);
-      long invokeStartTimeMs = System.currentTimeMillis();
+      final long invokeStartTimeMs = System.currentTimeMillis();
       SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
-      long invokeEndTimeMs = System.currentTimeMillis();
+      final long invokeEndTimeMs = System.currentTimeMillis();
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
-      long duration = invokeEndTimeMs - invokeStartTimeMs;
+      final long duration = invokeEndTimeMs - invokeStartTimeMs;
       assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
     }
   }
