@@ -364,10 +364,11 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     try (final Connection conn = connectToInstance(
         initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT, props);
-         Statement stmt = conn.createStatement()) {
-      containerHelper.disableConnectivity(proxyInstance_1);
+         final Statement stmt = conn.createStatement()) {
+      final Proxy instanceProxy = proxyMap.get(initialWriterId);
+      containerHelper.disableConnectivity(instanceProxy);
       final long invokeStartTimeMs = System.currentTimeMillis();
-      SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
+      final SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
       final long invokeEndTimeMs = System.currentTimeMillis();
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
       final long duration = invokeEndTimeMs - invokeStartTimeMs;

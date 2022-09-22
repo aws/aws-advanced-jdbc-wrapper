@@ -360,10 +360,11 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
 
     try (final Connection conn = connectToInstance(
         initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props);
-         Statement stmt = conn.createStatement()) {
-      containerHelper.disableConnectivity(proxyInstance_1);
+         final Statement stmt = conn.createStatement()) {
+      final Proxy instanceProxy = proxyMap.get(initialWriterId);
+      containerHelper.disableConnectivity(instanceProxy);
       final long invokeStartTimeMs = System.currentTimeMillis();
-      SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
+      final SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
       final long invokeEndTimeMs = System.currentTimeMillis();
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
       final long duration = invokeEndTimeMs - invokeStartTimeMs;
@@ -372,7 +373,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
   }
 
   // Helpers
-  private void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
+  private void failoverClusterAndWaitUntilWriterChanged(final String clusterWriterId)
       throws InterruptedException {
     failoverCluster();
     waitUntilWriterInstanceChanged(clusterWriterId);
@@ -391,13 +392,13 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
   }
 
   private void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterWriterId,
-      String targetInstanceId) throws InterruptedException {
+      final String clusterWriterId,
+      final String targetInstanceId) throws InterruptedException {
     failoverClusterWithATargetInstance(targetInstanceId);
     waitUntilWriterInstanceChanged(clusterWriterId);
   }
 
-  private void failoverClusterWithATargetInstance(String targetInstanceId)
+  private void failoverClusterWithATargetInstance(final String targetInstanceId)
       throws InterruptedException {
     waitUntilClusterHasRightState();
 
@@ -413,7 +414,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     }
   }
 
-  private void waitUntilWriterInstanceChanged(String initialWriterInstanceId)
+  private void waitUntilWriterInstanceChanged(final String initialWriterInstanceId)
       throws InterruptedException {
     String nextClusterWriterId = getDBClusterWriterInstanceId();
     while (initialWriterInstanceId.equals(nextClusterWriterId)) {

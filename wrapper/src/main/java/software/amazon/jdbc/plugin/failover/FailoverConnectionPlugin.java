@@ -138,15 +138,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "enableClusterAwareFailover", "true",
           "Enable/disable cluster-aware failover logic");
 
-  public FailoverConnectionPlugin(PluginService pluginService, Properties properties) {
+  public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
     this(pluginService, properties, new RdsUtils(), new ConnectionUrlParser());
   }
 
   FailoverConnectionPlugin(
-      PluginService pluginService,
-      Properties properties,
-      RdsUtils rdsHelper,
-      ConnectionUrlParser parser) {
+      final PluginService pluginService,
+      final Properties properties,
+      final RdsUtils rdsHelper,
+      final ConnectionUrlParser parser) {
     this.pluginService = pluginService;
     this.properties = properties;
     this.rdsHelper = rdsHelper;
@@ -166,12 +166,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public <T, E extends Exception> T execute(
-      Class<T> resultClass,
-      Class<E> exceptionClass,
-      Object methodInvokeOn,
-      String methodName,
-      JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs)
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final Object methodInvokeOn,
+      final String methodName,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs)
       throws E {
     if (!this.enableFailoverSetting || canDirectExecute(methodName)) {
       return jdbcMethodFunc.call();
@@ -180,7 +180,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (this.isClosed && !allowedOnClosedConnection(methodName)) {
       try {
         invalidInvocationOnClosedConnection();
-      } catch (SQLException ex) {
+      } catch (final SQLException ex) {
         throw wrapExceptionIfNeeded(exceptionClass, ex);
       }
     }
@@ -190,15 +190,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     try {
       updateTopology(false);
       result = jdbcMethodFunc.call();
-    } catch (IllegalStateException e) {
+    } catch (final IllegalStateException e) {
       dealWithIllegalStateException(e, exceptionClass);
-    } catch (Exception e) {
+    } catch (final Exception e) {
       this.dealWithOriginalException(e, null, exceptionClass);
     }
 
     try {
       performSpecialMethodHandlingIfRequired(jdbcMethodArgs, methodName);
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       throw wrapExceptionIfNeeded(exceptionClass, e);
     }
 
@@ -207,11 +207,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      String driverProtocol,
-      String initialUrl,
-      Properties props,
-      HostListProviderService hostListProviderService,
-      JdbcCallable<Void, SQLException> initHostProviderFunc)
+      final String driverProtocol,
+      final String initialUrl,
+      final Properties props,
+      final HostListProviderService hostListProviderService,
+      final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
     initHostProvider(
         driverProtocol,
@@ -237,14 +237,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   void initHostProvider(
-      String driverProtocol,
-      String initialUrl,
-      Properties props,
-      HostListProviderService hostListProviderService,
-      JdbcCallable<Void, SQLException> initHostProviderFunc,
-      Supplier<HostListProvider> hostListProviderSupplier,
-      Supplier<ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
-      Supplier<ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
+      final String driverProtocol,
+      final String initialUrl,
+      final Properties props,
+      final HostListProviderService hostListProviderService,
+      final JdbcCallable<Void, SQLException> initHostProviderFunc,
+      final Supplier<HostListProvider> hostListProviderSupplier,
+      final Supplier<ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
+      final Supplier<ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
       throws SQLException {
 
     if (!this.enableFailoverSetting) {
@@ -271,20 +271,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 
   @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
 
     if (!this.enableFailoverSetting) {
       return;
     }
 
     if (LOGGER.isLoggable(Level.FINEST)) {
-      StringBuilder sb = new StringBuilder("Changes:");
-      for (Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
+      final StringBuilder sb = new StringBuilder("Changes:");
+      for (final Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
         if (sb.length() > 0) {
           sb.append("\n");
         }
@@ -299,7 +299,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    for (String alias : currentHost.getAliases()) {
+    for (final String alias : currentHost.getAliases()) {
       if (isNodeStillValid(alias + "/", changes)) {
         return;
       }
@@ -308,9 +308,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[] {currentHost}));
   }
 
-  private boolean isNodeStillValid(final String node, Map<String, EnumSet<NodeChangeOptions>> changes) {
+  private boolean isNodeStillValid(final String node, final Map<String, EnumSet<NodeChangeOptions>> changes) {
     if (changes.containsKey(node)) {
-      EnumSet<NodeChangeOptions> options = changes.get(node);
+      final EnumSet<NodeChangeOptions> options = changes.get(node);
       return !options.contains(NodeChangeOptions.NODE_DELETED) && !options.contains(NodeChangeOptions.WENT_DOWN);
     }
     return true;
@@ -322,7 +322,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   public boolean isFailoverEnabled() {
-    boolean isMultiWriterCluster = this.pluginService.getHosts().stream()
+    final boolean isMultiWriterCluster = this.pluginService.getHosts().stream()
         .filter(h -> h.getRole() == HostRole.WRITER)
         .count() > 1;
 
@@ -384,7 +384,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
-    for (HostSpec hostSpec : hosts) {
+    for (final HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.WRITER) {
         return hostSpec;
       }
@@ -392,8 +392,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return null;
   }
 
-  protected void updateTopology(boolean forceUpdate) throws SQLException {
-    Connection connection = this.pluginService.getCurrentConnection();
+  protected void updateTopology(final boolean forceUpdate) throws SQLException {
+    final Connection connection = this.pluginService.getCurrentConnection();
     if (!isFailoverEnabled() || connection == null || connection.isClosed()) {
       return;
     }
@@ -409,7 +409,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    *
    * @return true if the given method is allowed on closed connections
    */
-  private boolean allowedOnClosedConnection(String methodName) {
+  private boolean allowedOnClosedConnection(final String methodName) {
     return methodName.contains(METHOD_GET_AUTO_COMMIT)
         || methodName.contains(METHOD_GET_CATALOG)
         || methodName.contains(METHOD_GET_SCHEMA)
@@ -425,16 +425,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param host The host.
    * @throws SQLException if an error occurs
    */
-  private void connectTo(HostSpec host) throws SQLException {
+  private void connectTo(final HostSpec host) throws SQLException {
     try {
       switchCurrentConnectionTo(host, createConnectionForHost(host));
       LOGGER.fine(
           () -> Messages.get(
               "Failover.establishedConnection",
               new Object[] {host}));
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       if (this.pluginService.getCurrentConnection() != null) {
-        StringBuilder msg =
+        final StringBuilder msg =
             new StringBuilder("Connection to ")
                 .append(isWriter(host) ? "writer" : "reader")
                 .append(" host '")
@@ -446,11 +446,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private void connectToWriterIfRequired(Boolean readOnly) throws SQLException {
+  private void connectToWriterIfRequired(final Boolean readOnly) throws SQLException {
     if (shouldReconnectToWriter(readOnly) && !Utils.isNullOrEmpty(this.pluginService.getHosts())) {
       try {
         connectTo(getCurrentWriter());
-      } catch (SQLException e) {
+      } catch (final SQLException e) {
         failover(getCurrentWriter());
       }
     }
@@ -466,7 +466,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return hostSpec.getRole() == HostRole.WRITER;
   }
 
-  private void performSpecialMethodHandlingIfRequired(Object[] args, String methodName)
+  private void performSpecialMethodHandlingIfRequired(final Object[] args, final String methodName)
       throws SQLException {
     if (methodName.contains(METHOD_SET_AUTO_COMMIT)) {
       this.explicitlyAutoCommit = (Boolean) args[0];
@@ -491,7 +491,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private void processFailoverFailure(String message) throws SQLException {
+  private void processFailoverFailure(final String message) throws SQLException {
     LOGGER.severe(message);
     throw new FailoverFailedSQLException(message);
   }
@@ -502,7 +502,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    for (HostSpec hostSpec : topology) {
+    for (final HostSpec hostSpec : topology) {
       if (hostSpec.getRole() == HostRole.READER) {
         return true;
       }
@@ -514,7 +514,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return this.explicitlyReadOnly == null || !this.explicitlyReadOnly;
   }
 
-  private boolean shouldReconnectToWriter(Boolean readOnly) {
+  private boolean shouldReconnectToWriter(final Boolean readOnly) {
     return readOnly != null && !readOnly && !isWriter(this.pluginService.getCurrentHostSpec());
   }
 
@@ -526,13 +526,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param connection The connection instance to switch to.
    * @throws SQLException if an error occurs
    */
-  private void switchCurrentConnectionTo(HostSpec host, Connection connection) throws SQLException {
+  private void switchCurrentConnectionTo(final HostSpec host, final Connection connection) throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection != connection) {
       invalidateCurrentConnection();
     }
 
-    boolean readOnly;
+    final boolean readOnly;
     if (isWriter(host)) {
       readOnly = isExplicitlyReadOnly();
     } else if (this.explicitlyReadOnly != null) {
@@ -559,9 +559,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @throws SQLException if an error occurs
    */
   protected void syncSessionState(
-      Connection source,
-      Connection target,
-      boolean readOnly) throws SQLException {
+      final Connection source,
+      final Connection target,
+      final boolean readOnly) throws SQLException {
     if (target != null) {
       target.setReadOnly(readOnly);
     }
@@ -577,9 +577,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private <E extends Exception> void dealWithOriginalException(
-      Throwable originalException,
-      Throwable wrapperException,
-      Class<E> exceptionClass) throws E {
+      final Throwable originalException,
+      final Throwable wrapperException,
+      final Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
       LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
@@ -588,7 +588,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         invalidateCurrentConnection();
         try {
           pickNewConnection();
-        } catch (SQLException e) {
+        } catch (final SQLException e) {
           throw wrapExceptionIfNeeded(exceptionClass, e);
         }
         this.lastExceptionDealtWith = originalException;
@@ -614,13 +614,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @return The new Connection instance.
    * @throws SQLException if an error occurs
    */
-  protected Connection createConnectionForHost(HostSpec baseHostSpec) throws SQLException {
+  protected Connection createConnectionForHost(final HostSpec baseHostSpec) throws SQLException {
     return this.pluginService.connect(baseHostSpec, properties);
   }
 
   protected <E extends Exception> void dealWithIllegalStateException(
-      IllegalStateException e,
-      Class<E> exceptionClass) throws E {
+      final IllegalStateException e,
+      final Class<E> exceptionClass) throws E {
     dealWithOriginalException(e.getCause(), e, exceptionClass);
   }
 
@@ -663,7 +663,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (failedHostSpec != null && failedHostSpec.getAvailability() == HostAvailability.AVAILABLE) {
       failedHost = failedHostSpec;
     }
-    ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+    final ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
 
     if (result != null) {
       final SQLException exception = result.getException();
@@ -693,7 +693,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     LOGGER.fine(() -> Messages.get("Failover.startWriterFailover"));
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
-    WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
+    final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
     if (failoverResult != null) {
       final SQLException exception = failoverResult.getException();
       if (exception != null) {
@@ -731,7 +731,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       isInTransaction = this.pluginService.isInTransaction();
       try {
         conn.rollback();
-      } catch (SQLException e) {
+      } catch (final SQLException e) {
         // swallow this exception
       }
     }
@@ -740,7 +740,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (!conn.isClosed()) {
         conn.close();
       }
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       // swallow this exception, current connection should be useless anyway.
     }
 
@@ -753,7 +753,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               originalHost.getRole(),
               HostAvailability.NOT_AVAILABLE));
       this.pluginService.setAvailability(originalHost.getAliases(), HostAvailability.NOT_AVAILABLE);
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       LOGGER.fine(() -> Messages.get("Failover.failedToUpdateCurrentHostspecAvailability"));
     }
   }
@@ -767,7 +767,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (this.pluginService.getCurrentConnection() == null && !shouldAttemptReaderConnection()) {
       try {
         connectTo(getCurrentWriter());
-      } catch (SQLException e) {
+      } catch (final SQLException e) {
         failover(getCurrentWriter());
       }
     } else {
@@ -775,7 +775,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  protected boolean shouldExceptionTriggerConnectionSwitch(Throwable t) {
+  protected boolean shouldExceptionTriggerConnectionSwitch(final Throwable t) {
     // TODO: support other drivers
 
     if (!isFailoverEnabled()) {
@@ -801,7 +801,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param methodName The name of the method that is being called
    * @return true if the method can be executed directly; false otherwise.
    */
-  private boolean canDirectExecute(String methodName) {
+  private boolean canDirectExecute(final String methodName) {
     return (methodName.contains(METHOD_CLOSE)
         || methodName.contains(METHOD_IS_CLOSED)
         || methodName.contains(METHOD_ABORT));
@@ -815,7 +815,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param exception The exception that occurred while invoking the given method
    * @return an exception indicating the failure that occurred while invoking the given method
    */
-  private <E extends Exception> E wrapExceptionIfNeeded(Class<E> exceptionClass, Throwable exception) {
+  private <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass, final Throwable exception) {
     if (exceptionClass.isAssignableFrom(exception.getClass())) {
       return exceptionClass.cast(exception);
     }
@@ -831,7 +831,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    Connection conn = connectFunc.call();
+    final Connection conn = connectFunc.call();
 
     if (isInitialConnection) {
       this.pluginService.refreshHostList(conn);

@@ -180,10 +180,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       if (monitorContext != null) {
         this.monitorService.stopMonitoring(monitorContext);
 
-        boolean isConnectionClosed;
+        final boolean isConnectionClosed;
         try {
           isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
-        } catch (SQLException e) {
+        } catch (final SQLException e) {
           throw castException(exceptionClass, e);
         }
 
@@ -223,7 +223,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   void abortConnection() {
     try {
       this.pluginService.getCurrentConnection().close();
-    } catch (SQLException sqlEx) {
+    } catch (final SQLException sqlEx) {
       // ignore
     }
   }
@@ -234,7 +234,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    * @param methodName Name of the JDBC method.
    * @return true if the method requires monitoring; false otherwise.
    */
-  protected boolean doesNeedMonitoring(String methodName) {
+  protected boolean doesNeedMonitoring(final String methodName) {
 
     for (final String method : METHODS_TO_SKIP_MONITORING) {
       if (methodName.contains(method)) {
@@ -276,13 +276,13 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
     hostSpec.addAlias(hostSpec.asAlias());
 
-    try (Statement stmt = connection.createStatement()) {
-      try (ResultSet rs = stmt.executeQuery(getHostPortSql(driverProtocol))) {
+    try (final Statement stmt = connection.createStatement()) {
+      try (final ResultSet rs = stmt.executeQuery(getHostPortSql(driverProtocol))) {
         while (rs.next()) {
           hostSpec.addAlias(rs.getString(1));
         }
       }
-    } catch (SQLException sqlException) {
+    } catch (final SQLException sqlException) {
       // log and ignore
       LOGGER.finest(() -> Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
     }
@@ -302,7 +302,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
 
     if (changes.contains(NodeChangeOptions.WENT_DOWN)
         || changes.contains(NodeChangeOptions.NODE_DELETED)) {
@@ -325,7 +325,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    Connection conn = connectFunc.call();
+    final Connection conn = connectFunc.call();
 
     if (conn != null) {
       generateHostAliases(driverProtocol, conn, hostSpec);
