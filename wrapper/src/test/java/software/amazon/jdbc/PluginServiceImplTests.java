@@ -230,7 +230,7 @@ public class PluginServiceImplTests {
         newConnection, new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE));
 
     assertNull(argumentSkipPlugin.getValue());
-    assertTrue(argumentChanges.getValue().contains(NodeChangeOptions.NODE_CHANGED));
+    assertFalse(argumentChanges.getValue().contains(NodeChangeOptions.NODE_CHANGED));
     assertFalse(argumentChanges.getValue().contains(NodeChangeOptions.NODE_ADDED));
     assertFalse(argumentChanges.getValue().contains(NodeChangeOptions.NODE_DELETED));
     assertTrue(argumentChanges.getValue().contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED));

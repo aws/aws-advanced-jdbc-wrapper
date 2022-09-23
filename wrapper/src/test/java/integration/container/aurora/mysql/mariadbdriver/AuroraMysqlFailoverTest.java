@@ -32,6 +32,8 @@ import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.SqlState;
 
 public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
   /* Writer connection failover tests. */
@@ -349,8 +351,29 @@ public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
     }
   }
 
+  @Test
+  public void test_failoverTimeoutMs() throws SQLException, IOException {
+    final int maxTimeout = 10000; // 10 seconds
+    final String initialWriterId = instanceIDs[0];
+    final Properties props = initDefaultProps();
+    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
+
+    try (Connection conn = connectToInstance(
+        initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props);
+         Statement stmt = conn.createStatement()) {
+      final Proxy instanceProxy = proxyMap.get(initialWriterId);
+      containerHelper.disableConnectivity(instanceProxy);
+      final long invokeStartTimeMs = System.currentTimeMillis();
+      final SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
+      final long invokeEndTimeMs = System.currentTimeMillis();
+      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
+      final long duration = invokeEndTimeMs - invokeStartTimeMs;
+      assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
+    }
+  }
+
   // Helpers
-  private void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
+  private void failoverClusterAndWaitUntilWriterChanged(final String clusterWriterId)
       throws InterruptedException {
     failoverCluster();
     waitUntilWriterInstanceChanged(clusterWriterId);
@@ -369,13 +392,13 @@ public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
   }
 
   private void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterWriterId,
-      String targetInstanceId) throws InterruptedException {
+      final String clusterWriterId,
+      final String targetInstanceId) throws InterruptedException {
     failoverClusterWithATargetInstance(targetInstanceId);
     waitUntilWriterInstanceChanged(clusterWriterId);
   }
 
-  private void failoverClusterWithATargetInstance(String targetInstanceId)
+  private void failoverClusterWithATargetInstance(final String targetInstanceId)
       throws InterruptedException {
     waitUntilClusterHasRightState();
 
@@ -391,7 +414,7 @@ public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
     }
   }
 
-  private void waitUntilWriterInstanceChanged(String initialWriterInstanceId)
+  private void waitUntilWriterInstanceChanged(final String initialWriterInstanceId)
       throws InterruptedException {
     String nextClusterWriterId = getDBClusterWriterInstanceId();
     while (initialWriterInstanceId.equals(nextClusterWriterId)) {
