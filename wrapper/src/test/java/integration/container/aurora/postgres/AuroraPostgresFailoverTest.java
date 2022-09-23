@@ -31,6 +31,9 @@ import java.sql.Statement;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
+import org.postgresql.PGProperty;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.SqlState;
 
 public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   /* Writer connection failover tests. */
@@ -350,6 +353,29 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
       assertEquals(newRowFetchSize, testStmt2.getFetchSize());
+    }
+  }
+
+  @Test
+  public void test_failoverTimeoutMs() throws SQLException, IOException {
+    final int maxTimeout = 10000; // 10 seconds
+    final String initialWriterId = instanceIDs[0];
+    final Properties props = initDefaultPropsNoTimeouts();
+    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "3");
+    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "3");
+    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
+
+    try (Connection conn = connectToInstance(
+        initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT, props);
+         Statement stmt = conn.createStatement()) {
+      final Proxy instanceProxy = proxyMap.get(initialWriterId);
+      containerHelper.disableConnectivity(instanceProxy);
+      final long invokeStartTimeMs = System.currentTimeMillis();
+      final SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
+      final long invokeEndTimeMs = System.currentTimeMillis();
+      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
+      final long duration = invokeEndTimeMs - invokeStartTimeMs;
+      assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
     }
   }
 }
