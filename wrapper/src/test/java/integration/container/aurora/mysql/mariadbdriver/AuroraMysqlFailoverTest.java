@@ -361,13 +361,13 @@ public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
     try (final Connection conn = connectToInstance(
         initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props);
          final Statement stmt = conn.createStatement()) {
-      final Proxy instanceProxy = proxyMap.get(initialWriterId);
+      Proxy instanceProxy = proxyMap.get(initialWriterId);
       containerHelper.disableConnectivity(instanceProxy);
-      final long invokeStartTimeMs = System.currentTimeMillis();
-      final SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
-      final long invokeEndTimeMs = System.currentTimeMillis();
+      long invokeStartTimeMs = System.currentTimeMillis();
+      SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
+      long invokeEndTimeMs = System.currentTimeMillis();
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
-      final long duration = invokeEndTimeMs - invokeStartTimeMs;
+      long duration = invokeEndTimeMs - invokeStartTimeMs;
       assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
     }
   }

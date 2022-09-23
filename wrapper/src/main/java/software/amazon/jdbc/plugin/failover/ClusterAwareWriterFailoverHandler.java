@@ -106,11 +106,11 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     try {
       final long startTimeNano = System.nanoTime();
       WriterFailoverResult result = getNextResult(executorService, completionService, this.maxFailoverTimeoutMs);
+      final long endTimeNano = System.nanoTime();
       if (result.isConnected() || result.getException() != null) {
         return result;
       }
 
-      final long endTimeNano = System.nanoTime();
       final int durationMs = (int) TimeUnit.NANOSECONDS.toMillis(endTimeNano - startTimeNano);
       final int remainingTimeMs = this.maxFailoverTimeoutMs - durationMs;
 
