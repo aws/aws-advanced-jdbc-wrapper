@@ -434,12 +434,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               new Object[] {host}));
     } catch (final SQLException e) {
       if (this.pluginService.getCurrentConnection() != null) {
-        final StringBuilder msg =
-            new StringBuilder("Connection to ")
-                .append(isWriter(host) ? "writer" : "reader")
-                .append(" host '")
-                .append(host.getUrl())
-                .append("' failed");
+        final String msg = "Connection to "
+            + (isWriter(host) ? "writer" : "reader")
+            + " host '"
+            + host.getUrl()
+            + "' failed";
         LOGGER.warning(() -> String.format("%s: %s", msg, e.getMessage()));
       }
       throw e;
