@@ -18,27 +18,15 @@ package integration.container.standard.mysql;
 
 import com.mysql.cj.conf.PropertyKey;
 import integration.container.standard.StandardBaseTest;
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Properties;
-import org.junit.jupiter.api.BeforeAll;
-import software.amazon.jdbc.Driver;
 
 public class StandardMysqlBaseTest extends StandardBaseTest {
-  protected StandardMysqlBaseTest() {
-    DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
-    STANDARD_HOST = System.getenv("STANDARD_MYSQL_HOST");
-    STANDARD_PORT = Integer.parseInt(System.getenv("STANDARD_MYSQL_PORT"));
-    STANDARD_DB = System.getenv("STANDARD_MYSQL_DB");
-    STANDARD_USERNAME = System.getenv("STANDARD_MYSQL_USERNAME");
-    STANDARD_PASSWORD = System.getenv("STANDARD_MYSQL_PASSWORD");
-  }
 
   @Override
   protected Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3");
-    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3");
+    props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3000");
+    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3000");
 
     return props;
   }
