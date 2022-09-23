@@ -31,6 +31,7 @@ import java.sql.Statement;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Test;
+import org.postgresql.PGProperty;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.SqlState;
 
@@ -359,7 +360,9 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   public void test_failoverTimeoutMs() throws SQLException, IOException {
     final int maxTimeout = 10000; // 10 seconds
     final String initialWriterId = instanceIDs[0];
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultPropsNoTimeouts();
+    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "3");
+    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "3");
     FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
 
     try (final Connection conn = connectToInstance(
