@@ -158,7 +158,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   public boolean doesOpenTransaction(String statement) {
     statement = statement.toUpperCase();
-    statement = statement.replaceAll("START(?:\\s*/\\*(.*?)\\*/\\s*)TRANSACTION", "START TRANSACTION");
+    statement = statement.replaceAll("\\s*/\\*(.*?)\\*/\\s*", " ").trim();
     return statement.startsWith("BEGIN") || statement.startsWith("START TRANSACTION");
   }
 
