@@ -77,7 +77,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     if (methodName.contains(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
       this.explicitlyReadOnly = (Boolean) args[0];
       try {
-        switchConnectionIfRequired((Boolean) args[0]);
+        switchConnectionIfRequired();
       } catch (final SQLException e) {
         throw wrapExceptionIfNeeded(exceptionClass, e);
       }
@@ -113,7 +113,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
     if (isWriter(currentHost)) {
-      setWriterConnection(currentConnection);
+      setWriterConnection(currentConnection, currentHost);
     } else {
       setReaderConnection(currentConnection, currentHost);
     }
@@ -152,19 +152,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
                 host.getUrl()}));
   }
 
-  void switchConnectionIfRequired(final Boolean readOnly) throws SQLException {
-    if (readOnly == null) {
-      LOGGER.severe(() -> Messages.get("ReadWriteSplittingPlugin.setReadOnlyNullArgument"));
-      throw new SQLException(Messages.get("ReadWriteSplittingPlugin.setReadOnlyNullArgument"));
-    }
-
-    if (!readOnly && pluginService.isInTransaction()) {
+  void switchConnectionIfRequired() throws SQLException {
+    if (!this.explicitlyReadOnly && pluginService.isInTransaction()) {
       LOGGER.severe(() -> Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"));
       throw new SQLException(Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"),
           SqlState.ACTIVE_SQL_TRANSACTION.getState());
     }
 
-    this.explicitlyReadOnly = readOnly;
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
 
@@ -177,7 +171,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       throw new SQLException(
           Messages.get("ReadWriteSplittingPlugin.emptyHostList"));
     }
-    if (readOnly) {
+    if (this.explicitlyReadOnly) {
       if (!pluginService.isInTransaction() && (!isReader(currentHost) || currentConnection.isClosed())) {
         try {
           switchToReaderConnection(hosts);
