@@ -129,17 +129,17 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void getNewWriterConnection(final HostSpec writerHostSpec) throws SQLException {
     final Connection conn = this.pluginService.connect(writerHostSpec, this.properties);
-    setWriterConnection(conn);
+    setWriterConnection(conn, writerHostSpec);
     switchCurrentConnectionTo(this.writerConnection, writerHostSpec);
   }
 
-  private void setWriterConnection(final Connection conn) {
-    this.writerConnection = conn;
+  private void setWriterConnection(final Connection writerConnection, final HostSpec writerHostSpec) {
+    this.writerConnection = writerConnection;
     LOGGER.finest(
         () -> Messages.get(
             "ReadWriteSplittingPlugin.setWriterConnection",
             new Object[] {
-                this.pluginService.getCurrentHostSpec().getUrl()}));
+                writerHostSpec.getUrl()}));
   }
 
   private void setReaderConnection(final Connection conn, final HostSpec host) {
@@ -192,7 +192,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           // Failed to switch to a reader; use current connection as a fallback
           LOGGER.warning(() -> Messages.get(
               "ReadWriteSplittingPlugin.fallbackToWriter",
-              new Object[]{
+              new Object[] {
                   this.pluginService.getCurrentHostSpec().getUrl()}));
           setReaderConnection(currentConnection, currentHost);
         }
@@ -240,8 +240,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.pluginService.setCurrentConnection(newConnection, newConnectionHost);
     LOGGER.finest(() -> Messages.get(
         "ReadWriteSplittingPlugin.settingCurrentConnection",
-        new Object[]{
-            this.pluginService.getCurrentHostSpec().getUrl()}));
+        new Object[] {
+            newConnectionHost.getUrl()}));
   }
 
   /**
@@ -274,7 +274,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
     }
     LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
-        new Object[]{this.readerHostSpec.getUrl()}));
+        new Object[] {this.readerHostSpec.getUrl()}));
   }
 
   private void initializeReaderConnection(final @NonNull List<HostSpec> hosts) throws SQLException {
@@ -282,7 +282,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final HostSpec writerHost = getWriter(hosts);
       if (!isConnectionUsable(this.writerConnection)) {
         getNewWriterConnection(writerHost);
-        switchCurrentConnectionTo(this.writerConnection, writerHost);
       }
       setReaderConnection(this.writerConnection, writerHost);
     } else {

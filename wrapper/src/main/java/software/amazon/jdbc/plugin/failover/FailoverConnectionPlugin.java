@@ -581,7 +581,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
-      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
+      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[] {originalException.getMessage()}));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
