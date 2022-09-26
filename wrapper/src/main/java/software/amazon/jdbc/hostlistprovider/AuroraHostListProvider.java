@@ -97,7 +97,10 @@ public class AuroraHostListProvider implements HostListProvider, DynamicHostList
   private RdsUrlType rdsUrlType;
   private final RdsUtils rdsHelper;
 
-  private int refreshRateInMilliseconds;
+  private int refreshRateInMilliseconds = Integer.parseInt(
+      CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
+          ? CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue
+          : "30000");
   private List<HostSpec> hostList = new ArrayList<>();
   private List<HostSpec> lastReturnedHostList;
   private List<HostSpec> initialHostList = new ArrayList<>();
