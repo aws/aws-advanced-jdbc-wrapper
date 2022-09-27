@@ -301,7 +301,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
   }
 
-  private HostSpec getRandomReaderHost(final List<HostSpec> hosts) throws SQLException{
+  private HostSpec getRandomReaderHost(final List<HostSpec> hosts) throws SQLException {
     final List<HostSpec> readerHosts = new ArrayList<>();
     for (final HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.READER) {
