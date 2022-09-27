@@ -23,13 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.mysql.cj.log.Log;
-import com.mysql.cj.log.LogFactory;
-import com.mysql.cj.log.StandardLogger;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
-import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -37,6 +33,7 @@ import java.sql.SQLTransientConnectionException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -44,6 +41,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import eu.rekawek.toxiproxy.Proxy;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.ReadWriteSplittingPlugin;
@@ -55,7 +53,7 @@ import software.amazon.jdbc.util.SqlState;
 @Disabled
 public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
 
-  private static Log log = null;
+  private static final Logger logger = Logger.getLogger(HikariCPReadWriteSplittingTest.class.getName());
   private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + POSTGRES_PROXY_PORT;
   private static HikariDataSource dataSource = null;
   private final List<String> clusterTopology = fetchTopology();
@@ -83,10 +81,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
   }
 
   @BeforeAll
-  static void setup() throws ClassNotFoundException {
-    Class.forName("software.aws.rds.jdbc.mysql.Driver");
-    log = LogFactory.getLogger(StandardLogger.class.getName(), Log.LOGGER_INSTANCE_NAME);
-
+  static void setup() {
     System.setProperty("com.zaxxer.hikari.blockUntilFilled", "true");
   }
 
@@ -133,8 +128,8 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     String reader = clusterTopology.get(1);
     String writerIdentifier = writer.split("\\.")[0];
     String readerIdentifier = reader.split("\\.")[0];
-    log.logDebug("Instance to connect to: " + writerIdentifier);
-    log.logDebug("Instance to fail over to: " + readerIdentifier);
+    logger.fine("Instance to connect to: " + writerIdentifier);
+    logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
     createDataSource(config);
@@ -158,7 +153,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
       currentInstance = queryInstanceId(conn);
-      log.logDebug("Connected to instance: " + currentInstance);
+      logger.fine("Connected to instance: " + currentInstance);
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
 
       // Try to get a new connection to the failed instance, which times out
@@ -180,8 +175,8 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     String reader = clusterTopology.get(1);
     String writerIdentifier = writer.split("\\.")[0];
     String readerIdentifier = reader.split("\\.")[0];
-    log.logDebug("Instance to connect to: " + writerIdentifier);
-    log.logDebug("Instance to fail over to: " + readerIdentifier);
+    logger.fine("Instance to connect to: " + writerIdentifier);
+    logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
     createDataSource(config);
@@ -191,7 +186,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));
-      log.logDebug("Connected to instance: " + currentInstance);
+      logger.fine("Connected to instance: " + currentInstance);
 
       bringUpInstance(readerIdentifier);
       putDownInstance(writerIdentifier);
@@ -207,7 +202,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
       currentInstance = queryInstanceId(conn);
-      log.logDebug("Connected to instance: " + currentInstance);
+      logger.fine("Connected to instance: " + currentInstance);
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
     }
   }
@@ -370,11 +365,11 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
   private void putDownInstance(String targetInstance) {
     Proxy toPutDown = proxyMap.get(targetInstance);
     disableInstanceConnection(toPutDown);
-    log.logDebug("Took down " + targetInstance);
+    logger.fine("Took down " + targetInstance);
   }
 
   private void putDownAllInstances(Boolean putDownClusters) {
-    log.logDebug("Putting down all instances");
+    logger.fine("Putting down all instances");
     proxyMap.forEach((instance, proxy) -> {
       if (putDownClusters || (proxy != proxyCluster && proxy != proxyReadOnlyCluster)) {
         disableInstanceConnection(proxy);
@@ -393,7 +388,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
   private void bringUpInstance(String targetInstance) {
     Proxy toBringUp = proxyMap.get(targetInstance);
     containerHelper.enableConnectivity(toBringUp);
-    log.logDebug("Brought up " + targetInstance);
+    logger.fine("Brought up " + targetInstance);
   }
 
   private static HikariConfig getConfig_allPlugins() {
@@ -439,16 +434,16 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     String writerEndpoint = clusterTopology.get(0);
 
     String jdbcUrl = DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
-    log.logDebug("Writer endpoint: " + jdbcUrl);
+    logger.fine("Writer endpoint: " + jdbcUrl);
 
     config.setJdbcUrl(jdbcUrl);
     dataSource = new HikariDataSource(config);
 
     final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
 
-    log.logDebug("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
-    log.logDebug("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
-    log.logDebug("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
+    logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
+    logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
+    logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
   }
 
   private boolean pluginChainIncludesFailoverPlugin(HikariConfig config) {
