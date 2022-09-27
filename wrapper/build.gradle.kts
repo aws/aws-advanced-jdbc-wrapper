@@ -87,6 +87,14 @@ tasks.test {
     filter.excludeTestsMatching("integration.*")
 }
 
+java {
+    withJavadocJar()
+    withSourcesJar()
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
+}
+
 checkstyle {
     // Checkstyle versions 7.x, 8.x, and 9.x are supported by JRE version 8 and above.
     toolVersion = "9.3"
