@@ -54,7 +54,7 @@ public class AuroraMysqlContainerTest {
   private static final int AURORA_MYSQL_PORT = 3306;
   private static final String MYSQL_DB_ENGINE = "aurora-mysql";
   private static final String MYSQL_INSTANCE_CLASS = "db.r6g.large";
-  private static final String MYSQL_ENGINE_VERSION = "5.7.mysql_aurora.2.10.2";
+  private static final String MYSQL_ENGINE_VERSION = "8.0.mysql_aurora.3.01.0";
   private static final String AURORA_MYSQL_TEST_HOST_NAME = "db.r5.large";
 
   private static final String AURORA_MYSQL_USERNAME =
