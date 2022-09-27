@@ -1,0 +1,35 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group 'software.amazon'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    compileOnly 'org.projectlombok:lombok:1.18.24'
+    annotationProcessor 'org.projectlombok:lombok:1.18.24'
+    implementation 'org.hibernate:hibernate-core:6.1.2.Final'
+    implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+    runtimeOnly 'org.postgresql:postgresql:42.5.0'
+    runtimeOnly 'mysql:mysql-connector-java:8.0.30'
+    runtimeOnly 'software.amazon.jdbc:aws-advanced-jdbc-wrapper:1.0.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+}
+java {
+    sourceCompatibility=1.8
+    targetCompatibility=1.8
+}
+application {
+    mainClass.set("software.amazon.JpaExample")
+}
+
+test {
+    useJUnitPlatform()
+}
