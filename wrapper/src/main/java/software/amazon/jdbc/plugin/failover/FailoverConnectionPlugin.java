@@ -581,7 +581,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
-      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
+      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[] {originalException.getMessage()}));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
@@ -810,7 +810,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Check if the throwable is an instance of the given exception and throw it as the required
    * exception class, otherwise throw it as a runtime exception.
    *
-   * @param exceptionClass The exception class the exception is exepected to be
+   * @param exceptionClass The exception class the exception is expected to be
    * @param exception The exception that occurred while invoking the given method
    * @return an exception indicating the failure that occurred while invoking the given method
    */
