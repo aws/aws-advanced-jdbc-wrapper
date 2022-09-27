@@ -10,6 +10,7 @@ on:
       - '*'
     paths-ignore:
       - '**/*.md'
+      - 'examples/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
