@@ -153,12 +153,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   void switchConnectionIfRequired() throws SQLException {
-    if (!this.explicitlyReadOnly && pluginService.isInTransaction()) {
-      LOGGER.severe(() -> Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"));
-      throw new SQLException(Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"),
-          SqlState.ACTIVE_SQL_TRANSACTION.getState());
-    }
-
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
 
@@ -192,6 +186,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         }
       }
     } else {
+      if (pluginService.isInTransaction()) {
+        LOGGER.severe(() -> Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"));
+        throw new SQLException(Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"),
+            SqlState.ACTIVE_SQL_TRANSACTION.getState());
+      }
       if (!isWriter(currentHost) || currentConnection.isClosed()) {
         try {
           switchToWriterConnection(hosts);
@@ -210,9 +209,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
-    if (isWriter(currentHost)
-        && isConnectionUsable(this.writerConnection)
-        && this.writerConnection == currentConnection) {
+    if (isWriter(currentHost) && isConnectionUsable(currentConnection)) {
       return;
     }
     final HostSpec writerHost = getWriter(hosts);
@@ -264,8 +261,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     if (isReader(currentHost)
-        && isConnectionUsable(this.readerConnection)
-        && this.writerConnection == currentConnection) {
+        && isConnectionUsable(currentConnection)) {
       return;
     }
     if (!isConnectionUsable(this.readerConnection)) {
@@ -285,12 +281,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
       setReaderConnection(this.writerConnection, writerHost);
     } else {
-      final HostSpec randomReaderHost = getRandomReaderHost(hosts);
-      if (randomReaderHost == null) {
-        LOGGER.severe(() -> Messages.get("ReadWriteSplittingPlugin.noReadersFound"));
-        throw new SQLException(Messages.get("ReadWriteSplittingPlugin.noReadersFound"));
-      }
-      getNewReaderConnection(randomReaderHost);
+      getNewReaderConnection(getRandomReaderHost(hosts));
     }
   }
 
@@ -310,7 +301,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
   }
 
-  private HostSpec getRandomReaderHost(final List<HostSpec> hosts) {
+  private HostSpec getRandomReaderHost(final List<HostSpec> hosts) throws SQLException{
     final List<HostSpec> readerHosts = new ArrayList<>();
     for (final HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.READER) {
@@ -318,7 +309,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     }
     if (readerHosts.isEmpty()) {
-      return null;
+      LOGGER.severe(() -> Messages.get("ReadWriteSplittingPlugin.noReadersFound"));
+      throw new SQLException(Messages.get("ReadWriteSplittingPlugin.noReadersFound"));
     }
     Collections.shuffle(readerHosts);
     return readerHosts.get(0);
