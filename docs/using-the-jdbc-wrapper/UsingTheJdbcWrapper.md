@@ -49,7 +49,9 @@ These parameters are applicable to any instance of the JDBC Wrapper.
 |---------------------------------|-----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
 | `wrapperLogUnclosedConnections` | `Boolean` | No       | Allows the JDBC Wrapper to track a point in the code where connection has been opened but not closed.                                                                             | `false`       |
 | `wrapperLoggerLevel`            | `String`  | No       | Logger level of the JDBC Wrapper. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. | `null`        |
-| `database`                      | `String`  | No       | Target database name.                                                                                                                                                             | `null`        |
+| `database`                      | `String`  | No       | Database name.                                                                                                                                                                    | `null`        |
+| `user`                          | `String`  | No       | Database username.                                                                                                                                                                | `null`        |
+| `password`                      | `String`  | No       | Database password.                                                                                                                                                                | `null`        |
 
 ## Plugins
 The JDBC Wrapper uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use. 

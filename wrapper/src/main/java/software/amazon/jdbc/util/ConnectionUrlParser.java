@@ -106,8 +106,8 @@ public class ConnectionUrlParser {
   // Get the password from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
   public static String parsePasswordFromUrl(String url) {
-    final Pattern userPattern = Pattern.compile("password=(?<pass>[^&]*)");
-    final Matcher matcher = userPattern.matcher(url);
+    final Pattern passwordPattern = Pattern.compile("password=(?<pass>[^&]*)");
+    final Matcher matcher = passwordPattern.matcher(url);
     if (matcher.find()) {
       return matcher.group("pass");
     }
