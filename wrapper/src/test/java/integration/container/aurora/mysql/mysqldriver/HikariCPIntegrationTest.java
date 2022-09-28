@@ -34,8 +34,10 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import eu.rekawek.toxiproxy.Proxy;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
@@ -90,6 +92,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
+    config.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "failover");
     config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
     config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
     config.addDataSourceProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, PROXIED_CLUSTER_TEMPLATE);
@@ -108,6 +111,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   /**
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
+  @Disabled
   @Test
   public void test_1_1_hikariCP_lost_connection() throws SQLException {
     try (Connection conn = data_source.getConnection()) {
@@ -167,6 +171,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
    * After getting a successful connection from the pool, the connected instance becomes unavailable and the
    * connection fails over to another instance through the Enhanced Failure Monitor.
    */
+  @Disabled
   @Test
   public void test_2_1_hikariCP_efm_failover() throws SQLException {
     putDownAllInstances(false);
