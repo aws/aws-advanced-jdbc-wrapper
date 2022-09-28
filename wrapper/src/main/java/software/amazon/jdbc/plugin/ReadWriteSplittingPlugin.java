@@ -79,10 +79,23 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       try {
         switchConnectionIfRequired();
       } catch (final SQLException e) {
+        LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.exceptionWhileExecutingCommand"));
+        if (isFailoverException(e)) {
+          LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand"));
+          closeAllConnections();
+
+          // Update connection info in case the connection was changed
+          updateInternalConnectionInfo();
+        }
         throw wrapExceptionIfNeeded(exceptionClass, e);
       }
     }
     return jdbcMethodFunc.call();
+  }
+
+  private boolean isFailoverException(SQLException e) {
+    return SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState().equals(e.getSQLState())
+        || SqlState.COMMUNICATION_LINK_CHANGED.getState().equals(e.getSQLState());
   }
 
   private <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass, final Throwable exception) {
