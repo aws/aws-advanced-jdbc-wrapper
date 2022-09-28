@@ -24,8 +24,6 @@ while another might use the method `setUsername` for the same task. See the tabl
 | Database name               | `setDatabasePropertyName`      | The name of the database property.                                                             | `String` | No                                                                                                    | `databaseName`                         |
 | Port name                   | `setPortPropertyName`          | The name of the port property.                                                                 | `String` | No                                                                                                    | `port`                                 |
 | URL name                    | `setUrlPropertyName`           | The name of the URL property.                                                                  | `String` | No                                                                                                    | `url`                                  |
-| User name                   | `setUserPropertyName`          | The name of the username property.                                                             | `String` | No                                                                                                    | `user`                                 |
-| Password name               | `setPasswordPropertyName`      | The name of the password property.                                                             | `String` | No                                                                                                    | `password`                             |
 | JDBC URL                    | `setJdbcUrl`                   | The URL to connect with.                                                                       | `String` | No, if there is enough information provided by the other properties that can be used to create a URL. | `jdbc:postgresql://localhost/postgres` |
 | JDBC protocol               | `setJdbcProtocol`              | The JDBC protocol that will be used.                                                           | `String` | Yes, if the JDBC URL has not been set.                                                                | `jdbc:postgresql:`                     |
 | Underlying DataSource class | `setTargetDataSourceClassName` | The fully qualified class name of the underlying DataSource class the JDBC Wrapper should use. | `String` | Yes, if the JDBC URL has not been set.                                                                | `org.postgresql.ds.PGSimpleDataSource` |
@@ -67,8 +65,6 @@ To use the JDBC Wrapper with a connection pool, you must:
    ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
    ds.addDataSourceProperty("serverPropertyName", "serverName");
    
-   ds.addDataSourceProperty("userPropertyName", "user");
-   ds.addDataSourceProperty("passwordPropertyName", "password");
    ds.addDataSourceProperty("databasePropertyName", "databaseName");
    ds.addDataSourceProperty("portPropertyName", "port");
    ```

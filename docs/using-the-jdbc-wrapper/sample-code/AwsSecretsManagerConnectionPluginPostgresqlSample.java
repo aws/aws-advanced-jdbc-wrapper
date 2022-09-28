@@ -30,8 +30,6 @@ public class AwsSecretsManagerConnectionPluginPostgresqlSample {
     final Properties properties = new Properties();
     properties.setProperty("secretsManagerRegion", "us-east-2");
     properties.setProperty("secretsManagerSecretId", "secretId");
-    properties.setProperty("wrapperTargetDriverUserPropertyName", "user");
-    properties.setProperty("wrapperTargetDriverPasswordPropertyName", "password");
 
     // Enable the AWS Secrets Manager Connection Plugin.
     properties.setProperty(

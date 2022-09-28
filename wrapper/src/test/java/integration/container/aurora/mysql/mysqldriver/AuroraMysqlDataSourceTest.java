@@ -44,8 +44,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
     
@@ -69,8 +67,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
@@ -94,8 +90,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
@@ -114,8 +108,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
@@ -134,7 +126,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
@@ -154,7 +145,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
@@ -188,8 +178,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setJdbcUrl("jdbc:mysql://" + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
@@ -206,8 +194,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
 
@@ -232,8 +218,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
@@ -254,8 +238,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
     final Properties targetDataSourceProps = new Properties();
@@ -288,8 +270,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
   @Test
   public void testConnectionWithUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB);
 
@@ -304,8 +284,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
   @Test
   public void testConnectionWithUrlWithCredentials() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
@@ -326,8 +304,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
   @Test
   public void testConnectionWithUrlMissingPort() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
@@ -341,8 +317,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
   @Test
   public void testConnectionWithUrlMissingUser() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/");
 
@@ -354,24 +328,12 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
   @Test
   public void testConnectionWithUrlMissingPassword() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/");
 
     assertThrows(
         SQLException.class,
         () -> ds.getConnection(AURORA_MYSQL_USERNAME, ""));
-  }
-
-  @Test
-  public void testConnectionWithUrlMissingPropertyNames() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB);
-
-    assertThrows(
-        SQLException.class,
-        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
   }
 
   @Test
@@ -382,8 +344,6 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     ds.setJdbcProtocol("jdbc:mysql:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);

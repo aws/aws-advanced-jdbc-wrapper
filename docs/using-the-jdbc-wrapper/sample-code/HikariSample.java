@@ -37,8 +37,6 @@ public class HikariSample {
 
     // Configure AwsWrapperDataSource:
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-    ds.addDataSourceProperty("userPropertyName", "user");
-    ds.addDataSourceProperty("passwordPropertyName", "password");
     ds.addDataSourceProperty("databasePropertyName", "databaseName");
     ds.addDataSourceProperty("portPropertyName", "port");
     ds.addDataSourceProperty("serverPropertyName", "serverName");

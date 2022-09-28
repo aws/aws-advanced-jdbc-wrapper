@@ -102,10 +102,7 @@ public class Driver implements java.sql.Driver {
       PARENT_LOGGER.setLevel(logLevel);
     }
 
-    ConnectionProvider connectionProvider = new DriverConnectionProvider(
-        driver,
-        PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.getString(info),
-        PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.getString(info));
+    ConnectionProvider connectionProvider = new DriverConnectionProvider(driver);
 
     return new ConnectionWrapper(props, driverUrl, connectionProvider);
   }
@@ -148,7 +145,7 @@ public class Driver implements java.sql.Driver {
     if (dPos != -1) {
       String database = urlServer.substring(dPos + 1);
       if (!database.isEmpty()) {
-        PropertyDefinition.DATABASE_NAME.set(propertiesFromUrl, database);
+        PropertyDefinition.DATABASE.set(propertiesFromUrl, database);
       }
     }
 

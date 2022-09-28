@@ -30,7 +30,7 @@ public class ConnectionUrlParser {
   static final String HOST_PORT_SEPARATOR = ":";
   static final Pattern CONNECTION_STRING_PATTERN =
       Pattern.compile(
-          "(?<protocol>[\\w(\\-\\w)?\\+:%]+)\\s*" // Driver protocol. "word1:word2:..." or "word1-word2:word3:..."
+          "(?<protocol>[\\w(\\-)?+:%]+)\\s*" // Driver protocol. "word1:word2:..." or "word1-word2:word3:..."
               + "(?://(?<hosts>[^/?#]*))?\\s*" // Optional list of host(s) starting with // and
               // follows by any char except "/", "?" or "#"
               + "(?:[/?#].*)?"); // Anything starting with either "/", "?" or "#"
@@ -93,34 +93,26 @@ public class ConnectionUrlParser {
 
   // Get the user name from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parseUserFromUrl(String url, String userPropertyName) {
-    String[] urlParameters = url.split("\\?");
-    if (urlParameters.length == 1) {
-      return null;
+  public static String parseUserFromUrl(String url) {
+    final Pattern userPattern = Pattern.compile("user=(?<username>[^&]*)");
+    final Matcher matcher = userPattern.matcher(url);
+    if (matcher.find()) {
+      return matcher.group("username");
     }
 
-    String[] user = urlParameters[1].split(userPropertyName + "=")[1].split("&");
-    if (StringUtils.isNullOrEmpty(user[0])) {
-      return null;
-    }
-
-    return user[0];
+    return null;
   }
 
   // Get the password from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parsePasswordFromUrl(String url, String passwordPropertyName) {
-    String[] urlParameters = url.split("\\?");
-    if (urlParameters.length == 1) {
-      return null;
+  public static String parsePasswordFromUrl(String url) {
+    final Pattern userPattern = Pattern.compile("password=(?<pass>[^&]*)");
+    final Matcher matcher = userPattern.matcher(url);
+    if (matcher.find()) {
+      return matcher.group("pass");
     }
 
-    String[] password = urlParameters[1].split(passwordPropertyName + "=")[1].split("&");
-    if (StringUtils.isNullOrEmpty(password[0])) {
-      return null;
-    }
-
-    return password[0];
+    return null;
   }
 
   // Get the properties from a given url of the generic format:

@@ -34,8 +34,6 @@ public class ConnectionUrlBuilder {
                                 String serverPropertyName,
                                 String portPropertyName,
                                 String databasePropertyName,
-                                String userPropertyName,
-                                String passwordPropertyName,
                                 Properties props) throws SQLException {
     if (isNullOrEmpty(jdbcProtocol)
         || ((isNullOrEmpty(serverPropertyName) || isNullOrEmpty(props.getProperty(serverPropertyName)))
@@ -63,16 +61,14 @@ public class ConnectionUrlBuilder {
       urlBuilder.append("/");
     }
 
-    if (!isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(copy))) {
-      urlBuilder.append(PropertyDefinition.DATABASE_NAME.getString(copy));
-      copy.remove(PropertyDefinition.DATABASE_NAME.name);
+    if (!isNullOrEmpty(PropertyDefinition.DATABASE.getString(copy))) {
+      urlBuilder.append(PropertyDefinition.DATABASE.getString(copy));
+      copy.remove(PropertyDefinition.DATABASE.name);
     }
 
     removeProperty(serverPropertyName, copy);
     removeProperty(portPropertyName, copy);
     removeProperty(databasePropertyName, copy);
-    removeProperty(userPropertyName, copy);
-    removeProperty(passwordPropertyName, copy);
 
     final StringBuilder queryBuilder = new StringBuilder();
     final Enumeration<?> propertyNames = copy.propertyNames();
@@ -83,11 +79,6 @@ public class ConnectionUrlBuilder {
       }
 
       final String propertyValue = copy.getProperty(propertyName);
-      if (propertyName.equals(PropertyDefinition.USER.name) && !isNullOrEmpty(userPropertyName)) {
-        propertyName = userPropertyName;
-      } else if (propertyName.equals(PropertyDefinition.PASSWORD.name) && !isNullOrEmpty(passwordPropertyName)) {
-        propertyName = passwordPropertyName;
-      }
 
       try {
         queryBuilder

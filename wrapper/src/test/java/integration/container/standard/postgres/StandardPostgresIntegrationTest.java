@@ -147,7 +147,7 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
   public void testFailedProperties(String url, String username, String password) {
 
     final Properties props = new Properties();
-    props.setProperty("username", username);
+    props.setProperty("user", username);
     props.setProperty("password", password);
 
     assertThrows(SQLException.class, () -> connectCustomUrl(url, props));

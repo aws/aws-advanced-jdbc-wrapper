@@ -64,8 +64,6 @@ public class HikariTests extends StandardMariadbBaseTest {
 
     // Configure AwsWrapperDataSource:
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:mariadb:");
-    ds.addDataSourceProperty("userPropertyName", "user");
-    ds.addDataSourceProperty("passwordPropertyName", "password");
     ds.addDataSourceProperty("databasePropertyName", "databaseName");
     ds.addDataSourceProperty("portPropertyName", "port");
     ds.addDataSourceProperty("serverPropertyName", "serverName");

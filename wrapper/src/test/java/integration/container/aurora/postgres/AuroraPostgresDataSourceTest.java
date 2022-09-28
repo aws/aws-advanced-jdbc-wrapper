@@ -45,8 +45,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -69,8 +67,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -94,8 +90,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -114,8 +108,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -133,8 +125,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -153,7 +143,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -173,7 +162,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -209,8 +197,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -231,8 +217,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -257,8 +241,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
@@ -279,8 +261,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
     final Properties targetDataSourceProps = new Properties();
@@ -314,8 +294,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   public void testConnectionWithDataSourceClassNameUsingUrlMissingDatabase() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
@@ -331,8 +309,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   @Test
   public void testConnectionWithUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB);
 
@@ -347,8 +323,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   @Test
   public void testConnectionWithUrlWithCredentials() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
@@ -369,8 +343,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   @Test
   public void testConnectionWithUrlMissingPort() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + "/" + AURORA_POSTGRES_DB);
 
     try (final Connection conn = ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD)) {
@@ -384,8 +356,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   @Test
   public void testConnectionWithUrlMissingDatabase() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/");
 
@@ -397,8 +367,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   @Test
   public void testConnectionWithUrlMissingUser() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/");
 
@@ -410,8 +378,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   @Test
   public void testConnectionWithUrlMissingPassword() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/");
 
@@ -421,24 +387,12 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   }
 
   @Test
-  public void testConnectionWithUrlMissingPropertyNames() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB);
-
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD));
-  }
-
-  @Test
   public void testConnectionWithDataSourceClassNameFromJndiLookup()
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(postgresProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
