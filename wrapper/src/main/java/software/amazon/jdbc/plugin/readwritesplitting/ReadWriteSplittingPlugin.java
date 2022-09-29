@@ -97,6 +97,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   @Override
   public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
+    updateInternalConnectionInfo();
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 
@@ -199,9 +200,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     } else {
       if (pluginService.isInTransaction()) {
-        LOGGER.severe(() -> Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"));
-        throw new SQLException(Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"),
-            SqlState.ACTIVE_SQL_TRANSACTION.getState());
+        logAndThrowException("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction",  SqlState.ACTIVE_SQL_TRANSACTION);
       }
       if (!isWriter(currentHost) || currentConnection.isClosed()) {
         try {
@@ -222,6 +221,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private void logAndThrowException(String logMessage) throws SQLException {
     LOGGER.severe(() -> Messages.get(logMessage));
     throw new SQLException(Messages.get(logMessage));
+  }
+
+  private void logAndThrowException(String logMessage, SqlState sqlState) throws SQLException {
+    LOGGER.severe(() -> Messages.get(logMessage));
+    throw new SQLException(Messages.get(logMessage), sqlState.getState());
   }
 
   private synchronized void switchToWriterConnection(
