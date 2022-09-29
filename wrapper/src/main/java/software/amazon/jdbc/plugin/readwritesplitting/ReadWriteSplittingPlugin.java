@@ -186,7 +186,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         } catch (final SQLException e) {
           if (!isConnectionUsable(currentConnection)) {
             // "Unable to establish SQL connection to reader instance"
-            processReadWriteFailure(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"));
+            logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"));
             return;
           }
 
@@ -209,15 +209,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           switchToWriterConnection(hosts);
         } catch (final SQLException e) {
           // "Unable to establish SQL connection to writer node"
-          processReadWriteFailure(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"));
+          logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"));
         }
       }
     }
-  }
-
-  private void processReadWriteFailure(String message) throws SQLException {
-    LOGGER.severe(message);
-    throw new ReadWriteFailedSQLException(message);
   }
 
   private void logAndThrowException(String logMessage) throws SQLException {
