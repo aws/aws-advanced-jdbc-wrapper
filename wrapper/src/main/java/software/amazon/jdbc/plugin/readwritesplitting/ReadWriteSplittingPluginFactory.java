@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.readwritesplitting;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
 public class ReadWriteSplittingPluginFactory implements ConnectionPluginFactory {
   @Override
