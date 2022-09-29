@@ -72,8 +72,9 @@ The baseline number represents running the same UPDATE queries with MySQL Connec
 
 There are also specific benchmarks measuring the JDBC Wrapper's [pipelines](Pipelines.md).
 These benchmarks do not make actual connections to the databases and use simple test plugins.
-The goal of these benchmarks is to measure the overhead of initializing and executing JDBC methods with multiple plugins enabled.
-![](../images/jdbc_wrapper_connect_pipeline.png)
+The goal of these benchmarks is to measure the overhead of using the JDBC Wrapper with multiple plugins enabled.
+![](../images/jdbc_wrapper_connect_execute_pipelines_benchmarks.png)
+![](../images/jdbc_wrapper_pipelines_benchmarks.png)
 
 See [here](PerformanceResults.md#benchmarks) for a more detailed performance breakdown.
 
