@@ -200,7 +200,9 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     } else {
       if (pluginService.isInTransaction()) {
-        logAndThrowException("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction",  SqlState.ACTIVE_SQL_TRANSACTION);
+        logAndThrowException(
+            "ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction",
+            SqlState.ACTIVE_SQL_TRANSACTION);
       }
       if (!isWriter(currentHost) || currentConnection.isClosed()) {
         try {
