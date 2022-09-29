@@ -177,7 +177,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
     final List<HostSpec> hosts = this.pluginService.getHosts();
     if (hosts == null || hosts.isEmpty()) {
-      logAndThrowException("ReadWriteSplittingPlugin.emptyHostList");
+      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.emptyHostList"));
     }
     if (this.explicitlyReadOnly) {
       if (!pluginService.isInTransaction() && (!isReader(currentHost) || currentConnection.isClosed())) {
@@ -201,7 +201,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     } else {
       if (pluginService.isInTransaction()) {
         logAndThrowException(
-            "ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction",
+            Messages.get("ReadWriteSplittingPlugin.setReadOnlyFalseInTransaction"),
             SqlState.ACTIVE_SQL_TRANSACTION);
       }
       if (!isWriter(currentHost) || currentConnection.isClosed()) {
@@ -221,13 +221,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void logAndThrowException(String logMessage) throws SQLException {
-    LOGGER.severe(() -> Messages.get(logMessage));
-    throw new SQLException(Messages.get(logMessage));
+    LOGGER.severe(logMessage);
+    throw new ReadWriteSplittingSQLException(logMessage);
   }
 
   private void logAndThrowException(String logMessage, SqlState sqlState) throws SQLException {
-    LOGGER.severe(() -> Messages.get(logMessage));
-    throw new SQLException(Messages.get(logMessage), sqlState.getState());
+    LOGGER.severe(logMessage);
+    throw new ReadWriteSplittingSQLException(logMessage, sqlState.getState());
   }
 
   private synchronized void switchToWriterConnection(
@@ -312,13 +312,17 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
+    HostSpec writerHost = null;
     for (final HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.WRITER) {
-        return hostSpec;
+        writerHost = hostSpec;
+        break;
       }
     }
-    logAndThrowException("ReadWriteSplittingPlugin.noWriterFound");
-    return null;
+    if (writerHost == null) {
+      logAndThrowException("ReadWriteSplittingPlugin.noWriterFound");
+    }
+    return writerHost;
   }
 
   private void getNewReaderConnection(final HostSpec readerHostSpec) throws SQLException {
@@ -335,7 +339,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     }
     if (readerHosts.isEmpty()) {
-      logAndThrowException("ReadWriteSplittingPlugin.noReadersFound");
+      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noReadersFound"));
     }
     Collections.shuffle(readerHosts);
     return readerHosts.get(0);

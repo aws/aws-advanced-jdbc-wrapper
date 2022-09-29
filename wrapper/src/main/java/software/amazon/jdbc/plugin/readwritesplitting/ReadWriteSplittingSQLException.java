@@ -18,13 +18,17 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 
 import java.sql.SQLException;
 
-public class ReadWriteSQLException extends SQLException {
+public class ReadWriteSplittingSQLException extends SQLException {
 
-  public ReadWriteSQLException(String reason, String sqlState, Throwable cause) {
+  public ReadWriteSplittingSQLException(String reason, String sqlState, Throwable cause) {
     super(reason, sqlState, cause);
   }
 
-  public ReadWriteSQLException(String reason, String sqlState) {
+  public ReadWriteSplittingSQLException(String reason, String sqlState) {
     super(reason, sqlState);
+  }
+
+  public ReadWriteSplittingSQLException(String reason) {
+    super(reason);
   }
 }

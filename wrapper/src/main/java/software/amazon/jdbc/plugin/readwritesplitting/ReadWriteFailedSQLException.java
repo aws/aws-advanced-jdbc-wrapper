@@ -18,7 +18,7 @@ package software.amazon.jdbc.plugin.readwritesplitting;
 
 import software.amazon.jdbc.util.SqlState;
 
-public class ReadWriteFailedSQLException extends ReadWriteSQLException {
+public class ReadWriteFailedSQLException extends ReadWriteSplittingSQLException {
 
   public ReadWriteFailedSQLException(String message, Throwable cause) {
     super(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
