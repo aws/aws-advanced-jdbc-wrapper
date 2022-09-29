@@ -11,6 +11,11 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'examples/**'
+      - '**/docs/**'
+      - '**/*.jpg'
+      - '**/*.png'
+      - '**/release_draft.yml'
+      - '**/maven*.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
