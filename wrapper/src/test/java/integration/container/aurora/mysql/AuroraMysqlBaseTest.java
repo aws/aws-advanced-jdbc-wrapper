@@ -226,8 +226,6 @@ public abstract class AuroraMysqlBaseTest {
     props.setProperty(PropertyDefinition.PASSWORD.name, AURORA_MYSQL_PASSWORD);
     props.setProperty(PropertyKey.tcpKeepAlive.getKeyName(), Boolean.FALSE.toString());
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
-    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
-    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
     return props;
   }
@@ -252,8 +250,6 @@ public abstract class AuroraMysqlBaseTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     props.setProperty(PropertyDefinition.USER.name, user);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    props.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
-    props.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
     return props;
   }
 
@@ -340,8 +336,6 @@ public abstract class AuroraMysqlBaseTest {
 
     // Configure the property names for the underlying driver-specific data source:
     ds.setJdbcProtocol("jdbc:mysql:");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setDatabasePropertyName("databaseName");
     ds.setServerPropertyName("serverName");
     ds.setPortPropertyName("port");

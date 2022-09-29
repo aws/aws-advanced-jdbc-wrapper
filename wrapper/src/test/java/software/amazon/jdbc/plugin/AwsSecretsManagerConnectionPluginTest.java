@@ -81,8 +81,6 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     TEST_PROPS.setProperty("secretsManagerRegion", TEST_REGION);
     TEST_PROPS.setProperty("secretsManagerSecretId", TEST_SECRET_ID);
-    TEST_PROPS.setProperty("wrapperTargetDriverUserPropertyName", "user");
-    TEST_PROPS.setProperty("wrapperTargetDriverPasswordPropertyName", "password");
 
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         TEST_PROPS,

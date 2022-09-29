@@ -16,14 +16,11 @@
 
 package software.amazon.jdbc;
 
-import static software.amazon.jdbc.util.StringUtils.isNullOrEmpty;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.util.PropertyUtils;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and returns a connection
@@ -34,13 +31,9 @@ public class DriverConnectionProvider implements ConnectionProvider {
   private static final Logger LOGGER = Logger.getLogger(DriverConnectionProvider.class.getName());
 
   private final java.sql.Driver driver;
-  private final String userPropertyName;
-  private final String passwordPropertyName;
 
-  public DriverConnectionProvider(final java.sql.Driver driver, String userPropertyName, String passwordPropertyName) {
+  public DriverConnectionProvider(final java.sql.Driver driver) {
     this.driver = driver;
-    this.userPropertyName = userPropertyName;
-    this.passwordPropertyName = passwordPropertyName;
   }
 
   /**
@@ -58,28 +51,15 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
-
-    Properties copy = PropertyUtils.copyProperties(props);
-
-    final String databaseName = PropertyDefinition.DATABASE_NAME.getString(props) != null
-        ? PropertyDefinition.DATABASE_NAME.getString(props)
+    final String databaseName = PropertyDefinition.DATABASE.getString(props) != null
+        ? PropertyDefinition.DATABASE.getString(props)
         : "";
     final StringBuilder urlBuilder = new StringBuilder();
     urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
 
-    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
-      copy.setProperty(this.userPropertyName, PropertyDefinition.USER.getString(props));
-    }
-
-    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(PropertyDefinition.PASSWORD.getString(props))) {
-      copy.setProperty(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
-    }
-
-    PropertyDefinition.removeAll(copy);
-
     LOGGER.finest(() -> "Connecting to " + urlBuilder);
 
-    return this.driver.connect(urlBuilder.toString(), copy);
+    return this.driver.connect(urlBuilder.toString(), props);
   }
 
   /**

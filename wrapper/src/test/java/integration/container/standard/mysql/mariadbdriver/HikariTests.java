@@ -62,8 +62,6 @@ public class HikariTests extends MariadbStandardMysqlBaseTest {
 
     // Configure AwsWrapperDataSource:
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
-    ds.addDataSourceProperty("userPropertyName", "user");
-    ds.addDataSourceProperty("passwordPropertyName", "password");
     ds.addDataSourceProperty("databasePropertyName", "databaseName");
     ds.addDataSourceProperty("portPropertyName", "port");
     ds.addDataSourceProperty("serverPropertyName", "serverName");

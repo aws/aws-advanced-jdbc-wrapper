@@ -32,8 +32,6 @@ public class DataSourceSample {
 
     // Configure the property names for the underlying driver-specific data source:
     ds.setJdbcProtocol("jdbc:postgresql:");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setDatabasePropertyName("databaseName");
     ds.setServerPropertyName("serverName");
     ds.setPortPropertyName("port");

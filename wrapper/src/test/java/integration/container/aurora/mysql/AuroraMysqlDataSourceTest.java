@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqldriver;
+package integration.container.aurora.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
+public class AuroraMysqlDataSourceTest extends AuroraMysqlBaseTest {
   public static String mysqlProtocolPrefix = "jdbc:mysql://";
   
   @Test
@@ -334,6 +334,16 @@ public class AuroraMysqlDataSourceTest extends MysqlAuroraMysqlBaseTest {
     assertThrows(
         SQLException.class,
         () -> ds.getConnection(AURORA_MYSQL_USERNAME, ""));
+  }
+
+  @Test
+  public void testConnectionWithUrlMissingPropertyNames() {
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB);
+
+    assertThrows(
+        SQLException.class,
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
   }
 
   @Test

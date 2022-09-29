@@ -51,8 +51,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
@@ -71,8 +69,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
@@ -92,8 +88,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
@@ -131,8 +125,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
     ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setUrlPropertyName("url");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
@@ -153,8 +145,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
   public void testOpenConnectionWithMariaDbUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
@@ -173,8 +163,6 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
     ds.setJdbcProtocol("jdbc:mariadb:");
     ds.setUrlPropertyName("url");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
