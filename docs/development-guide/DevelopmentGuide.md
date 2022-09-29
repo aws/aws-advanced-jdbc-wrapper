@@ -83,7 +83,7 @@ The diagrams in this section show the JDBC Wrapper's failure detection performan
 The performance tests share the following workflow:
 1. The JDBC Wrapper executes an SQL query with a long execution time.
 2. After a network outage delay in milliseconds, the test triggers a network outage.
-Varying values for the network outage delay are tested, represented on either the X axis of the diagrams below.
+Varying values for the network outage delay are tested, represented on the X axis of the diagrams below.
 3. Measures elapsed time between when the network outage and 
    - when the JDBC Wrapper detects the network failure if the Host Monitoring Connection Plugin is used, or 
    - when the JDBC Wrapper finishes the failover process if the Failover Connection Plugin is used.
@@ -120,7 +120,7 @@ See [here](PerformanceResults.md#failover-performance-with-different-enhanced-fa
 
 ![](../images/jdbc_wrapper_postgresql_efm_30000_5000_3.png)
 ![](../images/jdbc_wrapper_postgresql_efm_6000_1000_1.png)
-See [here](PerformanceResults.md#enhanced-failure-monitoring-performance-with-different-dailure-detection-configuration) for a more detailed performance breakdown.
+See [here](PerformanceResults.md#enhanced-failure-monitoring-performance-with-different-failure-detection-configuration) for a more detailed performance breakdown.
 
 ### Running the Tests
 
