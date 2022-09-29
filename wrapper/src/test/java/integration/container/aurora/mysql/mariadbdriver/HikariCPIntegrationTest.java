@@ -92,7 +92,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
-    config.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "failover");
+    config.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
     config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
     config.addDataSourceProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, PROXIED_CLUSTER_TEMPLATE);
