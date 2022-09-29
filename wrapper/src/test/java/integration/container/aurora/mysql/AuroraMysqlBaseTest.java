@@ -310,8 +310,7 @@ public abstract class AuroraMysqlBaseTest {
   protected String executeInstanceIdQuery(Statement stmt) throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(QUERY_FOR_INSTANCE)) {
       if (rs.next()) {
-        final String id = rs.getString("@@aurora_server_id");
-        return id;
+        return rs.getString("@@aurora_server_id");
       }
     }
     return null;

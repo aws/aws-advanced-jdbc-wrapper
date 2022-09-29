@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqldriver;
+package integration.container.aurora.mysql.mariadbdriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,6 +36,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import eu.rekawek.toxiproxy.Proxy;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
@@ -43,7 +44,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.SqlState;
 
-public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
+public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
   private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
   private static HikariDataSource data_source = null;

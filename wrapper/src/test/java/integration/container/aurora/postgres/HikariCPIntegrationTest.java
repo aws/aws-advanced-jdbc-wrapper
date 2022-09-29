@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqldriver;
+package integration.container.aurora.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -43,9 +43,10 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.SqlState;
 
-public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
+public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
+
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
-  private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
+  private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + POSTGRES_PROXY_PORT + "/" + AURORA_POSTGRES_DB;
   private static HikariDataSource data_source = null;
   private final List<String> clusterTopology = fetchTopology();
 
@@ -84,8 +85,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     final HikariConfig config = new HikariConfig();
 
     config.setJdbcUrl(jdbcUrl);
-    config.setUsername(AURORA_MYSQL_USERNAME);
-    config.setPassword(AURORA_MYSQL_PASSWORD);
+    config.setUsername(AURORA_POSTGRES_USERNAME);
+    config.setPassword(AURORA_POSTGRES_PASSWORD);
     config.setMaximumPoolSize(3);
     config.setReadOnly(true);
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
@@ -94,7 +95,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     config.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "failover");
     config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
     config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
-    config.addDataSourceProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, PROXIED_CLUSTER_TEMPLATE);
+    config.addDataSourceProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+        PROXIED_CLUSTER_TEMPLATE);
     config.addDataSourceProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
     config.addDataSourceProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
 
