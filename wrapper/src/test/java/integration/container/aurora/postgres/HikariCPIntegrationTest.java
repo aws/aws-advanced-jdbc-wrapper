@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
+import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -35,7 +36,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import eu.rekawek.toxiproxy.Proxy;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
@@ -46,7 +46,8 @@ import software.amazon.jdbc.util.SqlState;
 public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
-  private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + POSTGRES_PROXY_PORT + "/" + AURORA_POSTGRES_DB;
+  private static final String URL_SUFFIX =
+      PROXIED_DOMAIN_NAME_SUFFIX + ":" + POSTGRES_PROXY_PORT + "/" + AURORA_POSTGRES_DB;
   private static HikariDataSource data_source = null;
   private final List<String> clusterTopology = fetchTopology();
 
