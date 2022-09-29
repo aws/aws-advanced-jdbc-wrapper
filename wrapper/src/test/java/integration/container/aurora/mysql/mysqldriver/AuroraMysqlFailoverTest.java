@@ -82,7 +82,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
       // Failure occurs on Statement invocation
-      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      assertFirstQueryThrows(stmt, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that the driver is connected to the new writer after failover happens.
       final String currentConnectionId = queryInstanceId(conn);
