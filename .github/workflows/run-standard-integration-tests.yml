@@ -10,6 +10,11 @@ on:
       - '*'
     paths-ignore:
       - '**/*.md'
+      - '**/docs/**'
+      - '**/*.jpg'
+      - '**/*.png'
+      - '**/release_draft.yml'
+      - '**/maven*.yml'
 
 jobs:
   standard-integration-tests:
