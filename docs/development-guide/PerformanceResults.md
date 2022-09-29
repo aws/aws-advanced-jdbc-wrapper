@@ -11,26 +11,26 @@
 
 | Benchmark                                                         | Score    | Error   | Units |
 |-------------------------------------------------------------------|----------|---------|-------|
-| PGJDBC                                                            | 634.043  | 44.318  | ms/op |
-| JDBC Wrapper with PGJDBC with No Plugins                          | 633.108  | 34.338  | ms/op |
-| JDBC Wrapper with PGJDBC with EFM                                 | 713.359  | 69.774  | ms/op |
-| JDBC Wrapper with PGJDBC with Failover Connection Plugin          | 636.123  | 50.273  | ms/op |
-| JDBC Wrapper with PGJDBC with EFM and Failover Connection Plugins | 710.346  | 86.632  | ms/op |
+| pgJDBC                                                            | 634.043  | 44.318  | ms/op |
+| JDBC Wrapper with pgJDBC with No Plugins                          | 633.108  | 34.338  | ms/op |
+| JDBC Wrapper with pgJDBC with EFM                                 | 713.359  | 69.774  | ms/op |
+| JDBC Wrapper with pgJDBC with Failover Connection Plugin          | 636.123  | 50.273  | ms/op |
+| JDBC Wrapper with pgJDBC with EFM and Failover Connection Plugins | 710.346  | 86.632  | ms/op |
 
-| Benchmark                                | Score   | Error  | Units |
-|------------------------------------------|---------|--------|-------|
-| connectWithNoPlugins                     | 133.329 | 19.982 | us/op |
-| connectWithPlugins                       | 198.782 | 37.724 | us/op |
-| executeWithNoPlugins                     | 125.491 | 30.625 | us/op |
-| executeWithPlugins                       | 195.051 | 57.536 | us/op |
-| initConnectionPluginManagerWithNoPlugins | 4.703   | 1.993  | us/op |
-| initConnectionPluginManagerWithPlugins   | 19.432  | 8.678  | us/op |
-| initHostProvidersWithNoPlugins           | 12.158  | 4.820  | us/op |
-| initHostProvidersWithPlugins             | 29.134  | 6.694  | us/op |
-| notifyConnectionChangedWithNoPlugins     | 15.977  | 6.057  | us/op |
-| notifyConnectionChangedWithPlugins       | 52.069  | 39.199 | us/op |
-| releaseResourcesWithNoPlugins            | 8.030   | 3.776  | us/op |
-| releaseResourcesWithPlugins              | 15.243  | 4.906  | us/op |
+| Benchmark                                    | Score   | Error  | Units |
+|----------------------------------------------|---------|--------|-------|
+| connectWithNoPlugins                         | 133.329 | 19.982 | us/op |
+| connectWithTenGenericPlugins                 | 198.782 | 37.724 | us/op |
+| executeWithNoPlugins                         | 125.491 | 30.625 | us/op |
+| executeTenGenericPlugins                     | 195.051 | 57.536 | us/op |
+| initConnectionPluginManagerWithNoPlugins     | 4.703   | 1.993  | us/op |
+| initConnectionPluginManagerTenGenericPlugins | 19.432  | 8.678  | us/op |
+| initHostProvidersWithNoPlugins               | 12.158  | 4.820  | us/op |
+| initHostProvidersTenGenericPlugins           | 29.134  | 6.694  | us/op |
+| notifyConnectionChangedWithNoPlugins         | 15.977  | 6.057  | us/op |
+| notifyConnectionChangedTenGenericPlugins     | 52.069  | 39.199 | us/op |
+| releaseResourcesWithNoPlugins                | 8.030   | 3.776  | us/op |
+| releaseResourcesTenGenericPlugins            | 15.243  | 4.906  | us/op |
 
 | Benchmark                                                 | Score    | Error   | Units |
 |-----------------------------------------------------------|----------|---------|-------|
