@@ -42,14 +42,14 @@ import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.SqlState;
 
 public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
-  private static final String URL_SUFFIX =
-      PROXIED_DOMAIN_NAME_SUFFIX + ":" + POSTGRES_PROXY_PORT + "/" + AURORA_POSTGRES_DB;
   private static HikariDataSource data_source = null;
   private final List<String> clusterTopology = fetchTopology();
 
@@ -80,11 +80,6 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
   @BeforeEach
   public void setUpTest() {
-    String writerEndpoint = clusterTopology.get(0);
-
-    String jdbcUrl = DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
-    logger.fine("Writer endpoint: " + jdbcUrl);
-
     final HikariConfig config = new HikariConfig();
     config.setUsername(AURORA_POSTGRES_USERNAME);
     config.setPassword(AURORA_POSTGRES_PASSWORD);
@@ -96,22 +91,26 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
     config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
     config.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
-    config.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-    config.addDataSourceProperty("portPropertyName", "port");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql://");
+    config.addDataSourceProperty("portPropertyName", "portNumber");
     config.addDataSourceProperty("serverPropertyName", "serverName");
+    config.addDataSourceProperty("databasePropertyName", "databaseName");
 
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", writerEndpoint + PROXIED_DOMAIN_NAME_SUFFIX);
-    targetDataSourceProps.setProperty("port", String.valueOf(POSTGRES_PROXY_PORT));
+    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
+    targetDataSourceProps.setProperty("portNumber", String.valueOf(POSTGRES_PROXY_PORT));
+    targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty("socketTimeout", "5");
     targetDataSourceProps.setProperty("connectTimeout", "5");
-    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1");
-    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1");
+    targetDataSourceProps.setProperty("monitoring-connectTimeout", "3");
+    targetDataSourceProps.setProperty("monitoring-socketTimeout", "3");
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
-    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, PROXIED_CLUSTER_TEMPLATE);
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "3000");
+    targetDataSourceProps.setProperty(
+        AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+        PROXIED_CLUSTER_TEMPLATE);
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
     config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
@@ -135,8 +134,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
       putDownAllInstances(true);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
+      assertThrows(FailoverFailedSQLException.class, () -> queryInstanceId(conn));
       assertFalse(conn.isValid(5));
     }
 
@@ -169,8 +167,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
       bringUpInstance(readerIdentifier);
       putDownInstance(currentInstance);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
+      assertThrows(FailoverSuccessSQLException.class, () -> queryInstanceId(conn));
 
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
@@ -210,8 +207,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
       bringUpInstance(readerIdentifier);
       putDownInstance(writerIdentifier);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
+      assertThrows(FailoverSuccessSQLException.class, () -> queryInstanceId(conn));
 
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
