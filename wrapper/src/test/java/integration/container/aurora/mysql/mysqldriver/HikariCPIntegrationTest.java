@@ -31,12 +31,14 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
 import java.util.List;
+import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
@@ -78,12 +80,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   public void setUpTest() {
     String writerEndpoint = clusterTopology.get(0);
 
-    String jdbcUrl = DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
-    logger.fine("Writer endpoint: " + jdbcUrl);
-
     final HikariConfig config = new HikariConfig();
 
-    config.setJdbcUrl(jdbcUrl);
     config.setUsername(AURORA_MYSQL_USERNAME);
     config.setPassword(AURORA_MYSQL_PASSWORD);
     config.setMaximumPoolSize(3);
@@ -91,12 +89,28 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
-    config.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
-    config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
-    config.addDataSourceProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
-    config.addDataSourceProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, PROXIED_CLUSTER_TEMPLATE);
-    config.addDataSourceProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
-    config.addDataSourceProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
+
+    config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
+    config.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
+    config.addDataSourceProperty("portPropertyName", "port");
+    config.addDataSourceProperty("serverPropertyName", "serverName");
+
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", writerEndpoint + PROXIED_DOMAIN_NAME_SUFFIX);
+    targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty("socketTimeout", "3000");
+    targetDataSourceProps.setProperty("connectTimeout", "3000");
+    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
+    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
+    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, PROXIED_CLUSTER_TEMPLATE);
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
+    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     data_source = new HikariDataSource(config);
 
