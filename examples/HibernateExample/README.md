@@ -1,10 +1,10 @@
 # Hibernate Example for the AWS Advanced Jdbc Wrapper
 
 This example provides a custom AuroraPostgreSQLDialect for hibernate 
-which over-rides the `HibernateDialect.buildSQLExceptionConversionDelegate()` function
+which over-rides the `HibernateDialect.buildSQLExceptionConversionDelegate()` function.
 The purpose of this function is to map custom SQL state codes to Exceptions.
 
-In our case we have 4 states which are added by the JDBC Wrapper.
+In our case we have 3 states which are added by the JDBC Wrapper.
 
 ### 08001 - Unable to Establish SQL Connection
 When the JDBC Wrapper returns this state, the original connection has 
@@ -35,5 +35,4 @@ configuration of the initial connection is now lost. In this scenario, you shoul
 
 - Reuse and reconfigure the original connection (e.g: reconfigure session state to be the same as the original connection).
 - Restart the transaction and repeat all queries which were executed during the transaction before the connection failed.
-- Repeat that query which was executed when the connection failed and continue work as desired.
-
+- Repeat the query that was executed when the connection failed, and continue work as desired.

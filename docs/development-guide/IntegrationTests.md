@@ -22,7 +22,7 @@ PostgreSQL and MySQL tests are currently supported.
 
 ### Standard Integration Tests
 
-The Standard integration tests are focused on testing connection strings against a local database inside a Docker container.
+These integration tests are focused on testing connection strings against a local database inside a Docker container.
 PostgreSQL and MySQL tests are currently supported.
 
 ### Running the Integration Tests

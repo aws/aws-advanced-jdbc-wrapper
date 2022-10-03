@@ -137,7 +137,7 @@ Windows:
 ./gradlew test
 ```
 
-For running driver-specific integration tests see these links: <br />
+For more information about running driver-specific integration tests, visit: <br />
 
 [PostgreSQL](/docs/driver-specific/postgresql/postgresql.md)
 

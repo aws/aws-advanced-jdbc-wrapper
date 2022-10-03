@@ -1,4 +1,4 @@
-# Using the MySQL JDBC Driver with AWS Advanced JDBC Wrapper
+# Using the MySQL JDBC Driver with the AWS Advanced JDBC Wrapper
 
 ### Running the Integration Tests
 
