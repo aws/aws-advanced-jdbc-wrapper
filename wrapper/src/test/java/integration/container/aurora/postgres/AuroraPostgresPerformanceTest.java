@@ -48,7 +48,7 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       : Integer.parseInt(System.getenv("REPEAT_TIMES"));
   private static final int TIMEOUT = 1;
   private static final int CONNECT_TIMEOUT = 3;
-  private static final int FAILOVER_TIMEOUT_MS = 40000;
+  private static final int FAILOVER_TIMEOUT_MS = 120000;
   private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList =
       new ArrayList<>();
   private static final List<PerfStatMonitoring> failoverWithEfmPerfDataList = new ArrayList<>();
@@ -113,8 +113,9 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("monitoring-connectTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("monitoring-connectTimeout", Integer.toString(CONNECT_TIMEOUT));
     props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("connectTimeout", Integer.toString(CONNECT_TIMEOUT));
     // this performance test measures efm failure detection time after disconnecting the network
     props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
     props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
@@ -138,9 +139,8 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
       int sleepDelayMillis)
       throws SQLException {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty("monitoring-connectTimeout", Integer.toString(TIMEOUT));
+    props.setProperty("monitoring-connectTimeout", Integer.toString(CONNECT_TIMEOUT));
     props.setProperty("monitoring-socketTimeout", Integer.toString(TIMEOUT));
-    props.setProperty("socketTimeout", Integer.toString(TIMEOUT));
     props.setProperty("connectTimeout", Integer.toString(CONNECT_TIMEOUT));
 
     // this performance test measures failover and efm failure detection time after disconnecting the network
@@ -149,6 +149,7 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
     props.setProperty("failureDetectionCount", Integer.toString(detectionCount));
     props.setProperty("wrapperPlugins", "failover,efm");
     props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
+    props.setProperty("clusterInstanceHostPattern", PROXIED_CLUSTER_TEMPLATE);
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);
@@ -168,8 +169,9 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
     props.setProperty("connectTimeout", Integer.toString(CONNECT_TIMEOUT));
 
     // Loads just failover plugin; don't load Enhanced Failure Monitoring plugin
-    props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
     props.setProperty("wrapperPlugins", "failover");
+    props.setProperty("clusterInstanceHostPattern", PROXIED_CLUSTER_TEMPLATE);
+    props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
 
     final PerfStatSocketTimeout data = new PerfStatSocketTimeout();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);
@@ -293,8 +295,8 @@ public class AuroraPostgresPerformanceTest extends AuroraPostgresBaseTest {
         Arguments.of(30, 5000),
         Arguments.of(30, 10000),
         Arguments.of(30, 15000),
-        Arguments.of(30, 25000),
         Arguments.of(30, 20000),
+        Arguments.of(30, 25000),
         Arguments.of(30, 30000));
   }
 
