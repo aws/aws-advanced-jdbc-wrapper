@@ -410,6 +410,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
    */
   @Test
   public void test_failoverBackToThePreviouslyDownReader() throws Exception {
+    final String topologyRefreshRateMS = "2000";
 
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");
 
@@ -418,7 +419,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
-    props.setProperty(AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, "2000");
+    props.setProperty(AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, topologyRefreshRateMS);
     try (Connection conn = connectToInstance(firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
             POSTGRES_PROXY_PORT, props)) {
       conn.setReadOnly(true);
@@ -466,6 +467,8 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
       proxyInstance = proxyMap.get(secondReaderInstanceId);
       containerHelper.enableConnectivity(proxyInstance);
+
+      Thread.sleep(Integer.parseInt(topologyRefreshRateMS));
 
       final String currentInstanceId = queryInstanceId(conn);
       assertEquals(thirdReaderInstanceId, currentInstanceId);
