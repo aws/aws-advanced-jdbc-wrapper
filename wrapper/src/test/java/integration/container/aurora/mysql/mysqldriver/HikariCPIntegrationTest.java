@@ -16,15 +16,11 @@
 
 package integration.container.aurora.mysql.mysqldriver;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.mysql.cj.log.Log;
-import com.mysql.cj.log.LogFactory;
-import com.mysql.cj.log.StandardLogger;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
@@ -34,15 +30,23 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
 import java.util.List;
+import java.util.Properties;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
 
 public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
-  private static Log log = null;
-  private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
+  private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
   private static HikariDataSource data_source = null;
   private final List<String> clusterTopology = fetchTopology();
 
@@ -62,10 +66,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   }
 
   @BeforeAll
-  static void setup() throws ClassNotFoundException {
-    Class.forName("software.aws.rds.jdbc.mysql.Driver");
-    log = LogFactory.getLogger(StandardLogger.class.getName(), Log.LOGGER_INSTANCE_NAME);
-
+  static void setup() {
     System.setProperty("com.zaxxer.hikari.blockUntilFilled", "true");
   }
 
@@ -75,15 +76,9 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   }
 
   @BeforeEach
-  public void setUpTest() throws SQLException {
-    String writerEndpoint = clusterTopology.get(0);
-
-    String jdbcUrl = DB_CONN_STR_PREFIX + writerEndpoint + URL_SUFFIX;
-    log.logDebug("Writer endpoint: " + jdbcUrl);
-
+  public void setUpTest() {
     final HikariConfig config = new HikariConfig();
 
-    config.setJdbcUrl(jdbcUrl);
     config.setUsername(AURORA_MYSQL_USERNAME);
     config.setPassword(AURORA_MYSQL_PASSWORD);
     config.setMaximumPoolSize(3);
@@ -91,19 +86,38 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
-    config.addDataSourceProperty("failoverTimeoutMs", "5000");
-    config.addDataSourceProperty("failoverReaderConnectTimeoutMs", "1000");
-    config.addDataSourceProperty("clusterInstanceHostPattern", PROXIED_CLUSTER_TEMPLATE);
-    config.addDataSourceProperty("failureDetectionTime", "3000");
-    config.addDataSourceProperty("failureDetectionInterval", "1500");
+
+    config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
+    config.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
+    config.addDataSourceProperty("portPropertyName", "port");
+    config.addDataSourceProperty("serverPropertyName", "serverName");
+
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
+    targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty("socketTimeout", "3000");
+    targetDataSourceProps.setProperty("connectTimeout", "3000");
+    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
+    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
+    targetDataSourceProps.setProperty(
+        AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+        PROXIED_CLUSTER_TEMPLATE);
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
+    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     data_source = new HikariDataSource(config);
 
     final HikariPoolMXBean hikariPoolMXBean = data_source.getHikariPoolMXBean();
 
-    log.logDebug("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
-    log.logDebug("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
-    log.logDebug("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
+    logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
+    logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
+    logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
   }
 
   /**
@@ -116,8 +130,7 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
 
       putDownAllInstances(true);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals("08001", exception.getSQLState());
+      assertThrows(FailoverFailedSQLException.class, () -> queryInstanceId(conn));
       assertFalse(conn.isValid(5));
     }
 
@@ -137,8 +150,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     String reader = clusterTopology.get(1);
     String writerIdentifier = writer.split("\\.")[0];
     String readerIdentifier = reader.split("\\.")[0];
-    log.logDebug("Instance to connect to: " + writerIdentifier);
-    log.logDebug("Instance to fail over to: " + readerIdentifier);
+    logger.fine("Instance to connect to: " + writerIdentifier);
+    logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
 
@@ -150,13 +163,12 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
       bringUpInstance(readerIdentifier);
       putDownInstance(currentInstance);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals("08S02", exception.getSQLState());
+      assertThrows(FailoverSuccessSQLException.class, () -> queryInstanceId(conn));
 
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
       currentInstance = queryInstanceId(conn);
-      log.logDebug("Connected to instance: " + currentInstance);
+      logger.fine("Connected to instance: " + currentInstance);
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
 
       // Try to get a new connection to the failed instance, which times out
@@ -176,8 +188,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     String reader = clusterTopology.get(1);
     String writerIdentifier = writer.split("\\.")[0];
     String readerIdentifier = reader.split("\\.")[0];
-    log.logDebug("Instance to connect to: " + writerIdentifier);
-    log.logDebug("Instance to fail over to: " + readerIdentifier);
+    logger.fine("Instance to connect to: " + writerIdentifier);
+    logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
 
@@ -186,18 +198,17 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));
-      log.logDebug("Connected to instance: " + currentInstance);
+      logger.fine("Connected to instance: " + currentInstance);
 
       bringUpInstance(readerIdentifier);
       putDownInstance(writerIdentifier);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      assertEquals("08S02", exception.getSQLState());
+      assertThrows(FailoverSuccessSQLException.class, () -> queryInstanceId(conn));
 
       // Check the connection is valid after connecting to a different instance
       assertTrue(conn.isValid(5));
       currentInstance = queryInstanceId(conn);
-      log.logDebug("Connected to instance: " + currentInstance);
+      logger.fine("Connected to instance: " + currentInstance);
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
     }
   }
@@ -205,11 +216,11 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   private void putDownInstance(String targetInstance) {
     Proxy toPutDown = proxyMap.get(targetInstance);
     disableInstanceConnection(toPutDown);
-    log.logDebug("Took down " + targetInstance);
+    logger.fine("Took down " + targetInstance);
   }
 
   private void putDownAllInstances(Boolean putDownClusters) {
-    log.logDebug("Putting down all instances");
+    logger.fine("Putting down all instances");
     proxyMap.forEach((instance, proxy) -> {
       if (putDownClusters || (proxy != proxyCluster && proxy != proxyReadOnlyCluster)) {
         disableInstanceConnection(proxy);
@@ -228,6 +239,6 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   private void bringUpInstance(String targetInstance) {
     Proxy toBringUp = proxyMap.get(targetInstance);
     containerHelper.enableConnectivity(toBringUp);
-    log.logDebug("Brought up " + targetInstance);
+    logger.fine("Brought up " + targetInstance);
   }
 }
