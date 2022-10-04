@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Qodana](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml/badge.svg)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml)
 
-The **Amazon Web Services JDBC Driver** has been redesigned as an advanced JDBC wrapper. This wrapper is complementary to and extends the functionality of an existing JDBC driver to help an application take advantage of the features of clustered databases such as Amazon Aurora. The AWS JDBC wrapper does not implement connectivity on its own to any database but will enable support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice.
+The **Amazon Web Services JDBC Driver** has been redesigned as an advanced JDBC wrapper. This wrapper is complementary to and extends the functionality of an existing JDBC driver to help an application take advantage of the features of clustered databases such as Amazon Aurora. The AWS JDBC wrapper does not implement connectivity on its own to any database, but will enable support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice.
 
 The JDBC wrapper is meant to work with any JDBC driver. Currently, the JDBC wrapper has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc). Support for the [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) is being evaluated.
 
-In conjunction with the PostgreSQL JDBC Driver, the AWS JDBC wrapper enables fast failover for Amazon Aurora with PostgreSQL compatibility. It also supports integration with AWS Secrets Manager. We are investigating Read/Write splitting for a future release.
+In conjunction with the PostgreSQL JDBC Driver, the AWS JDBC wrapper enables fast failover for Amazon Aurora with PostgreSQL compatibility. It also supports integration with [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) and [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/). We are investigating Read/Write splitting for a future release.
 
 ## About the Driver
 
@@ -35,10 +35,11 @@ Technical documentation regarding the functionality of the AWS JDBC Driver will 
 
 ## Getting Help and Opening Issues
 If you encounter a bug with the AWS JDBC Driver, we would like to hear about it.
-Please search the [existing issues](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue.
-GitHub issues are intended for bug reports and feature requests. 
+Please search the [existing issues](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue. GitHub issues are intended for bug reports and feature requests. 
 
-When opening a new issue, please include a reproduction case and logs for the issue to help expedite the investigation process.
+When opening a new issue, please fill in all required fields in the issue template to help expedite the investigation process.
+
+For all other questions, please use [GitHub discussions](https://github.com/awslabs/aws-advanced-jdbc-wrapper/discussions).
 
 ## How to Contribute
 1. Set up your environment by following the directions in the [Development Guide](docs/development-guide/DevelopmentGuide.md).
