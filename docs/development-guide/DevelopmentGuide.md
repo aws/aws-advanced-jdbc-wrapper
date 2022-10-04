@@ -90,27 +90,27 @@ Varying values for the network outage delay are tested, represented on the X axi
 
 This diagram shows the failover time with a 30-seconds socket timeout and different network outage delays.
 ![](../images/jdbc_wrapper_postgresql_failover_with_30s_socket_timeout.png)
-See [here](PerformanceResults.md#failover-performance-with-different-socket-timeout-configuration) for a more detailed performance breakdown.
+See [here](PerformanceResults.md#failover-performance-with-30-seconds-socket-timeout-configuration) for a more detailed performance breakdown.
 
 The following diagrams show how the JDBC Wrapper performs under a more common failure detection setting versus a more aggressive setting.
 
 Common Failure Detection Setting
 
-| Parameter                  | Value   |
-|----------------------------|---------|
-| `failoverTimeoutMs`        | `40000` |
-| `failureDetectionTime`     | `30000` |
-| `failureDetectionInterval` | `5000`  |
-| `failureDetectionCount`    | `3`     |
+| Parameter                  | Value    |
+|----------------------------|----------|
+| `failoverTimeoutMs`        | `120000` |
+| `failureDetectionTime`     | `30000`  |
+| `failureDetectionInterval` | `5000`   |
+| `failureDetectionCount`    | `3`      |
 
 Aggressive Failure Detection Setting
 
-| Parameter                  | Value   |
-|----------------------------|---------|
-| `failoverTimeoutMs`        | `40000` |
-| `failureDetectionTime`     | `6000`  |
-| `failureDetectionInterval` | `1000`  |
-| `failureDetectionCount`    | `1`     |
+| Parameter                  | Value    |
+|----------------------------|----------|
+| `failoverTimeoutMs`        | `120000` |
+| `failureDetectionTime`     | `6000`   |
+| `failureDetectionInterval` | `1000`   |
+| `failureDetectionCount`    | `1`      |
 
 For more details on failure detection settings, see [here](../using-the-jdbc-wrapper/using-plugins/UsingTheHostMonitoringPlugin.md#enhanced-failure-monitoring-parameters).
 For more details on failover settings, see [here](../using-the-jdbc-wrapper/FailoverConfigurationGuide.md).
