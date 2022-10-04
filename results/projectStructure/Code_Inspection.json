@@ -582,7 +582,13 @@
       "contentEntries": [
         {
           "path": "file://$PROJECT_DIR$/wrapper/build/jcp/preprocessVersion",
-          "sourceFolders": []
+          "sourceFolders": [
+            {
+              "path": "file://$PROJECT_DIR$/wrapper/build/jcp/preprocessVersion",
+              "type": "Source",
+              "packagePrefix": ""
+            }
+          ]
         },
         {
           "path": "file://$PROJECT_DIR$/wrapper/src/main",
