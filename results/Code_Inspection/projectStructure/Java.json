@@ -1,0 +1,40 @@
+{
+  "modules": [
+    {
+      "name": "aws-advanced-jdbc-wrapper",
+      "languageLevel": 8
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper",
+      "languageLevel": 8
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.buildSrc",
+      "languageLevel": 11
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.test",
+      "languageLevel": 8
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.main",
+      "languageLevel": 8
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.test",
+      "languageLevel": 8
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+      "languageLevel": 8
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.buildSrc.test",
+      "languageLevel": 11
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.buildSrc.main",
+      "languageLevel": 11
+    }
+  ]
+}

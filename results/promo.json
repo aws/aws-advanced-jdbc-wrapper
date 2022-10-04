@@ -1,0 +1,29 @@
+{"version":"3","listProblem":[{
+  "tool": "Code Inspection",
+  "category": "Nullability problems",
+  "type": "@NotNull/@Nullable problems",
+  "severity": "Moderate",
+  "comment": "The generated code will use 'org.jetbrains.annotations.Nullable' instead of 'org.checkerframework.checker.nullness.qual.Nullable'.",
+  "detailsInfo": "Reports problems related to nullability annotations.\n\n**Examples:**\n\n* Overriding methods are not annotated:\n\n\n      abstract class A {\n        @NotNull abstract String m();\n      }\n      class B extends A {\n          String m() { return \"empty string\"; }\n      }\n          \n* Annotated primitive types: `@NotNull int myFoo;`\n* Both `@Nullable` and `@NotNull` are present on the same member: `@Nullable @NotNull String myFooString;`\n* Collection of nullable elements is assigned into a collection of non-null elements:\n\n\n      void testList(List<@Nullable String> nullableList) {\n         List<@NotNull String> list2 = nullableList;\n      }\n          \nUse the **Configure Annotations** button to specify nullability annotations and the checkboxes to fine-tune where the inspection should provide warnings.\n\nThis inspection only reports if the language level of the project or module is 5 or higher,\nand nullability annotations are available on the classpath.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/AwsWrapperProperty.java",
+      "language": "JAVA",
+      "line": 25,
+      "offset": 17,
+      "length": 8,
+      "code": {
+        "startLine": 23,
+        "length": 8,
+        "offset": 78,
+        "surroundingCode": "public class AwsWrapperProperty extends DriverPropertyInfo {\n\n  public final @Nullable String defaultValue;\n\n  public AwsWrapperProperty(String name, @Nullable String defaultValue, String description) {"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "NullableProblems"
+  },
+  "hash": "15d2e94a555f1a113cb2849085bcde6ba463ca87c08db5dae1313022504ac0e3"
+}]}

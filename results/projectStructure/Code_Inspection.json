@@ -1,0 +1,1015 @@
+{
+  "modules": [
+    {
+      "name": "aws-advanced-jdbc-wrapper",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$",
+          "sourceFolders": []
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/wrapper",
+          "sourceFolders": []
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.buildSrc",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/buildSrc",
+          "sourceFolders": []
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.test",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/src/test",
+          "sourceFolders": []
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        },
+        {
+          "name": "aws-advanced-jdbc-wrapper.main",
+          "type": "Module"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.main",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/src/main",
+          "sourceFolders": []
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.test",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/wrapper/src/test",
+          "sourceFolders": [
+            {
+              "path": "file://$PROJECT_DIR$/wrapper/src/test/java",
+              "type": "TestSource",
+              "packagePrefix": ""
+            },
+            {
+              "path": "file://$PROJECT_DIR$/wrapper/src/test/resources",
+              "type": "TestResource",
+              "packagePrefix": ""
+            }
+          ]
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        },
+        {
+          "name": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+          "type": "Module"
+        },
+        {
+          "name": "Gradle: org.checkerframework:checker-qual:3.23.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.platform:junit-platform-suite-engine:1.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.jupiter:junit-jupiter-params:5.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.testcontainers:junit-jupiter:1.17.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.jupiter:junit-jupiter-api:5.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.platform:junit-platform-launcher:1.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.platform:junit-platform-engine:1.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.platform:junit-platform-commons:1.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.commons:commons-dbcp2:2.9.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.postgresql:postgresql:42.5.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: mysql:mysql-connector-java:8.0.30",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.mariadb.jdbc:mariadb-java-client:3.0.8",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework.boot:spring-boot-starter-jdbc:2.7.4",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.zaxxer:HikariCP:4.0.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.mockito:mockito-inline:4.8.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:rds:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:ec2:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.testcontainers:toxiproxy:1.17.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.testcontainers:mysql:1.17.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.testcontainers:postgresql:1.17.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.testcontainers:testcontainers:1.17.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.poi:poi-ooxml:5.2.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.slf4j:slf4j-simple:1.7.36",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:secretsmanager:2.17.250",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.fasterxml.jackson.core:jackson-databind:2.13.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.platform:junit-platform-suite-api:1.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apiguardian:apiguardian-api:1.1.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.opentest4j:opentest4j:1.2.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.commons:commons-pool2:2.10.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: commons-logging:commons-logging:1.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.google.protobuf:protobuf-java:3.19.4",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework.boot:spring-boot-starter:2.7.4",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-jdbc:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.slf4j:slf4j-api:1.7.36",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.mockito:mockito-core:4.8.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:aws-query-protocol:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:protocol-core:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:aws-core:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:auth:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:regions:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:sdk-core:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:profiles:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:http-client-spi:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:metrics-spi:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:utils:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:annotations:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: eu.rekawek.toxiproxy:toxiproxy-java:2.1.7",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.testcontainers:jdbc:1.17.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.github.docker-java:docker-java-api:3.2.13",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.github.docker-java:docker-java-transport-zerodep:3.2.13",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: junit:junit:4.13.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.commons:commons-compress:1.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.rnorth.duct-tape:duct-tape:1.0.8",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.poi:poi:5.2.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.poi:poi-ooxml-lite:5.2.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.xmlbeans:xmlbeans:5.0.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: commons-io:commons-io:2.11.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.github.virtuald:curvesapi:1.07",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.logging.log4j:log4j-api:2.17.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.commons:commons-collections4:4.4",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:aws-json-protocol:2.17.250",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.fasterxml.jackson.core:jackson-annotations:2.13.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.fasterxml.jackson.core:jackson-core:2.13.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework.boot:spring-boot-starter-logging:2.7.4",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework.boot:spring-boot-autoconfigure:2.7.4",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework.boot:spring-boot:2.7.4",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: jakarta.annotation:jakarta.annotation-api:1.3.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-core:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.yaml:snakeyaml:1.30",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-tx:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-beans:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: net.bytebuddy:byte-buddy:1.12.14",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: net.bytebuddy:byte-buddy-agent:1.12.14",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.eventstream:eventstream:1.0.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:json-utils:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.reactivestreams:reactive-streams:1.0.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.google.code.gson:gson:2.9.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.testcontainers:database-commons:1.17.5",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.github.docker-java:docker-java-transport:3.2.13",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: net.java.dev.jna:jna:5.8.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.hamcrest:hamcrest-core:1.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains:annotations:17.0.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: commons-codec:commons-codec:1.15",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.commons:commons-math3:3.6.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.zaxxer:SparseBitSet:1.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:third-party-jackson-core:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: ch.qos.logback:logback-classic:1.2.11",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.logging.log4j:log4j-to-slf4j:2.17.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.slf4j:jul-to-slf4j:1.7.36",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-context:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-jcl:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: ch.qos.logback:logback-core:1.2.11",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-aop:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.springframework:spring-expression:5.3.23",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.jupiter:junit-jupiter-engine:5.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.junit.platform:junit-platform-suite-commons:1.9.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:apache-client:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:netty-nio-client:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.objenesis:objenesis:3.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.httpcomponents:httpclient:4.5.13",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.apache.httpcomponents:httpcore:4.4.13",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-codec-http2:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-codec-http:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-handler:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-codec:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-transport-classes-epoll:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-transport:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-buffer:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-common:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-resolver:4.1.77.Final",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: io.netty:netty-transport-native-unix-common:4.1.77.Final",
+          "type": "Library"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/wrapper/build/jcp/preprocessVersion",
+          "sourceFolders": []
+        },
+        {
+          "path": "file://$PROJECT_DIR$/wrapper/src/main",
+          "sourceFolders": [
+            {
+              "path": "file://$PROJECT_DIR$/wrapper/src/main/java",
+              "type": "Source",
+              "packagePrefix": ""
+            },
+            {
+              "path": "file://$PROJECT_DIR$/wrapper/src/main/resources",
+              "type": "Resource",
+              "packagePrefix": ""
+            }
+          ]
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:rds:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.zaxxer:HikariCP:4.0.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:secretsmanager:2.17.250",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.fasterxml.jackson.core:jackson-databind:2.13.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.checkerframework:checker-qual:3.23.0",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:aws-query-protocol:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:protocol-core:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:aws-core:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:auth:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:regions:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:sdk-core:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:profiles:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:http-client-spi:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:metrics-spi:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:utils:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:annotations:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.slf4j:slf4j-api:1.7.30",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:aws-json-protocol:2.17.250",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.fasterxml.jackson.core:jackson-annotations:2.13.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.fasterxml.jackson.core:jackson-core:2.13.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.eventstream:eventstream:1.0.1",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:json-utils:2.17.259",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.reactivestreams:reactive-streams:1.0.3",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: software.amazon.awssdk:third-party-jackson-core:2.17.259",
+          "type": "Library"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.buildSrc.test",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/buildSrc/src/test",
+          "sourceFolders": []
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        },
+        {
+          "name": "aws-advanced-jdbc-wrapper.buildSrc.main",
+          "type": "Module"
+        },
+        {
+          "name": "/data/cache/gradle/caches/7.5/generated-gradle-jars/gradle-api-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-ant-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-astbuilder-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-console-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-datetime-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-dateutil-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-groovydoc-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-json-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-nio-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-sql-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-templates-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-test-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-xml-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/javaparser-core-3.17.0.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-common-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-jdk7-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-jdk8-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-reflect-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/gradle-installation-beacon-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/caches/7.5/generated-gradle-jars/gradle-kotlin-dsl-extensions-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/gradle-kotlin-dsl-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/gradle-kotlin-dsl-tooling-models-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/caches/7.5/generated-gradle-jars/gradle-test-kit-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-reflect:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.igormaznitsa:jcp:7.0.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib-common:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains:annotations:13.0",
+          "type": "Library"
+        },
+        {
+          "name": "/data/project/buildSrc/build/pluginUnderTestMetadata",
+          "type": "Library"
+        }
+      ]
+    },
+    {
+      "name": "aws-advanced-jdbc-wrapper.buildSrc.main",
+      "contentEntries": [
+        {
+          "path": "file://$PROJECT_DIR$/buildSrc/src/main",
+          "sourceFolders": [
+            {
+              "path": "file://$PROJECT_DIR$/buildSrc/src/main/kotlin",
+              "type": "Source",
+              "packagePrefix": ""
+            }
+          ]
+        }
+      ],
+      "orderEntries": [
+        {
+          "name": "jbr-11",
+          "type": "SDK"
+        },
+        {
+          "name": "<Module source>",
+          "type": "Own sources"
+        },
+        {
+          "name": "/data/cache/gradle/caches/7.5/generated-gradle-jars/gradle-api-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-ant-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-astbuilder-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-console-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-datetime-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-dateutil-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-groovydoc-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-json-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-nio-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-sql-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-templates-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-test-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/groovy-xml-3.0.10.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/javaparser-core-3.17.0.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-common-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-jdk7-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-stdlib-jdk8-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/kotlin-reflect-1.6.21.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/gradle-installation-beacon-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/caches/7.5/generated-gradle-jars/gradle-kotlin-dsl-extensions-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/gradle-kotlin-dsl-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "/data/cache/gradle/wrapper/dists/gradle-7.5-bin/f1w0cc9nuo0eivz97x2xlu9sv/gradle-7.5/lib/gradle-kotlin-dsl-tooling-models-7.5.jar",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-reflect:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: com.igormaznitsa:jcp:7.0.2",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains.kotlin:kotlin-stdlib-common:1.6.21",
+          "type": "Library"
+        },
+        {
+          "name": "Gradle: org.jetbrains:annotations:13.0",
+          "type": "Library"
+        }
+      ]
+    }
+  ]
+}

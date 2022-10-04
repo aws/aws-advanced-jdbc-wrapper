@@ -1,0 +1,1821 @@
+{"version":"3","listProblem":[{
+  "tool": "Code Inspection",
+  "category": "Finalization",
+  "type": "'finalize()' should not be overridden",
+  "severity": "High",
+  "comment": "'finalize()' should not be overridden",
+  "detailsInfo": "Reports overriding the `Object.finalize()` method.\n\nAccording to the `Object.finalize()` documentation:\n>\n> The finalization mechanism is inherently problematic. Finalization can lead\n> to performance issues, deadlocks, and hangs. Errors in finalizers can lead\n> to resource leaks; there is no way to cancel finalization if it is no longer\n> necessary; and no ordering is specified among calls to `finalize`\n> methods of different objects. Furthermore, there are no guarantees regarding\n> the timing of finalization. The `finalize` method might be called\n> on a finalizable object only after an indefinite delay, if at all.\n\nConfigure the inspection:\n\n* Use the **Ignore for trivial 'finalize()' implementations** option to ignore `finalize()` implementations with an empty method body or a body containing only `if` statements that have a condition which evaluates to `false` and is a compile-time constant. For performance reasons it can be beneficial to override a non-trivial `finalize()` with an empty implementation in a subclass. An empty final `finalize()` implementation can also be used to prevent subclasses from overriding.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/ConnectionWrapper.java",
+      "language": "JAVA",
+      "line": 817,
+      "offset": 18,
+      "length": 8,
+      "code": {
+        "startLine": 815,
+        "length": 8,
+        "offset": 64,
+        "surroundingCode": "\n  @SuppressWarnings(\"checkstyle:NoFinalizer\")\n  protected void finalize() throws Throwable {\n\n    try {"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "Finalize"
+  },
+  "hash": "43067fa22726f0cd398b97c668fc45e4a1753f7ec7a40d35cc3d56cb7280eacf"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Redundant operation on empty container",
+  "severity": "High",
+  "comment": "Map 'PROPS_BY_NAME' is always empty",
+  "detailsInfo": "Reports redundant operations on empty collections, maps or arrays.\n\n\nIterating, removing elements, sorting,\nand some other operations on empty collections have no effect and can be removed. Also, they may be a signal of a bug.\n\n**Example:**\n\n\n      if (numbers.isEmpty()){\n        //error due to the missed negation\n        int max = numbers.stream().max(Comparator.naturalOrder()).get();\n        ...\n      }\n\nNew in 2019.1",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PropertyDefinition.java",
+      "language": "JAVA",
+      "line": 79,
+      "offset": 5,
+      "length": 13,
+      "code": {
+        "startLine": 77,
+        "length": 13,
+        "offset": 16,
+        "surroundingCode": "\n  static {\n    PROPS_BY_NAME.clear();\n    Field[] ff = PropertyDefinition.class.getDeclaredFields();\n    Arrays.stream(PropertyDefinition.class.getDeclaredFields())"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "RedundantOperationOnEmptyContainer"
+  },
+  "hash": "b70b53bc5dd17c43298ff42494cf534b8b123caf5f39ec589587409396fcac74"
+},{
+  "tool": "Code Inspection",
+  "category": "RegExp",
+  "type": "Duplicate character in character class",
+  "severity": "High",
+  "comment": "Duplicate predefined character class 'w' inside character class",
+  "detailsInfo": "Reports duplicate characters inside a RegExp character class. Duplicate characters are unnecessary and can be removed without changing the semantics of the regex.\n\n**Example:**\n\n\n      [aabc]\n\nAfter the quick-fix is applied:\n\n\n      [abc]\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/util/ConnectionUrlParser.java",
+      "language": "RegExp",
+      "line": 33,
+      "offset": 32,
+      "length": 3,
+      "code": {
+        "startLine": 31,
+        "length": 3,
+        "offset": 105,
+        "surroundingCode": "  static final Pattern CONNECTION_STRING_PATTERN =\n      Pattern.compile(\n          \"(?<protocol>[\\\\w(\\\\-\\\\w)?\\\\+:%]+)\\\\s*\" // Driver protocol. \"word1:word2:...\" or \"word1-word2:word3:...\"\n              + \"(?://(?<hosts>[^/?#]*))?\\\\s*\" // Optional list of host(s) starting with // and\n              // follows by any char except \"/\", \"?\" or \"#\""
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "RegExpDuplicateCharacterInClass"
+  },
+  "hash": "a1005e6d764172e84ecf11db6bdc9187e15b64f6d65cb5cefe84659a23ef9085"
+},{
+  "tool": "Code Inspection",
+  "category": "Error handling",
+  "type": "'throw' inside 'finally' block",
+  "severity": "High",
+  "comment": "'throw' inside 'finally' block",
+  "detailsInfo": "Reports `throw` statements inside `finally` blocks.\n\nWhile occasionally intended, such `throw` statements may conceal exceptions thrown from `try`-`catch` and thus\ntremendously complicate the debugging process.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 184,
+      "offset": 11,
+      "length": 5,
+      "code": {
+        "startLine": 182,
+        "length": 5,
+        "offset": 130,
+        "surroundingCode": "          isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();\n        } catch (SQLException e) {\n          throw castException(exceptionClass, e);\n        }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ThrowFromFinallyBlock"
+  },
+  "hash": "700faf8fa1de98d6ec81c72855ef4ba8ebd6ee91ba374d48979dacbc8ad33dbe"
+},{
+  "tool": "Code Inspection",
+  "category": "Error handling",
+  "type": "'throw' inside 'finally' block",
+  "severity": "High",
+  "comment": "'throw' inside 'finally' block",
+  "detailsInfo": "Reports `throw` statements inside `finally` blocks.\n\nWhile occasionally intended, such `throw` statements may conceal exceptions thrown from `try`-`catch` and thus\ntremendously complicate the debugging process.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 193,
+      "offset": 13,
+      "length": 5,
+      "code": {
+        "startLine": 191,
+        "length": 5,
+        "offset": 80,
+        "surroundingCode": "          if (!isConnectionClosed) {\n            abortConnection();\n            throw castException(\n                exceptionClass,\n                new SQLException("
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ThrowFromFinallyBlock"
+  },
+  "hash": "4fdf38c5198f82df1429a6bb8d9d3cd9344beafb39cedbb683c07d96ccbe1b5c"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'currentConnection' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 50,
+      "offset": 24,
+      "length": 17,
+      "code": {
+        "startLine": 48,
+        "length": 17,
+        "offset": 133,
+        "surroundingCode": "  protected volatile HostListProvider hostListProvider;\n  protected List<HostSpec> hosts = new ArrayList<>();\n  protected Connection currentConnection;\n  protected HostSpec currentHostSpec;\n  private boolean isInTransaction;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "68d01a2f86aa7a747864df7189cca70fb975a69a527ad8db501c6f5b39737b52"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'currentHostSpec' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 51,
+      "offset": 22,
+      "length": 15,
+      "code": {
+        "startLine": 49,
+        "length": 15,
+        "offset": 117,
+        "surroundingCode": "  protected List<HostSpec> hosts = new ArrayList<>();\n  protected Connection currentConnection;\n  protected HostSpec currentHostSpec;\n  private boolean isInTransaction;\n  private boolean explicitReadOnly;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "d75e86cc8a23d710b0fd3fc10d273d7d107220c5c203a3d886c0a249820dde8d"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'pluginManager' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/ConnectionWrapper.java",
+      "language": "JAVA",
+      "line": 57,
+      "offset": 37,
+      "length": 13,
+      "code": {
+        "startLine": 55,
+        "length": 13,
+        "offset": 129,
+        "surroundingCode": "  private static final Logger LOGGER = Logger.getLogger(ConnectionWrapper.class.getName());\n\n  protected ConnectionPluginManager pluginManager;\n  protected PluginService pluginService;\n  protected HostListProviderService hostListProviderService;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "764f2746b6aa0178458d62bc978fd1c4ca5b5f1b47af8441db6d8c9e35bc60b9"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'pluginService' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/ConnectionWrapper.java",
+      "language": "JAVA",
+      "line": 58,
+      "offset": 27,
+      "length": 13,
+      "code": {
+        "startLine": 56,
+        "length": 13,
+        "offset": 78,
+        "surroundingCode": "\n  protected ConnectionPluginManager pluginManager;\n  protected PluginService pluginService;\n  protected HostListProviderService hostListProviderService;\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "6fb2c124b0830916c7ff45d199720af9edee60eee2a91e8e2d08352cb59344b4"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'pluginManagerService' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 94,
+      "offset": 32,
+      "length": 20,
+      "code": {
+        "startLine": 92,
+        "length": 20,
+        "offset": 146,
+        "surroundingCode": "  protected ReaderFailoverHandler readerFailoverHandler = null;\n  private Throwable lastExceptionDealtWith = null;\n  private PluginManagerService pluginManagerService;\n  private boolean isInTransaction = false;\n  private RdsUrlType rdsUrlType;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "a87fd8d85b4417ba82ab5ccb0e310c676caa863d11f474c2f9426b338b832267"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'isClosed' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 87,
+      "offset": 21,
+      "length": 8,
+      "code": {
+        "startLine": 85,
+        "length": 8,
+        "offset": 102,
+        "surroundingCode": "  Boolean explicitlyReadOnly = false;\n  private boolean closedExplicitly = false;\n  protected boolean isClosed = false;\n  protected String closedReason = null;\n  private final RdsUtils rdsHelper;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "b6da1abf52ca8c2247ac87cf1890b9104df3bf17bf069fc2d804c6f02beef591"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'closedExplicitly' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 86,
+      "offset": 19,
+      "length": 16,
+      "code": {
+        "startLine": 84,
+        "length": 16,
+        "offset": 105,
+        "surroundingCode": "  protected boolean explicitlyAutoCommit = true;\n  Boolean explicitlyReadOnly = false;\n  private boolean closedExplicitly = false;\n  protected boolean isClosed = false;\n  protected String closedReason = null;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "b60ab673b96719c1762d14af98d1e88f84c2b22aa7af4a93b3b74ee0959cb466"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'isInTransaction' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 95,
+      "offset": 19,
+      "length": 15,
+      "code": {
+        "startLine": 93,
+        "length": 15,
+        "offset": 122,
+        "surroundingCode": "  private Throwable lastExceptionDealtWith = null;\n  private PluginManagerService pluginManagerService;\n  private boolean isInTransaction = false;\n  private RdsUrlType rdsUrlType;\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "1af6093b94a99413a9280c5f40fbf7f8b5836a6973260efbe863d1e13213d6b4"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'connectionCheckIntervalMillis' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/efm/MonitorImpl.java",
+      "language": "JAVA",
+      "line": 60,
+      "offset": 16,
+      "length": 29,
+      "code": {
+        "startLine": 58,
+        "length": 29,
+        "offset": 94,
+        "surroundingCode": "  private final HostSpec hostSpec;\n  private Connection monitoringConn = null;\n  private long connectionCheckIntervalMillis = Long.MAX_VALUE;\n  private final AtomicLong lastContextUsedTimestamp = new AtomicLong(); // in nanos\n  private final long monitorDisposalTimeMillis;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "e6111f06757edc68476f62a4821e35277f04cd84922ea8ae935cd0749fcc0ab1"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Field accessed in both 'synchronized' and unsynchronized contexts",
+  "severity": "High",
+  "comment": "Field 'clusterId' is accessed in both synchronized and unsynchronized contexts",
+  "detailsInfo": "Reports non-final fields that are accessed in both `synchronized` and non-`synchronized` contexts. `volatile` fields as well as accesses in constructors and initializers are ignored by this inspection.\n\n\nSuch \"partially synchronized\" access is often the result of a coding oversight\nand may lead to unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      public class Program {\n        Console console; // warning: Field 'console' is accessed in both synchronized and unsynchronized contexts\n\n        public synchronized void execute() {\n          console.print(\"running\");\n        }\n\n        public void check() {\n          console.check();\n        }\n      }\n\n\nUse the option to specify if simple getters and setters are counted as accesses too.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/hostlistprovider/AuroraHostListProvider.java",
+      "language": "JAVA",
+      "line": 106,
+      "offset": 20,
+      "length": 9,
+      "code": {
+        "startLine": 104,
+        "length": 9,
+        "offset": 105,
+        "surroundingCode": "  private final String retrieveInstanceQuery;\n  private final String instanceNameCol;\n  protected String clusterId;\n  protected HostSpec clusterInstanceTemplate;\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "FieldAccessedSynchronizedAndUnsynchronized"
+  },
+  "hash": "822f291451fe6169e59a39f5b99ea075f7292571d72010388ca7ab4b824a9346"
+},{
+  "tool": "Code Inspection",
+  "category": "RegExp",
+  "type": "Redundant character escape",
+  "severity": "High",
+  "comment": "Redundant character escape '+' in RegExp",
+  "detailsInfo": "Reports redundant character escape sequences that can be replaced with unescaped characters preserving the meaning. Many escape sequences that are necessary outside of a character class are redundant inside square brackets `[]` of a character class.\n\n\nAlthough unescaped opening curly braces `{` outside of character classes are allowed in some dialects (JavaScript, Python, and so on),\nit can cause confusion and make the pattern less portable, because there are dialects that require escaping curly braces as characters.\nFor this reason the inspection does not report escaped opening curly braces.\n\n**Example:**\n\n\n      \\-\\;[\\.]\n\nAfter the quick-fix is applied:\n\n\n      -;[.]\n\n\nThe **Ignore escaped closing brackets '}' and '\\]'** option specifies whether to report `\\}` and `\\]` outside of a character class\nwhen they are allowed to be unescaped by the RegExp dialect.\n\nNew in 2017.3",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/util/ConnectionUrlParser.java",
+      "language": "RegExp",
+      "line": 33,
+      "offset": 37,
+      "length": 3,
+      "code": {
+        "startLine": 31,
+        "length": 3,
+        "offset": 110,
+        "surroundingCode": "  static final Pattern CONNECTION_STRING_PATTERN =\n      Pattern.compile(\n          \"(?<protocol>[\\\\w(\\\\-\\\\w)?\\\\+:%]+)\\\\s*\" // Driver protocol. \"word1:word2:...\" or \"word1-word2:word3:...\"\n              + \"(?://(?<hosts>[^/?#]*))?\\\\s*\" // Optional list of host(s) starting with // and\n              // follows by any char except \"/\", \"?\" or \"#\""
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "RegExpRedundantEscape"
+  },
+  "hash": "0bdf435354da8994c23bf3830fd11e009e085a0b006b7749092a9b46f6688f79"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Use of 'Properties' object as a 'Hashtable'",
+  "severity": "High",
+  "comment": "Call to 'Hashtable.get()' on properties object",
+  "detailsInfo": "Reports calls to the following methods on `java.util.Properties` objects:\n\n* `put()`\n* `putIfAbsent()`\n* `putAll()`\n* `get()`\n\n\nFor historical reasons, `java.util.Properties` inherits from `java.util.Hashtable`,\nbut using these methods is discouraged to prevent pollution of properties with values of types other than `String`.\n\n\nCalls to `java.util.Properties.putAll()` won't get reported when\nboth the key and the value parameters in the map are of the `String` type.\nSuch a call is safe and no better alternative exists.\n\n**Example:**\n\n\n      Object f(Properties props) {\n        props.put(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.get(\"Hello\");\n      }\n\nAfter the quick-fix is applied:\n\n\n      Object f(Properties props) {\n        props.setProperty(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.getProperty(\"hello\");\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/AwsWrapperProperty.java",
+      "language": "JAVA",
+      "line": 62,
+      "offset": 31,
+      "length": 3,
+      "code": {
+        "startLine": 60,
+        "length": 3,
+        "offset": 80,
+        "surroundingCode": "\n  public int getInteger(Properties properties) {\n    Object value = properties.get(name);\n    if (value instanceof Integer) {\n      return (Integer) value;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "UseOfPropertiesAsHashtable"
+  },
+  "hash": "9a866c23935529e742f98f4f3b9863c0211a8c8d7843e4943b811f2d8cff88b3"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Use of 'Properties' object as a 'Hashtable'",
+  "severity": "High",
+  "comment": "Call to 'Hashtable.get()' on properties object",
+  "detailsInfo": "Reports calls to the following methods on `java.util.Properties` objects:\n\n* `put()`\n* `putIfAbsent()`\n* `putAll()`\n* `get()`\n\n\nFor historical reasons, `java.util.Properties` inherits from `java.util.Hashtable`,\nbut using these methods is discouraged to prevent pollution of properties with values of types other than `String`.\n\n\nCalls to `java.util.Properties.putAll()` won't get reported when\nboth the key and the value parameters in the map are of the `String` type.\nSuch a call is safe and no better alternative exists.\n\n**Example:**\n\n\n      Object f(Properties props) {\n        props.put(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.get(\"Hello\");\n      }\n\nAfter the quick-fix is applied:\n\n\n      Object f(Properties props) {\n        props.setProperty(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.getProperty(\"hello\");\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/AwsWrapperProperty.java",
+      "language": "JAVA",
+      "line": 54,
+      "offset": 31,
+      "length": 3,
+      "code": {
+        "startLine": 52,
+        "length": 3,
+        "offset": 84,
+        "surroundingCode": "\n  public boolean getBoolean(Properties properties) {\n    Object value = properties.get(name);\n    if (value instanceof Boolean) {\n      return (Boolean) value;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "UseOfPropertiesAsHashtable"
+  },
+  "hash": "749461da92b282ca937305b6648bb18b7eccc7f774f5b5b8bc37068a386a5a2f"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Use of 'Properties' object as a 'Hashtable'",
+  "severity": "High",
+  "comment": "Call to 'Hashtable.get()' on properties object",
+  "detailsInfo": "Reports calls to the following methods on `java.util.Properties` objects:\n\n* `put()`\n* `putIfAbsent()`\n* `putAll()`\n* `get()`\n\n\nFor historical reasons, `java.util.Properties` inherits from `java.util.Hashtable`,\nbut using these methods is discouraged to prevent pollution of properties with values of types other than `String`.\n\n\nCalls to `java.util.Properties.putAll()` won't get reported when\nboth the key and the value parameters in the map are of the `String` type.\nSuch a call is safe and no better alternative exists.\n\n**Example:**\n\n\n      Object f(Properties props) {\n        props.put(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.get(\"Hello\");\n      }\n\nAfter the quick-fix is applied:\n\n\n      Object f(Properties props) {\n        props.setProperty(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.getProperty(\"hello\");\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/AwsWrapperProperty.java",
+      "language": "JAVA",
+      "line": 70,
+      "offset": 31,
+      "length": 3,
+      "code": {
+        "startLine": 68,
+        "length": 3,
+        "offset": 78,
+        "surroundingCode": "\n  public long getLong(Properties properties) {\n    Object value = properties.get(name);\n    if (value instanceof Long) {\n      return (Long) value;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "UseOfPropertiesAsHashtable"
+  },
+  "hash": "b5aaf73397ecd53ea08d127ffdf16c75d157787a94640fc88b62a0405b11fc9c"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Use of 'Properties' object as a 'Hashtable'",
+  "severity": "High",
+  "comment": "Call to 'Hashtable.get()' on properties object",
+  "detailsInfo": "Reports calls to the following methods on `java.util.Properties` objects:\n\n* `put()`\n* `putIfAbsent()`\n* `putAll()`\n* `get()`\n\n\nFor historical reasons, `java.util.Properties` inherits from `java.util.Hashtable`,\nbut using these methods is discouraged to prevent pollution of properties with values of types other than `String`.\n\n\nCalls to `java.util.Properties.putAll()` won't get reported when\nboth the key and the value parameters in the map are of the `String` type.\nSuch a call is safe and no better alternative exists.\n\n**Example:**\n\n\n      Object f(Properties props) {\n        props.put(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.get(\"Hello\");\n      }\n\nAfter the quick-fix is applied:\n\n\n      Object f(Properties props) {\n        props.setProperty(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.getProperty(\"hello\");\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/util/PropertyUtils.java",
+      "language": "JAVA",
+      "line": 44,
+      "offset": 32,
+      "length": 3,
+      "code": {
+        "startLine": 42,
+        "length": 3,
+        "offset": 121,
+        "surroundingCode": "      Object propValue = properties.getProperty(propName);\n      if (propValue == null) {\n        propValue = properties.get(key);\n      }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "UseOfPropertiesAsHashtable"
+  },
+  "hash": "fa01300e17d04a91c590fddf79ad5169dd9358abdec02b5a93cb3195cab48bab"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Use of 'Properties' object as a 'Hashtable'",
+  "severity": "High",
+  "comment": "Call to 'Hashtable.get()' on properties object",
+  "detailsInfo": "Reports calls to the following methods on `java.util.Properties` objects:\n\n* `put()`\n* `putIfAbsent()`\n* `putAll()`\n* `get()`\n\n\nFor historical reasons, `java.util.Properties` inherits from `java.util.Hashtable`,\nbut using these methods is discouraged to prevent pollution of properties with values of types other than `String`.\n\n\nCalls to `java.util.Properties.putAll()` won't get reported when\nboth the key and the value parameters in the map are of the `String` type.\nSuch a call is safe and no better alternative exists.\n\n**Example:**\n\n\n      Object f(Properties props) {\n        props.put(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.get(\"Hello\");\n      }\n\nAfter the quick-fix is applied:\n\n\n      Object f(Properties props) {\n        props.setProperty(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.getProperty(\"hello\");\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/util/ConnectionUrlBuilder.java",
+      "language": "JAVA",
+      "line": 57,
+      "offset": 30,
+      "length": 3,
+      "code": {
+        "startLine": 55,
+        "length": 3,
+        "offset": 86,
+        "surroundingCode": "      urlBuilder.append(hostSpec.getUrl());\n    } else {\n      urlBuilder.append(copy.get(serverPropertyName));\n\n      if (!isNullOrEmpty(portPropertyName) && !isNullOrEmpty(copy.getProperty(portPropertyName))) {"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "UseOfPropertiesAsHashtable"
+  },
+  "hash": "afe16fab8c8ec47b8066903bc386186854d9115a68f14c9e15da7c20e79d30d4"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Use of 'Properties' object as a 'Hashtable'",
+  "severity": "High",
+  "comment": "Call to 'Hashtable.get()' on properties object",
+  "detailsInfo": "Reports calls to the following methods on `java.util.Properties` objects:\n\n* `put()`\n* `putIfAbsent()`\n* `putAll()`\n* `get()`\n\n\nFor historical reasons, `java.util.Properties` inherits from `java.util.Hashtable`,\nbut using these methods is discouraged to prevent pollution of properties with values of types other than `String`.\n\n\nCalls to `java.util.Properties.putAll()` won't get reported when\nboth the key and the value parameters in the map are of the `String` type.\nSuch a call is safe and no better alternative exists.\n\n**Example:**\n\n\n      Object f(Properties props) {\n        props.put(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.get(\"Hello\");\n      }\n\nAfter the quick-fix is applied:\n\n\n      Object f(Properties props) {\n        props.setProperty(\"hello\", \"world\");\n        props.putIfAbsent(\"hello\", \"world\");\n        props.putAll(new HashMap<>());\n        return props.getProperty(\"hello\");\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/util/ConnectionUrlBuilder.java",
+      "language": "JAVA",
+      "line": 60,
+      "offset": 44,
+      "length": 3,
+      "code": {
+        "startLine": 58,
+        "length": 3,
+        "offset": 144,
+        "surroundingCode": "\n      if (!isNullOrEmpty(portPropertyName) && !isNullOrEmpty(copy.getProperty(portPropertyName))) {\n        urlBuilder.append(\":\").append(copy.get(portPropertyName));\n      }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "UseOfPropertiesAsHashtable"
+  },
+  "hash": "81139cbdcad5ba621cbc246d642112daf0539359fab23dd60062843fc575b51d"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Confusing primitive array argument to varargs method",
+  "severity": "High",
+  "comment": "Confusing primitive array argument to varargs method",
+  "detailsInfo": "Reports any calls to a variable arity method where the call has a primitive array in the variable arity parameter position (for example, `System.out.printf(\"%s\", new int[]{1, 2, 3})`). Such a primitive-array argument may be confusing, as it will be wrapped as a single-element array, rather than each individual element being boxed, as might be expected.\n\n**Example:**\n\n\n      String.format(\"%s\", new int[]{1, 2, 3});\n\nAfter the quick-fix is applied:\n\n\n      String.format(\"%s\", (Object) new int[]{1, 2, 3});\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/SQLOutputWrapper.java",
+      "language": "JAVA",
+      "line": 160,
+      "offset": 9,
+      "length": 1,
+      "code": {
+        "startLine": 158,
+        "length": 1,
+        "offset": 84,
+        "surroundingCode": "        \"SQLOutput.writeBytes\",\n        () -> this.sqlOutput.writeBytes(x),\n        x);\n  }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PrimitiveArrayArgumentToVariableArgMethod"
+  },
+  "hash": "edee3689f501f3558e7d17cf6387c14b004062f5de3b182997b1cc9392688d22"
+},{
+  "tool": "Code Inspection",
+  "category": "Verbose or redundant code constructs",
+  "type": "'StringBuilder' can be replaced with 'String'",
+  "severity": "High",
+  "comment": "'StringBuilder urlBuilder' can be replaced with 'String'",
+  "detailsInfo": "Reports usages of `StringBuffer`, `StringBuilder`, or `StringJoiner` which can be replaced with a single `String` concatenation.\n\nUsing `String` concatenation\nmakes the code shorter and simpler.\n\n\nThis inspection only reports when the suggested replacement does not result in significant\nperformance drawback on modern JVMs. In many cases, `String` concatenation may perform better.\n\n**Example:**\n\n\n      StringBuilder result = new StringBuilder();\n      result.append(\"i = \");\n      result.append(i);\n      result.append(\";\");\n      return result.toString();\n\nAfter the quick-fix is applied:\n\n\n      String result = \"i = \" + i + \";\";\n      return result;\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/DriverConnectionProvider.java",
+      "language": "JAVA",
+      "line": 64,
+      "offset": 25,
+      "length": 10,
+      "code": {
+        "startLine": 62,
+        "length": 10,
+        "offset": 98,
+        "surroundingCode": "        ? PropertyDefinition.DATABASE_NAME.getString(props)\n        : \"\";\n    final StringBuilder urlBuilder = new StringBuilder();\n    urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "StringBufferReplaceableByString"
+  },
+  "hash": "e6e7a3955ea1a0fca6f031d90218f847ddf202d63a8652ac8490a10c3d50e435"
+},{
+  "tool": "Code Inspection",
+  "category": "Verbose or redundant code constructs",
+  "type": "'StringBuilder' can be replaced with 'String'",
+  "severity": "High",
+  "comment": "'StringBuilder msg' can be replaced with 'String'",
+  "detailsInfo": "Reports usages of `StringBuffer`, `StringBuilder`, or `StringJoiner` which can be replaced with a single `String` concatenation.\n\nUsing `String` concatenation\nmakes the code shorter and simpler.\n\n\nThis inspection only reports when the suggested replacement does not result in significant\nperformance drawback on modern JVMs. In many cases, `String` concatenation may perform better.\n\n**Example:**\n\n\n      StringBuilder result = new StringBuilder();\n      result.append(\"i = \");\n      result.append(i);\n      result.append(\";\");\n      return result.toString();\n\nAfter the quick-fix is applied:\n\n\n      String result = \"i = \" + i + \";\";\n      return result;\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 426,
+      "offset": 23,
+      "length": 3,
+      "code": {
+        "startLine": 424,
+        "length": 3,
+        "offset": 116,
+        "surroundingCode": "    } catch (SQLException e) {\n      if (this.pluginService.getCurrentConnection() != null) {\n        StringBuilder msg =\n            new StringBuilder(\"Connection to \")\n                .append(isWriter(host) ? \"writer\" : \"reader\")"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "StringBufferReplaceableByString"
+  },
+  "hash": "2f0a540da39b71bcdaa0c34b148c25c5ef8c04da7ed52b8bd2053d25e098b55f"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Synchronization on 'this'",
+  "severity": "High",
+  "comment": "Lock operations on 'this' may have unforeseen side-effects",
+  "detailsInfo": "Reports synchronization on `this` or `class` expressions. The reported constructs include `synchronized` blocks and calls to `wait()`, `notify()` or `notifyAll()`.\n\nThere are several reasons synchronization on `this` or `class` expressions may be a bad idea:\n\n1. it makes synchronization a part of the external interface of the class, which makes a future change to a different locking mechanism difficult,\n2. it becomes hard to track just who is locking on a given object,\n3. it makes a denial-of-service attack possible, either on purpose or it can happen easily by accident when subclassing.\n\nAs an alternative, consider synchronizing on a `private final` lock object, access to which can be completely controlled.\n\n**Example:**\n\n\n      public void print() {\n        synchronized(this) { // warning: Lock operations on 'this' may have unforeseen side-effects\n          System.out.println(\"synchronized\");\n        }\n      }\n      \n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 259,
+      "offset": 21,
+      "length": 4,
+      "code": {
+        "startLine": 257,
+        "length": 4,
+        "offset": 111,
+        "surroundingCode": "  public HostListProvider getHostListProvider() {\n    if (this.hostListProvider == null) {\n      synchronized (this) {\n        if (this.hostListProvider == null) {\n          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "SynchronizeOnThis"
+  },
+  "hash": "c3b8ec05df0130d0ed3da21be89c8a93fd5deda607f3dc9af15a5a632668df43"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Argument 'props' might be null",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/Driver.java",
+      "language": "JAVA",
+      "line": 89,
+      "offset": 68,
+      "length": 5,
+      "code": {
+        "startLine": 87,
+        "length": 5,
+        "offset": 119,
+        "surroundingCode": "    Properties props = parseProperties(url, info);\n\n    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);\n    if (!StringUtils.isNullOrEmpty(logLevelStr)) {\n      Level logLevel = Level.parse(logLevelStr);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "e44d8ed8a023f41caeeb927c8404702735ae326bc54be58eaacc67c14afa0573"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Passing 'null' argument to parameter annotated as @NotNull",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 309,
+      "offset": 58,
+      "length": 4,
+      "code": {
+        "startLine": 307,
+        "length": 4,
+        "offset": 102,
+        "surroundingCode": "      } else {\n        // host maybe changed\n        EnumSet<NodeChangeOptions> hostChanges = compare(null, entry.getValue(), null,\n            correspondingNewHost);\n        if (!hostChanges.isEmpty()) {"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "132925482c3707385276da918bc9c6dd25a0cbf0ad414c97854c697ff9940a5a"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Passing 'null' argument to parameter annotated as @NotNull",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 309,
+      "offset": 82,
+      "length": 4,
+      "code": {
+        "startLine": 307,
+        "length": 4,
+        "offset": 126,
+        "surroundingCode": "      } else {\n        // host maybe changed\n        EnumSet<NodeChangeOptions> hostChanges = compare(null, entry.getValue(), null,\n            correspondingNewHost);\n        if (!hostChanges.isEmpty()) {"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "0963a864510c1a8d1628469a612500ac96a5591642eca7f89ff82a3be3ea4634"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Argument 'this.jdbcUrl' might be null",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java",
+      "language": "JAVA",
+      "line": 358,
+      "offset": 69,
+      "length": 12,
+      "code": {
+        "startLine": 356,
+        "length": 12,
+        "offset": 135,
+        "surroundingCode": "\n  private void setCredentialPropertiesFromUrl(Properties props) {\n    final String userFromUrl = ConnectionUrlParser.parseUserFromUrl(this.jdbcUrl, this.userPropertyName);\n    if (isNullOrEmpty(this.user) && !isNullOrEmpty(userFromUrl)) {\n      PropertyDefinition.USER.set(props, userFromUrl);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "7f0e0b00ac9e8b660adc99f70b16e02daee68ec12e54dcf081733f36d9d8e071"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Argument 'this.jdbcUrl' might be null",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java",
+      "language": "JAVA",
+      "line": 129,
+      "offset": 11,
+      "length": 12,
+      "code": {
+        "startLine": 127,
+        "length": 12,
+        "offset": 63,
+        "surroundingCode": "      return new ConnectionWrapper(\n          props,\n          this.jdbcUrl,\n          new DataSourceConnectionProvider(\n              targetDataSource,"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "cd46f1cc4ef32b3563bcf7c6532aa72bd3a60e96174fa27e414879dca9c98e68"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Argument 'this.jdbcUrl' might be null",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java",
+      "language": "JAVA",
+      "line": 147,
+      "offset": 30,
+      "length": 12,
+      "code": {
+        "startLine": 145,
+        "length": 12,
+        "offset": 38,
+        "surroundingCode": "      }\n\n      parsePropertiesFromUrl(this.jdbcUrl, props);\n      setCredentialProperties(props);\n      setDatabasePropertyFromUrl(props);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "e26bd90bfcf88771419e45e2c595824164bd53d4f6708781db246d3afef39630"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Argument 'this.jdbcUrl' might be null",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/ds/AwsWrapperDataSource.java",
+      "language": "JAVA",
+      "line": 351,
+      "offset": 74,
+      "length": 12,
+      "code": {
+        "startLine": 349,
+        "length": 12,
+        "offset": 136,
+        "surroundingCode": "\n  private void setDatabasePropertyFromUrl(Properties props) {\n    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(this.jdbcUrl);\n    if (!isNullOrEmpty(databaseName)) {\n      PropertyDefinition.DATABASE_NAME.set(props, databaseName);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "89c7d470dd78d1d12125b9eba9e0ec7a850b21a17acc16d604a32f0d5a2751d3"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Argument 'connection' might be null",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 535,
+      "offset": 45,
+      "length": 10,
+      "code": {
+        "startLine": 533,
+        "length": 10,
+        "offset": 113,
+        "surroundingCode": "    }\n    syncSessionState(currentConnection, connection, readOnly);\n    this.pluginService.setCurrentConnection(connection, host);\n\n    if (this.pluginManagerService != null) {"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "826f6a8204ca936129e9562a606c5442fe5ad37fb1e9ae1dbdbd0ebf4ba0adff"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "Moderate",
+  "comment": "Value 'success' is always 'false'",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/ClusterAwareWriterFailoverHandler.java",
+      "language": "JAVA",
+      "line": 266,
+      "offset": 41,
+      "length": 7,
+      "code": {
+        "startLine": 264,
+        "length": 7,
+        "offset": 133,
+        "surroundingCode": "      } catch (InterruptedException exception) {\n        Thread.currentThread().interrupt();\n        return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, \"TaskA\");\n      } catch (Exception ex) {\n        LOGGER.severe(ex.getMessage());"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "b00ac7eb0f051f25cea8f0dc5ed2e5a4f801608f1cb456a6607555740e990226"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Condition 'success' is always 'false'",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/ClusterAwareWriterFailoverHandler.java",
+      "language": "JAVA",
+      "line": 266,
+      "offset": 73,
+      "length": 7,
+      "code": {
+        "startLine": 264,
+        "length": 7,
+        "offset": 165,
+        "surroundingCode": "      } catch (InterruptedException exception) {\n        Thread.currentThread().interrupt();\n        return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, \"TaskA\");\n      } catch (Exception ex) {\n        LOGGER.severe(ex.getMessage());"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "275bb1b24cc316d016bb34042f0782a414c4288d27ade721cf724845b028c598"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Condition 'pluginService == null' is always 'false'",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 111,
+      "offset": 9,
+      "length": 21,
+      "code": {
+        "startLine": 109,
+        "length": 21,
+        "offset": 124,
+        "surroundingCode": "      final @NonNull Properties properties,\n      final @NonNull Supplier<MonitorService> monitorServiceSupplier) {\n    if (pluginService == null) {\n      throw new IllegalArgumentException(\"pluginService\");\n    } else if (properties == null) {"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "76f6d558884af72410356e7f005dbb4a0a2d4205ddf9dadc70dee1e6c3588175"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Condition 'properties == null' is always 'false'",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 113,
+      "offset": 16,
+      "length": 18,
+      "code": {
+        "startLine": 111,
+        "length": 18,
+        "offset": 107,
+        "surroundingCode": "    if (pluginService == null) {\n      throw new IllegalArgumentException(\"pluginService\");\n    } else if (properties == null) {\n      throw new IllegalArgumentException(\"properties\");\n    }"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "1f8a1fe487bf0125e4d95754f1b0a639f1f329acb2b263038581f91830595100"
+},{
+  "tool": "Code Inspection",
+  "category": "Probable bugs",
+  "type": "Constant conditions & exceptions",
+  "severity": "High",
+  "comment": "Argument 'SPECIFIED_REGION.getString(props)' might be null",
+  "detailsInfo": "Reports code constructs that always produce the same result, may throw exceptions, or violates nullability contracts.\n\nExamples:\n\n    if (array.length < index) {\n      System.out.println(array[index]);\n    } // Array index is always out of bounds\n\n    if (str == null) System.out.println(\"str is null\");\n    System.out.println(str.trim());\n    // the last statement may throw an NPE\n\n    @NotNull\n    Integer square(@Nullable Integer input) {\n        // the method contract is violated\n        return input == null ? null : input * input;\n    }\n\n\nThe inspection behavior may be controlled by a number of annotations, such as\n[nullability](https://www.jetbrains.com/help/idea/nullable-and-notnull-annotations.html) annotations,\n[@Contract](https://www.jetbrains.com/help/idea/contract-annotations.html) annotation,\n`@Range` annotation and so on.\n\nConfigure the inspection:\n\n* Use the **Suggest @Nullable annotation for methods/fields/parameters where nullable values are used** option to warn when a nullable value is passed as an argument to a method with a non-annotated parameter, stored into non-annotated field, or returned from a non-annotated method. In this case, the inspection will suggest propagating the `@Nullable` annotation. You can also configure nullability annotations using the **Configure Annotations** button.\n* Use the **Treat non-annotated members and parameters as @Nullable** option to assume that non-annotated members can be null, so they must not be used in non-null context.\n* Use the **Report not-null required parameter with null-literal argument usages** option to report method parameters that cannot be null (e.g. immediately dereferenced in the method body), but there are call sites where a `null` literal is passed.\n* Use the **Report nullable methods that always return a non-null value** option to report methods that are annotated as `@Nullable`, but always return non-null value. In this case, it's suggested that you change the annotation to `@NotNull`.\n* Use the **Don't report assertions with condition statically proven to be always true** option to avoid reporting assertions that were statically proven to be always true. This also includes conditions like `if (alwaysFalseCondition) throw new IllegalArgumentException();`.\n* Use the **Ignore assert statements** option to control how the inspection treats `assert` statements. By default, the option is disabled, which means that the assertions are assumed to be executed (-ea mode). If the option is enabled, the assertions will be completely ignored (-da mode).\n* Use the **Warn when reading a value guaranteed to be constant** option to add warnings on reading variables that contain some constant values, for example: `true`, `false`, or `null`.\n* Use the **Report problems that happen only on some code paths** option to control whether to report problems that may happen only on some code path. If this option is disabled, warnings like *exception is possible* will not be reported. The inspection will report only warnings like *exception will definitely occur*. This mode may greatly reduce the number of false-positives, especially if the code is not consistently annotated with nullability and contract annotations. That is why it can be useful for finding the most important problems in legacy code bases.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/IamAuthConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 102,
+      "offset": 26,
+      "length": 33,
+      "code": {
+        "startLine": 100,
+        "length": 33,
+        "offset": 73,
+        "surroundingCode": "      region = getRdsRegion(host);\n    } else {\n      region = Region.of(SPECIFIED_REGION.getString(props));\n    }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ConstantConditions"
+  },
+  "hash": "8a1c4e1b31c5a9b080b7102b39bcaedc233a6f01e8c055369c7c011afe1fb18a"
+},{
+  "tool": "Code Inspection",
+  "category": "RegExp",
+  "type": "Unnecessary non-capturing group",
+  "severity": "High",
+  "comment": "Unnecessary non-capturing group '(?:s*/*(.*?)*/s*)'",
+  "detailsInfo": "Reports unnecessary non-capturing groups, which have no influence on the match result.\n\n**Example:**\n\n\n      Everybody be cool, (?:this) is a robbery!\n\nAfter the quick-fix is applied:\n\n\n      Everybody be cool, this is a robbery!\n\nNew in 2021.1",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/DefaultConnectionPlugin.java",
+      "language": "RegExp",
+      "line": 157,
+      "offset": 44,
+      "length": 3,
+      "code": {
+        "startLine": 155,
+        "length": 3,
+        "offset": 141,
+        "surroundingCode": "  public boolean doesOpenTransaction(String statement) {\n    statement = statement.toUpperCase();\n    statement = statement.replaceAll(\"START(?:\\\\s*/\\\\*(.*?)\\\\*/\\\\s*)TRANSACTION\", \"START TRANSACTION\");\n    return statement.startsWith(\"BEGIN\") || statement.startsWith(\"START TRANSACTION\");\n  }"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "RegExpUnnecessaryNonCapturingGroup"
+  },
+  "hash": "cab28225dac10465b8b3fbca47fba0d9925225ac8efdc5bdb8a882b7e410499e"
+},{
+  "tool": "Code Inspection",
+  "category": "Initialization",
+  "type": "Double brace initialization",
+  "severity": "High",
+  "comment": "Double brace initialization",
+  "detailsInfo": "Reports [Double Brace Initialization](https://www.c2.com/cgi/wiki?DoubleBraceInitialization).\n\nDouble brace initialization may cause memory leaks when used in a non-static context because it creates an anonymous class\nthat will reference the surrounding object.\n\nCompared to regular initialization, double brace initialization provides worse performance since it requires loading an\nadditional class.\n\nIt may also cause failure of `equals()` comparisons if the `equals()` method doesn't accept subclasses as\nparameters.\n\nIn addition, before Java 9, double brace initialization couldn't be combined with the diamond operator since it was incompatible\nwith anonymous classes.\n\n**Example:**\n\n\n      List<Integer> list = new ArrayList<>() {{\n        add(1);\n        add(2);\n      }};\n\nAfter the quick-fix is applied:\n\n\n      List<Integer> list = new ArrayList<>();\n      list.add(1);\n      list.add(2);\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/ConnectionPluginManager.java",
+      "language": "JAVA",
+      "line": 58,
+      "offset": 11,
+      "length": 57,
+      "code": {
+        "startLine": 56,
+        "length": 57,
+        "offset": 114,
+        "surroundingCode": "\n  protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =\n      new HashMap<String, Class<? extends ConnectionPluginFactory>>() {\n        {\n          put(\"executionTime\", ExecutionTimeConnectionPluginFactory.class);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "DoubleBraceInitialization"
+  },
+  "hash": "b5c9bd7120c02b9a8e3a5eafe4cb3784de61f9a051a0a444c906484b67ddd2b6"
+},{
+  "tool": "Code Inspection",
+  "category": "Initialization",
+  "type": "Double brace initialization",
+  "severity": "High",
+  "comment": "Double brace initialization",
+  "detailsInfo": "Reports [Double Brace Initialization](https://www.c2.com/cgi/wiki?DoubleBraceInitialization).\n\nDouble brace initialization may cause memory leaks when used in a non-static context because it creates an anonymous class\nthat will reference the surrounding object.\n\nCompared to regular initialization, double brace initialization provides worse performance since it requires loading an\nadditional class.\n\nIt may also cause failure of `equals()` comparisons if the `equals()` method doesn't accept subclasses as\nparameters.\n\nIn addition, before Java 9, double brace initialization couldn't be combined with the diamond operator since it was incompatible\nwith anonymous classes.\n\n**Example:**\n\n\n      List<Integer> list = new ArrayList<>() {{\n        add(1);\n        add(2);\n      }};\n\nAfter the quick-fix is applied:\n\n\n      List<Integer> list = new ArrayList<>();\n      list.add(1);\n      list.add(2);\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/LogQueryConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 84,
+      "offset": 11,
+      "length": 23,
+      "code": {
+        "startLine": 82,
+        "length": 23,
+        "offset": 74,
+        "surroundingCode": "\n  private final Map<String, String> queryAccessorByClassName =\n      new HashMap<String, String>() {\n        {\n          put(\"com.mysql.cj.jdbc.ClientPreparedStatement\", \"query.originalSql\");"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "DoubleBraceInitialization"
+  },
+  "hash": "6f2b706faf93f19fd51d0959313bda793cc80d2a9b92ce018f1f92ae1ab622e7"
+},{
+  "tool": "Code Inspection",
+  "category": "Initialization",
+  "type": "Double brace initialization",
+  "severity": "High",
+  "comment": "Double brace initialization",
+  "detailsInfo": "Reports [Double Brace Initialization](https://www.c2.com/cgi/wiki?DoubleBraceInitialization).\n\nDouble brace initialization may cause memory leaks when used in a non-static context because it creates an anonymous class\nthat will reference the surrounding object.\n\nCompared to regular initialization, double brace initialization provides worse performance since it requires loading an\nadditional class.\n\nIt may also cause failure of `equals()` comparisons if the `equals()` method doesn't accept subclasses as\nparameters.\n\nIn addition, before Java 9, double brace initialization couldn't be combined with the diamond operator since it was incompatible\nwith anonymous classes.\n\n**Example:**\n\n\n      List<Integer> list = new ArrayList<>() {{\n        add(1);\n        add(2);\n      }};\n\nAfter the quick-fix is applied:\n\n\n      List<Integer> list = new ArrayList<>();\n      list.add(1);\n      list.add(2);\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/util/WrapperUtils.java",
+      "language": "JAVA",
+      "line": 107,
+      "offset": 56,
+      "length": 17,
+      "code": {
+        "startLine": 105,
+        "length": 17,
+        "offset": 65,
+        "surroundingCode": "      };\n\n  private static Set<Class<?>> allWrapperClasses = new HashSet<Class<?>>() {\n    {\n      add(ArrayWrapper.class);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "DoubleBraceInitialization"
+  },
+  "hash": "a94de546470398fd439c31ca241e4e8e06f75c966a3779d58ec5ba62162a00e6"
+},{
+  "tool": "Code Inspection",
+  "category": "Initialization",
+  "type": "Double brace initialization",
+  "severity": "High",
+  "comment": "Double brace initialization",
+  "detailsInfo": "Reports [Double Brace Initialization](https://www.c2.com/cgi/wiki?DoubleBraceInitialization).\n\nDouble brace initialization may cause memory leaks when used in a non-static context because it creates an anonymous class\nthat will reference the surrounding object.\n\nCompared to regular initialization, double brace initialization provides worse performance since it requires loading an\nadditional class.\n\nIt may also cause failure of `equals()` comparisons if the `equals()` method doesn't accept subclasses as\nparameters.\n\nIn addition, before Java 9, double brace initialization couldn't be combined with the diamond operator since it was incompatible\nwith anonymous classes.\n\n**Example:**\n\n\n      List<Integer> list = new ArrayList<>() {{\n        add(1);\n        add(2);\n      }};\n\nAfter the quick-fix is applied:\n\n\n      List<Integer> list = new ArrayList<>();\n      list.add(1);\n      list.add(2);\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/util/WrapperUtils.java",
+      "language": "JAVA",
+      "line": 84,
+      "offset": 11,
+      "length": 27,
+      "code": {
+        "startLine": 82,
+        "length": 27,
+        "offset": 78,
+        "surroundingCode": "\n  private static final Map<Class<?>, Class<?>> availableWrappers =\n      new HashMap<Class<?>, Class<?>>() {\n        {\n          put(CallableStatement.class, CallableStatementWrapper.class);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "DoubleBraceInitialization"
+  },
+  "hash": "6675414451fa30be3b58141d08a7db0714dd6d954fb7532877cf7bf22e5e1890"
+},{
+  "tool": "Code Inspection",
+  "category": "Performance",
+  "type": "Call to 'Arrays.asList()' with too few arguments",
+  "severity": "High",
+  "comment": "Call to 'asList()' with only one argument",
+  "detailsInfo": "Reports calls to `Arrays.asList()` with at most one argument.\n\n\nSuch calls could be replaced\nwith `Collections.singletonList()`, `Collections.emptyList()`,\nor `List.of()` on JDK 9 and later, which will save some memory.\n\nIn particular, `Collections.emptyList()` and `List.of()` with no arguments\nalways return a shared instance,\nwhile `Arrays.asList()` with no arguments creates a new object every time it's called.\n\nNote: the lists returned by `Collections.singletonList()` and `List.of()` are immutable,\nwhile the list returned `Arrays.asList()` allows calling the `set()` method.\nThis may break the code in rare cases.\n\n**Example:**\n\n\n      List<String> empty = Arrays.asList();\n      List<String> one = Arrays.asList(\"one\");\n\nAfter the quick-fix is applied:\n\n\n      List<String> empty = Collections.emptyList();\n      List<String> one = Collections.singletonList(\"one\");\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/DefaultConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 52,
+      "offset": 105,
+      "length": 6,
+      "code": {
+        "startLine": 50,
+        "length": 6,
+        "offset": 208,
+        "surroundingCode": "  private static final Logger LOGGER =\n      Logger.getLogger(DefaultConnectionPlugin.class.getName());\n  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(\"*\")));\n\n  private final ConnectionProvider connectionProvider;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ArraysAsListWithZeroOrOneArgument"
+  },
+  "hash": "ac88afb09c360588c89cef100757bb65fc2badf0be44f10d03f98136cfa9ba63"
+},{
+  "tool": "Code Inspection",
+  "category": "Performance",
+  "type": "Call to 'Arrays.asList()' with too few arguments",
+  "severity": "High",
+  "comment": "Call to 'asList()' with only one argument",
+  "detailsInfo": "Reports calls to `Arrays.asList()` with at most one argument.\n\n\nSuch calls could be replaced\nwith `Collections.singletonList()`, `Collections.emptyList()`,\nor `List.of()` on JDK 9 and later, which will save some memory.\n\nIn particular, `Collections.emptyList()` and `List.of()` with no arguments\nalways return a shared instance,\nwhile `Arrays.asList()` with no arguments creates a new object every time it's called.\n\nNote: the lists returned by `Collections.singletonList()` and `List.of()` are immutable,\nwhile the list returned `Arrays.asList()` allows calling the `set()` method.\nThis may break the code in rare cases.\n\n**Example:**\n\n\n      List<String> empty = Arrays.asList();\n      List<String> one = Arrays.asList(\"one\");\n\nAfter the quick-fix is applied:\n\n\n      List<String> empty = Collections.emptyList();\n      List<String> one = Collections.singletonList(\"one\");\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 79,
+      "offset": 56,
+      "length": 6,
+      "code": {
+        "startLine": 77,
+        "length": 6,
+        "offset": 111,
+        "surroundingCode": "\n  private static final Set<String> subscribedMethods =\n      Collections.unmodifiableSet(new HashSet<>(Arrays.asList(\"*\")));\n\n  private static final String MYSQL_RETRIEVE_HOST_PORT_SQL ="
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "ArraysAsListWithZeroOrOneArgument"
+  },
+  "hash": "501cdf92656a51974c7ba1b075bfd05946ff554b94149613676e11c237b957b5"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.hostListProvider' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 260,
+      "offset": 13,
+      "length": 21,
+      "code": {
+        "startLine": 258,
+        "length": 21,
+        "offset": 81,
+        "surroundingCode": "    if (this.hostListProvider == null) {\n      synchronized (this) {\n        if (this.hostListProvider == null) {\n          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);\n          this.currentHostSpec = this.getCurrentHostSpec();"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "55a70e87f0558049d2dccefb98814f2dd3ee5f4bc7d4811c207fed510218f9fb"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.hostListProvider' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 261,
+      "offset": 11,
+      "length": 21,
+      "code": {
+        "startLine": 259,
+        "length": 21,
+        "offset": 83,
+        "surroundingCode": "      synchronized (this) {\n        if (this.hostListProvider == null) {\n          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);\n          this.currentHostSpec = this.getCurrentHostSpec();\n        }"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "5df996feb1d4bc80487912b49c034c74cda88287093a4ba6fbe1c3d34e3a3b51"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentHostSpec' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 262,
+      "offset": 11,
+      "length": 20,
+      "code": {
+        "startLine": 260,
+        "length": 20,
+        "offset": 157,
+        "surroundingCode": "        if (this.hostListProvider == null) {\n          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);\n          this.currentHostSpec = this.getCurrentHostSpec();\n        }\n      }"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "9e42fc16ff120c9b850f76e478fdf38ceb30c1dafc7ae6eb299b43c2ea840d7e"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentConnection' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 96,
+      "offset": 9,
+      "length": 22,
+      "code": {
+        "startLine": 94,
+        "length": 22,
+        "offset": 37,
+        "surroundingCode": "      throws SQLException {\n\n    if (this.currentConnection == null) {\n      // setting up an initial connection\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "a609696194f08ab167b3da68c9cd588886d0debfcc8856b68591ff27152c8d7b"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentConnection' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 99,
+      "offset": 7,
+      "length": 22,
+      "code": {
+        "startLine": 97,
+        "length": 22,
+        "offset": 49,
+        "surroundingCode": "      // setting up an initial connection\n\n      this.currentConnection = connection;\n      this.currentHostSpec = hostSpec;\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "c1ca164d0449c9790cf3f7ce0cfc23bf7fcc774efa43586a3be255b79c778ccd"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentHostSpec' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 100,
+      "offset": 7,
+      "length": 20,
+      "code": {
+        "startLine": 98,
+        "length": 20,
+        "offset": 50,
+        "surroundingCode": "\n      this.currentConnection = connection;\n      this.currentHostSpec = hostSpec;\n\n      EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "98c42b58387e91f24e4eeddff66a5e3a66797e47f7e73ddff23936522e94bc3f"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentConnection' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 110,
+      "offset": 52,
+      "length": 22,
+      "code": {
+        "startLine": 108,
+        "length": 22,
+        "offset": 91,
+        "surroundingCode": "      // update an existing connection\n\n      EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,\n          connection, hostSpec);\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "554ca7097ca1f0e1b62e8a7c7891bd01ca1683d8ceb6ec8c68296c7034f5ca34"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentHostSpec' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 110,
+      "offset": 76,
+      "length": 20,
+      "code": {
+        "startLine": 108,
+        "length": 20,
+        "offset": 115,
+        "surroundingCode": "      // update an existing connection\n\n      EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,\n          connection, hostSpec);\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "f7b82a1387700919aae6c55829ed996ba58712cc835337366597efd43b4bf7d7"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentConnection' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 115,
+      "offset": 42,
+      "length": 22,
+      "code": {
+        "startLine": 113,
+        "length": 22,
+        "offset": 74,
+        "surroundingCode": "      if (!changes.isEmpty()) {\n\n        final Connection oldConnection = this.currentConnection;\n\n        this.currentConnection = connection;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "62a95991828b34fb3d0c714d5ad9e23415316724d98d3f010c12dbbe1fbba6b5"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentConnection' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 117,
+      "offset": 9,
+      "length": 22,
+      "code": {
+        "startLine": 115,
+        "length": 22,
+        "offset": 74,
+        "surroundingCode": "        final Connection oldConnection = this.currentConnection;\n\n        this.currentConnection = connection;\n        this.currentHostSpec = hostSpec;\n        this.setInTransaction(false);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "09b1d9018d28b8a5210140fad15a5c31cf6a6139844d612ef3f8e7b79061ff64"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.currentHostSpec' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/PluginServiceImpl.java",
+      "language": "JAVA",
+      "line": 118,
+      "offset": 9,
+      "length": 20,
+      "code": {
+        "startLine": 116,
+        "length": 20,
+        "offset": 54,
+        "surroundingCode": "\n        this.currentConnection = connection;\n        this.currentHostSpec = hostSpec;\n        this.setInTransaction(false);\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "26a364f3ae741403eb054a56c4c18427bb4a45a055fdf59a23cca8083c08ca1e"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.pluginManager' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/ConnectionWrapper.java",
+      "language": "JAVA",
+      "line": 442,
+      "offset": 9,
+      "length": 18,
+      "code": {
+        "startLine": 440,
+        "length": 18,
+        "offset": 62,
+        "surroundingCode": "        SQLWarning.class,\n        SQLException.class,\n        this.pluginManager,\n        this.pluginService.getCurrentConnection(),\n        \"Connection.getWarnings\","
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "e7a245fe20917491d0abc7307dd39f6a01297571927118dc6c7e00ed9b16beb4"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.pluginService' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/ConnectionWrapper.java",
+      "language": "JAVA",
+      "line": 443,
+      "offset": 9,
+      "length": 18,
+      "code": {
+        "startLine": 441,
+        "length": 18,
+        "offset": 64,
+        "surroundingCode": "        SQLException.class,\n        this.pluginManager,\n        this.pluginService.getCurrentConnection(),\n        \"Connection.getWarnings\",\n        () -> this.pluginService.getCurrentConnection().getWarnings());"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "d025ad3515d8328ad3ff0ff73f64aa6cefe18865a41bfeda78b450afbce85fd5"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.pluginManager' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/ConnectionWrapper.java",
+      "language": "JAVA",
+      "line": 170,
+      "offset": 9,
+      "length": 18,
+      "code": {
+        "startLine": 168,
+        "length": 18,
+        "offset": 69,
+        "surroundingCode": "    WrapperUtils.runWithPlugins(\n        SQLException.class,\n        this.pluginManager,\n        this.pluginService.getCurrentConnection(),\n        \"Connection.clearWarnings\","
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "b8d59537d19f274500daf0a2101f1897e9f6eb5410ba2eabc0da4a5715f45522"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.pluginService' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/wrapper/ConnectionWrapper.java",
+      "language": "JAVA",
+      "line": 171,
+      "offset": 9,
+      "length": 18,
+      "code": {
+        "startLine": 169,
+        "length": 18,
+        "offset": 64,
+        "surroundingCode": "        SQLException.class,\n        this.pluginManager,\n        this.pluginService.getCurrentConnection(),\n        \"Connection.clearWarnings\",\n        () -> this.pluginService.getCurrentConnection().clearWarnings());"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "bcb54fab0840ec342555d7a8ccc268e35bee5dea15feeb5baccb6a1ee7c4d437"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.isClosed' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java",
+      "language": "JAVA",
+      "line": 750,
+      "offset": 9,
+      "length": 13,
+      "code": {
+        "startLine": 748,
+        "length": 13,
+        "offset": 81,
+        "surroundingCode": "\n  protected synchronized void pickNewConnection() throws SQLException {\n    if (this.isClosed && this.closedExplicitly) {\n      LOGGER.fine(Messages.get(\"Failover.transactionResolutionUnknownError\"));\n      return;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "400659276906a29144f83e42e0d9270ae4fb1a078f13ab112e9743bdaba2fa63"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.clusterId' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/hostlistprovider/AuroraHostListProvider.java",
+      "language": "JAVA",
+      "line": 414,
+      "offset": 28,
+      "length": 14,
+      "code": {
+        "startLine": 412,
+        "length": 14,
+        "offset": 82,
+        "surroundingCode": "  public void clear() {\n    synchronized (cacheLock) {\n      topologyCache.remove(this.clusterId);\n    }\n  }"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "5255185b8374265adffa97d58e4d17013833f8876981fa69ba55bded554d32e0"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.clusterId' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/hostlistprovider/AuroraHostListProvider.java",
+      "language": "JAVA",
+      "line": 359,
+      "offset": 67,
+      "length": 14,
+      "code": {
+        "startLine": 357,
+        "length": 14,
+        "offset": 139,
+        "surroundingCode": "  public boolean isMultiWriterCluster() {\n    synchronized (cacheLock) {\n      ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);\n      return (clusterTopologyInfo != null\n          && clusterTopologyInfo.isMultiWriterCluster);"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "eb8f1b9c9b9eba76a25e4e72612f61fa45cb92bca2a9c86f478dd4fac498e6fb"
+},{
+  "tool": "Code Inspection",
+  "category": "Threading issues",
+  "type": "Non-private field accessed in 'synchronized' context",
+  "severity": "High",
+  "comment": "Non-private field 'this.clusterId' accessed in synchronized context",
+  "detailsInfo": "Reports non-`final`, non-`private` fields that are accessed in a synchronized context.\n\n\nA non-`private` field cannot be guaranteed to always be accessed in a synchronized manner, and such \"partially synchronized\"\naccess may result in unexpectedly inconsistent data structures.\n\n**Example:**\n\n\n      class Bar {\n        public String field1;\n      }\n      public Bar myBar;\n\n      synchronized public void sample() {\n       myBar.field1 = \"bar\";\n      }\n",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/hostlistprovider/AuroraHostListProvider.java",
+      "language": "JAVA",
+      "line": 336,
+      "offset": 25,
+      "length": 14,
+      "code": {
+        "startLine": 334,
+        "length": 14,
+        "offset": 56,
+        "surroundingCode": "\n    synchronized (cacheLock) {\n      topologyCache.put(this.clusterId, clusterTopologyInfo);\n    }\n    return clusterTopologyInfo;"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "PublicFieldAccessedInSynchronizedContext"
+  },
+  "hash": "237e97d15d210f7ae85621eeb011c2fed4da1662dae45ef6db62dda34d2f29dc"
+}]}

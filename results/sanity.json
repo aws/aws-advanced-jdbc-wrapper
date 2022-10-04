@@ -1,0 +1,125 @@
+{"version":"3","listProblem":[{
+  "tool": "Code Inspection",
+  "category": "General",
+  "type": "Java annotator",
+  "tags": [
+    "Sanity"
+  ],
+  "severity": "Critical",
+  "comment": "Incompatible types. Found: 'null', required: 'int'",
+  "detailsInfo": "Allows viewing the problems reported by the Java annotator: compilation problems, unresolved by IDEA references, and so on.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/Driver.java",
+      "language": "JAVA",
+      "line": 219,
+      "offset": 5,
+      "length": 6,
+      "code": {
+        "startLine": 217,
+        "length": 6,
+        "offset": 49,
+        "surroundingCode": "  @Override\n  public int getMinorVersion() {\n    return DriverInfo.MINOR_VERSION;\n  }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "JavaAnnotator"
+  },
+  "hash": "9c543f2ebbc9c45a6f5e85f3e6ac149f8e98f1a7d114366f9dff2d0d0e0335f1"
+},{
+  "tool": "Code Inspection",
+  "category": "General",
+  "type": "Java annotator",
+  "tags": [
+    "Sanity"
+  ],
+  "severity": "Critical",
+  "comment": "Cannot resolve symbol 'DriverInfo'",
+  "detailsInfo": "Allows viewing the problems reported by the Java annotator: compilation problems, unresolved by IDEA references, and so on.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/Driver.java",
+      "language": "JAVA",
+      "line": 219,
+      "offset": 12,
+      "length": 10,
+      "code": {
+        "startLine": 217,
+        "length": 10,
+        "offset": 56,
+        "surroundingCode": "  @Override\n  public int getMinorVersion() {\n    return DriverInfo.MINOR_VERSION;\n  }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "JavaAnnotator"
+  },
+  "hash": "fca5c58cd604942653100e5c39effcee01f8475f6da2526be2112866e4a097fc"
+},{
+  "tool": "Code Inspection",
+  "category": "General",
+  "type": "Java annotator",
+  "tags": [
+    "Sanity"
+  ],
+  "severity": "Critical",
+  "comment": "Cannot resolve symbol 'MINOR_VERSION'",
+  "detailsInfo": "Allows viewing the problems reported by the Java annotator: compilation problems, unresolved by IDEA references, and so on.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/Driver.java",
+      "language": "JAVA",
+      "line": 219,
+      "offset": 23,
+      "length": 13,
+      "code": {
+        "startLine": 217,
+        "length": 13,
+        "offset": 67,
+        "surroundingCode": "  @Override\n  public int getMinorVersion() {\n    return DriverInfo.MINOR_VERSION;\n  }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "JavaAnnotator"
+  },
+  "hash": "d37be0bd0583c2cca7eb2453dd14fa37f7015a67559538779c6d6de0be96a23b"
+},{
+  "tool": "Code Inspection",
+  "category": "General",
+  "type": "Java annotator",
+  "tags": [
+    "Sanity"
+  ],
+  "severity": "Critical",
+  "comment": "Incompatible types. Found: 'null', required: 'int'",
+  "detailsInfo": "Allows viewing the problems reported by the Java annotator: compilation problems, unresolved by IDEA references, and so on.",
+  "sources": [
+    {
+      "type": "file",
+      "path": "wrapper/src/main/java/software/amazon/jdbc/Driver.java",
+      "language": "JAVA",
+      "line": 214,
+      "offset": 5,
+      "length": 6,
+      "code": {
+        "startLine": 212,
+        "length": 6,
+        "offset": 49,
+        "surroundingCode": "  @Override\n  public int getMajorVersion() {\n    return DriverInfo.MAJOR_VERSION;\n  }\n"
+      }
+    }
+  ],
+  "attributes": {
+    "module": "aws-advanced-jdbc-wrapper.aws-advanced-jdbc-wrapper.main",
+    "inspectionName": "JavaAnnotator"
+  },
+  "hash": "77e93b027431ad78d2bf83c447b659d72cd978beb0c6937ff295cded2c60ad94"
+}]}
