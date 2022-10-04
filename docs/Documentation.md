@@ -18,5 +18,6 @@
   - [Architecture](./development-guide/Architecture.md)
     - [Plugin Manager](./development-guide/PluginManager.md)
     - [Loadable Plugins](./development-guide/LoadablePlugins.md)
+    - [Performance Results](./development-guide/PerformanceResults.md)
     - [Plugin Service](./development-guide/PluginService.md)
     - [Pipelines](./development-guide/Pipelines.md)
