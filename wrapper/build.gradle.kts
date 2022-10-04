@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
+
 plugins {
     checkstyle
     java
@@ -24,55 +26,39 @@ plugins {
     id("com.github.vlsi.ide")
 }
 
-val pgVersion : String by project
-val mysqlVersion : String by project
-val mariaVersion : String by project
-val awsSdkVersion : String by project
-val junitVersion : String by project
-val jupiterVersion : String by project
-val testContainerVersion : String by project
-val jacksonVersion : String by project
-val hikariVersion : String by project
-val mockitoVersion : String by project
-val slf4jVersion : String by project
-val apachePoiVersion : String by project
-val apacheCommonsVersion : String by project
-val springVersion : String by project
-
 dependencies {
     implementation("org.checkerframework:checker-qual:3.23.+")
-    compileOnly("software.amazon.awssdk:rds:$awsSdkVersion")
-    compileOnly("com.zaxxer:HikariCP:$hikariVersion") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    compileOnly("software.amazon.awssdk:rds:2.17.286")
+    compileOnly("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
+    compileOnly("software.amazon.awssdk:secretsmanager:2.17.250")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 
-    testImplementation("org.junit.platform:junit-platform-commons:$junitVersion")
-    testImplementation("org.junit.platform:junit-platform-engine:$junitVersion")
-    testImplementation("org.junit.platform:junit-platform-launcher:$junitVersion")
-    testImplementation("org.junit.platform:junit-platform-suite-engine:$junitVersion")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:$jupiterVersion")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:$jupiterVersion")
+    testImplementation("org.junit.platform:junit-platform-commons:1.9.+")
+    testImplementation("org.junit.platform:junit-platform-engine:1.9.+")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.9.+")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.9.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.+")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.+")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-    testImplementation("org.apache.commons:commons-dbcp2:$apacheCommonsVersion")
-    testImplementation("org.postgresql:postgresql:$pgVersion")
-    testImplementation("mysql:mysql-connector-java:$mysqlVersion")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:$mariaVersion")
-    testImplementation("com.zaxxer:HikariCP:$hikariVersion") // Version 4.+ is compatible with Java 8
-    testImplementation("org.springframework.boot:spring-boot-starter-jdbc:$springVersion")
-    testImplementation("org.mockito:mockito-inline:$mockitoVersion")
-    testImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
-    testImplementation("software.amazon.awssdk:ec2:$awsSdkVersion")
-    testImplementation("org.testcontainers:testcontainers:$testContainerVersion")
-    testImplementation("org.testcontainers:mysql:$testContainerVersion")
-    testImplementation("org.testcontainers:postgresql:$testContainerVersion")
-    testImplementation("org.testcontainers:mariadb:$testContainerVersion")
-    testImplementation("org.testcontainers:junit-jupiter:$testContainerVersion")
-    testImplementation("org.testcontainers:toxiproxy:$testContainerVersion")
-    testImplementation("org.apache.poi:poi-ooxml:$apachePoiVersion")
-    testImplementation("org.slf4j:slf4j-simple:$slf4jVersion")
-    testImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    testImplementation("org.apache.commons:commons-dbcp2:2.9.+")
+    testImplementation("org.postgresql:postgresql:42.+")
+    testImplementation("mysql:mysql-connector-java:8.0.+")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.+")
+    testImplementation("com.zaxxer:HikariCP:4.+") // Version 4.+ is compatible with Java 8
+    testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
+    testImplementation("org.mockito:mockito-inline:4.+")
+    testImplementation("software.amazon.awssdk:rds:2.17.259")
+    testImplementation("software.amazon.awssdk:ec2:2.17.259")
+    testImplementation("org.testcontainers:testcontainers:1.17.+")
+    testImplementation("org.testcontainers:mysql:1.17.+")
+    testImplementation("org.testcontainers:postgresql:1.17.+")
+    testImplementation("org.testcontainers:junit-jupiter:1.17.+")
+    testImplementation("org.testcontainers:toxiproxy:1.17.+")
+    testImplementation("org.apache.poi:poi-ooxml:5.2.2")
+    testImplementation("org.slf4j:slf4j-simple:1.7.+")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.17.250")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 }
 
 repositories {
@@ -85,14 +71,6 @@ tasks.check {
 
 tasks.test {
     filter.excludeTestsMatching("integration.*")
-}
-
-java {
-    withJavadocJar()
-    withSourcesJar()
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
-    }
 }
 
 checkstyle {
@@ -148,6 +126,19 @@ tasks.jacocoTestCoverageVerification {
             }
         }
     }
+}
+
+val preprocessVersion by tasks.registering(JavaCommentPreprocessorTask::class) {
+    baseDir.set(projectDir)
+    sourceFolders.add("src/main/version/")
+}
+
+ide {
+    generatedJavaSources(
+        preprocessVersion,
+        preprocessVersion.get().outputDirectory.get().asFile,
+        sourceSets.main
+    )
 }
 
 tasks.jar {
@@ -211,40 +202,16 @@ tasks.register<Test>("debug-integration-standard-postgres") {
     filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
 }
 
-// Run Aurora Mysql integrations tests in container
-tasks.register<Test>("test-integration-aurora-mysql") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraMysqlContainerTest.runTestInContainer")
-}
-
 // Run standard Mysql tests in container
 tasks.register<Test>("test-integration-standard-mysql") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.runTestInContainer")
 }
 
-// Run Aurora Mysql integration tests in container with debugger
-tasks.register<Test>("debug-integration-aurora-mysql") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraMysqlContainerTest.debugTestInContainer")
-}
-
 // Run standard Mysql integration tests in container with debugger
 tasks.register<Test>("debug-integration-standard-mysql") {
     group = "verification"
     filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.debugTestInContainer")
-}
-
-// Run standard Mariadb tests in container
-tasks.register<Test>("test-integration-standard-mariadb") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardMariadbContainerTest.runTestInContainer")
-}
-
-// Run standard Mariadb integration tests in container with debugger
-tasks.register<Test>("debug-integration-standard-mariadb") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardMariadbContainerTest.debugTestInContainer")
 }
 
 tasks.withType<Test> {
