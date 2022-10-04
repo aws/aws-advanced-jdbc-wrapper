@@ -407,8 +407,6 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
   @Test
   public void test_failoverBackToThePreviouslyDownReader()
       throws Exception {
-    final String topologyRefreshRateMS = "2000";
-
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");
 
     final String writerInstanceId = instanceIDs[0];
@@ -467,7 +465,6 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
       proxyInstance = proxyMap.get(secondReaderInstanceId);
       containerHelper.enableConnectivity(proxyInstance);
 
-      Thread.sleep(Integer.parseInt(topologyRefreshRateMS));
       final String currentInstanceId = queryInstanceId(conn);
       assertEquals(thirdReaderInstanceId, currentInstanceId);
 
@@ -481,7 +478,8 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
 
       assertTrue(
           firstReaderInstanceId.equals(lastInstanceId)
-              || secondReaderInstanceId.equals(lastInstanceId));
+              || secondReaderInstanceId.equals(lastInstanceId)
+              || writerInstanceId.equals(lastInstanceId));
     }
   }
 
