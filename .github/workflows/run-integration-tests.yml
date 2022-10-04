@@ -1,4 +1,4 @@
-name: Run Integration Tests (OpenJDK)
+name: Run Integration Tests
 
 on:
   workflow_dispatch:
@@ -10,6 +10,12 @@ on:
       - '*'
     paths-ignore:
       - '**/*.md'
+      - 'examples/**'
+      - '**/docs/**'
+      - '**/*.jpg'
+      - '**/*.png'
+      - '**/release_draft.yml'
+      - '**/maven*.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,9 +23,17 @@ concurrency:
 
 jobs:
   aurora-postgres-integration-tests:
-    concurrency: IntegrationTests-Aurora-OpenJDK
     name: 'Run Aurora Postgres container integration tests'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        vm:
+          [
+            openjdk,
+            graalvm
+          ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v2
@@ -48,7 +62,7 @@ jobs:
           echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
-      - name: 'Run integration tests (OpenJDK)'
+      - name: Run integration tests (${{ matrix.vm }})
         run: |
           ./gradlew --no-parallel --no-daemon test-integration-aurora-postgres
         env:
@@ -59,18 +73,42 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-      - name: 'Archive junit results (OpenJDK)'
+          DB_CONN_SUFFIX: ${{ secrets.DB_CONN_SUFFIX }}
+      - name: 'Get Github Action IP'
+        id: ip
+        uses: haythem/public-ip@v1.2
+      - name: 'Remove IP address'
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress --group-name ${{ secrets.AWS_SG_NAME }} \
+            --protocol all \
+            --port all \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 \
+          2>&1 > /dev/null;
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Archive junit results (${{ matrix.vm }})
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: 'junit-report-openjdk'
+          name: junit-report-postgres-${{ matrix.vm }}
           path: ./wrapper/build/reports/tests/
           retention-days: 5
 
-  standard-postgres-integration-tests:
-    concurrency: IntegrationTests-Standard-OpenJDK
-    name: 'Run Standard Postgres container integration tests'
+  aurora-mysql-integration-tests:
+    name: 'Run Aurora MySQL container integration tests'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        vm:
+          [
+            openjdk,
+            graalvm
+          ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v2
@@ -80,16 +118,109 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 8
-      - name: 'Run integration tests (OpenJDK)'
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: 'Set up temp AWS credentials'
         run: |
-          ./gradlew --no-parallel --no-daemon test-integration-standard-postgres
+          creds=($(aws sts get-session-token \
+            --duration-seconds 21600 \
+            --query 'Credentials.[AccessKeyId, SecretAccessKey, SessionToken]' \
+            --output text \
+          | xargs));
+          echo "::add-mask::${creds[0]}"
+          echo "::add-mask::${creds[1]}"
+          echo "::add-mask::${creds[2]}"
+          echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
+          echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
+          echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
+      - name: Run integration tests (${{ matrix.vm }})
+        run: |
+          ./gradlew --no-parallel --no-daemon test-integration-aurora-mysql
         env:
-          TEST_USERNAME: ${{ secrets.STANDARD_POSTGRES_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.STANDARD_POSTGRES_PASSWORD }}
-      - name: 'Archive junit results (OpenJDK)'
+          AURORA_MYSQL_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_MYSQL_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
+          AURORA_MYSQL_USERNAME: ${{ secrets.AURORA_MYSQL_USERNAME }}
+          AURORA_MYSQL_PASSWORD: ${{ secrets.AURORA_MYSQL_PASSWORD }}
+          AURORA_MYSQL_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
+          TEST_CONTAINER_TYPE: ${{ matrix.vm }}
+          DB_CONN_SUFFIX: ${{ secrets.DB_CONN_SUFFIX }}
+      - name: 'Get Github Action IP'
+        id: ip
+        uses: haythem/public-ip@v1.2
+      - name: 'Remove IP address'
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress --group-name ${{ secrets.AWS_SG_NAME }} \
+            --protocol all \
+            --port all \
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 \
+          2>&1 > /dev/null;
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Archive junit results (${{ matrix.vm }})
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: 'junit-report-openjdk'
+          name: junit-report-mysql-${{ matrix.vm }}
           path: ./wrapper/build/reports/tests/
           retention-days: 5
+
+  clean-up-mysql:
+    name: 'Clean up AWS Aurora MySQL clusters'
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [ aurora-mysql-integration-tests ]
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+    steps:
+      - name: 'Delete Instances'
+        run: |
+          for i in {1..5}; \
+            do \
+            aws rds delete-db-instance \
+              --db-instance-identifier ${{ secrets.AURORA_MYSQL_CLUSTER_IDENTIFIER }}-${{ github.run_id }}-$i \
+              --skip-final-snapshot \
+            2>&1 > /dev/null; \
+          done;
+      - name: 'Delete Cluster'
+        run: |
+          aws rds delete-db-cluster \
+            --db-cluster-identifier ${{ secrets.AURORA_MYSQL_CLUSTER_IDENTIFIER }}-${{ github.run_id }} \
+            --skip-final-snapshot \
+          2>&1 > /dev/null;
+
+  clean-up-postgres:
+    name: 'Clean up AWS Aurora Postgres clusters'
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [ aurora-postgres-integration-tests ]
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+    steps:
+      - name: 'Delete Instances'
+        run: |
+          for i in {1..5}; \
+            do \
+            aws rds delete-db-instance \
+              --db-instance-identifier ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}-$i \
+              --skip-final-snapshot \
+            2>&1 > /dev/null; \
+          done;
+      - name: 'Delete Cluster'
+        run: |
+          aws rds delete-db-cluster \
+            --db-cluster-identifier ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }} \
+            --skip-final-snapshot \
+          2>&1 > /dev/null;

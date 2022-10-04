@@ -81,8 +81,6 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     TEST_PROPS.setProperty("secretsManagerRegion", TEST_REGION);
     TEST_PROPS.setProperty("secretsManagerSecretId", TEST_SECRET_ID);
-    TEST_PROPS.setProperty("wrapperTargetDriverUserPropertyName", "user");
-    TEST_PROPS.setProperty("wrapperTargetDriverPasswordPropertyName", "password");
 
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         TEST_PROPS,
@@ -208,7 +206,10 @@ public class AwsSecretsManagerConnectionPluginTest {
               true,
               this.connectFunc));
 
-    assertEquals(readSecretsFailedException.getMessage(), Messages.get("AwsSecretsManagerConnectionPlugin.3"));
+    assertEquals(
+        readSecretsFailedException.getMessage(),
+        Messages.get(
+            "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
     assertEquals(0, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();
@@ -232,7 +233,10 @@ public class AwsSecretsManagerConnectionPluginTest {
                 true,
                 this.connectFunc));
 
-    assertEquals(getSecretsFailedException.getMessage(), Messages.get("AwsSecretsManagerConnectionPlugin.3"));
+    assertEquals(
+        getSecretsFailedException.getMessage(),
+        Messages.get(
+            "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
     assertEquals(0, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();

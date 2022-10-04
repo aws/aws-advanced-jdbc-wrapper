@@ -23,7 +23,7 @@ It is recommended that user applications use different settings for connections 
 The JDBC Wrapper can be used with different frameworks and tools. More details for some frameworks can be found [here](./Frameworks.md).
 
 ## Logging
-The JDBC Wrapper uses the Java Util Logger built-in library functionality to log information. To enable logging and see information logged by the driver:
+The JDBC Wrapper uses the Java Util Logger built-in library functionality to log information. To enable logging and see information logged by the wrapper:
 
 1. Create a `.properties` file and configure the logging level.
 2. Specify the `.properties` file with the `java.util.logging.config.file` option; for example, 
@@ -45,15 +45,13 @@ The JDBC Wrapper also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc
 ## AWS Advanced JDBC Wrapper Parameters
 These parameters are applicable to any instance of the JDBC Wrapper.
 
-| Parameter                                 | Value     | Required | Description                                                                                                                                                                 | Default Value |
-|-------------------------------------------|-----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `wrapperLogUnclosedConnections`           | `Boolean` | No       | Allows the JDBC Wrapper to track a point in the code where connection has been opened but not closed.                                                                       | `false`       |
-| `wrapperLoggerLevel`                      | `String`  | No       | Logger level of the driver. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. | `null`        |
-| `wrapperUser`                             | `String`  | No       | Driver user name.                                                                                                                                                           | `null`        |
-| `wrapperPassword`                         | `String`  | No       | Driver password.                                                                                                                                                            | `null`        |
-| `wrapperDatabaseName`                     | `String`  | No       | Driver database name.                                                                                                                                                       | `null`        |
-| `wrapperTargetDriverUserPropertyName`     | `String`  | No       | Target driver user property name.                                                                                                                                           | `null`        |
-| `wrapperTargetDriverPasswordPropertyName` | `String`  | No       | Target driver password property name.                                                                                                                                       | `null`        |
+| Parameter                       | Value     | Required | Description                                                                                                                                                                       | Default Value |
+|---------------------------------|-----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `wrapperLogUnclosedConnections` | `Boolean` | No       | Allows the JDBC Wrapper to track a point in the code where connection has been opened but not closed.                                                                             | `false`       |
+| `wrapperLoggerLevel`            | `String`  | No       | Logger level of the JDBC Wrapper. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. | `null`        |
+| `database`                      | `String`  | No       | Database name.                                                                                                                                                                    | `null`        |
+| `user`                          | `String`  | No       | Database username.                                                                                                                                                                | `null`        |
+| `password`                      | `String`  | No       | Database password.                                                                                                                                                                | `null`        |
 
 ## Plugins
 The JDBC Wrapper uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The JDBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use. 

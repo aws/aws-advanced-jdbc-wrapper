@@ -84,6 +84,9 @@ class DefaultConnectionPluginTest {
         Arguments.of("START/* COMMENT */TRANSACTION;", true),
         Arguments.of("START      /* COMMENT */    TRANSACTION;", true),
         Arguments.of("START   /*COMMENT*/TRANSACTION;", true),
+        Arguments.of("/*COMMENT*/START   /*COMMENT*/TRANSACTION;", true),
+        Arguments.of(" /*COMMENT*/ START   /*COMMENT*/TRANSACTION;", true),
+        Arguments.of(" /*COMMENT*/ begin", true),
         Arguments.of("commit", false)
     );
   }

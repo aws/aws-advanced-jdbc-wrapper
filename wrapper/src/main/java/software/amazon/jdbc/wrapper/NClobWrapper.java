@@ -190,4 +190,9 @@ public class NClobWrapper implements NClob {
     WrapperUtils.runWithPlugins(
         SQLException.class, this.pluginManager, this.nclob, "NClob.free", () -> this.nclob.free());
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.nclob;
+  }
 }

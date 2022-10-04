@@ -26,13 +26,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.Messages;
 
@@ -49,14 +47,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   protected List<HostSpec> hosts = new ArrayList<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
+  protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
   private boolean explicitReadOnly;
 
   public PluginServiceImpl(
-      @NonNull ConnectionPluginManager pluginManager,
-      @NonNull Properties props,
-      @NonNull String originalUrl,
-      String targetDriverProtocol) {
+      @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final Properties props,
+      @NonNull final String originalUrl,
+      final String targetDriverProtocol) {
     this.pluginManager = pluginManager;
     this.props = props;
     this.originalUrl = originalUrl;
@@ -71,12 +70,40 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   @Override
   public HostSpec getCurrentHostSpec() {
     if (this.currentHostSpec == null) {
-      if (this.getHosts().isEmpty()) {
-        throw new RuntimeException("Current host list is empty.");
+      this.currentHostSpec = this.initialConnectionHostSpec;
+
+      if (this.currentHostSpec == null) {
+        if (this.getHosts().isEmpty()) {
+          throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
+        }
+        this.currentHostSpec = this.getWriter(this.getHosts());
+        if (this.currentHostSpec == null) {
+          this.currentHostSpec = this.getHosts().get(0);
+        }
       }
-      this.currentHostSpec = this.getHosts().get(0);
+      if (this.currentHostSpec == null) {
+        throw new RuntimeException("Current host is undefined.");
+      }
+      LOGGER.finest(() -> "Set current host to " + this.currentHostSpec);
     }
     return this.currentHostSpec;
+  }
+
+  public void setInitialConnectionHostSpec(final @NonNull HostSpec initialConnectionHostSpec) {
+    this.initialConnectionHostSpec = initialConnectionHostSpec;
+  }
+
+  public HostSpec getInitialConnectionHostSpec() {
+    return this.initialConnectionHostSpec;
+  }
+
+  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
+    for (final HostSpec hostSpec : hosts) {
+      if (hostSpec.getRole() == HostRole.WRITER) {
+        return hostSpec;
+      }
+    }
+    return null;
   }
 
   @Override
@@ -90,7 +117,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   public synchronized EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec,
-      @Nullable ConnectionPlugin skipNotificationForThisPlugin)
+      @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
 
     if (this.currentConnection == null) {
@@ -99,7 +126,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       this.currentConnection = connection;
       this.currentHostSpec = hostSpec;
 
-      EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);
+      final EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);
       this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
 
       return changes;
@@ -107,7 +134,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
     } else {
       // update an existing connection
 
-      EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
+      final EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
           connection, hostSpec);
 
       if (!changes.isEmpty()) {
@@ -118,10 +145,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
         this.currentHostSpec = hostSpec;
         this.setInTransaction(false);
 
-        EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
+        final EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
             changes, skipNotificationForThisPlugin);
 
-        boolean shouldCloseConnection =
+        final boolean shouldCloseConnection =
             changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
                 && !oldConnection.isClosed()
                 && !pluginOpinions.contains(OldConnectionSuggestedAction.PRESERVE);
@@ -129,7 +156,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
         if (shouldCloseConnection) {
           try {
             oldConnection.close();
-          } catch (SQLException e) {
+          } catch (final SQLException e) {
             // Ignore any exception
           }
         }
@@ -144,11 +171,21 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       final @NonNull Connection connB,
       final @NonNull HostSpec hostSpecB) {
 
-    EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
+    final EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
 
     if (connA != connB) {
       changes.add(NodeChangeOptions.CONNECTION_OBJECT_CHANGED);
     }
+
+    changes.addAll(compare(hostSpecA, hostSpecB));
+    return changes;
+  }
+
+  protected EnumSet<NodeChangeOptions> compare(
+      final @NonNull HostSpec hostSpecA,
+      final @NonNull HostSpec hostSpecB) {
+
+    final EnumSet<NodeChangeOptions> changes = EnumSet.noneOf(NodeChangeOptions.class);
 
     if (!hostSpecA.getHost().equals(hostSpecB.getHost())
         || hostSpecA.getPort() != hostSpecB.getPort()) {
@@ -180,13 +217,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
   @Override
   public List<HostSpec> getHosts() {
-    if (this.hosts.isEmpty()) {
-      try {
-        this.refreshHostList();
-      } catch (SQLException e) {
-        LOGGER.log(Level.FINEST, "Exception while getting a host list.", e);
-      }
-    }
     return this.hosts;
   }
 
@@ -197,23 +227,23 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       return;
     }
 
-    List<HostSpec> hostsToChange = this.getHosts().stream()
+    final List<HostSpec> hostsToChange = this.getHosts().stream()
         .filter((host) -> hostAliases.contains(host.asAlias())
             || host.getAliases().stream().anyMatch((hostAlias) -> hostAliases.contains(hostAlias)))
         .distinct()
         .collect(Collectors.toList());
 
     if (hostsToChange.isEmpty()) {
-      LOGGER.log(Level.FINEST, String.format("Can't find any host by the following aliases: %s.", hostAliases));
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.hostAliasNotFound", new Object[] {hostAliases}));
       return;
     }
 
-    Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
-    for (HostSpec host : hostsToChange) {
-      HostAvailability currentAvailability = host.getAvailability();
+    final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
+    for (final HostSpec host : hostsToChange) {
+      final HostAvailability currentAvailability = host.getAvailability();
       host.setAvailability(availability);
       if (currentAvailability != availability) {
-        EnumSet<NodeChangeOptions> hostChanges;
+        final EnumSet<NodeChangeOptions> hostChanges;
         if (availability == HostAvailability.AVAILABLE) {
           hostChanges = EnumSet.of(NodeChangeOptions.WENT_UP, NodeChangeOptions.NODE_CHANGED);
         } else {
@@ -249,31 +279,29 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   @Override
-  public void setInTransaction(boolean inTransaction) {
+  public void setInTransaction(final boolean inTransaction) {
     this.isInTransaction = inTransaction;
   }
 
   @Override
   public HostListProvider getHostListProvider() {
-    if (this.hostListProvider == null) {
-      synchronized (this) {
-        if (this.hostListProvider == null) {
-          this.hostListProvider = new ConnectionStringHostListProvider(this.props, this.originalUrl);
-          this.currentHostSpec = this.getCurrentHostSpec();
-        }
-      }
-    }
     return this.hostListProvider;
   }
 
   @Override
   public void refreshHostList() throws SQLException {
-    setNodeList(this.hosts, this.getHostListProvider().refresh());
+    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
+    if (updatedHostList != null) {
+      setNodeList(this.hosts, updatedHostList);
+    }
   }
 
   @Override
-  public void refreshHostList(Connection connection) throws SQLException {
-    setNodeList(this.hosts, this.getHostListProvider().refresh(connection));
+  public void refreshHostList(final Connection connection) throws SQLException {
+    final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
+    if (updatedHostList != null) {
+      setNodeList(this.hosts, updatedHostList);
+    }
   }
 
   @Override
@@ -282,39 +310,38 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   @Override
-  public void forceRefreshHostList(Connection connection) throws SQLException {
+  public void forceRefreshHostList(final Connection connection) throws SQLException {
     setNodeList(this.hosts, this.getHostListProvider().forceRefresh(connection));
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,
       @Nullable final List<HostSpec> newHosts) {
 
-    Map<String, HostSpec> oldHostMap = oldHosts == null
+    final Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()
         : oldHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
 
-    Map<String, HostSpec> newHostMap = newHosts == null
+    final Map<String, HostSpec> newHostMap = newHosts == null
         ? new HashMap<>()
         : newHosts.stream().collect(Collectors.toMap(HostSpec::getUrl, (value) -> value));
 
-    Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
+    final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
 
-    for (Entry<String, HostSpec> entry : oldHostMap.entrySet()) {
-      HostSpec correspondingNewHost = newHostMap.get(entry.getKey());
+    for (final Entry<String, HostSpec> entry : oldHostMap.entrySet()) {
+      final HostSpec correspondingNewHost = newHostMap.get(entry.getKey());
       if (correspondingNewHost == null) {
         // host deleted
         changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_DELETED));
       } else {
         // host maybe changed
-        EnumSet<NodeChangeOptions> hostChanges = compare(null, entry.getValue(), null,
-            correspondingNewHost);
+        final EnumSet<NodeChangeOptions> hostChanges = compare(entry.getValue(), correspondingNewHost);
         if (!hostChanges.isEmpty()) {
           changes.put(entry.getKey(), hostChanges);
         }
       }
     }
 
-    for (Entry<String, HostSpec> entry : newHostMap.entrySet()) {
+    for (final Entry<String, HostSpec> entry : newHostMap.entrySet()) {
       if (!oldHostMap.containsKey(entry.getKey())) {
         // host added
         changes.put(entry.getKey(), EnumSet.of(NodeChangeOptions.NODE_ADDED));
@@ -333,29 +360,29 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   @Override
-  public void setHostListProvider(HostListProvider hostListProvider) {
+  public void setHostListProvider(final HostListProvider hostListProvider) {
     this.hostListProvider = hostListProvider;
   }
 
   @Override
-  public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
+  public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
     return this.pluginManager.connect(this.driverProtocol, hostSpec, props, this.currentConnection == null);
   }
 
   @Override
   public void releaseResources() {
-    LOGGER.log(Level.FINE, "releasing resources");
+    LOGGER.fine(() -> Messages.get("PluginServiceImpl.releaseResources"));
 
     try {
       if (this.currentConnection != null && !this.currentConnection.isClosed()) {
         this.currentConnection.close();
       }
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       // Ignore an exception
     }
 
     if (this.hostListProvider != null && this.hostListProvider instanceof CanReleaseResources) {
-      CanReleaseResources canReleaseResourcesObject = (CanReleaseResources) this.hostListProvider;
+      final CanReleaseResources canReleaseResourcesObject = (CanReleaseResources) this.hostListProvider;
       canReleaseResourcesObject.releaseResources();
     }
   }

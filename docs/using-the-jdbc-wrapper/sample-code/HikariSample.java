@@ -37,20 +37,18 @@ public class HikariSample {
 
     // Configure AwsWrapperDataSource:
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-    ds.addDataSourceProperty("userPropertyName", "user");
-    ds.addDataSourceProperty("passwordPropertyName", "password");
-    ds.addDataSourceProperty("databasePropertyName", "databaseName");
-    ds.addDataSourceProperty("portPropertyName", "port");
-    ds.addDataSourceProperty("serverPropertyName", "serverName");
+    ds.addDataSourceProperty("databasePropertyName", "databasePropertyName");
+    ds.addDataSourceProperty("portPropertyName", "portPropertyName");
+    ds.addDataSourceProperty("serverPropertyName", "serverPropertyName");
 
     // Specify the driver-specific data source for AwsWrapperDataSource:
     ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
 
     // Configuring PGSimpleDataSource:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
-    targetDataSourceProps.setProperty("databaseName", "postgres");
-    targetDataSourceProps.setProperty("port", "5432");
+    targetDataSourceProps.setProperty("serverPropertyName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
+    targetDataSourceProps.setProperty("databasePropertyName", "postgres");
+    targetDataSourceProps.setProperty("portPropertyName", "5432");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     // Try and make a connection:

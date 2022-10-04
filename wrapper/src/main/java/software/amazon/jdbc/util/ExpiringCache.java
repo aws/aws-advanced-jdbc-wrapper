@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -37,6 +38,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class ExpiringCache<K, V> implements Map<K, V> {
 
   private long expireTimeMs;
+  private @Nullable OnEvictRunnable<V> onEvictRunnable;
+  private final ReentrantLock reentrantLock = new ReentrantLock();
 
   /** The HashMap which stores the key-value pair. */
   private final LinkedHashMap<K, Hit<V>> linkedHashMap =
@@ -44,13 +47,30 @@ public class ExpiringCache<K, V> implements Map<K, V> {
 
         @Override
         protected boolean removeEldestEntry(Map.Entry<K, Hit<V>> eldest) {
+
+          // removeEldestEntry() method is always called on inserting a new entry.
+          // It makes sense to skip processing of such a new entry.
+          // When this method is called with an old and expired entry, we can
+          // iterate through all entries and remove all expired ones.
+
           if (eldest.getValue().isExpire(expireTimeMs)) {
+
             Iterator<Hit<V>> i = values().iterator();
 
-            i.next();
-            do {
+            while (i.hasNext()) {
+              Hit<V> hit = i.next();
+              if (!hit.isExpire(expireTimeMs)) {
+                continue;
+              }
               i.remove();
-            } while (i.hasNext() && i.next().isExpire(expireTimeMs));
+              if (onEvictRunnable != null) {
+                try {
+                  onEvictRunnable.call(hit.payload);
+                } catch (Exception ex) {
+                  // ignore
+                }
+              }
+            }
           }
           return false;
         }
@@ -63,6 +83,17 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   public ExpiringCache(long expireTimeMs) {
     this.expireTimeMs = expireTimeMs;
+  }
+
+  /**
+   * Expiring cache constructor.
+   *
+   * @param expireTimeMs The expired time in Ms
+   * @param onEvictRunnable A function that will be called on each evicted cache entry
+   */
+  public ExpiringCache(long expireTimeMs, final @Nullable OnEvictRunnable<V> onEvictRunnable) {
+    this.expireTimeMs = expireTimeMs;
+    this.onEvictRunnable = onEvictRunnable;
   }
 
   /**
@@ -90,8 +121,14 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public int size() {
-    return (int)
-        this.linkedHashMap.values().stream().filter(x -> !x.isExpire(expireTimeMs)).count();
+    try {
+      this.reentrantLock.lock();
+
+      return (int)
+          this.linkedHashMap.values().stream().filter(x -> !x.isExpire(expireTimeMs)).count();
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -101,7 +138,13 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public boolean isEmpty() {
-    return this.linkedHashMap.values().stream().allMatch(x -> x.isExpire(expireTimeMs));
+    try {
+      this.reentrantLock.lock();
+
+      return !this.linkedHashMap.values().stream().anyMatch(x -> !x.isExpire(expireTimeMs));
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -112,8 +155,14 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public boolean containsKey(Object key) {
-    V payload = this.get(key);
-    return payload != null;
+    try {
+      this.reentrantLock.lock();
+
+      V payload = this.get(key);
+      return payload != null;
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -124,8 +173,14 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public boolean containsValue(Object value) {
-    return this.linkedHashMap.values().stream()
-        .anyMatch(x -> !x.isExpire(expireTimeMs) && x.payload == value);
+    try {
+      this.reentrantLock.lock();
+
+      return this.linkedHashMap.values().stream()
+          .anyMatch(x -> !x.isExpire(expireTimeMs) && x.payload == value);
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -136,18 +191,24 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public @Nullable V get(Object key) {
-    Hit<V> hit = this.linkedHashMap.get(key);
+    try {
+      this.reentrantLock.lock();
 
-    if (hit == null) {
-      return null;
+      Hit<V> hit = this.linkedHashMap.get(key);
+
+      if (hit == null) {
+        return null;
+      }
+
+      if (hit.isExpire(expireTimeMs)) {
+        this.linkedHashMap.remove(key);
+        return null;
+      }
+
+      return hit.payload;
+    } finally {
+      this.reentrantLock.unlock();
     }
-
-    if (hit.isExpire(expireTimeMs)) {
-      this.linkedHashMap.remove(key);
-      return null;
-    }
-
-    return hit.payload;
   }
 
   /**
@@ -160,8 +221,14 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public @Nullable V put(K key, V value) {
-    Hit<V> prevValue = this.linkedHashMap.put(key, new Hit<>(value));
-    return prevValue == null ? null : prevValue.payload;
+    try {
+      this.reentrantLock.lock();
+
+      Hit<V> prevValue = this.linkedHashMap.put(key, new Hit<>(value));
+      return prevValue == null ? null : prevValue.payload;
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -172,8 +239,14 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public @Nullable V remove(Object key) {
-    Hit<V> prevValue = this.linkedHashMap.remove(key);
-    return prevValue == null ? null : prevValue.payload;
+    try {
+      this.reentrantLock.lock();
+
+      Hit<V> prevValue = this.linkedHashMap.remove(key);
+      return prevValue == null ? null : prevValue.payload;
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -183,15 +256,27 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public void putAll(Map<? extends K, ? extends V> m) {
-    for (Map.Entry<? extends K, ? extends V> entry : m.entrySet()) {
-      this.linkedHashMap.put(entry.getKey(), new Hit<>(entry.getValue()));
+    try {
+      this.reentrantLock.lock();
+
+      for (Map.Entry<? extends K, ? extends V> entry : m.entrySet()) {
+        this.linkedHashMap.put(entry.getKey(), new Hit<>(entry.getValue()));
+      }
+    } finally {
+      this.reentrantLock.unlock();
     }
   }
 
   /** Clears all mapping from the cache. */
   @Override
   public void clear() {
-    this.linkedHashMap.clear();
+    try {
+      this.reentrantLock.lock();
+
+      this.linkedHashMap.clear();
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -201,10 +286,16 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public Set<@KeyFor("this") K> keySet() {
-    return this.linkedHashMap.entrySet().stream()
-        .filter(x -> !x.getValue().isExpire(expireTimeMs))
-        .map(Entry::getKey)
-        .collect(Collectors.toSet());
+    try {
+      this.reentrantLock.lock();
+
+      return this.linkedHashMap.entrySet().stream()
+          .filter(x -> !x.getValue().isExpire(expireTimeMs))
+          .map(Entry::getKey)
+          .collect(Collectors.toSet());
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -214,10 +305,16 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public Collection<V> values() {
-    return this.linkedHashMap.values().stream()
-        .filter(x -> !x.isExpire(expireTimeMs))
-        .map(x -> x.payload)
-        .collect(Collectors.toList());
+    try {
+      this.reentrantLock.lock();
+
+      return this.linkedHashMap.values().stream()
+          .filter(x -> !x.isExpire(expireTimeMs))
+          .map(x -> x.payload)
+          .collect(Collectors.toList());
+    } finally {
+      this.reentrantLock.unlock();
+    }
   }
 
   /**
@@ -227,10 +324,30 @@ public class ExpiringCache<K, V> implements Map<K, V> {
    */
   @Override
   public Set<Entry<@KeyFor("this") K, V>> entrySet() {
-    return this.linkedHashMap.entrySet().stream()
-        .filter(x -> !x.getValue().isExpire(expireTimeMs))
-        .map(x -> new AbstractMap.SimpleEntry<>(x.getKey(), x.getValue().payload))
-        .collect(Collectors.toSet());
+    try {
+      this.reentrantLock.lock();
+
+      return this.linkedHashMap.entrySet().stream()
+          .filter(x -> !x.getValue().isExpire(expireTimeMs))
+          .map(x -> new AbstractMap.SimpleEntry<>(x.getKey(), x.getValue().payload))
+          .collect(Collectors.toSet());
+    } finally {
+      this.reentrantLock.unlock();
+    }
+  }
+
+  public void setOnEvictRunnable(OnEvictRunnable<V> onEvictRunnable) {
+    try {
+      this.reentrantLock.lock();
+
+      this.onEvictRunnable = onEvictRunnable;
+    } finally {
+      this.reentrantLock.unlock();
+    }
+  }
+
+  public ReentrantLock getLock() {
+    return this.reentrantLock;
   }
 
   /**
@@ -263,5 +380,9 @@ public class ExpiringCache<K, V> implements Map<K, V> {
       final long elapsedTimeNano = System.nanoTime() - this.time;
       return elapsedTimeNano >= TimeUnit.MILLISECONDS.toNanos(expireTimeMs);
     }
+  }
+
+  public interface OnEvictRunnable<V> {
+    void call(final V value);
   }
 }

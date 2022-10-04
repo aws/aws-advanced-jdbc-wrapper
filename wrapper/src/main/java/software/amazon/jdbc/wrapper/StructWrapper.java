@@ -66,4 +66,9 @@ public class StructWrapper implements Struct {
         () -> this.struct.getAttributes(map),
         map);
   }
+
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.struct;
+  }
 }

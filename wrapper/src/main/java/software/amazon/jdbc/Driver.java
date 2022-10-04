@@ -29,6 +29,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -50,7 +51,7 @@ public class Driver implements java.sql.Driver {
   public static void register() throws SQLException {
     if (isRegistered()) {
       throw new IllegalStateException(
-          "Driver is already registered. It can only be registered once.");
+          Messages.get("Driver.alreadyRegistered"));
     }
     Driver driver = new Driver();
     DriverManager.registerDriver(driver);
@@ -60,7 +61,7 @@ public class Driver implements java.sql.Driver {
   public static void deregister() throws SQLException {
     if (registeredDriver == null) {
       throw new IllegalStateException(
-          "Driver is not registered (or it has not been registered using Driver.register() method)");
+          Messages.get("Driver.notRegistered"));
     }
     DriverManager.deregisterDriver(registeredDriver);
     registeredDriver = null;
@@ -80,7 +81,7 @@ public class Driver implements java.sql.Driver {
     java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 
     if (driver == null) {
-      LOGGER.log(Level.WARNING, "No suitable driver found for " + driverUrl);
+      LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl}));
       return null;
     }
 
@@ -101,10 +102,7 @@ public class Driver implements java.sql.Driver {
       PARENT_LOGGER.setLevel(logLevel);
     }
 
-    ConnectionProvider connectionProvider = new DriverConnectionProvider(
-        driver,
-        PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.getString(info),
-        PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.getString(info));
+    ConnectionProvider connectionProvider = new DriverConnectionProvider(driver);
 
     return new ConnectionWrapper(props, driverUrl, connectionProvider);
   }
@@ -112,7 +110,7 @@ public class Driver implements java.sql.Driver {
   @Override
   public boolean acceptsURL(String url) throws SQLException {
     if (url == null) {
-      throw new SQLException("url is null");
+      throw new SQLException(Messages.get("Driver.nullUrl"));
     }
     // get defaults
     Properties defaults;
@@ -147,7 +145,7 @@ public class Driver implements java.sql.Driver {
     if (dPos != -1) {
       String database = urlServer.substring(dPos + 1);
       if (!database.isEmpty()) {
-        PropertyDefinition.DATABASE_NAME.set(propertiesFromUrl, database);
+        PropertyDefinition.DATABASE.set(propertiesFromUrl, database);
       }
     }
 
@@ -183,10 +181,10 @@ public class Driver implements java.sql.Driver {
     try {
       return StringUtils.decode(url);
     } catch (IllegalArgumentException e) {
-      LOGGER.log(
-          Level.FINE,
-          "Url [{0}] parsing failed with error [{1}]",
-          new Object[] {url, e.getMessage()});
+      LOGGER.fine(
+          () -> Messages.get(
+              "Driver.urlParsingFailed",
+              new Object[] {url, e.getMessage()}));
     }
     return null;
   }

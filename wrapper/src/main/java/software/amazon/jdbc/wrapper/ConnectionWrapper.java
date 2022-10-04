@@ -46,6 +46,8 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -83,7 +85,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     init(props, pluginManager, pluginService, pluginService, pluginService);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
-      this.openConnectionStacktrace = new Throwable("Unclosed connection was instantiated at this point:");
+      this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
     }
   }
 
@@ -116,20 +118,24 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     this.pluginManager.init(this.pluginService, props, pluginManagerService);
 
+    this.hostListProviderService.setHostListProvider(
+        new ConnectionStringHostListProvider(props, this.originalUrl, this.hostListProviderService));
+
     this.pluginManager.initHostProvider(
         this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
+
     this.pluginService.refreshHostList();
 
     if (this.pluginService.getCurrentConnection() == null) {
       Connection conn =
           this.pluginManager.connect(
-              this.targetDriverProtocol, this.pluginService.getCurrentHostSpec(), props, true);
+              this.targetDriverProtocol, this.pluginService.getInitialConnectionHostSpec(), props, true);
 
       if (conn == null) {
-        throw new SQLException("Initial connection isn't open.", SqlState.UNKNOWN_STATE.getState());
+        throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
       }
 
-      this.pluginService.setCurrentConnection(conn, this.pluginService.getCurrentHostSpec());
+      this.pluginService.setCurrentConnection(conn, this.pluginService.getInitialConnectionHostSpec());
     }
   }
 
@@ -137,7 +143,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     int index = url.indexOf("//");
     if (index < 0) {
       throw new IllegalArgumentException(
-          "Url should contains a driver protocol. Protocol is not found in url " + url);
+          Messages.get(
+              "ConnectionWrapper.protocolNotFound",
+              new Object[] {url}));
     }
     return url.substring(0, index + 2);
   }
@@ -813,12 +821,21 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     return this.pluginService.getCurrentConnection().unwrap(iface);
   }
 
+  @Override
+  public String toString() {
+    return super.toString() + " - " + this.pluginService.getCurrentConnection();
+  }
+
   @SuppressWarnings("checkstyle:NoFinalizer")
   protected void finalize() throws Throwable {
 
     try {
       if (this.openConnectionStacktrace != null) {
-        LOGGER.log(Level.WARNING, "Finalizing a connection that was never closed.", this.openConnectionStacktrace);
+        LOGGER.log(
+            Level.WARNING,
+            this.openConnectionStacktrace,
+            () -> Messages.get(
+                "ConnectionWrapper.finalizingUnclosedConnection"));
         this.openConnectionStacktrace = null;
       }
 

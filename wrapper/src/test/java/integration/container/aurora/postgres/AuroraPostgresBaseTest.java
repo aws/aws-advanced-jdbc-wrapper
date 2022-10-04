@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
+import integration.container.aurora.TestAuroraHostListProvider;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;
@@ -286,7 +287,11 @@ public abstract class AuroraPostgresBaseTest {
   protected List<String> getTopologyIds() throws SQLException {
     final String url =
         DB_CONN_STR_PREFIX + POSTGRES_INSTANCE_1_URL + ":" + AURORA_POSTGRES_PORT + "/" + AURORA_POSTGRES_DB;
-    return this.containerHelper.getAuroraInstanceIds(url, AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);
+    return this.containerHelper.getAuroraInstanceIds(
+        url,
+        AURORA_POSTGRES_USERNAME,
+        AURORA_POSTGRES_PASSWORD,
+        "postgres");
   }
 
   /* Helper functions. */
@@ -320,13 +325,11 @@ public abstract class AuroraPostgresBaseTest {
     assertEquals(expectedSQLErrorCode, exception.getSQLState(), "Unexpected SQL Exception: " + exception.getMessage());
   }
 
-  protected Connection createPooledConnectionWithFailoverUsingInstanceId(String instanceID) throws SQLException {
+  protected Connection createDataSourceConnectionWithFailoverUsingInstanceId(String instanceID) throws SQLException {
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     // Configure the property names for the underlying driver-specific data source:
     ds.setJdbcProtocol("jdbc:postgresql:");
-    ds.setUserPropertyName("user");
-    ds.setPasswordPropertyName("password");
     ds.setDatabasePropertyName("databaseName");
     ds.setServerPropertyName("serverName");
     ds.setPortPropertyName("port");
@@ -425,6 +428,66 @@ public abstract class AuroraPostgresBaseTest {
       assertTrue(
           remainingInstances.isEmpty(),
           "The following instances are still down: \n" + String.join("\n", remainingInstances.keySet()));
+    }
+  }
+
+  // Helpers
+  protected void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
+      throws InterruptedException {
+    failoverCluster();
+    waitUntilWriterInstanceChanged(clusterWriterId);
+  }
+
+  protected void failoverCluster() throws InterruptedException {
+    waitUntilClusterHasRightState();
+    while (true) {
+      try {
+        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
+        break;
+      } catch (final Exception e) {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      }
+    }
+  }
+
+  protected void waitUntilWriterInstanceChanged(String initialWriterInstanceId)
+      throws InterruptedException {
+    String nextClusterWriterId = getDBClusterWriterInstanceId();
+    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
+      TimeUnit.MILLISECONDS.sleep(3000);
+      // Calling the RDS API to get writer Id.
+      nextClusterWriterId = getDBClusterWriterInstanceId();
+    }
+  }
+
+  protected void waitUntilClusterHasRightState() throws InterruptedException {
+    String status = getDBCluster().status();
+    while (!"available".equalsIgnoreCase(status)) {
+      TimeUnit.MILLISECONDS.sleep(1000);
+      status = getDBCluster().status();
+    }
+  }
+
+  protected void failoverClusterToATargetAndWaitUntilWriterChanged(
+      String clusterWriterId,
+      String targetInstanceId) throws InterruptedException {
+    failoverClusterWithATargetInstance(targetInstanceId);
+    waitUntilWriterInstanceChanged(clusterWriterId);
+  }
+
+  protected void failoverClusterWithATargetInstance(String targetInstanceId)
+      throws InterruptedException {
+    waitUntilClusterHasRightState();
+
+    while (true) {
+      try {
+        rdsClient.failoverDBCluster(
+            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
+                .targetDBInstanceIdentifier(targetInstanceId));
+        break;
+      } catch (final Exception e) {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      }
     }
   }
 }

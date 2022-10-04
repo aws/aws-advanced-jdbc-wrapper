@@ -24,11 +24,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 /**
@@ -103,7 +103,7 @@ public class MonitorImpl implements Monitor {
   @Override
   public void stopMonitoring(MonitorConnectionContext context) {
     if (context == null) {
-      LOGGER.log(Level.WARNING, "Parameter 'context' should not be null.");
+      LOGGER.warning(() -> Messages.get("MonitorImpl.contextNullWarning"));
       return;
     }
 
@@ -195,8 +195,6 @@ public class MonitorImpl implements Monitor {
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis));
       return new ConnectionStatus(isValid, this.getCurrentTimeNano() - start);
     } catch (SQLException sqlEx) {
-      // LOGGER.log(Level.FINEST, String.format("[Monitor] Error checking connection status: %s",
-      // sqlEx.getMessage()));
       return new ConnectionStatus(false, this.getCurrentTimeNano() - start);
     }
   }
