@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -59,6 +60,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private Connection readerConnection;
   private HostSpec readerHostSpec;
   private boolean explicitlyReadOnly = false;
+
+  public static final AwsWrapperProperty LOAD_BALANCE_READ_ONLY_TRAFFIC =
+      new AwsWrapperProperty(
+          "loadBalanceReadOnlyTraffic",
+              "false",
+              "Set to true to automatically load-balance read-only transactions when setReadOnly is set to true");
 
   ReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;

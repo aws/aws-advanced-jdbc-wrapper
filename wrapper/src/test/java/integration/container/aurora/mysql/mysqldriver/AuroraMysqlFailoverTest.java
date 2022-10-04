@@ -30,7 +30,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -56,7 +55,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
       // Failure occurs on Connection invocation
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are connected to the new writer after failover happens.
       final String currentConnectionId = queryInstanceId(conn);
@@ -84,7 +83,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
       // Failure occurs on Statement invocation
-      assertFirstQueryThrows(stmt, "08S02");
+      assertFirstQueryThrows(stmt, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that the driver is connected to the new writer after failover happens.
       final String currentConnectionId = queryInstanceId(conn);
@@ -118,7 +117,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       Proxy instanceProxy = proxyMap.get(instanceId);
       containerHelper.disableConnectivity(instanceProxy);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are currently connected to the writer Instance1.
       final String writerId = instanceIDs[0];
@@ -138,7 +137,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       // Crash writer Instance1.
       failoverClusterToATargetAndWaitUntilWriterChanged(writerId, readerBId);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are connected to one of the available instances.
       currentConnectionId = queryInstanceId(conn);
@@ -175,7 +174,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
           assertThrows(
               SQLException.class,
               () -> testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (2, 'test field string 2')"));
-      assertEquals("08007", exception.getSQLState());
+      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
       final String currentConnectionId = queryInstanceId(conn);
@@ -224,7 +223,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
           assertThrows(
               SQLException.class,
               () -> testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (2, 'test field string 2')"));
-      assertEquals("08007", exception.getSQLState());
+      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
       final String currentConnectionId = queryInstanceId(conn);
@@ -270,7 +269,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
           assertThrows(
               SQLException.class,
               () -> testStmt2.executeUpdate("INSERT INTO test3_4 VALUES (2, 'test field string 2')"));
-      assertEquals("08S02", exception.getSQLState());
+      assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
       final String currentConnectionId = queryInstanceId(conn);
@@ -306,7 +305,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       // Crash writer Instance1 and nominate Instance2 as the new writer
       failoverClusterToATargetAndWaitUntilWriterChanged(initialWriterId, nominatedWriterId);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Execute Query again to get the current connection id;
       final String currentConnectionId = queryInstanceId(conn);
@@ -346,7 +345,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
@@ -372,66 +371,6 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
       final long duration = invokeEndTimeMs - invokeStartTimeMs;
       assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
-    }
-  }
-
-  // Helpers
-  private void failoverClusterAndWaitUntilWriterChanged(final String clusterWriterId)
-      throws InterruptedException {
-    failoverCluster();
-    waitUntilWriterInstanceChanged(clusterWriterId);
-  }
-
-  private void failoverCluster() throws InterruptedException {
-    waitUntilClusterHasRightState();
-    while (true) {
-      try {
-        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
-        break;
-      } catch (final Exception e) {
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
-    }
-  }
-
-  private void failoverClusterToATargetAndWaitUntilWriterChanged(
-      final String clusterWriterId,
-      final String targetInstanceId) throws InterruptedException {
-    failoverClusterWithATargetInstance(targetInstanceId);
-    waitUntilWriterInstanceChanged(clusterWriterId);
-  }
-
-  private void failoverClusterWithATargetInstance(final String targetInstanceId)
-      throws InterruptedException {
-    waitUntilClusterHasRightState();
-
-    while (true) {
-      try {
-        rdsClient.failoverDBCluster(
-            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
-                .targetDBInstanceIdentifier(targetInstanceId));
-        break;
-      } catch (final Exception e) {
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
-    }
-  }
-
-  private void waitUntilWriterInstanceChanged(final String initialWriterInstanceId)
-      throws InterruptedException {
-    String nextClusterWriterId = getDBClusterWriterInstanceId();
-    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
-      TimeUnit.MILLISECONDS.sleep(3000);
-      // Calling the RDS API to get writer Id.
-      nextClusterWriterId = getDBClusterWriterInstanceId();
-    }
-  }
-
-  private void waitUntilClusterHasRightState() throws InterruptedException {
-    String status = getDBCluster().status();
-    while (!"available".equalsIgnoreCase(status)) {
-      TimeUnit.MILLISECONDS.sleep(1000);
-      status = getDBCluster().status();
     }
   }
 }

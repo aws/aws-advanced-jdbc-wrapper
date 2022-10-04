@@ -218,7 +218,7 @@ public abstract class AuroraPostgresBaseTest {
     TestAuroraHostListProvider.clearCache();
   }
 
-  protected Properties initDefaultPropsNoTimeouts() {
+  protected static Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
     props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
@@ -228,7 +228,7 @@ public abstract class AuroraPostgresBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProps() {
+  protected static Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
     props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
     props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
@@ -236,7 +236,7 @@ public abstract class AuroraPostgresBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProxiedProps() {
+  protected static Properties initDefaultProxiedProps() {
     final Properties props = initDefaultProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
 
@@ -304,8 +304,7 @@ public abstract class AuroraPostgresBaseTest {
   protected String executeInstanceIdQuery(Statement stmt) throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(QUERY_FOR_INSTANCE)) {
       if (rs.next()) {
-        final String id = rs.getString("aurora_db_instance_identifier");
-        return id;
+        return rs.getString("aurora_db_instance_identifier");
       }
     }
     return null;

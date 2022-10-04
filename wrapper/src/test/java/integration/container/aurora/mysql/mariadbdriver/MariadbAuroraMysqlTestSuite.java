@@ -26,8 +26,8 @@ import org.junit.platform.suite.api.Suite;
     AuroraMysqlDataSourceTest.class,
     AuroraMysqlFailoverTest.class,
     AuroraMysqlAwsIamIntegrationTest.class,
-    AuroraMysqlIntegrationTest.class
+    AuroraMysqlIntegrationTest.class,
+    AuroraMysqlReadWriteSplittingTest.class,
+    HikariCPReadWriteSplittingTest.class
 })
-public class MariadbAuroraMysqlTestSuite {
-
-}
+public class MariadbAuroraMysqlTestSuite {}

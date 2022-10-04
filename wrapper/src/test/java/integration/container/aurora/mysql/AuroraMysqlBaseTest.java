@@ -220,7 +220,7 @@ public abstract class AuroraMysqlBaseTest {
     TestAuroraHostListProvider.clearCache();
   }
 
-  protected Properties initDefaultPropsNoTimeouts() {
+  protected static Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, AURORA_MYSQL_USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, AURORA_MYSQL_PASSWORD);
@@ -230,7 +230,7 @@ public abstract class AuroraMysqlBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProps() {
+  protected static Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
     props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3000");
     props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3000");
@@ -238,7 +238,7 @@ public abstract class AuroraMysqlBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProxiedProps() {
+  protected static Properties initDefaultProxiedProps() {
     final Properties props = initDefaultProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
 
@@ -310,8 +310,7 @@ public abstract class AuroraMysqlBaseTest {
   protected String executeInstanceIdQuery(Statement stmt) throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(QUERY_FOR_INSTANCE)) {
       if (rs.next()) {
-        final String id = rs.getString("@@aurora_server_id");
-        return id;
+        return rs.getString("@@aurora_server_id");
       }
     }
     return null;
@@ -434,6 +433,66 @@ public abstract class AuroraMysqlBaseTest {
       assertTrue(
           remainingInstances.isEmpty(),
           "The following instances are still down: \n" + String.join("\n", remainingInstances.keySet()));
+    }
+  }
+
+  // Helpers
+  protected void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
+      throws InterruptedException {
+    failoverCluster();
+    waitUntilWriterInstanceChanged(clusterWriterId);
+  }
+
+  protected void failoverCluster() throws InterruptedException {
+    waitUntilClusterHasRightState();
+    while (true) {
+      try {
+        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
+        break;
+      } catch (final Exception e) {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      }
+    }
+  }
+
+  protected void failoverClusterToATargetAndWaitUntilWriterChanged(
+      String clusterWriterId,
+      String targetInstanceId) throws InterruptedException {
+    failoverClusterWithATargetInstance(targetInstanceId);
+    waitUntilWriterInstanceChanged(clusterWriterId);
+  }
+
+  protected void failoverClusterWithATargetInstance(String targetInstanceId)
+      throws InterruptedException {
+    waitUntilClusterHasRightState();
+
+    while (true) {
+      try {
+        rdsClient.failoverDBCluster(
+            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
+                .targetDBInstanceIdentifier(targetInstanceId));
+        break;
+      } catch (final Exception e) {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      }
+    }
+  }
+
+  protected void waitUntilWriterInstanceChanged(String initialWriterInstanceId)
+      throws InterruptedException {
+    String nextClusterWriterId = getDBClusterWriterInstanceId();
+    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
+      TimeUnit.MILLISECONDS.sleep(3000);
+      // Calling the RDS API to get writer Id.
+      nextClusterWriterId = getDBClusterWriterInstanceId();
+    }
+  }
+
+  protected void waitUntilClusterHasRightState() throws InterruptedException {
+    String status = getDBCluster().status();
+    while (!"available".equalsIgnoreCase(status)) {
+      TimeUnit.MILLISECONDS.sleep(1000);
+      status = getDBCluster().status();
     }
   }
 }
