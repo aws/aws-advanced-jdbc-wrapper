@@ -158,7 +158,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     final String initialWriterId = instanceIDs[0];
 
     final Properties props = initDefaultProxiedProps();
-    props.setProperty("failoverTimeoutMs", "10000");
+    props.setProperty("failoverTimeoutMs", "60000");
 
     // Connect to cluster
     try (final Connection testConnection = connectToInstance(
@@ -179,8 +179,9 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     } finally {
       final Proxy proxyInstance = proxyMap.get(currWriter);
-      assertNotNull(proxyInstance, "Proxy isn't found for " + currWriter);
-      containerHelper.enableConnectivity(proxyInstance);
+      if (proxyInstance != null) {
+        containerHelper.enableConnectivity(proxyInstance);
+      }
       containerHelper.enableConnectivity(proxyCluster);
     }
   }
