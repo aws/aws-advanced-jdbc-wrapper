@@ -48,9 +48,7 @@ public class AwsWrapperDataSourceFactory implements ObjectFactory {
         "serverPropertyName",
         "portPropertyName",
         "urlPropertyName",
-        "databasePropertyName",
-        "userPropertyName",
-        "passwordPropertyName");
+        "databasePropertyName");
 
     Reference reference = (Reference) obj;
 
