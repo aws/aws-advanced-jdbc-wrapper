@@ -2394,9 +2394,4 @@ public class ResultSetWrapper implements ResultSet {
         "ResultSet.wasNull",
         () -> this.resultSet.wasNull());
   }
-
-  @Override
-  public String toString() {
-    return super.toString() + " - " + this.resultSet;
-  }
 }

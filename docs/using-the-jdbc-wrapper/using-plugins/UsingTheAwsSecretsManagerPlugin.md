@@ -10,7 +10,7 @@ To enable the AWS Secrets Manager Connection Plugin, add the plugin code `awsSec
 ## AWS Secrets Manager Parameters
 The following properties are required for the AWS Secrets Manager Connection Plugin to retrieve database credentials from the AWS Secrets Manager. 
 
-> **Note:** To use this plugin, you will need to set the following AWS Secrets Manager specific parameters.
+> **Note:** To use this plugin, you will need to set the following AWS Secrets Manager specific parameters, as well as the [`wrapperTargetDriverUserPropertyName`](../UsingTheJdbcWrapper.md#aws-advanced-jdbc-wrapper-parameters) and [`wrapperTargetDriverPasswordPropertyName`](../UsingTheJdbcWrapper.md#aws-advanced-jdbc-wrapper-parameters) JDBC Wrapper parameters.
 
 | Parameter                | Value  | Required | Description                                             | Example     | Default Value |
 |--------------------------|:------:|:--------:|:--------------------------------------------------------|:------------|---------------|
@@ -37,6 +37,8 @@ public class AwsSecretsManagerConnectionPluginPostgresqlSample {
     final Properties properties = new Properties();
     properties.setProperty("secretsManagerRegion", "us-east-2");
     properties.setProperty("secretsManagerSecretId", "secretId");
+    properties.setProperty("wrapperTargetDriverUserPropertyName", "user");
+    properties.setProperty("wrapperTargetDriverPasswordPropertyName", "password");
 
     // Enable the AWS Secrets Manager Connection Plugin.
     properties.setProperty(

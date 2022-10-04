@@ -60,9 +60,4 @@ public class SQLTypeWrapper implements SQLType {
         "SQLType.getVendorTypeNumber",
         () -> this.sqlType.getVendorTypeNumber());
   }
-
-  @Override
-  public String toString() {
-    return super.toString() + " - " + this.sqlType;
-  }
 }

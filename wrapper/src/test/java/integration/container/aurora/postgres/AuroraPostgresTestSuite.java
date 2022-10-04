@@ -25,7 +25,6 @@ import org.junit.platform.suite.api.Suite;
 @SelectClasses({
   AuroraPostgresIntegrationTest.class,
   AuroraPostgresFailoverTest.class,
-  AuroraPostgresDataSourceTest.class,
-  AuroraPostgresStaleDnsTest.class
+  AuroraPostgresDataSourceTest.class
 })
 public class AuroraPostgresTestSuite {}

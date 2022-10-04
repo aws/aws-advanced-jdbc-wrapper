@@ -153,14 +153,4 @@ public class ArrayWrapper implements Array {
     WrapperUtils.runWithPlugins(
         SQLException.class, this.pluginManager, this.array, "Array.free", () -> this.array.free());
   }
-
-  @Override
-  public String toString() {
-    // This implementation is different from other wrapper classes toString(). The reason is
-    // that PG JDBC driver has a strong functional dependency on this method and uses it to
-    // serialize array content. So wrapper class should preserve this logic.
-    // More details can be found at
-    // https://github.com/pgjdbc/pgjdbc/blob/f61fbfe7b72ccf2ca0ac2e2c366230fdb93260e5/pgjdbc/src/main/java/org/postgresql/jdbc/PgArray.java
-    return this.array == null ? null : this.array.toString();
-  }
 }

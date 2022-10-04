@@ -35,7 +35,6 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -75,17 +74,13 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           final JdbcCallable<Connection, SQLException> connectFunc)
           throws SQLException {
 
-    if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
-      throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
-    }
-
     final String host = hostSpec.getHost();
 
     int port = hostSpec.getPort();
     if (!hostSpec.isPortSpecified()) {
       if (StringUtils.isNullOrEmpty(SPECIFIED_PORT.getString(props))) {
         if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith("jdbc:mysql:")) {
-          throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.missingPort"));
+          throw new RuntimeException("Port is required");
         } else if (driverProtocol.startsWith("jdbc:mysql:")) {
           port = MYSQL_PORT;
         } else {
@@ -94,10 +89,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       } else {
         port = SPECIFIED_PORT.getInteger(props);
         if (port <= 0) {
-          throw new IllegalArgumentException(
-              Messages.get(
-                  "IamAuthConnectionPlugin.invalidPort",
-                  new Object[] {port}));
+          throw new IllegalArgumentException("Port number: " + port + " is not valid. "
+              + "Port number should be greater than zero.");
         }
       }
     }
@@ -124,18 +117,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     final TokenInfo tokenInfo = tokenCache.get(cacheKey);
 
     if (tokenInfo != null && !tokenInfo.isExpired()) {
-      LOGGER.finest(
-          () -> Messages.get(
-              "IamAuthConnectionPlugin.useCachedIamToken",
-              new Object[] {tokenInfo.getToken()}));
+      LOGGER.log(Level.FINEST, "use cached IAM token = " + tokenInfo.getToken());
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
       final String token = generateAuthenticationToken(PropertyDefinition.USER.getString(props),
               hostSpec.getHost(), port, region);
-      LOGGER.finest(
-          () -> Messages.get(
-              "IamAuthConnectionPlugin.generatedNewIamToken",
-              new Object[] {token}));
+      LOGGER.log(Level.FINEST, "generated new IAM token = " + token);
       PropertyDefinition.PASSWORD.set(props, token);
       tokenCache.put(
               cacheKey,
@@ -181,11 +168,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     if (StringUtils.isNullOrEmpty(rdsRegion)) {
       // Does not match Amazon's Hostname, throw exception
-      final String exceptionMessage = Messages.get(
-          "IamAuthConnectionPlugin.unsupportedHostname",
-          new Object[] {hostname});
+      final String exceptionMessage = String.format("Unsupported AWS hostname '%s'. "
+          + "Amazon domain name in format *.AWS-Region.rds.amazonaws.com or "
+          + "*.rds.AWS-Region.amazonaws.com.cn is expected", hostname);
 
-      LOGGER.fine(() -> exceptionMessage);
+      LOGGER.log(Level.FINEST, exceptionMessage);
       throw new SQLException(exceptionMessage);
     }
 
@@ -195,11 +182,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
             .findFirst();
 
     if (!regionOptional.isPresent()) {
-      final String exceptionMessage = Messages.get(
-          "IamAuthConnectionPlugin.unsupportedRegion",
-          new Object[] {rdsRegion});
-
-      LOGGER.fine(() -> exceptionMessage);
+      final String exceptionMessage = String.format("Unsupported AWS region '%s'. "
+                      + "For supported regions, please read "
+                      + "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html\n",
+              rdsRegion);
+      LOGGER.log(Level.FINEST, exceptionMessage);
       throw new SQLException((exceptionMessage));
     }
 

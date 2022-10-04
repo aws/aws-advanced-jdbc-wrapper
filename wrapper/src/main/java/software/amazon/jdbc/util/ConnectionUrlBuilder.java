@@ -34,11 +34,13 @@ public class ConnectionUrlBuilder {
                                 String serverPropertyName,
                                 String portPropertyName,
                                 String databasePropertyName,
+                                String userPropertyName,
+                                String passwordPropertyName,
                                 Properties props) throws SQLException {
     if (isNullOrEmpty(jdbcProtocol)
         || ((isNullOrEmpty(serverPropertyName) || isNullOrEmpty(props.getProperty(serverPropertyName)))
             && hostSpec == null)) {
-      throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
+      throw new SQLException("Missing JDBC protocol and/or host name. Could not construct URL.");
     }
 
     final Properties copy = PropertyUtils.copyProperties(props);
@@ -61,14 +63,16 @@ public class ConnectionUrlBuilder {
       urlBuilder.append("/");
     }
 
-    if (!isNullOrEmpty(PropertyDefinition.DATABASE.getString(copy))) {
-      urlBuilder.append(PropertyDefinition.DATABASE.getString(copy));
-      copy.remove(PropertyDefinition.DATABASE.name);
+    if (!isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(copy))) {
+      urlBuilder.append(PropertyDefinition.DATABASE_NAME.getString(copy));
+      copy.remove(PropertyDefinition.DATABASE_NAME.name);
     }
 
     removeProperty(serverPropertyName, copy);
     removeProperty(portPropertyName, copy);
     removeProperty(databasePropertyName, copy);
+    removeProperty(userPropertyName, copy);
+    removeProperty(passwordPropertyName, copy);
 
     final StringBuilder queryBuilder = new StringBuilder();
     final Enumeration<?> propertyNames = copy.propertyNames();
@@ -79,6 +83,11 @@ public class ConnectionUrlBuilder {
       }
 
       final String propertyValue = copy.getProperty(propertyName);
+      if (propertyName.equals(PropertyDefinition.USER.name) && !isNullOrEmpty(userPropertyName)) {
+        propertyName = userPropertyName;
+      } else if (propertyName.equals(PropertyDefinition.PASSWORD.name) && !isNullOrEmpty(passwordPropertyName)) {
+        propertyName = passwordPropertyName;
+      }
 
       try {
         queryBuilder
@@ -86,7 +95,7 @@ public class ConnectionUrlBuilder {
             .append("=")
             .append(URLEncoder.encode(propertyValue, StandardCharsets.UTF_8.toString()));
       } catch (UnsupportedEncodingException e) {
-        throw new SQLException(Messages.get("ConnectionUrlBuilder.failureEncodingConnectionUrl"), e);
+        throw new SQLException("Was not able to encode connectionURL properties.", e);
       }
     }
 

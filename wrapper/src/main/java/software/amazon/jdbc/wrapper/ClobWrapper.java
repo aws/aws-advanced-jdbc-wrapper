@@ -189,9 +189,4 @@ public class ClobWrapper implements Clob {
     WrapperUtils.runWithPlugins(
         SQLException.class, this.pluginManager, this.clob, "Clob.free", () -> this.clob.free());
   }
-
-  @Override
-  public String toString() {
-    return super.toString() + " - " + this.clob;
-  }
 }

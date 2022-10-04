@@ -54,16 +54,16 @@ public class AuroraPostgresContainerTest {
 
   private static final String AURORA_POSTGRES_USERNAME =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_USERNAME"))
-        ? System.getenv("AURORA_POSTGRES_USERNAME")
-        : "my_test_username";
+          ? System.getenv("AURORA_POSTGRES_USERNAME")
+          : "my_test_username";
   private static final String AURORA_POSTGRES_PASSWORD =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_PASSWORD"))
-        ? System.getenv("AURORA_POSTGRES_PASSWORD")
-        : "my_test_password";
+          ? System.getenv("AURORA_POSTGRES_PASSWORD")
+          : "my_test_password";
   protected static final String AURORA_POSTGRES_DB =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB"))
-        ? System.getenv("AURORA_POSTGRES_DB")
-        : "test";
+          ? System.getenv("AURORA_POSTGRES_DB")
+          : "test";
 
   protected static final String EXISTING_DB_CONN_SUFFIX = System.getenv("DB_CONN_SUFFIX");
 
@@ -78,12 +78,12 @@ public class AuroraPostgresContainerTest {
 
   private static final String AURORA_POSTGRES_DB_REGION =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_DB_REGION"))
-        ? System.getenv("AURORA_POSTGRES_DB_REGION")
-        : "us-east-1";
+          ? System.getenv("AURORA_POSTGRES_DB_REGION")
+          : "us-east-1";
   private static final String AURORA_POSTGRES_CLUSTER_IDENTIFIER =
       !StringUtils.isNullOrEmpty(System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER"))
-        ? System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER")
-        : "test-identifier";
+          ? System.getenv("AURORA_POSTGRES_CLUSTER_IDENTIFIER")
+          : "test-identifier";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static List<ToxiproxyContainer> proxyContainers = new ArrayList<>();
   private static List<String> postgresInstances = new ArrayList<>();
@@ -107,14 +107,14 @@ public class AuroraPostgresContainerTest {
     Assertions.assertNotNull(AWS_ACCESS_KEY_ID);
     Assertions.assertNotNull(AWS_SECRET_ACCESS_KEY);
 
-    if (TEST_WITH_EXISTING_DB && auroraUtil.doesClusterExist(AURORA_POSTGRES_CLUSTER_IDENTIFIER)) {
+    if (TEST_WITH_EXISTING_DB) {
       dbConnStrSuffix = EXISTING_DB_CONN_SUFFIX;
     } else {
       dbConnStrSuffix = auroraUtil.createCluster(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD, AURORA_POSTGRES_DB,
           AURORA_POSTGRES_CLUSTER_IDENTIFIER);
+      runnerIP = auroraUtil.getPublicIPAddress();
+      auroraUtil.ec2AuthorizeIP(runnerIP);
     }
-    runnerIP = auroraUtil.getPublicIPAddress();
-    auroraUtil.ec2AuthorizeIP(runnerIP);
 
     dbHostCluster = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-" + dbConnStrSuffix;
     dbHostClusterRo = AURORA_POSTGRES_CLUSTER_IDENTIFIER + ".cluster-ro-" + dbConnStrSuffix;
@@ -180,10 +180,7 @@ public class AuroraPostgresContainerTest {
     for (ToxiproxyContainer proxy : proxyContainers) {
       proxy.stop();
     }
-
-    if (integrationTestContainer != null) {
-      integrationTestContainer.stop();
-    }
+    integrationTestContainer.stop();
   }
 
   @Test

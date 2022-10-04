@@ -45,14 +45,14 @@ When connecting to Aurora clusters, the [`clusterInstanceHostPattern`](#failover
 When the JDBC Wrapper throws a FailoverFailedSQLException, the original connection has failed, and the JDBC Wrapper tried to failover to a new instance, but was unable to. There are various reasons this may happen: no nodes were available, a network failure occurred, and so on. In this scenario, please wait until the server is up or other problems are solved. (Exception will be thrown.)
 
 ### 08S02 - Communication Link
-When the JDBC Wrapper throws a FailoverSuccessSQLException, the original connection has failed while outside a transaction, and the JDBC Wrapper successfully failed over to another available instance in the cluster. However, any session state configuration of the initial connection is now lost. In this scenario, you should:
+When the JDBC Wrapper throws a FailoverSuccessSQLException, the original connection has failed while ```autocommit``` was set to ```true```, and the JDBC Wrapper successfully failed over to another available instance in the cluster. However, any session state configuration of the initial connection is now lost. In this scenario, you should:
 
 - Reuse and reconfigure the original connection (e.g., reconfigure session state to be the same as the original connection).
 
 - Repeat that query that was executed when the connection failed, and continue work as desired.
 
 ### 08007 - Transaction Resolution Unknown
-When the JDBC Wrapper throws a TransactionStateUnknownSQLException, the original connection has failed within a transaction. In this scenario, the JDBC Wrapper first attempts to rollback the transaction and then fails over to another available instance in the cluster. Note that the rollback might be unsuccessful as the initial connection may be broken at the time that the JDBC Wrapper recognizes the problem. Note also that any session state configuration of the initial connection is now lost. In this scenario, you should:
+When the JDBC Wrapper throws a TransactionStateUnknownSQLException, the original connection has failed within a transaction (while ```autocommit``` was set to ```false```). In this scenario, the JDBC Wrapper first attempts to rollback the transaction and then fails over to another available instance in the cluster. Note that the rollback might be unsuccessful as the initial connection may be broken at the time that the JDBC Wrapper recognizes the problem. Note also that any session state configuration of the initial connection is now lost. In this scenario, you should:
 
 - Reuse and reconfigure the original connection (e.g: reconfigure session state to be the same as the original connection).
 
@@ -69,7 +69,7 @@ When the JDBC Wrapper throws a TransactionStateUnknownSQLException, the original
 >2. We highly recommended that you use the cluster and read-only cluster endpoints instead of the direct instance endpoints of your Aurora cluster, unless you are confident in your application's use of instance endpoints. Although the JDBC Wrapper will correctly failover to the new writer instance when using instance endpoints, use of these endpoints is discouraged because individual instances can spontaneously change reader/writer status when failover occurs. The JDBC Wrapper will always connect directly to the instance specified if an instance endpoint is provided, so a write-safe connection cannot be assumed if the application uses instance endpoints.
 
 ## Connection Pooling
-The AWS Advanced JDBC Wrapper is compatible with [connection pooling](../DataSource.md#Using-the-AwsWrapperDataSource-with-Connection-Pooling-Frameworks), but some connection pooling libraries may contain additional behaviour when dealing with SQL exceptions. This means the exceptions created by the JDBC Wrapper may not be recognized, and depending on the connection pool, connections may be closed prematurely due to the unrecognized SQL exceptions. Users are recommended to investigate the connection pooling library of their choice, and to implement any required additional code to allow the connection pool to accept the exceptions raised by the Advanced JDBC Wrapper.
+The AWS Advanced JDBC Wrapper is compatible with [connection pooling](../DataSource.md#Using-the-AwsWrapperDataSource-with-Connection-Pooling-Frameworks), but some connection pooling libraries may contain additional behaviour when dealing with SQL exceptions. This means the exceptions created by the JDBC Wrapper may not be recognized, and depending on the connection pool, connections may be closed prematurely due to the unrecognized SQL exceptions. Users are recommended to investigate the connection pooling library of their choice, and to implement any required additional code to allow the connection pool to accept the exceptions raised by the driver.
 
 ### HikariCP
 The failover plugin throws failover-related exceptions that need to be handled explicitly by HikariCP,

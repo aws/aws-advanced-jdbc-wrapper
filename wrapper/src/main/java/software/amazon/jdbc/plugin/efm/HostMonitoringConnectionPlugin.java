@@ -40,7 +40,6 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.Messages;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -52,25 +51,25 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   private static final Logger LOGGER =
       Logger.getLogger(HostMonitoringConnectionPlugin.class.getName());
 
-  public static final AwsWrapperProperty FAILURE_DETECTION_ENABLED =
+  protected static final AwsWrapperProperty FAILURE_DETECTION_ENABLED =
       new AwsWrapperProperty(
           "failureDetectionEnabled",
           "true",
           "Enable failure detection logic (aka node monitoring thread).");
 
-  public static final AwsWrapperProperty FAILURE_DETECTION_TIME =
+  protected static final AwsWrapperProperty FAILURE_DETECTION_TIME =
       new AwsWrapperProperty(
           "failureDetectionTime",
           "30000",
           "Interval in millis between sending SQL to the server and the first probe to database node.");
 
-  public static final AwsWrapperProperty FAILURE_DETECTION_INTERVAL =
+  protected static final AwsWrapperProperty FAILURE_DETECTION_INTERVAL =
       new AwsWrapperProperty(
           "failureDetectionInterval",
           "5000",
           "Interval in millis between probes to database node.");
 
-  public static final AwsWrapperProperty FAILURE_DETECTION_COUNT =
+  protected static final AwsWrapperProperty FAILURE_DETECTION_COUNT =
       new AwsWrapperProperty(
           "failureDetectionCount",
           "3",
@@ -156,10 +155,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     MonitorConnectionContext monitorContext = null;
 
     try {
-      LOGGER.finest(
-          () -> Messages.get(
-              "HostMonitoringConnectionPlugin.activatedMonitoring",
-              new Object[] {methodName}));
+      LOGGER.log(
+          Level.FINEST, String.format("Executing method %s, monitoring is activated", methodName));
 
       this.nodeKeys.clear();
       this.nodeKeys.addAll(this.pluginService.getCurrentHostSpec().asAliases());
@@ -180,10 +177,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       if (monitorContext != null) {
         this.monitorService.stopMonitoring(monitorContext);
 
-        final boolean isConnectionClosed;
+        boolean isConnectionClosed;
         try {
           isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
-        } catch (final SQLException e) {
+        } catch (SQLException e) {
           throw castException(exceptionClass, e);
         }
 
@@ -196,16 +193,14 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
             throw castException(
                 exceptionClass,
                 new SQLException(
-                    Messages.get(
-                        "HostMonitoringConnectionPlugin.unavailableNode",
-                        new Object[] {this.pluginService.getCurrentHostSpec().asAlias()})));
+                    String.format(
+                        "Node [%s] is unavailable.",
+                        this.pluginService.getCurrentHostSpec().asAlias())));
           }
         }
       }
-      LOGGER.finest(
-          () -> Messages.get(
-              "HostMonitoringConnectionPlugin.activatedMonitoring",
-              new Object[] {methodName}));
+      LOGGER.log(
+          Level.FINEST, String.format("Executed method %s, monitoring is deactivated", methodName));
     }
 
     return result;
@@ -223,7 +218,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   void abortConnection() {
     try {
       this.pluginService.getCurrentConnection().close();
-    } catch (final SQLException sqlEx) {
+    } catch (SQLException sqlEx) {
       // ignore
     }
   }
@@ -234,7 +229,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    * @param methodName Name of the JDBC method.
    * @return true if the method requires monitoring; false otherwise.
    */
-  protected boolean doesNeedMonitoring(final String methodName) {
+  protected boolean doesNeedMonitoring(String methodName) {
 
     for (final String method : METHODS_TO_SKIP_MONITORING) {
       if (methodName.contains(method)) {
@@ -276,15 +271,15 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
     hostSpec.addAlias(hostSpec.asAlias());
 
-    try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet rs = stmt.executeQuery(getHostPortSql(driverProtocol))) {
+    try (Statement stmt = connection.createStatement()) {
+      try (ResultSet rs = stmt.executeQuery(getHostPortSql(driverProtocol))) {
         while (rs.next()) {
           hostSpec.addAlias(rs.getString(1));
         }
       }
-    } catch (final SQLException sqlException) {
+    } catch (SQLException sqlException) {
       // log and ignore
-      LOGGER.finest(() -> Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
+      LOGGER.log(Level.FINEST, "Could not retrieve Host:Port for connection.");
     }
   }
 
@@ -295,14 +290,12 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       return MYSQL_RETRIEVE_HOST_PORT_SQL;
     } else {
       throw new UnsupportedOperationException(
-          Messages.get(
-              "HostMonitoringConnectionPlugin.unsupportedDriverProtocol",
-              new Object[] {driverProtocol}));
+          String.format("Driver protocol '%s' is not supported.", driverProtocol));
     }
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
 
     if (changes.contains(NodeChangeOptions.WENT_DOWN)
         || changes.contains(NodeChangeOptions.NODE_DELETED)) {
@@ -325,7 +318,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    final Connection conn = connectFunc.call();
+    Connection conn = connectFunc.call();
 
     if (conn != null) {
       generateHostAliases(driverProtocol, conn, hostSpec);
