@@ -26,14 +26,11 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
-import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
-import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
-import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
@@ -131,7 +128,7 @@ public class AuroraTestUtility {
    *     https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html
    * @param instanceClass instance class, refer to
    *     https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html
-   * @param version the database engine's version
+   * @param instances number of instances to spin up
    * @return An endpoint for one of the instances
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
@@ -142,7 +139,7 @@ public class AuroraTestUtility {
       String identifier,
       String engine,
       String instanceClass,
-      String version)
+      int instances)
       throws InterruptedException {
     dbUsername = username;
     dbPassword = password;
@@ -150,7 +147,7 @@ public class AuroraTestUtility {
     dbIdentifier = identifier;
     dbEngine = engine;
     dbInstanceClass = instanceClass;
-    dbEngineVersion = version;
+    numOfInstances = instances;
     return createCluster();
   }
 
@@ -263,11 +260,6 @@ public class AuroraTestUtility {
     if (StringUtils.isNullOrEmpty(ipAddress)) {
       return;
     }
-
-    if (ipExists(ipAddress)) {
-      return;
-    }
-
     try {
       ec2Client.authorizeSecurityGroupIngress(
           (builder) ->
@@ -282,20 +274,6 @@ public class AuroraTestUtility {
         throw exception;
       }
     }
-  }
-
-  private boolean ipExists(String ipAddress) {
-    final DescribeSecurityGroupsResponse response = ec2Client.describeSecurityGroups(
-        (builder) ->
-            builder
-                .groupNames(dbSecGroup)
-                .filters(software.amazon.awssdk.services.ec2.model.Filter.builder()
-                    .name("ip-permission.cidr")
-                    .values(ipAddress + "/32")
-                    .build())
-    );
-
-    return response != null && !response.securityGroups().isEmpty();
   }
 
   /** De-authorizes IP from EC2 Security groups. */
@@ -341,17 +319,5 @@ public class AuroraTestUtility {
     // Tear down cluster
     rdsClient.deleteDBCluster(
         (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
-  }
-
-  public boolean doesClusterExist(final String clusterId) {
-    final DescribeDbClustersRequest request = DescribeDbClustersRequest.builder()
-        .dbClusterIdentifier(clusterId)
-        .build();
-    try {
-      rdsClient.describeDBClusters(request);
-    } catch (DbClusterNotFoundException ex) {
-      return false;
-    }
-    return true;
   }
 }

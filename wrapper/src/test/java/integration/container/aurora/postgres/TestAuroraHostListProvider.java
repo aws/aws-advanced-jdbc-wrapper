@@ -14,21 +14,20 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mariadb;
+package integration.container.aurora.postgres;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import java.util.Properties;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
-// Tests will run in order of top to bottom.
-// To add additional tests, append it inside SelectClasses, comma-separated
-@Suite
-@SelectClasses({
-    StandardMariadbIntegrationTest.class,
-    DataCachePluginTests.class,
-    DataSourceTests.class,
-    HikariTests.class,
-    LogQueryPluginTests.class,
-    SpringTests.class
-})
+public class TestAuroraHostListProvider extends AuroraHostListProvider {
 
-public class StandardMariadbTestSuite {}
+  public TestAuroraHostListProvider(String driverProtocol, PluginService pluginService,
+      Properties properties, String originalUrl) {
+    super(driverProtocol, pluginService, properties, originalUrl);
+  }
+
+  public static void clearCache() {
+    AuroraHostListProvider.topologyCache.clear();
+  }
+}

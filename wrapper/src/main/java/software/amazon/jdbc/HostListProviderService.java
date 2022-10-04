@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc;
 
-import java.sql.Connection;
-
 public interface HostListProviderService {
 
   boolean isStaticHostListProvider();
@@ -25,12 +23,4 @@ public interface HostListProviderService {
   HostListProvider getHostListProvider();
 
   void setHostListProvider(HostListProvider hostListProvider);
-
-  void setInitialConnectionHostSpec(final HostSpec initialConnectionHostSpec);
-
-  HostSpec getInitialConnectionHostSpec();
-
-  Connection getCurrentConnection();
-
-  HostSpec getCurrentHostSpec();
 }

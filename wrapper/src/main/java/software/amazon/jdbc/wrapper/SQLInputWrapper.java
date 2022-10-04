@@ -355,9 +355,4 @@ public class SQLInputWrapper implements SQLInput {
         "SQLInput.readRowId",
         () -> this.sqlInput.readRowId());
   }
-
-  @Override
-  public String toString() {
-    return super.toString() + " - " + this.sqlInput;
-  }
 }

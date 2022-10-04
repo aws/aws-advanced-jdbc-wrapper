@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql.mysqldriver;
+package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 
-public class LogQueryPluginTests extends MysqlStandardMysqlBaseTest {
+public class LogQueryPluginTests extends StandardMysqlBaseTest {
 
   @Test
   public void testStatementExecuteQueryWithArg()

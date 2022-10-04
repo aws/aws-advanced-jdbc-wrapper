@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql.mariadbdriver;
+package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -26,7 +26,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import software.amazon.jdbc.PropertyDefinition;
 
-public class SpringTests extends MariadbStandardMysqlBaseTest {
+public class SpringTests extends StandardMysqlBaseTest {
 
   @Test
   public void testOpenConnection() {
@@ -42,8 +42,8 @@ public class SpringTests extends MariadbStandardMysqlBaseTest {
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
     dataSource.setDriverClassName("software.amazon.jdbc.Driver");
     dataSource.setUrl(getUrl());
-    dataSource.setUsername(STANDARD_USERNAME);
-    dataSource.setPassword(STANDARD_PASSWORD);
+    dataSource.setUsername(STANDARD_MYSQL_USERNAME);
+    dataSource.setPassword(STANDARD_MYSQL_PASSWORD);
 
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");

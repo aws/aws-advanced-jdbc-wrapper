@@ -29,16 +29,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import java.util.logging.Logger;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
-import org.postgresql.PGProperty;
-import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
-import software.amazon.jdbc.util.SqlState;
 
 public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   /* Writer connection failover tests. */
-
-  private static final Logger LOGGER = Logger.getLogger(AuroraPostgresFailoverTest.class.getName());
 
   /**
    * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer. Driver failover
@@ -66,7 +61,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
   }
 
   /**
-   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer. Driver failover
+   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new writer Driver failover
    * occurs when executing a method against an object bound to the connection (eg a Statement object created by the
    * connection).
    */
@@ -111,7 +106,6 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
 
     // Connect to Instance2 which is the only reader that is up.
     final String instanceId = instanceIDs[1];
-    LOGGER.finest("instanceId=" + instanceId);
 
     try (final Connection conn = connectToInstance(instanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         POSTGRES_PROXY_PORT)) {
@@ -297,13 +291,18 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     }
   }
 
+  /* Pooled connection tests. */
+
+  /**
+   * Writer connection failover within the connection pool.
+   */
   @Test
-  public void test_DataSourceWriterConnection_BasicFailover() throws SQLException, InterruptedException {
+  public void test_pooledWriterConnection_BasicFailover() throws SQLException, InterruptedException {
 
     final String initialWriterId = instanceIDs[0];
     final String nominatedWriterId = instanceIDs[1];
 
-    try (final Connection conn = createDataSourceConnectionWithFailoverUsingInstanceId(initialWriterId)) {
+    try (final Connection conn = createPooledConnectionWithFailoverUsingInstanceId(initialWriterId)) {
       // Crash writer Instance1 and nominate Instance2 as the new writer
       failoverClusterToATargetAndWaitUntilWriterChanged(initialWriterId, nominatedWriterId);
 
@@ -318,7 +317,7 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
       assertEquals(nextWriterId, currentConnectionId);
       assertEquals(nominatedWriterId, currentConnectionId);
 
-      // Assert that the connection is valid.
+      // Assert that the pooled connection is valid.
       assertTrue(conn.isValid(IS_VALID_TIMEOUT));
     }
   }
@@ -356,26 +355,63 @@ public class AuroraPostgresFailoverTest extends AuroraPostgresBaseTest {
     }
   }
 
-  @Test
-  public void test_failoverTimeoutMs() throws SQLException, IOException {
-    final int maxTimeout = 10000; // 10 seconds
-    final String initialWriterId = instanceIDs[0];
-    final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "3");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "3");
-    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
+  // Helpers
+  private void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
+      throws InterruptedException {
+    failoverCluster();
+    waitUntilWriterInstanceChanged(clusterWriterId);
+  }
 
-    try (Connection conn = connectToInstance(
-        initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT, props);
-         Statement stmt = conn.createStatement()) {
-      final Proxy instanceProxy = proxyMap.get(initialWriterId);
-      containerHelper.disableConnectivity(instanceProxy);
-      final long invokeStartTimeMs = System.currentTimeMillis();
-      final SQLException e = assertThrows(SQLException.class, () -> stmt.executeQuery("SELECT 1"));
-      final long invokeEndTimeMs = System.currentTimeMillis();
-      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
-      final long duration = invokeEndTimeMs - invokeStartTimeMs;
-      assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
+  private void failoverCluster() throws InterruptedException {
+    waitUntilClusterHasRightState();
+    while (true) {
+      try {
+        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
+        break;
+      } catch (final Exception e) {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      }
+    }
+  }
+
+  private void failoverClusterToATargetAndWaitUntilWriterChanged(
+      String clusterWriterId,
+      String targetInstanceId) throws InterruptedException {
+    failoverClusterWithATargetInstance(targetInstanceId);
+    waitUntilWriterInstanceChanged(clusterWriterId);
+  }
+
+  private void failoverClusterWithATargetInstance(String targetInstanceId)
+      throws InterruptedException {
+    waitUntilClusterHasRightState();
+
+    while (true) {
+      try {
+        rdsClient.failoverDBCluster(
+            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
+                .targetDBInstanceIdentifier(targetInstanceId));
+        break;
+      } catch (final Exception e) {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      }
+    }
+  }
+
+  private void waitUntilWriterInstanceChanged(String initialWriterInstanceId)
+      throws InterruptedException {
+    String nextClusterWriterId = getDBClusterWriterInstanceId();
+    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
+      TimeUnit.MILLISECONDS.sleep(3000);
+      // Calling the RDS API to get writer Id.
+      nextClusterWriterId = getDBClusterWriterInstanceId();
+    }
+  }
+
+  private void waitUntilClusterHasRightState() throws InterruptedException {
+    String status = getDBCluster().status();
+    while (!"available".equalsIgnoreCase(status)) {
+      TimeUnit.MILLISECONDS.sleep(1000);
+      status = getDBCluster().status();
     }
   }
 }

@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
@@ -38,7 +39,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.postgresql.PGProperty;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
@@ -308,14 +308,14 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
   @Test
   void test_ValidInvalidValidConnections() throws SQLException {
     final Properties validProp = initDefaultProps();
-    validProp.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
-    validProp.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
+    validProp.setProperty(PropertyKey.USER.getKeyName(), AURORA_POSTGRES_USERNAME);
+    validProp.setProperty(PropertyKey.PASSWORD.getKeyName(), AURORA_POSTGRES_PASSWORD);
     final Connection validConn = connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, validProp);
     validConn.close();
 
     final Properties invalidProp = initDefaultProps();
-    invalidProp.setProperty(PGProperty.USER.getName(), "INVALID_" + AURORA_POSTGRES_USERNAME);
-    invalidProp.setProperty(PGProperty.PASSWORD.getName(), "INVALID_" + AURORA_POSTGRES_PASSWORD);
+    invalidProp.setProperty(PropertyKey.USER.getKeyName(), "INVALID_" + AURORA_POSTGRES_USERNAME);
+    invalidProp.setProperty(PropertyKey.PASSWORD.getKeyName(), "INVALID_" + AURORA_POSTGRES_PASSWORD);
     assertThrows(
             SQLException.class,
             () -> connectToInstance(POSTGRES_INSTANCE_1_URL, AURORA_POSTGRES_PORT, invalidProp)
@@ -544,7 +544,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
         "",
         String.valueOf(AURORA_POSTGRES_PORT),
         AURORA_POSTGRES_DB);
-    assertThrows(SQLException.class, () -> connectToInstanceCustomUrl(
+    assertThrows(RuntimeException.class, () -> connectToInstanceCustomUrl(
         url, props));
   }
 }

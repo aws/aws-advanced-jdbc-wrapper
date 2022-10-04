@@ -38,18 +38,24 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private final @Nullable String portPropertyName;
   private final @Nullable String urlPropertyName;
   private final @Nullable String databasePropertyName;
+  private final @Nullable String userPropertyName;
+  private final @Nullable String passwordPropertyName;
 
   public DataSourceConnectionProvider(
       final @NonNull DataSource dataSource,
       final @Nullable String serverPropertyName,
       final @Nullable String portPropertyName,
       final @Nullable String urlPropertyName,
-      final @Nullable String databasePropertyName) {
+      final @Nullable String databasePropertyName,
+      final @Nullable String usernamePropertyName,
+      final @Nullable String passwordPropertyName) {
     this.dataSource = dataSource;
     this.serverPropertyName = serverPropertyName;
     this.portPropertyName = portPropertyName;
     this.urlPropertyName = urlPropertyName;
     this.databasePropertyName = databasePropertyName;
+    this.userPropertyName = usernamePropertyName;
+    this.passwordPropertyName = passwordPropertyName;
   }
 
   /**
@@ -79,8 +85,16 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     }
 
     if (!isNullOrEmpty(this.databasePropertyName)
-        && !isNullOrEmpty(PropertyDefinition.DATABASE.getString(props))) {
-      copy.setProperty(this.databasePropertyName, PropertyDefinition.DATABASE.getString(props));
+        && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
+      copy.setProperty(this.databasePropertyName, PropertyDefinition.DATABASE_NAME.getString(props));
+    }
+
+    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
+      copy.setProperty(this.userPropertyName, PropertyDefinition.USER.getString(props));
+    }
+
+    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(PropertyDefinition.PASSWORD.getString(props))) {
+      copy.setProperty(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
     }
 
     if (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
@@ -96,6 +110,8 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
               this.serverPropertyName,
               this.portPropertyName,
               this.databasePropertyName,
+              this.userPropertyName,
+              this.passwordPropertyName,
               urlProperties));
     }
 
@@ -119,9 +135,17 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.setProperty(this.urlPropertyName, url);
     }
 
+    if (!isNullOrEmpty(this.userPropertyName) && !isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
+      copy.put(this.userPropertyName, PropertyDefinition.USER.getString(props));
+    }
+
+    if (!isNullOrEmpty(this.passwordPropertyName) && !isNullOrEmpty(PropertyDefinition.PASSWORD.getString(props))) {
+      copy.put(this.passwordPropertyName, PropertyDefinition.PASSWORD.getString(props));
+    }
+
     if (!isNullOrEmpty(this.databasePropertyName)
-        && !isNullOrEmpty(PropertyDefinition.DATABASE.getString(props))) {
-      copy.put(this.databasePropertyName, PropertyDefinition.DATABASE.getString(props));
+        && !isNullOrEmpty(PropertyDefinition.DATABASE_NAME.getString(props))) {
+      copy.put(this.databasePropertyName, PropertyDefinition.DATABASE_NAME.getString(props));
     }
 
     PropertyDefinition.removeAll(copy);

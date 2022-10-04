@@ -41,20 +41,6 @@ class ConnectionUrlParserTest {
     }
   }
 
-  @ParameterizedTest
-  @MethodSource("userUrls")
-  void testParseUserFromUrl(final String url, final String expectedUser) {
-    final String actualUser = ConnectionUrlParser.parseUserFromUrl(url);
-    assertEquals(expectedUser, actualUser);
-  }
-
-  @ParameterizedTest
-  @MethodSource("passwordUrls")
-  void testParsePasswordFromUrl(final String url, final String expected) {
-    final String actual = ConnectionUrlParser.parsePasswordFromUrl(url);
-    assertEquals(expected, actual);
-  }
-
   private static Stream<Arguments> testGetHostsFromConnectionUrlArguments() {
     return Stream.of(
         Arguments.of("protocol//", new ArrayList<HostSpec>()),
@@ -68,26 +54,6 @@ class ConnectionUrlParserTest {
         Arguments.of("jdbc:driver:test://source,replica1:3303,host/test",
             Arrays.asList(new HostSpec("source"), new HostSpec("replica1", 3303),
                 new HostSpec("host")))
-    );
-  }
-
-  private static Stream<Arguments> userUrls() {
-    return Stream.of(
-        Arguments.of("protocol//url/db?user=foo", "foo"),
-        Arguments.of("protocol//url/db?user=foo&pass=bar", "foo"),
-        Arguments.of("protocol//url/db?USER=foo", null),
-        Arguments.of("protocol//url/db?USER=foo&pass=bar", null),
-        Arguments.of("protocol//url/db?username=foo", null)
-    );
-  }
-
-  private static Stream<Arguments> passwordUrls() {
-    return Stream.of(
-        Arguments.of("protocol//url/db?password=foo", "foo"),
-        Arguments.of("protocol//url/db?password=foo&user=bar", "foo"),
-        Arguments.of("protocol//url/db?PASSWORD=foo", null),
-        Arguments.of("protocol//url/db?PASSWORD=foo&user=bar", null),
-        Arguments.of("protocol//url/db?pass=foo", null)
     );
   }
 }

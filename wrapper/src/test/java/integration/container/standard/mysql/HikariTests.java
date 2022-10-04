@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mysql.mysqldriver;
+package integration.container.standard.mysql;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,15 +27,15 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-public class HikariTests extends MysqlStandardMysqlBaseTest {
+public class HikariTests extends StandardMysqlBaseTest {
 
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
     ds.setJdbcUrl(getUrl());
-    ds.setUsername(STANDARD_USERNAME);
-    ds.setPassword(STANDARD_PASSWORD);
+    ds.setUsername(STANDARD_MYSQL_USERNAME);
+    ds.setPassword(STANDARD_MYSQL_PASSWORD);
 
     Connection conn = ds.getConnection();
 
@@ -57,11 +57,13 @@ public class HikariTests extends MysqlStandardMysqlBaseTest {
     ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
     // Configure the connection pool:
-    ds.setUsername(STANDARD_USERNAME);
-    ds.setPassword(STANDARD_PASSWORD);
+    ds.setUsername(STANDARD_MYSQL_USERNAME);
+    ds.setPassword(STANDARD_MYSQL_PASSWORD);
 
     // Configure AwsWrapperDataSource:
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
+    ds.addDataSourceProperty("userPropertyName", "user");
+    ds.addDataSourceProperty("passwordPropertyName", "password");
     ds.addDataSourceProperty("databasePropertyName", "databaseName");
     ds.addDataSourceProperty("portPropertyName", "port");
     ds.addDataSourceProperty("serverPropertyName", "serverName");
@@ -71,8 +73,8 @@ public class HikariTests extends MysqlStandardMysqlBaseTest {
 
     // Configuring MysqlDataSource:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty("serverName", STANDARD_MYSQL_HOST);
+    targetDataSourceProps.setProperty("databaseName", STANDARD_MYSQL_DB);
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     Connection conn = ds.getConnection();

@@ -1256,9 +1256,4 @@ public class PreparedStatementWrapper implements PreparedStatement {
   public <T> T unwrap(Class<T> iface) throws SQLException {
     return this.statement.unwrap(iface);
   }
-
-  @Override
-  public String toString() {
-    return super.toString() + " - " + this.statement;
-  }
 }

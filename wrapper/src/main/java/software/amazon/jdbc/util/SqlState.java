@@ -17,9 +17,6 @@
 package software.amazon.jdbc.util;
 
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SqlState {
@@ -31,18 +28,6 @@ public class SqlState {
   public static final SqlState CONNECTION_NOT_OPEN = new SqlState("08003");
 
   // TODO: add custom error codes support
-
-  // The following SQL States for Postgresql are considered as "communication" errors
-  private static final List<String> PG_SQLSTATES = Arrays.asList(
-      "53", // insufficient resources
-      "57P01", // admin shutdown
-      "57P02", // crash shutdown
-      "57P03", // cannot connect now
-      "58", // system error (backend)
-      "99", // unexpected error
-      "F0", // configuration file error (backend)
-      "XX" // internal error (backend)
-  );
 
   private final String sqlState;
 
@@ -59,21 +44,12 @@ public class SqlState {
   }
 
   public static boolean isConnectionError(@Nullable String sqlState) {
-    // TODO: should be user configurable
+    // TODO
 
     if (sqlState == null) {
       return false;
     }
 
-    if (sqlState.startsWith("08")) {
-      return true;
-    }
-
-    for (final String pgSqlState : PG_SQLSTATES) {
-      if (sqlState.startsWith(pgSqlState)) {
-        return true;
-      }
-    }
-    return false;
+    return sqlState.startsWith("08");
   }
 }

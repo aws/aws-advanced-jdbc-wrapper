@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
@@ -51,21 +52,32 @@ public class PropertyDefinition {
 
   public static final AwsWrapperProperty USER =
       new AwsWrapperProperty(
-          "user", null, "Driver user name");
+          "wrapperUser", null, "Driver user name");
 
   public static final AwsWrapperProperty PASSWORD =
       new AwsWrapperProperty(
-          "password", null, "Driver password");
+          "wrapperPassword", null, "Driver password");
 
-  public static final AwsWrapperProperty DATABASE =
+  public static final AwsWrapperProperty DATABASE_NAME =
       new AwsWrapperProperty(
-          "database", null, "Driver database name");
+          "wrapperDatabaseName", null, "Driver database name");
+
+  public static final AwsWrapperProperty TARGET_DRIVER_USER_PROPERTY_NAME =
+      new AwsWrapperProperty(
+          "wrapperTargetDriverUserPropertyName", null, "Target driver user property name");
+
+  public static final AwsWrapperProperty TARGET_DRIVER_PASSWORD_PROPERTY_NAME =
+      new AwsWrapperProperty(
+          "wrapperTargetDriverPasswordPropertyName",
+          null,
+          "Target driver password property name");
 
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
-      new HashMap<>();
+      new HashMap<String, AwsWrapperProperty>();
 
   static {
     PROPS_BY_NAME.clear();
+    Field[] ff = PropertyDefinition.class.getDeclaredFields();
     Arrays.stream(PropertyDefinition.class.getDeclaredFields())
         .filter(
             f ->
@@ -96,6 +108,6 @@ public class PropertyDefinition {
   }
 
   public static void removeAll(Properties props) {
-    PROPS_BY_NAME.keySet().forEach(props::remove);
+    PROPS_BY_NAME.keySet().forEach((propName) -> props.remove(propName));
   }
 }

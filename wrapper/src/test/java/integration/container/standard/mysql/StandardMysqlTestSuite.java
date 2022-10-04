@@ -13,17 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package software.amazon.utility;
 
-import org.hibernate.JDBCException;
+package integration.container.standard.mysql;
 
-import java.sql.SQLException;
+import org.junit.platform.suite.api.SelectClasses;
+import org.junit.platform.suite.api.Suite;
 
-/**
- * Connection failed but we are unable to recover
- */
-public class FailoverFailedException extends JDBCException {
-    public FailoverFailedException(String message, SQLException cause, String sql) {
-        super(message, cause, sql);
-    }
-}
+// Tests will run in order of top to bottom.
+// To add additional tests, append it inside SelectClasses, comma-separated
+@Suite
+@SelectClasses({
+  StandardMysqlIntegrationTest.class,
+  DataCachePluginTests.class,
+  DataSourceTests.class,
+  HikariTests.class,
+  LogQueryPluginTests.class,
+  SpringTests.class
+})
+public class StandardMysqlTestSuite {}

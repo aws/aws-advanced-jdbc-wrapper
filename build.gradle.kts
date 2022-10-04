@@ -15,7 +15,6 @@
  */
 
 import com.github.vlsi.gradle.dsl.configureEach
-import com.github.vlsi.gradle.properties.dsl.props
 import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
 import com.github.vlsi.gradle.publishing.dsl.simplifyXml
 
@@ -44,7 +43,6 @@ allprojects {
     apply(plugin = "java")
     apply(plugin = "signing")
     apply(plugin = "maven-publish")
-    apply(plugin = "com.github.vlsi.ide")
 
     tasks {
         configureEach<JavaCommentPreprocessorTask> {
@@ -64,72 +62,50 @@ allprojects {
         }
     }
 
-    val preprocessVersion by tasks.registering(JavaCommentPreprocessorTask::class) {
-        baseDir.set(projectDir)
-        sourceFolders.add("src/main/version/")
-    }
-
-    ide {
-        generatedJavaSources(
-            preprocessVersion,
-            preprocessVersion.get().outputDirectory.get().asFile,
-            sourceSets.main
-        )
+    java {
+        withJavadocJar()
+        withSourcesJar()
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     publishing {
         publications {
-            if (project.props.bool("nexus.publish", default = true)) {
-                create<MavenPublication>(project.name) {
-                    groupId = "software.amazon.jdbc"
-                    artifactId = "aws-advanced-jdbc-wrapper"
-                    version = buildVersion
+            create<MavenPublication>(project.name) {
+                groupId = "software.amazon.jdbc"
+                artifactId = "aws-advanced-jdbc-wrapper"
+                version = buildVersion
 
-                    from(components["java"])
-                    suppressAllPomMetadataWarnings()
+                from(components["java"])
+                suppressAllPomMetadataWarnings()
 
-                    pom {
-                        simplifyXml()
-                        name.set("AWS Advanced JDBC Wrapper")
-                        description.set(
-                            project.description ?: "Amazon Web Services (AWS) Advanced JDBC Wrapper"
-                        )
-                        url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
-                        licenses {
-                            license {
-                                name.set("Apache 2.0")
-                                url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                            }
-                        }
-                        developers {
-                            developer {
-                                id.set("amazonwebservices")
-                                organization.set("Amazon Web Services")
-                                organizationUrl.set("https://aws.amazon.com")
-                                email.set("aws-rds-oss@amazon.com")
-                            }
-                        }
-                        scm {
-                            connection.set("scm:git:https://github.com/awslabs/aws-advanced-jdbc-wrapper.git")
-                            developerConnection.set("scm:git@github.com:awslabs/aws-advanced-jdbc-wrapper.git")
-                            url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
-                        }
-                        issueManagement {
-                            system.set("GitHub issues")
-                            url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues")
+                pom {
+                    simplifyXml()
+                    name.set("AWS Advanced JDBC Wrapper")
+                    description.set(project.description ?: "Amazon Web Services (AWS) Advanced JDBC Wrapper")
+                    url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
+                    licenses {
+                        license {
+                            name.set("Apache 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0")
                         }
                     }
-                }
-
-                signing {
-                    if (project.hasProperty("signing.keyId")
-                        && project.property("signing.keyId") != ""
-                        && project.hasProperty("signing.password")
-                        && project.property("signing.password") != ""
-                        && project.hasProperty("signing.secretKeyRingFile")
-                        && project.property("signing.secretKeyRingFile") != ""
-                    ) {
-                        sign(publishing.publications[project.name])
+                    developers {
+                        developer {
+                            id.set("amazonwebservices")
+                            organization.set("Amazon Web Services")
+                            organizationUrl.set("https://aws.amazon.com")
+                            email.set("aws-rds-oss@amazon.com")
+                        }
+                    }
+                    scm {
+                        connection.set("scm:git:https://github.com/awslabs/aws-advanced-jdbc-wrapper.git")
+                        developerConnection.set("scm:git@github.com:awslabs/aws-advanced-jdbc-wrapper.git")
+                        url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
+                    }
+                    issueManagement {
+                        system.set("GitHub issues")
+                        url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues")
                     }
                 }
             }
@@ -149,6 +125,18 @@ allprojects {
             }
 
             mavenLocal()
+        }
+    }
+
+    signing {
+        if (project.hasProperty("signing.keyId")
+            && project.property("signing.keyId") != ""
+            && project.hasProperty("signing.password")
+            && project.property("signing.password") != ""
+            && project.hasProperty("signing.secretKeyRingFile")
+            && project.property("signing.secretKeyRingFile") != ""
+        ) {
+            sign(publishing.publications["aws-advanced-jdbc-wrapper"])
         }
     }
 }

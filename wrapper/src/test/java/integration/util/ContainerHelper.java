@@ -38,13 +38,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.InternetProtocol;
-import org.testcontainers.containers.MariaDBContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -61,16 +59,12 @@ public class ContainerHelper {
   private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM = "ghcr.io/graalvm/jdk:22.2.0";
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.28";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
-  private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:latest";
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 
-  private static final String RETRIEVE_TOPOLOGY_SQL_POSTGRES =
+  private static final String RETRIEVE_TOPOLOGY_SQL =
       "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
           + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
-  private static final String RETRIEVE_TOPOLOGY_SQL_MYSQL =
-      "SELECT SERVER_ID, SESSION_ID FROM information_schema.replica_host_status "
-          + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
   private static final String SERVER_ID = "SERVER_ID";
 
   public void runTest(GenericContainer<?> container, String task)
@@ -256,22 +250,6 @@ public class ContainerHelper {
         .withPassword(password);
   }
 
-  public MariaDBContainer<?> createMariadbContainer(
-      Network network, String networkAlias, String testDbName) {
-    return createMariadbContainer(network, networkAlias, testDbName, "test", "root");
-  }
-
-  public MariaDBContainer<?> createMariadbContainer(
-      Network network, String networkAlias, String testDbName, String username, String password) {
-
-    return new MariaDBContainer<>(MARIADB_CONTAINER_IMAGE_NAME)
-        .withNetwork(network)
-        .withNetworkAliases(networkAlias)
-        .withDatabaseName(testDbName)
-        .withPassword(password)
-        .withUsername(username);
-  }
-
   public ToxiproxyContainer createAndStartProxyContainer(
       final Network network,
       String networkAlias,
@@ -295,57 +273,31 @@ public class ContainerHelper {
   public List<String> getAuroraInstanceEndpoints(
       String connectionUrl, String userName, String password, String hostBase) throws SQLException {
 
-    String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
-    if (connectionUrl.contains("mysql")) {
-      retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_MYSQL;
-    }
     ArrayList<String> auroraInstances = new ArrayList<>();
 
-    int attemptCount = 10;
-    while (attemptCount-- > 0) {
-      try {
-        auroraInstances.clear();
-        try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-            final Statement stmt = conn.createStatement()) {
-          // Get instances
-          try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
-            while (resultSet.next()) {
-              // Get Instance endpoints
-              final String hostEndpoint = resultSet.getString(SERVER_ID) + "." + hostBase;
-              auroraInstances.add(hostEndpoint);
-            }
-          }
-        }
-        return auroraInstances;
-
-      } catch (SQLException ex) {
-        System.err.println("Error getting cluster endpoints for " + connectionUrl + ". " + ex.getMessage());
-        if (attemptCount <= 0) {
-          throw ex;
-        }
-        try {
-          TimeUnit.SECONDS.sleep(10);
-        } catch (InterruptedException e) {
-          // ignore
+    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
+         final Statement stmt = conn.createStatement()) {
+      // Get instances
+      try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
+        while (resultSet.next()) {
+          // Get Instance endpoints
+          final String hostEndpoint = resultSet.getString(SERVER_ID) + "." + hostBase;
+          auroraInstances.add(hostEndpoint);
         }
       }
     }
     return auroraInstances;
   }
 
-  public List<String> getAuroraInstanceIds(String connectionUrl, String userName, String password, String database)
+  public List<String> getAuroraInstanceIds(String connectionUrl, String userName, String password)
       throws SQLException {
 
-    String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
-    if (database.equals("mysql")) {
-      retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_MYSQL;
-    }
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
          final Statement stmt = conn.createStatement()) {
       // Get instances
-      try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
+      try (final ResultSet resultSet = stmt.executeQuery(RETRIEVE_TOPOLOGY_SQL)) {
         while (resultSet.next()) {
           // Get Instance endpoints
           final String hostEndpoint = resultSet.getString(SERVER_ID);
@@ -354,18 +306,6 @@ public class ContainerHelper {
       }
     }
     return auroraInstances;
-  }
-
-  public void addAuroraAwsIamUser(String connectionUrl, String userName, String password, String dbUser)
-      throws SQLException {
-
-    final String dropAwsIamUserSQL = "DROP USER IF EXISTS " + dbUser + ";";
-    final String createAwsIamUserSQL = "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
-    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement()) {
-      stmt.execute(dropAwsIamUserSQL);
-      stmt.execute(createAwsIamUserSQL);
-    }
   }
 
   public List<ToxiproxyContainer> createProxyContainers(

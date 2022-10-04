@@ -9,7 +9,7 @@ Plugins let users:
 - measure execution time
 - and more
 
-The JDBC Wrapper has several built-in plugins; you can [see the list here](/docs/using-the-jdbc-wrapper/UsingTheJdbcWrapper.md#list-of-available-plugins).
+The JDBC Wrapper has several built-in plugins; you can [see the list here](../using-the-jdbc-wrapper/UsingTheJdbcWrapper.md#list-of-available-plugins).
 
 ## Available Services
 
@@ -25,27 +25,27 @@ To use a custom plugin, you must:
 ### Creating Custom Plugins
 
 There are two ways to create a custom plugin:
-- implement the [ConnectionPlugin](/wrapper/src/main/java/software/amazon/jdbc/ConnectionPlugin.java) interface directly, or
-- extend the [AbstractConnectionPlugin](/wrapper/src/main/java/software/amazon/jdbc/plugin/AbstractConnectionPlugin.java) class.
+- implement the [ConnectionPlugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/ConnectionPlugin.java) interface directly, or
+- extend the [AbstractConnectionPlugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/AbstractConnectionPlugin.java) class.
 
 The `AbstractConnectionPlugin` class provides a simple implementation for all the methods in `ConnectionPlugin`,
 as it calls the provided JDBC method without additional operations. This is helpful when the custom plugin only needs to override one (or a few) methods from the `ConnectionPlugin` interface.
 See the following classes for examples:
 
-- [IamAuthConnectionPlugin](/wrapper/src/main/java/software/amazon/jdbc/plugin/IamAuthConnectionPlugin.java)
+- [IamAuthConnectionPlugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/IamAuthConnectionPlugin.java)
     - The `IamAuthConnectionPlugin` class only overrides the `connect` method because the plugin is only concerned with creating
       database connections with IAM database credentials.
 
-- [ExecutionTimeConnectionPlugin](/wrapper/src/main/java/software/amazon/jdbc/plugin/ExecutionTimeConnectionPlugin.java)
+- [ExecutionTimeConnectionPlugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/ExecutionTimeConnectionPlugin.java)
     - The `ExecutionTimeConnectionPlugin` only overrides the `execute` method because it is only concerned with elapsed time during execution, it does not establish new connections or set up any host list provider.
 
-A `ConnectionPluginFactory` implementation is also required for the new custom plugin. This factory class is used to register and initialize custom plugins. See [AuroraHostListConnectionPluginFactory](/wrapper/src/main/java/software/amazon/jdbc/plugin/AuroraHostListConnectionPluginFactory.java) for a simple implementation example.
+A `ConnectionPluginFactory` implementation is also required for the new custom plugin. This factory class is used to register and initialize custom plugins. See [AuroraHostListConnectionPluginFactory](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/AuroraHostListConnectionPluginFactory.java) for a simple implementation example.
 
 ### Subscribed Methods
 
 The `Set<String> getSubscribedMethods()` method specifies a set of JDBC methods a plugin is subscribed to. All plugins must implement the `Set<String> getSubscribedMethods()` method.
 
-When executing a JDBC method, the plugin manager will only call a specific plugin method if the JDBC method is within its set of subscribed methods. For example, [LogQueryConnectionPlugin](/wrapper/src/main/java/software/amazon/jdbc/plugin/LogQueryConnectionPlugin.java) only subscribes to JDBC methods related to query execution, such as `Statement.execute`. This plugin will not be triggered by method calls like `Connection.isValid`.
+When executing a JDBC method, the plugin manager will only call a specific plugin method if the JDBC method is within its set of subscribed methods. For example, [LogQueryConnectionPlugin](../../wrapper/src/main/java/com/amazon/awslabs/jdbc/plugin/LogQueryConnectionPlugin.java) only subscribes to JDBC methods related to query execution, such as `Statement.execute`. This plugin will not be triggered by method calls like `Connection.isValid`.
 
 Plugins can subscribe to any of the JDBC API methods listed [here](https://docs.oracle.com/javase/8/docs/api/java/sql/package-summary.html); some examples are as follows:
 
@@ -53,14 +53,10 @@ Plugins can subscribe to any of the JDBC API methods listed [here](https://docs.
 - `PreparedStatement.executeQuery`
 - `CallableStatement.execute`
 
-Plugins can also subscribe to the following pipelines:
+Plugins can also subscribe to the [host list provider pipeline](./Pipelines.md#host-list-provider-pipeline) and the [connect pipeline](./Pipelines.md#connect-pipeline):
 
-| Pipeline                                                                                            | Method Name / Subscription Key |
-|-----------------------------------------------------------------------------------------------------|:------------------------------:|
-| [Host list provider pipeline](./Pipelines.md#host-list-provider-pipeline)                           |        initHostProvider        |
-| [Connect pipeline](./Pipelines.md#connect-pipeline)                                                 |            connect             |
-| [Connection changed notification pipeline](./Pipelines.md#connection-changed-notification-pipeline) |    notifyConnectionChanged     |
-| [Node list changed notification pipeline](./Pipelines.md#node-list-changed-notification-pipeline)   |     notifyNodeListChanged      |                                                                      
+- `initHostProvider`
+- `connect`
 
 ### Tips on Creating a Custom Plugin
 

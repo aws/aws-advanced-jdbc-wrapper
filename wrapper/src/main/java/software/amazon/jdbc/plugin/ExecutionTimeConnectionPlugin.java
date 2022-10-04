@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.util.Messages;
 
 public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -52,10 +51,7 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
     T result = jdbcMethodFunc.call();
 
     final long elapsedTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-    LOGGER.fine(
-        () -> Messages.get(
-            "ExecutionTimeConnectionPlugin.executionTime",
-            new Object[] {methodName, elapsedTimeMillis}));
+    LOGGER.log(Level.FINE, "Executed {0} in {1} ms", new Object[] {methodName, elapsedTimeMillis});
 
     return result;
   }

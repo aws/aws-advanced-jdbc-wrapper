@@ -12,9 +12,6 @@ on:
       - '**/release_draft.yml'
       - '**/maven*.yml'
       - '**/*.md'
-      - '**/docs/**'
-      - '**/*.jpg'
-      - '**/*.png'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

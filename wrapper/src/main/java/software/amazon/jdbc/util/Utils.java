@@ -17,35 +17,9 @@
 package software.amazon.jdbc.util;
 
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.HostSpec;
 
 public class Utils {
   public static boolean isNullOrEmpty(List<?> list) {
     return list == null || list.isEmpty();
-  }
-
-  public static String logTopology(final @NonNull List<HostSpec> hosts) {
-    return logTopology(hosts, null);
-  }
-
-  public static String logTopology(
-      final @Nullable List<HostSpec> hosts,
-      final @Nullable String messagePrefix) {
-
-    StringBuilder msg = new StringBuilder();
-    if (hosts == null) {
-      msg.append("<null>");
-    } else {
-      for (HostSpec host : hosts) {
-        if (msg.length() > 0) {
-          msg.append("\n");
-        }
-        msg.append("   ").append(host == null ? "<null>" : host);
-      }
-    }
-    return (messagePrefix == null ? "" : messagePrefix)
-        + Messages.get("Utils.topology", new Object[] {msg.toString()});
   }
 }

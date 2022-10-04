@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -39,9 +40,7 @@ import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
-import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -66,7 +65,6 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
-          put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
         }
       };
 
@@ -83,10 +81,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
   protected final ConnectionProvider connectionProvider;
-  protected final ConnectionWrapper connectionWrapper;
-
-  @SuppressWarnings("rawtypes")
-  protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
+  protected ConnectionWrapper connectionWrapper;
 
   public ConnectionPluginManager(ConnectionProvider connectionProvider, ConnectionWrapper connectionWrapper) {
     this.connectionProvider = connectionProvider;
@@ -139,10 +134,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     if (profileName != null) {
 
       if (!DriverConfigurationProfiles.contains(profileName)) {
-        throw new SQLException(
-            Messages.get(
-                "ConnectionPluginManager.configurationProfileNotFound",
-                new Object[] {profileName}));
+        throw new SQLException(String.format("Configuration profile '%s' not found.", profileName));
       }
       pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
 
@@ -159,10 +151,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
       for (String pluginCode : pluginCodeList) {
         if (!pluginFactoriesByCode.containsKey(pluginCode)) {
-          throw new SQLException(
-              Messages.get(
-                  "ConnectionPluginManager.unknownPluginCode",
-                  new Object[] {pluginCode}));
+          throw new SQLException(String.format("Unknown plugin code '%s'.", pluginCode));
         }
         pluginFactories.add(pluginFactoriesByCode.get(pluginCode));
       }
@@ -174,7 +163,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
             WrapperUtils.loadClasses(
                     pluginFactories,
                     ConnectionPluginFactory.class,
-                    "ConnectionPluginManager.unableToLoadPlugin")
+                    "Unable to load connection plugin factory '%s'.")
                 .toArray(new ConnectionPluginFactory[0]);
 
         // make a chain of connection plugins
@@ -213,45 +202,23 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("jdbcMethodFunc");
     }
 
-    //noinspection unchecked
-    PluginChainJdbcCallable<T, E> pluginChainFunc = this.pluginChainFuncMap.get(methodName);
-
-    if (pluginChainFunc == null) {
-      pluginChainFunc = this.makePluginChainFunc(methodName);
-      this.pluginChainFuncMap.put(methodName, pluginChainFunc);
-    }
-
-    if (pluginChainFunc == null) {
-      throw new RuntimeException("Error processing this JDBC call.");
-    }
-
-    return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc);
-  }
-
-  @Nullable
-  protected <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
-      final @NonNull String methodName) {
-
-    PluginChainJdbcCallable<T, E> pluginChainFunc = null;
+    JdbcCallable<T, E> func = jdbcMethodFunc;
 
     for (int i = this.plugins.size() - 1; i >= 0; i--) {
-      final ConnectionPlugin plugin = this.plugins.get(i);
+      ConnectionPlugin plugin = this.plugins.get(i);
       Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
       boolean isSubscribed =
           pluginSubscribedMethods.contains(ALL_METHODS)
               || pluginSubscribedMethods.contains(methodName);
 
       if (isSubscribed) {
-        if (pluginChainFunc == null) {
-          pluginChainFunc = (pipelineFunc, jdbcFunc) -> pipelineFunc.call(plugin, jdbcFunc);
-        } else {
-          final PluginChainJdbcCallable<T, E> finalPluginChainFunc = pluginChainFunc;
-          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
-              pipelineFunc.call(plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc));
-        }
+        final JdbcCallable<T, E> finalFunc = func;
+        final JdbcCallable<T, E> nextLevelFunc = () -> pluginPipeline.call(plugin, finalFunc);
+        func = nextLevelFunc;
       }
     }
-    return pluginChainFunc;
+
+    return func.call();
   }
 
   protected <E extends Exception> void notifySubscribedPlugins(
@@ -264,7 +231,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("pluginPipeline");
     }
 
-    for (ConnectionPlugin plugin : this.plugins) {
+    for (int i = 0; i < this.plugins.size(); i++) {
+      ConnectionPlugin plugin = this.plugins.get(i);
       if (plugin == skipNotificationForThisPlugin) {
         continue;
       }
@@ -377,7 +345,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * connection.
    */
   public void releaseResources() {
-    LOGGER.fine(() -> Messages.get("ConnectionPluginManager.releaseResources"));
+    LOGGER.log(Level.FINE, "releasing resources");
 
     // This step allows all connection plugins a chance to clean up any dangling resources or
     // perform any
@@ -393,11 +361,6 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   private interface PluginPipeline<T, E extends Exception> {
 
-    T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;
-  }
-
-  private interface PluginChainJdbcCallable<T, E extends Exception> {
-
-    T call(final @NonNull PluginPipeline<T, E> pipelineFunc, final @NonNull JdbcCallable<T, E> jdbcMethodFunc) throws E;
+    T call(final ConnectionPlugin plugin, JdbcCallable<T, E> func) throws E;
   }
 }

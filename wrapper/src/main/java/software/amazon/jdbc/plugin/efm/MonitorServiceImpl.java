@@ -26,7 +26,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.Messages;
 
 /**
  * This class handles the creation and clean up of monitoring threads to servers with one or more
@@ -83,10 +82,9 @@ public class MonitorServiceImpl implements MonitorService {
       int failureDetectionCount) {
 
     if (nodeKeys.isEmpty()) {
-      LOGGER.warning(
-          () -> Messages.get(
-              "MonitorServiceImpl.emptyAliasSet",
-              new Object[] {hostSpec}));
+      LOGGER.log(
+          Level.WARNING,
+          String.format("Empty alias set passed for %s. Set should not be empty.", hostSpec));
       hostSpec.addAlias(hostSpec.asAlias());
     }
 
@@ -122,7 +120,9 @@ public class MonitorServiceImpl implements MonitorService {
       }
     }
 
-    LOGGER.finest(() -> Messages.get("MonitorServiceImpl.monitorNotFoundForContext"));
+    LOGGER.log(
+        Level.FINEST,
+        "Can't find monitor for context passed into MonitorServiceImpl.");
   }
 
   @Override
@@ -147,7 +147,7 @@ public class MonitorServiceImpl implements MonitorService {
   @Override
   public void notifyUnused(Monitor monitor) {
     if (monitor == null) {
-      LOGGER.warning(() -> Messages.get("MonitorServiceImpl.nullMonitorParam"));
+      LOGGER.log(Level.WARNING, "Parameter 'monitor' should not be null.");
       return;
     }
 
