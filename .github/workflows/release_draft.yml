@@ -14,7 +14,7 @@ permissions:
   repository-projects: write
 
 jobs:
-  ubuntu-latest-jdbc-wrapper-release-gh-draft:
+  ubuntu-latest-jdbc-driver-release-gh-draft:
     name: 'Build And Release Draft'
     runs-on: ubuntu-latest
     steps:
@@ -56,7 +56,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           draft: true
-          name: "AWS Advanced JDBC Wrapper - v${{ env.RELEASE_VERSION }}"
+          name: "AWS Advanced JDBC Driver - v${{ env.RELEASE_VERSION }}"
           bodyFile: RELEASE_DETAILS.md
           artifacts: ./wrapper/build/libs/*
           token: ${{ secrets.GITHUB_TOKEN }}

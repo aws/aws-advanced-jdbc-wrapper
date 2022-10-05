@@ -5,7 +5,7 @@ on:
 
 jobs:
   aurora-postgres-performance-tests:
-    concurrency: PerformanceTests-Aurora-OpenJDK
+    concurrency: PerformanceTests-Aurora
     name: 'Run Aurora Postgres container performance tests'
     runs-on: ubuntu-latest
     steps:
@@ -36,7 +36,7 @@ jobs:
           echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
-      - name: 'Run performance tests (OpenJDK)'
+      - name: 'Run performance tests'
         run: |
           ./gradlew --no-parallel --no-daemon test-performance-aurora-postgres
         env:
@@ -48,7 +48,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
           REPEAT_TIMES: ${{ secrets.REPEAT_TIMES }}
-      - name: 'Archive junit results (OpenJDK)'
+      - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@v2
         with:

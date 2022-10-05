@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  ubuntu-latest-jdbc-wrapper-snapshot-to-maven:
+  ubuntu-latest-jdbc-driver-snapshot-to-maven:
     name: 'Build And Upload Snapshot to Maven'
     runs-on: ubuntu-latest
     steps:

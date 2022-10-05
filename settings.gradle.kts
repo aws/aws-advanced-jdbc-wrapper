@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-rootProject.name = "aws-advanced-jdbc-wrapper"
+rootProject.name = "aws-advanced-jdbc-driver"
 
 include(
-    "aws-advanced-jdbc-wrapper",
+    "aws-advanced-jdbc-driver",
     "benchmarks",
     "hibernate"
 )
 
-project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
+project(":aws-advanced-jdbc-driver").projectDir = file("wrapper")
 project(":hibernate").projectDir = file("examples/HibernateExample")
 
 pluginManagement {

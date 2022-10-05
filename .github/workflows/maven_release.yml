@@ -6,7 +6,7 @@ on:
       - published
 
 jobs:
-  ubuntu-latest-jdbc-wrapper-release-to-maven:
+  ubuntu-latest-jdbc-driver-release-to-maven:
     name: 'Build And Release to Maven'
     runs-on: ubuntu-latest
     steps:

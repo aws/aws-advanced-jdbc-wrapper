@@ -28,9 +28,9 @@ plugins {
     id("com.github.vlsi.ide")
 }
 
-val versionMajor = project.property("aws-advanced-jdbc-wrapper.version.major")
-val versionMinor = project.property("aws-advanced-jdbc-wrapper.version.minor")
-val versionSubminor = Integer.parseInt(project.property("aws-advanced-jdbc-wrapper.version.subminor").toString()) + if (project.property("snapshot") == "true") 1 else 0
+val versionMajor = project.property("aws-advanced-jdbc-driver.version.major")
+val versionMinor = project.property("aws-advanced-jdbc-driver.version.minor")
+val versionSubminor = Integer.parseInt(project.property("aws-advanced-jdbc-driver.version.subminor").toString()) + if (project.property("snapshot") == "true") 1 else 0
 val buildVersion = "$versionMajor.$versionMinor.$versionSubminor" + if (project.property("snapshot") == "true") "-SNAPSHOT" else ""
 
 allprojects {
@@ -82,7 +82,7 @@ allprojects {
             if (project.props.bool("nexus.publish", default = true)) {
                 create<MavenPublication>(project.name) {
                     groupId = "software.amazon.jdbc"
-                    artifactId = "aws-advanced-jdbc-wrapper"
+                    artifactId = "aws-advanced-jdbc-driver"
                     version = buildVersion
 
                     from(components["java"])
@@ -90,9 +90,9 @@ allprojects {
 
                     pom {
                         simplifyXml()
-                        name.set("AWS Advanced JDBC Wrapper")
+                        name.set("AWS Advanced JDBC Driver")
                         description.set(
-                            project.description ?: "Amazon Web Services (AWS) Advanced JDBC Wrapper"
+                            project.description ?: "Amazon Web Services (AWS) Advanced JDBC Driver"
                         )
                         url.set("https://github.com/awslabs/aws-advanced-jdbc-wrapper")
                         licenses {

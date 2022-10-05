@@ -25,7 +25,7 @@ val jupiterVersion : String by project
 val mockitoVersion : String by project
 
 dependencies {
-    jmhImplementation(project(":aws-advanced-jdbc-wrapper"))
+    jmhImplementation(project(":aws-advanced-jdbc-driver"))
     implementation("org.postgresql:postgresql:$pgVersion")
     implementation("mysql:mysql-connector-java:$mysqlVersion")
     implementation("org.mariadb.jdbc:mariadb-java-client:$mariaVersion")
