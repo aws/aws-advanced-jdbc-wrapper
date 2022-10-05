@@ -1,4 +1,4 @@
-# Using the PostgreSQL JDBC Driver with AWS Advanced JDBC Wrapper
+# Using the PostgreSQL JDBC Driver with AWS Advanced JDBC Driver
 
 ### Running the Integration Tests
 
@@ -33,7 +33,7 @@ macOS:
 Windows:
 ```bash
 cmd /c gradlew --no-parallel --no-daemon test-integration-standard-postgres
-``` 
+```
 
 ### Environment Variables
 

@@ -2,7 +2,7 @@
 
 <div style="center"><img src="../images/plugin_manager.png" alt="diagram on how plugin manager is integrated with the user application"/></div>
 
-The AWS Advanced JDBC Wrapper contains 5 main components:
+The AWS Advanced JDBC Driver contains 5 main components:
 
 1. The wrapper classes
 2. The [connection plugin manager](./PluginManager.md)

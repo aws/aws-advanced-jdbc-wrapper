@@ -9,9 +9,9 @@ The Amazon Web Services (AWS) Advanced JDBC Wrapper allows an application to tak
 
 ### Added
 * Support for PostgreSQL
-* The [Failover Connection Plugin](./docs/using-the-jdbc-wrapper/using-plugins/UsingTheFailoverPlugin.md)
-* The [Host Monitoring Connection Plugin](./docs/using-the-jdbc-wrapper/using-plugins/UsingTheHostMonitoringPlugin.md)
-* The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-wrapper/using-plugins/UsingTheIamAuthenticationPlugin.md)
-* The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-wrapper/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
+* The [Failover Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
+* The [Host Monitoring Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
+* The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
+* The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
 [1.0.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.0

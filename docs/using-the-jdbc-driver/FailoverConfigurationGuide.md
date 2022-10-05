@@ -34,6 +34,6 @@ It seems as though just one node, the one triggering the failover, will be unava
 
 ### Monitor Failures and Investigate
 If you are experiencing difficulties with the failover plugin, try the following:
-- Enable logs [here](/docs/using-the-jdbc-wrapper/UsingTheJdbcWrapper.md#logging) to see the cause of the failure
-  - If it is a timeout, see [this](#failover-time-configuration) and fine tune the timeout values
+- Enable logs [here](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging) to see the cause of the failure
+  - If it is a timeout, see [this](#failover-time-profiles) and fine tune the timeout values
 - For additional assistance, visit the getting help page [here](../../README.md#getting-help-and-opening-issues)

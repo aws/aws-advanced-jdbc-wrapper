@@ -1,4 +1,4 @@
-# Using the MySQL JDBC Driver with the AWS Advanced JDBC Wrapper
+# Using the MySQL JDBC Driver with the AWS Advanced JDBC Driver
 
 ### Running the Integration Tests
 
@@ -33,7 +33,7 @@ macOS:
 Windows:
 ```bash
 cmd /c gradlew --no-parallel --no-daemon test-integration-standard-mysql
-``` 
+```
 
 ### Environment Variables
 
