@@ -521,7 +521,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Replaces the previous underlying connection by the connection given. State from previous
    * connection, if any, is synchronized with the new one.
    *
-   * @param host The host that matches the given connection.
+   * @param host       The host that matches the given connection.
    * @param connection The connection instance to switch to.
    * @throws SQLException if an error occurs
    */
@@ -541,7 +541,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } else {
       readOnly = false;
     }
-    syncSessionState(currentConnection, connection, readOnly);
+    transferSessionState(currentConnection, connection, readOnly);
     this.pluginService.setCurrentConnection(connection, host);
 
     if (this.pluginManagerService != null) {
@@ -550,29 +550,30 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Synchronizes session state between two connections, allowing to override the read-only status.
+   * Transfers basic session state from one connection to another.
    *
-   * @param source The connection where to get state from.
-   * @param target The connection where to set state.
-   * @param readOnly The new read-only status.
-   * @throws SQLException if an error occurs
+   * @param from     The connection to transfer state from
+   * @param to       The connection to transfer state to
+   * @param readOnly The desired read-only state
+   * @throws SQLException if a database access error occurs, this method is called on a closed connection or this method
+   *                      is called during a transaction
    */
-  protected void syncSessionState(
-      final Connection source,
-      final Connection target,
+  protected void transferSessionState(
+      final Connection from,
+      final Connection to,
       final boolean readOnly) throws SQLException {
-    if (target != null) {
-      target.setReadOnly(readOnly);
+    if (to != null) {
+      to.setReadOnly(readOnly);
     }
 
-    if (source == null || target == null) {
+    if (from == null || to == null) {
       return;
     }
 
     // TODO: verify if there are other states to sync
 
-    target.setAutoCommit(source.getAutoCommit());
-    target.setTransactionIsolation(source.getTransactionIsolation());
+    to.setAutoCommit(from.getAutoCommit());
+    to.setTransactionIsolation(from.getTransactionIsolation());
   }
 
   private <E extends Exception> void dealWithOriginalException(
@@ -581,7 +582,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
-      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
+      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[] {originalException.getMessage()}));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
@@ -811,7 +812,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * exception class, otherwise throw it as a runtime exception.
    *
    * @param exceptionClass The exception class the exception is exepected to be
-   * @param exception The exception that occurred while invoking the given method
+   * @param exception      The exception that occurred while invoking the given method
    * @return an exception indicating the failure that occurred while invoking the given method
    */
   private <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass, final Throwable exception) {
