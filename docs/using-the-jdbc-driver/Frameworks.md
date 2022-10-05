@@ -1,4 +1,4 @@
-# The JDBC Wrapper Integration with 3rd Party Frameworks
+# The AWS JDBC Driver Integration with 3rd Party Frameworks
 
 ## Hibernate
 
