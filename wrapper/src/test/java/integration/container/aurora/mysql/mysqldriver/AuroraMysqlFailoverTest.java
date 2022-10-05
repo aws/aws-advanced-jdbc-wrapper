@@ -31,6 +31,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.SqlState;
@@ -319,6 +321,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
     }
   }
 
+  @Disabled
   @Test
   public void test_takeOverConnectionProperties() throws SQLException, InterruptedException {
     final String initialWriterId = instanceIDs[0];
