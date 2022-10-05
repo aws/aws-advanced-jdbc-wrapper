@@ -237,10 +237,10 @@ class FailoverConnectionPluginTest {
   void test_syncSessionState_withNullConnections() throws SQLException {
     initializePlugin();
 
-    plugin.syncSessionState(null, mockConnection, false);
+    plugin.transferSessionState(null, mockConnection, false);
     verify(mockConnection, never()).getAutoCommit();
 
-    plugin.syncSessionState(mockConnection, null, false);
+    plugin.transferSessionState(mockConnection, null, false);
     verify(mockConnection, never()).getAutoCommit();
   }
 
@@ -254,7 +254,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
 
-    plugin.syncSessionState(mockConnection, mockConnection, false);
+    plugin.transferSessionState(mockConnection, mockConnection, false);
     verify(target).setReadOnly(eq(false));
     verify(target).getAutoCommit();
     verify(target).getTransactionIsolation();
