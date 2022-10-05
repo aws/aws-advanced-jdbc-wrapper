@@ -1,6 +1,6 @@
-# Benchmarks for AWS Advanced JDBC Wrapper
+# Benchmarks for AWS Advanced JDBC Driver
 
-This directory contains a set of benchmarks for the AWS Advanced JDBC Wrapper.
+This directory contains a set of benchmarks for the AWS Advanced JDBC Driver.
 These benchmarks measure the overhead from executing JBDC method calls with multiple connection plugins enabled.
 The benchmarks do not measure the performance of target JDBC drivers nor the performance of the failover process.
 
