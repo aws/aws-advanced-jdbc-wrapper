@@ -69,6 +69,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
           put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
+          put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
         }
       };
 

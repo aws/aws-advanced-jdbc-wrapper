@@ -70,7 +70,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       });
 
   static final String METHOD_SET_READ_ONLY = "setReadOnly";
-  static final String METHOD_SET_AUTO_COMMIT = "setAutoCommit";
   static final String METHOD_COMMIT = "commit";
   static final String METHOD_ROLLBACK = "rollback";
   private static final String METHOD_GET_AUTO_COMMIT = "getAutoCommit";
@@ -89,7 +88,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
-  protected boolean explicitlyAutoCommit = true;
   Boolean explicitlyReadOnly = false;
   private boolean closedExplicitly = false;
   protected boolean isClosed = false;
@@ -467,13 +465,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private void performSpecialMethodHandlingIfRequired(final Object[] args, final String methodName)
       throws SQLException {
-    if (methodName.contains(METHOD_SET_AUTO_COMMIT)) {
-      this.explicitlyAutoCommit = (Boolean) args[0];
-      if (this.pluginManagerService != null) {
-        this.pluginManagerService.setInTransaction(!this.explicitlyAutoCommit);
-      }
-    }
-
     if (methodName.contains(METHOD_COMMIT) || methodName.contains(METHOD_ROLLBACK)) {
       if (this.pluginManagerService != null) {
         this.pluginManagerService.setInTransaction(false);
