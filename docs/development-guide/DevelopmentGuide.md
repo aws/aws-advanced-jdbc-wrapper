@@ -63,11 +63,11 @@ The JDBC Wrapper has 2 types of performance tests:
 - manually-triggered performance tests measuring the failover and enhanced failure monitoring plugins' performance under different configurations
 
 #### AWS JDBC Driver Benchmarks
-This diagram shows the benchmarks of running some UPDATE queries using the AWS JDBC Driver with pgJDBC as the target driver.
+This diagram shows the benchmarks from running UPDATE queries using the AWS JDBC Driver with pgJDBC as the target driver.
 The baseline number represents running the same UPDATE queries with pgJDBC.
 ![](../images/jdbc_wrapper_postgresql_benchmarks.png)
 
-This diagram shows the benchmarks of running some UPDATE queries using the AWS JDBC Driver with MySQL Connector/J as the target driver.
+This diagram shows the benchmarks from running UPDATE queries using the AWS JDBC Driver with MySQL Connector/J as the target driver.
 The baseline number represents running the same UPDATE queries with MySQL Connector/J.
 ![](../images/jdbc_wrapper_mysql_benchmarks.png)
 

@@ -22,7 +22,7 @@ Although Aurora is able to provide maximum availability through the use of failo
 Enhanced Failure Monitoring (EFM) is a feature available from the [Host Monitoring Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md#enhanced-failure-monitoring) that periodically checks the connected database node's health and availability. If a database node is determined to be unhealthy, the connection is aborted.
 
 ## Getting Started
-For more information on how to obtain the AWS JDBC Driver minimum requirements to use it, and how to integrate the AWS JDBC Driver into your project, please visit the [Getting Started page](./docs/GettingStarted.md).
+For more information on how to obtain the AWS JDBC Driver, minimum requirements to use it, and how to integrate the AWS JDBC Driver into your project, please visit the [Getting Started page](./docs/GettingStarted.md).
 
 ## Using the AWS JDBC Driver
 Please refer to the AWS JDBC Driver's [Documentation page](./docs/Documentation.md) for details about using the AWS JDBC Driver. 
