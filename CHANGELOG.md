@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 
 ## [1.0.0] - 2022-10-06
-The Amazon Web Services (AWS) Advanced JDBC Wrapper allows an application to take advantage of the features of clustered Aurora databases.
+The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take advantage of the features of clustered Aurora databases.
 
 ### Added
 * Support for PostgreSQL
