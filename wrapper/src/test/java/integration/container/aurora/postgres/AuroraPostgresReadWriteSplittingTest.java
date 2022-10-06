@@ -40,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
@@ -63,7 +64,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     );
   }
 
-  @Disabled
   @ParameterizedTest(name = "test_connectToWriter_setReadOnlyTrueFalseTrue")
   @MethodSource("testParameters")
   public void test_connectToWriter_setReadOnlyTrueFalseTrue(Properties props) throws SQLException {
@@ -89,7 +89,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled
   @ParameterizedTest(name = "test_connectToReader_setReadOnlyTrueFalse")
   @MethodSource("testParameters")
   public void test_connectToReader_setReadOnlyTrueFalse(Properties props) throws SQLException {
@@ -113,7 +112,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled
   @ParameterizedTest(name = "test_connectToReaderCluster_setReadOnlyTrueFalse")
   @MethodSource("testParameters")
   public void test_connectToReaderCluster_setReadOnlyTrueFalse(Properties props) throws SQLException {
@@ -134,7 +132,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled
   @ParameterizedTest(name = "test_connectToReaderIP_setReadOnlyTrueFalse")
   @MethodSource("testParameters")
   public void test_connectToReaderIP_setReadOnlyTrueFalse(Properties props) throws SQLException, UnknownHostException {
@@ -158,7 +155,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled @ParameterizedTest(name = "test_setReadOnlyFalseInReadOnlyTransaction")
+  @ParameterizedTest(name = "test_setReadOnlyFalseInReadOnlyTransaction")
   @MethodSource("testParameters")
   public void test_setReadOnlyFalseInReadOnlyTransaction(Properties props) throws SQLException {
     final String initialWriterId = instanceIDs[0];
@@ -196,7 +193,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       stmt3.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
     }
   }
-  // TODO: why isn't this hitting PgConnection#setReadOnly?
+
   @ParameterizedTest(name = "test_setReadOnlyFalseInTransaction")
   @MethodSource("testParameters")
   public void test_setReadOnlyFalseInTransaction(Properties props) throws SQLException {
@@ -236,47 +233,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  // TODO: delete this test (cannot set autocommit to zero in postgres)
-  @Disabled
-  @ParameterizedTest(name = "test_setReadOnlyFalseInTransaction_setAutocommitZero")
-  @MethodSource("testParameters")
-  public void test_setReadOnlyFalseInTransaction_setAutocommitZero(Properties props) throws SQLException {
-    final String initialWriterId = instanceIDs[0];
-
-    try (final Connection conn = connectToInstance(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT, props)) {
-      String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      final Statement stmt1 = conn.createStatement();
-      stmt1.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
-      stmt1.executeUpdate(
-          "CREATE TABLE test_splitting_readonly_transaction "
-              + "(id int not null primary key, text_field varchar(255) not null)");
-      stmt1.executeUpdate("INSERT INTO test_splitting_readonly_transaction VALUES (1, 'test_field value 1')");
-
-      conn.setReadOnly(true);
-      String readerConnectionId = queryInstanceId(conn);
-      assertTrue(isDBInstanceReader(readerConnectionId));
-
-      final Statement stmt2 = conn.createStatement();
-      stmt2.execute("SET autocommit = 0");
-      stmt2.executeQuery("SELECT count(*) from test_splitting_readonly_transaction");
-
-      final ReadWriteSplittingSQLException exception = assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(false));
-      assertEquals(SqlState.ACTIVE_SQL_TRANSACTION.getState(), exception.getSQLState());
-
-      stmt2.execute("COMMIT");
-
-      conn.setReadOnly(false);
-      writerConnectionId = queryInstanceId(conn);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      final Statement stmt3 = conn.createStatement();
-      stmt3.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
-    }
-  }
-  // TODO: this is correctly hitting PgConnection#setReadOnly
   @ParameterizedTest(name = "test_setReadOnlyTrueInTransaction")
   @MethodSource("testParameters")
   public void test_setReadOnlyTrueInTransaction(Properties props) throws SQLException {
@@ -297,11 +253,13 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       final Statement stmt2 = conn.createStatement();
       stmt2.executeUpdate("INSERT INTO test_splitting_readonly_transaction VALUES (1, 'test_field value 1')");
 
-      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      SQLException e = assertThrows(SQLException.class, () -> conn.setReadOnly(true));
+      assertEquals(SqlState.ACTIVE_SQL_TRANSACTION.getState(), e.getSQLState());
       writerConnectionId = queryInstanceId(conn);
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
       stmt2.execute("COMMIT");
+      conn.setAutoCommit(true);
       final ResultSet rs = stmt2.executeQuery("SELECT count(*) from test_splitting_readonly_transaction");
       rs.next();
       assertEquals(1, rs.getInt(1));
@@ -579,7 +537,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled
   @ParameterizedTest(name = "test_setReadOnlyTrue_allReadersDown")
   @MethodSource("proxiedTestParameters")
   public void test_setReadOnlyTrue_allReadersDown(Properties props) throws SQLException, IOException {
@@ -617,7 +574,8 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
   public void test_setReadOnlyTrue_allInstancesDown(Properties props) throws SQLException, IOException {
     final String initialWriterId = instanceIDs[0];
 
-    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, "10");
+    AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props, "1");
+    PGProperty.SOCKET_TIMEOUT.set(props, "1");
     try (Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         POSTGRES_PROXY_PORT, props)) {
       String currentConnectionId = queryInstanceId(conn);
@@ -640,35 +598,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled @ParameterizedTest(name = "test_setReadOnlyTrue_allInstancesDown_writerClosed")
-  @MethodSource("proxiedTestParameters")
-  public void test_setReadOnlyTrue_allInstancesDown_writerClosed(Properties props) throws SQLException, IOException {
-    final String initialWriterId = instanceIDs[0];
-
-    try (Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        POSTGRES_PROXY_PORT, props)) {
-      String currentConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, currentConnectionId);
-      assertTrue(isDBInstanceWriter(currentConnectionId));
-      conn.close();
-
-      // Kill all instances
-      for (int i = 0; i < clusterSize; i++) {
-        final String instanceId = instanceIDs[i];
-        final Proxy proxyInstance = proxyMap.get(instanceId);
-        if (proxyInstance != null) {
-          containerHelper.disableConnectivity(proxyInstance);
-        } else {
-          fail(String.format("%s does not have a proxy setup.", instanceId));
-        }
-      }
-
-      final ReadWriteSplittingSQLException exception = assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(true));
-      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
-    }
-  }
-
-  @Disabled @ParameterizedTest(name = "test_setReadOnlyFalse_allInstancesDown")
+  @ParameterizedTest(name = "test_setReadOnlyFalse_allInstancesDown")
   @MethodSource("proxiedTestParameters")
   public void test_setReadOnlyFalse_allInstancesDown(Properties props) throws SQLException, IOException {
     final String initialReaderId = instanceIDs[1];
@@ -696,7 +626,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled
   @Test
   public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException, InterruptedException, IOException {
     final String initialWriterId = instanceIDs[0];
@@ -743,7 +672,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled
   @Test
   public void test_failoverToNewReader_setReadOnlyFalseTrue() throws SQLException, IOException {
     final String initialWriterId = instanceIDs[0];
@@ -806,7 +734,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled
   @Test
   public void test_failoverReaderToWriter_setReadOnlyTrueFalse() throws SQLException, IOException {
     final String initialWriterId = instanceIDs[0];
@@ -854,7 +781,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled @Test
+  @Test
   public void test_multiHostUrl_topologyOverridesHostList() throws SQLException {
     final String initialWriterId = instanceIDs[0];
 

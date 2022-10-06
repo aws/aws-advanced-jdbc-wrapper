@@ -114,9 +114,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty(
           "failoverTimeoutMs",
           "300000",
-          "Cluster topology refresh rate in millis. "
-              + "The cached topology for the cluster will be invalidated after the specified time, "
-              + "after which it will be updated during the next interaction with the connection.");
+          "Maximum allowed time for the failover process.");
 
   public static final AwsWrapperProperty FAILOVER_WRITER_RECONNECT_INTERVAL_MS =
       new AwsWrapperProperty(
