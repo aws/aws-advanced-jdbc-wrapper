@@ -402,10 +402,10 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
 
   /**
    * Current reader dies, failover to another reader repeat to loop through instances in the cluster
-   * testing ability to revive previously down reader instance.
+   * testing ability to revive previously down reader instance or failover to a writer.
    */
   @Test
-  public void test_failoverBackToThePreviouslyDownReader()
+  public void test_failoverBackToThePreviouslyDownReaderOrWriter()
       throws Exception {
 
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");

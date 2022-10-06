@@ -407,10 +407,10 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
   /**
    * Current reader dies, failover to another reader repeat to loop through instances in the cluster testing ability to
-   * revive previously down reader instance.
+   * revive previously down reader instance or failover to a writer.
    */
   @Test
-  public void test_failoverBackToThePreviouslyDownReader() throws Exception {
+  public void test_failoverBackToThePreviouslyDownReaderOrWriter() throws Exception {
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");
 
     final String writerInstanceId = instanceIDs[0];
