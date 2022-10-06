@@ -102,8 +102,6 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
     targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
     targetDataSourceProps.setProperty(
         AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);
