@@ -478,7 +478,8 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
 
       assertTrue(
           firstReaderInstanceId.equals(lastInstanceId)
-              || secondReaderInstanceId.equals(lastInstanceId));
+              || secondReaderInstanceId.equals(lastInstanceId)
+              || writerInstanceId.equals(lastInstanceId));
     }
   }
 
