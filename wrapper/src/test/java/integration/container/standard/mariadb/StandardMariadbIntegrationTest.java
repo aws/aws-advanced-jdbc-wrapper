@@ -22,9 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -33,10 +31,6 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.Random;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-import java.util.logging.StreamHandler;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
@@ -45,7 +39,6 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.ResultSetWrapper;
 import software.amazon.jdbc.wrapper.StatementWrapper;
 
-@Disabled
 public class StandardMariadbIntegrationTest extends StandardMariadbBaseTest {
 
   @Test

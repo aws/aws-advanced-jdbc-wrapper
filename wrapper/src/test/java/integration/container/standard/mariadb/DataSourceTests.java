@@ -30,93 +30,11 @@ import java.util.Properties;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-@Disabled
 public class DataSourceTests extends StandardMariadbBaseTest {
-
-  @BeforeAll
-  public static void setup() throws SQLException, ClassNotFoundException {
-    Class.forName("org.mariadb.jdbc.Driver");
-  }
-
-  @Test
-  public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    ds.setJdbcProtocol("jdbc:mariadb:");
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
-
-      assertTrue(conn.isValid(10));
-    }
-  }
-
-  @Test
-  public void testOpenConnectionWithMysqlUrl() throws SQLException {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB);
-
-    try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
-
-      assertTrue(conn.isValid(10));
-    }
-  }
-
-  @Test
-  public void testOpenConnectionWithMysqlDataSourceClassNameFromJndiLookup()
-      throws SQLException, NamingException, IllegalAccessException {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-    ds.setJdbcProtocol("jdbc:mariadb:");
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
-    targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-    final Hashtable<String, Object> env = new Hashtable<>();
-    env.put(Context.INITIAL_CONTEXT_FACTORY, SimpleJndiContextFactory.class.getName());
-    final InitialContext context = new InitialContext(env);
-    context.bind("wrapperDataSource", ds);
-    final AwsWrapperDataSource dsFromJndiLookup = (AwsWrapperDataSource) context.lookup("wrapperDataSource");
-    assertNotNull(dsFromJndiLookup);
-
-    assertNotSame(ds, dsFromJndiLookup);
-    final Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
-    assertEquals(targetDataSourceProps, jndiDsProperties);
-
-    for (Field f : ds.getClass().getFields()) {
-      assertEquals(f.get(ds), f.get(dsFromJndiLookup));
-    }
-
-    try (final Connection conn = dsFromJndiLookup.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
-      assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), STANDARD_DB);
-
-      assertTrue(conn.isValid(10));
-    }
-  }
 
   @Test
   public void testOpenConnectionWithMariaDbDataSourceClassName() throws SQLException {

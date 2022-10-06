@@ -23,12 +23,10 @@ import com.zaxxer.hikari.pool.HikariProxyConnection;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
-@Disabled
 public class HikariTests extends StandardMariadbBaseTest {
 
   @Test
