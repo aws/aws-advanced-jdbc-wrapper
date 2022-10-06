@@ -544,8 +544,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param from     The connection to transfer state from
    * @param to       The connection to transfer state to
    * @param readOnly The desired read-only state
-   * @throws SQLException if a database access error occurs, this method is called on a closed connection or this method
-   *                      is called during a transaction
+   * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
+   *                      method is called during a distributed transaction, or this method is called during a
+   *                      transaction
    */
   protected void transferSessionState(
       final Connection from,

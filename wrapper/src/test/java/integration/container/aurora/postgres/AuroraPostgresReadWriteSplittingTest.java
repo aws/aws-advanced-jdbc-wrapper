@@ -84,8 +84,8 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       assertEquals(initialWriterId, writerConnectionId);
 
       conn.setReadOnly(true);
-      String newReaderConnectionId = queryInstanceId(conn);
-      assertEquals(readerConnectionId, newReaderConnectionId);
+      String nextReaderConnectionId = queryInstanceId(conn);
+      assertEquals(readerConnectionId, nextReaderConnectionId);
     }
   }
 
@@ -542,6 +542,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
   public void test_setReadOnlyTrue_allReadersDown(Properties props) throws SQLException, IOException {
     String initialWriterId = instanceIDs[0];
 
+    PGProperty.SOCKET_TIMEOUT.set(props, "2");
     try (Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         POSTGRES_PROXY_PORT, props)) {
       String currentConnectionId = queryInstanceId(conn);
@@ -603,6 +604,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
   public void test_setReadOnlyFalse_allInstancesDown(Properties props) throws SQLException, IOException {
     final String initialReaderId = instanceIDs[1];
 
+    PGProperty.SOCKET_TIMEOUT.set(props, "1");
     try (Connection conn = connectToInstance(initialReaderId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         POSTGRES_PROXY_PORT, props)) {
       String currentConnectionId = queryInstanceId(conn);
@@ -630,8 +632,10 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
   public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException, InterruptedException, IOException {
     final String initialWriterId = instanceIDs[0];
 
+    Properties props = getProxiedProps_allPlugins();
+    PGProperty.SOCKET_TIMEOUT.set(props, "2");
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        POSTGRES_PROXY_PORT, getProxiedProps_allPlugins())) {
+        POSTGRES_PROXY_PORT, props)) {
       // Kill all reader instances
       for (int i = 1; i < clusterSize; i++) {
         final String instanceId = instanceIDs[i];
@@ -676,8 +680,10 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
   public void test_failoverToNewReader_setReadOnlyFalseTrue() throws SQLException, IOException {
     final String initialWriterId = instanceIDs[0];
 
+    Properties props = getProxiedProps_allPlugins();
+    PGProperty.SOCKET_TIMEOUT.set(props, "2");
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        POSTGRES_PROXY_PORT, getProxiedProps_allPlugins())) {
+        POSTGRES_PROXY_PORT, props)) {
       String writerConnectionId = queryInstanceId(conn);
       assertEquals(initialWriterId, writerConnectionId);
       assertTrue(isDBInstanceWriter(writerConnectionId));
@@ -738,8 +744,10 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
   public void test_failoverReaderToWriter_setReadOnlyTrueFalse() throws SQLException, IOException {
     final String initialWriterId = instanceIDs[0];
 
+    Properties props = getProxiedProps_allPlugins();
+    PGProperty.SOCKET_TIMEOUT.set(props, "2");
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        POSTGRES_PROXY_PORT, getProxiedProps_allPlugins())) {
+        POSTGRES_PROXY_PORT, props)) {
       String writerConnectionId = queryInstanceId(conn);
       assertEquals(initialWriterId, writerConnectionId);
       assertTrue(isDBInstanceWriter(writerConnectionId));

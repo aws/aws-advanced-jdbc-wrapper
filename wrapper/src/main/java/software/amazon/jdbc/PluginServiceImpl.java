@@ -294,7 +294,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
     if (updatedHostList != null) {
       setNodeList(this.hosts, updatedHostList);
     }
-    updateCurrentHostSpecRole();
   }
 
   @Override
@@ -303,19 +302,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
     if (updatedHostList != null) {
       setNodeList(this.hosts, updatedHostList);
     }
-    updateCurrentHostSpecRole();
   }
 
   @Override
   public void forceRefreshHostList() throws SQLException {
     setNodeList(this.hosts, this.getHostListProvider().forceRefresh());
-    updateCurrentHostSpecRole();
   }
 
   @Override
   public void forceRefreshHostList(final Connection connection) throws SQLException {
     setNodeList(this.hosts, this.getHostListProvider().forceRefresh(connection));
-    updateCurrentHostSpecRole();
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,
@@ -356,28 +352,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       this.hosts = newHosts != null ? newHosts : new ArrayList<>();
       this.pluginManager.notifyNodeListChanged(changes);
     }
-  }
-
-  private void updateCurrentHostSpecRole() {
-    if (this.currentHostSpec == null) {
-      return;
-    }
-
-    HostSpec matchingHost = null;
-    for (HostSpec host : this.hosts) {
-      if (host.getUrl().equals(this.currentHostSpec.getUrl())) {
-        matchingHost = host;
-        break;
-      }
-    }
-
-    if (matchingHost == null || matchingHost.getRole().equals(this.currentHostSpec.getRole())) {
-      return;
-    }
-
-    this.currentHostSpec =
-        new HostSpec(this.currentHostSpec.getHost(), this.currentHostSpec.getPort(), matchingHost.getRole(),
-            this.currentHostSpec.getAvailability());
   }
 
   @Override
