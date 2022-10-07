@@ -18,6 +18,7 @@ package integration.container.standard.mysql.mariadbdriver;
 
 import integration.container.standard.mysql.StandardMysqlBaseTest;
 import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeAll;
 import software.amazon.jdbc.Driver;
@@ -38,5 +39,16 @@ public class MariadbStandardMysqlBaseTest extends StandardMysqlBaseTest {
     if (!Driver.isRegistered()) {
       Driver.register();
     }
+
+    try {
+      DriverManager.deregisterDriver(DriverManager.getDriver("jdbc:mysql://"));
+
+    } catch (SQLException e) {
+      System.out.println("MySQL driver is already deregistered");
+    }
+  }
+
+  protected String getUrlMariadbDriver() {
+    return getUrl() + "?permitMysqlScheme";
   }
 }

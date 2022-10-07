@@ -41,7 +41,7 @@ public class SpringTests extends MariadbStandardMysqlBaseTest {
   private DataSource mysqlDataSource() {
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
     dataSource.setDriverClassName("software.amazon.jdbc.Driver");
-    dataSource.setUrl(getUrl());
+    dataSource.setUrl(getUrlMariadbDriver());
     dataSource.setUsername(STANDARD_USERNAME);
     dataSource.setPassword(STANDARD_PASSWORD);
 
