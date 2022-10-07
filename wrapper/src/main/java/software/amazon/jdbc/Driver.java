@@ -152,6 +152,12 @@ public class Driver implements java.sql.Driver {
     String[] args = urlArgs.split("&");
 
     for (String token : args) {
+
+//      if (token.equals("permitMysqlScheme")) {
+//        PropertyDefinition.DATABASE.set(propertiesFromUrl,
+//            PropertyDefinition.DATABASE.getString(propertiesFromUrl) + "?permitMysqlScheme");
+//        continue;
+//      }
       if (token.isEmpty()) {
         continue;
       }

@@ -22,9 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -33,9 +31,6 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.Random;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-import java.util.logging.StreamHandler;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
@@ -48,7 +43,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
 
   @Test
   public void test_connect() throws SQLException, IOException {
-    try (Connection conn = connect()) {
+    try (Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), initDefaultProps());) {
       Statement stmt = conn.createStatement();
       stmt.executeQuery("SELECT 1");
       ResultSet rs = stmt.getResultSet();
@@ -56,7 +51,9 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
       assertEquals(1, rs.getInt(1));
     }
 
-    try (Connection conn = connectToProxy()) {
+    try (Connection conn = DriverManager.getConnection(
+        DB_CONN_STR_PREFIX + STANDARD_HOST + PROXIED_DOMAIN_NAME_SUFFIX + ":" +
+            PROXY_PORT + "/" + STANDARD_DB + "?permitMysqlScheme", initDefaultProps())) {
       assertTrue(conn.isValid(5));
       containerHelper.disableConnectivity(proxy);
       assertFalse(conn.isValid(5));
@@ -70,7 +67,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     Properties props = initDefaultPropsNoTimeouts();
     props.setProperty(PropertyDefinition.PLUGINS.name, "executionTime");
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
     assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
@@ -102,7 +99,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     props.setProperty(PropertyDefinition.PROFILE_NAME.name, "unknownProfile");
 
     SQLException actualException = assertThrows(SQLException.class, () -> {
-      DriverManager.getConnection(getUrl(), props);
+      DriverManager.getConnection(getUrlMariadbDriver(), props);
     });
 
     assertTrue(actualException.getMessage().contains("unknownProfile"));
@@ -118,7 +115,7 @@ public class StandardMysqlIntegrationTest extends MariadbStandardMysqlBaseTest {
     DriverConfigurationProfiles.addOrReplaceProfile("testProfile",
         Arrays.asList(ExecutionTimeConnectionPluginFactory.class));
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     assertTrue(conn instanceof ConnectionWrapper);
     assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
