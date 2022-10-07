@@ -36,19 +36,23 @@ import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
-  public static String mysqlProtocolPrefix = "jdbc:mariadb://";
-  
+  public static String mysqlProtocolPrefix = "jdbc:mysql://";
+
   @Test
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setUrlPropertyName("url");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
+    targetDataSourceProps.setProperty("url", mysqlProtocolPrefix
+        + MYSQL_CLUSTER_URL
+        + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
@@ -66,14 +70,17 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
+    ds.setUrlPropertyName("url");
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
     targetDataSourceProps.setProperty("user", AURORA_MYSQL_USERNAME);
     targetDataSourceProps.setProperty("password", AURORA_MYSQL_PASSWORD);
+    targetDataSourceProps.setProperty(
+        "url", mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection()) {
@@ -85,33 +92,18 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   }
 
   @Test
-  public void testConnectionWithDataSourceClassNameMissingProtocol() {
+  public void testConnectionWithDataSourceClassNameMissingUrlProperty() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-    assertThrows(
-        SQLException.class,
-        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
-  }
-
-  @Test
-  public void testConnectionWithDataSourceClassNameMissingServer() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(mysqlProtocolPrefix);
-    ds.setDatabasePropertyName("databaseName");
-
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
+    targetDataSourceProps.setProperty(
+        "url", MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -125,12 +117,15 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
+    ds.setDatabasePropertyName("url");
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
+    targetDataSourceProps.setProperty(
+        "url", mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -144,12 +139,15 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setJdbcProtocol(mysqlProtocolPrefix);
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
+    ds.setDatabasePropertyName("url");
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
+    targetDataSourceProps.setProperty(
+        "url", mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -162,11 +160,13 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(mysqlProtocolPrefix);
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
+    targetDataSourceProps.setProperty(
+        "url", mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -175,33 +175,20 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   }
 
   @Test
-  public void testOpenConnectionWithMysqlUrl() throws SQLException {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl("jdbc:mysql://" + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
-
-    try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
-      assertTrue(conn instanceof ConnectionWrapper);
-      assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
-      assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
-
-      assertTrue(conn.isValid(10));
-    }
-  }
-
-  @Test
   public void testConnectionWithDataSourceClassNameUsingUrlWithCredentials() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
+    ds.setUrlPropertyName("url");
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     ds.setJdbcUrl(
         mysqlProtocolPrefix
             + MYSQL_CLUSTER_URL
             + ":" + AURORA_MYSQL_PORT + "/"
-            + AURORA_MYSQL_DB
-            + "?user=" + AURORA_MYSQL_USERNAME
+            + AURORA_MYSQL_DB + "?permitMysqlScheme"
+            + "&user=" + AURORA_MYSQL_USERNAME
             + "&password=" + AURORA_MYSQL_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
@@ -218,11 +205,12 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
     ds.setPortPropertyName("port");
+    ds.setUrlPropertyName("url");
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
     ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT
-        + "/" + AURORA_MYSQL_DB);
+        + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
@@ -237,14 +225,14 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
+    ds.setUrlPropertyName("url");
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("databaseName", "proxy-driver-test-db");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
-
+    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
       assertEquals(conn.getCatalog(), AURORA_MYSQL_DB);
@@ -257,9 +245,9 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   public void testConnectionWithDataSourceClassNameUsingUrlMissingPropertyNames() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
 
-    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
+    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     assertThrows(
         SQLException.class,
@@ -270,7 +258,11 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   public void testConnectionWithUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB);
+    ds.setJdbcUrl(
+        mysqlProtocolPrefix
+            + MYSQL_CLUSTER_URL
+            + ":" + AURORA_MYSQL_PORT + "/"
+            + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
@@ -285,11 +277,11 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
-        DB_CONN_STR_PREFIX
+        mysqlProtocolPrefix
             + MYSQL_CLUSTER_URL
             + ":" + AURORA_MYSQL_PORT + "/"
-            + AURORA_MYSQL_DB
-            + "?user=" + AURORA_MYSQL_USERNAME
+            + AURORA_MYSQL_DB + "?permitMysqlScheme"
+            + "&user=" + AURORA_MYSQL_USERNAME
             + "&password=" + AURORA_MYSQL_PASSWORD);
 
     try (final Connection conn = ds.getConnection()) {
@@ -303,7 +295,10 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   @Test
   public void testConnectionWithUrlMissingPort() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB);
+    ds.setJdbcUrl(
+        mysqlProtocolPrefix
+            + MYSQL_CLUSTER_URL + "/"
+            + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     try (final Connection conn = ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.mariadb.jdbc.Connection.class));
@@ -317,7 +312,10 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   public void testConnectionWithUrlMissingUser() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/");
+    ds.setJdbcUrl(
+        mysqlProtocolPrefix
+            + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/"
+            + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     assertThrows(
         SQLException.class,
@@ -328,7 +326,10 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   public void testConnectionWithUrlMissingPassword() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/");
+    ds.setJdbcUrl(
+        mysqlProtocolPrefix
+            + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/"
+            + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     assertThrows(
         SQLException.class,
@@ -336,13 +337,29 @@ public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   }
 
   @Test
+  public void testConnectionWithUrlMissingMariadbParameter() {
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setPortPropertyName("port");
+    ds.setJdbcUrl(
+        mysqlProtocolPrefix
+            + MYSQL_CLUSTER_URL + ":" + AURORA_MYSQL_PORT + "/"
+            + AURORA_MYSQL_DB);
+
+    assertThrows(
+        SQLException.class,
+        () -> ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD));
+  }
+
+  @Test
   public void testOpenConnectionWithMysqlDataSourceClassNameFromJndiLookup()
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+    ds.setTargetDataSourceClassName("org.mariadb.jdbc.MariaDbDataSource");
     ds.setJdbcProtocol("jdbc:mysql:");
     ds.setServerPropertyName("serverName");
     ds.setDatabasePropertyName("databaseName");
+    ds.setUrlPropertyName("url");
+    ds.setJdbcUrl(mysqlProtocolPrefix + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", MYSQL_CLUSTER_URL);
