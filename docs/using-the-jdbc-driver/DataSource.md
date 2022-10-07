@@ -78,7 +78,7 @@ To use the AWS JDBC Driver with a connection pool, you must:
    targetDataSourceProps.setProperty("databaseName", "postgres");
    targetDataSourceProps.setProperty("port", "5432");
    
-   ds.addDataSourceProperty("targetDataSourceProps", targetDataSourceProps);
+   ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
    ```
 
 See [here](./sample-code/HikariSample.java) for a complete sample.
