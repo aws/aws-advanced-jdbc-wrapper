@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import com.zaxxer.hikari.HikariDataSource;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -46,10 +47,11 @@ public class HikariSample {
 
     // Configuring PGSimpleDataSource:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverPropertyName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
-    targetDataSourceProps.setProperty("databasePropertyName", "postgres");
-    targetDataSourceProps.setProperty("portPropertyName", "5432");
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
+    targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
+    targetDataSourceProps.setProperty("databaseName", "postgres");
+    targetDataSourceProps.setProperty("portNumber", "5432");
+    
+    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     // Try and make a connection:
     try (final Connection conn = ds.getConnection();
