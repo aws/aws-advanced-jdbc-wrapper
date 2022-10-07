@@ -47,9 +47,9 @@ public class HikariSample {
 
     // Configuring PGSimpleDataSource:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverPropertyName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
-    targetDataSourceProps.setProperty("databasePropertyName", "postgres");
-    targetDataSourceProps.setProperty("portPropertyName", "5432");
+    targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
+    targetDataSourceProps.setProperty("databaseName", "postgres");
+    targetDataSourceProps.setProperty("portNumber", "5432");
     
     ds.addDataSourceProperty("targetDataSourceProps", targetDataSourceProps);
 
