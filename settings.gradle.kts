@@ -19,11 +19,15 @@ rootProject.name = "aws-advanced-jdbc-wrapper"
 include(
     "aws-advanced-jdbc-wrapper",
     "benchmarks",
-    "hibernate"
+    "hibernate",
+    "hikari",
+    "driverexample"
 )
 
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
 project(":hibernate").projectDir = file("examples/HibernateExample")
+project(":hikari").projectDir = file("examples/HikariExample")
+project(":driverexample").projectDir = file("examples/AWSDriverExample")
 
 pluginManagement {
     plugins {

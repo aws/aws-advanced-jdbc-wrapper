@@ -16,6 +16,8 @@
  *
  */
 
+package software.amazon;
+
 import software.amazon.jdbc.PropertyDefinition;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -24,7 +26,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 
-public class AwsIamAuthenticationPostgresqlSample {
+public class AwsIamAuthenticationPostgresqlExample {
   public static final String POSTGRESQL_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/employees";
   private static final String USERNAME = "john_smith";
@@ -36,27 +38,13 @@ public class AwsIamAuthenticationPostgresqlSample {
     // Enable AWS IAM database authentication and configure driver property values
     properties.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     properties.setProperty(PropertyDefinition.USER.name, USERNAME);
-    properties.setProperty(PropertyDefinition.TARGET_DRIVER_USER_PROPERTY_NAME.name, "user");
-    properties.setProperty(PropertyDefinition.TARGET_DRIVER_PASSWORD_PROPERTY_NAME.name, "password");
 
     // Attempt a connection
     try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, properties);
         Statement statement = conn.createStatement();
         ResultSet result = statement.executeQuery("select aurora_db_instance_identifier()")) {
 
-      System.out.println(getResult(result));
+      System.out.println(Util.getResult(result));
     }
-  }
-
-  static String getResult(final ResultSet result) throws SQLException {
-    int cols = result.getMetaData().getColumnCount();
-    StringBuilder builder = new StringBuilder();
-    while (result.next()) {
-      for (int i = 1; i <= cols; i++) {
-        builder.append(result.getString(i)).append(" ");
-      }
-      builder.append("\n");
-    }
-    return builder.toString();
   }
 }
