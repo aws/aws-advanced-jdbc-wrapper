@@ -81,6 +81,8 @@ To use the AWS JDBC Driver with a connection pool, you must:
    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
    ```
 
-See [here](./sample-code/HikariSample.java) for a complete sample.
+See [here](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java) for a simple AWS Driver Datasource example.
+
+See [here](../../examples/HikariExample/src/main/java/software/amazon/HikariExample.java) for a complete Hikari example.
 
 > **:warning:Note:** HikariCP supports either DataSource-based configuration or DriverManager-based configuration by specifying the `dataSourceClassName` or the `jdbcUrl`. When using the `AwsWrapperDataSource` you must specify the `dataSourceClassName`, therefore `HikariDataSource.setJdbcUrl` is not supported. For more information see HikariCP's [documentation](https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby).

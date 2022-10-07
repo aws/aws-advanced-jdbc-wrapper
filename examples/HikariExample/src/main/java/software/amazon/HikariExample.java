@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+package software.amazon;
+
 import com.zaxxer.hikari.HikariDataSource;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import java.sql.Connection;
@@ -22,7 +24,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 
-public class HikariSample {
+public class HikariExample {
+
   private static final String USER = "username";
   private static final String PASSWORD = "password";
 
@@ -38,9 +41,9 @@ public class HikariSample {
 
     // Configure AwsWrapperDataSource:
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-    ds.addDataSourceProperty("databasePropertyName", "databasePropertyName");
-    ds.addDataSourceProperty("portPropertyName", "portPropertyName");
-    ds.addDataSourceProperty("serverPropertyName", "serverPropertyName");
+    ds.addDataSourceProperty("databasePropertyName", "databaseName");
+    ds.addDataSourceProperty("portPropertyName", "portNumber");
+    ds.addDataSourceProperty("serverPropertyName", "serverName");
 
     // Specify the driver-specific data source for AwsWrapperDataSource:
     ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
@@ -50,7 +53,7 @@ public class HikariSample {
     targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
     targetDataSourceProps.setProperty("databaseName", "postgres");
     targetDataSourceProps.setProperty("portNumber", "5432");
-    
+
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     // Try and make a connection:
