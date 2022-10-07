@@ -51,7 +51,7 @@ public class HikariSample {
     targetDataSourceProps.setProperty("databaseName", "postgres");
     targetDataSourceProps.setProperty("portNumber", "5432");
     
-    ds.addDataSourceProperty("targetDataSourceProps", targetDataSourceProps);
+    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     // Try and make a connection:
     try (final Connection conn = ds.getConnection();
