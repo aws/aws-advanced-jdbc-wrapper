@@ -55,7 +55,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
       // Failure occurs on Connection invocation
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are connected to the new writer after failover happens.
       final String currentConnectionId = queryInstanceId(conn);
@@ -83,7 +83,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
       // Failure occurs on Statement invocation
-      assertFirstQueryThrows(stmt, "08S02");
+      assertFirstQueryThrows(stmt, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that the driver is connected to the new writer after failover happens.
       final String currentConnectionId = queryInstanceId(conn);
@@ -117,7 +117,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       Proxy instanceProxy = proxyMap.get(instanceId);
       containerHelper.disableConnectivity(instanceProxy);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are currently connected to the writer Instance1.
       final String writerId = instanceIDs[0];
@@ -137,7 +137,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       // Crash writer Instance1.
       failoverClusterToATargetAndWaitUntilWriterChanged(writerId, readerBId);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are connected to one of the available instances.
       currentConnectionId = queryInstanceId(conn);
@@ -174,7 +174,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
           assertThrows(
               SQLException.class,
               () -> testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (2, 'test field string 2')"));
-      assertEquals("08007", exception.getSQLState());
+      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
       final String currentConnectionId = queryInstanceId(conn);
@@ -223,7 +223,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
           assertThrows(
               SQLException.class,
               () -> testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (2, 'test field string 2')"));
-      assertEquals("08007", exception.getSQLState());
+      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
       final String currentConnectionId = queryInstanceId(conn);
@@ -269,7 +269,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
           assertThrows(
               SQLException.class,
               () -> testStmt2.executeUpdate("INSERT INTO test3_4 VALUES (2, 'test field string 2')"));
-      assertEquals("08S02", exception.getSQLState());
+      assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
 
       // Attempt to query the instance id.
       final String currentConnectionId = queryInstanceId(conn);
@@ -305,7 +305,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       // Crash writer Instance1 and nominate Instance2 as the new writer
       failoverClusterToATargetAndWaitUntilWriterChanged(initialWriterId, nominatedWriterId);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Execute Query again to get the current connection id;
       final String currentConnectionId = queryInstanceId(conn);
@@ -345,7 +345,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       // Crash Instance1 and nominate a new writer
       failoverClusterAndWaitUntilWriterChanged(initialWriterId);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
