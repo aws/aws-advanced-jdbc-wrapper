@@ -187,12 +187,6 @@ public abstract class AuroraMysqlBaseTest {
     proxyMap.put(MYSQL_CLUSTER_URL, proxyCluster);
     proxyMap.put(MYSQL_RO_CLUSTER_URL, proxyReadOnlyCluster);
 
-    try {
-      Class.forName("com.mysql.cj.jdbc.Driver");
-    } catch (ClassNotFoundException e) {
-      fail("MySQL driver not found");
-    }
-
     if (!Driver.isRegistered()) {
       Driver.register();
     }

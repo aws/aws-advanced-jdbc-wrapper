@@ -35,9 +35,5 @@ public abstract class MysqlAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
     } catch (ClassNotFoundException e) {
       fail("MySQL driver not found");
     }
-
-    if (!Driver.isRegistered()) {
-      Driver.register();
-    }
   }
 }

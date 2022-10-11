@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,8 +38,11 @@ public abstract class MariadbAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
       fail("MariaDB driver not found");
     }
 
-    if (!Driver.isRegistered()) {
-      Driver.register();
+    try {
+      DriverManager.deregisterDriver(DriverManager.getDriver("jdbc:mysql://"));
+
+    } catch (SQLException e) {
+      System.out.println("MySQL driver is already deregistered");
     }
   }
 
