@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqldriver;
+package integration.container.aurora.mysql.mariadbdriver;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,6 +26,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import eu.rekawek.toxiproxy.Proxy;
+import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -44,9 +46,11 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
+import software.amazon.jdbc.util.SqlState;
 
-public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
+public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
+  private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
   private static HikariDataSource data_source = null;
   private final List<String> clusterTopology = fetchTopology();
 
@@ -78,7 +82,6 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   @BeforeEach
   public void setUpTest() {
     final HikariConfig config = new HikariConfig();
-
     config.setUsername(AURORA_MYSQL_USERNAME);
     config.setPassword(AURORA_MYSQL_PASSWORD);
     config.setMaximumPoolSize(3);
@@ -88,8 +91,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     config.setConnectionTimeout(1000);
 
     config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
-    config.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
-    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
+    config.addDataSourceProperty("targetDataSourceClassName", "org.mariadb.jdbc.MariaDbDataSource");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:mariadb:");
     config.addDataSourceProperty("portPropertyName", "port");
     config.addDataSourceProperty("serverPropertyName", "serverName");
 
@@ -102,6 +105,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
     targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
     targetDataSourceProps.setProperty(
         AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);

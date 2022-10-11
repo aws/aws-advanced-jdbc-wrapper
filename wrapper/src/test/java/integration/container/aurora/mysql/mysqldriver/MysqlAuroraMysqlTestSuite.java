@@ -26,6 +26,7 @@ import org.junit.platform.suite.api.Suite;
     AuroraMysqlDataSourceTest.class,
     AuroraMysqlFailoverTest.class,
     AuroraMysqlAwsIamIntegrationTest.class,
-    AuroraMysqlIntegrationTest.class
+    AuroraMysqlIntegrationTest.class,
+    HikariCPIntegrationTest.class
 })
 public class MysqlAuroraMysqlTestSuite {}
