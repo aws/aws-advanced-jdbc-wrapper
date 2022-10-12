@@ -48,7 +48,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 
-public class AuroraHostListProvider implements HostListProvider, DynamicHostListProvider {
+public class AuroraHostListProvider implements DynamicHostListProvider {
 
   public static final AwsWrapperProperty CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(

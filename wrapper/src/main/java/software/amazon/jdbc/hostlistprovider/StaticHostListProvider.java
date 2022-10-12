@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import software.amazon.jdbc.HostListProvider;
+
 // A marker interface for providers that fetch node lists, and it never changes since after.
 // An example of such provider is a provider that use connection string as a source.
-public interface StaticHostListProvider {}
+public interface StaticHostListProvider extends HostListProvider {}
