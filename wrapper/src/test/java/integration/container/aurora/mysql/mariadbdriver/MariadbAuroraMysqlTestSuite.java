@@ -27,6 +27,7 @@ import org.junit.platform.suite.api.Suite;
     AuroraMysqlFailoverTest.class,
     AuroraMysqlAwsIamIntegrationTest.class,
     AuroraMysqlIntegrationTest.class,
+    HikariCPIntegrationTest.class,
     AuroraMysqlReadWriteSplittingTest.class,
     HikariCPReadWriteSplittingTest.class
 })
