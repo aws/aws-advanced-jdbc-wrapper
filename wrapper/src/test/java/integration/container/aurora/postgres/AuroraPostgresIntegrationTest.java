@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.postgresql.PGProperty;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
@@ -176,7 +177,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       }
       containerHelper.disableConnectivity(proxyCluster);
 
-      assertFirstQueryThrows(testConnection, "08001");
+      assertFirstQueryThrows(testConnection, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
 
     } finally {
       final Proxy proxyInstance = proxyMap.get(currWriter);
@@ -217,7 +218,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
         }
       });
 
-      assertFirstQueryThrows(testConnection, "08S02");
+      assertFirstQueryThrows(testConnection, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       final String newReader = queryInstanceId(testConnection);
       assertEquals(currWriter, newReader);
@@ -257,7 +258,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
         fail(String.format("%s does not have a proxy setup.", currReader));
       }
 
-      assertFirstQueryThrows(testConnection, "08S02");
+      assertFirstQueryThrows(testConnection, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       final String newInstance = queryInstanceId(testConnection);
       assertEquals(currWriter, newInstance);
@@ -296,7 +297,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
         fail(String.format("%s does not have a proxy setup.", currReader));
       }
 
-      assertFirstQueryThrows(testConnection, "08S02");
+      assertFirstQueryThrows(testConnection, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       final String newInstance = queryInstanceId(testConnection);
       assertNotEquals(currWriter, newInstance);
@@ -362,7 +363,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
       // All instances should be down, assert exception thrown with SQLState code 08001
       // (SQL_STATE_UNABLE_TO_CONNECT_TO_DATASOURCE)
-      assertFirstQueryThrows(conn, "08001");
+      assertFirstQueryThrows(conn, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
     } finally {
       proxyMap.forEach((instance, proxy) -> {
         assertNotNull(proxy, "Proxy isn't found for " + instance);
@@ -394,7 +395,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
         }
       }
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we failed over to the only remaining reader instance (Instance5) OR Writer
       // instance (Instance1).
@@ -427,7 +428,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       Proxy proxyInstance = proxyMap.get(firstReaderInstanceId);
       containerHelper.disableConnectivity(proxyInstance);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are connected to another reader instance.
       final String secondReaderInstanceId = queryInstanceId(conn);
@@ -438,7 +439,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       proxyInstance = proxyMap.get(secondReaderInstanceId);
       containerHelper.disableConnectivity(proxyInstance);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       // Assert that we are connected to the third reader instance.
       final String thirdReaderInstanceId = queryInstanceId(conn);
@@ -474,7 +475,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       proxyInstance = proxyMap.get(thirdReaderInstanceId);
       containerHelper.disableConnectivity(proxyInstance);
 
-      assertFirstQueryThrows(conn, "08S02");
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
       final String lastInstanceId = queryInstanceId(conn);
 

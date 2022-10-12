@@ -306,8 +306,7 @@ public abstract class AuroraPostgresBaseTest {
   protected String executeInstanceIdQuery(Statement stmt) throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(QUERY_FOR_INSTANCE)) {
       if (rs.next()) {
-        final String id = rs.getString("aurora_db_instance_identifier");
-        return id;
+        return rs.getString("aurora_db_instance_identifier");
       }
     }
     return null;

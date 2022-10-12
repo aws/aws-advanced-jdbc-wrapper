@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package integration.container.aurora.mysql.mysqldriver;
+package integration.container.aurora.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -45,7 +45,8 @@ import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
 
-public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
+public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
+
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
   private static HikariDataSource data_source = null;
   private final List<String> clusterTopology = fetchTopology();
@@ -78,9 +79,8 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
   @BeforeEach
   public void setUpTest() {
     final HikariConfig config = new HikariConfig();
-
-    config.setUsername(AURORA_MYSQL_USERNAME);
-    config.setPassword(AURORA_MYSQL_PASSWORD);
+    config.setUsername(AURORA_POSTGRES_USERNAME);
+    config.setPassword(AURORA_POSTGRES_PASSWORD);
     config.setMaximumPoolSize(3);
     config.setReadOnly(true);
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
@@ -88,19 +88,21 @@ public class HikariCPIntegrationTest extends MysqlAuroraMysqlBaseTest {
     config.setConnectionTimeout(1000);
 
     config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
-    config.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
-    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
-    config.addDataSourceProperty("portPropertyName", "port");
+    config.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql://");
+    config.addDataSourceProperty("portPropertyName", "portNumber");
     config.addDataSourceProperty("serverPropertyName", "serverName");
+    config.addDataSourceProperty("databasePropertyName", "databaseName");
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
-    targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
+    targetDataSourceProps.setProperty("portNumber", String.valueOf(POSTGRES_PROXY_PORT));
+    targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
-    targetDataSourceProps.setProperty("socketTimeout", "3000");
-    targetDataSourceProps.setProperty("connectTimeout", "3000");
-    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
-    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
+    targetDataSourceProps.setProperty("socketTimeout", "5");
+    targetDataSourceProps.setProperty("connectTimeout", "5");
+    targetDataSourceProps.setProperty("monitoring-connectTimeout", "3");
+    targetDataSourceProps.setProperty("monitoring-socketTimeout", "3");
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(
         AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
