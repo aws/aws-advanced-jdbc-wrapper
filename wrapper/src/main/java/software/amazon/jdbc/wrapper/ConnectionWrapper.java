@@ -688,7 +688,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setAutoCommit",
-        () -> this.pluginService.getCurrentConnection().setAutoCommit(autoCommit),
+        () -> {
+          this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
+          this.pluginManagerService.setInTransaction(!autoCommit);
+        },
         autoCommit);
   }
 

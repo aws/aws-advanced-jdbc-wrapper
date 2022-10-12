@@ -67,7 +67,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param pluginService A provider for creating new connections.
+   * @param pluginService          A provider for creating new connections.
    * @param initialConnectionProps The initial connection properties to copy over to the new reader.
    */
   public ClusterAwareReaderFailoverHandler(
@@ -83,20 +83,20 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   /**
    * ClusterAwareReaderFailoverHandler constructor.
    *
-   * @param pluginService A provider for creating new connections.
+   * @param pluginService          A provider for creating new connections.
    * @param initialConnectionProps The initial connection properties to copy over to the new reader.
-   * @param failoverTimeoutMs Maximum allowed time in milliseconds to attempt reconnecting to a new
-   *     reader instance after a cluster failover is initiated.
-   * @param timeoutMs Maximum allowed time for the entire reader failover process.
+   * @param maxFailoverTimeoutMs   Maximum allowed time for the entire reader failover process.
+   * @param timeoutMs              Maximum allowed time in milliseconds for each reader connection attempt during the
+   *                               reader failover process.
    */
   public ClusterAwareReaderFailoverHandler(
       PluginService pluginService,
       Properties initialConnectionProps,
-      int failoverTimeoutMs,
+      int maxFailoverTimeoutMs,
       int timeoutMs) {
     this.pluginService = pluginService;
     this.initialConnectionProps = initialConnectionProps;
-    this.maxFailoverTimeoutMs = failoverTimeoutMs;
+    this.maxFailoverTimeoutMs = maxFailoverTimeoutMs;
     this.timeoutMs = timeoutMs;
   }
 
@@ -115,7 +115,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * reader is available then driver may also try to connect to a writer host, down hosts, and the
    * current reader host.
    *
-   * @param hosts Cluster current topology
+   * @param hosts       Cluster current topology
    * @param currentHost The currently connected host that has failed.
    * @return {@link ReaderFailoverResult} The results of this process.
    */

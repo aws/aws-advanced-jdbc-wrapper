@@ -70,7 +70,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       });
 
   static final String METHOD_SET_READ_ONLY = "setReadOnly";
-  static final String METHOD_SET_AUTO_COMMIT = "setAutoCommit";
   static final String METHOD_COMMIT = "commit";
   static final String METHOD_ROLLBACK = "rollback";
   private static final String METHOD_GET_AUTO_COMMIT = "getAutoCommit";
@@ -89,7 +88,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
-  protected boolean explicitlyAutoCommit = true;
   Boolean explicitlyReadOnly = false;
   private boolean closedExplicitly = false;
   protected boolean isClosed = false;
@@ -116,9 +114,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty(
           "failoverTimeoutMs",
           "300000",
-          "Cluster topology refresh rate in millis. "
-              + "The cached topology for the cluster will be invalidated after the specified time, "
-              + "after which it will be updated during the next interaction with the connection.");
+          "Maximum allowed time for the failover process.");
 
   public static final AwsWrapperProperty FAILOVER_WRITER_RECONNECT_INTERVAL_MS =
       new AwsWrapperProperty(
@@ -467,13 +463,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private void performSpecialMethodHandlingIfRequired(final Object[] args, final String methodName)
       throws SQLException {
-    if (methodName.contains(METHOD_SET_AUTO_COMMIT)) {
-      this.explicitlyAutoCommit = (Boolean) args[0];
-      if (this.pluginManagerService != null) {
-        this.pluginManagerService.setInTransaction(!this.explicitlyAutoCommit);
-      }
-    }
-
     if (methodName.contains(METHOD_COMMIT) || methodName.contains(METHOD_ROLLBACK)) {
       if (this.pluginManagerService != null) {
         this.pluginManagerService.setInTransaction(false);
@@ -555,8 +544,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param from     The connection to transfer state from
    * @param to       The connection to transfer state to
    * @param readOnly The desired read-only state
-   * @throws SQLException if a database access error occurs, this method is called on a closed connection or this method
-   *                      is called during a transaction
+   * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
+   *                      method is called during a distributed transaction, or this method is called during a
+   *                      transaction
    */
   protected void transferSessionState(
       final Connection from,

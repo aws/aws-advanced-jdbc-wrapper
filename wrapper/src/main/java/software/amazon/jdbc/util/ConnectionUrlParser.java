@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 
 public class ConnectionUrlParser {
@@ -34,6 +35,8 @@ public class ConnectionUrlParser {
               + "(?://(?<hosts>[^/?#]*))?\\s*" // Optional list of host(s) starting with // and
               // follows by any char except "/", "?" or "#"
               + "(?:[/?#].*)?"); // Anything starting with either "/", "?" or "#"
+
+  private static final RdsUtils rdsUtils = new RdsUtils();
 
   public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection) {
     final List<HostSpec> hostsList = new ArrayList<>();
@@ -60,15 +63,18 @@ public class ConnectionUrlParser {
 
   public static HostSpec parseHostPortPair(final String url) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
+    RdsUrlType urlType = rdsUtils.identifyRdsType(hostPortPair[0]);
+    // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of WRITER
+    HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
     if (hostPortPair.length > 1) {
       final String[] port = hostPortPair[1].split("/");
       int portValue = parsePortAsInt(hostPortPair[1]);
       if (port.length > 1) {
         portValue = parsePortAsInt(port[0]);
       }
-      return new HostSpec(hostPortPair[0], portValue);
+      return new HostSpec(hostPortPair[0], portValue, hostRole);
     }
-    return new HostSpec(hostPortPair[0]);
+    return new HostSpec(hostPortPair[0], HostSpec.NO_PORT, hostRole);
   }
 
   private static int parsePortAsInt(String port) {
