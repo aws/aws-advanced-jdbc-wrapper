@@ -22,13 +22,11 @@ import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeAll;
-import software.amazon.jdbc.Driver;
 
 public abstract class MysqlAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
 
   @BeforeAll
   public static void setUpMysql() throws SQLException, IOException {
-    DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
     setUp();
     try {
       Class.forName("com.mysql.cj.jdbc.Driver");
