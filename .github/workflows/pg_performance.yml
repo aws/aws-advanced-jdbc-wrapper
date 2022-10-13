@@ -40,7 +40,7 @@ jobs:
         run: |
           ./gradlew --no-parallel --no-daemon test-performance-aurora-postgres
         env:
-          AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
+          AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-perf-${{ github.run_id }}
           AURORA_POSTGRES_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
           AURORA_POSTGRES_PASSWORD: ${{ secrets.AURORA_POSTGRES_PASSWORD }}
           AURORA_POSTGRES_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
