@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.ResultSet;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.JdbcCallable;
 
 class DataCacheConnectionPluginTest {
 
@@ -44,6 +46,9 @@ class DataCacheConnectionPluginTest {
   Statement mockStatement;
   @Mock
   ResultSetMetaData mockMetaData;
+
+  @Mock
+  JdbcCallable mockCallable;
 
 
   @BeforeEach
@@ -87,16 +92,18 @@ class DataCacheConnectionPluginTest {
   }
 
   @Test
-  void test_execute_withCache() throws SQLException {
+  void test_execute_withCache() throws Exception {
     final String methodName = "Statement.executeQuery";
 
     final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(props);
+
+    when(mockCallable.call()).thenReturn(mockResult1, mockResult2);
 
     ResultSet rs = plugin.execute(
         ResultSet.class,
         SQLException.class,
         mockStatement, methodName,
-        () -> mockResult1,
+        mockCallable,
         new String[]{"foo"}
     );
     compareResults(mockResult1, rs);
@@ -106,11 +113,12 @@ class DataCacheConnectionPluginTest {
         ResultSet.class,
         SQLException.class,
         mockStatement, methodName,
-        () -> mockResult2,
+        mockCallable,
         new String[]{"foo"}
     );
 
     compareResults(mockResult1, rs);
+    verify(mockCallable).call();
   }
 
   void compareResults(final ResultSet expected, final ResultSet actual) throws SQLException {
