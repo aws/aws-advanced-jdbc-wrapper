@@ -93,7 +93,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected boolean isClosed = false;
   protected String closedReason = null;
   private final RdsUtils rdsHelper;
-  private final ConnectionUrlParser connectionUrlParser;
   protected WriterFailoverHandler writerFailoverHandler = null;
   protected ReaderFailoverHandler readerFailoverHandler = null;
   private Throwable lastExceptionDealtWith = null;
@@ -146,7 +145,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.pluginService = pluginService;
     this.properties = properties;
     this.rdsHelper = rdsHelper;
-    this.connectionUrlParser = parser;
 
     if (pluginService instanceof PluginManagerService) {
       this.pluginManagerService = (PluginManagerService) pluginService;
@@ -682,7 +680,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected void failoverWriter() throws SQLException {
     LOGGER.fine(() -> Messages.get("Failover.startWriterFailover"));
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
-    final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
     final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
     if (failoverResult != null) {
       final SQLException exception = failoverResult.getException();

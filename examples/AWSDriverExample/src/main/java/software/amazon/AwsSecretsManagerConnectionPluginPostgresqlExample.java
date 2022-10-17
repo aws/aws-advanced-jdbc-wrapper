@@ -14,35 +14,34 @@
  * limitations under the License.
  */
 
+package software.amazon;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import software.amazon.jdbc.PropertyDefinition;
 
-public class AwsSecretsManagerConnectionPluginPostgresqlSample {
+public class AwsSecretsManagerConnectionPluginPostgresqlExample {
 
   private static final String CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/employees";
 
-  public static void main(String[] args) throws SQLException, ClassNotFoundException {
+  public static void main(String[] args) throws SQLException {
     // Set the AWS Secrets Manager Connection Plugin parameters and the JDBC Wrapper parameters.
     final Properties properties = new Properties();
     properties.setProperty("secretsManagerRegion", "us-east-2");
     properties.setProperty("secretsManagerSecretId", "secretId");
 
     // Enable the AWS Secrets Manager Connection Plugin.
-    properties.setProperty(
-        "wrapperPlugins",
-        "awsSecretsManager");
+    properties.setProperty(PropertyDefinition.PLUGINS.name, "awsSecretsManager");
 
     // Try and make a connection:
     try (final Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);
          final Statement statement = conn.createStatement();
          final ResultSet rs = statement.executeQuery("SELECT * FROM employees")) {
-      while (rs.next()) {
-        System.out.println(rs.getString("first_name"));
-      }
+      System.out.println(Util.getResult(rs));
     }
   }
 }

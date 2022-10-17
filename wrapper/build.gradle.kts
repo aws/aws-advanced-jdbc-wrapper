@@ -24,55 +24,40 @@ plugins {
     id("com.github.vlsi.ide")
 }
 
-val pgVersion : String by project
-val mysqlVersion : String by project
-val mariaVersion : String by project
-val awsSdkVersion : String by project
-val junitVersion : String by project
-val jupiterVersion : String by project
-val testContainerVersion : String by project
-val jacksonVersion : String by project
-val hikariVersion : String by project
-val mockitoVersion : String by project
-val slf4jVersion : String by project
-val apachePoiVersion : String by project
-val apacheCommonsVersion : String by project
-val springVersion : String by project
-
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.23.+")
-    compileOnly("software.amazon.awssdk:rds:$awsSdkVersion")
-    compileOnly("com.zaxxer:HikariCP:$hikariVersion") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    implementation("org.checkerframework:checker-qual:3.26.0")
+    compileOnly("software.amazon.awssdk:rds:2.17.285")
+    compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
+    compileOnly("software.amazon.awssdk:secretsmanager:2.17.285")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.4")
 
-    testImplementation("org.junit.platform:junit-platform-commons:$junitVersion")
-    testImplementation("org.junit.platform:junit-platform-engine:$junitVersion")
-    testImplementation("org.junit.platform:junit-platform-launcher:$junitVersion")
-    testImplementation("org.junit.platform:junit-platform-suite-engine:$junitVersion")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:$jupiterVersion")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:$jupiterVersion")
+    testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
+    testImplementation("org.junit.platform:junit-platform-engine:1.9.0")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.9.0")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.9.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-    testImplementation("org.apache.commons:commons-dbcp2:$apacheCommonsVersion")
-    testImplementation("org.postgresql:postgresql:$pgVersion")
-    testImplementation("mysql:mysql-connector-java:$mysqlVersion")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:$mariaVersion")
-    testImplementation("com.zaxxer:HikariCP:$hikariVersion") // Version 4.+ is compatible with Java 8
-    testImplementation("org.springframework.boot:spring-boot-starter-jdbc:$springVersion")
-    testImplementation("org.mockito:mockito-inline:$mockitoVersion")
-    testImplementation("software.amazon.awssdk:rds:$awsSdkVersion")
-    testImplementation("software.amazon.awssdk:ec2:$awsSdkVersion")
-    testImplementation("org.testcontainers:testcontainers:$testContainerVersion")
-    testImplementation("org.testcontainers:mysql:$testContainerVersion")
-    testImplementation("org.testcontainers:postgresql:$testContainerVersion")
-    testImplementation("org.testcontainers:mariadb:$testContainerVersion")
-    testImplementation("org.testcontainers:junit-jupiter:$testContainerVersion")
-    testImplementation("org.testcontainers:toxiproxy:$testContainerVersion")
-    testImplementation("org.apache.poi:poi-ooxml:$apachePoiVersion")
-    testImplementation("org.slf4j:slf4j-simple:$slf4jVersion")
-    testImplementation("software.amazon.awssdk:secretsmanager:$awsSdkVersion")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    testImplementation("org.apache.commons:commons-dbcp2:2.9.0")
+    testImplementation("org.postgresql:postgresql:42.5.0")
+    testImplementation("mysql:mysql-connector-java:8.0.30")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.0.6")
+    testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
+    testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.4")
+    testImplementation("org.mockito:mockito-inline:4.8.0")
+    testImplementation("software.amazon.awssdk:rds:2.17.285")
+    testImplementation("software.amazon.awssdk:ec2:2.17.285")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.17.285")
+    testImplementation("org.testcontainers:testcontainers:1.17.4")
+    testImplementation("org.testcontainers:mysql:1.17.4")
+    testImplementation("org.testcontainers:postgresql:1.17.4")
+    testImplementation("org.testcontainers:mariadb:1.17.3")
+    testImplementation("org.testcontainers:junit-jupiter:1.17.4")
+    testImplementation("org.testcontainers:toxiproxy:1.17.4")
+    testImplementation("org.apache.poi:poi-ooxml:5.2.2")
+    testImplementation("org.slf4j:slf4j-simple:2.0.3")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
 }
 
 repositories {

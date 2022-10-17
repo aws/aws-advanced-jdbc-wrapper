@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.hostlistprovider;
+package software.amazon;
 
-import software.amazon.jdbc.HostListProvider;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
-// A marker interface for providers that can fetch a host list, and it changes depending on database status
-// A good example of such provider would be DB cluster provider (Aurora DB clusters, patroni DB clusters, etc.)
-// where cluster topology (nodes, their roles, their statuses) changes over time.
-public interface DynamicHostListProvider extends HostListProvider { }
+public class Util {
+  static String getResult(final ResultSet result) throws SQLException {
+    int cols = result.getMetaData().getColumnCount();
+    StringBuilder builder = new StringBuilder();
+    while (result.next()) {
+      for (int i = 1; i <= cols; i++) {
+        builder.append(result.getString(i)).append(" ");
+      }
+      builder.append("\n");
+    }
+    return builder.toString();
+  }
+}

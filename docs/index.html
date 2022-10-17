@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <link rel="icon" type="image/png" href="images/icon.png">
+  <link rel="stylesheet" href="files/style.css">
+  <script src="files/jquery.min.js"></script>
+  <script src="files/masonry.pkgd.min.js"></script>
+  <script src="files/scripts.js" defer=""></script>
+  <title>Amazon Web Services (AWS) JDBC Driver for PostgreSQL</title>
+</head>
+
+<body>
+  <div id="home" name="home" class="mdl-head">
+    <header class="mdl-header">
+      <input id="sta-menu" type="checkbox">
+      <div class="m-content">
+        <nav><a class="sta-hoverOFF" href="#home">AWS JDBC DRIVER for POSTGRESQL</a></nav>
+        <nav>
+          <a class="sta-hoverOFF"
+            href="https://github.com/awslabs/aws-advanced-jdbc-wrapper">DOWNLOAD</a>
+          <a class="sta-hoverOFF" href="#how_it_works">HOW IT WORKS</a>
+          <a class="sta-hoverOFF" href="#benefits">BENEFITS</a>
+          <a class="sta-hoverOFF" href="#faq">FAQs</a>
+        </nav>
+        <label for="sta-menu">
+          <span></span>
+        </label>
+      </div>
+    </header>
+    <section class="mdl-hero">
+      <div class="m-content">
+        <div class="m-title">Amazon Web Services (AWS) JDBC Driver for PostgreSQL</div>
+        <a href="https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/GettingStarted.md"
+          target="new" class="css-button2 sta-hoverOFF">
+          Get started now
+        </a>
+      </div>
+    </section>
+  </div>
+  <div id="sticky" name="sticky" class="sticky">
+    <header class="sticky-header" style="">
+      <input id="sta-menu" type="checkbox">
+      <div class="m-content">
+        <nav><a class="sta-hoverOFF" href="#home">Amazon Web Services (AWS) JDBC Driver for PostgreSQL</a></nav>
+        <nav>
+          <a class="sta-hoverOFF"
+            href="https://github.com/awslabs/aws-advanced-jdbc-wrapper">DOWNLOAD</a>
+          <a class="sta-hoverOFF" href="#how_it_works">HOW IT WORKS</a>
+          <a class="sta-hoverOFF" href="#benefits">BENEFITS</a>
+          <a class="sta-hoverOFF" href="#faq">FAQs</a>
+        </nav>
+        <label for="sta-menu">
+          <span></span>
+        </label>
+      </div>
+    </header>
+  </div>
+  <section class="mdl-article">
+    <article class="m-content">
+      <section>
+        <p><b>The Amazon Web Services JDBC Driver</b> has been redesigned as an advanced JDBC wrapper. This wrapper is complementary to and extends the functionality of an existing JDBC driver to help an application take advantage of the features of clustered databases such as Amazon Aurora.</p>
+        <p>The AWS JDBC Driver for PostgreSQL supports fast failover for Amazon Aurora with PostgreSQL
+          compatibility and 
+          <a href="https://github.com/awslabs/aws-advanced-jdbc-wrapper#enhanced-failure-monitoring" target="new">Enhanced Failover Monitoring</a>.</p>
+      </section>
+    </article>
+  </section>
+  <section class="mdl-article">
+    <article class="m-content">
+      <header id="how_it_works" name="how_it_works" style="text-align:left">HOW IT WORKS</header>
+      <section>
+        <p>Developers use software libraries, known as database connectivity drivers (or simply drivers), to connect
+          applications to databases. A driver converts SQL queries in an application into a protocol language to
+          communicate with the database and returns query results to the application. The AWS JDBC Driver for PostgreSQL
+          is optimally configured to allow an application to connect to and take advantage of the features of clustered
+          PostgreSQL database deployments.
+        <p><b>Supporting Fast Failover for Amazon Aurora</b><br>In Amazon Aurora, failover is a mechanism by which the
+          database automatically repairs the cluster status when a primary DB instance becomes unavailable. During failover, 
+          Aurora elects a database replica to become the new primary DB instance, so the cluster can provide
+          maximum availability to a primary read-write DB instance.</p>
+        <p>Before a replica instance can be promoted to the primary DB instance, the DNS record must be updated in order
+          to properly direct the connection. This process can take up to several minutes. The AWS JDBC Driver for
+          PostgreSQL is designed to coordinate with this behavior in order to provide minimal downtime. It achieves this
+          by maintaining a cache of the PostgreSQL cluster topology and each instance's role (replica or primary DB
+          instance). This topology is provided via a direct query to the PostgreSQL database, providing a shortcut to
+          bypass the delays caused by DNS resolution. With this knowledge, the AWS JDBC Driver for PostgreSQL can more
+          closely monitor the database cluster status so that a connection to the new primary DB instance can be
+          established as quickly as possible.</p>
+      </section>
+      <div class="m-img">
+        <img src="files/images/failover_diagram.png" width="50%" height="50%" class="m-desktop"
+          alt="How the AWS JDBC Driver for PostgreSQL works">
+      </div>
+      <section>
+        <p>The figure above provides a simplified overview of how the AWS JDBC Driver for PostgreSQL handles an Amazon
+          Aurora failover encounter. <a
+            href="https://github.com/awslabs/aws-advanced-jdbc-wrapper#about-the-driver"
+            target="new">Learn more>></a></p>
+      </section>
+    </article>
+  </section>
+  <section id="benefits" name="benefits" class="mdl-faq">
+    <div class="m-content">
+      <div id="m-title" name="benefits" class="m-title" style="text-align:left">BENEFITS</div>
+      <div class="m-grid sta-masonry" style="position: relative; height: 850px;">
+        <article class="m-item" style="position: absolute; left: 0px; top: 0px;">
+          <header>Seamless Deployment</header>
+          <section>
+            The AWS JDBC Driver for PostgreSQL is based on and is drop-in compatible with the PostgreSQL JDBC Driver,
+            so you can replace it in your application with few code changes.
+          </section>
+        </article>
+        <article class="m-item" style="position: absolute; left: 594px; top: 0px;">
+          <header>Increased Application Availability</header>
+          <section>
+            In the event of an Amazon Aurora primary DB failure, the AWS JDBC Driver for PostgreSQL supports fast
+            failover to a database replica, resulting in minimal impact to application availability and user experience.
+          </section>
+        </article>
+      </div>
+    </div>
+  </section>
+  <section id="faq" name="faq" class="mdl-faq">
+    <div class="m-content">
+      <div id="m-title" name="benefits" class="m-title" style="text-align:left">FAQ</div>
+      <div class="m-grid sta-masonry" style="position: relative; height: 850px;">
+        <article class="m-item" style="position: absolute; left: 0px; top: 0px;">
+          <header>What does drop-in compatible mean?</header>
+          <section>
+            The AWS JDBC Driver for PostgreSQL is compatible with all PostgreSQL deployments, whether they be
+            on-premises or in the cloud. It currently supports fast failover capabilities for Amazon Aurora with
+            PostgreSQL compatibility only. The driver is based on and is drop-in compatible with the PostgreSQL JDBC
+            Driver. Changes to the connection string is all that is needed. Support for additional features of clustered
+            databases, including features of Amazon RDS for PostgreSQL and on-premises PostgreSQL deployments, is
+            planned.
+          </section>
+        </article>
+        <article class="m-item" style="position: absolute; left: 594px; top: 0px;">
+          <header>How do I use the AWS JDBC Driver for PostgreSQL?</header>
+          <section>
+            The AWS JDBC Driver for PostgreSQL is an advanced wrapper, and is drop-in compatible for the PostgreSQL JDBC Driver. To replace
+            your existing driver with the AWS JDBC Driver for PostgreSQL, follow the same steps used to update the
+            current driver. Then, update the client connection string to use the AWS protocol when connecting. For details about Getting Started, 
+            visit <a href="https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/GettingStarted.md"
+              target="new">here</a>.
+          </section>
+        </article>
+        <article class="m-item" style="position: absolute; left: 0px; top: 203px;">
+          <header>How do I see the project roadmap?</header>
+          <section>
+            Enhanced Failure Monitoring (EFM) is a feature available from the Host Monitoring Connection Plugin that periodically checks 
+            the connected database node's health and availability. If a database node is determined to be unhealthy, the connection is aborted. For
+            more information about the Host Monitoring Connection Plugin, visit <a
+              href="https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md#enhanced-failure-monitoring" target="new">here</a>.
+          </section>
+        </article>
+        <article class="m-item" style="position: absolute; left: 0px; top: 377px;">
+          <header>How can I get help or open an issue?</header>
+          <section>
+            Work on the advanced AWS JDBC Driver for PostgreSQL is being managed in a Github project <a
+              href="https://github.com/awslabs/aws-advanced-jdbc-wrapper#getting-help-and-opening-issues"
+              target="new">here</a>. Visit the project website to file an issue or ask questions.
+          </section>
+        </article>
+        <article class="m-item" style="position: absolute; left: 0px; top: 203px;">
+          <header>Where do I contribute to the project?</header>
+          <section>
+            You can learn more about contributing to the driver on GitHub <a
+              href="https://github.com/awslabs/aws-advanced-jdbc-wrapper#how-to-contribute" target="new">here</a>.
+          </section>
+        </article>
+        <article class="m-item" style="position: absolute; left: 0px; top: 203px;">
+          <header>Can I create my own driver from this project?</header>
+          <section>
+            Yes! The driver is open source under the Apache-2 license clause. This means you are free to modify the driver
+            to fit your particular needs.
+          </section>
+        </article>
+      </div>
+    </div>
+  </section>
+  <footer class="mdl-footer">
+    <div class="m-content">
+      <div>
+        <article class="m-content">
+          <section>
+            AWS JDBC DRIVER FOR POSTGRESQL
+          </section>
+        </article>
+      </div>
+      <div>
+        <article class="m-content">
+          <section>
+            ©2021, Amazon Web Services, Inc or its affiliates. All rights reserved.</section>
+        </article>
+      </div>
+    </div>
+  </footer>
+</body>
+
+</html>

@@ -32,13 +32,17 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
+import software.amazon.jdbc.util.ExpiringCache;
 import software.amazon.jdbc.util.Messages;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources, HostListProviderService,
     PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
+  private static final int DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
 
+  protected static final ExpiringCache<String, HostAvailability> hostAvailabilityExpiringCache = new ExpiringCache<>(
+      DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
@@ -229,7 +233,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
 
     final List<HostSpec> hostsToChange = this.getHosts().stream()
         .filter((host) -> hostAliases.contains(host.asAlias())
-            || host.getAliases().stream().anyMatch((hostAlias) -> hostAliases.contains(hostAlias)))
+            || host.getAliases().stream().anyMatch(hostAliases::contains))
         .distinct()
         .collect(Collectors.toList());
 
@@ -242,6 +246,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
     for (final HostSpec host : hostsToChange) {
       final HostAvailability currentAvailability = host.getAvailability();
       host.setAvailability(availability);
+      hostAvailabilityExpiringCache.put(host.getUrl(), availability);
       if (currentAvailability != availability) {
         final EnumSet<NodeChangeOptions> hostChanges;
         if (availability == HostAvailability.AVAILABLE) {
@@ -292,6 +297,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   public void refreshHostList() throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
     if (updatedHostList != null) {
+      updateHostAvailability(updatedHostList);
       setNodeList(this.hosts, updatedHostList);
     }
   }
@@ -300,18 +306,27 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   public void refreshHostList(final Connection connection) throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
     if (updatedHostList != null) {
+      updateHostAvailability(updatedHostList);
       setNodeList(this.hosts, updatedHostList);
     }
   }
 
   @Override
   public void forceRefreshHostList() throws SQLException {
-    setNodeList(this.hosts, this.getHostListProvider().forceRefresh());
+    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
+    if (updatedHostList != null) {
+      updateHostAvailability(updatedHostList);
+      setNodeList(this.hosts, updatedHostList);
+    }
   }
 
   @Override
   public void forceRefreshHostList(final Connection connection) throws SQLException {
-    setNodeList(this.hosts, this.getHostListProvider().forceRefresh(connection));
+    final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh(connection);
+    if (updatedHostList != null) {
+      updateHostAvailability(updatedHostList);
+      setNodeList(this.hosts, updatedHostList);
+    }
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,
@@ -367,6 +382,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
     return this.pluginManager.connect(this.driverProtocol, hostSpec, props, this.currentConnection == null);
+  }
+
+  private void updateHostAvailability(final List<HostSpec> hosts) {
+    for (HostSpec host : hosts) {
+      final HostAvailability availability = hostAvailabilityExpiringCache.get(host.getUrl());
+      if (availability != null) {
+        host.setAvailability(availability);
+      }
+    }
   }
 
   @Override

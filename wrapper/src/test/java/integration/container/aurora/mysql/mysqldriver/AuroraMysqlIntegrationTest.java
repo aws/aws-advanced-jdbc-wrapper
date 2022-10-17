@@ -39,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -403,12 +404,11 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
 
   /**
    * Current reader dies, failover to another reader repeat to loop through instances in the cluster
-   * testing ability to revive previously down reader instance.
+   * testing ability to revive previously down reader instance or failover to a writer.
    */
   @Test
-  public void test_failoverBackToThePreviouslyDownReader()
+  public void test_failoverBackToThePreviouslyDownReaderOrWriter()
       throws Exception {
-
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");
 
     final String writerInstanceId = instanceIDs[0];
@@ -416,6 +416,7 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
+    props.setProperty(AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, "2000");
     try (Connection conn = connectToInstance(
         firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         MYSQL_PROXY_PORT,
@@ -479,7 +480,8 @@ public class AuroraMysqlIntegrationTest extends MysqlAuroraMysqlBaseTest {
 
       assertTrue(
           firstReaderInstanceId.equals(lastInstanceId)
-              || secondReaderInstanceId.equals(lastInstanceId));
+              || secondReaderInstanceId.equals(lastInstanceId)
+              || writerInstanceId.equals(lastInstanceId));
     }
   }
 

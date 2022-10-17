@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.hostlistprovider;
-
-import software.amazon.jdbc.HostListProvider;
-
-// A marker interface for providers that can fetch a host list, and it changes depending on database status
-// A good example of such provider would be DB cluster provider (Aurora DB clusters, patroni DB clusters, etc.)
-// where cluster topology (nodes, their roles, their statuses) changes over time.
-public interface DynamicHostListProvider extends HostListProvider { }
+dependencies {
+    implementation("org.postgresql:postgresql:42.5.0")
+    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:1.0.0")
+    implementation("software.amazon.awssdk:rds:2.17.289")
+    implementation("software.amazon.awssdk:secretsmanager:2.17.285")
+}

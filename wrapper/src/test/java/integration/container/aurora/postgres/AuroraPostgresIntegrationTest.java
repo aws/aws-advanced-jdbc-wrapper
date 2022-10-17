@@ -39,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.postgresql.PGProperty;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -407,11 +408,10 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
   /**
    * Current reader dies, failover to another reader repeat to loop through instances in the cluster testing ability to
-   * revive previously down reader instance.
+   * revive previously down reader instance or failover to a writer.
    */
   @Test
-  public void test_failoverBackToThePreviouslyDownReader() throws Exception {
-
+  public void test_failoverBackToThePreviouslyDownReaderOrWriter() throws Exception {
     assertTrue(clusterSize >= 5, "Minimal cluster configuration: 1 writer + 4 readers");
 
     final String writerInstanceId = instanceIDs[0];
@@ -419,6 +419,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
 
     // Connect to reader (Instance2).
     Properties props = initDefaultProxiedProps();
+    props.setProperty(AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, "2000");
     try (Connection conn = connectToInstance(firstReaderInstanceId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
             POSTGRES_PROXY_PORT, props)) {
       conn.setReadOnly(true);
@@ -479,8 +480,9 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
       final String lastInstanceId = queryInstanceId(conn);
 
       assertTrue(
-              firstReaderInstanceId.equals(lastInstanceId)
-                      || secondReaderInstanceId.equals(lastInstanceId));
+          firstReaderInstanceId.equals(lastInstanceId)
+              || secondReaderInstanceId.equals(lastInstanceId)
+              || writerInstanceId.equals(lastInstanceId));
     }
   }
 

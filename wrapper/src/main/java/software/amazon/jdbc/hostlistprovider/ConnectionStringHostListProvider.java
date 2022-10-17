@@ -29,7 +29,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 
-public class ConnectionStringHostListProvider implements HostListProvider, StaticHostListProvider {
+public class ConnectionStringHostListProvider implements StaticHostListProvider {
 
   final List<HostSpec> hostList = new ArrayList<>();
   Properties properties;

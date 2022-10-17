@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
@@ -36,6 +37,7 @@ public class AuroraPostgresStaleDnsTest extends AuroraPostgresBaseTest {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraPostgresStaleDnsTest.class.getName());
 
+  @Disabled
   @Test
   public void test_StaleDnsDataMitigated()
       throws SQLException, InterruptedException, UnknownHostException {

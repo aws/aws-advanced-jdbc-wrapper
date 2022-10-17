@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.container.aurora.TestAuroraHostListProvider;
+import integration.container.aurora.TestPluginServiceImpl;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;
@@ -216,6 +217,7 @@ public abstract class AuroraPostgresBaseTest {
     assertTrue(isDBInstanceWriter(instanceIDs[0]));
     makeSureInstancesUp(instanceIDs);
     TestAuroraHostListProvider.clearCache();
+    TestPluginServiceImpl.clearHostAvailabilityCache();
   }
 
   protected static Properties initDefaultPropsNoTimeouts() {

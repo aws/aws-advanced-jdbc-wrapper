@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  aurora-postgres-performance-tests:
-    concurrency: PerformanceTests-Aurora-OpenJDK
-    name: 'Run Aurora Postgres container performance tests'
+  aurora-mysql-performance-tests:
+    concurrency: PerformanceTests-Aurora
+    name: 'Run Aurora MySQL container performance tests'
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
@@ -38,17 +38,17 @@ jobs:
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
       - name: 'Run performance tests (OpenJDK)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-performance-aurora-postgres
+          ./gradlew --no-parallel --no-daemon test-performance-aurora-mysql
         env:
-          AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-${{ github.run_id }}
-          AURORA_POSTGRES_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
-          AURORA_POSTGRES_PASSWORD: ${{ secrets.AURORA_POSTGRES_PASSWORD }}
-          AURORA_POSTGRES_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AURORA_MYSQL_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_MYSQL_CLUSTER_IDENTIFIER }}-perf-${{ github.run_id }}
+          AURORA_MYSQL_USERNAME: ${{ secrets.AURORA_MYSQL_USERNAME }}
+          AURORA_MYSQL_PASSWORD: ${{ secrets.AURORA_MYSQL_PASSWORD }}
+          AURORA_MYSQL_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
           REPEAT_TIMES: ${{ secrets.REPEAT_TIMES }}
-      - name: 'Archive junit results (OpenJDK)'
+      - name: 'Archive JUnit Results MySQL Performance'
         if: always()
         uses: actions/upload-artifact@v2
         with:

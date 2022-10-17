@@ -1,0 +1,57 @@
+name: Run Performance Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  aurora-postgres-performance-tests:
+    concurrency: PerformanceTests-Aurora
+    name: 'Run Aurora Postgres container performance tests'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Clone repository'
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 8'
+        uses: actions/setup-java@v1
+        with:
+          java-version: 8
+      - name: 'Configure AWS credentials'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: 'Set up temp AWS credentials'
+        run: |
+          creds=($(aws sts get-session-token \
+            --duration-seconds 21600 \
+            --query 'Credentials.[AccessKeyId, SecretAccessKey, SessionToken]' \
+            --output text \
+          | xargs));
+          echo "::add-mask::${creds[0]}"
+          echo "::add-mask::${creds[1]}"
+          echo "::add-mask::${creds[2]}"
+          echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
+          echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
+          echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
+      - name: 'Run performance tests (OpenJDK)'
+        run: |
+          ./gradlew --no-parallel --no-daemon test-performance-aurora-postgres
+        env:
+          AURORA_POSTGRES_CLUSTER_IDENTIFIER: ${{ secrets.AURORA_POSTGRES_CLUSTER_IDENTIFIER }}-perf-${{ github.run_id }}
+          AURORA_POSTGRES_USERNAME: ${{ secrets.AURORA_POSTGRES_USERNAME }}
+          AURORA_POSTGRES_PASSWORD: ${{ secrets.AURORA_POSTGRES_PASSWORD }}
+          AURORA_POSTGRES_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
+          REPEAT_TIMES: ${{ secrets.REPEAT_TIMES }}
+      - name: 'Archive JUnit Results PostgreSQL Performance'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: 'junit-report-performance'
+          path: ./wrapper/build/reports/tests/
+          retention-days: 5
