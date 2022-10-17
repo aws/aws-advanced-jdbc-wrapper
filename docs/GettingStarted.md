@@ -13,7 +13,7 @@ If you are using the AWS JDBC Driver as part of a Gradle project, include the wr
 ```gradle
 dependencies {
     implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.0'
-    implementation group: 'org.postgresql', name: 'postgresql', version: '42.4.0'
+    implementation group: 'org.postgresql', name: 'postgresql', version: '42.5.0'
 }
 ```
 
