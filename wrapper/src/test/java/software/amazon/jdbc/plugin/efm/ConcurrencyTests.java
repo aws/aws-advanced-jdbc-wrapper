@@ -305,6 +305,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public boolean isInPreparedTransaction() {
+      return false;
+    }
+
+    @Override
     public HostListProvider getHostListProvider() {
       return null;
     }

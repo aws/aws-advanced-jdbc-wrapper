@@ -55,6 +55,8 @@ public interface PluginService {
 
   boolean isInTransaction();
 
+  boolean isInPreparedTransaction();
+
   HostListProvider getHostListProvider();
 
   void refreshHostList() throws SQLException;

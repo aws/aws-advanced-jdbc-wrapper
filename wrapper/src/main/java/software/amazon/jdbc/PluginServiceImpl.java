@@ -53,6 +53,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
+  private boolean isInPreparedTransaction;
   private boolean explicitReadOnly;
 
   public PluginServiceImpl(
@@ -279,6 +280,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   @Override
+  public boolean isInPreparedTransaction() {
+    return this.isInPreparedTransaction;
+  }
+
+  @Override
   public void setReadOnly(final boolean readOnly) {
     this.explicitReadOnly = readOnly;
   }
@@ -286,6 +292,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   @Override
   public void setInTransaction(final boolean inTransaction) {
     this.isInTransaction = inTransaction;
+  }
+
+  @Override
+  public void setInPreparedTransaction(final boolean inPreparedTransaction) {
+    this.isInPreparedTransaction = inPreparedTransaction;
   }
 
   @Override

@@ -51,8 +51,8 @@ import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.Utils;
 
 /**
- * This plugin provides cluster-aware failover features. The plugin switches connections upon
- * detecting communication related exceptions and/or cluster topology changes.
+ * This plugin provides cluster-aware failover features. The plugin switches connections upon detecting communication
+ * related exceptions and/or cluster topology changes.
  */
 public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -62,6 +62,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       Collections.unmodifiableSet(new HashSet<String>() {
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+          addAll(SubscribedMethodHelper.XA_PREPARE_TRANSACTION);
           add("initHostProvider");
           add("connect");
           add("notifyConnectionChanged");
@@ -184,7 +185,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     T result = null;
-
     try {
       updateTopology(false);
       result = jdbcMethodFunc.call();
@@ -392,7 +392,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void updateTopology(final boolean forceUpdate) throws SQLException {
     final Connection connection = this.pluginService.getCurrentConnection();
-    if (!isFailoverEnabled() || connection == null || connection.isClosed()) {
+    if (!isFailoverEnabled()
+        || connection == null
+        || connection.isClosed()
+        || this.pluginService.isInPreparedTransaction()) {
       return;
     }
     if (forceUpdate) {
@@ -417,8 +420,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Connects this dynamic failover connection proxy to the host pointed out by the given host
-   * index.
+   * Connects this dynamic failover connection proxy to the host pointed out by the given host index.
    *
    * @param host The host.
    * @throws SQLException if an error occurs
@@ -486,6 +488,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
       connectToWriterIfRequired(this.explicitlyReadOnly);
     }
+
+    updatePreparedTransactionState(methodName);
   }
 
   private void processFailoverFailure(final String message) throws SQLException {
@@ -516,8 +520,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Replaces the previous underlying connection by the connection given. State from previous
-   * connection, if any, is synchronized with the new one.
+   * Replaces the previous underlying connection by the connection given. State from previous connection, if any, is
+   * synchronized with the new one.
    *
    * @param host       The host that matches the given connection.
    * @param connection The connection instance to switch to.
@@ -623,8 +627,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Initiates the failover procedure. This process tries to establish a new connection to an
-   * instance in the topology.
+   * Initiates the failover procedure. This process tries to establish a new connection to an instance in the topology.
    *
    * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
@@ -805,8 +808,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Check if the throwable is an instance of the given exception and throw it as the required
-   * exception class, otherwise throw it as a runtime exception.
+   * Check if the throwable is an instance of the given exception and throw it as the required exception class,
+   * otherwise throw it as a runtime exception.
    *
    * @param exceptionClass The exception class the exception is exepected to be
    * @param exception      The exception that occurred while invoking the given method
@@ -837,4 +840,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return conn;
   }
 
+  private void updatePreparedTransactionState(final String methodName) {
+    if (SubscribedMethodHelper.XA_PREPARE_TRANSACTION.contains(methodName)
+        || (this.pluginService != null && this.pluginService.isInPreparedTransaction())) {
+      this.pluginManagerService.setInPreparedTransaction(true);
+    } else if (methodName.contains(METHOD_COMMIT) || methodName.contains(METHOD_ROLLBACK)) {
+      if (this.pluginManagerService != null) {
+        this.pluginManagerService.setInPreparedTransaction(false);
+      }
+    }
+  }
 }

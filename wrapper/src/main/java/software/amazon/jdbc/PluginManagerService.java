@@ -21,4 +21,6 @@ public interface PluginManagerService {
   void setReadOnly(boolean readOnly);
 
   void setInTransaction(boolean inTransaction);
+
+  void setInPreparedTransaction(boolean inPreparedTransaction);
 }

@@ -48,4 +48,9 @@ public class SubscribedMethodHelper {
       "CallableStatement.executeUpdate",
       "CallableStatement.executeLargeUpdate"
   );
+
+  public static final List<String> XA_PREPARE_TRANSACTION = Arrays.asList(
+      "MysqlXAConnection.prepare",
+      "PGXAConnection.prepare"
+  );
 }
