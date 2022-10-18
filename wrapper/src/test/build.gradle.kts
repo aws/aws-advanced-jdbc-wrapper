@@ -36,7 +36,7 @@ dependencies {
 
     testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
     testImplementation("org.postgresql:postgresql:42.+")
-    testImplementation("mysql:mysql-connector-java:8.0.+")
+    testImplementation("mysql:mysql-connector-java:8.0.30")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.+")
     testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
