@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.PropertyDefinition;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
@@ -113,5 +115,73 @@ public class PropertyUtils {
       copy.setProperty(entry.getKey().toString(), entry.getValue().toString());
     }
     return copy;
+  }
+
+  @SuppressWarnings("checkstyle:LocalVariableName")
+  public static @Nullable Properties parseProperties(String url, @Nullable Properties defaults) {
+
+    String urlServer = url;
+    String urlArgs = "";
+
+    int qPos = url.indexOf('?');
+    if (qPos != -1) {
+      urlServer = url.substring(0, qPos);
+      urlArgs = url.substring(qPos + 1);
+    }
+
+    Properties propertiesFromUrl = new Properties();
+
+    // TODO: allow user to disable database parsing
+    int protocolPos = urlServer.indexOf("//");
+    if (protocolPos != -1) {
+      protocolPos += 2;
+    }
+    int dPos = urlServer.indexOf("/", protocolPos);
+    if (dPos != -1) {
+      String database = urlServer.substring(dPos + 1);
+      if (!database.isEmpty()) {
+        PropertyDefinition.DATABASE.set(propertiesFromUrl, database);
+      }
+    }
+
+    String[] args = urlArgs.split("&");
+
+    for (String token : args) {
+
+      if (token.isEmpty()) {
+        continue;
+      }
+      int pos = token.indexOf('=');
+      if (pos == -1) {
+        propertiesFromUrl.setProperty(token, "");
+      } else {
+        String pName = token.substring(0, pos);
+        String pValue = urlDecode(token.substring(pos + 1));
+        if (pValue == null) {
+          return null;
+        }
+        propertiesFromUrl.setProperty(pName, pValue);
+      }
+    }
+
+    Properties result = new Properties();
+    result.putAll(propertiesFromUrl);
+    if (defaults != null) {
+      defaults.forEach(result::putIfAbsent);
+    }
+
+    return result;
+  }
+
+  private static @Nullable String urlDecode(String url) {
+    try {
+      return StringUtils.decode(url);
+    } catch (IllegalArgumentException e) {
+      LOGGER.fine(
+          () -> Messages.get(
+              "Driver.urlParsingFailed",
+              new Object[] {url, e.getMessage()}));
+    }
+    return null;
   }
 }
