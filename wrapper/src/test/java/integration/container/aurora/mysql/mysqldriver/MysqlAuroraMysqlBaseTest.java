@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeAll;
 
@@ -28,10 +29,6 @@ public abstract class MysqlAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
   @BeforeAll
   public static void setUpMysql() throws SQLException, IOException {
     setUp();
-    try {
-      Class.forName("com.mysql.cj.jdbc.Driver");
-    } catch (ClassNotFoundException e) {
-      fail("MySQL driver not found");
-    }
+    DriverManager.registerDriver(new com.mysql.cj.jdbc.Driver());
   }
 }
