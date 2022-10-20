@@ -99,6 +99,11 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       // If the url is set explicitly through setJdbcUrl or the connection properties.
       if (!isNullOrEmpty(this.jdbcUrl)
           || (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+        if (!isNullOrEmpty(this.jdbcUrl)) {
+          props = PropertyUtils.parseProperties(this.jdbcUrl, props);
+        } else {
+          props = PropertyUtils.parseProperties(props.getProperty(this.urlPropertyName), props);
+        }
         setJdbcUrlOrUrlProperty(props);
         setDatabasePropertyFromUrl(props);
         if (isNullOrEmpty(this.user) || isNullOrEmpty(this.password)) {
@@ -337,8 +342,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         && (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
       this.jdbcUrl = props.getProperty(this.urlPropertyName);
 
-      // If the jdbc url and the url property have both been set, use the provided jdbc url.
-    } else if ((!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+      // If the url property wasn't set, use the provided jdbc url.
+    } else if (!isNullOrEmpty(this.urlPropertyName)) {
       props.setProperty(this.urlPropertyName, this.jdbcUrl);
     }
   }
