@@ -18,6 +18,7 @@ package integration.container.standard.mysql.mysqldriver;
 
 import integration.container.standard.mysql.StandardMysqlBaseTest;
 import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeAll;
 import software.amazon.jdbc.Driver;
@@ -33,7 +34,7 @@ public class MysqlStandardMysqlBaseTest extends StandardMysqlBaseTest {
     STANDARD_USERNAME = System.getenv("STANDARD_MYSQL_USERNAME");
     STANDARD_PASSWORD = System.getenv("STANDARD_MYSQL_PASSWORD");
     setUp();
-    Class.forName("com.mysql.cj.jdbc.Driver");
+    DriverManager.registerDriver(new com.mysql.cj.jdbc.Driver());
 
     if (!Driver.isRegistered()) {
       Driver.register();
