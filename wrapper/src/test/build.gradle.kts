@@ -76,6 +76,7 @@ tasks.register<Test>("in-container-aurora-postgres") {
 
 tasks.register<Test>("in-container-aurora-postgres-performance") {
     filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresPerformanceTest")
+    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraAdvancedPerformanceTest")
 }
 
 // Integration tests are run in a specific order.

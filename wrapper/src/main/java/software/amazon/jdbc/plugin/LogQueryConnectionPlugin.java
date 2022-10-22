@@ -88,6 +88,7 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
           put("com.mysql.cj.jdbc.CallableStatement", "query.originalSql");
           put("org.postgresql.jdbc.PgPreparedStatement", "preparedQuery.key");
           put("org.postgresql.jdbc.PgCallableStatement", "preparedQuery.key.sql");
+          put("org.mariadb.jdbc.ClientPreparedStatement", "sql");
         }
       };
 

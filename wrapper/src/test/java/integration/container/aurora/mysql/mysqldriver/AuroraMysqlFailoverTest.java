@@ -425,12 +425,4 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       nextClusterWriterId = getDBClusterWriterInstanceId();
     }
   }
-
-  private void waitUntilClusterHasRightState() throws InterruptedException {
-    String status = getDBCluster().status();
-    while (!"available".equalsIgnoreCase(status)) {
-      TimeUnit.MILLISECONDS.sleep(1000);
-      status = getDBCluster().status();
-    }
-  }
 }

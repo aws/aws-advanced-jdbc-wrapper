@@ -208,6 +208,8 @@ public abstract class AuroraMysqlBaseTest {
   public void setUpEach() throws InterruptedException, SQLException {
     proxyMap.forEach((instance, proxy) -> containerHelper.enableConnectivity(proxy));
 
+    waitUntilClusterHasRightState();
+
     // Always get the latest topology info with writer as first
     List<String> latestTopology = getTopologyIds();
     instanceIDs = new String[latestTopology.size()];
@@ -216,8 +218,28 @@ public abstract class AuroraMysqlBaseTest {
     clusterSize = instanceIDs.length;
     assertTrue(
         clusterSize >= 2); // many tests assume that cluster contains at least a writer and a reader
+
+    // Need to ensure that cluster details through API matches topology fetched through SQL
+    // Wait up to 5min
+    long startTimeNano = System.nanoTime();
+    while (!isDBInstanceWriter(instanceIDs[0])
+        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
+
+      Thread.sleep(5000);
+
+      latestTopology = getTopologyIds();
+      instanceIDs = new String[latestTopology.size()];
+      latestTopology.toArray(instanceIDs);
+
+      clusterSize = instanceIDs.length;
+
+      // many tests assume that cluster contains at least a writer and a reader
+      assertTrue(clusterSize >= 2);
+    }
     assertTrue(isDBInstanceWriter(instanceIDs[0]));
+
     makeSureInstancesUp(instanceIDs);
+
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();
   }
@@ -435,6 +457,14 @@ public abstract class AuroraMysqlBaseTest {
       assertTrue(
           remainingInstances.isEmpty(),
           "The following instances are still down: \n" + String.join("\n", remainingInstances.keySet()));
+    }
+  }
+
+  protected void waitUntilClusterHasRightState() throws InterruptedException {
+    String status = getDBCluster().status();
+    while (!"available".equalsIgnoreCase(status)) {
+      TimeUnit.MILLISECONDS.sleep(1000);
+      status = getDBCluster().status();
     }
   }
 }
