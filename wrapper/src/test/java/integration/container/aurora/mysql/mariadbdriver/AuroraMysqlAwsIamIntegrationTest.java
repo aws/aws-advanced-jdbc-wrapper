@@ -76,9 +76,9 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
   @Test
   public void test_AwsIam_ValidConnectionProperties() throws SQLException {
     Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
-//    props.setProperty("restrictedAuth", "mysql_native_password");
 
-    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props);
+    final Connection conn = DriverManager.getConnection(
+        DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props);
     Assertions.assertDoesNotThrow(conn::close);
   }
 
@@ -88,7 +88,8 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
   @Test
   public void test_AwsIam_ValidConnectionPropertiesNoPassword() throws SQLException {
     final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, "");
-    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props);
+    final Connection conn = DriverManager.getConnection(
+        DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props);
     Assertions.assertDoesNotThrow(conn::close);
   }
 

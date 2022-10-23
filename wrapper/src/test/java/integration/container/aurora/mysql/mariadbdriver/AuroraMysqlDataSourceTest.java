@@ -37,6 +37,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class AuroraMysqlDataSourceTest extends MariadbAuroraMysqlBaseTest {
   public static String mysqlProtocolPrefix = "jdbc:mysql://";
+
   @Test
   public void testOpenConnectionWithMysqlDataSourceClassName() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
