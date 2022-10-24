@@ -89,7 +89,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_1_startMonitoringWithNoExecutor() {
+  void test_startMonitoringWithNoExecutor() {
     doNothing().when(monitorA).startMonitoring(contextCaptor.capture());
 
     monitorService.startMonitoring(
@@ -106,7 +106,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_2_startMonitoringCalledMultipleTimes() {
+  void test_startMonitoringCalledMultipleTimes() {
     doNothing().when(monitorA).startMonitoring(contextCaptor.capture());
 
     final int runs = 5;
@@ -129,7 +129,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_3_stopMonitoringWithInterruptedThread() {
+  void test_stopMonitoringWithInterruptedThread() {
     doNothing().when(monitorA).stopMonitoring(contextCaptor.capture());
 
     final MonitorConnectionContext context =
@@ -149,7 +149,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_4_stopMonitoringCalledTwice() {
+  void test_stopMonitoringCalledTwice() {
     doNothing().when(monitorA).stopMonitoring(contextCaptor.capture());
 
     final MonitorConnectionContext context =
@@ -171,7 +171,29 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_5_getMonitorCalledWithMultipleNodesInKeys() {
+  void test_stopMonitoringForAllConnections_withInvalidNodeKeys() {
+    monitorService.stopMonitoringForAllConnections(Collections.emptySet());
+    monitorService.stopMonitoringForAllConnections(new HashSet<>(Collections.singletonList("foo")));
+  }
+
+  @Test
+  void test_stopMonitoringForAllConnections() {
+    final Set<String> keysA = new HashSet<>(Collections.singletonList("monitorA"));
+    final Set<String> keysB = new HashSet<>(Collections.singletonList("monitorB"));
+
+    // Populate threadContainer with MonitorA and MonitorB
+    monitorService.getMonitor(keysA, new HostSpec("test"), new Properties());
+    monitorService.getMonitor(keysB, new HostSpec("test"), new Properties());
+
+    monitorService.stopMonitoringForAllConnections(keysA);
+    verify(monitorA).clearContexts();
+
+    monitorService.stopMonitoringForAllConnections(keysB);
+    verify(monitorB).clearContexts();
+  }
+
+  @Test
+  void test_getMonitorCalledWithMultipleNodesInKeys() {
     final Set<String> nodeKeys = new HashSet<>();
     nodeKeys.add("nodeOne.domain");
     nodeKeys.add("nodeTwo.domain");
@@ -192,7 +214,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_6_getMonitorCalledWithDifferentNodeKeys() {
+  void test_getMonitorCalledWithDifferentNodeKeys() {
     final Set<String> nodeKeys = new HashSet<>();
     nodeKeys.add("nodeNEW.domain");
 
@@ -211,7 +233,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_7_getMonitorCalledWithSameKeysInDifferentNodeKeys() {
+  void test_getMonitorCalledWithSameKeysInDifferentNodeKeys() {
     final Set<String> nodeKeys = new HashSet<>();
     nodeKeys.add("nodeA");
 
@@ -240,7 +262,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_8_startMonitoringNoNodeKeys() {
+  void test_startMonitoringNoNodeKeys() {
     final Set<String> nodeKeysEmpty = new HashSet<>();
 
     assertThrows(
@@ -257,7 +279,7 @@ class MonitorServiceImplTest {
   }
 
   @Test
-  void test_9_releaseResourceTwice() {
+  void test_releaseResourceTwice() {
     // Ensure no NullPointerException.
     monitorService.releaseResources();
     monitorService.releaseResources();

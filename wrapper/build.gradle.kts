@@ -124,14 +124,41 @@ tasks.spotbugsTest {
     }
 }
 
-tasks.jacocoTestCoverageVerification {
+tasks.withType<JacocoCoverageVerification> {
     violationRules {
         rule {
             limit {
-                // Coverage verification will pass if it is greater than or equal to 1%.
-                minimum = "0.01".toBigDecimal()
+                minimum = BigDecimal(0.57)
             }
         }
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.map {
+            fileTree(it).apply {
+                exclude(
+                        "software/amazon/jdbc/wrapper/*",
+                        "software/amazon/jdbc/util/*",
+                        "software/amazon/jdbc/profile/*",
+                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                )
+            }
+        }))
+    }
+}
+
+tasks.withType<JacocoReport> {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.map {
+            fileTree(it).apply {
+                exclude(
+                        "software/amazon/jdbc/wrapper/*",
+                        "software/amazon/jdbc/util/*",
+                        "software/amazon/jdbc/profile/*",
+                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                )
+            }
+        }))
     }
 }
 
