@@ -23,7 +23,6 @@ import java.sql.SQLException;
 import java.util.Properties;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 
@@ -72,10 +71,9 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
   /**
    * Attempt to connect using valid database username/password & valid Amazon RDS hostname.
    */
-  @Tag("test")
   @Test
   public void test_AwsIam_ValidConnectionProperties() throws SQLException {
-    Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
+    final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
 
     final Connection conn = DriverManager.getConnection(
         DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props);
