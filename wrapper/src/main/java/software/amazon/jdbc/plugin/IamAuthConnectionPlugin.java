@@ -47,13 +47,17 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   public static final int PG_PORT = 5432;
   public static final int MYSQL_PORT = 3306;
 
+  protected static final AwsWrapperProperty SPECIFIED_HOST = new AwsWrapperProperty(
+      "iamHost", null,
+      "Overrides the host that is used to generate the IAM token");
+
   protected static final AwsWrapperProperty SPECIFIED_PORT = new AwsWrapperProperty(
           "iamDefaultPort", null,
-          "Overrides default port that is used to generate IAM token");
+          "Overrides default port that is used to generate the IAM token");
 
   protected static final AwsWrapperProperty SPECIFIED_REGION = new AwsWrapperProperty(
           "iamRegion", null,
-          "Overrides AWS region that is used to generate IAM token");
+          "Overrides AWS region that is used to generate the IAM token");
 
   protected static final AwsWrapperProperty SPECIFIED_EXPIRATION = new AwsWrapperProperty(
           "iamExpiration", null,
@@ -79,7 +83,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
 
-    final String host = hostSpec.getHost();
+    String host = hostSpec.getHost();
+    if (!StringUtils.isNullOrEmpty(SPECIFIED_HOST.getString(props))) {
+      host = SPECIFIED_HOST.getString(props);
+    }
 
     int port = hostSpec.getPort();
     if (!hostSpec.isPortSpecified()) {
@@ -130,8 +137,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
               new Object[] {tokenInfo.getToken()}));
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
-      final String token = generateAuthenticationToken(PropertyDefinition.USER.getString(props),
-              hostSpec.getHost(), port, region);
+      final String token = generateAuthenticationToken(
+          PropertyDefinition.USER.getString(props),
+          host,
+          port,
+          region);
       LOGGER.finest(
           () -> Messages.get(
               "IamAuthConnectionPlugin.generatedNewIamToken",
