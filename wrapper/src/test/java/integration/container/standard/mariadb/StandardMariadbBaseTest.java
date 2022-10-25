@@ -48,6 +48,12 @@ public class StandardMariadbBaseTest extends StandardBaseTest {
     if (!Driver.isRegistered()) {
       Driver.register();
     }
+
+    try {
+      DriverManager.deregisterDriver(DriverManager.getDriver("jdbc:mysql://"));
+    } catch (SQLException e) {
+      System.out.println("MySQL driver is already deregistered");
+    }
   }
 
   @Override

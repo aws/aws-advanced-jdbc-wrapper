@@ -19,7 +19,6 @@ package integration.container.aurora.mysql;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
@@ -74,7 +73,7 @@ public abstract class AuroraMysqlBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static String DB_CONN_STR_PREFIX;
+  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
   protected static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
@@ -186,12 +185,6 @@ public abstract class AuroraMysqlBaseTest {
         MYSQL_INSTANCE_5_URL.substring(0, MYSQL_INSTANCE_5_URL.indexOf('.')), proxyInstance_5);
     proxyMap.put(MYSQL_CLUSTER_URL, proxyCluster);
     proxyMap.put(MYSQL_RO_CLUSTER_URL, proxyReadOnlyCluster);
-
-    try {
-      Class.forName("com.mysql.cj.jdbc.Driver");
-    } catch (ClassNotFoundException e) {
-      fail("MySQL driver not found");
-    }
 
     if (!Driver.isRegistered()) {
       Driver.register();

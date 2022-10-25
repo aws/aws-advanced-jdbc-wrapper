@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -56,6 +57,12 @@ public class DriverConnectionProvider implements ConnectionProvider {
         : "";
     final StringBuilder urlBuilder = new StringBuilder();
     urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
+
+    // In the case where we are connecting to MySQL using MariaDB driver,
+    // we need to append "?permitMysqlScheme" to the connection URL
+    if (protocol.startsWith("jdbc:mysql:") && props.stringPropertyNames().contains("permitMysqlScheme")) {
+      urlBuilder.append("?permitMysqlScheme");
+    }
 
     LOGGER.finest(() -> "Connecting to " + urlBuilder);
 

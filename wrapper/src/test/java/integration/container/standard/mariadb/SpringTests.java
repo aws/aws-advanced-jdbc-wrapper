@@ -21,13 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.Properties;
 import java.util.Random;
 import javax.sql.DataSource;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import software.amazon.jdbc.PropertyDefinition;
 
-@Disabled
 public class SpringTests extends StandardMariadbBaseTest {
 
   @Test

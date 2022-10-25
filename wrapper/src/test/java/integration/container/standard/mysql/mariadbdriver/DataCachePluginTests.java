@@ -42,7 +42,7 @@ public class DataCachePluginTests extends MariadbStandardMysqlBaseTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
     props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*testTable.*");
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     conn.createStatement().execute("drop table if exists testTable");
     conn.createStatement().execute("create table testTable (id int not null, name varchar(100))");
@@ -111,7 +111,7 @@ public class DataCachePluginTests extends MariadbStandardMysqlBaseTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
     props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*WRONG_EXPRESSION.*");
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     conn.createStatement().execute("drop table if exists testTable");
     conn.createStatement().execute("create table testTable (id int not null, name varchar(100))");

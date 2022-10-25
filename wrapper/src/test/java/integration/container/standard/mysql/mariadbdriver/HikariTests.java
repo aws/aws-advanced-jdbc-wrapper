@@ -33,7 +33,7 @@ public class HikariTests extends MariadbStandardMysqlBaseTest {
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
-    ds.setJdbcUrl(getUrl());
+    ds.setJdbcUrl(getUrlMariadbDriver());
     ds.setUsername(STANDARD_USERNAME);
     ds.setPassword(STANDARD_PASSWORD);
 
@@ -67,12 +67,14 @@ public class HikariTests extends MariadbStandardMysqlBaseTest {
     ds.addDataSourceProperty("serverPropertyName", "serverName");
 
     // Specify the driver-specific data source for AwsWrapperDataSource:
-    ds.addDataSourceProperty("targetDataSourceClassName", "com.mysql.cj.jdbc.MysqlDataSource");
+    ds.addDataSourceProperty("targetDataSourceClassName", "org.mariadb.jdbc.MariaDbDataSource");
 
     // Configuring MysqlDataSource:
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
+    targetDataSourceProps.setProperty(
+        "url", "jdbc:mysql://" + STANDARD_HOST + ":" + STANDARD_PORT + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     Connection conn = ds.getConnection();

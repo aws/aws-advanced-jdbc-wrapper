@@ -25,7 +25,6 @@ import org.junit.platform.suite.api.Suite;
 @SelectClasses({
     StandardMysqlIntegrationTest.class,
     DataCachePluginTests.class,
-    DataSourceTests.class,
     HikariTests.class,
     LogQueryPluginTests.class,
     SpringTests.class

@@ -53,7 +53,7 @@ public class LogQueryPluginTests extends MariadbStandardMysqlBaseTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
     props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     Statement statement = conn.createStatement();
 
@@ -82,7 +82,7 @@ public class LogQueryPluginTests extends MariadbStandardMysqlBaseTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
     props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     PreparedStatement statement = conn.prepareStatement("SELECT 12345 * ?");
     statement.setInt(1, 10);
