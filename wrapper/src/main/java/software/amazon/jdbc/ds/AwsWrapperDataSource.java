@@ -93,13 +93,15 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
       final DataSource targetDataSource = createTargetDataSource();
 
-      if (!StringUtils.isNullOrEmpty(this.databasePropertyName) && !StringUtils.isNullOrEmpty(props.getProperty(this.databasePropertyName))) {
+      if (!StringUtils.isNullOrEmpty(this.databasePropertyName)
+          && !StringUtils.isNullOrEmpty(props.getProperty(this.databasePropertyName))) {
         PropertyDefinition.DATABASE.set(props, props.getProperty(this.databasePropertyName));
       }
 
       // If the url is set explicitly through setJdbcUrl or the connection properties.
       if (!StringUtils.isNullOrEmpty(this.jdbcUrl)
-          || (!StringUtils.isNullOrEmpty(this.urlPropertyName) && !StringUtils.isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+          || (!StringUtils.isNullOrEmpty(this.urlPropertyName)
+          && !StringUtils.isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
         if (!StringUtils.isNullOrEmpty(this.jdbcUrl)) {
           props = PropertyUtils.parseProperties(this.jdbcUrl, props);
         } else {
@@ -336,7 +338,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   private void setJdbcUrlOrUrlProperty(Properties props) {
     // If the jdbc url wasn't set, use the url property if it exists.
     if (StringUtils.isNullOrEmpty(this.jdbcUrl)
-        && (!StringUtils.isNullOrEmpty(this.urlPropertyName) && !StringUtils.isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+        && (!StringUtils.isNullOrEmpty(this.urlPropertyName)
+        && !StringUtils.isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
       this.jdbcUrl = props.getProperty(this.urlPropertyName);
 
       // If the url property wasn't set, use the provided jdbc url.
