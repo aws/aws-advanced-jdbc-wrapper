@@ -43,6 +43,7 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -82,31 +83,31 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     this.user = username;
     this.password = password;
 
-    if (isNullOrEmpty(this.targetDataSourceClassName) && isNullOrEmpty(this.jdbcUrl)) {
+    if (StringUtils.isNullOrEmpty(this.targetDataSourceClassName) && StringUtils.isNullOrEmpty(this.jdbcUrl)) {
       throw new SQLException(Messages.get("AwsWrapperDataSource.missingTarget"));
     }
 
     Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
     setCredentialProperties(props);
 
-    if (!isNullOrEmpty(this.targetDataSourceClassName)) {
+    if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
       final DataSource targetDataSource = createTargetDataSource();
 
-      if (!isNullOrEmpty(this.databasePropertyName) && !isNullOrEmpty(props.getProperty(this.databasePropertyName))) {
+      if (!StringUtils.isNullOrEmpty(this.databasePropertyName) && !StringUtils.isNullOrEmpty(props.getProperty(this.databasePropertyName))) {
         PropertyDefinition.DATABASE.set(props, props.getProperty(this.databasePropertyName));
       }
 
       // If the url is set explicitly through setJdbcUrl or the connection properties.
-      if (!isNullOrEmpty(this.jdbcUrl)
-          || (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
-        if (!isNullOrEmpty(this.jdbcUrl)) {
+      if (!StringUtils.isNullOrEmpty(this.jdbcUrl)
+          || (!StringUtils.isNullOrEmpty(this.urlPropertyName) && !StringUtils.isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+        if (!StringUtils.isNullOrEmpty(this.jdbcUrl)) {
           props = PropertyUtils.parseProperties(this.jdbcUrl, props);
         } else {
           props = PropertyUtils.parseProperties(props.getProperty(this.urlPropertyName), props);
         }
         setJdbcUrlOrUrlProperty(props);
         setDatabasePropertyFromUrl(props);
-        if (isNullOrEmpty(this.user) || isNullOrEmpty(this.password)) {
+        if (StringUtils.isNullOrEmpty(this.user) || StringUtils.isNullOrEmpty(this.password)) {
           setCredentialPropertiesFromUrl(props);
         }
 
@@ -120,7 +121,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
             props);
       }
 
-      if (isNullOrEmpty(this.jdbcUrl)) {
+      if (StringUtils.isNullOrEmpty(this.jdbcUrl)) {
         throw new SQLException(Messages.get("AwsWrapperDataSource.missingUrl"));
       }
       PropertyUtils.applyProperties(targetDataSource, props);
@@ -292,17 +293,13 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     return reference;
   }
 
-  protected boolean isNullOrEmpty(final String str) {
-    return str == null || str.isEmpty();
-  }
-
   private void setCredentialProperties(Properties props) {
     // If username was provided as a get connection parameter.
-    if (!isNullOrEmpty(this.user)) {
+    if (!StringUtils.isNullOrEmpty(this.user)) {
       PropertyDefinition.USER.set(props, this.user);
     }
 
-    if (!isNullOrEmpty(this.password)) {
+    if (!StringUtils.isNullOrEmpty(this.password)) {
       PropertyDefinition.PASSWORD.set(props, this.password);
     }
   }
@@ -317,20 +314,20 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
   private void setDatabasePropertyFromUrl(Properties props) {
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(this.jdbcUrl);
-    if (!isNullOrEmpty(databaseName)) {
+    if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(props, databaseName);
     }
   }
 
   private void setCredentialPropertiesFromUrl(Properties props) {
     final String userFromUrl = ConnectionUrlParser.parseUserFromUrl(this.jdbcUrl);
-    if (isNullOrEmpty(this.user) && !isNullOrEmpty(userFromUrl)) {
+    if (StringUtils.isNullOrEmpty(this.user) && !StringUtils.isNullOrEmpty(userFromUrl)) {
       this.user = userFromUrl;
       PropertyDefinition.USER.set(props, this.user);
     }
 
     final String passwordFromUrl = ConnectionUrlParser.parsePasswordFromUrl(this.jdbcUrl);
-    if (isNullOrEmpty(this.password) && !isNullOrEmpty(passwordFromUrl)) {
+    if (StringUtils.isNullOrEmpty(this.password) && !StringUtils.isNullOrEmpty(passwordFromUrl)) {
       this.password = passwordFromUrl;
       PropertyDefinition.PASSWORD.set(props, this.password);
     }
@@ -338,12 +335,12 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
   private void setJdbcUrlOrUrlProperty(Properties props) {
     // If the jdbc url wasn't set, use the url property if it exists.
-    if (isNullOrEmpty(this.jdbcUrl)
-        && (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
+    if (StringUtils.isNullOrEmpty(this.jdbcUrl)
+        && (!StringUtils.isNullOrEmpty(this.urlPropertyName) && !StringUtils.isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
       this.jdbcUrl = props.getProperty(this.urlPropertyName);
 
       // If the url property wasn't set, use the provided jdbc url.
-    } else if (!isNullOrEmpty(this.urlPropertyName)) {
+    } else if (!StringUtils.isNullOrEmpty(this.urlPropertyName)) {
       props.setProperty(this.urlPropertyName, this.jdbcUrl);
     }
   }
