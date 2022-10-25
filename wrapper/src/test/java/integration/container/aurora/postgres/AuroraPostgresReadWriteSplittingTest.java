@@ -35,7 +35,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -43,7 +42,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 import software.amazon.jdbc.util.SqlState;
@@ -272,7 +270,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled("Reader load balancing not implemented yet")
   @ParameterizedTest(name = "test_readerLoadBalancing_autocommitTrue")
   @MethodSource("testParameters")
   public void test_readerLoadBalancing_autocommitTrue(final Properties props) throws SQLException {
@@ -300,8 +297,8 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
 
       // Verify behavior for transactions started while autocommit is on (autocommit is implicitly disabled)
       // Connection should not be switched while inside a transaction
-      final Statement stmt = conn.createStatement();
       for (int i = 0; i < 5; i++) {
+        final Statement stmt = conn.createStatement();
         stmt.execute("  bEgiN ");
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
@@ -313,8 +310,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-
-  @Disabled("Reader load balancing not implemented yet")
   @ParameterizedTest(name = "test_readerLoadBalancing_autocommitFalse")
   @MethodSource("testParameters")
   public void test_readerLoadBalancing_autocommitFalse(final Properties props) throws SQLException {
@@ -332,7 +327,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       // Connection should not be switched while inside a transaction
       String readerId;
       String nextReaderId;
-      final Statement stmt = conn.createStatement();
+
       for (int i = 0; i < 5; i++) {
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
@@ -346,6 +341,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
         assertEquals(readerId, nextReaderId);
+        final Statement stmt = conn.createStatement();
         stmt.execute("commit");
         nextReaderId = queryInstanceId(conn);
         assertNotEquals(readerId, nextReaderId);
@@ -364,6 +360,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
         assertEquals(readerId, nextReaderId);
+        final Statement stmt = conn.createStatement();
         stmt.execute(" roLLback ; ");
         nextReaderId = queryInstanceId(conn);
         assertNotEquals(readerId, nextReaderId);
@@ -371,7 +368,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled("Reader load balancing not implemented yet")
   @ParameterizedTest(name = "test_readerLoadBalancing_switchAutoCommitInTransaction")
   @MethodSource("testParameters")
   public void test_readerLoadBalancing_switchAutoCommitInTransaction(final Properties props) throws SQLException {
@@ -384,12 +380,12 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
       conn.setReadOnly(true);
-      final Statement stmt = conn.createStatement();
       String readerId;
       String nextReaderId;
 
       // Start transaction while autocommit is on (autocommit is implicitly disabled)
       // Connection should not be switched while inside a transaction
+      Statement stmt = conn.createStatement();
       stmt.execute("  StarT   TRanSACtion  REad onLy  ; ");
       readerId = queryInstanceId(conn);
       nextReaderId = queryInstanceId(conn);
@@ -412,6 +408,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       assertEquals(SqlState.ACTIVE_SQL_TRANSACTION.getState(), e.getSQLState());
 
       conn.setAutoCommit(true); // Switch autocommit value while inside the transaction
+      stmt = conn.createStatement();
       stmt.execute("commit");
 
       assertTrue(conn.getAutoCommit());
@@ -426,7 +423,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled("Reader load balancing not implemented yet")
   @ParameterizedTest(name = "test_readerLoadBalancing_remainingStateTransitions")
   @MethodSource("testParameters")
   public void test_readerLoadBalancing_remainingStateTransitions(final Properties props) throws SQLException {
@@ -445,14 +441,17 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       conn.setReadOnly(true);
       conn.setAutoCommit(false);
       conn.setAutoCommit(true);
-      final Statement stmt = conn.createStatement();
+      Statement stmt = conn.createStatement();
       stmt.execute("commit");
+      stmt = conn.createStatement();
       stmt.execute("commit");
+      stmt = conn.createStatement();
       stmt.execute("begin");
       stmt.execute("commit");
       conn.setAutoCommit(false);
       conn.commit();
       conn.commit();
+      stmt = conn.createStatement();
       stmt.execute("begin");
       stmt.execute("SELECT 1");
       conn.commit();
@@ -461,6 +460,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       conn.setReadOnly(false);
       conn.setAutoCommit(true);
       conn.setReadOnly(false);
+      stmt = conn.createStatement();
       stmt.execute("commit");
       conn.setReadOnly(false);
       conn.setReadOnly(true);
@@ -470,17 +470,17 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled("Reader load balancing not implemented yet")
   @ParameterizedTest(name = "test_readerLoadBalancing_lostConnectivity")
   @MethodSource("proxiedTestParameters")
   public void test_readerLoadBalancing_lostConnectivity(final Properties props) throws SQLException, IOException {
     final String initialWriterId = instanceIDs[0];
 
-    // autocommit on transaction (autocommit implicitly disabled)
+    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         POSTGRES_PROXY_PORT, props)) {
       conn.setReadOnly(true);
       final Statement stmt1 = conn.createStatement();
+      // autocommit on transaction (autocommit implicitly disabled)
       stmt1.execute("BEGIN");
       final String readerId = queryInstanceId(conn);
 
@@ -497,7 +497,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       if (pluginChainIncludesFailoverPlugin(props)) {
         assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
+        assertEquals(SqlState.CONNECTION_FAILURE.getState(), e.getSQLState());
       }
 
       if (pluginChainIncludesFailoverPlugin(props)) {
@@ -530,7 +530,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       if (pluginChainIncludesFailoverPlugin(props)) {
         assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
+        assertEquals(SqlState.CONNECTION_FAILURE.getState(), e.getSQLState());
         return;
       }
 
@@ -814,7 +814,6 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
     }
   }
 
-  @Disabled("Reader load balancing not implemented yet")
   @Test
   public void test_transactionResolutionUnknown_readWriteSplittingPluginOnly() throws SQLException, IOException {
     final String initialWriterId = instanceIDs[0];
@@ -843,7 +842,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       }
 
       final SQLException e = assertThrows(SQLException.class, conn::rollback);
-      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
+      assertEquals(SqlState.CONNECTION_FAILURE.getState(), e.getSQLState());
 
       try (final Connection newConn = connectToInstance(
           initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, POSTGRES_PROXY_PORT, props)) {

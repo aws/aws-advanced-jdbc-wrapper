@@ -49,6 +49,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * This plugin provides cluster-aware failover features. The plugin switches connections upon
@@ -175,7 +176,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       try {
         invalidInvocationOnClosedConnection();
       } catch (final SQLException ex) {
-        throw wrapExceptionIfNeeded(exceptionClass, ex);
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
     }
 
@@ -193,7 +194,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     try {
       performSpecialMethodHandlingIfRequired(jdbcMethodArgs, methodName);
     } catch (final SQLException e) {
-      throw wrapExceptionIfNeeded(exceptionClass, e);
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
 
     return result;
@@ -577,7 +578,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         try {
           pickNewConnection();
         } catch (final SQLException e) {
-          throw wrapExceptionIfNeeded(exceptionClass, e);
+          throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
         }
         this.lastExceptionDealtWith = originalException;
       }
@@ -592,7 +593,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       throw (Error) exceptionToThrow;
     }
 
-    throw wrapExceptionIfNeeded(exceptionClass, exceptionToThrow);
+    throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, exceptionToThrow);
   }
 
   /**
@@ -792,21 +793,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return (methodName.contains(METHOD_CLOSE)
         || methodName.contains(METHOD_IS_CLOSED)
         || methodName.contains(METHOD_ABORT));
-  }
-
-  /**
-   * Check if the throwable is an instance of the given exception and throw it as the required
-   * exception class, otherwise throw it as a runtime exception.
-   *
-   * @param exceptionClass The exception class the exception is exepected to be
-   * @param exception      The exception that occurred while invoking the given method
-   * @return an exception indicating the failure that occurred while invoking the given method
-   */
-  private <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass, final Throwable exception) {
-    if (exceptionClass.isAssignableFrom(exception.getClass())) {
-      return exceptionClass.cast(exception);
-    }
-    return exceptionClass.cast(new RuntimeException(exception));
   }
 
   @Override

@@ -282,8 +282,8 @@ public class WrapperUtils {
   public static boolean isJdbcPackage(@Nullable String packageName) {
     return packageName != null
         && (packageName.startsWith("java.sql")
-            || packageName.startsWith("javax.sql")
-            || packageName.startsWith("org.postgresql"));
+        || packageName.startsWith("javax.sql")
+        || packageName.startsWith("org.postgresql"));
   }
 
   /**
@@ -505,5 +505,22 @@ public class WrapperUtils {
     }
 
     return target;
+  }
+
+  /**
+   * Check if the throwable is an instance of the given exception and throw it as the required
+   * exception class, otherwise throw it as a runtime exception.
+   *
+   * @param exceptionClass The exception class the exception is exepected to be
+   * @param exception      The exception that occurred while invoking the given method
+   * @return an exception indicating the failure that occurred while invoking the given method
+   */
+  public static <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass,
+                                                              final Throwable exception) {
+    if (exceptionClass.isAssignableFrom(exception.getClass())) {
+      return exceptionClass.cast(exception);
+    }
+
+    return exceptionClass.cast(new RuntimeException(exception));
   }
 }

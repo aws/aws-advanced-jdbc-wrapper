@@ -22,9 +22,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
@@ -380,6 +383,35 @@ public class ConnectionPluginManagerTests {
     assertEquals("TestPluginThree:after", calls.get(4));
     assertEquals("TestPluginTwo:after", calls.get(5));
     assertEquals("TestPluginOne:after", calls.get(6));
+  }
+
+  @Test
+  public void testExecuteAgainstOldConnection() throws Exception {
+    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    Properties testProperties = new Properties();
+
+    PluginService mockPluginService = mock(PluginService.class);
+    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    Connection mockOldConnection = mock(Connection.class);
+    Connection mockCurrentConnection = mock(Connection.class);
+    Statement mockOldStatement = mock(Statement.class);
+    ResultSet mockOldResultSet = mock(ResultSet.class);
+
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockCurrentConnection);
+    when(mockOldStatement.getConnection()).thenReturn(mockOldConnection);
+    when(mockOldResultSet.getStatement()).thenReturn(mockOldStatement);
+
+    ConnectionPluginManager target =
+        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper,
+            mockPluginService);
+
+    assertThrows(SQLException.class,
+        () -> target.execute(String.class, Exception.class, mockOldConnection, "testJdbcCall_A", () -> "result", null));
+    assertThrows(SQLException.class,
+        () -> target.execute(String.class, Exception.class, mockOldStatement, "testJdbcCall_A", () -> "result", null));
+    assertThrows(SQLException.class,
+        () -> target.execute(String.class, Exception.class, mockOldResultSet, "testJdbcCall_A", () -> "result", null));
   }
 
 }

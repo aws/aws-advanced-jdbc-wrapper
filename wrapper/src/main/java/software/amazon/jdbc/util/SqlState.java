@@ -18,18 +18,18 @@ package software.amazon.jdbc.util;
 
 import java.sql.SQLException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SqlState {
 
   public static final SqlState UNKNOWN_STATE = new SqlState("");
+  public static final SqlState CONNECTION_UNABLE_TO_CONNECT = new SqlState("08001");
+  public static final SqlState CONNECTION_NOT_OPEN = new SqlState("08003");
+  public static final SqlState CONNECTION_FAILURE = new SqlState("08006");
   public static final SqlState CONNECTION_FAILURE_DURING_TRANSACTION = new SqlState("08007");
   public static final SqlState COMMUNICATION_ERROR = new SqlState("08S01");
   public static final SqlState COMMUNICATION_LINK_CHANGED = new SqlState("08S02");
-  public static final SqlState CONNECTION_UNABLE_TO_CONNECT = new SqlState("08001");
-  public static final SqlState CONNECTION_NOT_OPEN = new SqlState("08003");
   public static final SqlState ACTIVE_SQL_TRANSACTION = new SqlState("25001");
 
   // TODO: add custom error codes support
@@ -48,7 +48,7 @@ public class SqlState {
 
   private final String sqlState;
 
-  SqlState(String sqlState) {
+  SqlState(final String sqlState) {
     this.sqlState = sqlState;
   }
 
@@ -56,11 +56,11 @@ public class SqlState {
     return this.sqlState;
   }
 
-  public static boolean isConnectionError(SQLException sqlException) {
+  public static boolean isConnectionError(final SQLException sqlException) {
     return isConnectionError(sqlException.getSQLState());
   }
 
-  public static boolean isConnectionError(@Nullable String sqlState) {
+  public static boolean isConnectionError(@Nullable final String sqlState) {
     // TODO: should be user configurable
 
     if (sqlState == null) {

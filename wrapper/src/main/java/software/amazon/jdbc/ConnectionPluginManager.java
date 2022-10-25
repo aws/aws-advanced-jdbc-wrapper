@@ -17,7 +17,9 @@
 package software.amazon.jdbc;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -86,6 +88,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected ArrayList<ConnectionPlugin> plugins;
   protected final ConnectionProvider connectionProvider;
   protected final ConnectionWrapper connectionWrapper;
+  protected PluginService pluginService;
 
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
@@ -95,7 +98,22 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionWrapper = connectionWrapper;
   }
 
-  /** This constructor is for testing purposes only. */
+  /**
+   * This constructor is for testing purposes only.
+   */
+  ConnectionPluginManager(
+      ConnectionProvider connectionProvider,
+      Properties props,
+      ArrayList<ConnectionPlugin> plugins,
+      ConnectionWrapper connectionWrapper,
+      PluginService pluginService) {
+    this(connectionProvider, props, plugins, connectionWrapper);
+    this.pluginService = pluginService;
+  }
+
+  /**
+   * This constructor is for testing purposes only.
+   */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -123,8 +141,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService A reference to a plugin service that plugin can use.
-   * @param props The configuration of the connection.
+   * @param pluginService        A reference to a plugin service that plugin can use.
+   * @param props                The configuration of the connection.
    * @param pluginManagerService A reference to a plugin manager service.
    * @throws SQLException if errors occurred during the execution.
    */
@@ -133,6 +151,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throws SQLException {
 
     this.props = props;
+    this.pluginService = pluginService;
 
     String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
 
@@ -184,7 +203,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
         this.plugins = new ArrayList<>(factories.length + 1);
 
         for (ConnectionPluginFactory factory : factories) {
-          this.plugins.add(factory.getInstance(pluginService, this.props));
+          this.plugins.add(factory.getInstance(this.pluginService, this.props));
         }
 
       } catch (InstantiationException instEx) {
@@ -197,7 +216,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     // add default connection plugin to the tail
 
     ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(pluginService, this.connectionProvider, pluginManagerService);
+        new DefaultConnectionPlugin(this.pluginService, this.connectionProvider, pluginManagerService);
     this.plugins.add(defaultPlugin);
   }
 
@@ -293,6 +312,27 @@ public class ConnectionPluginManager implements CanReleaseResources {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+
+    Connection conn = null;
+    try {
+      if (methodInvokeOn instanceof Connection) {
+        conn = (Connection) methodInvokeOn;
+      } else if (methodInvokeOn instanceof Statement) {
+        Statement stmt = (Statement) methodInvokeOn;
+        conn = stmt.getConnection();
+      } else if (methodInvokeOn instanceof ResultSet) {
+        ResultSet rs = (ResultSet) methodInvokeOn;
+        conn = rs.getStatement().getConnection();
+      }
+    } catch (SQLException | UnsupportedOperationException e) {
+      // Do nothing. The UnsupportedOperationException comes from ResultSets returned by DataCacheConnectionPlugin and
+      // will be triggered when getStatement is called.
+    }
+
+    if (conn != null && conn != this.pluginService.getCurrentConnection()) {
+      SQLException e =  new SQLException(Messages.get("ConnectionPluginManager.methodInvokedAgainstOldConnection"));
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
+    }
 
     return executeWithSubscribedPlugins(
         methodName,

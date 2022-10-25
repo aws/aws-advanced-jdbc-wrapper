@@ -67,9 +67,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected @Nullable Throwable openConnectionStacktrace;
 
   public ConnectionWrapper(
-      @NonNull Properties props,
-      @NonNull String url,
-      @NonNull ConnectionProvider connectionProvider)
+      @NonNull final Properties props,
+      @NonNull final String url,
+      @NonNull final ConnectionProvider connectionProvider)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -79,8 +79,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.originalUrl = url;
     this.targetDriverProtocol = getProtocol(url);
 
-    ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider, this);
-    PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
+    final ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider, this);
+    final PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
 
     init(props, pluginManager, pluginService, pluginService, pluginService);
 
@@ -90,12 +90,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   ConnectionWrapper(
-      @NonNull Properties props,
-      @NonNull String url,
-      @NonNull ConnectionPluginManager connectionPluginManager,
-      @NonNull PluginService pluginService,
-      @NonNull HostListProviderService hostListProviderService,
-      @NonNull PluginManagerService pluginManagerService)
+      @NonNull final Properties props,
+      @NonNull final String url,
+      @NonNull final ConnectionPluginManager connectionPluginManager,
+      @NonNull final PluginService pluginService,
+      @NonNull final HostListProviderService hostListProviderService,
+      @NonNull final PluginManagerService pluginManagerService)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -106,11 +106,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   protected void init(
-      Properties props,
-      ConnectionPluginManager connectionPluginManager,
-      PluginService pluginService,
-      HostListProviderService hostListProviderService,
-      PluginManagerService pluginManagerService) throws SQLException {
+      final Properties props,
+      final ConnectionPluginManager connectionPluginManager,
+      final PluginService pluginService,
+      final HostListProviderService hostListProviderService,
+      final PluginManagerService pluginManagerService) throws SQLException {
     this.pluginManager = connectionPluginManager;
     this.pluginService = pluginService;
     this.hostListProviderService = hostListProviderService;
@@ -127,7 +127,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.pluginService.refreshHostList();
 
     if (this.pluginService.getCurrentConnection() == null) {
-      Connection conn =
+      final Connection conn =
           this.pluginManager.connect(
               this.targetDriverProtocol, this.pluginService.getInitialConnectionHostSpec(), props, true);
 
@@ -139,8 +139,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
-  protected String getProtocol(String url) {
-    int index = url.indexOf("//");
+  protected String getProtocol(final String url) {
+    final int index = url.indexOf("//");
     if (index < 0) {
       throw new IllegalArgumentException(
           Messages.get(
@@ -158,7 +158,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void abort(Executor executor) throws SQLException {
+  public void abort(final Executor executor) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -210,7 +210,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public Array createArrayOf(String typeName, Object[] elements) throws SQLException {
+  public Array createArrayOf(final String typeName, final Object[] elements) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,
@@ -278,7 +278,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public Statement createStatement(int resultSetType, int resultSetConcurrency)
+  public Statement createStatement(final int resultSetType, final int resultSetConcurrency)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Statement.class,
@@ -296,7 +296,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public Statement createStatement(
-      int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+      final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Statement.class,
         SQLException.class,
@@ -313,7 +313,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
+  public Struct createStruct(final String typeName, final Object[] attributes) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Struct.class,
         SQLException.class,
@@ -326,7 +326,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setReadOnly(boolean readOnly) throws SQLException {
+  public void setReadOnly(final boolean readOnly) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -351,7 +351,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public String getClientInfo(String name) throws SQLException {
+  public String getClientInfo(final String name) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         String.class,
         SQLException.class,
@@ -476,7 +476,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public boolean isValid(int timeout) throws SQLException {
+  public boolean isValid(final int timeout) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         boolean.class,
         SQLException.class,
@@ -488,12 +488,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public boolean isWrapperFor(Class<?> iface) throws SQLException {
+  public boolean isWrapperFor(final Class<?> iface) throws SQLException {
     return this.pluginService.getCurrentConnection().isWrapperFor(iface);
   }
 
   @Override
-  public String nativeSQL(String sql) throws SQLException {
+  public String nativeSQL(final String sql) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         String.class,
         SQLException.class,
@@ -505,7 +505,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public CallableStatement prepareCall(String sql) throws SQLException {
+  public CallableStatement prepareCall(final String sql) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         CallableStatement.class,
         SQLException.class,
@@ -517,7 +517,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency)
+  public CallableStatement prepareCall(final String sql, final int resultSetType, final int resultSetConcurrency)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         CallableStatement.class,
@@ -536,7 +536,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public CallableStatement prepareCall(
-      String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+      final String sql, final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         CallableStatement.class,
@@ -555,7 +555,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql) throws SQLException {
+  public PreparedStatement prepareStatement(final String sql) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
@@ -567,7 +567,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
+  public PreparedStatement prepareStatement(final String sql, final int resultSetType, final int resultSetConcurrency)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
@@ -586,7 +586,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public PreparedStatement prepareStatement(
-      String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+      final String sql, final int resultSetType, final int resultSetConcurrency, final int resultSetHoldability)
       throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
@@ -605,7 +605,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
+  public PreparedStatement prepareStatement(final String sql, final int autoGeneratedKeys) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
@@ -618,7 +618,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
+  public PreparedStatement prepareStatement(final String sql, final int[] columnIndexes) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
@@ -631,7 +631,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
+  public PreparedStatement prepareStatement(final String sql, final String[] columnNames) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         PreparedStatement.class,
         SQLException.class,
@@ -644,7 +644,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void releaseSavepoint(Savepoint savepoint) throws SQLException {
+  public void releaseSavepoint(final Savepoint savepoint) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -668,7 +668,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void rollback(Savepoint savepoint) throws SQLException {
+  public void rollback(final Savepoint savepoint) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -682,7 +682,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setAutoCommit(boolean autoCommit) throws SQLException {
+  public void setAutoCommit(final boolean autoCommit) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -690,7 +690,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         "Connection.setAutoCommit",
         () -> {
           this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
-          this.pluginManagerService.setInTransaction(!autoCommit);
         },
         autoCommit);
   }
@@ -707,7 +706,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setCatalog(String catalog) throws SQLException {
+  public void setCatalog(final String catalog) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -718,7 +717,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setClientInfo(String name, String value) throws SQLClientInfoException {
+  public void setClientInfo(final String name, final String value) throws SQLClientInfoException {
     WrapperUtils.runWithPlugins(
         SQLClientInfoException.class,
         this.pluginManager,
@@ -730,7 +729,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setClientInfo(Properties properties) throws SQLClientInfoException {
+  public void setClientInfo(final Properties properties) throws SQLClientInfoException {
     WrapperUtils.runWithPlugins(
         SQLClientInfoException.class,
         this.pluginManager,
@@ -741,7 +740,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setHoldability(int holdability) throws SQLException {
+  public void setHoldability(final int holdability) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -752,7 +751,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
+  public void setNetworkTimeout(final Executor executor, final int milliseconds) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -775,7 +774,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public Savepoint setSavepoint(String name) throws SQLException {
+  public Savepoint setSavepoint(final String name) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Savepoint.class,
         SQLException.class,
@@ -787,7 +786,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setSchema(String schema) throws SQLException {
+  public void setSchema(final String schema) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -798,7 +797,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setTransactionIsolation(int level) throws SQLException {
+  public void setTransactionIsolation(final int level) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -809,7 +808,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
+  public void setTypeMap(final Map<String, Class<?>> map) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -820,7 +819,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public <T> T unwrap(Class<T> iface) throws SQLException {
+  public <T> T unwrap(final Class<T> iface) throws SQLException {
     return this.pluginService.getCurrentConnection().unwrap(iface);
   }
 
