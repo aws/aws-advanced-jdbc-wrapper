@@ -239,7 +239,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     Collections.shuffle(downHostList);
 
     List<HostSpec> hostsByPriority = new ArrayList<>(activeReaders);
-    int numOfReaders = activeReaders.size() + downHostList.size();
+    final int numOfReaders = activeReaders.size() + downHostList.size();
     if (writerHost != null && (!this.strictReader || numOfReaders == 0)) {
       hostsByPriority.add(writerHost);
     }
