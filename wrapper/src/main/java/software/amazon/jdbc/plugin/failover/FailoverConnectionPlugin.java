@@ -42,7 +42,6 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -89,7 +88,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
-  protected boolean failoverStrictReaderSetting;
+  protected boolean enableFailoverStrictReaderSetting;
   protected boolean explicitlyAutoCommit = true;
   Boolean explicitlyReadOnly = false;
   private boolean closedExplicitly = false;
@@ -138,10 +137,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "enableClusterAwareFailover", "true",
           "Enable/disable cluster-aware failover logic");
 
-  public static final AwsWrapperProperty FAILOVER_STRICT_READER =
+  public static final AwsWrapperProperty ENABLE_FAILOVER_STRICT_READER =
       new AwsWrapperProperty(
-          "failoverStrictReader", "false",
-          "Enable/disable failover to a writer node for read-only connection.");
+          "enableFailoverStrictReader", "false",
+          "Enable to enforce reader-only connection during reader failover.");
 
   public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
     this(pluginService, properties, new RdsUtils());
@@ -229,7 +228,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                 this.properties,
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting,
-                this.failoverStrictReaderSetting),
+                this.enableFailoverStrictReaderSetting),
         () ->
             new ClusterAwareWriterFailoverHandler(
                 this.pluginService,
@@ -345,7 +344,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         FAILOVER_WRITER_RECONNECT_INTERVAL_MS.getInteger(this.properties);
     this.failoverReaderConnectTimeoutMsSetting =
         FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
-    this.failoverStrictReaderSetting = FAILOVER_STRICT_READER.getBoolean(this.properties);
+    this.enableFailoverStrictReaderSetting = ENABLE_FAILOVER_STRICT_READER.getBoolean(this.properties);
   }
 
   private void invalidInvocationOnClosedConnection() throws SQLException {
