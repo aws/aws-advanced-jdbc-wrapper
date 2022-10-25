@@ -38,20 +38,21 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.SqlState;
 
-@Disabled
 public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
 
   private static final Logger logger = Logger.getLogger(HikariCPReadWriteSplittingTest.class.getName());
@@ -60,24 +61,17 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
 
   private List<String> fetchTopology() {
     try {
-      List<String> topology = getTopologyEndpoints();
+      final List<String> topology = getTopologyEndpoints();
       // topology should contain a writer and at least one reader
       if (topology == null || topology.size() < 2) {
         fail("Topology does not contain the required instances");
       }
       return topology;
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       fail("Couldn't fetch cluster topology");
     }
 
     return null;
-  }
-
-  private static Stream<Arguments> testParameters() {
-    return Stream.of(
-        Arguments.of("readWriteSplitting,failover,efm"),
-        Arguments.of("failover,efm")
-    );
   }
 
   @BeforeAll
@@ -90,23 +84,44 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     dataSource.close();
   }
 
+  private static Stream<Arguments> testParameters() {
+    return Stream.of(
+        Arguments.of(getTargetProps_allPlugins()),
+        Arguments.of(getTargetProps_readWritePlugin())
+    );
+  }
+
+  private static Properties getTargetProps_readWritePlugin() {
+    final Properties props = getDefaultDataSourceProps();
+    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
+    return props;
+  }
+
+  private static Properties getTargetProps_allPlugins() {
+    final Properties props = getDefaultDataSourceProps();
+    props.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
+    return props;
+  }
+
   /**
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @ParameterizedTest(name = "test_1_1_hikariCP_lost_connection")
   @MethodSource("testParameters")
-  public void test_1_1_hikariCP_lost_connection(String plugins) throws SQLException {
-    createDefaultDataSource(plugins);
-    try (Connection conn = dataSource.getConnection()) {
+  public void test_1_1_hikariCP_lost_connection(final Properties targetDataSourceProps) throws SQLException {
+    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(targetDataSourceProps, "1");
+    PGProperty.SOCKET_TIMEOUT.set(targetDataSourceProps, "1");
+    createDataSource(targetDataSourceProps);
+    try (final Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
       putDownAllInstances(true);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      if (plugins.contains("failover")) {
-        assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
+      final SQLException e = assertThrows(SQLException.class, () -> queryInstanceId(conn));
+      if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
+        assertTrue(e instanceof FailoverFailedSQLException);
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), exception.getSQLState());
+        assertEquals(SqlState.CONNECTION_FAILURE.getState(), e.getSQLState());
       }
       assertFalse(conn.isValid(5));
     }
@@ -117,36 +132,36 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
   /**
    * After getting a successful connection from the pool, the connected instance becomes unavailable and the
    * connection fails over to another instance. A connection is then retrieved to check that connections
-   * to failed instances are not returned
+   * to failed instances are not returned.
    */
   @ParameterizedTest(name = "test_1_2_hikariCP_get_dead_connection")
   @MethodSource("testParameters")
-  public void test_1_2_hikariCP_get_dead_connection(String plugins) throws SQLException {
+  public void test_1_2_hikariCP_get_dead_connection(final Properties targetDataSourceProps) throws SQLException {
     putDownAllInstances(false);
 
-    String writer = clusterTopology.get(0);
-    String reader = clusterTopology.get(1);
-    String writerIdentifier = writer.split("\\.")[0];
-    String readerIdentifier = reader.split("\\.")[0];
+    final String writer = clusterTopology.get(0);
+    final String reader = clusterTopology.get(1);
+    final String writerIdentifier = writer.split("\\.")[0];
+    final String readerIdentifier = reader.split("\\.")[0];
     logger.fine("Instance to connect to: " + writerIdentifier);
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
-    createDefaultDataSource(plugins);
+    createDataSource(targetDataSourceProps);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = dataSource.getConnection()) {
+    try (final Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));
       bringUpInstance(readerIdentifier);
       putDownInstance(currentInstance);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      if (plugins.contains("failover")) {
-        assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
+      final SQLException e = assertThrows(SQLException.class, () -> queryInstanceId(conn));
+      if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
+        assertTrue(e instanceof FailoverSuccessSQLException);
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), exception.getSQLState());
+        assertEquals(SqlState.CONNECTION_FAILURE.getState(), e.getSQLState());
         return;
       }
 
@@ -167,21 +182,21 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
    */
   @ParameterizedTest(name = "test_2_1_hikariCP_efm_failover")
   @MethodSource("testParameters")
-  public void test_2_1_hikariCP_efm_failover(String plugins) throws SQLException {
+  public void test_2_1_hikariCP_efm_failover(final Properties targetDataSourceProps) throws SQLException {
     putDownAllInstances(false);
 
-    String writer = clusterTopology.get(0);
-    String reader = clusterTopology.get(1);
-    String writerIdentifier = writer.split("\\.")[0];
-    String readerIdentifier = reader.split("\\.")[0];
+    final String writer = clusterTopology.get(0);
+    final String reader = clusterTopology.get(1);
+    final String writerIdentifier = writer.split("\\.")[0];
+    final String readerIdentifier = reader.split("\\.")[0];
     logger.fine("Instance to connect to: " + writerIdentifier);
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
-    createDefaultDataSource(plugins);
+    createDataSource(targetDataSourceProps);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = dataSource.getConnection()) {
+    try (final Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));
@@ -190,11 +205,11 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
       bringUpInstance(readerIdentifier);
       putDownInstance(writerIdentifier);
 
-      final SQLException exception = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      if (plugins.contains("failover")) {
-        assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
+      final SQLException e = assertThrows(SQLException.class, () -> queryInstanceId(conn));
+      if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
+        assertTrue(e instanceof FailoverSuccessSQLException);
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), exception.getSQLState());
+        assertEquals(SqlState.CONNECTION_FAILURE.getState(), e.getSQLState());
         return;
       }
 
@@ -208,13 +223,13 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
 
   @ParameterizedTest(name = "test_3_1_readerLoadBalancing_autocommitTrue")
   @MethodSource("testParameters")
-  public void test_3_1_readerLoadBalancing_autocommitTrue(String plugins) throws SQLException {
-    createDataSourceWithReaderLoadBalancing(plugins);
+  public void test_3_1_readerLoadBalancing_autocommitTrue(final Properties targetDataSourceProps) throws SQLException {
+    createDataSourceWithReaderLoadBalancing(targetDataSourceProps);
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = dataSource.getConnection()) {
       conn.setReadOnly(false);
-      String writerConnectionId = queryInstanceId(conn);
+      final String writerConnectionId = queryInstanceId(conn);
       assertEquals(initialWriterId, writerConnectionId);
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
@@ -234,8 +249,8 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
 
       // Verify behavior for transactions started while autocommit is on (autocommit is implicitly disabled)
       // Connection should not be switched while inside a transaction
-      Statement stmt = conn.createStatement();
       for (int i = 0; i < 5; i++) {
+        final Statement stmt = conn.createStatement();
         stmt.execute("  bEgiN ");
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
@@ -250,13 +265,13 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
 
   @ParameterizedTest(name = "test_3_2_readerLoadBalancing_autocommitFalse")
   @MethodSource("testParameters")
-  public void test_3_2_readerLoadBalancing_autocommitFalse(String plugins) throws SQLException {
-    createDataSourceWithReaderLoadBalancing(plugins);
+  public void test_3_2_readerLoadBalancing_autocommitFalse(final Properties targetDataSourceProps) throws SQLException {
+    createDataSourceWithReaderLoadBalancing(targetDataSourceProps);
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = dataSource.getConnection()) {
       conn.setReadOnly(false);
-      String writerConnectionId = queryInstanceId(conn);
+      final String writerConnectionId = queryInstanceId(conn);
       assertEquals(initialWriterId, writerConnectionId);
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
@@ -266,7 +281,6 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
       // Connection should not be switched while inside a transaction
       String readerId;
       String nextReaderId;
-      Statement stmt = conn.createStatement();
       for (int i = 0; i < 5; i++) {
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
@@ -280,6 +294,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
         assertEquals(readerId, nextReaderId);
+        final Statement stmt = conn.createStatement();
         stmt.execute("commit");
         nextReaderId = queryInstanceId(conn);
         assertNotEquals(readerId, nextReaderId);
@@ -298,6 +313,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
         readerId = queryInstanceId(conn);
         nextReaderId = queryInstanceId(conn);
         assertEquals(readerId, nextReaderId);
+        final Statement stmt = conn.createStatement();
         stmt.execute(" roLLback ; ");
         nextReaderId = queryInstanceId(conn);
         assertNotEquals(readerId, nextReaderId);
@@ -307,23 +323,24 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
 
   @ParameterizedTest(name = "test_3_3_readerLoadBalancing_switchAutoCommitInTransaction")
   @MethodSource("testParameters")
-  public void test_3_3_readerLoadBalancing_switchAutoCommitInTransaction(String plugins) throws SQLException {
-    createDataSourceWithReaderLoadBalancing(plugins);
+  public void test_3_3_readerLoadBalancing_switchAutoCommitInTransaction(final Properties targetDataSourceProps)
+      throws SQLException {
+    createDataSourceWithReaderLoadBalancing(targetDataSourceProps);
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = dataSource.getConnection()) {
       conn.setReadOnly(false);
-      String writerConnectionId = queryInstanceId(conn);
+      final String writerConnectionId = queryInstanceId(conn);
       assertEquals(initialWriterId, writerConnectionId);
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
       conn.setReadOnly(true);
-      Statement stmt = conn.createStatement();
       String readerId;
       String nextReaderId;
 
       // Start transaction while autocommit is on (autocommit is implicitly disabled)
       // Connection should not be switched while inside a transaction
+      Statement stmt = conn.createStatement();
       stmt.execute("  StarT   TRanSACtion  REad onLy  ; ");
       readerId = queryInstanceId(conn);
       nextReaderId = queryInstanceId(conn);
@@ -344,6 +361,7 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
       assertThrows(SQLException.class, () -> conn.setReadOnly(false));
 
       conn.setAutoCommit(true); // Switch autocommit value while inside the transaction
+      stmt = conn.createStatement();
       stmt.execute("commit");
 
       assertTrue(conn.getAutoCommit());
@@ -358,13 +376,13 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     }
   }
 
-  private void putDownInstance(String targetInstance) {
-    Proxy toPutDown = proxyMap.get(targetInstance);
+  private void putDownInstance(final String targetInstance) {
+    final Proxy toPutDown = proxyMap.get(targetInstance);
     disableInstanceConnection(toPutDown);
     logger.fine("Took down " + targetInstance);
   }
 
-  private void putDownAllInstances(Boolean putDownClusters) {
+  private void putDownAllInstances(final Boolean putDownClusters) {
     logger.fine("Putting down all instances");
     proxyMap.forEach((instance, proxy) -> {
       if (putDownClusters || (proxy != proxyCluster && proxy != proxyReadOnlyCluster)) {
@@ -373,23 +391,22 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     });
   }
 
-  private void disableInstanceConnection(Proxy proxy) {
+  private void disableInstanceConnection(final Proxy proxy) {
     try {
       containerHelper.disableConnectivity(proxy);
-    } catch (IOException e) {
+    } catch (final IOException e) {
       fail("Couldn't disable proxy connectivity");
     }
   }
 
-  private void bringUpInstance(String targetInstance) {
-    Proxy toBringUp = proxyMap.get(targetInstance);
+  private void bringUpInstance(final String targetInstance) {
+    final Proxy toBringUp = proxyMap.get(targetInstance);
     containerHelper.enableConnectivity(toBringUp);
     logger.fine("Brought up " + targetInstance);
   }
 
-  private HikariConfig getDefaultConfig(Properties customTestProps) {
+  private static HikariConfig getDefaultConfig() {
     final HikariConfig config = new HikariConfig();
-
     config.setUsername(AURORA_POSTGRES_USERNAME);
     config.setPassword(AURORA_POSTGRES_PASSWORD);
     config.setMaximumPoolSize(3);
@@ -405,28 +422,32 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     config.addDataSourceProperty("serverPropertyName", "serverName");
     config.addDataSourceProperty("databasePropertyName", "databaseName");
 
-    Properties targetDataSourceProps = new Properties(customTestProps);
-    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
+    return config;
+  }
+
+  private static Properties getDefaultDataSourceProps() {
+    final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("portNumber", String.valueOf(POSTGRES_PROXY_PORT));
     targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty("socketTimeout", "5");
     targetDataSourceProps.setProperty("connectTimeout", "5");
     targetDataSourceProps.setProperty("monitoring-connectTimeout", "3");
     targetDataSourceProps.setProperty("monitoring-socketTimeout", "3");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "3000");
     targetDataSourceProps.setProperty(
         AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
-    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
-    return config;
+    return targetDataSourceProps;
   }
 
-  private void createDataSource(HikariConfig config) {
+  private void createDataSource(final Properties targetDataSourceProps) {
+    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
+
+    final HikariConfig config = getDefaultConfig();
+    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
+
     dataSource = new HikariDataSource(config);
 
     final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
@@ -436,17 +457,13 @@ public class HikariCPReadWriteSplittingTest extends AuroraPostgresBaseTest {
     logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
   }
 
-  private void createDefaultDataSource(String plugins) {
-    Properties customTestProps = new Properties();
-    customTestProps.setProperty(PropertyDefinition.PLUGINS.name, plugins);
-    createDataSource(getDefaultConfig(customTestProps));
+  private void createDataSourceWithReaderLoadBalancing(final Properties targetDataSourceProps) {
+    targetDataSourceProps.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
+    createDataSource(targetDataSourceProps);
   }
 
-  private void createDataSourceWithReaderLoadBalancing(String plugins) {
-    Properties customTestProps = new Properties();
-    customTestProps.setProperty(PropertyDefinition.PLUGINS.name, plugins);
-    customTestProps.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
-    HikariConfig config = getDefaultConfig(customTestProps);
-    createDataSource(config);
+  private boolean pluginChainIncludesFailoverPlugin(final Properties targetDataSourceProps) {
+    final String plugins = targetDataSourceProps.getProperty(PropertyDefinition.PLUGINS.name);
+    return plugins.contains("failover");
   }
 }
