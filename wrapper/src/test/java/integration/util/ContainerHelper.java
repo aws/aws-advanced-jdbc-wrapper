@@ -148,6 +148,9 @@ public class ContainerHelper {
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/build.gradle.kts"), "app/build.gradle.kts")
         .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/resources/rds-ca-2019-root.pem"),
+            "app/test/resources/rds-ca-2019-root.pem")
+        .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/resources/logging-test.properties"),
             "app/test/resources/logging-test.properties")
         .withCopyFileToContainer(
