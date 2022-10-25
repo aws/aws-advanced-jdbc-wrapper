@@ -135,12 +135,23 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testConnectWithSpecifiedRegion() throws SQLException {
     final String cacheKeyWithNewRegion =
-        "us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + String.valueOf(DEFAULT_PG_PORT) + ":" + "postgresqlUser";
-    props.setProperty("iamRegion", "us-west-1");
+        "us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":" + "postgresqlUser";
+    props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-west-1");
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewRegion,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_REGION);
+  }
+
+  @Test
+  public void testConnectWithSpecifiedHost() throws SQLException {
+    props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-east-2");
+    props.setProperty(IamAuthConnectionPlugin.IAM_HOST.name, "pg.testdb.us-east-2.rds.amazonaws.com");
+
+    testGenerateToken(
+        PG_DRIVER_PROTOCOL,
+        new HostSpec("8.8.8.8"),
+        "pg.testdb.us-east-2.rds.amazonaws.com");
   }
 
   public void testTokenSetInProps(final String protocol, final HostSpec hostSpec) throws SQLException {
@@ -148,22 +159,27 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
     doThrow(new SQLException()).when(mockLambda).call();
 
-    assertThrows(SQLException.class, () -> {
-      targetPlugin.connect(protocol, hostSpec, props, true, mockLambda);
-    });
+    assertThrows(SQLException.class, () -> targetPlugin.connect(protocol, hostSpec, props, true, mockLambda));
     verify(mockLambda, times(1)).call();
 
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
   }
 
   private void testGenerateToken(final String protocol, final HostSpec hostSpec) throws SQLException {
+    testGenerateToken(protocol, hostSpec, hostSpec.getHost());
+  }
+
+  private void testGenerateToken(
+      final String protocol,
+      final HostSpec hostSpec,
+      final String expectedHost) throws SQLException {
     final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
     final IamAuthConnectionPlugin spyPlugin = Mockito.spy(targetPlugin);
 
     doReturn(GENERATED_TOKEN).when(spyPlugin)
         .generateAuthenticationToken(
             PropertyDefinition.USER.getString(props),
-            hostSpec.getHost(),
+            expectedHost,
             DEFAULT_PG_PORT,
             Region.US_EAST_2);
     doThrow(new SQLException()).when(mockLambda).call();

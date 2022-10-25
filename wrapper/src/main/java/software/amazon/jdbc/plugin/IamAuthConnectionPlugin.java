@@ -26,7 +26,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -47,16 +46,20 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   public static final int PG_PORT = 5432;
   public static final int MYSQL_PORT = 3306;
 
-  protected static final AwsWrapperProperty SPECIFIED_PORT = new AwsWrapperProperty(
+  public static final AwsWrapperProperty IAM_HOST = new AwsWrapperProperty(
+      "iamHost", null,
+      "Overrides the host that is used to generate the IAM token");
+
+  public static final AwsWrapperProperty IAM_DEFAULT_PORT = new AwsWrapperProperty(
           "iamDefaultPort", null,
-          "Overrides default port that is used to generate IAM token");
+          "Overrides default port that is used to generate the IAM token");
 
-  protected static final AwsWrapperProperty SPECIFIED_REGION = new AwsWrapperProperty(
+  public static final AwsWrapperProperty IAM_REGION = new AwsWrapperProperty(
           "iamRegion", null,
-          "Overrides AWS region that is used to generate IAM token");
+          "Overrides AWS region that is used to generate the IAM token");
 
-  protected static final AwsWrapperProperty SPECIFIED_EXPIRATION = new AwsWrapperProperty(
-          "iamExpiration", null,
+  public static final AwsWrapperProperty IAM_EXPIRATION = new AwsWrapperProperty(
+          "iamExpiration", String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC),
           "IAM token cache expiration in seconds");
 
   protected final RdsUtils rdsUtils = new RdsUtils();
@@ -79,11 +82,14 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
 
-    final String host = hostSpec.getHost();
+    String host = hostSpec.getHost();
+    if (!StringUtils.isNullOrEmpty(IAM_HOST.getString(props))) {
+      host = IAM_HOST.getString(props);
+    }
 
     int port = hostSpec.getPort();
     if (!hostSpec.isPortSpecified()) {
-      if (StringUtils.isNullOrEmpty(SPECIFIED_PORT.getString(props))) {
+      if (StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props))) {
         if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith("jdbc:mysql:")) {
           throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.missingPort"));
         } else if (driverProtocol.startsWith("jdbc:mysql:")) {
@@ -92,7 +98,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           port = PG_PORT;
         }
       } else {
-        port = SPECIFIED_PORT.getInteger(props);
+        port = IAM_DEFAULT_PORT.getInteger(props);
         if (port <= 0) {
           throw new IllegalArgumentException(
               Messages.get(
@@ -102,19 +108,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       }
     }
 
-    final Region region;
-    if (StringUtils.isNullOrEmpty(SPECIFIED_REGION.getString(props))) {
-      region = getRdsRegion(host);
-    } else {
-      region = Region.of(SPECIFIED_REGION.getString(props));
-    }
+    final String iamRegion = IAM_REGION.getString(props);
+    final Region region = StringUtils.isNullOrEmpty(iamRegion)
+        ? getRdsRegion(host)
+        : Region.of(iamRegion);
 
-    final int tokenExpirationSec;
-    if (StringUtils.isNullOrEmpty(SPECIFIED_EXPIRATION.getString(props))) {
-      tokenExpirationSec = DEFAULT_TOKEN_EXPIRATION_SEC;
-    } else {
-      tokenExpirationSec = SPECIFIED_EXPIRATION.getInteger(props);
-    }
+    final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);
 
     final String cacheKey = getCacheKey(
             PropertyDefinition.USER.getString(props),
@@ -130,8 +129,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
               new Object[] {tokenInfo.getToken()}));
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
-      final String token = generateAuthenticationToken(PropertyDefinition.USER.getString(props),
-              hostSpec.getHost(), port, region);
+      final String token = generateAuthenticationToken(
+          PropertyDefinition.USER.getString(props),
+          host,
+          port,
+          region);
       LOGGER.finest(
           () -> Messages.get(
               "IamAuthConnectionPlugin.generatedNewIamToken",
