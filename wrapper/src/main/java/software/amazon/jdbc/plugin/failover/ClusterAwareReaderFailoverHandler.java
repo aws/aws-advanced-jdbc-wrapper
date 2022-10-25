@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
@@ -62,6 +61,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected Properties initialConnectionProps;
   protected int maxFailoverTimeoutMs;
   protected int timeoutMs;
+  protected boolean enableFailoverStrictReader;
   protected final PluginService pluginService;
 
   /**
@@ -77,7 +77,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         pluginService,
         initialConnectionProps,
         DEFAULT_FAILOVER_TIMEOUT,
-        DEFAULT_READER_CONNECT_TIMEOUT);
+        DEFAULT_READER_CONNECT_TIMEOUT,
+        false);
   }
 
   /**
@@ -88,16 +89,19 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @param failoverTimeoutMs Maximum allowed time in milliseconds to attempt reconnecting to a new
    *     reader instance after a cluster failover is initiated.
    * @param timeoutMs Maximum allowed time for the entire reader failover process.
+   * @param enableFailoverStrictReader When true, it disables adding a writer to a list of nodes to connect
    */
   public ClusterAwareReaderFailoverHandler(
       PluginService pluginService,
       Properties initialConnectionProps,
       int failoverTimeoutMs,
-      int timeoutMs) {
+      int timeoutMs,
+      boolean enableFailoverStrictReader) {
     this.pluginService = pluginService;
     this.initialConnectionProps = initialConnectionProps;
     this.maxFailoverTimeoutMs = failoverTimeoutMs;
     this.timeoutMs = timeoutMs;
+    this.enableFailoverStrictReader = enableFailoverStrictReader;
   }
 
   /**
@@ -138,16 +142,43 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       ExecutorService executor) {
     Future<ReaderFailoverResult> future = executor.submit(() -> {
       ReaderFailoverResult result;
+      List<HostSpec> topology = hosts;
       try {
         while (true) {
-          result = failoverInternal(hosts, currentHost);
+          result = failoverInternal(topology, currentHost);
           if (result != null && result.isConnected()) {
-            break;
+            if (!this.enableFailoverStrictReader) {
+              return result; // connection to any node works for us
+            }
+
+            // need to ensure that new connection is a connection to a reader node
+
+            pluginService.forceRefreshHostList(result.getConnection());
+            topology = pluginService.getHosts();
+            for (HostSpec node : topology) {
+              if (node.getUrl().equals(result.getHost().getUrl())) {
+                // found new connection host in the latest topology
+                if (node.getRole() == HostRole.READER) {
+                  return result;
+                }
+              }
+            }
+
+            // New node is not found in the latest topology. There are few possible reasons for that.
+            // - Node is not yet presented in the topology due to failover process in progress
+            // - Node is in the topology but its role isn't a
+            //   READER (that is not acceptable option due to this.strictReader setting)
+            // Need to continue this loop and to make another try to connect to a reader.
+
+            try {
+              result.getConnection().close();
+            } catch (SQLException ex) {
+              // ignore
+            }
           }
 
           TimeUnit.SECONDS.sleep(1);
         }
-        return result;
       } catch (SQLException ex) {
         return new ReaderFailoverResult(null, null, false, ex);
       } catch (Exception ex) {
@@ -212,7 +243,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     Collections.shuffle(downHostList);
 
     List<HostSpec> hostsByPriority = new ArrayList<>(activeReaders);
-    if (writerHost != null) {
+    final int numOfReaders = activeReaders.size() + downHostList.size();
+    if (writerHost != null && (!this.enableFailoverStrictReader || numOfReaders == 0)) {
       hostsByPriority.add(writerHost);
     }
     hostsByPriority.addAll(downHostList);
