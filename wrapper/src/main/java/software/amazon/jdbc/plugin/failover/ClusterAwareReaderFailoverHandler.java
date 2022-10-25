@@ -62,6 +62,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected Properties initialConnectionProps;
   protected int maxFailoverTimeoutMs;
   protected int timeoutMs;
+  protected boolean strictReader;
   protected final PluginService pluginService;
 
   /**
@@ -77,7 +78,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         pluginService,
         initialConnectionProps,
         DEFAULT_FAILOVER_TIMEOUT,
-        DEFAULT_READER_CONNECT_TIMEOUT);
+        DEFAULT_READER_CONNECT_TIMEOUT,
+        false);
   }
 
   /**
@@ -88,16 +90,19 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @param failoverTimeoutMs Maximum allowed time in milliseconds to attempt reconnecting to a new
    *     reader instance after a cluster failover is initiated.
    * @param timeoutMs Maximum allowed time for the entire reader failover process.
+   * @param strictReader When true, it disables adding a writer to a list of nodes to connect
    */
   public ClusterAwareReaderFailoverHandler(
       PluginService pluginService,
       Properties initialConnectionProps,
       int failoverTimeoutMs,
-      int timeoutMs) {
+      int timeoutMs,
+      boolean strictReader) {
     this.pluginService = pluginService;
     this.initialConnectionProps = initialConnectionProps;
     this.maxFailoverTimeoutMs = failoverTimeoutMs;
     this.timeoutMs = timeoutMs;
+    this.strictReader = strictReader;
   }
 
   /**
@@ -138,16 +143,38 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       ExecutorService executor) {
     Future<ReaderFailoverResult> future = executor.submit(() -> {
       ReaderFailoverResult result;
+      List<HostSpec> topology = hosts;
       try {
         while (true) {
-          result = failoverInternal(hosts, currentHost);
+          result = failoverInternal(topology, currentHost);
           if (result != null && result.isConnected()) {
-            break;
+            if (!this.strictReader) {
+              return result; // connection to any node works for us
+            }
+
+            pluginService.forceRefreshHostList(result.getConnection());
+            topology = pluginService.getHosts();
+            for (HostSpec node : topology) {
+              if (node.getUrl().equals(result.getHost().getUrl())) {
+                // found new connection host in the latest topology
+                if (node.getRole() == HostRole.READER) {
+                  return result;
+                }
+              }
+            }
+            // New node is not found in the latest topology
+            // It's not expected behavior, but we need to make another connection.
+            // Continue loop.
+
+            try {
+              result.getConnection().close();
+            } catch (SQLException ex) {
+              // ignore
+            }
           }
 
           TimeUnit.SECONDS.sleep(1);
         }
-        return result;
       } catch (SQLException ex) {
         return new ReaderFailoverResult(null, null, false, ex);
       } catch (Exception ex) {
@@ -212,7 +239,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     Collections.shuffle(downHostList);
 
     List<HostSpec> hostsByPriority = new ArrayList<>(activeReaders);
-    if (writerHost != null) {
+    int numOfReaders = activeReaders.size() + downHostList.size();
+    if (writerHost != null && (!this.strictReader || numOfReaders == 0)) {
       hostsByPriority.add(writerHost);
     }
     hostsByPriority.addAll(downHostList);
