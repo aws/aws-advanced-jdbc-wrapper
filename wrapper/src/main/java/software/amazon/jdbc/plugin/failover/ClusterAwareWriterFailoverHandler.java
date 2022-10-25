@@ -106,13 +106,13 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     try {
       final long startTimeNano = System.nanoTime();
       WriterFailoverResult result = getNextResult(executorService, completionService, this.maxFailoverTimeoutMs);
-      final long endTimeNano = System.nanoTime();
       if (result.isConnected() || result.getException() != null) {
         return result;
       }
 
-      final int durationMs = (int) TimeUnit.NANOSECONDS.toMillis(endTimeNano - startTimeNano);
-      final int remainingTimeMs = this.maxFailoverTimeoutMs - durationMs;
+      final long endTimeNano = System.nanoTime();
+      final long durationMs = TimeUnit.NANOSECONDS.toMillis(endTimeNano - startTimeNano);
+      final long remainingTimeMs = this.maxFailoverTimeoutMs - durationMs;
 
       if (remainingTimeMs > 0) {
         result = getNextResult(executorService, completionService, remainingTimeMs);
@@ -158,7 +158,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
   private WriterFailoverResult getNextResult(
       final ExecutorService executorService,
       final CompletionService<WriterFailoverResult> completionService,
-      final int timeoutMs) throws SQLException {
+      final long timeoutMs) throws SQLException {
     try {
       final Future<WriterFailoverResult> firstCompleted = completionService.poll(
           timeoutMs, TimeUnit.MILLISECONDS);
