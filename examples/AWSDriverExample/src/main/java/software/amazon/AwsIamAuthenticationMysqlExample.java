@@ -26,10 +26,10 @@ import software.amazon.jdbc.PropertyDefinition;
 
 public class AwsIamAuthenticationMysqlExample {
   public static final String MYSQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:mysql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306";
+      "jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306";
   private static final String USERNAME = "john_smith";
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws SQLException {
 
     final Properties properties = new Properties();
 
@@ -39,14 +39,10 @@ public class AwsIamAuthenticationMysqlExample {
 
     // Attempt a connection
     try (Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, properties);
-        Statement stmt1 = conn.createStatement();
-        ResultSet rs = stmt1.executeQuery("SELECT 1")) {
+        Statement statement = conn.createStatement();
+        ResultSet result = statement.executeQuery("select 1")) {
 
-      while (rs.next()) {
-        System.out.println(rs.getString(1));
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
+      System.out.println(Util.getResult(result));
     }
   }
 }

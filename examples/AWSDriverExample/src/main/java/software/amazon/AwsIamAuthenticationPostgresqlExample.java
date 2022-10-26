@@ -26,7 +26,7 @@ import java.util.Properties;
 
 public class AwsIamAuthenticationPostgresqlExample {
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/employees";
+      "jdbc:aws-wrapper:postgresql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:5432/employees";
   private static final String USERNAME = "john_smith";
 
   public static void main(String[] args) throws SQLException {
@@ -42,7 +42,7 @@ public class AwsIamAuthenticationPostgresqlExample {
         Statement statement = conn.createStatement();
         ResultSet result = statement.executeQuery("select aurora_db_instance_identifier()")) {
 
-      System.out.println(Util.getResult(result));
+        System.out.println(Util.getResult(result));
     }
   }
 }
