@@ -112,6 +112,21 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.loadBalanceReadOnlyTraffic = LOAD_BALANCE_READ_ONLY_TRAFFIC.getBoolean(this.properties);
   }
 
+  /**
+   * For testing purposes only.
+   */
+  ReadWriteSplittingPlugin(
+      final PluginService pluginService,
+      final Properties properties,
+      HostListProviderService hostListProviderService,
+      Connection writerConnection,
+      Connection readerConnection) {
+    this(pluginService, properties);
+    this.hostListProviderService = hostListProviderService;
+    this.writerConnection = writerConnection;
+    this.readerConnection = readerConnection;
+  }
+
   @Override
   public Set<String> getSubscribedMethods() {
     return subscribedMethods;
@@ -139,7 +154,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final Connection currentConnection = connectFunc.call();
-    if (this.pluginService.getCurrentConnection() != null) {
+    if (!isInitialConnection) {
       return currentConnection;
     }
 
@@ -267,7 +282,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     this.isTransactionBoundary = isTransactionBoundary(methodName, args);
-
     try {
       return jdbcMethodFunc.call();
     } catch (Exception e) {
@@ -636,5 +650,24 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     } catch (final SQLException e) {
       // ignore
     }
+  }
+
+  /**
+   * Methods for testing purposes only.
+   */
+  Connection getWriterConnection() {
+    return this.writerConnection;
+  }
+
+  Connection getReaderConnection() {
+    return this.readerConnection;
+  }
+
+  void setExplicitlyReadOnly(boolean readOnly) {
+    this.explicitlyReadOnly = readOnly;
+  }
+
+  void setIsTransactionBoundary(boolean transactionBoundary) {
+    this.isTransactionBoundary = transactionBoundary;
   }
 }
