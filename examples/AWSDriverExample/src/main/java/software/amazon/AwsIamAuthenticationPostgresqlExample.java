@@ -42,7 +42,7 @@ public class AwsIamAuthenticationPostgresqlExample {
         Statement statement = conn.createStatement();
         ResultSet result = statement.executeQuery("select aurora_db_instance_identifier()")) {
 
-        System.out.println(Util.getResult(result));
+      System.out.println(Util.getResult(result));
     }
   }
 }
