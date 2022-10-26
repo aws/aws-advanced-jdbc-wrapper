@@ -26,7 +26,7 @@ import software.amazon.jdbc.PropertyDefinition;
 
 public class AwsIamAuthenticationMariadbExample {
   public static final String MYSQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306?permitMysqlScheme";
+      "jdbc:aws-wrapper:mariadb://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306";
 
   private static final String USERNAME = "john_smith";
 
