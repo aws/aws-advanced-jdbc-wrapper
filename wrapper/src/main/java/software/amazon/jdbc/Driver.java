@@ -28,6 +28,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -86,7 +87,13 @@ public class Driver implements java.sql.Driver {
       return null;
     }
 
-    Properties props = PropertyUtils.parseProperties(url, info);
+//    Properties props = PropertyUtils.parseProperties(url, info);
+    Properties props = info;
+    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
+    if (!StringUtils.isNullOrEmpty(databaseName)) {
+      PropertyDefinition.DATABASE.set(props, databaseName);
+    }
+    ConnectionUrlParser.parsePropertiesFromUrl(url, props);
 
     String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
     if (!StringUtils.isNullOrEmpty(logLevelStr)) {
@@ -126,10 +133,16 @@ public class Driver implements java.sql.Driver {
   @Override
   public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
     Properties copy = new Properties(info);
-    Properties parse = PropertyUtils.parseProperties(url, copy);
-    if (parse != null) {
-      copy = parse;
+//    Properties parse = PropertyUtils.parseProperties(url, copy);
+    Properties parse = copy;
+    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
+    if (!StringUtils.isNullOrEmpty(databaseName)) {
+      PropertyDefinition.DATABASE.set(parse, databaseName);
     }
+    ConnectionUrlParser.parsePropertiesFromUrl(url, parse);
+//    if (parse != null) {
+//      copy = parse;
+//    }
 
     Collection<AwsWrapperProperty> knownProperties = PropertyDefinition.allProperties();
     DriverPropertyInfo[] props = new DriverPropertyInfo[knownProperties.size()];
