@@ -38,7 +38,7 @@ public class AwsIamAuthenticationMariadbExample {
     properties.setProperty(PropertyDefinition.USER.name, USERNAME);
     properties.setProperty(PropertyDefinition.PLUGINS.name, "iam");
 
-    // The following two properties are required when using the IAM Authentication plugin with the MariaDB driver.
+    // The properties sslMode and severSslCert are required when using the IAM Authentication plugin with the MariaDB driver.
     properties.setProperty("sslMode", "verify-ca");
 
     // The value of this property should be the path to an SSL certificate.
