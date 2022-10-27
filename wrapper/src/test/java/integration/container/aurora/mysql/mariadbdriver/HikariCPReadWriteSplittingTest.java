@@ -39,7 +39,6 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -54,7 +53,6 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.SqlState;
 
-@Disabled
 public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
 
   private static final Logger logger = Logger.getLogger(
