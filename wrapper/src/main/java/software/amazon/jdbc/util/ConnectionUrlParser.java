@@ -139,6 +139,7 @@ public class ConnectionUrlParser {
       props.setProperty(currentParameterName, currentParameterValue);
     }
   }
+
   private static @Nullable String urlDecode(String url) {
     try {
       return StringUtils.decode(url);
