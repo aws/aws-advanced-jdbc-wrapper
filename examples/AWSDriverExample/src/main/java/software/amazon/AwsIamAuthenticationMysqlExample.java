@@ -16,17 +16,17 @@
 
 package software.amazon;
 
-import software.amazon.jdbc.PropertyDefinition;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import software.amazon.jdbc.PropertyDefinition;
 
-public class AwsIamAuthenticationPostgresqlExample {
-  public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:5432/employees";
+public class AwsIamAuthenticationMysqlExample {
+  public static final String MYSQL_CONNECTION_STRING =
+      "jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306";
   private static final String USERNAME = "john_smith";
 
   public static void main(String[] args) throws SQLException {
@@ -38,9 +38,9 @@ public class AwsIamAuthenticationPostgresqlExample {
     properties.setProperty(PropertyDefinition.USER.name, USERNAME);
 
     // Attempt a connection
-    try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, properties);
+    try (Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, properties);
         Statement statement = conn.createStatement();
-        ResultSet result = statement.executeQuery("select aurora_db_instance_identifier()")) {
+        ResultSet result = statement.executeQuery("select 1")) {
 
       System.out.println(Util.getResult(result));
     }
