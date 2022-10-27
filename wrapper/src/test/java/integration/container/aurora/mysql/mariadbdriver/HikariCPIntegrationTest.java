@@ -36,7 +36,6 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
@@ -47,10 +46,8 @@ import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
 
-@Disabled
 public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
-  private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
   private static HikariDataSource data_source = null;
   private final List<String> clusterTopology = fetchTopology();
 

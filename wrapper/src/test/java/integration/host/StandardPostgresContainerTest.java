@@ -37,8 +37,8 @@ public class StandardPostgresContainerTest {
   private static final String STANDARD_POSTGRES_TEST_RUNNER_NAME = "test-container";
   private static final String STANDARD_POSTGRES_WRITER = "standard-postgres-writer";
   private static final String STANDARD_POSTGRES_READER = "standard-postgres-reader";
-  private static final List<String>
-      postgresInstances = Arrays.asList(STANDARD_POSTGRES_WRITER, STANDARD_POSTGRES_READER);
+  private static final List<String> postgresInstances =
+      Arrays.asList(STANDARD_POSTGRES_WRITER, STANDARD_POSTGRES_READER);
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static final int STANDARD_POSTGRES_PORT = 5432;
 
@@ -58,7 +58,7 @@ public class StandardPostgresContainerTest {
   private static PostgreSQLContainer<?> postgresWriterContainer;
   private static PostgreSQLContainer<?> postgresReaderContainer;
   private static GenericContainer<?> integrationTestContainer;
-  private static List<ToxiproxyContainer> proxyContainers = new ArrayList<>();
+  private static List<ToxiproxyContainer> proxyContainers;
   private static int postgresProxyPort;
   private static Network network;
   private static final ContainerHelper containerHelper = new ContainerHelper();
@@ -89,8 +89,8 @@ public class StandardPostgresContainerTest {
       container.start();
     }
 
-    postgresProxyPort = containerHelper.createInstanceProxies(postgresInstances, proxyContainers,
-        STANDARD_POSTGRES_PORT);
+    postgresProxyPort =
+        containerHelper.createInstanceProxies(postgresInstances, proxyContainers, STANDARD_POSTGRES_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();

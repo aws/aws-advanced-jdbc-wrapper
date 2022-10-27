@@ -27,8 +27,7 @@ import org.junit.platform.suite.api.Suite;
     DataCachePluginTests.class,
     HikariTests.class,
     LogQueryPluginTests.class,
-    SpringTests.class
+    SpringTests.class,
+    StandardMysqlReadWriteSplittingTest.class
 })
-public class MariadbStandardMysqlTestSuite {
-
-}
+public class MariadbStandardMysqlTestSuite {}

@@ -37,8 +37,7 @@ public class StandardMysqlContainerTest {
   private static final String STANDARD_TEST_RUNNER_NAME = "test-container";
   private static final String STANDARD_MYSQL_WRITER = "standard-mysql-writer";
   private static final String STANDARD_MYSQL_READER = "standard-mysql-reader";
-  private static final List<String>
-      mySqlInstances = Arrays.asList(STANDARD_MYSQL_WRITER, STANDARD_MYSQL_READER);
+  private static final List<String> mySqlInstances = Arrays.asList(STANDARD_MYSQL_WRITER, STANDARD_MYSQL_READER);
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static final int STANDARD_MYSQL_PORT = 3306;
 
@@ -57,7 +56,7 @@ public class StandardMysqlContainerTest {
   private static MySQLContainer<?> mysqlWriterContainer;
   private static MySQLContainer<?> mysqlReaderContainer;
   private static GenericContainer<?> integrationTestContainer;
-  private static List<ToxiproxyContainer> proxyContainers = new ArrayList<>();
+  private static List<ToxiproxyContainer> proxyContainers;
   private static int mysqlProxyPort;
   private static Network network;
   private static final ContainerHelper containerHelper = new ContainerHelper();
@@ -86,8 +85,7 @@ public class StandardMysqlContainerTest {
       container.start();
     }
 
-    mysqlProxyPort = containerHelper.createInstanceProxies(mySqlInstances, proxyContainers,
-        STANDARD_MYSQL_PORT);
+    mysqlProxyPort = containerHelper.createInstanceProxies(mySqlInstances, proxyContainers, STANDARD_MYSQL_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();
