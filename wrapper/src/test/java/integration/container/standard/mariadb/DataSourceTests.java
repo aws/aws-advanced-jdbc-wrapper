@@ -53,7 +53,7 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     ds.setDatabasePropertyName("databaseName");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -69,7 +69,7 @@ public class DataSourceTests extends StandardMariadbBaseTest {
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_WRITER + "/" + STANDARD_DB);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
@@ -90,7 +90,7 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     ds.setDatabasePropertyName("databaseName");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -129,7 +129,7 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
+        "jdbc:mariadb://" + STANDARD_WRITER + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
@@ -144,7 +144,7 @@ public class DataSourceTests extends StandardMariadbBaseTest {
   @Test
   public void testOpenConnectionWithMariaDbUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
+    ds.setJdbcUrl("jdbc:mariadb://" + STANDARD_WRITER + "/" + STANDARD_DB + "?permitMysqlScheme");
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
@@ -167,7 +167,7 @@ public class DataSourceTests extends StandardMariadbBaseTest {
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "url",
-        "jdbc:mariadb://" + STANDARD_HOST + "/" + STANDARD_DB + "?permitMysqlScheme");
+        "jdbc:mariadb://" + STANDARD_WRITER + "/" + STANDARD_DB + "?permitMysqlScheme");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();

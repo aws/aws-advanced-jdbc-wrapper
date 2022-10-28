@@ -49,7 +49,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -71,7 +71,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     targetDataSourceProps.setProperty("user", STANDARD_USERNAME);
     targetDataSourceProps.setProperty("password", STANDARD_PASSWORD);
@@ -94,7 +94,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -129,7 +129,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -146,7 +146,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -165,7 +165,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -182,7 +182,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -201,7 +201,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     final Properties targetDataSourceProps = new Properties();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_WRITER + "/" + STANDARD_DB);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
@@ -221,7 +221,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     ds.setJdbcUrl(
         postgresProtocolPrefix
-            + STANDARD_HOST
+            + STANDARD_WRITER
             + ":" + STANDARD_PORT + "/"
             + STANDARD_DB
             + "?user=" + STANDARD_USERNAME
@@ -246,7 +246,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     ds.setJdbcUrl(
         postgresProtocolPrefix
-        + STANDARD_HOST
+        + STANDARD_WRITER
         + ":" + STANDARD_PORT + "/"
         + STANDARD_DB);
 
@@ -269,7 +269,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     targetDataSourceProps.setProperty("databaseName", "proxy-driver-test-db");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_WRITER + "/" + STANDARD_DB);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
@@ -285,7 +285,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_WRITER + "/" + STANDARD_DB);
 
     assertThrows(
         PSQLException.class,
@@ -301,7 +301,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
 
     final Properties targetDataSourceProps = new Properties();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_HOST + "/");
+    ds.setJdbcUrl(postgresProtocolPrefix + STANDARD_WRITER + "/");
 
     assertThrows(
         PSQLException.class,
@@ -314,7 +314,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
-        + STANDARD_HOST
+        + STANDARD_WRITER
         + ":" + STANDARD_PORT + "/"
         + STANDARD_DB);
 
@@ -332,7 +332,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setPortPropertyName("port");
     ds.setJdbcUrl(
         DB_CONN_STR_PREFIX
-            + STANDARD_HOST
+            + STANDARD_WRITER
             + ":" + STANDARD_PORT + "/"
             + STANDARD_DB
             + "?user=" + STANDARD_USERNAME
@@ -349,7 +349,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
   @Test
   public void testConnectionWithUrlMissingPort() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_WRITER + "/" + STANDARD_DB);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn.isWrapperFor(org.postgresql.PGConnection.class));
@@ -363,7 +363,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
   public void testConnectionWithUrlMissingDatabase() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_WRITER + ":" + STANDARD_PORT + "/");
 
     assertThrows(
         PSQLException.class,
@@ -374,7 +374,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
   public void testConnectionWithUrlMissingUser() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_WRITER + ":" + STANDARD_PORT + "/");
 
     assertThrows(
         PSQLException.class,
@@ -385,7 +385,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
   public void testConnectionWithUrlMissingPassword() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_HOST + ":" + STANDARD_PORT + "/");
+    ds.setJdbcUrl(DB_CONN_STR_PREFIX + STANDARD_WRITER + ":" + STANDARD_PORT + "/");
 
     assertThrows(
         PSQLException.class,
@@ -403,7 +403,7 @@ public class StandardPostgresDataSourceTest extends StandardPostgresBaseTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 

@@ -165,11 +165,11 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
       final Statement stmt1 = conn.createStatement();
-      stmt1.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
+      stmt1.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyTransaction");
       stmt1.executeUpdate(
-          "CREATE TABLE test_splitting_readonly_transaction "
+          "CREATE TABLE test_readWriteSplitting_readOnlyTransaction "
               + "(id int not null primary key, text_field varchar(255) not null)");
-      stmt1.executeUpdate("INSERT INTO test_splitting_readonly_transaction VALUES (1, 'test_field value 1')");
+      stmt1.executeUpdate("INSERT INTO test_readWriteSplitting_readOnlyTransaction VALUES (1, 'test_field value 1')");
 
       conn.setReadOnly(true);
       final String readerConnectionId = queryInstanceId(conn);
@@ -177,7 +177,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
 
       final Statement stmt2 = conn.createStatement();
       stmt2.execute("START TRANSACTION READ ONLY");
-      stmt2.executeQuery("SELECT count(*) from test_splitting_readonly_transaction");
+      stmt2.executeQuery("SELECT count(*) from test_readWriteSplitting_readOnlyTransaction");
 
       final ReadWriteSplittingSQLException exception =
           assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(false));
@@ -190,7 +190,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
       final Statement stmt3 = conn.createStatement();
-      stmt3.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
+      stmt3.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyTransaction");
     }
   }
 
@@ -205,11 +205,12 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
       final Statement stmt1 = conn.createStatement();
-      stmt1.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
+      stmt1.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyFalseInTransaction");
       stmt1.executeUpdate(
-          "CREATE TABLE test_splitting_readonly_transaction "
+          "CREATE TABLE test_readWriteSplitting_readOnlyFalseInTransaction "
               + "(id int not null primary key, text_field varchar(255) not null)");
-      stmt1.executeUpdate("INSERT INTO test_splitting_readonly_transaction VALUES (1, 'test_field value 1')");
+      stmt1.executeUpdate(
+          "INSERT INTO test_readWriteSplitting_readOnlyFalseInTransaction VALUES (1, 'test_field value 1')");
 
       conn.setReadOnly(true);
       final String readerConnectionId = queryInstanceId(conn);
@@ -217,7 +218,7 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
 
       final Statement stmt2 = conn.createStatement();
       conn.setAutoCommit(false);
-      stmt2.executeQuery("SELECT count(*) from test_splitting_readonly_transaction");
+      stmt2.executeQuery("SELECT count(*) from test_readWriteSplitting_readOnlyFalseInTransaction");
 
       final ReadWriteSplittingSQLException exception =
           assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(false));
@@ -229,8 +230,9 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       writerConnectionId = queryInstanceId(conn);
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
+      conn.setAutoCommit(true);
       final Statement stmt3 = conn.createStatement();
-      stmt3.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
+      stmt3.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyFalseInTransaction");
     }
   }
 
@@ -245,15 +247,17 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
       assertTrue(isDBInstanceWriter(writerConnectionId));
 
       final Statement stmt1 = conn.createStatement();
-      stmt1.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
+      stmt1.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyTrueInTransaction");
       stmt1.executeUpdate(
-          "CREATE TABLE test_splitting_readonly_transaction "
+          "CREATE TABLE test_readWriteSplitting_readOnlyTrueInTransaction "
               + "(id int not null primary key, text_field varchar(255) not null)");
       conn.setAutoCommit(false);
 
       final Statement stmt2 = conn.createStatement();
-      stmt2.executeUpdate("INSERT INTO test_splitting_readonly_transaction VALUES (1, 'test_field value 1')");
+      stmt2.executeUpdate(
+          "INSERT INTO test_readWriteSplitting_readOnlyTrueInTransaction VALUES (1, 'test_field value 1')");
 
+      // Postgres does not allow changing the read-only property inside a transaction
       final SQLException e = assertThrows(SQLException.class, () -> conn.setReadOnly(true));
       assertEquals(SqlState.ACTIVE_SQL_TRANSACTION.getState(), e.getSQLState());
       writerConnectionId = queryInstanceId(conn);
@@ -261,12 +265,13 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
 
       stmt2.execute("COMMIT");
       conn.setAutoCommit(true);
-      final ResultSet rs = stmt2.executeQuery("SELECT count(*) from test_splitting_readonly_transaction");
+      final ResultSet rs = stmt2.executeQuery("SELECT count(*) from test_readWriteSplitting_readOnlyTrueInTransaction");
       rs.next();
       assertEquals(1, rs.getInt(1));
 
       conn.setReadOnly(false);
-      stmt2.executeUpdate("DROP TABLE IF EXISTS test_splitting_readonly_transaction");
+      conn.setAutoCommit(true);
+      stmt2.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyTrueInTransaction");
     }
   }
 

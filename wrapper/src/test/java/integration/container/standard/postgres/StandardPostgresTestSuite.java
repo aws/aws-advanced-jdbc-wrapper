@@ -23,9 +23,10 @@ import org.junit.platform.suite.api.Suite;
 // To add additional tests, append it inside SelectClasses, comma-separated
 @Suite
 @SelectClasses({
-  LogLevelTests.class,
-  StandardPostgresIntegrationTest.class,
-  StandardPostgresDataSourceTest.class,
-  LogQueryPluginTests.class
+    LogLevelTests.class,
+    StandardPostgresIntegrationTest.class,
+    StandardPostgresDataSourceTest.class,
+    LogQueryPluginTests.class,
+    StandardPostgresReadWriteSplittingTest.class
 })
 public class StandardPostgresTestSuite {}

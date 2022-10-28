@@ -37,7 +37,7 @@ public class StandardMariadbBaseTest extends StandardBaseTest {
   @BeforeAll
   public static void setUpMariadb() throws SQLException, IOException, ClassNotFoundException {
     DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
-    STANDARD_HOST = System.getenv("STANDARD_MARIADB_HOST");
+    STANDARD_WRITER = System.getenv("STANDARD_MARIADB_HOST");
     STANDARD_PORT = Integer.parseInt(System.getenv("STANDARD_MARIADB_PORT"));
     STANDARD_DB = System.getenv("STANDARD_MARIADB_DB");
     STANDARD_USERNAME = System.getenv("STANDARD_MARIADB_USERNAME");

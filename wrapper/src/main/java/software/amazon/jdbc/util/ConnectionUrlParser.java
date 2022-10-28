@@ -38,24 +38,30 @@ public class ConnectionUrlParser {
 
   private static final RdsUtils rdsUtils = new RdsUtils();
 
-  public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection) {
+  public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection,
+                                                  boolean singleWriterConnectionString) {
     final List<HostSpec> hostsList = new ArrayList<>();
-
     final Matcher matcher = CONNECTION_STRING_PATTERN.matcher(initialConnection);
     if (!matcher.matches()) {
       return hostsList;
     }
+
     final String hosts = matcher.group("hosts") == null ? null : matcher.group("hosts").trim();
     if (hosts != null) {
-      Arrays
-          .stream(hosts.split(HOSTS_SEPARATOR))
-          .forEach(hostString -> {
-            final HostSpec host = parseHostPortPair(hostString);
-            if (host.getHost().isEmpty()) {
-              return;
-            }
-            hostsList.add(host);
-          });
+      final String[] hostArray = hosts.split(HOSTS_SEPARATOR);
+      for (int i = 0; i < hostArray.length; i++) {
+        final HostSpec host;
+        if (singleWriterConnectionString) {
+          final HostRole role = i > 0 ? HostRole.READER : HostRole.WRITER;
+          host = parseHostPortPair(hostArray[i], role);
+        } else {
+          host = parseHostPortPair(hostArray[i]);
+        }
+
+        if (!StringUtils.isNullOrEmpty(host.getHost())) {
+          hostsList.add(host);
+        }
+      }
     }
 
     return hostsList;
@@ -66,6 +72,15 @@ public class ConnectionUrlParser {
     RdsUrlType urlType = rdsUtils.identifyRdsType(hostPortPair[0]);
     // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of WRITER
     HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
+    return getHostSpec(hostPortPair, hostRole);
+  }
+
+  public static HostSpec parseHostPortPair(final String url, HostRole role) {
+    final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
+    return getHostSpec(hostPortPair, role);
+  }
+
+  private static HostSpec getHostSpec(String[] hostPortPair, HostRole hostRole) {
     if (hostPortPair.length > 1) {
       final String[] port = hostPortPair[1].split("/");
       int portValue = parsePortAsInt(hostPortPair[1]);

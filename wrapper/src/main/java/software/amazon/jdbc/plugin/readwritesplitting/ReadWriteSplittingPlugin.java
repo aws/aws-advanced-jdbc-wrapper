@@ -154,7 +154,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final Connection currentConnection = connectFunc.call();
-    if (!isInitialConnection) {
+    if (!isInitialConnection || this.hostListProviderService.isStaticHostListProvider()) {
       return currentConnection;
     }
 

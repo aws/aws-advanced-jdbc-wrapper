@@ -23,9 +23,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 
 class ConnectionUrlParserTest {
@@ -33,7 +35,22 @@ class ConnectionUrlParserTest {
   @MethodSource("testGetHostsFromConnectionUrlArguments")
   void testGetHostsFromConnectionUrl_returnCorrectHostList(String testUrl, List<HostSpec> expected) {
     final ConnectionUrlParser parser = new ConnectionUrlParser();
-    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl);
+    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, false);
+
+    assertEquals(expected.size(), results.size());
+    for (int i = 0; i < expected.size(); i++) {
+      assertEquals(expected.get(i), results.get(i));
+    }
+  }
+
+  @Test
+  void testGetHostsFromConnectionUrl_singleWriterConnectionString() {
+    final ConnectionUrlParser parser = new ConnectionUrlParser();
+    final String testUrl = "jdbc:driver:test://instance-1,instance-2:3303,instance-3/test";
+    final List<HostSpec> expected =
+        Arrays.asList(new HostSpec("instance-1"), new HostSpec("instance-2", 3303, HostRole.READER),
+            new HostSpec("instance-3", HostSpec.NO_PORT, HostRole.READER));
+    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, true);
 
     assertEquals(expected.size(), results.size());
     for (int i = 0; i < expected.size(); i++) {
@@ -65,9 +82,9 @@ class ConnectionUrlParserTest {
         Arguments.of("foo//host:3303/?#", Collections.singletonList(new HostSpec("host", 3303))),
         Arguments.of("jdbc:mysql:replication://host:badInt?param=",
             Collections.singletonList(new HostSpec("host"))),
-        Arguments.of("jdbc:driver:test://source,replica1:3303,host/test",
-            Arrays.asList(new HostSpec("source"), new HostSpec("replica1", 3303),
-                new HostSpec("host")))
+        Arguments.of("jdbc:driver:test://instance-1,instance-2:3303,instance-3/test",
+            Arrays.asList(new HostSpec("instance-1"), new HostSpec("instance-2", 3303),
+                new HostSpec("instance-3")))
     );
   }
 

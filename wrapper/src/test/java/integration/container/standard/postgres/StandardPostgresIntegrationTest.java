@@ -49,24 +49,24 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
         // missing connection prefix
         Arguments.of(buildConnectionString(
             "",
-            STANDARD_HOST,
+            STANDARD_WRITER,
             String.valueOf(STANDARD_PORT),
             STANDARD_DB)),
         // missing port
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_HOST,
+            STANDARD_WRITER,
             "",
             STANDARD_DB)),
         // incorrect database name
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_HOST,
+            STANDARD_WRITER,
             String.valueOf(STANDARD_PORT),
             "failedDatabaseNameTest")),
         // missing "/" at end of URL
         Arguments.of(DB_CONN_STR_PREFIX
-            + STANDARD_HOST
+            + STANDARD_WRITER
             + ":"
             + STANDARD_PORT)
     );
@@ -77,7 +77,7 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
         // missing username
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_HOST,
+            STANDARD_WRITER,
             String.valueOf(STANDARD_PORT),
             STANDARD_DB),
             "",
@@ -85,7 +85,7 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
         // missing password
         Arguments.of(buildConnectionString(
             DB_CONN_STR_PREFIX,
-            STANDARD_HOST,
+            STANDARD_WRITER,
             String.valueOf(STANDARD_PORT),
              STANDARD_DB),
             STANDARD_USERNAME,
@@ -105,9 +105,9 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
 
     try (Connection conn = connectToProxy()) {
       assertTrue(conn.isValid(5));
-      containerHelper.disableConnectivity(proxy);
+      containerHelper.disableConnectivity(proxyWriter);
       assertFalse(conn.isValid(5));
-      containerHelper.enableConnectivity(proxy);
+      containerHelper.enableConnectivity(proxyWriter);
     }
   }
 
@@ -125,7 +125,7 @@ public class StandardPostgresIntegrationTest extends StandardPostgresBaseTest {
   @Test
   public void testSuccessOpenConnectionNoPort() throws SQLException {
     String url =
-        DB_CONN_STR_PREFIX + STANDARD_HOST + "/" + STANDARD_DB;
+        DB_CONN_STR_PREFIX + STANDARD_WRITER + "/" + STANDARD_DB;
     try (Connection conn = connectCustomUrl(url, initDefaultProps())) {
 
       assertTrue(conn instanceof ConnectionWrapper);

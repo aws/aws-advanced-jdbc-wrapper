@@ -20,6 +20,9 @@ import com.mysql.cj.util.StringUtils;
 import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,7 +35,10 @@ import software.amazon.jdbc.Driver;
 public class StandardPostgresContainerTest {
 
   private static final String STANDARD_POSTGRES_TEST_RUNNER_NAME = "test-container";
-  private static final String STANDARD_POSTGRES_HOST = "standard-postgres-container";
+  private static final String STANDARD_POSTGRES_WRITER = "standard-postgres-writer";
+  private static final String STANDARD_POSTGRES_READER = "standard-postgres-reader";
+  private static final List<String>
+      postgresInstances = Arrays.asList(STANDARD_POSTGRES_WRITER, STANDARD_POSTGRES_READER);
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static final int STANDARD_POSTGRES_PORT = 5432;
 
@@ -49,9 +55,10 @@ public class StandardPostgresContainerTest {
   // "openjdk" or "graalvm". Default is "openjdk"
   private static final String TEST_CONTAINER_TYPE = System.getenv("TEST_CONTAINER_TYPE");
 
-  private static PostgreSQLContainer<?> postgresContainer;
+  private static PostgreSQLContainer<?> postgresWriterContainer;
+  private static PostgreSQLContainer<?> postgresReaderContainer;
   private static GenericContainer<?> integrationTestContainer;
-  private static ToxiproxyContainer proxyContainer;
+  private static List<ToxiproxyContainer> proxyContainers = new ArrayList<>();
   private static int postgresProxyPort;
   private static Network network;
   private static final ContainerHelper containerHelper = new ContainerHelper();
@@ -68,14 +75,21 @@ public class StandardPostgresContainerTest {
 
     network = Network.newNetwork();
 
-    postgresContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_HOST,
+    postgresWriterContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_WRITER,
         STANDARD_POSTGRES_DB, STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD);
-    postgresContainer.start();
+    postgresWriterContainer.start();
 
-    proxyContainer =
-        containerHelper.createProxyContainer(network, STANDARD_POSTGRES_HOST, PROXIED_DOMAIN_NAME_SUFFIX);
-    proxyContainer.start();
-    postgresProxyPort = containerHelper.createInstanceProxy(STANDARD_POSTGRES_HOST, proxyContainer,
+    postgresReaderContainer = containerHelper.createPostgresContainer(network, STANDARD_POSTGRES_READER,
+        STANDARD_POSTGRES_DB, STANDARD_POSTGRES_USERNAME, STANDARD_POSTGRES_PASSWORD);
+    postgresReaderContainer.start();
+
+    proxyContainers =
+        containerHelper.createProxyContainers(network, postgresInstances, PROXIED_DOMAIN_NAME_SUFFIX);
+    for (ToxiproxyContainer container : proxyContainers) {
+      container.start();
+    }
+
+    postgresProxyPort = containerHelper.createInstanceProxies(postgresInstances, proxyContainers,
         STANDARD_POSTGRES_PORT);
 
     integrationTestContainer = createTestContainer();
@@ -84,12 +98,18 @@ public class StandardPostgresContainerTest {
 
   @AfterAll
   static void tearDown() {
-    if (proxyContainer != null) {
-      proxyContainer.stop();
+    for (ToxiproxyContainer proxy : proxyContainers) {
+      proxy.stop();
     }
-    if (postgresContainer != null) {
-      postgresContainer.stop();
+
+    if (postgresWriterContainer != null) {
+      postgresWriterContainer.stop();
     }
+
+    if (postgresReaderContainer != null) {
+      postgresReaderContainer.stop();
+    }
+
     if (integrationTestContainer != null) {
       integrationTestContainer.stop();
     }
@@ -113,13 +133,15 @@ public class StandardPostgresContainerTest {
     return containerHelper.createTestContainerByType(TEST_CONTAINER_TYPE, "aws/rds-test-container")
         .withNetworkAliases(STANDARD_POSTGRES_TEST_RUNNER_NAME)
         .withNetwork(network)
-        .withEnv("STANDARD_POSTGRES_HOST", STANDARD_POSTGRES_HOST)
+        .withEnv("STANDARD_POSTGRES_WRITER", STANDARD_POSTGRES_WRITER)
+        .withEnv("STANDARD_POSTGRES_READER", STANDARD_POSTGRES_READER)
         .withEnv("STANDARD_POSTGRES_PORT", String.valueOf(STANDARD_POSTGRES_PORT))
         .withEnv("STANDARD_POSTGRES_DB", STANDARD_POSTGRES_DB)
         .withEnv("STANDARD_POSTGRES_USERNAME", STANDARD_POSTGRES_USERNAME)
         .withEnv("STANDARD_POSTGRES_PASSWORD", STANDARD_POSTGRES_PASSWORD)
         .withEnv("PROXY_PORT", Integer.toString(postgresProxyPort))
         .withEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX)
-        .withEnv("TOXIPROXY_HOST", "toxiproxy-instance");
+        .withEnv("TOXIPROXY_WRITER", "toxiproxy-instance-1")
+        .withEnv("TOXIPROXY_READER", "toxiproxy-instance-2");
   }
 }
