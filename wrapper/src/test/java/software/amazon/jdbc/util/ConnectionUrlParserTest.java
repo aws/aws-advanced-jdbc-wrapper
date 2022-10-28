@@ -108,7 +108,7 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value?"), "value?"),
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value&"), "value&"),
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value"
-        + new String(Character.toChars(0x1f604))), "value" + new String(Character.toChars(0x1f604)))
+            + new String(Character.toChars(0x007E))), "value~")
     );
   }
 }
