@@ -80,7 +80,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
           + "ORDER BY LAST_UPDATE_TIMESTAMP";
 
   static final String MYSQL_RETRIEVE_TOPOLOGY_SQL =
-      "SELECT SERVER_ID, SESSION_ID "
+      "SELECT SERVER_ID, SEasdasdasdSSION_ID asdasd"
           + "FROM information_schema.replica_host_status "
           // filter out nodes that haven't been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
@@ -366,11 +366,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologyQuery)) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
-      // ignore
+      throw new SQLException("Error obtaining host list. Provided database might not be an Aurora Db cluster: " + e);
     }
-
-    return new ClusterTopologyInfo(
-        this.clusterId, new ArrayList<>(), Instant.now(), false, this.isPrimaryClusterId);
   }
 
   /**
