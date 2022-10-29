@@ -366,7 +366,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologyQuery)) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException("Error obtaining host list. Provided database might not be an Aurora Db cluster: " + e);
+        throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery") + ": " + e);
     }
   }
 
