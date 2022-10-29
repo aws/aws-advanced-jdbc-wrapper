@@ -22,6 +22,8 @@ import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
@@ -69,7 +71,18 @@ public class Driver implements java.sql.Driver {
   }
 
   public static boolean isRegistered() {
-    return registeredDriver != null;
+    if (registeredDriver != null) {
+      List<java.sql.Driver> registeredDrivers = Collections.list(DriverManager.getDrivers());
+      for (java.sql.Driver d : registeredDrivers) {
+        if (d == registeredDriver) {
+          return true;
+        }
+      }
+
+      // Driver isn't registered with DriverManager.
+      registeredDriver = null;
+    }
+    return false;
   }
 
   @Override

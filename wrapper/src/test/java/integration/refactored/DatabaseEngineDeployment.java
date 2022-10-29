@@ -14,22 +14,10 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mariadb;
+package integration.refactored;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
-import org.junit.platform.suite.api.SuiteDisplayName;
-
-// Tests will run in order of top to bottom.
-// To add additional tests, append it inside SelectClasses, comma-separated
-@Suite
-@SelectClasses({
-  StandardMariadbIntegrationTest.class,
-  DataCachePluginTests.class,
-  DataSourceTests.class,
-  HikariTests.class,
-  LogQueryPluginTests.class,
-  SpringTests.class,
-  StandardMariadbReadWriteSplittingTest.class
-})
-public class StandardMariadbTestSuite {}
+public enum DatabaseEngineDeployment {
+  DOCKER,
+  RDS,
+  AURORA
+}

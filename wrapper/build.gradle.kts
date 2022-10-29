@@ -23,6 +23,7 @@ plugins {
     id("com.github.spotbugs")
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
+    id("com.kncept.junit.reporter") version "2.1.0"
 }
 
 dependencies {
@@ -206,86 +207,142 @@ tasks.jar {
     }
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+junitHtmlReport {
+    // The maximum depth to traverse from the results dir.
+    // Any eligible reports will be included
+    maxDepth = 9
 
-    systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
-}
+    //RAG status css overrides
+    cssRed = "red"
+    cssAmber = "orange"
+    cssGreen = "green"
 
-// Run Aurora Postgres integrations tests in container
-tasks.register<Test>("test-integration-aurora-postgres") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.runTestInContainer")
-}
+    //Processing directories
+    testResultsDir = "test-results"
+    testReportsDir = "report"
 
-tasks.register<Test>("test-performance-aurora-postgres") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.runPerformanceTestInContainer")
-}
-
-// Run standard Postgres tests in container
-tasks.register<Test>("test-integration-standard-postgres") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.runTestInContainer")
-}
-
-// Run Aurora Postgres integration tests in container with debugger
-tasks.register<Test>("debug-integration-aurora-postgres") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.debugTestInContainer")
-}
-
-tasks.register<Test>("debug-performance-aurora-postgres") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.debugPerformanceTestInContainer")
-}
-
-// Run standard Postgres integration tests in container with debugger
-tasks.register<Test>("debug-integration-standard-postgres") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardPostgresContainerTest.debugTestInContainer")
-}
-
-// Run Aurora Mysql integrations tests in container
-tasks.register<Test>("test-integration-aurora-mysql") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraMysqlContainerTest.runTestInContainer")
-}
-
-// Run standard Mysql tests in container
-tasks.register<Test>("test-integration-standard-mysql") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.runTestInContainer")
-}
-
-// Run Aurora Mysql integration tests in container with debugger
-tasks.register<Test>("debug-integration-aurora-mysql") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.AuroraMysqlContainerTest.debugTestInContainer")
-}
-
-// Run standard Mysql integration tests in container with debugger
-tasks.register<Test>("debug-integration-standard-mysql") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardMysqlContainerTest.debugTestInContainer")
-}
-
-// Run standard Mariadb tests in container
-tasks.register<Test>("test-integration-standard-mariadb") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardMariadbContainerTest.runTestInContainer")
-}
-
-// Run standard Mariadb integration tests in container with debugger
-tasks.register<Test>("debug-integration-standard-mariadb") {
-    group = "verification"
-    filter.includeTestsMatching("integration.host.StandardMariadbContainerTest.debugTestInContainer")
+    //Fail build when no XML files to process
+    isFailOnEmpty = true
 }
 
 tasks.withType<Test> {
     dependsOn("jar")
-    this.testLogging {
+    testLogging {
         this.showStandardStreams = true
     }
     useJUnitPlatform()
+
+    System.getProperties().forEach {
+        if (it.key.toString().startsWith("test-no-")) {
+            systemProperty(it.key.toString(), it.value.toString());
+        }
+    }
+
+    // Disable the test report for the individual test task
+    reports.junitXml.required.set(true)
+    reports.html.required.set(false)
+
+    systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
+
+    finalizedBy("junitHtmlReport")
+}
+
+tasks.register<Test>("test-all-environments") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-performance", "true")
+    }
+}
+
+tasks.register<Test>("test-all-docker") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-performance", "true")
+    }
+}
+
+tasks.register<Test>("test-all-aurora") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+    }
+}
+
+// Debug
+
+tasks.register<Test>("debug-all-environments") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-no-performance", "true")
+    }
+}
+
+tasks.register<Test>("debug-all-docker") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-performance", "true")
+    }
+}
+
+tasks.register<Test>("debug-all-aurora") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+    }
+}
+
+// Performance
+
+tasks.register<Test>("test-all-aurora-performance") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-iam", "true")
+        systemProperty("test-no-hikari", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-graalvm", "true")
+    }
+}
+
+tasks.register<Test>("test-aurora-pg-performance") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-iam", "true")
+        systemProperty("test-no-hikari", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+    }
+}
+
+tasks.register<Test>("test-aurora-mysql-performance") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-iam", "true")
+        systemProperty("test-no-hikari", "true")
+        systemProperty("test-no-secrets-manager", "true")
+        systemProperty("test-no-graalvm", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+    }
 }

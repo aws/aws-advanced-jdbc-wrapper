@@ -24,6 +24,7 @@ import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.model.ToxicDirection;
+import integration.refactored.TestInstanceInfo;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -35,6 +36,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,7 +60,8 @@ import org.testcontainers.utility.TestEnvironment;
 
 public class ContainerHelper {
   private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK = "openjdk:8-jdk-alpine";
-  private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM = "ghcr.io/graalvm/jdk:java8-21.2.0";
+  private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM =
+      "ghcr.io/graalvm/jdk:java8-21.2.0";
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.28";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:latest";
@@ -73,13 +76,22 @@ public class ContainerHelper {
           + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
   private static final String SERVER_ID = "SERVER_ID";
 
-  public void runTest(GenericContainer<?> container, String task)
+  public void runCmd(GenericContainer<?> container, String cmd)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
+    Long exitCode = execInContainer(container, consumer, cmd);
+    System.out.println("==== Container console feed ==== <<<<");
+  }
+
+  public void runTest(GenericContainer<?> container, String task)
+      throws IOException, InterruptedException {
+    System.out.println("==== Container console feed ==== >>>>");
+    Consumer<OutputFrame> consumer = new ConsoleConsumer(true);
+    execInContainer(container, consumer, "printenv", "TEST_ENV_DESCRIPTION");
     execInContainer(container, consumer, "java", "-version");
-    Long exitCode = execInContainer(container, consumer, "./gradlew", task,
-        "--no-parallel", "--no-daemon");
+    Long exitCode =
+        execInContainer(container, consumer, "./gradlew", task, "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
   }
@@ -88,14 +100,17 @@ public class ContainerHelper {
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
+    execInContainer(container, consumer, "printenv", "TEST_ENV_DESCRIPTION");
     execInContainer(container, consumer, "java", "-version");
-    Long exitCode = execInContainer(container, consumer, "./gradlew", task,
-        "--debug-jvm", "--no-parallel", "--no-daemon");
+    Long exitCode =
+        execInContainer(
+            container, consumer, "./gradlew", task, "--debug-jvm", "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
-    assertEquals(0, exitCode, "Some tests failed.");
+    // assertEquals(0, exitCode, "Some tests failed.");
   }
 
-  public GenericContainer<?> createTestContainerByType(String containerType, String dockerImageName) {
+  public GenericContainer<?> createTestContainerByType(
+      String containerType, String dockerImageName) {
     if (containerType == null) {
       containerType = "";
     }
@@ -110,8 +125,7 @@ public class ContainerHelper {
 
   public GenericContainer<?> createTestContainer(
       String dockerImageName, String testContainerImageName) {
-    class FixedExposedPortContainer<T extends GenericContainer<T>>
-        extends GenericContainer<T> {
+    class FixedExposedPortContainer<T extends GenericContainer<T>> extends GenericContainer<T> {
 
       public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
         super(withDockerfileFromBuilder);
@@ -125,20 +139,28 @@ public class ContainerHelper {
     }
 
     return new FixedExposedPortContainer<>(
-        new ImageFromDockerfile(dockerImageName, true)
-            .withDockerfileFromBuilder(
-                builder ->
-                    builder
-                        .from(testContainerImageName)
-                        .run("mkdir", "app")
-                        .workDir("/app")
-                        .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
-                        .expose(5005) // Exposing ports for debugger to be attached
-                        .build()))
+            new ImageFromDockerfile(dockerImageName, true)
+                .withDockerfileFromBuilder(
+                    builder ->
+                        builder
+                            .from(testContainerImageName)
+                            .run("mkdir", "app")
+                            .workDir("/app")
+                            .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
+                            .expose(5005) // Exposing ports for debugger to be attached
+                            .build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind(
             "./build/reports/tests",
             "/app/build/reports/tests",
+            BindMode.READ_WRITE) // some tests may write some files here
+        .withFileSystemBind(
+            "./build/test-results",
+            "/app/build/test-results",
+            BindMode.READ_WRITE) // some tests may write some files here
+        .withFileSystemBind(
+            "./build/jacoco",
+            "/app/build/jacoco",
             BindMode.READ_WRITE) // some tests may write some files here
         .withFileSystemBind("../gradle", "/app/gradle", BindMode.READ_WRITE)
         .withPrivilegedMode(true) // it's needed to control Linux core settings like TcpKeepAlive
@@ -212,7 +234,9 @@ public class ContainerHelper {
 
   protected boolean isRunning(InspectContainerResponse containerInfo) {
     try {
-      return containerInfo != null && containerInfo.getState() != null && containerInfo.getState().getRunning();
+      return containerInfo != null
+          && containerInfo.getState() != null
+          && containerInfo.getState().getRunning();
     } catch (DockerException e) {
       return false;
     }
@@ -308,7 +332,8 @@ public class ContainerHelper {
     while (attemptCount-- > 0) {
       try {
         auroraInstances.clear();
-        try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
+        try (final Connection conn =
+                DriverManager.getConnection(connectionUrl, userName, password);
             final Statement stmt = conn.createStatement()) {
           // Get instances
           try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
@@ -322,7 +347,8 @@ public class ContainerHelper {
         return auroraInstances;
 
       } catch (SQLException ex) {
-        System.err.println("Error getting cluster endpoints for " + connectionUrl + ". " + ex.getMessage());
+        System.err.println(
+            "Error getting cluster endpoints for " + connectionUrl + ". " + ex.getMessage());
         if (attemptCount <= 0) {
           throw ex;
         }
@@ -336,8 +362,8 @@ public class ContainerHelper {
     return auroraInstances;
   }
 
-  public List<String> getAuroraInstanceIds(String connectionUrl, String userName, String password, String database)
-      throws SQLException {
+  public List<String> getAuroraInstanceIds(
+      String connectionUrl, String userName, String password, String database) throws SQLException {
 
     String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
     if (database.equals("mysql")) {
@@ -346,7 +372,7 @@ public class ContainerHelper {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement()) {
+        final Statement stmt = conn.createStatement()) {
       // Get instances
       try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
         while (resultSet.next()) {
@@ -359,13 +385,14 @@ public class ContainerHelper {
     return auroraInstances;
   }
 
-  public void addAuroraAwsIamUser(String connectionUrl, String userName, String password, String dbUser)
-      throws SQLException {
+  public void addAuroraAwsIamUser(
+      String connectionUrl, String userName, String password, String dbUser) throws SQLException {
 
     final String dropAwsIamUserSQL = "DROP USER IF EXISTS " + dbUser + ";";
-    final String createAwsIamUserSQL = "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
+    final String createAwsIamUserSQL =
+        "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement()) {
+        final Statement stmt = conn.createStatement()) {
       stmt.execute(dropAwsIamUserSQL);
       stmt.execute(createAwsIamUserSQL);
     }
@@ -380,7 +407,8 @@ public class ContainerHelper {
           new ToxiproxyContainer(TOXIPROXY_IMAGE)
               .withNetwork(network)
               .withNetworkAliases(
-                  "toxiproxy-instance-" + (++instanceCount), hostEndpoint + proxyDomainNameSuffix));
+                  "toxiproxy-instance-" + (++instanceCount),
+                  hostEndpoint + proxyDomainNameSuffix));
     }
     return containers;
   }
@@ -389,8 +417,16 @@ public class ContainerHelper {
       final Network network, String hostEndpoint, String proxyDomainNameSuffix) {
     return new ToxiproxyContainer(TOXIPROXY_IMAGE)
         .withNetwork(network)
+        .withNetworkAliases("toxiproxy-instance", hostEndpoint + proxyDomainNameSuffix);
+  }
+
+  public ToxiproxyContainer createProxyContainer(
+      final Network network, TestInstanceInfo instance, String proxyDomainNameSuffix) {
+    return new ToxiproxyContainer(TOXIPROXY_IMAGE)
+        .withNetwork(network)
         .withNetworkAliases(
-            "toxiproxy-instance", hostEndpoint + proxyDomainNameSuffix);
+            "proxy-instance-" + instance.getInstanceName(),
+            instance.getEndpoint() + proxyDomainNameSuffix);
   }
 
   // return db cluster instance proxy port
@@ -402,6 +438,21 @@ public class ContainerHelper {
       String instanceEndpoint = clusterInstances.get(i);
       ToxiproxyContainer container = containers.get(i);
       ToxiproxyContainer.ContainerProxy proxy = container.getProxy(instanceEndpoint, port);
+      proxyPorts.add(proxy.getOriginalProxyPort());
+    }
+    assertEquals(1, proxyPorts.size(), "DB cluster proxies should be on the same port.");
+    return proxyPorts.stream().findFirst().orElse(0);
+  }
+
+  // return db cluster instance proxy port
+  public int createInstanceProxies(
+      List<TestInstanceInfo> instances, HashMap<String, ToxiproxyContainer> containers) {
+    Set<Integer> proxyPorts = new HashSet<>();
+
+    for (TestInstanceInfo instance : instances) {
+      ToxiproxyContainer container = containers.get(instance.getInstanceName());
+      ToxiproxyContainer.ContainerProxy proxy =
+          container.getProxy(instance.getEndpoint(), instance.getEndpointPort());
       proxyPorts.add(proxy.getOriginalProxyPort());
     }
     assertEquals(1, proxyPorts.size(), "DB cluster proxies should be on the same port.");
@@ -445,9 +496,7 @@ public class ContainerHelper {
     return 1;
   }
 
-  /**
-   * Stops all traffic to and from server.
-   */
+  /** Stops all traffic to and from server. */
   public void disableConnectivity(Proxy proxy) throws IOException {
     proxy
         .toxics()
@@ -458,9 +507,7 @@ public class ContainerHelper {
         .bandwidth("UP-STREAM", ToxicDirection.UPSTREAM, 0); // from driver towards database server
   }
 
-  /**
-   * Allow traffic to and from server.
-   */
+  /** Allow traffic to and from server. */
   public void enableConnectivity(Proxy proxy) {
     try {
       proxy.toxics().get("DOWN-STREAM").remove();
