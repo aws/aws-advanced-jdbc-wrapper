@@ -29,7 +29,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:rds:2.17.285")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.17.285")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.4")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.4.2")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
     testImplementation("org.junit.platform:junit-platform-engine:1.9.0")
