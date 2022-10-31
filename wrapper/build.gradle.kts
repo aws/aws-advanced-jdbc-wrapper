@@ -41,20 +41,20 @@ dependencies {
 
     testImplementation("org.apache.commons:commons-dbcp2:2.9.0")
     testImplementation("org.postgresql:postgresql:42.5.0")
-    testImplementation("mysql:mysql-connector-java:8.0.30")
+    testImplementation("mysql:mysql-connector-java:8.0.31")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.0.6")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.4")
     testImplementation("org.mockito:mockito-inline:4.8.0")
     testImplementation("software.amazon.awssdk:rds:2.17.285")
-    testImplementation("software.amazon.awssdk:ec2:2.17.285")
+    testImplementation("software.amazon.awssdk:ec2:2.18.1")
     testImplementation("software.amazon.awssdk:secretsmanager:2.17.285")
     testImplementation("org.testcontainers:testcontainers:1.17.4")
     testImplementation("org.testcontainers:mysql:1.17.4")
-    testImplementation("org.testcontainers:postgresql:1.17.4")
+    testImplementation("org.testcontainers:postgresql:1.17.5")
     testImplementation("org.testcontainers:mariadb:1.17.3")
     testImplementation("org.testcontainers:junit-jupiter:1.17.4")
-    testImplementation("org.testcontainers:toxiproxy:1.17.4")
+    testImplementation("org.testcontainers:toxiproxy:1.17.5")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
     testImplementation("org.slf4j:slf4j-simple:2.0.3")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
@@ -124,14 +124,41 @@ tasks.spotbugsTest {
     }
 }
 
-tasks.jacocoTestCoverageVerification {
+tasks.withType<JacocoCoverageVerification> {
     violationRules {
         rule {
             limit {
-                // Coverage verification will pass if it is greater than or equal to 1%.
-                minimum = "0.01".toBigDecimal()
+                minimum = BigDecimal(0.57)
             }
         }
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.map {
+            fileTree(it).apply {
+                exclude(
+                        "software/amazon/jdbc/wrapper/*",
+                        "software/amazon/jdbc/util/*",
+                        "software/amazon/jdbc/profile/*",
+                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                )
+            }
+        }))
+    }
+}
+
+tasks.withType<JacocoReport> {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.map {
+            fileTree(it).apply {
+                exclude(
+                        "software/amazon/jdbc/wrapper/*",
+                        "software/amazon/jdbc/util/*",
+                        "software/amazon/jdbc/profile/*",
+                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                )
+            }
+        }))
     }
 }
 

@@ -47,6 +47,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 import software.amazon.jdbc.util.SqlState;
 
+@Disabled
 public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
 
   private static Stream<Arguments> testParameters() {

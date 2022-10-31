@@ -35,7 +35,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
 
     Assertions.assertThrows(
         SQLException.class,
-        () -> DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props)
+        () -> DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props)
     );
   }
 
@@ -48,7 +48,7 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
 
     Assertions.assertThrows(
         SQLException.class,
-        () -> DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props)
+        () -> DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props)
     );
   }
 
@@ -56,14 +56,14 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
    * Attempt to connect using IP address instead of a hostname.
    */
   @Test
-  public void test_AwsIam_UsingIPAddress() throws UnknownHostException {
-    final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
+  public void test_AwsIam_UsingIPAddress() throws UnknownHostException, SQLException {
+    final Properties props = initAwsIamPropsMariaDB(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
 
     final String hostIp = hostToIP(MYSQL_CLUSTER_URL);
-    Assertions.assertThrows(
-        SQLException.class,
-        () -> connectToInstance(hostIp, AURORA_MYSQL_PORT, props)
-    );
+    props.setProperty("iamHost", MYSQL_CLUSTER_URL);
+
+    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + hostIp + "?permitMysqlScheme", props);
+    Assertions.assertDoesNotThrow(conn::close);
   }
 
   /**
@@ -71,9 +71,10 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
    */
   @Test
   public void test_AwsIam_ValidConnectionProperties() throws SQLException {
-    final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
+    final Properties props = initAwsIamPropsMariaDB(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
 
-    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props);
+    final Connection conn = DriverManager.getConnection(
+        DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props);
     Assertions.assertDoesNotThrow(conn::close);
   }
 
@@ -82,8 +83,10 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
    */
   @Test
   public void test_AwsIam_ValidConnectionPropertiesNoPassword() throws SQLException {
-    final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, "");
-    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL, props);
+    final Properties props = initAwsIamPropsMariaDB(AURORA_MYSQL_DB_USER, "");
+
+    final Connection conn = DriverManager.getConnection(
+        DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme", props);
     Assertions.assertDoesNotThrow(conn::close);
   }
 
@@ -93,10 +96,10 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
    */
   @Test
   void test_AwsIam_NoAwsProtocolConnection() throws SQLException {
-    final String dbConn = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL;
-    final Properties validProp = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
+    final String dbConn = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme";
+    final Properties validProp = initAwsIamPropsMariaDB(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
     final Properties invalidProp =
-        initAwsIamProps("WRONG_" + AURORA_MYSQL_DB_USER + "_USER", AURORA_MYSQL_PASSWORD);
+        initAwsIamPropsMariaDB("WRONG_" + AURORA_MYSQL_DB_USER + "_USER", AURORA_MYSQL_PASSWORD);
 
     final Connection conn = DriverManager.getConnection(dbConn, validProp);
     Assertions.assertDoesNotThrow(conn::close);
@@ -112,22 +115,29 @@ public class AuroraMysqlAwsIamIntegrationTest extends MariadbAuroraMysqlBaseTest
    */
   @Test
   void test_AwsIam_UserInConnStr() throws SQLException {
-    final String dbConn = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL;
-    final Properties awsIamProp = initDefaultProps();
+    final String dbConn = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "?permitMysqlScheme";
+    final Properties awsIamProp = initAwsIamPropsMariaDB("", "");
     awsIamProp.remove(PropertyDefinition.USER.name);
-    awsIamProp.setProperty(PropertyDefinition.PLUGINS.name, "iam");
 
     final Connection validConn =
         DriverManager.getConnection(
-            dbConn + "?" + PropertyDefinition.USER.name + "=" + AURORA_MYSQL_DB_USER,
+            dbConn + "&" + PropertyDefinition.USER.name + "=" + AURORA_MYSQL_DB_USER,
             awsIamProp);
     Assertions.assertNotNull(validConn);
     Assertions.assertThrows(
         SQLException.class,
         () ->
             DriverManager.getConnection(
-                dbConn + "?" + PropertyDefinition.USER.name + "=WRONG_" + AURORA_MYSQL_DB_USER,
+                dbConn + "&" + PropertyDefinition.USER.name + "=WRONG_" + AURORA_MYSQL_DB_USER,
                 awsIamProp)
     );
+  }
+
+  private Properties initAwsIamPropsMariaDB(final String user, final String password) {
+    final Properties props = initAwsIamProps(user, password);
+    props.setProperty("sslMode", "verify-ca");
+    props.setProperty("serverSslCert", "/app/test/resources/rds-ca-2019-root.pem");
+
+    return props;
   }
 }

@@ -16,17 +16,18 @@
 
 package software.amazon;
 
-import software.amazon.jdbc.PropertyDefinition;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import software.amazon.jdbc.PropertyDefinition;
 
-public class AwsIamAuthenticationPostgresqlExample {
-  public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:5432/employees";
+public class AwsIamAuthenticationMariadbExample {
+  public static final String MYSQL_CONNECTION_STRING =
+      "jdbc:aws-wrapper:mariadb://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306";
+
   private static final String USERNAME = "john_smith";
 
   public static void main(String[] args) throws SQLException {
@@ -34,13 +35,20 @@ public class AwsIamAuthenticationPostgresqlExample {
     final Properties properties = new Properties();
 
     // Enable AWS IAM database authentication and configure driver property values
-    properties.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     properties.setProperty(PropertyDefinition.USER.name, USERNAME);
+    properties.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+
+    // The properties sslMode and severSslCert are required when using the IAM Authentication plugin with the MariaDB driver.
+    properties.setProperty("sslMode", "verify-ca");
+
+    // The value of this property should be the path to an SSL certificate.
+    // The certificates can be found here: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html.
+    properties.setProperty("serverSslCert", "path/to/certificate.pem");
 
     // Attempt a connection
-    try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, properties);
+    try (Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, properties);
         Statement statement = conn.createStatement();
-        ResultSet result = statement.executeQuery("select aurora_db_instance_identifier()")) {
+        ResultSet result = statement.executeQuery("select 1")) {
 
       System.out.println(Util.getResult(result));
     }

@@ -19,7 +19,6 @@ package integration.container.aurora.mysql;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
@@ -74,7 +73,7 @@ public abstract class AuroraMysqlBaseTest {
   protected static final String PROXIED_CLUSTER_TEMPLATE =
       System.getenv("PROXIED_CLUSTER_TEMPLATE");
 
-  protected static String DB_CONN_STR_PREFIX;
+  protected static final String DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
   protected static final String DB_CONN_STR_SUFFIX = System.getenv("DB_CONN_STR_SUFFIX");
 
   protected static final String MYSQL_INSTANCE_1_URL = System.getenv("MYSQL_INSTANCE_1_URL");
@@ -187,12 +186,6 @@ public abstract class AuroraMysqlBaseTest {
     proxyMap.put(MYSQL_CLUSTER_URL, proxyCluster);
     proxyMap.put(MYSQL_RO_CLUSTER_URL, proxyReadOnlyCluster);
 
-    try {
-      Class.forName("com.mysql.cj.jdbc.Driver");
-    } catch (ClassNotFoundException e) {
-      fail("MySQL driver not found");
-    }
-
     if (!Driver.isRegistered()) {
       Driver.register();
     }
@@ -208,6 +201,8 @@ public abstract class AuroraMysqlBaseTest {
   public void setUpEach() throws InterruptedException, SQLException {
     proxyMap.forEach((instance, proxy) -> containerHelper.enableConnectivity(proxy));
 
+    waitUntilClusterHasRightState();
+
     // Always get the latest topology info with writer as first
     List<String> latestTopology = getTopologyIds();
     instanceIDs = new String[latestTopology.size()];
@@ -216,8 +211,28 @@ public abstract class AuroraMysqlBaseTest {
     clusterSize = instanceIDs.length;
     assertTrue(
         clusterSize >= 2); // many tests assume that cluster contains at least a writer and a reader
+
+    // Need to ensure that cluster details through API matches topology fetched through SQL
+    // Wait up to 5min
+    long startTimeNano = System.nanoTime();
+    while (!isDBInstanceWriter(instanceIDs[0])
+        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
+
+      Thread.sleep(5000);
+
+      latestTopology = getTopologyIds();
+      instanceIDs = new String[latestTopology.size()];
+      latestTopology.toArray(instanceIDs);
+
+      clusterSize = instanceIDs.length;
+
+      // many tests assume that cluster contains at least a writer and a reader
+      assertTrue(clusterSize >= 2);
+    }
     assertTrue(isDBInstanceWriter(instanceIDs[0]));
+
     makeSureInstancesUp(instanceIDs);
+
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();
   }

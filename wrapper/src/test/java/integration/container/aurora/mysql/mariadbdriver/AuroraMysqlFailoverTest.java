@@ -328,7 +328,7 @@ public class AuroraMysqlFailoverTest extends MariadbAuroraMysqlBaseTest {
 
     // Establish the topology cache so that we can later assert that testConnection does not inherit properties from
     // establishCacheConnection either before or after failover
-    final String url = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB;
+    final String url = DB_CONN_STR_PREFIX + MYSQL_CLUSTER_URL + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme";
     final Connection establishCacheConnection = DriverManager.getConnection(
         url,
         props);

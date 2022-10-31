@@ -16,6 +16,14 @@
 
 package software.amazon.jdbc.plugin.efm;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -24,6 +32,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 class MonitorConnectionContextTest {
@@ -37,6 +48,8 @@ class MonitorConnectionContextTest {
 
   private MonitorConnectionContext context;
   private AutoCloseable closeable;
+
+  @Mock Connection connectionToAbort;
 
   @BeforeEach
   void init() {
@@ -56,7 +69,7 @@ class MonitorConnectionContextTest {
   }
 
   @Test
-  public void test_1_isNodeUnhealthyWithConnection_returnFalse() {
+  public void test_isNodeUnhealthyWithConnection_returnFalse() {
     long currentTimeNano = System.nanoTime();
     context.setConnectionValid(true, currentTimeNano, currentTimeNano);
     Assertions.assertFalse(context.isNodeUnhealthy());
@@ -64,7 +77,7 @@ class MonitorConnectionContextTest {
   }
 
   @Test
-  public void test_2_isNodeUnhealthyWithInvalidConnection_returnFalse() {
+  public void test_isNodeUnhealthyWithInvalidConnection_returnFalse() {
     long currentTimeNano = System.nanoTime();
     context.setConnectionValid(false, currentTimeNano, currentTimeNano);
     Assertions.assertFalse(context.isNodeUnhealthy());
@@ -72,7 +85,7 @@ class MonitorConnectionContextTest {
   }
 
   @Test
-  public void test_3_isNodeUnhealthyExceedsFailureDetectionCount_returnTrue() {
+  public void test_isNodeUnhealthyExceedsFailureDetectionCount_returnTrue() {
     final long expectedFailureCount = FAILURE_DETECTION_COUNT + 1;
     context.setFailureCount(FAILURE_DETECTION_COUNT);
     context.resetInvalidNodeStartTime();
@@ -86,7 +99,7 @@ class MonitorConnectionContextTest {
   }
 
   @Test
-  public void test_4_isNodeUnhealthyExceedsFailureDetectionCount() {
+  public void test_isNodeUnhealthyExceedsFailureDetectionCount() {
     long currentTimeNano = System.nanoTime();
     context.setFailureCount(0);
     context.resetInvalidNodeStartTime();
@@ -113,5 +126,47 @@ class MonitorConnectionContextTest {
 
     context.setConnectionValid(false, statusCheckStartTime, statusCheckEndTime);
     Assertions.assertTrue(context.isNodeUnhealthy());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void test_updateConnectionStatus_inactiveContext(boolean isValid) {
+    final long currentTime = System.nanoTime();
+    final long statusCheckStartTime = System.nanoTime() - FAILURE_DETECTION_TIME_MILLIS;
+
+    final MonitorConnectionContext spyContext = spy(context);
+
+    spyContext.updateConnectionStatus(statusCheckStartTime, currentTime, isValid);
+
+    verify(spyContext).setConnectionValid(eq(isValid), eq(statusCheckStartTime), eq(currentTime));
+  }
+
+  @Test
+  void test_updateConnectionStatus() {
+    final long currentTime = System.nanoTime();
+    final long statusCheckStartTime = System.nanoTime() - 1000;
+    context.invalidate();
+
+    final MonitorConnectionContext spyContext = spy(context);
+
+    spyContext.updateConnectionStatus(statusCheckStartTime, currentTime, true);
+
+    verify(spyContext, never()).setConnectionValid(eq(true), eq(statusCheckStartTime), eq(currentTime));
+  }
+
+  @Test
+  void test_abortConnection_ignoresSqlException() throws SQLException {
+    context =
+        new MonitorConnectionContext(
+            connectionToAbort,
+            NODE_KEYS,
+            FAILURE_DETECTION_TIME_MILLIS,
+            FAILURE_DETECTION_INTERVAL_MILLIS,
+            FAILURE_DETECTION_COUNT);
+
+    doThrow(new SQLException("unexpected SQLException during abort")).when(connectionToAbort).close();
+
+    // An exception will be thrown inside this call, but it should not be propagated.
+    context.abortConnection();
   }
 }

@@ -43,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +61,8 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
 public abstract class AuroraPostgresBaseTest {
+
+  private static final Logger LOGGER = Logger.getLogger(AuroraPostgresBaseTest.class.getName());
 
   protected static final String AURORA_POSTGRES_USERNAME = System.getenv("AURORA_POSTGRES_USERNAME");
   protected static final String AURORA_POSTGRES_PASSWORD = System.getenv("AURORA_POSTGRES_PASSWORD");
@@ -203,19 +206,46 @@ public abstract class AuroraPostgresBaseTest {
   }
 
   @BeforeEach
-  public void setUpEach() throws InterruptedException, SQLException {
+  public void setUpEach() throws InterruptedException, SQLException, IOException {
     proxyMap.forEach((instance, proxy) -> containerHelper.enableConnectivity(proxy));
+
+    waitUntilClusterHasRightState();
 
     // Always get the latest topology info with writer as first
     List<String> latestTopology = getTopologyIds();
     instanceIDs = new String[latestTopology.size()];
     latestTopology.toArray(instanceIDs);
+    String sb = String.join("\n", instanceIDs);
+    LOGGER.finest("Topology: \n" + sb);
 
     clusterSize = instanceIDs.length;
     assertTrue(
         clusterSize >= 2); // many tests assume that cluster contains at least a writer and a reader
+
+    // Need to ensure that cluster details through API matches topology fetched through SQL
+    // Wait up to 5min
+    long startTimeNano = System.nanoTime();
+    while (!isDBInstanceWriter(instanceIDs[0])
+        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
+
+      LOGGER.finest("Cluster details isn't yet updated.");
+
+      Thread.sleep(5000);
+
+      latestTopology = getTopologyIds();
+      instanceIDs = new String[latestTopology.size()];
+      latestTopology.toArray(instanceIDs);
+      sb = String.join("\n", instanceIDs);
+      LOGGER.finest("Topology: \n" + sb);
+
+      clusterSize = instanceIDs.length;
+      assertTrue(
+          clusterSize >= 2); // many tests assume that cluster contains at least a writer and a reader
+    }
     assertTrue(isDBInstanceWriter(instanceIDs[0]));
+
     makeSureInstancesUp(instanceIDs);
+
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();
   }

@@ -56,14 +56,14 @@ public class AuroraMysqlAwsIamIntegrationTest extends MysqlAuroraMysqlBaseTest {
    * Attempt to connect using IP address instead of a hostname.
    */
   @Test
-  public void test_AwsIam_UsingIPAddress() throws UnknownHostException {
+  public void test_AwsIam_UsingIPAddress() throws UnknownHostException, SQLException {
     final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
 
     final String hostIp = hostToIP(MYSQL_CLUSTER_URL);
-    Assertions.assertThrows(
-        SQLException.class,
-        () -> connectToInstance(hostIp, AURORA_MYSQL_PORT, props)
-    );
+    props.setProperty("iamHost", MYSQL_CLUSTER_URL);
+
+    final Connection conn = DriverManager.getConnection(DB_CONN_STR_PREFIX + hostIp + ":" + AURORA_MYSQL_PORT, props);
+    Assertions.assertDoesNotThrow(conn::close);
   }
 
   /**

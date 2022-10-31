@@ -35,7 +35,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.8.0")
-    testImplementation("org.postgresql:postgresql:42.+")
+    testImplementation("org.postgresql:postgresql:42.5.0")
     testImplementation("mysql:mysql-connector-java:8.0.30")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.+")
     testImplementation("com.zaxxer:HikariCP:4.+") // version 4.+ is compatible with Java 8
@@ -76,6 +76,7 @@ tasks.register<Test>("in-container-aurora-postgres") {
 
 tasks.register<Test>("in-container-aurora-postgres-performance") {
     filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresPerformanceTest")
+    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraAdvancedPerformanceTest")
 }
 
 // Integration tests are run in a specific order.
@@ -89,7 +90,7 @@ tasks.register<Test>("in-container-standard-postgres") {
 // and integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite.java
 tasks.register<Test>("in-container-aurora-mysql") {
     filter.includeTestsMatching("integration.container.aurora.mysql.mysqldriver.MysqlAuroraMysqlTestSuite")
-    //filter.includeTestsMatching("integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite")
+    filter.includeTestsMatching("integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite")
 }
 
 // Integration tests are run in a specific order.
@@ -97,7 +98,7 @@ tasks.register<Test>("in-container-aurora-mysql") {
 // and integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite.java
 tasks.register<Test>("in-container-standard-mysql") {
     filter.includeTestsMatching("integration.container.standard.mysql.mysqldriver.MysqlStandardMysqlTestSuite")
-//    filter.includeTestsMatching("integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite")
+    filter.includeTestsMatching("integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite")
 }
 
 tasks.register<Test>("in-container-standard-mariadb") {

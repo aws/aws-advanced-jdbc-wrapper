@@ -139,7 +139,8 @@ class ClusterAwareReaderFailoverHandlerTest {
             mockPluginService,
             properties,
             5000,
-            30000);
+            30000,
+            false);
     final ReaderFailoverResult result =
         target.failover(hosts, hosts.get(currentHostIndex));
 
@@ -244,7 +245,8 @@ class ClusterAwareReaderFailoverHandlerTest {
             mockPluginService,
             properties,
             60000,
-            1000);
+            1000,
+            false);
     final ReaderFailoverResult result = target.getReaderConnection(hosts);
 
     assertFalse(result.isConnected());

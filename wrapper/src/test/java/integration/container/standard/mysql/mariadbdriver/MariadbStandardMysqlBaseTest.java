@@ -18,6 +18,7 @@ package integration.container.standard.mysql.mariadbdriver;
 
 import integration.container.standard.mysql.StandardMysqlBaseTest;
 import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import org.junit.jupiter.api.BeforeAll;
 import software.amazon.jdbc.Driver;
@@ -27,7 +28,8 @@ public class MariadbStandardMysqlBaseTest extends StandardMysqlBaseTest {
   @BeforeAll
   public static void setUpMysql() throws SQLException, IOException, ClassNotFoundException {
     DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
-    STANDARD_WRITER = System.getenv("STANDARD_MYSQL_HOST");
+    STANDARD_WRITER = System.getenv("STANDARD_MYSQL_WRITER");
+    STANDARD_READER = System.getenv("STANDARD_MYSQL_READER");
     STANDARD_PORT = Integer.parseInt(System.getenv("STANDARD_MYSQL_PORT"));
     STANDARD_DB = System.getenv("STANDARD_MYSQL_DB");
     STANDARD_USERNAME = System.getenv("STANDARD_MYSQL_USERNAME");
@@ -38,5 +40,16 @@ public class MariadbStandardMysqlBaseTest extends StandardMysqlBaseTest {
     if (!Driver.isRegistered()) {
       Driver.register();
     }
+
+    try {
+      DriverManager.deregisterDriver(DriverManager.getDriver("jdbc:mysql://"));
+
+    } catch (SQLException e) {
+      System.out.println("MySQL driver is already deregistered");
+    }
+  }
+
+  protected String getUrlMariadbDriver() {
+    return getUrl() + "?permitMysqlScheme";
   }
 }

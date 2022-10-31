@@ -20,16 +20,18 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import software.amazon.jdbc.Driver;
 
 public abstract class MariadbAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
 
   @BeforeAll
   public static void setUpMariadb() throws SQLException, IOException {
-    DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mariadb://";
     setUp();
     try {
       Class.forName("org.mariadb.jdbc.Driver");
@@ -37,13 +39,32 @@ public abstract class MariadbAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
       fail("MariaDB driver not found");
     }
 
-    if (!Driver.isRegistered()) {
-      Driver.register();
+    try {
+      DriverManager.deregisterDriver(DriverManager.getDriver("jdbc:mysql://"));
+
+    } catch (SQLException e) {
+      System.out.println("MySQL driver is already deregistered");
     }
   }
 
-  @BeforeEach
-  public void setUpEachMysql() throws SQLException, InterruptedException {
-    setUpEach();
+  @Override
+  protected Connection connectToInstance(String instanceUrl, int port, Properties props)
+      throws SQLException {
+    final String url = DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_MYSQL_DB;
+    return DriverManager.getConnection(url + "?permitMysqlScheme", props);
+  }
+
+  @Override
+  protected Connection connectToInstanceCustomUrl(String url, Properties props)
+      throws SQLException {
+    return DriverManager.getConnection(url + "?permitMysqlScheme", props);
+  }
+
+  @Override
+  protected List<String> getTopologyIds() throws SQLException {
+    final String url =
+        DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
+    return this.containerHelper.getAuroraInstanceIds(
+        url + "?permitMysqlScheme", AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, "mysql");
   }
 }

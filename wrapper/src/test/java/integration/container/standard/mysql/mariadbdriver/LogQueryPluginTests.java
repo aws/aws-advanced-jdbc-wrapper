@@ -31,10 +31,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 
+@Disabled
 public class LogQueryPluginTests extends MariadbStandardMysqlBaseTest {
 
   @Test
@@ -51,7 +53,7 @@ public class LogQueryPluginTests extends MariadbStandardMysqlBaseTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
     props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     Statement statement = conn.createStatement();
 
@@ -80,7 +82,7 @@ public class LogQueryPluginTests extends MariadbStandardMysqlBaseTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "logQuery");
     props.setProperty(LogQueryConnectionPlugin.ENHANCED_LOG_QUERY_ENABLED.name, "true");
 
-    Connection conn = DriverManager.getConnection(getUrl(), props);
+    Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), props);
 
     PreparedStatement statement = conn.prepareStatement("SELECT 12345 * ?");
     statement.setInt(1, 10);
