@@ -28,9 +28,9 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -85,10 +85,13 @@ public class Driver implements java.sql.Driver {
       LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl}));
       return null;
     }
+    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
+    if (!StringUtils.isNullOrEmpty(databaseName)) {
+      PropertyDefinition.DATABASE.set(info, databaseName);
+    }
+    ConnectionUrlParser.parsePropertiesFromUrl(url, info);
 
-    Properties props = PropertyUtils.parseProperties(url, info);
-
-    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
+    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
     if (!StringUtils.isNullOrEmpty(logLevelStr)) {
       Level logLevel = Level.parse(logLevelStr);
       Logger rootLogger = Logger.getLogger("");
@@ -105,7 +108,7 @@ public class Driver implements java.sql.Driver {
 
     ConnectionProvider connectionProvider = new DriverConnectionProvider(driver);
 
-    return new ConnectionWrapper(props, driverUrl, connectionProvider);
+    return new ConnectionWrapper(info, driverUrl, connectionProvider);
   }
 
   @Override
@@ -126,10 +129,11 @@ public class Driver implements java.sql.Driver {
   @Override
   public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
     Properties copy = new Properties(info);
-    Properties parse = PropertyUtils.parseProperties(url, copy);
-    if (parse != null) {
-      copy = parse;
+    final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
+    if (!StringUtils.isNullOrEmpty(databaseName)) {
+      PropertyDefinition.DATABASE.set(copy, databaseName);
     }
+    ConnectionUrlParser.parsePropertiesFromUrl(url, copy);
 
     Collection<AwsWrapperProperty> knownProperties = PropertyDefinition.allProperties();
     DriverPropertyInfo[] props = new DriverPropertyInfo[knownProperties.size()];
