@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
@@ -230,7 +229,7 @@ public class StandardMariadbReadWriteSplittingTest extends StandardMariadbBaseTe
         }
       }
 
-      // MariaDB does not execute SQL when setReadOnly is called, so no error is thrown
+      // The MariaDB driver does not execute SQL when setReadOnly is called, so no error is thrown
       assertDoesNotThrow(() -> conn.setReadOnly(true));
     }
   }
@@ -338,20 +337,14 @@ public class StandardMariadbReadWriteSplittingTest extends StandardMariadbBaseTe
     try (final Connection conn = connectToProxy(propsWithLoadBalance)) {
       final String writerConnectionId = queryInstanceId(conn);
 
-      final Statement stmt1 = conn.createStatement();
-      stmt1.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_transactionResolutionUnknown");
-      stmt1.executeUpdate(
-          "CREATE TABLE test_readWriteSplitting_transactionResolutionUnknown "
-              + "(id int not null primary key, text_field varchar(255) not null)");
-
       conn.setReadOnly(true);
       conn.setAutoCommit(false);
       final String readerId = queryInstanceId(conn);
       assertNotEquals(writerConnectionId, readerId);
 
-      final Statement stmt2 = conn.createStatement();
-      stmt2.executeQuery("SELECT * FROM test_readWriteSplitting_transactionResolutionUnknown");
-      stmt2.executeQuery("SELECT * FROM test_readWriteSplitting_transactionResolutionUnknown");
+      final Statement stmt = conn.createStatement();
+      stmt.execute("START TRANSACTION");
+      stmt.execute("SELECT * from information_schema.tables");
       final Proxy proxyInstance = proxyMap.get(instanceIDs[1]);
       if (proxyInstance != null) {
         containerHelper.disableConnectivity(proxyInstance);
@@ -360,19 +353,14 @@ public class StandardMariadbReadWriteSplittingTest extends StandardMariadbBaseTe
       }
 
       final SQLException e = assertThrows(SQLException.class, conn::rollback);
-      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
+      assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
 
       try (final Connection newConn = connectToProxy(propsWithLoadBalance)) {
         newConn.setReadOnly(true);
-        newConn.setAutoCommit(false);
         final Statement newStmt = newConn.createStatement();
         final ResultSet rs = newStmt.executeQuery("SELECT 1");
         rs.next();
         assertEquals(1, rs.getInt(1));
-
-        newConn.setReadOnly(false);
-        final Statement stmt3 = newConn.createStatement();
-        stmt3.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_transactionResolutionUnknown");
       }
     }
   }

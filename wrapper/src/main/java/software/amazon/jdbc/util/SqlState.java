@@ -24,6 +24,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class SqlState {
 
   public static final SqlState UNKNOWN_STATE = new SqlState("");
+  public static final SqlState CONNECTION_EXCEPTION = new SqlState("08000");
   public static final SqlState CONNECTION_UNABLE_TO_CONNECT = new SqlState("08001");
   public static final SqlState CONNECTION_NOT_OPEN = new SqlState("08003");
   public static final SqlState CONNECTION_FAILURE = new SqlState("08006");
