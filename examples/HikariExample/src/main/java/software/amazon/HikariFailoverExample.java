@@ -17,14 +17,17 @@
 package software.amazon;
 
 import com.zaxxer.hikari.HikariDataSource;
-import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 
-public class HikariExample {
+/**
+ * An example to use the AWS Wrapper with Hikari with failover enabled.
+ */
+public class HikariFailoverExample {
 
   private static final String USER = "username";
   private static final String PASSWORD = "password";
@@ -47,6 +50,11 @@ public class HikariExample {
       ds.addDataSourceProperty("portPropertyName", "portNumber");
       ds.addDataSourceProperty("serverPropertyName", "serverName");
 
+      // The failover plugin throws failover-related exceptions that need to be handled explicitly by HikariCP,
+      // otherwise connections will be closed immediately after failover. Set `ExceptionOverrideClassName` to provide
+      // a custom exception class.
+      ds.setExceptionOverrideClassName("software.amazon.jdbc.util.HikariCPSQLException");
+
       // Specify the driver-specific data source for AwsWrapperDataSource:
       ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
 
@@ -55,6 +63,9 @@ public class HikariExample {
       targetDataSourceProps.setProperty("serverName", ENDPOINT);
       targetDataSourceProps.setProperty("databaseName", DATABASE_NAME);
       targetDataSourceProps.setProperty("portNumber", "5432");
+
+      // Enable the failover and host monitoring connection plugins.
+      targetDataSourceProps.setProperty("wrapperPlugins", "failover,efm");
 
       ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
