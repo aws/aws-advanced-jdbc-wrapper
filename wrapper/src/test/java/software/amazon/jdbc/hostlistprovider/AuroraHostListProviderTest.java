@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -200,10 +201,9 @@ class AuroraHostListProviderTest {
     auroraHostListProvider = new AuroraHostListProvider(
         "protocol", mockHostListProviderService, new Properties(), "protocol://url/");
     when(mockStatement.executeQuery(anyString())).thenThrow(new SQLSyntaxErrorException());
-    assertDoesNotThrow(() -> {
-      ClusterTopologyInfo result = auroraHostListProvider.queryForTopology(mockConnection);
-      assertEquals(new ArrayList<>(), result.hosts);
-    });
+    assertThrows(
+        SQLException.class,
+        () -> auroraHostListProvider.queryForTopology(mockConnection));
   }
 
   @Test

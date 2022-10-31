@@ -366,11 +366,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologyQuery)) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
-      // ignore
+      throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery"), e);
     }
-
-    return new ClusterTopologyInfo(
-        this.clusterId, new ArrayList<>(), Instant.now(), false, this.isPrimaryClusterId);
   }
 
   /**
