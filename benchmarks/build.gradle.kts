@@ -24,7 +24,7 @@ dependencies {
     implementation("mysql:mysql-connector-java:8.0.31")
     implementation("org.mariadb.jdbc:mariadb-java-client:3.0.6")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
     testImplementation("org.mockito:mockito-inline:4.8.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
