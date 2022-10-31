@@ -50,7 +50,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:ec2:2.18.1")
     testImplementation("software.amazon.awssdk:secretsmanager:2.17.285")
     testImplementation("org.testcontainers:testcontainers:1.17.4")
-    testImplementation("org.testcontainers:mysql:1.17.4")
+    testImplementation("org.testcontainers:mysql:1.17.5")
     testImplementation("org.testcontainers:postgresql:1.17.5")
     testImplementation("org.testcontainers:mariadb:1.17.3")
     testImplementation("org.testcontainers:junit-jupiter:1.17.4")
