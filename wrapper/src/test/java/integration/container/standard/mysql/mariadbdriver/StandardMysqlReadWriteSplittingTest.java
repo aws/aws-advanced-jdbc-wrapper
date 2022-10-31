@@ -26,16 +26,18 @@ import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.SqlState;
 
-public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBaseTest{
+public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBaseTest {
 
   private final Properties defaultProps = getProps_readWritePlugin();
   private final Properties propsWithLoadBalance;
@@ -49,13 +51,14 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
   private Properties getProps_readWritePlugin() {
     final Properties props = initDefaultProps();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
+    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props, "true");
     props.setProperty(PropertyKey.socketTimeout.getKeyName(), "500");
     return props;
   }
 
   @Test
   public void test_connectToWriter_setReadOnlyTrueTrueFalseFalseTrue() throws SQLException {
-    try (final Connection conn = connect(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), defaultProps)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -82,7 +85,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_setReadOnlyFalseInReadOnlyTransaction() throws SQLException {
-    try (final Connection conn = connect(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), defaultProps)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -108,7 +111,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_setReadOnlyFalseInTransaction_setAutocommitFalse() throws SQLException {
-    try (final Connection conn = connect(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), defaultProps)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -134,7 +137,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_setReadOnlyFalseInTransaction_setAutocommitZero() throws SQLException {
-    try (final Connection conn = connect(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), defaultProps)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -160,7 +163,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_setReadOnlyTrueInTransaction() throws SQLException {
-    try (final Connection conn = connect(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), defaultProps)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       final Statement stmt1 = conn.createStatement();
@@ -191,7 +194,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_setReadOnlyTrue_allReadersDown() throws SQLException, IOException {
-    try (final Connection conn = connectToProxy(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), defaultProps)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       // Kill all reader instances
@@ -217,7 +220,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_setReadOnlyTrue_allInstancesDown() throws SQLException, IOException {
-    try (final Connection conn = connectToProxy(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), defaultProps)) {
       // Kill all instances
       for (int i = 0; i < clusterSize; i++) {
         final String instanceId = instanceIDs[i];
@@ -229,16 +232,14 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
         }
       }
 
-      final SQLException exception = assertThrows(SQLException.class, () -> conn.setReadOnly(true));
-      // A SQL statement setting the read-only status is sent to server.
-      // Since the server is down, a SQLException is thrown.
-      assertEquals(SqlState.COMMUNICATION_ERROR.getState(), exception.getSQLState());
+      // The MariaDB driver does not execute SQL when setReadOnly is called, so no error is thrown
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
     }
   }
 
   @Test
   public void test_setReadOnlyTrue_allInstancesDown_writerClosed() throws SQLException, IOException {
-    try (final Connection conn = connectToProxy(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), defaultProps)) {
       conn.close();
 
       // Kill all instances
@@ -259,7 +260,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_setReadOnlyFalse_allInstancesDown() throws SQLException, IOException {
-    try (final Connection conn = connectToProxy(defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), defaultProps)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -284,7 +285,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_readerLoadBalancing_autocommitTrue() throws SQLException {
-    try (final Connection conn = connect(propsWithLoadBalance)) {
+    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), propsWithLoadBalance)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -306,7 +307,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_readerLoadBalancing_autocommitFalse() throws SQLException {
-    try (final Connection conn = connect(propsWithLoadBalance)) {
+    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), propsWithLoadBalance)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -336,7 +337,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
   @Test
   public void test_transactionResolutionUnknown() throws SQLException, IOException {
-    try (final Connection conn = connectToProxy(propsWithLoadBalance)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), propsWithLoadBalance)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
@@ -345,7 +346,7 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
       assertNotEquals(writerConnectionId, readerId);
 
       final Statement stmt = conn.createStatement();
-      stmt.executeQuery("SELECT 1");
+      stmt.execute("SELECT * from information_schema.tables");
       final Proxy proxyInstance = proxyMap.get(instanceIDs[1]);
       if (proxyInstance != null) {
         containerHelper.disableConnectivity(proxyInstance);
@@ -354,9 +355,9 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
       }
 
       final SQLException e = assertThrows(SQLException.class, conn::rollback);
-      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
+      assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
 
-      try (final Connection newConn = connectToProxy(propsWithLoadBalance)) {
+      try (final Connection newConn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), propsWithLoadBalance)) {
         newConn.setReadOnly(true);
         final Statement newStmt = newConn.createStatement();
         final ResultSet rs = newStmt.executeQuery("SELECT 1");

@@ -34,6 +34,7 @@ public class MariadbStandardMysqlBaseTest extends StandardMysqlBaseTest {
     STANDARD_DB = System.getenv("STANDARD_MYSQL_DB");
     STANDARD_USERNAME = System.getenv("STANDARD_MYSQL_USERNAME");
     STANDARD_PASSWORD = System.getenv("STANDARD_MYSQL_PASSWORD");
+    instanceIDs = new String[] {STANDARD_WRITER, STANDARD_READER};
     setUp();
     Class.forName("org.mariadb.jdbc.Driver");
 
@@ -51,5 +52,9 @@ public class MariadbStandardMysqlBaseTest extends StandardMysqlBaseTest {
 
   protected String getUrlMariadbDriver() {
     return getUrl() + "?permitMysqlScheme";
+  }
+
+  protected String getProxiedUrlMariadbDriver() {
+    return getProxiedUrl() + "?permitMysqlScheme";
   }
 }
