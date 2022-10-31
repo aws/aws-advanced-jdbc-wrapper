@@ -366,7 +366,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologyQuery)) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery") + ": " + e);
+      throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery"), e);
     }
   }
 
