@@ -876,7 +876,8 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = connectToInstanceCustomUrl(
-        DB_CONN_STR_PREFIX + initialWriterId + DB_CONN_STR_SUFFIX + ",non-existent-host/" + AURORA_MYSQL_DB, getProps_allPlugins())) {
+        DB_CONN_STR_PREFIX + initialWriterId + DB_CONN_STR_SUFFIX + ",non-existent-host/" + AURORA_MYSQL_DB,
+        getProps_allPlugins())) {
       String currentConnectionId = queryInstanceId(conn);
       assertEquals(initialWriterId, currentConnectionId);
       assertTrue(isDBInstanceWriter(currentConnectionId));
