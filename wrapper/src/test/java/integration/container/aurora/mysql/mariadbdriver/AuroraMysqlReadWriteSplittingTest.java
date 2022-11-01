@@ -47,7 +47,6 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 import software.amazon.jdbc.util.SqlState;
 
-@Disabled
 public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
 
   private static Stream<Arguments> testParameters() {
@@ -543,7 +542,7 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
       if (pluginChainIncludesFailoverPlugin(props)) {
         assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
+        assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
       }
 
       if (pluginChainIncludesFailoverPlugin(props)) {
@@ -576,7 +575,7 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
       if (pluginChainIncludesFailoverPlugin(props)) {
         assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
+        assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
         return;
       }
 
@@ -846,8 +845,8 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
   public void test_multiHostUrl_topologyOverridesHostList() throws SQLException {
     final String initialWriterId = instanceIDs[0];
 
-    try (final Connection conn = DriverManager.getConnection(
-        DB_CONN_STR_PREFIX + initialWriterId + DB_CONN_STR_SUFFIX + ",non-existent-host", getProps_allPlugins())) {
+    try (final Connection conn = connectToInstanceCustomUrl(
+        DB_CONN_STR_PREFIX + initialWriterId + DB_CONN_STR_SUFFIX + ",non-existent-host/" + AURORA_MYSQL_DB, getProps_allPlugins())) {
       String currentConnectionId = queryInstanceId(conn);
       assertEquals(initialWriterId, currentConnectionId);
       assertTrue(isDBInstanceWriter(currentConnectionId));
@@ -878,7 +877,7 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
       assertTrue(isDBInstanceReader(readerId));
 
       final Statement stmt = conn.createStatement();
-      stmt.executeQuery("SELECT 1");
+      stmt.executeQuery("SELECT * FROM information_schema.tables");
       final Proxy proxyInstance = proxyMap.get(readerId);
       if (proxyInstance != null) {
         containerHelper.disableConnectivity(proxyInstance);
@@ -887,7 +886,7 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
       }
 
       final SQLException e = assertThrows(SQLException.class, conn::rollback);
-      assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
+      assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
 
       try (final Connection newConn = connectToInstance(
           initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
