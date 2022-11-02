@@ -24,16 +24,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static software.amazon.jdbc.plugin.failover.ClusterAwareReaderFailoverHandler.DEFAULT_FAILOVER_TIMEOUT;
+import static software.amazon.jdbc.plugin.failover.ClusterAwareReaderFailoverHandler.DEFAULT_READER_CONNECT_TIMEOUT;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
@@ -322,5 +324,39 @@ class ClusterAwareReaderFailoverHandlerTest {
     }
 
     assertEquals(hostsByPriority.size(), i);
+  }
+
+  @Test
+  public void testHostFailoverStrictReaderEnabled() {
+
+    final HostSpec writer = new HostSpec("writer", 1234, HostRole.WRITER);
+    final HostSpec reader = new HostSpec("reader1", 1234, HostRole.READER);
+    final List<HostSpec> hosts = Arrays.asList(writer, reader);
+
+    final ClusterAwareReaderFailoverHandler target =
+            new ClusterAwareReaderFailoverHandler(
+                    mockPluginService,
+                    properties,
+                    DEFAULT_FAILOVER_TIMEOUT,
+                    DEFAULT_READER_CONNECT_TIMEOUT,
+                    true);
+
+    // We expect only reader nodes to be chosen.
+    List<HostSpec> expectedReaderHost = Collections.singletonList(reader);
+
+    List<HostSpec> hostsByPriority = target.getHostsByPriority(hosts);
+    assertEquals(expectedReaderHost, hostsByPriority);
+
+    // Should pick reader even if unavailable.
+    reader.setAvailability(HostAvailability.NOT_AVAILABLE);
+
+    hostsByPriority = target.getHostsByPriority(hosts);
+    assertEquals(expectedReaderHost, hostsByPriority);
+
+    // Writer node will only be picked if it is the only node in topology;
+    List<HostSpec> expectedWriterHost = Collections.singletonList(writer);
+
+    hostsByPriority = target.getHostsByPriority(Collections.singletonList(writer));
+    assertEquals(expectedWriterHost, hostsByPriority);
   }
 }

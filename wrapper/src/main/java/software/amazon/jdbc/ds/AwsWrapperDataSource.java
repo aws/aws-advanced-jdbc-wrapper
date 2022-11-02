@@ -103,9 +103,9 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
           || (!StringUtils.isNullOrEmpty(this.urlPropertyName)
           && !StringUtils.isNullOrEmpty(props.getProperty(this.urlPropertyName)))) {
         if (!StringUtils.isNullOrEmpty(this.jdbcUrl)) {
-          props = PropertyUtils.parseProperties(this.jdbcUrl, props);
+          parsePropertiesFromUrl(this.jdbcUrl, props);
         } else {
-          props = PropertyUtils.parseProperties(props.getProperty(this.urlPropertyName), props);
+          parsePropertiesFromUrl(this.urlPropertyName, props);
         }
         setJdbcUrlOrUrlProperty(props);
         setDatabasePropertyFromUrl(props);
