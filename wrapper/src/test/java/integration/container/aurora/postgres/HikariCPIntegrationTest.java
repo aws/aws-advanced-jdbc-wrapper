@@ -40,7 +40,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
-import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
@@ -48,7 +47,7 @@ import software.amazon.jdbc.util.HikariCPSQLException;
 public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
-  private static HikariDataSource data_source = null;
+  private static HikariDataSource dataSource = null;
   private final List<String> clusterTopology = fetchTopology();
 
   private List<String> fetchTopology() {
@@ -73,7 +72,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
   @AfterEach
   public void teardown() {
-    data_source.close();
+    dataSource.close();
   }
 
   @BeforeEach
@@ -111,9 +110,9 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
     config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
-    data_source = new HikariDataSource(config);
+    dataSource = new HikariDataSource(config);
 
-    final HikariPoolMXBean hikariPoolMXBean = data_source.getHikariPoolMXBean();
+    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
 
     logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
     logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
@@ -125,7 +124,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
    */
   @Test
   public void test_1_1_hikariCP_lost_connection() throws SQLException {
-    try (Connection conn = data_source.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
       putDownAllInstances(true);
@@ -134,7 +133,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
       assertFalse(conn.isValid(5));
     }
 
-    assertThrows(SQLTransientConnectionException.class, () -> data_source.getConnection());
+    assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
   }
 
   /**
@@ -156,7 +155,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
     bringUpInstance(writerIdentifier);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = data_source.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));
@@ -172,7 +171,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
 
       // Try to get a new connection to the failed instance, which times out
-      assertThrows(SQLTransientConnectionException.class, () -> data_source.getConnection());
+      assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
     }
   }
 
@@ -194,7 +193,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
     bringUpInstance(writerIdentifier);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = data_source.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));

@@ -122,7 +122,7 @@ public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
       if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
         assertTrue(e instanceof FailoverFailedSQLException);
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
+        assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
       }
       assertFalse(conn.isValid(5));
     }
@@ -162,7 +162,7 @@ public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
       if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
         assertTrue(e instanceof FailoverSuccessSQLException);
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
+        assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
         return;
       }
 
@@ -210,7 +210,7 @@ public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
       if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
         assertTrue(e instanceof FailoverSuccessSQLException);
       } else {
-        assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
+        assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
         return;
       }
 
@@ -418,9 +418,10 @@ public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
 
     config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
     config.addDataSourceProperty("targetDataSourceClassName", "org.mariadb.jdbc.MariaDbDataSource");
-    config.addDataSourceProperty("jdbcProtocol", "jdbc:mariadb:");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
     config.addDataSourceProperty("portPropertyName", "port");
     config.addDataSourceProperty("serverPropertyName", "serverName");
+    config.addDataSourceProperty("urlPropertyName", "url");
 
     return config;
   }
@@ -435,14 +436,17 @@ public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
     targetDataSourceProps.setProperty(
         AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "60000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "500");
 
     return targetDataSourceProps;
   }
 
   private void createDataSource(final Properties targetDataSourceProps) {
     targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
+    targetDataSourceProps.setProperty(
+        "url", "jdbc:mysql://" + clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
 
     final HikariConfig config = getDefaultConfig();
     config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
