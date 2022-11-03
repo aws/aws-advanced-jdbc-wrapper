@@ -250,7 +250,7 @@ public abstract class AuroraMysqlBaseTest {
   protected static Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
     props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3000");
-    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3000");
+    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "1000");
 
     return props;
   }
@@ -363,7 +363,8 @@ public abstract class AuroraMysqlBaseTest {
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", instanceID + DB_CONN_STR_SUFFIX);
     targetDataSourceProps.setProperty("databaseName", AURORA_MYSQL_DB);
-    targetDataSourceProps.setProperty("wrapperPlugins", "failover");
+    targetDataSourceProps.setProperty("socketTimeout", "1000");
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     return ds.getConnection(AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD);

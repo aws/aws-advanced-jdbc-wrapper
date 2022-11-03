@@ -354,9 +354,10 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
 
   @Test
   public void test_failoverTimeoutMs() throws SQLException, IOException {
-    final int maxTimeout = 10000; // 10 seconds
+    final int maxTimeout = 1000; // 10 seconds
     final String initialWriterId = instanceIDs[0];
     final Properties props = initDefaultProps();
+    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "500");
     FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, String.valueOf(maxTimeout));
 
     try (Connection conn = connectToInstance(
@@ -369,7 +370,7 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       final long invokeEndTimeMs = System.currentTimeMillis();
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
       final long duration = invokeEndTimeMs - invokeStartTimeMs;
-      assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
+      assertTrue(duration < 2000); // Add in 1 seconds to account for time to detect the failure
     }
   }
 }

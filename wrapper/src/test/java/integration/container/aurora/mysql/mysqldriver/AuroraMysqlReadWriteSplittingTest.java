@@ -684,10 +684,8 @@ public class AuroraMysqlReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest 
   public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException, InterruptedException, IOException {
     final String initialWriterId = instanceIDs[0];
 
-    final Properties props = getProxiedProps_allPlugins();
-    props.setProperty(socketTimeout.getKeyName(), "2000");
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, props)) {
+        MYSQL_PROXY_PORT, getProxiedProps_allPlugins())) {
       // Kill all reader instances
       for (int i = 1; i < clusterSize; i++) {
         final String instanceId = instanceIDs[i];
