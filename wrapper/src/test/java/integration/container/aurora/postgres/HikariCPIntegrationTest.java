@@ -98,14 +98,12 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
     targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
     targetDataSourceProps.setProperty("portNumber", String.valueOf(POSTGRES_PROXY_PORT));
     targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty("socketTimeout", "3");
     targetDataSourceProps.setProperty("connectTimeout", "3");
     targetDataSourceProps.setProperty("monitoring-connectTimeout", "1");
     targetDataSourceProps.setProperty("monitoring-socketTimeout", "1");
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
-    targetDataSourceProps.setProperty(
-        AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);
     targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "30000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
