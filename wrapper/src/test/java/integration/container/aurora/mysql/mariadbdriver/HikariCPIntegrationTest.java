@@ -97,15 +97,15 @@ public class HikariCPIntegrationTest extends MariadbAuroraMysqlBaseTest {
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
     targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty("socketTimeout", "3000");
     targetDataSourceProps.setProperty("connectTimeout", "3000");
     targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
     targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
     targetDataSourceProps.setProperty(
-        "url", "jdbc:mysql://" + clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT + "/" + AURORA_MYSQL_DB + "?permitMysqlScheme");
-    targetDataSourceProps.setProperty(
-        AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+        "url", "jdbc:mysql://" + clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT + "/"
+            + AURORA_MYSQL_DB + "?permitMysqlScheme");
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);
     targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "30000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
