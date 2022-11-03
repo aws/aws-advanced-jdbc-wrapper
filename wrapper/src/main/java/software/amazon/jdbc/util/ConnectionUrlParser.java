@@ -17,16 +17,18 @@
 package software.amazon.jdbc.util;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 
 public class ConnectionUrlParser {
 
+  private static final Logger LOGGER = Logger.getLogger(ConnectionUrlParser.class.getName());
   private static final String HOSTS_SEPARATOR = ",";
   static final String HOST_PORT_SEPARATOR = ":";
   static final Pattern CONNECTION_STRING_PATTERN =
@@ -151,10 +153,22 @@ public class ConnectionUrlParser {
       String currentParameterValue = "";
 
       if (currentParameter.length > 1) {
-        currentParameterValue = currentParameter[1];
+        currentParameterValue = urlDecode(currentParameter[1]);
       }
 
       props.setProperty(currentParameterName, currentParameterValue);
     }
+  }
+
+  private static @Nullable String urlDecode(String url) {
+    try {
+      return StringUtils.decode(url);
+    } catch (IllegalArgumentException e) {
+      LOGGER.fine(
+          () -> Messages.get(
+              "Driver.urlParsingFailed",
+              new Object[] {url, e.getMessage()}));
+    }
+    return null;
   }
 }
