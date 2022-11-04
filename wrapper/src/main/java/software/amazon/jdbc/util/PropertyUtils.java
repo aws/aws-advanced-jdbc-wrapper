@@ -97,10 +97,9 @@ public class PropertyUtils {
         writeMethod.invoke(target, propValue);
       }
     } catch (Exception e) {
-      LOGGER.warning(
-          () -> Messages.get(
-              "PropertyUtils.failedToSetProperty",
-              new Object[] {propName, target.getClass()}));
+      LOGGER.warning("Failed to set property " + propName + " on target " + target + " of class " + target.getClass()
+          + " because of this issue: " + e.getMessage() + " and this cause " + e.getCause().getMessage());
+      e.printStackTrace();
     }
   }
 
