@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -72,6 +73,14 @@ class ConnectionUrlParserTest {
     assertEquals(expected, actual);
   }
 
+  @ParameterizedTest
+  @MethodSource("encodedParams")
+  void testEncodedParams(final String url, final String expected) {
+    Properties props = new Properties();
+    ConnectionUrlParser.parsePropertiesFromUrl(url, props);
+    assertEquals(props.getProperty("param"), expected);
+  }
+
   private static Stream<Arguments> testGetHostsFromConnectionUrlArguments() {
     return Stream.of(
         Arguments.of("protocol//", new ArrayList<HostSpec>()),
@@ -105,6 +114,17 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//url/db?PASSWORD=foo", null),
         Arguments.of("protocol//url/db?PASSWORD=foo&user=bar", null),
         Arguments.of("protocol//url/db?pass=foo", null)
+    );
+  }
+
+  private static Stream<Arguments> encodedParams() {
+    return Stream.of(
+        Arguments.of("protocol//host/db?param=" + StringUtils.encode("value$"), "value$"),
+        Arguments.of("protocol//host/db?param=" + StringUtils.encode("value_"), "value_"),
+        Arguments.of("protocol//host/db?param=" + StringUtils.encode("value?"), "value?"),
+        Arguments.of("protocol//host/db?param=" + StringUtils.encode("value&"), "value&"),
+        Arguments.of("protocol//host/db?param=" + StringUtils.encode("value"
+            + new String(Character.toChars(0x007E))), "value~")
     );
   }
 }
