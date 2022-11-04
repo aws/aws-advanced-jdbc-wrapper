@@ -16,21 +16,19 @@
 
 package integration.container.aurora.mysql.mysqldriver;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.platform.suite.api.SelectClasses;
 import org.junit.platform.suite.api.Suite;
 
 // Tests will run in order of top to bottom.
 // To add additional tests, append it inside SelectClasses, comma-separated
-@Disabled
 @Suite
 @SelectClasses({
-//    AuroraMysqlDataSourceTest.class,
-//    AuroraMysqlFailoverTest.class,
-//    AuroraMysqlAwsIamIntegrationTest.class,
-//    AuroraMysqlIntegrationTest.class,
-//    HikariCPIntegrationTest.class,
-//    AuroraMysqlReadWriteSplittingTest.class,
-//    HikariCPReadWriteSplittingTest.class
+    AuroraMysqlDataSourceTest.class,
+    AuroraMysqlFailoverTest.class,
+    AuroraMysqlAwsIamIntegrationTest.class,
+    AuroraMysqlIntegrationTest.class,
+    HikariCPIntegrationTest.class,
+    AuroraMysqlReadWriteSplittingTest.class,
+    HikariCPReadWriteSplittingTest.class
 })
 public class MysqlAuroraMysqlTestSuite {}
