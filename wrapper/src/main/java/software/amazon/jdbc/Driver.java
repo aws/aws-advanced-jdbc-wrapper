@@ -31,7 +31,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 

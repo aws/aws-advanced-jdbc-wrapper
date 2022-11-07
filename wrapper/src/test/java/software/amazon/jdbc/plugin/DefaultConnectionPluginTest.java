@@ -38,12 +38,9 @@ class DefaultConnectionPluginTest {
 
   private DefaultConnectionPlugin plugin;
 
-  @Mock
-  PluginService pluginService;
-  @Mock
-  ConnectionProvider connectionProvider;
-  @Mock
-  PluginManagerService pluginManagerService;
+  @Mock PluginService pluginService;
+  @Mock ConnectionProvider connectionProvider;
+  @Mock PluginManagerService pluginManagerService;
 
   private AutoCloseable closeable;
 

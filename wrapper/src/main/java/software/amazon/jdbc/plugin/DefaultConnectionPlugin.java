@@ -101,9 +101,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     Connection currentConn = this.pluginService.getCurrentConnection();
     if (this.connectionMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
-    }
-
-    if (this.connectionMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {
+    } else if (this.connectionMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(false);
     }
 
