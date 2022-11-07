@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.postgresql.PGProperty;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -337,7 +338,7 @@ public class AuroraPostgresIntegrationTest extends AuroraPostgresBaseTest {
     final String currentWriterId = instanceIDs[0];
 
     Properties props = initDefaultProxiedProps();
-    props.setProperty("failoverTimeoutMs", "10000");
+    props.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "2000");
     try (Connection conn = connectToInstance(
             currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
             POSTGRES_PROXY_PORT,
