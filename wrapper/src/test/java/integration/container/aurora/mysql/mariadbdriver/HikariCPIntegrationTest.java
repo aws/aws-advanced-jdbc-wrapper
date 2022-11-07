@@ -51,7 +51,7 @@ import software.amazon.jdbc.util.HikariCPSQLException;
 public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
   private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
-  private static HikariDataSource data_source = null;
+  private static HikariDataSource dataSource = null;
   private final List<String> clusterTopology = fetchTopology();
 
   private List<String> fetchTopology() {
@@ -76,7 +76,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
 
   @AfterEach
   public void teardown() {
-    data_source.close();
+    dataSource.close();
   }
 
   @BeforeEach
@@ -99,24 +99,22 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
     targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty("socketTimeout", "3000");
     targetDataSourceProps.setProperty("connectTimeout", "3000");
     targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
     targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS.name, "1000");
-    targetDataSourceProps.setProperty(
-        AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "15000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
     config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
-    data_source = new HikariDataSource(config);
+    dataSource = new HikariDataSource(config);
 
-    final HikariPoolMXBean hikariPoolMXBean = data_source.getHikariPoolMXBean();
+    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
 
     logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
     logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
@@ -128,7 +126,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
    */
   @Test
   public void test_1_1_hikariCP_lost_connection() throws SQLException {
-    try (Connection conn = data_source.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
       putDownAllInstances(true);
@@ -137,7 +135,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
       assertFalse(conn.isValid(5));
     }
 
-    assertThrows(SQLTransientConnectionException.class, () -> data_source.getConnection());
+    assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
   }
 
   /**
@@ -159,7 +157,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
     bringUpInstance(writerIdentifier);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = data_source.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));
@@ -175,7 +173,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
 
       // Try to get a new connection to the failed instance, which times out
-      assertThrows(SQLTransientConnectionException.class, () -> data_source.getConnection());
+      assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
     }
   }
 
@@ -197,7 +195,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
     bringUpInstance(writerIdentifier);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = data_source.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentInstance = queryInstanceId(conn);
       assertTrue(currentInstance.equalsIgnoreCase(writerIdentifier));
