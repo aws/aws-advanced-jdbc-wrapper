@@ -33,6 +33,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
 import java.sql.Statement;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -52,6 +53,7 @@ import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StringUtils;
 
 public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
 
@@ -87,19 +89,19 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
 
   private static Stream<Arguments> testParameters() {
     return Stream.of(
-        Arguments.of(getTargetProps_allPlugins()),
-        Arguments.of(getTargetProps_readWritePlugin())
+        Arguments.of(getProps_allPlugins()),
+        Arguments.of(getProps_readWritePlugin())
     );
   }
 
-  private static Properties getTargetProps_readWritePlugin() {
-    final Properties props = getDefaultDataSourceProps();
+  private static Properties getProps_readWritePlugin() {
+    final Properties props = new Properties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
     return props;
   }
 
-  private static Properties getTargetProps_allPlugins() {
-    final Properties props = getDefaultDataSourceProps();
+  private static Properties getProps_allPlugins() {
+    final Properties props = new Properties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
     return props;
   }
@@ -109,17 +111,17 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
    */
   @ParameterizedTest(name = "test_1_1_hikariCP_lost_connection")
   @MethodSource("testParameters")
-  public void test_1_1_hikariCP_lost_connection(final Properties targetDataSourceProps) throws SQLException {
-    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(targetDataSourceProps, "1");
-    targetDataSourceProps.setProperty(PropertyKey.socketTimeout.getKeyName(), "500");
-    createDataSource(targetDataSourceProps);
+  public void test_1_1_hikariCP_lost_connection(final Properties customProps) throws SQLException {
+    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(customProps, "1");
+    customProps.setProperty(PropertyKey.socketTimeout.getKeyName(), "500");
+    createDataSource(customProps);
     try (final Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
       putDownAllInstances(true);
 
       final SQLException e = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
+      if (pluginChainIncludesFailoverPlugin(customProps)) {
         assertTrue(e instanceof FailoverFailedSQLException);
       } else {
         assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
@@ -137,7 +139,7 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
    */
   @ParameterizedTest(name = "test_1_2_hikariCP_get_dead_connection")
   @MethodSource("testParameters")
-  public void test_1_2_hikariCP_get_dead_connection(final Properties targetDataSourceProps) throws SQLException {
+  public void test_1_2_hikariCP_get_dead_connection(final Properties customProps) throws SQLException {
     putDownAllInstances(false);
 
     final String writer = clusterTopology.get(0);
@@ -148,7 +150,7 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
-    createDataSource(targetDataSourceProps);
+    createDataSource(customProps);
 
     // Get a valid connection, then make it fail over to a different instance
     try (final Connection conn = dataSource.getConnection()) {
@@ -159,7 +161,7 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
       putDownInstance(currentInstance);
 
       final SQLException e = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
+      if (pluginChainIncludesFailoverPlugin(customProps)) {
         assertTrue(e instanceof FailoverSuccessSQLException);
       } else {
         assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
@@ -183,7 +185,7 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
    */
   @ParameterizedTest(name = "test_2_1_hikariCP_efm_failover")
   @MethodSource("testParameters")
-  public void test_2_1_hikariCP_efm_failover(final Properties targetDataSourceProps) throws SQLException {
+  public void test_2_1_hikariCP_efm_failover(final Properties customProps) throws SQLException {
     putDownAllInstances(false);
 
     final String writer = clusterTopology.get(0);
@@ -194,7 +196,7 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
-    createDataSource(targetDataSourceProps);
+    createDataSource(customProps);
 
     // Get a valid connection, then make it fail over to a different instance
     try (final Connection conn = dataSource.getConnection()) {
@@ -207,7 +209,7 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
       putDownInstance(writerIdentifier);
 
       final SQLException e = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      if (pluginChainIncludesFailoverPlugin(targetDataSourceProps)) {
+      if (pluginChainIncludesFailoverPlugin(customProps)) {
         assertTrue(e instanceof FailoverSuccessSQLException);
       } else {
         assertEquals(SqlState.COMMUNICATION_ERROR.getState(), e.getSQLState());
@@ -224,8 +226,8 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
 
   @ParameterizedTest(name = "test_3_1_readerLoadBalancing_autocommitTrue")
   @MethodSource("testParameters")
-  public void test_3_1_readerLoadBalancing_autocommitTrue(final Properties targetDataSourceProps) throws SQLException {
-    createDataSourceWithReaderLoadBalancing(targetDataSourceProps);
+  public void test_3_1_readerLoadBalancing_autocommitTrue(final Properties customProps) throws SQLException {
+    createDataSourceWithReaderLoadBalancing(customProps);
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = dataSource.getConnection()) {
@@ -266,8 +268,8 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
 
   @ParameterizedTest(name = "test_3_2_readerLoadBalancing_autocommitFalse")
   @MethodSource("testParameters")
-  public void test_3_2_readerLoadBalancing_autocommitFalse(final Properties targetDataSourceProps) throws SQLException {
-    createDataSourceWithReaderLoadBalancing(targetDataSourceProps);
+  public void test_3_2_readerLoadBalancing_autocommitFalse(final Properties customProps) throws SQLException {
+    createDataSourceWithReaderLoadBalancing(customProps);
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = dataSource.getConnection()) {
@@ -324,9 +326,9 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
 
   @ParameterizedTest(name = "test_3_3_readerLoadBalancing_switchAutoCommitInTransaction")
   @MethodSource("testParameters")
-  public void test_3_3_readerLoadBalancing_switchAutoCommitInTransaction(final Properties targetDataSourceProps)
+  public void test_3_3_readerLoadBalancing_switchAutoCommitInTransaction(final Properties customProps)
       throws SQLException {
-    createDataSourceWithReaderLoadBalancing(targetDataSourceProps);
+    createDataSourceWithReaderLoadBalancing(customProps);
     final String initialWriterId = instanceIDs[0];
 
     try (final Connection conn = dataSource.getConnection()) {
@@ -406,7 +408,7 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
     logger.fine("Brought up " + targetInstance);
   }
 
-  private static HikariConfig getDefaultConfig() {
+  private HikariConfig getConfig(Properties customProps) {
     final HikariConfig config = new HikariConfig();
     config.setUsername(AURORA_MYSQL_USERNAME);
     config.setPassword(AURORA_MYSQL_PASSWORD);
@@ -422,32 +424,35 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
     config.addDataSourceProperty("portPropertyName", "port");
     config.addDataSourceProperty("serverPropertyName", "serverName");
 
-    return config;
-  }
-
-  private static Properties getDefaultDataSourceProps() {
     final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
     targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
     targetDataSourceProps.setProperty("socketTimeout", "3000");
     targetDataSourceProps.setProperty("connectTimeout", "3000");
     targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
     targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
-    targetDataSourceProps.setProperty(
-        AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         PROXIED_CLUSTER_TEMPLATE);
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
 
-    return targetDataSourceProps;
-  }
+    final Enumeration<?> propertyNames = customProps.propertyNames();
+    while (propertyNames.hasMoreElements()) {
+      String propertyName = propertyNames.nextElement().toString();
+      if (!StringUtils.isNullOrEmpty(propertyName)) {
+        final String propertyValue = customProps.getProperty(propertyName);
+        targetDataSourceProps.setProperty(propertyName, propertyValue);
+      }
+    }
 
-  private void createDataSource(final Properties targetDataSourceProps) {
-    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
-
-    final HikariConfig config = getDefaultConfig();
     config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
+    return config;
+  }
+
+  private void createDataSource(final Properties customProps) {
+    final HikariConfig config = getConfig(customProps);
     dataSource = new HikariDataSource(config);
 
     final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
@@ -457,13 +462,13 @@ public class HikariCPReadWriteSplittingTest extends MysqlAuroraMysqlBaseTest {
     logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
   }
 
-  private void createDataSourceWithReaderLoadBalancing(final Properties targetDataSourceProps) {
-    targetDataSourceProps.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
-    createDataSource(targetDataSourceProps);
+  private void createDataSourceWithReaderLoadBalancing(final Properties customProps) {
+    customProps.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
+    createDataSource(customProps);
   }
 
-  private boolean pluginChainIncludesFailoverPlugin(final Properties targetDataSourceProps) {
-    final String plugins = targetDataSourceProps.getProperty(PropertyDefinition.PLUGINS.name);
+  private boolean pluginChainIncludesFailoverPlugin(final Properties customProps) {
+    final String plugins = customProps.getProperty(PropertyDefinition.PLUGINS.name);
     return plugins.contains("failover");
   }
 }

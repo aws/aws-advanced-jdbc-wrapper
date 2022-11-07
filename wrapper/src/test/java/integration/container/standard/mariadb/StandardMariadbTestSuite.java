@@ -28,7 +28,8 @@ import org.junit.platform.suite.api.Suite;
     DataSourceTests.class,
     HikariTests.class,
     LogQueryPluginTests.class,
-    SpringTests.class
+    SpringTests.class,
+    StandardMariadbReadWriteSplittingTest.class
 })
 
 public class StandardMariadbTestSuite {}

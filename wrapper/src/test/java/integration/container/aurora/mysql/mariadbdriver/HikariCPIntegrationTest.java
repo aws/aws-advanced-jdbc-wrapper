@@ -25,7 +25,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import eu.rekawek.toxiproxy.Proxy;
-import integration.container.aurora.mysql.AuroraMysqlBaseTest;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -36,7 +35,6 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
@@ -47,10 +45,8 @@ import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
 
-@Disabled
-public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
+public class HikariCPIntegrationTest extends MariadbAuroraMysqlBaseTest {
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
-  private static final String URL_SUFFIX = PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT;
   private static HikariDataSource dataSource = null;
   private final List<String> clusterTopology = fetchTopology();
 
@@ -82,6 +78,7 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
   @BeforeEach
   public void setUpTest() {
     final HikariConfig config = new HikariConfig();
+
     config.setUsername(AURORA_MYSQL_USERNAME);
     config.setPassword(AURORA_MYSQL_PASSWORD);
     config.setMaximumPoolSize(3);
@@ -92,11 +89,15 @@ public class HikariCPIntegrationTest extends AuroraMysqlBaseTest {
 
     config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
     config.addDataSourceProperty("targetDataSourceClassName", "org.mariadb.jdbc.MariaDbDataSource");
-    config.addDataSourceProperty("jdbcProtocol", "jdbc:mariadb:");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
     config.addDataSourceProperty("portPropertyName", "port");
     config.addDataSourceProperty("serverPropertyName", "serverName");
+    config.addDataSourceProperty("urlPropertyName", "url");
 
-    Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("url",
+        "jdbc:mysql://" + clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT + "/"
+            + AURORA_MYSQL_DB + "?permitMysqlScheme");
     targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
     targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
     targetDataSourceProps.setProperty("socketTimeout", "3000");
