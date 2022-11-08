@@ -106,6 +106,12 @@ public class ConnectionPluginManager implements CanReleaseResources {
     return lock.obtain();
   }
 
+  /*
+  For testing only
+   */
+  public void closeResourceLock() {
+    lock.close();
+  }
 
   /**
    * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link
