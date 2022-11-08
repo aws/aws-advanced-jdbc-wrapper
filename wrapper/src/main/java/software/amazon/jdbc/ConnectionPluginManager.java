@@ -41,10 +41,7 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.*;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
@@ -78,7 +75,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ResourceLock lock = new ResourceLock();
 
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
@@ -105,13 +102,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionWrapper = connectionWrapper;
   }
 
-  public void lock() {
-    lock.lock();
+  public ResourceLock obtain() {
+    return lock.obtain();
   }
 
-  public void unlock() {
-    lock.unlock();
-  }
 
   /**
    * Initialize a chain of {@link ConnectionPlugin} using their corresponding {@link

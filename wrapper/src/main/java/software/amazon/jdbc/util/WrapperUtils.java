@@ -178,9 +178,8 @@ public class WrapperUtils {
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
       Object... jdbcMethodArgs) {
 
-    pluginManager.lock();
 
-    try {
+    try (ResourceLock ignore = pluginManager.obtain()){
       Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
@@ -198,9 +197,6 @@ public class WrapperUtils {
       } catch (InstantiationException e) {
         throw new RuntimeException(e);
       }
-
-    } finally {
-      pluginManager.unlock();
     }
   }
 
@@ -214,9 +210,8 @@ public class WrapperUtils {
       Object... jdbcMethodArgs)
       throws E {
 
-    pluginManager.lock();
 
-    try {
+    try (ResourceLock lock = pluginManager.obtain()){
       Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
@@ -230,8 +225,6 @@ public class WrapperUtils {
         throw new RuntimeException(e);
       }
 
-    } finally {
-      pluginManager.unlock();
     }
   }
 
