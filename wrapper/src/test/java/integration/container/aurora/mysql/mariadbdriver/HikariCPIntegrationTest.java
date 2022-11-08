@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.mysql.cj.conf.PropertyKey;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -44,6 +46,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
+import software.amazon.jdbc.util.StringUtils;
 
 public class HikariCPIntegrationTest extends MariadbAuroraMysqlBaseTest {
   private static final Logger logger = Logger.getLogger(HikariCPIntegrationTest.class.getName());
@@ -75,58 +78,15 @@ public class HikariCPIntegrationTest extends MariadbAuroraMysqlBaseTest {
     dataSource.close();
   }
 
-  @BeforeEach
-  public void setUpTest() {
-    final HikariConfig config = new HikariConfig();
-
-    config.setUsername(AURORA_MYSQL_USERNAME);
-    config.setPassword(AURORA_MYSQL_PASSWORD);
-    config.setMaximumPoolSize(3);
-    config.setReadOnly(true);
-    config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
-    config.setInitializationFailTimeout(75000);
-    config.setConnectionTimeout(1000);
-
-    config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
-    config.addDataSourceProperty("targetDataSourceClassName", "org.mariadb.jdbc.MariaDbDataSource");
-    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
-    config.addDataSourceProperty("portPropertyName", "port");
-    config.addDataSourceProperty("serverPropertyName", "serverName");
-    config.addDataSourceProperty("urlPropertyName", "url");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("url",
-        "jdbc:mysql://" + clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT + "/"
-            + AURORA_MYSQL_DB + "?permitMysqlScheme");
-    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
-    targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
-    targetDataSourceProps.setProperty("socketTimeout", "3000");
-    targetDataSourceProps.setProperty("connectTimeout", "3000");
-    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
-    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
-    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
-        PROXIED_CLUSTER_TEMPLATE);
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "15000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
-    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
-
-    dataSource = new HikariDataSource(config);
-
-    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
-
-    logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
-    logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
-    logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
-  }
-
   /**
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @Test
   public void test_1_1_hikariCP_lost_connection() throws SQLException {
+    Properties customProps = new Properties();
+    FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(customProps, "1");
+    customProps.setProperty(PropertyKey.socketTimeout.getKeyName(), "500");
+    createDataSource(customProps);
     try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
@@ -156,6 +116,7 @@ public class HikariCPIntegrationTest extends MariadbAuroraMysqlBaseTest {
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
+    createDataSource(null);
 
     // Get a valid connection, then make it fail over to a different instance
     try (Connection conn = dataSource.getConnection()) {
@@ -194,6 +155,7 @@ public class HikariCPIntegrationTest extends MariadbAuroraMysqlBaseTest {
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
+    createDataSource(null);
 
     // Get a valid connection, then make it fail over to a different instance
     try (Connection conn = dataSource.getConnection()) {
@@ -213,6 +175,67 @@ public class HikariCPIntegrationTest extends MariadbAuroraMysqlBaseTest {
       logger.fine("Connected to instance: " + currentInstance);
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
     }
+  }
+
+  private void createDataSource(final Properties customProps) {
+    final HikariConfig config = getConfig(customProps);
+    dataSource = new HikariDataSource(config);
+
+    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
+
+    logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
+    logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
+    logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
+  }
+
+  private HikariConfig getConfig(Properties customProps) {
+    final HikariConfig config = new HikariConfig();
+
+    config.setUsername(AURORA_MYSQL_USERNAME);
+    config.setPassword(AURORA_MYSQL_PASSWORD);
+    config.setMaximumPoolSize(3);
+    config.setReadOnly(true);
+    config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
+    config.setInitializationFailTimeout(75000);
+    config.setConnectionTimeout(1000);
+
+    config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
+    config.addDataSourceProperty("targetDataSourceClassName", "org.mariadb.jdbc.MariaDbDataSource");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:mysql:");
+    config.addDataSourceProperty("portPropertyName", "port");
+    config.addDataSourceProperty("serverPropertyName", "serverName");
+    config.addDataSourceProperty("urlPropertyName", "url");
+
+    final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("url",
+        "jdbc:mysql://" + clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX + ":" + MYSQL_PROXY_PORT + "/"
+            + AURORA_MYSQL_DB + "?permitMysqlScheme");
+    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
+    targetDataSourceProps.setProperty("port", String.valueOf(MYSQL_PROXY_PORT));
+    targetDataSourceProps.setProperty("socketTimeout", "3000");
+    targetDataSourceProps.setProperty("connectTimeout", "3000");
+    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1000");
+    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1000");
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+        PROXIED_CLUSTER_TEMPLATE);
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
+
+    if (customProps != null) {
+      final Enumeration<?> propertyNames = customProps.propertyNames();
+      while (propertyNames.hasMoreElements()) {
+        String propertyName = propertyNames.nextElement().toString();
+        if (!StringUtils.isNullOrEmpty(propertyName)) {
+          final String propertyValue = customProps.getProperty(propertyName);
+          targetDataSourceProps.setProperty(propertyName, propertyValue);
+        }
+      }
+    }
+
+    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
+    return config;
   }
 
   private void putDownInstance(String targetInstance) {
