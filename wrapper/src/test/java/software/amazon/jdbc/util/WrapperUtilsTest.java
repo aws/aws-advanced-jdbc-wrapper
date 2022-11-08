@@ -49,11 +49,11 @@ public class WrapperUtilsTest {
     doAnswer(invocation -> {
       pluginManagerLock.lock();
       return null;
-    }).when(pluginManager).obtain();
+    }).when(pluginManager).acquireLock();
     doAnswer(invocation -> {
       pluginManagerLock.unlock();
       return null;
-    }).when(pluginManager).closeResourceLock();
+    }).when(pluginManager).releaseLock();
 
     doAnswer(invocation -> {
       boolean lockIsFree = testLock.tryLock();

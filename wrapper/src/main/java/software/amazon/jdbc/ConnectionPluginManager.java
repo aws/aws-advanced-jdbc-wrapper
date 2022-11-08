@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -102,14 +101,14 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionWrapper = connectionWrapper;
   }
 
-  public ResourceLock obtain() {
+  public ResourceLock acquireLock() {
     return lock.obtain();
   }
 
   /*
   For testing only
    */
-  public void closeResourceLock() {
+  public void releaseLock() {
     lock.close();
   }
 
