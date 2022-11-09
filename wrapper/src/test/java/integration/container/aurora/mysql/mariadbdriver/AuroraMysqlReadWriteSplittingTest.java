@@ -681,6 +681,36 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
     }
   }
 
+  @ParameterizedTest(name = "test_executeWithOldConnection")
+  @MethodSource("testParameters")
+  public void test_executeWithOldConnection(final Properties props) throws SQLException {
+    final String writerId = instanceIDs[0];
+    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
+    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
+      final String writerConnectionId = queryInstanceId(conn);
+      assertEquals(writerId, writerConnectionId);
+      assertTrue(isDBInstanceWriter(writerConnectionId));
+
+      final Statement oldStmt = conn.createStatement();
+      final ResultSet oldRs = oldStmt.executeQuery("SELECT 1");
+      conn.setReadOnly(true); // Connection is switched internally
+      conn.setAutoCommit(false);
+
+      assertThrows(SQLException.class, () -> oldStmt.execute("SELECT 1"));
+      assertThrows(SQLException.class, () -> oldRs.getInt(1));
+
+      final String readerId = queryInstanceId(conn);
+      assertNotEquals(writerId, readerId);
+      assertTrue(isDBInstanceReader(readerId));
+
+      assertDoesNotThrow(oldStmt::close);
+      assertDoesNotThrow(oldRs::close);
+
+      final String sameReaderId = queryInstanceId(conn);
+      assertEquals(readerId, sameReaderId);
+    }
+  }
+
   @Test
   public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException, InterruptedException, IOException {
     final String initialWriterId = instanceIDs[0];

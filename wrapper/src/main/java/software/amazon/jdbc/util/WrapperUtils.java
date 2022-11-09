@@ -22,6 +22,7 @@ import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
 import java.sql.Clob;
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.NClob;
 import java.sql.ParameterMetaData;
@@ -31,6 +32,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLData;
+import java.sql.SQLException;
 import java.sql.SQLInput;
 import java.sql.SQLOutput;
 import java.sql.SQLType;
@@ -104,7 +106,7 @@ public class WrapperUtils {
         }
       };
 
-  private static Set<Class<?>> allWrapperClasses = new HashSet<Class<?>>() {
+  private static final Set<Class<?>> allWrapperClasses = new HashSet<Class<?>>() {
     {
       add(ArrayWrapper.class);
       add(BlobWrapper.class);
@@ -133,7 +135,7 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcRunnable<RuntimeException> jdbcMethodFunc,
-      Object... jdbcMethodArgs) {
+      final Object... jdbcMethodArgs) {
 
     executeWithPlugins(
         Void.TYPE,
@@ -154,7 +156,7 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcRunnable<E> jdbcMethodFunc,
-      Object... jdbcMethodArgs)
+      final Object... jdbcMethodArgs)
       throws E {
 
     executeWithPlugins(
@@ -176,15 +178,15 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
-      Object... jdbcMethodArgs) {
+      final Object... jdbcMethodArgs) {
 
     pluginManager.lock();
 
     try {
-      Object[] argsCopy =
+      final Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
-      T result =
+      final T result =
           pluginManager.execute(
               resultClass,
               RuntimeException.class,
@@ -195,7 +197,7 @@ public class WrapperUtils {
 
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
-      } catch (InstantiationException e) {
+      } catch (final InstantiationException e) {
         throw new RuntimeException(e);
       }
 
@@ -211,22 +213,22 @@ public class WrapperUtils {
       final Object methodInvokeOn,
       final String methodName,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      Object... jdbcMethodArgs)
+      final Object... jdbcMethodArgs)
       throws E {
 
     pluginManager.lock();
 
     try {
-      Object[] argsCopy =
+      final Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
-      T result =
+      final T result =
           pluginManager.execute(
               resultClass, exceptionClass, methodInvokeOn, methodName, jdbcMethodFunc, argsCopy);
 
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
-      } catch (InstantiationException e) {
+      } catch (final InstantiationException e) {
         throw new RuntimeException(e);
       }
 
@@ -236,7 +238,7 @@ public class WrapperUtils {
   }
 
   protected static @Nullable <T> T wrapWithProxyIfNeeded(
-      final Class<T> resultClass, @Nullable T toProxy, final ConnectionPluginManager pluginManager)
+      final Class<T> resultClass, @Nullable final T toProxy, final ConnectionPluginManager pluginManager)
       throws InstantiationException {
 
     if (toProxy == null) {
@@ -252,7 +254,7 @@ public class WrapperUtils {
       return toProxy;
     }
 
-    Class<?> wrapperClass = availableWrappers.get(resultClass);
+    final Class<?> wrapperClass = availableWrappers.get(resultClass);
 
     if (wrapperClass != null) {
       return createInstance(
@@ -279,7 +281,7 @@ public class WrapperUtils {
    * @param packageName the name of the package to analyze
    * @return true if the given package is a JDBC package
    */
-  public static boolean isJdbcPackage(@Nullable String packageName) {
+  public static boolean isJdbcPackage(@Nullable final String packageName) {
     return packageName != null
         && (packageName.startsWith("java.sql")
         || packageName.startsWith("javax.sql")
@@ -293,25 +295,25 @@ public class WrapperUtils {
    * @param clazz the class to analyze
    * @return true if the given class implements a JDBC interface
    */
-  public static boolean isJdbcInterface(Class<?> clazz) {
+  public static boolean isJdbcInterface(final Class<?> clazz) {
     if (isJdbcInterfaceCache.containsKey(clazz)) {
       return (isJdbcInterfaceCache.get(clazz));
     }
 
     if (clazz.isInterface()) {
       try {
-        Package classPackage = clazz.getPackage();
+        final Package classPackage = clazz.getPackage();
         if (classPackage != null && isJdbcPackage(classPackage.getName())) {
           isJdbcInterfaceCache.putIfAbsent(clazz, true);
           return true;
         }
-      } catch (Exception ex) {
+      } catch (final Exception ex) {
         // Ignore any exceptions since they're caused by runtime-generated classes, or due to class
         // load issues.
       }
     }
 
-    for (Class<?> iface : clazz.getInterfaces()) {
+    for (final Class<?> iface : clazz.getInterfaces()) {
       if (isJdbcInterface(iface)) {
         isJdbcInterfaceCache.putIfAbsent(clazz, true);
         return true;
@@ -334,20 +336,20 @@ public class WrapperUtils {
    * @param clazz the class to analyze
    * @return the interfaces implemented by the given class
    */
-  public static Class<?>[] getImplementedInterfaces(Class<?> clazz) {
+  public static Class<?>[] getImplementedInterfaces(final Class<?> clazz) {
     Class<?>[] implementedInterfaces = getImplementedInterfacesCache.get(clazz);
     if (implementedInterfaces != null) {
       return implementedInterfaces;
     }
 
-    Set<Class<?>> interfaces = new LinkedHashSet<>();
+    final Set<Class<?>> interfaces = new LinkedHashSet<>();
     Class<?> superClass = clazz;
     do {
       Collections.addAll(interfaces, superClass.getInterfaces());
     } while ((superClass = superClass.getSuperclass()) != null);
 
     implementedInterfaces = interfaces.toArray(new Class<?>[0]);
-    Class<?>[] oldValue = getImplementedInterfacesCache.putIfAbsent(clazz, implementedInterfaces);
+    final Class<?>[] oldValue = getImplementedInterfacesCache.putIfAbsent(clazz, implementedInterfaces);
     if (oldValue != null) {
       implementedInterfaces = oldValue;
     }
@@ -359,18 +361,18 @@ public class WrapperUtils {
       final String extensionClassNames, final Class<T> clazz, final String errorMessageResourceKey)
       throws InstantiationException {
 
-    List<T> instances = new LinkedList<>();
-    List<String> interceptorsToCreate = StringUtils.split(extensionClassNames, ",", true);
+    final List<T> instances = new LinkedList<>();
+    final List<String> interceptorsToCreate = StringUtils.split(extensionClassNames, ",", true);
     String className = null;
 
     try {
-      for (String value : interceptorsToCreate) {
+      for (final String value : interceptorsToCreate) {
         className = value;
-        T instance = createInstance(className, clazz);
+        final T instance = createInstance(className, clazz);
         instances.add(instance);
       }
 
-    } catch (Throwable t) {
+    } catch (final Throwable t) {
       throw new InstantiationException(Messages.get(errorMessageResourceKey, new Object[] {className}));
     }
 
@@ -383,17 +385,17 @@ public class WrapperUtils {
       final String errorMessageResourceKey)
       throws InstantiationException {
 
-    List<T> instances = new LinkedList<>();
+    final List<T> instances = new LinkedList<>();
     Class<? extends T> lastClass = null;
 
     try {
-      for (Class<? extends T> extensionClass : extensionClassList) {
+      for (final Class<? extends T> extensionClass : extensionClassList) {
         lastClass = extensionClass;
-        T instance = createInstance(lastClass, resultClass, null);
+        final T instance = createInstance(lastClass, resultClass, null);
         instances.add(instance);
       }
 
-    } catch (Throwable t) {
+    } catch (final Throwable t) {
       throw new InstantiationException(Messages.get(errorMessageResourceKey, new Object[] {lastClass.getName()}));
     }
 
@@ -427,9 +429,9 @@ public class WrapperUtils {
           argClasses[i] = constructorArgs[i].getClass();
         }
       }
-      Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
+      final Constructor<?> constructor = classToInstantiate.getConstructor(argClasses);
       return resultClass.cast(constructor.newInstance(constructorArgs));
-    } catch (Exception e) {
+    } catch (final Exception e) {
       throw new InstantiationException(
           Messages.get(
               "WrapperUtils.failedToInitializeClass",
@@ -449,10 +451,10 @@ public class WrapperUtils {
       throw new IllegalArgumentException("resultClass");
     }
 
-    Class<?> loaded;
+    final Class<?> loaded;
     try {
       loaded = Class.forName(className);
-    } catch (Exception e) {
+    } catch (final Exception e) {
       throw new InstantiationException(
           Messages.get(
               "WrapperUtils.failedToInitializeClass",
@@ -462,20 +464,20 @@ public class WrapperUtils {
     return createInstance(loaded, resultClass, null, constructorArgs);
   }
 
-  public static Object getFieldValue(Object target, String accessor) {
+  public static Object getFieldValue(Object target, final String accessor) {
     if (target == null) {
       return null;
     }
 
-    List<String> fieldNames = StringUtils.split(accessor, "\\.", true);
+    final List<String> fieldNames = StringUtils.split(accessor, "\\.", true);
     Class<?> targetClass = target.getClass();
 
-    for (String fieldName : fieldNames) {
+    for (final String fieldName : fieldNames) {
       Field field = null;
       while (targetClass != null && field == null) {
         try {
           field = targetClass.getDeclaredField(fieldName);
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
           // try parent class
           targetClass = targetClass.getSuperclass();
         }
@@ -489,10 +491,10 @@ public class WrapperUtils {
         field.setAccessible(true);
       }
 
-      Object fieldValue;
+      final Object fieldValue;
       try {
         fieldValue = field.get(target);
-      } catch (Exception ex) {
+      } catch (final Exception ex) {
         return null;
       }
 
@@ -505,6 +507,25 @@ public class WrapperUtils {
     }
 
     return target;
+  }
+
+  public static Connection getConnectionFromSqlObject(final Object obj) {
+    try {
+      if (obj instanceof Connection) {
+        return (Connection) obj;
+      } else if (obj instanceof Statement) {
+        final Statement stmt = (Statement) obj;
+        return stmt.getConnection();
+      } else if (obj instanceof ResultSet) {
+        final ResultSet rs = (ResultSet) obj;
+        return rs.getStatement().getConnection();
+      }
+    } catch (final SQLException | UnsupportedOperationException e) {
+      // Do nothing. The UnsupportedOperationException comes from ResultSets returned by DataCacheConnectionPlugin and
+      // will be triggered when getStatement is called.
+    }
+
+    return null;
   }
 
   /**

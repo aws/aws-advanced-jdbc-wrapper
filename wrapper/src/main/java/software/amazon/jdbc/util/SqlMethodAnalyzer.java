@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class ConnectionMethodAnalyzer {
+public class SqlMethodAnalyzer {
 
   public boolean doesOpenTransaction(final Connection currentConn, final String methodName, final Object[] args) {
     if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
@@ -68,7 +68,8 @@ public class ConnectionMethodAnalyzer {
   }
 
   public boolean doesCloseTransaction(final String methodName, final Object[] args) {
-    if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")) {
+    if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")
+        || methodName.equals("Connection.close") || methodName.equals("Connection.abort")) {
       return true;
     }
 
@@ -153,5 +154,9 @@ public class ConnectionMethodAnalyzer {
     } else {
       return null;
     }
+  }
+
+  public boolean isMethodClosingSqlObject(String methodName) {
+    return methodName.endsWith(".close") || methodName.endsWith(".abort");
   }
 }

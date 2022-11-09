@@ -17,9 +17,7 @@
 package software.amazon.jdbc;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -45,6 +43,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFa
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -82,6 +81,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
+  private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private final ReentrantLock lock = new ReentrantLock();
 
   protected Properties props = new Properties();
@@ -313,24 +313,11 @@ public class ConnectionPluginManager implements CanReleaseResources {
       final Object[] jdbcMethodArgs)
       throws E {
 
-    Connection conn = null;
-    try {
-      if (methodInvokeOn instanceof Connection) {
-        conn = (Connection) methodInvokeOn;
-      } else if (methodInvokeOn instanceof Statement) {
-        Statement stmt = (Statement) methodInvokeOn;
-        conn = stmt.getConnection();
-      } else if (methodInvokeOn instanceof ResultSet) {
-        ResultSet rs = (ResultSet) methodInvokeOn;
-        conn = rs.getStatement().getConnection();
-      }
-    } catch (SQLException | UnsupportedOperationException e) {
-      // Do nothing. The UnsupportedOperationException comes from ResultSets returned by DataCacheConnectionPlugin and
-      // will be triggered when getStatement is called.
-    }
-
-    if (conn != null && conn != this.pluginService.getCurrentConnection()) {
-      SQLException e =  new SQLException(Messages.get("ConnectionPluginManager.methodInvokedAgainstOldConnection"));
+    final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+    if (conn != null && conn != this.pluginService.getCurrentConnection()
+        && !sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
+      final SQLException e =
+          new SQLException(Messages.get("ConnectionPluginManager.methodInvokedAgainstOldConnection"));
       throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
 

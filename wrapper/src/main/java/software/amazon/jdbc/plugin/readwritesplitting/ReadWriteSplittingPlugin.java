@@ -44,10 +44,10 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
-import software.amazon.jdbc.util.ConnectionMethodAnalyzer;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
 
@@ -56,6 +56,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private final Map<String, Connection> liveConnections = new HashMap<>();
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPlugin.class.getName());
+  private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -86,7 +87,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
   static final String MYSQL_INSTANCE_NAME_COL = "@@aurora_server_id";
 
-  private final ConnectionMethodAnalyzer connectionMethodAnalyzer = new ConnectionMethodAnalyzer();
   private final PluginService pluginService;
   private final Properties properties;
   private final RdsUtils rdsUtils = new RdsUtils();
@@ -118,9 +118,9 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   ReadWriteSplittingPlugin(
       final PluginService pluginService,
       final Properties properties,
-      HostListProviderService hostListProviderService,
-      Connection writerConnection,
-      Connection readerConnection) {
+      final HostListProviderService hostListProviderService,
+      final Connection writerConnection,
+      final Connection readerConnection) {
     this(pluginService, properties);
     this.hostListProviderService = hostListProviderService;
     this.writerConnection = writerConnection;
@@ -268,6 +268,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] args)
       throws E {
+    final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+    if (conn != null && conn != this.pluginService.getCurrentConnection()) {
+      LOGGER.fine(
+          () -> Messages.get("ReadWriteSplittingPlugin.executingAgainstOldConnection", new Object[] {methodInvokeOn}));
+      return jdbcMethodFunc.call();
+    }
+
     if (methodName.contains(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
       try {
         final boolean readOnly = (Boolean) args[0];
@@ -276,7 +283,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       } catch (final SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
       }
-    } else if (this.explicitlyReadOnly && this.loadBalanceReadOnlyTraffic && this.isTransactionBoundary) {
+    } else if (!sqlMethodAnalyzer.isMethodClosingSqlObject(methodName) && this.explicitlyReadOnly
+        && this.loadBalanceReadOnlyTraffic && this.isTransactionBoundary) {
       LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.transactionBoundaryDetectedSwitchingToNewReader"));
       pickNewReaderConnection();
     }
@@ -284,19 +292,21 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.isTransactionBoundary = isTransactionBoundary(methodName, args);
     try {
       return jdbcMethodFunc.call();
-    } catch (Exception e) {
+    } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
-        LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand"));
+        LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand",
+            new Object[] {methodName}));
         closeAllConnections();
       } else {
-        LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.exceptionWhileExecutingCommand"));
+        LOGGER.finest(
+            () -> Messages.get("ReadWriteSplittingPlugin.exceptionWhileExecutingCommand", new Object[] {methodName}));
       }
       throw e;
     }
   }
 
   private boolean isTransactionBoundary(final String methodName, final Object[] args) {
-    if (this.connectionMethodAnalyzer.doesCloseTransaction(methodName, args)) {
+    if (sqlMethodAnalyzer.doesCloseTransaction(methodName, args)) {
       return true;
     }
 
@@ -312,7 +322,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return false;
     }
 
-    return autocommit && this.connectionMethodAnalyzer.isExecuteDml(methodName, args);
+    return autocommit && sqlMethodAnalyzer.isExecuteDml(methodName, args);
   }
 
   private void updateInternalConnectionInfo() throws SQLException {
@@ -663,11 +673,15 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return this.readerConnection;
   }
 
-  void setExplicitlyReadOnly(boolean readOnly) {
-    this.explicitlyReadOnly = readOnly;
+  boolean getIsTransactionBoundary() {
+    return this.isTransactionBoundary;
   }
 
-  void setIsTransactionBoundary(boolean transactionBoundary) {
+  void setIsTransactionBoundary(final boolean transactionBoundary) {
     this.isTransactionBoundary = transactionBoundary;
+  }
+
+  void setExplicitlyReadOnly(final boolean readOnly) {
+    this.explicitlyReadOnly = readOnly;
   }
 }

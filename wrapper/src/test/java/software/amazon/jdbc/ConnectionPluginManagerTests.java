@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
@@ -30,8 +31,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Properties;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.mock.TestPluginOne;
 import software.amazon.jdbc.mock.TestPluginThree;
 import software.amazon.jdbc.mock.TestPluginThrowException;
@@ -40,28 +45,42 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ConnectionPluginManagerTests {
 
+  @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
+
+  private AutoCloseable closeable;
+
+  @AfterEach
+  void cleanUp() throws Exception {
+    closeable.close();
+  }
+
+  @BeforeEach
+  void init() {
+    closeable = MockitoAnnotations.openMocks(this);
+  }
+
   @Test
   public void testExecuteJdbcCallA() throws Exception {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThree(calls));
 
-    Properties testProperties = new Properties();
+    final Properties testProperties = new Properties();
 
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
 
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
 
-    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+    final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
-    ConnectionPluginManager target =
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
-    Object result =
+    final Object result =
         target.execute(
             String.class,
             Exception.class,
@@ -88,25 +107,25 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testExecuteJdbcCallB() throws Exception {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThree(calls));
 
-    Properties testProperties = new Properties();
+    final Properties testProperties = new Properties();
 
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
 
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
 
-    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+    final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
-    ConnectionPluginManager target =
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
-    Object result =
+    final Object result =
         target.execute(
             String.class,
             Exception.class,
@@ -131,25 +150,25 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testExecuteJdbcCallC() throws Exception {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThree(calls));
 
-    Properties testProperties = new Properties();
+    final Properties testProperties = new Properties();
 
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
 
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
 
-    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+    final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
-    ConnectionPluginManager target =
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
-    Object result =
+    final Object result =
         target.execute(
             String.class,
             Exception.class,
@@ -172,22 +191,22 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testConnect() throws Exception {
 
-    Connection expectedConnection = mock(Connection.class);
+    final Connection expectedConnection = mock(Connection.class);
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThree(calls, expectedConnection));
 
-    Properties testProperties = new Properties();
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
-    ConnectionPluginManager target =
+    final Properties testProperties = new Properties();
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
-    Connection conn = target.connect("any", new HostSpec("anyHost"), testProperties, true);
+    final Connection conn = target.connect("any", new HostSpec("anyHost"), testProperties, true);
 
     assertEquals(expectedConnection, conn);
     assertEquals(4, calls.size());
@@ -200,18 +219,18 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testConnectWithSQLExceptionBefore() {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThrowException(calls, SQLException.class, true));
     testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
-    Properties testProperties = new Properties();
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
-    ConnectionPluginManager target =
+    final Properties testProperties = new Properties();
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
     assertThrows(
@@ -226,18 +245,18 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testConnectWithSQLExceptionAfter() {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThrowException(calls, SQLException.class, false));
     testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
-    Properties testProperties = new Properties();
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
-    ConnectionPluginManager target =
+    final Properties testProperties = new Properties();
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
     assertThrows(
@@ -255,21 +274,21 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testConnectWithUnexpectedExceptionBefore() {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThrowException(calls, IllegalArgumentException.class, true));
     testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
-    Properties testProperties = new Properties();
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
-    ConnectionPluginManager target =
+    final Properties testProperties = new Properties();
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
-    Exception ex =
+    final Exception ex =
         assertThrows(
             IllegalArgumentException.class,
             () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
@@ -282,21 +301,21 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testConnectWithUnexpectedExceptionAfter() {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThrowException(calls, IllegalArgumentException.class, false));
     testPlugins.add(new TestPluginThree(calls, mock(Connection.class)));
 
-    Properties testProperties = new Properties();
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
-    ConnectionPluginManager target =
+    final Properties testProperties = new Properties();
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
-    Exception ex =
+    final Exception ex =
         assertThrows(
             IllegalArgumentException.class,
             () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
@@ -312,22 +331,22 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testExecuteCachedJdbcCallA() throws Exception {
 
-    ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
     testPlugins.add(new TestPluginOne(calls));
     testPlugins.add(new TestPluginTwo(calls));
     testPlugins.add(new TestPluginThree(calls));
 
-    Properties testProperties = new Properties();
+    final Properties testProperties = new Properties();
 
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
 
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
 
-    Object[] testArgs = new Object[] {10, "arg2", 3.33};
+    final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
-    ConnectionPluginManager target = Mockito.spy(
+    final ConnectionPluginManager target = Mockito.spy(
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper));
 
     Object result =
@@ -387,22 +406,28 @@ public class ConnectionPluginManagerTests {
 
   @Test
   public void testExecuteAgainstOldConnection() throws Exception {
-    ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
-    Properties testProperties = new Properties();
+    final ArrayList<String> calls = new ArrayList<>();
 
-    PluginService mockPluginService = mock(PluginService.class);
-    ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
-    ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
-    Connection mockOldConnection = mock(Connection.class);
-    Connection mockCurrentConnection = mock(Connection.class);
-    Statement mockOldStatement = mock(Statement.class);
-    ResultSet mockOldResultSet = mock(ResultSet.class);
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    testPlugins.add(new TestPluginOne(calls));
+    testPlugins.add(new TestPluginTwo(calls));
+    testPlugins.add(new TestPluginThree(calls));
+
+    final Properties testProperties = new Properties();
+
+    final PluginService mockPluginService = mock(PluginService.class);
+    final ConnectionProvider mockConnectionProvider = mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper = mock(ConnectionWrapper.class);
+    final Connection mockOldConnection = mock(Connection.class);
+    final Connection mockCurrentConnection = mock(Connection.class);
+    final Statement mockOldStatement = mock(Statement.class);
+    final ResultSet mockOldResultSet = mock(ResultSet.class);
 
     when(mockPluginService.getCurrentConnection()).thenReturn(mockCurrentConnection);
     when(mockOldStatement.getConnection()).thenReturn(mockOldConnection);
     when(mockOldResultSet.getStatement()).thenReturn(mockOldStatement);
 
-    ConnectionPluginManager target =
+    final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper,
             mockPluginService);
 
@@ -412,6 +437,18 @@ public class ConnectionPluginManagerTests {
         () -> target.execute(String.class, Exception.class, mockOldStatement, "testJdbcCall_A", () -> "result", null));
     assertThrows(SQLException.class,
         () -> target.execute(String.class, Exception.class, mockOldResultSet, "testJdbcCall_A", () -> "result", null));
-  }
 
+    assertDoesNotThrow(
+        () -> target.execute(Void.class, SQLException.class, mockOldConnection, "Connection.close", mockSqlFunction,
+            null));
+    assertDoesNotThrow(
+        () -> target.execute(Void.class, SQLException.class, mockOldConnection, "Connection.abort", mockSqlFunction,
+            null));
+    assertDoesNotThrow(
+        () -> target.execute(Void.class, SQLException.class, mockOldStatement, "Statement.close", mockSqlFunction,
+            null));
+    assertDoesNotThrow(
+        () -> target.execute(Void.class, SQLException.class, mockOldResultSet, "ResultSet.close", mockSqlFunction,
+            null));
+  }
 }
