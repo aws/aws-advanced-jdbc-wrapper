@@ -12,7 +12,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+/*
  * portions Copyright (c) 2022, PostgreSQL Global Development Group
  * See the LICENSE file in the project root for more information.
  */
