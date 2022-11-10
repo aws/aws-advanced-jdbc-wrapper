@@ -40,7 +40,11 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
-import software.amazon.jdbc.util.*;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.ResourceLock;
+import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**

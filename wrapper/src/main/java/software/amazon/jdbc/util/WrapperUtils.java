@@ -179,7 +179,7 @@ public class WrapperUtils {
       Object... jdbcMethodArgs) {
 
 
-    try (ResourceLock ignore = pluginManager.acquireLock()){
+    try (ResourceLock ignore = pluginManager.acquireLock()) {
       Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
@@ -211,7 +211,7 @@ public class WrapperUtils {
       throws E {
 
 
-    try (ResourceLock lock = pluginManager.acquireLock()){
+    try (ResourceLock lock = pluginManager.acquireLock()) {
       Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
 
