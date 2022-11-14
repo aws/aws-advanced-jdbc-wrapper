@@ -41,6 +41,7 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
@@ -99,6 +100,13 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     final T result = jdbcMethodFunc.call();
 
     Connection currentConn = this.pluginService.getCurrentConnection();
+    final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+    if (boundConnection != null && boundConnection != currentConn) {
+      // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
+      // ConnectionPluginManager#execute blocks all methods invoked using old connections except for close/abort.
+      return result;
+    }
+
     if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
     } else if (sqlMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {

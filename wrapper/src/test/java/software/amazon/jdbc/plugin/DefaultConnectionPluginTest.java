@@ -17,7 +17,16 @@
 package software.amazon.jdbc.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,12 +34,14 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 
@@ -41,6 +52,9 @@ class DefaultConnectionPluginTest {
   @Mock PluginService pluginService;
   @Mock ConnectionProvider connectionProvider;
   @Mock PluginManagerService pluginManagerService;
+  @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
+  @Mock Connection conn;
+  @Mock Connection oldConn;
 
   private AutoCloseable closeable;
 
@@ -60,6 +74,20 @@ class DefaultConnectionPluginTest {
   void testParseMultiStatementQueries(final String sql, final List<String> expected) {
     final List<String> actual = plugin.parseMultiStatementQueries(sql);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void testExecute_closeCurrentConnection() throws SQLException {
+    when(this.pluginService.getCurrentConnection()).thenReturn(conn);
+    plugin.execute(Void.class, SQLException.class, conn, "Connection.close", mockSqlFunction, new Object[]{});
+    verify(pluginManagerService, times(1)).setInTransaction(false);
+  }
+
+  @Test
+  void testExecute_closeOldConnection() throws SQLException {
+    when(this.pluginService.getCurrentConnection()).thenReturn(conn);
+    plugin.execute(Void.class, SQLException.class, oldConn, "Connection.close", mockSqlFunction, new Object[]{});
+    verify(pluginManagerService, never()).setInTransaction(anyBoolean());
   }
 
   private static Stream<Arguments> multiStatementQueries() {
