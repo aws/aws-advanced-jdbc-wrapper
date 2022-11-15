@@ -58,7 +58,7 @@ import org.testcontainers.utility.TestEnvironment;
 
 public class ContainerHelper {
   private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK = "openjdk:8-jdk-alpine";
-  private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM = "ghcr.io/graalvm/jdk:22.2.0";
+  private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM = "ghcr.io/graalvm/jdk:java8-21.2.0";
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.28";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:latest";
