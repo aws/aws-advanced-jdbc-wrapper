@@ -31,5 +31,4 @@ import org.junit.platform.suite.api.Suite;
     SpringTests.class,
     StandardMysqlReadWriteSplittingTest.class
 })
-public class MysqlStandardMysqlTestSuite {
-}
+public class MysqlStandardMysqlTestSuite {}
