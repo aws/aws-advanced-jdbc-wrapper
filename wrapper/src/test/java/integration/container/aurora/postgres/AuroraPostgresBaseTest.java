@@ -300,8 +300,7 @@ public abstract class AuroraPostgresBaseTest {
 
   protected String hostToIP(String hostname) {
     try {
-      final InetAddress inet;
-      inet = InetAddress.getByName(hostname);
+      final InetAddress inet = InetAddress.getByName(hostname);
       return inet.getHostAddress();
     } catch (UnknownHostException e) {
       fail("The IP address of host " + hostname + " could not be determined");
