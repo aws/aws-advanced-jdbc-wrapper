@@ -238,7 +238,7 @@ public abstract class AuroraMysqlBaseTest {
     TestPluginServiceImpl.clearHostAvailabilityCache();
   }
 
-  protected Properties initDefaultPropsNoTimeouts() {
+  protected static Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, AURORA_MYSQL_USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, AURORA_MYSQL_PASSWORD);
@@ -248,7 +248,7 @@ public abstract class AuroraMysqlBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProps() {
+  protected static Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
     props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3000");
     props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3000");
@@ -256,7 +256,7 @@ public abstract class AuroraMysqlBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProxiedProps() {
+  protected static Properties initDefaultProxiedProps() {
     final Properties props = initDefaultProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
 
