@@ -28,11 +28,13 @@ public class MysqlStandardMysqlBaseTest extends StandardMysqlBaseTest {
   @BeforeAll
   public static void setUpMysql() throws SQLException, IOException, ClassNotFoundException {
     DB_CONN_STR_PREFIX = "jdbc:aws-wrapper:mysql://";
-    STANDARD_HOST = System.getenv("STANDARD_MYSQL_HOST");
+    STANDARD_WRITER = System.getenv("STANDARD_MYSQL_WRITER");
+    STANDARD_READER = System.getenv("STANDARD_MYSQL_READER");
     STANDARD_PORT = Integer.parseInt(System.getenv("STANDARD_MYSQL_PORT"));
     STANDARD_DB = System.getenv("STANDARD_MYSQL_DB");
     STANDARD_USERNAME = System.getenv("STANDARD_MYSQL_USERNAME");
     STANDARD_PASSWORD = System.getenv("STANDARD_MYSQL_PASSWORD");
+    instanceIDs = new String[] {STANDARD_WRITER, STANDARD_READER};
     setUp();
     DriverManager.registerDriver(new com.mysql.cj.jdbc.Driver());
 

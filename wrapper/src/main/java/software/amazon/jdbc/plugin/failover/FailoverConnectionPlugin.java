@@ -48,6 +48,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * This plugin provides cluster-aware failover features. The plugin switches connections upon
@@ -69,9 +70,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       });
 
   static final String METHOD_SET_READ_ONLY = "setReadOnly";
-  static final String METHOD_SET_AUTO_COMMIT = "setAutoCommit";
-  static final String METHOD_COMMIT = "commit";
-  static final String METHOD_ROLLBACK = "rollback";
   private static final String METHOD_GET_AUTO_COMMIT = "getAutoCommit";
   private static final String METHOD_GET_CATALOG = "getCatalog";
   private static final String METHOD_GET_SCHEMA = "getSchema";
@@ -89,7 +87,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
   protected boolean enableFailoverStrictReaderSetting;
-  protected boolean explicitlyAutoCommit = true;
   Boolean explicitlyReadOnly = false;
   private boolean closedExplicitly = false;
   protected boolean isClosed = false;
@@ -115,9 +112,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty(
           "failoverTimeoutMs",
           "300000",
-          "Cluster topology refresh rate in millis. "
-              + "The cached topology for the cluster will be invalidated after the specified time, "
-              + "after which it will be updated during the next interaction with the connection.");
+          "Maximum allowed time for the failover process.");
 
   public static final AwsWrapperProperty FAILOVER_WRITER_RECONNECT_INTERVAL_MS =
       new AwsWrapperProperty(
@@ -183,7 +178,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       try {
         invalidInvocationOnClosedConnection();
       } catch (final SQLException ex) {
-        throw wrapExceptionIfNeeded(exceptionClass, ex);
+        throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
     }
 
@@ -201,7 +196,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     try {
       performSpecialMethodHandlingIfRequired(jdbcMethodArgs, methodName);
     } catch (final SQLException e) {
-      throw wrapExceptionIfNeeded(exceptionClass, e);
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
 
     return result;
@@ -216,9 +211,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
     initHostProvider(
-        driverProtocol,
         initialUrl,
-        props,
         hostListProviderService,
         initHostProviderFunc,
         () -> new AuroraHostListProvider(driverProtocol, hostListProviderService, props, initialUrl),
@@ -240,9 +233,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   void initHostProvider(
-      final String driverProtocol,
       final String initialUrl,
-      final Properties props,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc,
       final Supplier<HostListProvider> hostListProviderSupplier,
@@ -370,15 +361,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return this.explicitlyReadOnly != null && this.explicitlyReadOnly;
   }
 
-  /**
-   * Checks if there is an underlying connection for this proxy.
-   *
-   * @return true if there is a connection
-   */
-  boolean isConnected() {
-    return this.pluginService.getCurrentHostSpec().getAvailability() == HostAvailability.AVAILABLE;
-  }
-
   private HostSpec getCurrentWriter() throws SQLException {
     final List<HostSpec> topology = this.pluginService.getHosts();
     if (topology == null) {
@@ -387,7 +369,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return getWriter(topology);
   }
 
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
+  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
     for (final HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.WRITER) {
         return hostSpec;
@@ -471,18 +453,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private void performSpecialMethodHandlingIfRequired(final Object[] args, final String methodName)
       throws SQLException {
-    if (methodName.contains(METHOD_SET_AUTO_COMMIT)) {
-      this.explicitlyAutoCommit = (Boolean) args[0];
-      if (this.pluginManagerService != null) {
-        this.pluginManagerService.setInTransaction(!this.explicitlyAutoCommit);
-      }
-    }
-
-    if (methodName.contains(METHOD_COMMIT) || methodName.contains(METHOD_ROLLBACK)) {
-      if (this.pluginManagerService != null) {
-        this.pluginManagerService.setInTransaction(false);
-      }
-    }
 
     if (methodName.contains(METHOD_SET_READ_ONLY)) {
       this.explicitlyReadOnly = (Boolean) args[0];
@@ -559,8 +529,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param from     The connection to transfer state from
    * @param to       The connection to transfer state to
    * @param readOnly The desired read-only state
-   * @throws SQLException if a database access error occurs, this method is called on a closed connection or this method
-   *                      is called during a transaction
+   * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
+   *                      method is called during a distributed transaction, or this method is called during a
+   *                      transaction
    */
   protected void transferSessionState(
       final Connection from,
@@ -593,7 +564,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         try {
           pickNewConnection();
         } catch (final SQLException e) {
-          throw wrapExceptionIfNeeded(exceptionClass, e);
+          throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
         }
         this.lastExceptionDealtWith = originalException;
       }
@@ -608,7 +579,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       throw (Error) exceptionToThrow;
     }
 
-    throw wrapExceptionIfNeeded(exceptionClass, exceptionToThrow);
+    throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, exceptionToThrow);
   }
 
   /**
@@ -808,21 +779,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return (methodName.contains(METHOD_CLOSE)
         || methodName.contains(METHOD_IS_CLOSED)
         || methodName.contains(METHOD_ABORT));
-  }
-
-  /**
-   * Check if the throwable is an instance of the given exception and throw it as the required
-   * exception class, otherwise throw it as a runtime exception.
-   *
-   * @param exceptionClass The exception class the exception is exepected to be
-   * @param exception      The exception that occurred while invoking the given method
-   * @return an exception indicating the failure that occurred while invoking the given method
-   */
-  private <E extends Exception> E wrapExceptionIfNeeded(final Class<E> exceptionClass, final Throwable exception) {
-    if (exceptionClass.isAssignableFrom(exception.getClass())) {
-      return exceptionClass.cast(exception);
-    }
-    return exceptionClass.cast(new RuntimeException(exception));
   }
 
   @Override

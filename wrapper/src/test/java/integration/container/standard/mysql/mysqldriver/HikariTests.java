@@ -71,7 +71,7 @@ public class HikariTests extends MysqlStandardMysqlBaseTest {
 
     // Configuring MysqlDataSource:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 

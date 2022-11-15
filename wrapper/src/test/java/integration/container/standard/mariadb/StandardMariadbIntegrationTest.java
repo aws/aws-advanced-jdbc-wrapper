@@ -53,9 +53,9 @@ public class StandardMariadbIntegrationTest extends StandardMariadbBaseTest {
 
     try (Connection conn = connectToProxy()) {
       assertTrue(conn.isValid(5));
-      containerHelper.disableConnectivity(proxy);
+      containerHelper.disableConnectivity(proxyWriter);
       assertFalse(conn.isValid(5));
-      containerHelper.enableConnectivity(proxy);
+      containerHelper.enableConnectivity(proxyWriter);
     }
   }
 

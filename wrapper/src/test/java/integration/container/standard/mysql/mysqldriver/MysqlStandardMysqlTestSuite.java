@@ -28,6 +28,7 @@ import org.junit.platform.suite.api.Suite;
   DataSourceTests.class,
   HikariTests.class,
   LogQueryPluginTests.class,
-  SpringTests.class
+  SpringTests.class,
+  StandardMysqlReadWriteSplittingTest.class
 })
 public class MysqlStandardMysqlTestSuite {}

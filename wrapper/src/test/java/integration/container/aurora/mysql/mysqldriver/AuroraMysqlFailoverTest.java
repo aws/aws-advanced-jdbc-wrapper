@@ -30,7 +30,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
@@ -371,58 +370,6 @@ public class AuroraMysqlFailoverTest extends MysqlAuroraMysqlBaseTest {
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
       final long duration = invokeEndTimeMs - invokeStartTimeMs;
       assertTrue(duration < 15000); // Add in 5 seconds to account for time to detect the failure
-    }
-  }
-
-  // Helpers
-  private void failoverClusterAndWaitUntilWriterChanged(final String clusterWriterId)
-      throws InterruptedException {
-    failoverCluster();
-    waitUntilWriterInstanceChanged(clusterWriterId);
-  }
-
-  private void failoverCluster() throws InterruptedException {
-    waitUntilClusterHasRightState();
-    while (true) {
-      try {
-        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER));
-        break;
-      } catch (final Exception e) {
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
-    }
-  }
-
-  private void failoverClusterToATargetAndWaitUntilWriterChanged(
-      final String clusterWriterId,
-      final String targetInstanceId) throws InterruptedException {
-    failoverClusterWithATargetInstance(targetInstanceId);
-    waitUntilWriterInstanceChanged(clusterWriterId);
-  }
-
-  private void failoverClusterWithATargetInstance(final String targetInstanceId)
-      throws InterruptedException {
-    waitUntilClusterHasRightState();
-
-    while (true) {
-      try {
-        rdsClient.failoverDBCluster(
-            (builder) -> builder.dbClusterIdentifier(DB_CLUSTER_IDENTIFIER)
-                .targetDBInstanceIdentifier(targetInstanceId));
-        break;
-      } catch (final Exception e) {
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
-    }
-  }
-
-  private void waitUntilWriterInstanceChanged(final String initialWriterInstanceId)
-      throws InterruptedException {
-    String nextClusterWriterId = getDBClusterWriterInstanceId();
-    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
-      TimeUnit.MILLISECONDS.sleep(3000);
-      // Calling the RDS API to get writer Id.
-      nextClusterWriterId = getDBClusterWriterInstanceId();
     }
   }
 }

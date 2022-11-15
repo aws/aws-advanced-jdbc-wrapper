@@ -19,8 +19,14 @@ package integration.container.standard.mysql;
 import com.mysql.cj.conf.PropertyKey;
 import integration.container.standard.StandardBaseTest;
 import java.util.Properties;
+import org.junit.jupiter.api.BeforeAll;
 
 public class StandardMysqlBaseTest extends StandardBaseTest {
+
+  @BeforeAll
+  public static void setupMysqlDatabaseTests() {
+    QUERY_FOR_HOSTNAME = "SELECT @@hostname";
+  }
 
   @Override
   protected Properties initDefaultProps() {

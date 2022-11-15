@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.ConnectionPlugin;
@@ -41,6 +40,8 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SqlMethodAnalyzer;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
@@ -50,16 +51,18 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   private static final Logger LOGGER =
       Logger.getLogger(DefaultConnectionPlugin.class.getName());
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
+  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
+      Collections.singletonList("*")));
+  private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
   private final ConnectionProvider connectionProvider;
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
 
   public DefaultConnectionPlugin(
-      PluginService pluginService,
-      ConnectionProvider connectionProvider,
-      PluginManagerService pluginManagerService) {
+      final PluginService pluginService,
+      final ConnectionProvider connectionProvider,
+      final PluginManagerService pluginManagerService) {
     if (pluginService == null) {
       throw new IllegalArgumentException("pluginService");
     }
@@ -82,12 +85,12 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public <T, E extends Exception> T execute(
-      Class<T> resultClass,
-      Class<E> exceptionClass,
-      Object methodInvokeOn,
-      String methodName,
-      JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs)
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final Object methodInvokeOn,
+      final String methodName,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs)
       throws E {
 
     LOGGER.finest(
@@ -96,19 +99,29 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
             new Object[] {methodName}));
     final T result = jdbcMethodFunc.call();
 
-    if (!(methodName.contains("execute") && jdbcMethodArgs != null && jdbcMethodArgs.length >= 1)) {
+    Connection currentConn = this.pluginService.getCurrentConnection();
+    final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+    if (boundConnection != null && boundConnection != currentConn) {
+      // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
+      // ConnectionPluginManager#execute blocks all methods invoked using old connections except for close/abort.
       return result;
     }
 
-    final String query = String.valueOf(jdbcMethodArgs[0]);
-    final String statement = parseMultiStatementQueries(query).get(0);
-
-    if (doesOpenTransaction(statement)) {
+    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
+    } else if (sqlMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {
+      this.pluginManagerService.setInTransaction(false);
     }
 
-    if (doesCloseTransaction(statement)) {
-      this.pluginManagerService.setInTransaction(false);
+    if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, jdbcMethodArgs)) {
+      final Boolean autocommit = sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
+      if (autocommit != null) {
+        try {
+          currentConn.setAutoCommit(autocommit);
+        } catch (final SQLException e) {
+          // do nothing
+        }
+      }
     }
 
     return result;
@@ -116,14 +129,14 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc)
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    Connection conn = this.connectionProvider.connect(driverProtocol, hostSpec, props);
+    final Connection conn = this.connectionProvider.connect(driverProtocol, hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // omitted.
@@ -147,27 +160,13 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 
   @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
     // do nothing
-  }
-
-  public boolean doesOpenTransaction(String statement) {
-    statement = statement.toUpperCase();
-    statement = statement.replaceAll("\\s*/\\*(.*?)\\*/\\s*", " ").trim();
-    return statement.startsWith("BEGIN") || statement.startsWith("START TRANSACTION");
-  }
-
-  public boolean doesCloseTransaction(String statement) {
-    statement = statement.toUpperCase();
-    return statement.startsWith("COMMIT")
-        || statement.startsWith("ROLLBACK")
-        || statement.startsWith("END")
-        || statement.startsWith("ABORT");
   }
 
   List<String> parseMultiStatementQueries(String query) {

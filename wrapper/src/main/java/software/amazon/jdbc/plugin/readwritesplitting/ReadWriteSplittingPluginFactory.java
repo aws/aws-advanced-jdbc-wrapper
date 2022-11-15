@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package integration.container.standard.postgres;
+package software.amazon.jdbc.plugin.readwritesplitting;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
-// Tests will run in order of top to bottom.
-// To add additional tests, append it inside SelectClasses, comma-separated
-@Suite
-@SelectClasses({
-    LogLevelTests.class,
-    StandardPostgresIntegrationTest.class,
-    StandardPostgresDataSourceTest.class,
-    LogQueryPluginTests.class,
-    StandardPostgresReadWriteSplittingTest.class
-})
-public class StandardPostgresTestSuite {}
+public class ReadWriteSplittingPluginFactory implements ConnectionPluginFactory {
+  @Override
+  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+    return new ReadWriteSplittingPlugin(pluginService, props);
+  }
+}

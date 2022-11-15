@@ -14,19 +14,21 @@
  * limitations under the License.
  */
 
-package integration.container.standard.postgres;
+package software.amazon.jdbc.plugin.readwritesplitting;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
+import java.sql.SQLException;
 
-// Tests will run in order of top to bottom.
-// To add additional tests, append it inside SelectClasses, comma-separated
-@Suite
-@SelectClasses({
-    LogLevelTests.class,
-    StandardPostgresIntegrationTest.class,
-    StandardPostgresDataSourceTest.class,
-    LogQueryPluginTests.class,
-    StandardPostgresReadWriteSplittingTest.class
-})
-public class StandardPostgresTestSuite {}
+public class ReadWriteSplittingSQLException extends SQLException {
+
+  public ReadWriteSplittingSQLException(String reason, String sqlState, Throwable cause) {
+    super(reason, sqlState, cause);
+  }
+
+  public ReadWriteSplittingSQLException(String reason, String sqlState) {
+    super(reason, sqlState);
+  }
+
+  public ReadWriteSplittingSQLException(String reason) {
+    super(reason);
+  }
+}

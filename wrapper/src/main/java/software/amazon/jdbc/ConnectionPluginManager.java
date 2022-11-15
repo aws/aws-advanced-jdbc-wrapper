@@ -39,9 +39,11 @@ import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -67,6 +69,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
+          put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
         }
       };
 
@@ -78,12 +81,14 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
+  private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private final ReentrantLock lock = new ReentrantLock();
 
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
   protected final ConnectionProvider connectionProvider;
   protected final ConnectionWrapper connectionWrapper;
+  protected PluginService pluginService;
 
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
@@ -93,7 +98,22 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionWrapper = connectionWrapper;
   }
 
-  /** This constructor is for testing purposes only. */
+  /**
+   * This constructor is for testing purposes only.
+   */
+  ConnectionPluginManager(
+      ConnectionProvider connectionProvider,
+      Properties props,
+      ArrayList<ConnectionPlugin> plugins,
+      ConnectionWrapper connectionWrapper,
+      PluginService pluginService) {
+    this(connectionProvider, props, plugins, connectionWrapper);
+    this.pluginService = pluginService;
+  }
+
+  /**
+   * This constructor is for testing purposes only.
+   */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -121,8 +141,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService A reference to a plugin service that plugin can use.
-   * @param props The configuration of the connection.
+   * @param pluginService        A reference to a plugin service that plugin can use.
+   * @param props                The configuration of the connection.
    * @param pluginManagerService A reference to a plugin manager service.
    * @throws SQLException if errors occurred during the execution.
    */
@@ -131,6 +151,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throws SQLException {
 
     this.props = props;
+    this.pluginService = pluginService;
 
     String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
 
@@ -182,7 +203,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
         this.plugins = new ArrayList<>(factories.length + 1);
 
         for (ConnectionPluginFactory factory : factories) {
-          this.plugins.add(factory.getInstance(pluginService, this.props));
+          this.plugins.add(factory.getInstance(this.pluginService, this.props));
         }
 
       } catch (InstantiationException instEx) {
@@ -195,7 +216,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     // add default connection plugin to the tail
 
     ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(pluginService, this.connectionProvider, pluginManagerService);
+        new DefaultConnectionPlugin(this.pluginService, this.connectionProvider, pluginManagerService);
     this.plugins.add(defaultPlugin);
   }
 
@@ -291,6 +312,14 @@ public class ConnectionPluginManager implements CanReleaseResources {
       final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
+
+    final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+    if (conn != null && conn != this.pluginService.getCurrentConnection()
+        && !sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
+      final SQLException e =
+          new SQLException(Messages.get("ConnectionPluginManager.methodInvokedAgainstOldConnection"));
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
+    }
 
     return executeWithSubscribedPlugins(
         methodName,

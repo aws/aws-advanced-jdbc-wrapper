@@ -46,7 +46,7 @@ public class DataSourceTests extends MysqlStandardMysqlBaseTest {
     ds.setDatabasePropertyName("databaseName");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -62,7 +62,7 @@ public class DataSourceTests extends MysqlStandardMysqlBaseTest {
   @Test
   public void testOpenConnectionWithMysqlUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_HOST + "/" + STANDARD_DB);
+    ds.setJdbcUrl("jdbc:mysql://" + STANDARD_WRITER + "/" + STANDARD_DB);
 
     try (final Connection conn = ds.getConnection(STANDARD_USERNAME, STANDARD_PASSWORD)) {
       assertTrue(conn instanceof ConnectionWrapper);
@@ -83,7 +83,7 @@ public class DataSourceTests extends MysqlStandardMysqlBaseTest {
     ds.setDatabasePropertyName("databaseName");
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 

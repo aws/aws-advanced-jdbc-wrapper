@@ -27,6 +27,8 @@ import org.junit.platform.suite.api.Suite;
   AuroraPostgresFailoverTest.class,
   AuroraPostgresDataSourceTest.class,
   AuroraPostgresStaleDnsTest.class,
-  HikariCPIntegrationTest.class
+  HikariCPIntegrationTest.class,
+  AuroraPostgresReadWriteSplittingTest.class,
+  HikariCPReadWriteSplittingTest.class
 })
 public class AuroraPostgresTestSuite {}

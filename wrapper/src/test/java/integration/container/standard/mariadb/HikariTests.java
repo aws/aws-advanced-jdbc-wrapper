@@ -71,10 +71,10 @@ public class HikariTests extends StandardMariadbBaseTest {
 
     // Configuring MariadbDataSource:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", STANDARD_HOST);
+    targetDataSourceProps.setProperty("serverName", STANDARD_WRITER);
     targetDataSourceProps.setProperty("databaseName", STANDARD_DB);
     targetDataSourceProps.setProperty("url",
-        "jdbc:mariadb://" + STANDARD_HOST + ":" + STANDARD_PORT + "/" + STANDARD_DB);
+        "jdbc:mariadb://" + STANDARD_WRITER + ":" + STANDARD_PORT + "/" + STANDARD_DB);
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     Connection conn = ds.getConnection();

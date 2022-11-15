@@ -173,7 +173,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     }
 
     // initial topology is based on connection string
-    this.initialHostList = this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl);
+    this.initialHostList = this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false);
     if (this.initialHostList == null || this.initialHostList.isEmpty()) {
       throw new SQLException(Messages.get("AuroraHostListProvider.parsedListEmpty",
           new Object[]{this.originalUrl}));

@@ -22,30 +22,32 @@ import java.util.List;
 public class SubscribedMethodHelper {
 
   public static final List<String> NETWORK_BOUND_METHODS = Arrays.asList(
-      "Connection.sendQueryCancel",
+      "Connection.commit",
       "Connection.connect",
       "Connection.isValid",
-      "Connection.setReadOnly",
+      "Connection.rollback",
+      "Connection.sendQueryCancel",
       "Connection.setAutoCommit",
-      "Statement.executeQuery",
-      "Statement.executeUpdate",
+      "Connection.setReadOnly",
+      "Statement.cancel",
       "Statement.execute",
-      "Statement.executeWithFlags",
+      "Statement.executeBatch",
       "Statement.executeLargeBatch",
       "Statement.executeLargeUpdate",
-      "Statement.executeBatch",
-      "Statement.cancel",
+      "Statement.executeQuery",
+      "Statement.executeUpdate",
+      "Statement.executeWithFlags",
       "PreparedStatement.execute",
+      "PreparedStatement.executeBatch",
+      "PreparedStatement.executeLargeUpdate",
       "PreparedStatement.executeQuery",
       "PreparedStatement.executeUpdate",
-      "PreparedStatement.executeLargeUpdate",
       "PreparedStatement.executeWithFlags",
-      "PreparedStatement.executeBatch",
       "PreparedStatement.getParameterMetaData",
       "CallableStatement.execute",
-      "CallableStatement.executeWithFlags",
+      "CallableStatement.executeLargeUpdate",
       "CallableStatement.executeQuery",
       "CallableStatement.executeUpdate",
-      "CallableStatement.executeLargeUpdate"
+      "CallableStatement.executeWithFlags"
   );
 }

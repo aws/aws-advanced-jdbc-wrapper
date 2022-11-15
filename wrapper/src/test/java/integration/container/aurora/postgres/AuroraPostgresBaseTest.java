@@ -250,7 +250,7 @@ public abstract class AuroraPostgresBaseTest {
     TestPluginServiceImpl.clearHostAvailabilityCache();
   }
 
-  protected Properties initDefaultPropsNoTimeouts() {
+  protected static Properties initDefaultPropsNoTimeouts() {
     final Properties props = new Properties();
     props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
@@ -260,7 +260,7 @@ public abstract class AuroraPostgresBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProps() {
+  protected static Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
     props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
     props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
@@ -268,7 +268,7 @@ public abstract class AuroraPostgresBaseTest {
     return props;
   }
 
-  protected Properties initDefaultProxiedProps() {
+  protected static Properties initDefaultProxiedProps() {
     final Properties props = initDefaultProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props, PROXIED_CLUSTER_TEMPLATE);
 

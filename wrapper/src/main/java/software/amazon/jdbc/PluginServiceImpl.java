@@ -330,7 +330,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,
-      @Nullable final List<HostSpec> newHosts) {
+                   @Nullable final List<HostSpec> newHosts) {
 
     final Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()
