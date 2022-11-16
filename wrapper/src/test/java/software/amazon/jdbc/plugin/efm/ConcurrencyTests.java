@@ -61,6 +61,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 @Disabled
 @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
@@ -353,6 +354,10 @@ public class ConcurrencyTests {
       return new TestConnection();
     }
 
+    @Override
+    public TelemetryFactory getTelemetryFactory() {
+      return null;
+    }
 
     @Override
     public boolean isNetworkException(Throwable throwable) {

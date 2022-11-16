@@ -190,6 +190,18 @@ public class ConnectionStringHelper {
     props.setProperty(
         PropertyDefinition.PASSWORD.name,
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    props.setProperty(
+        PropertyDefinition.ENABLE_TELEMETRY.name,
+        "true"
+    );
+    props.setProperty(
+        PropertyDefinition.TELEMETRY_TRACES_BACKEND.name,
+        "XRAY"
+    );
+    props.setProperty(
+        PropertyDefinition.TELEMETRY_METRICS_BACKEND.name,
+        "NONE"
+    );
     DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
     return props;
   }

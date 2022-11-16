@@ -36,6 +36,9 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class Driver implements java.sql.Driver {
@@ -44,6 +47,7 @@ public class Driver implements java.sql.Driver {
   private static final Logger PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
+  private static TelemetryFactory telemetryFactory;
 
   static {
     try {
@@ -98,6 +102,8 @@ public class Driver implements java.sql.Driver {
     final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
     final java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 
+    // get current time
+
     if (driver == null) {
       LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl}));
       return null;
@@ -107,6 +113,15 @@ public class Driver implements java.sql.Driver {
       PropertyDefinition.DATABASE.set(info, databaseName);
     }
     ConnectionUrlParser.parsePropertiesFromUrl(url, info);
+
+    boolean telemetryEnabled = PropertyDefinition.ENABLE_TELEMETRY.getBoolean(info);
+    if (telemetryEnabled) {
+      telemetryFactory = new DefaultTelemetryFactory(info);
+    }
+
+    TelemetryContext context = telemetryFactory.openTelemetryContext("Driver connect");
+
+    // replace segment create time with function create time
 
     final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
     if (!StringUtils.isNullOrEmpty(logLevelStr)) {
@@ -128,6 +143,8 @@ public class Driver implements java.sql.Driver {
         targetDriverDialectManager.getDialect(driver, info);
 
     final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver, targetDriverDialect);
+
+    context.closeContext();
 
     return new ConnectionWrapper(info, driverUrl, connectionProvider);
   }

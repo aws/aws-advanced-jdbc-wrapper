@@ -20,6 +20,9 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
 
+import com.amazonaws.xray.AWSXRay;
+import com.amazonaws.xray.entities.Segment;
+import com.amazonaws.xray.entities.Subsegment;
 import integration.container.aurora.TestAuroraHostListProvider;
 import integration.container.aurora.TestPluginServiceImpl;
 import integration.refactored.DatabaseEngineDeployment;
@@ -34,6 +37,7 @@ import integration.refactored.container.condition.EnableBasedOnEnvironmentFeatur
 import integration.refactored.container.condition.EnableBasedOnTestDriverExtension;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -95,6 +100,32 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
             new BeforeEachCallback() {
               @Override
               public void beforeEach(ExtensionContext context) throws Exception {
+                boolean telemetryEnabled = TestEnvironment.getCurrent()
+                    .getInfo()
+                    .getRequest()
+                    .getFeatures()
+                    .contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED);
+
+                if (telemetryEnabled) {
+                  String testName = "unknown-test";
+                  if (context.getElement().isPresent() && context.getElement().get() instanceof Method) {
+                    Method method = (Method) context.getElement().get();
+                    testName = method.getDeclaringClass().getSimpleName() + "." + method.getName();
+                  }
+
+                  Segment segment = AWSXRay.beginSegment(testName);
+                  segment.putAnnotation("engine",
+                      TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+                  segment.putAnnotation("deployment",
+                      TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment().toString());
+                  segment.putAnnotation("targetJVM",
+                      TestEnvironment.getCurrent().getInfo().getRequest().getTargetJvm().toString());
+                  LOGGER.finest("[XRay] Opened test segment.");
+                  LOGGER.finest("[XRay] Reference: " + segment.getId());
+                  Subsegment subsegment = AWSXRay.beginSubsegment("test setup");
+                  AWSXRay.sendSegment(segment);
+                }
+
                 DriverHelper.unregisterAllDrivers();
                 DriverHelper.registerDriver(testDriver);
                 TestEnvironment.getCurrent().setCurrentDriver(testDriver);
@@ -114,7 +145,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                   boolean makeSureFirstInstanceWriter =
                       isAnnotated(context.getElement(), MakeSureFirstInstanceWriter.class)
-                      || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
+                          || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
                   List<String> instanceIDs;
                   if (makeSureFirstInstanceWriter) {
 
@@ -174,6 +205,29 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   TestPluginServiceImpl.clearHostAvailabilityCache();
                   DialectManager.resetEndpointCache();
                   TargetDriverDialectManager.resetCustomDialect();
+                }
+                if (telemetryEnabled) {
+                  AWSXRay.endSubsegment();
+                  Subsegment subsegment = AWSXRay.beginSubsegment("test");
+                  LOGGER.finest("[XRay] XRay reference: " + subsegment.getId());
+                }
+              }
+            },
+            new AfterEachCallback() {
+              @Override
+              public void afterEach(ExtensionContext context) throws Exception {
+                boolean telemetryEnabled = TestEnvironment.getCurrent()
+                    .getInfo()
+                    .getRequest()
+                    .getFeatures()
+                    .contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED);
+
+                if (telemetryEnabled) {
+                  AWSXRay.endSubsegment();
+                  Segment segment = AWSXRay.getCurrentSegment();
+                  AWSXRay.endSegment();
+                  AWSXRay.sendSegment(segment);
+                  LOGGER.finest("[XRay] Closed test segment.");
                 }
               }
             });

@@ -38,6 +38,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
 import org.testcontainers.utility.DockerImageName;
@@ -52,6 +53,8 @@ public class ContainerHelper {
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
+
+  private static final String XRAY_TELEMETRY_IMAGE_NAME = "amazon/aws-xray-daemon";
 
   private static final String RETRIEVE_TOPOLOGY_SQL_POSTGRES =
       "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
@@ -102,6 +105,40 @@ public class ContainerHelper {
             container, consumer, "./gradlew", task, "--debug-jvm", "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
+  }
+
+  public GenericContainer<?> createTelemetryXrayContainer(
+      String xrayAwsRegion,
+      Network network,
+      String networkAlias) {
+    class FixedExposedPortContainer<T extends GenericContainer<T>> extends GenericContainer<T> {
+
+      public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
+        super(withDockerfileFromBuilder);
+      }
+
+      public T withFixedExposedPort(int hostPort, int containerPort, InternetProtocol protocol) {
+        super.addFixedExposedPort(hostPort, containerPort, protocol);
+        return self();
+      }
+    }
+
+    return new FixedExposedPortContainer<>(
+        new ImageFromDockerfile("xray-daemon", true)
+            .withDockerfileFromBuilder(
+                builder -> builder
+                        .from(XRAY_TELEMETRY_IMAGE_NAME)
+                        .entryPoint("/xray",
+                          "-t", "0.0.0.0:2000",
+                          "-b", "0.0.0.0:2000",
+                          "--local-mode",
+                          "--log-level", "debug",
+                          "--region", xrayAwsRegion)
+                        .build()))
+        .withFixedExposedPort(2000, 2000, InternetProtocol.UDP)
+        .waitingFor(Wait.forLogMessage(".*Starting proxy http server on 0.0.0.0:2000.*", 1))
+        .withNetworkAliases(networkAlias)
+        .withNetwork(network);
   }
 
   public GenericContainer<?> createTestContainer(String dockerImageName, String testContainerImageName) {

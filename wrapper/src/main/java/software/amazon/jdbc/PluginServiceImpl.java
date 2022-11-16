@@ -43,6 +43,7 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
     HostListProviderService, PluginManagerService {
@@ -532,5 +533,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     if (host != null) {
       hostSpec.addAlias(host.asAliases().toArray(new String[] {}));
     }
+  }
+
+  public TelemetryFactory getTelemetryFactory() {
+    return this.pluginManager.getTelemetryFactory();
   }
 }

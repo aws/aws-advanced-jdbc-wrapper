@@ -29,6 +29,7 @@ import integration.refactored.TestEnvironmentInfo;
 import integration.refactored.TestEnvironmentRequest;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.TestProxyDatabaseInfo;
+import integration.refactored.TestXRayTelemetryInfo;
 import integration.refactored.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
@@ -60,6 +61,7 @@ public class TestEnvironment implements AutoCloseable {
 
   private static final String DATABASE_CONTAINER_NAME_PREFIX = "database-container-";
   private static final String TEST_CONTAINER_NAME = "test-container";
+  private static final String TELEMETRY_XRAY_CONTAINER_NAME = "xray-daemon";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
   private static final String HIBERNATE_VERSION = "6.2.0.CR2";
@@ -82,6 +84,7 @@ public class TestEnvironment implements AutoCloseable {
   private GenericContainer<?> testContainer;
   private final ArrayList<GenericContainer<?>> databaseContainers = new ArrayList<>();
   private ArrayList<ToxiproxyContainer> proxyContainers;
+  private GenericContainer<?> telemetryXRayContainer;
 
   private String runnerIP;
 
@@ -98,6 +101,8 @@ public class TestEnvironment implements AutoCloseable {
     preCreateEnvironment(request.getEnvPreCreateIndex());
 
     TestEnvironment env;
+
+    initAwsCredentials(env);
 
     switch (request.getDatabaseEngineDeployment()) {
       case DOCKER:
@@ -127,6 +132,10 @@ public class TestEnvironment implements AutoCloseable {
 
     if (request.getFeatures().contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
       createProxyContainers(env);
+    }
+
+    if (request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED)) {
+      createTelemetryXRayContainer(env);
     }
 
     createTestContainer(env);
@@ -657,6 +666,35 @@ public class TestEnvironment implements AutoCloseable {
     env.testContainer.start();
   }
 
+  private static void createTelemetryXRayContainer(TestEnvironment env) {
+    String xrayRegion =
+        !StringUtils.isNullOrEmpty(System.getenv("XRAY_AWS_REGION"))
+            ? System.getenv("XRAY_AWS_REGION")
+            : "us-east-2";
+
+    LOGGER.finest("Creating XRay telemetry container");
+    final ContainerHelper containerHelper = new ContainerHelper();
+
+    env.telemetryXRayContainer = containerHelper.createTelemetryXrayContainer(
+        xrayRegion,
+        env.network,
+        TELEMETRY_XRAY_CONTAINER_NAME);
+
+    if (env.info
+        .getRequest()
+        .getFeatures()
+        .contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
+      env.telemetryXRayContainer
+          .withEnv("AWS_ACCESS_KEY_ID", env.awsAccessKeyId)
+          .withEnv("AWS_SECRET_ACCESS_KEY", env.awsSecretAccessKey)
+          .withEnv("AWS_SESSION_TOKEN", env.awsSessionToken);
+    }
+
+    env.info.setXRayTelemetryInfo(new TestXRayTelemetryInfo(TELEMETRY_XRAY_CONTAINER_NAME, 2000));
+    LOGGER.finest("Starting XRay telemetry container");
+    env.telemetryXRayContainer.start();
+  }
+
   private static String getContainerBaseImageName(TestEnvironmentRequest request) {
     switch (request.getTargetJvm()) {
       case OPENJDK8:
@@ -794,6 +832,11 @@ public class TestEnvironment implements AutoCloseable {
         }
       }
       this.databaseContainers.clear();
+    }
+
+    if (this.telemetryXRayContainer != null) {
+      this.telemetryXRayContainer.stop();
+      this.telemetryXRayContainer = null;
     }
 
     if (this.testContainer != null) {

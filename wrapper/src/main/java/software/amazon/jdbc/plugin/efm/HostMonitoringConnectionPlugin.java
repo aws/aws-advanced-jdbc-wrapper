@@ -40,6 +40,8 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -81,6 +83,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
   private final @NonNull PluginService pluginService;
+  private final @NonNull TelemetryFactory telemetryFactory;
   private MonitorService monitorService;
   private final RdsUtils rdsHelper;
   private HostSpec monitoringHostSpec;
@@ -117,6 +120,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       throw new IllegalArgumentException("monitorServiceSupplier");
     }
     this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;

@@ -39,6 +39,8 @@ import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -76,8 +78,13 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(IamAuthConnectionPlugin.class);
   }
 
+  private final TelemetryFactory telemetryFactory;
+  private final TelemetryGauge cacheSizeGauge;
+
   public IamAuthConnectionPlugin(final @NonNull PluginService pluginService) {
     this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size", () -> (long) tokenCache.size());
   }
 
   @Override

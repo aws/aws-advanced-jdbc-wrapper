@@ -14,17 +14,30 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.util.telemetry;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.ObservableLongGauge;
 
-public class DataCacheConnectionPluginFactory implements ConnectionPluginFactory {
+public class OpenTelemetryGauge implements TelemetryGauge {
 
-  @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new DataCacheConnectionPlugin(pluginService, props);
+  private final ObservableLongGauge gauge;
+
+  private final String name;
+
+  private final Meter meter;
+
+  OpenTelemetryGauge(Meter meter, String name, GaugeCallable<Long> callback) {
+    this.name = name;
+    this.meter = meter;
+
+    this.gauge = this.meter.gaugeBuilder(name)
+        .ofLongs()
+        .buildWithCallback(measurement -> measurement.record(callback.call()));
   }
+
+  public String getName() {
+    return name;
+  }
+
 }

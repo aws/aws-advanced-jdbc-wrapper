@@ -44,6 +44,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class IamAuthConnectionPluginTest {
 
@@ -63,8 +64,9 @@ class IamAuthConnectionPluginTest {
   private static final HostSpec MYSQL_HOST_SPEC = new HostSpec("mysql.testdb.us-east-2.rds.amazonaws.com");
   private Properties props;
 
-  @Mock JdbcCallable<Connection, SQLException> mockLambda;
   @Mock PluginService mockPluginService;
+  @Mock TelemetryFactory mockTelemetryFactory;
+  @Mock JdbcCallable<Connection, SQLException> mockLambda;
   @Mock Dialect mockDialect;
 
   @BeforeEach
@@ -77,6 +79,7 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.clearCache();
 
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
   }
 
   @BeforeAll
@@ -116,6 +119,20 @@ class IamAuthConnectionPluginTest {
   public void testPostgresConnectWithInvalidPortFallbacksToHostPort() throws SQLException {
     final String invalidIamDefaultPort = "0";
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, invalidIamDefaultPort);
+
+
+    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";
+    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+
+    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
+  }
+
+  @Test
+  public void testPostgresConnectWithInvalidPort() throws SQLException {
+    props.setProperty("iamDefaultPort", "0");
+    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService);
 
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";

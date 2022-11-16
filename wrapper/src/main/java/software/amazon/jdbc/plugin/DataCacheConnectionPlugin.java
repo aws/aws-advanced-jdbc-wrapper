@@ -48,9 +48,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -73,8 +77,21 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(DataCacheConnectionPlugin.class);
   }
 
-  public DataCacheConnectionPlugin(final Properties props) {
+  private final TelemetryFactory telemetryFactory;
+  private final TelemetryCounter hitCounter;
+  private final TelemetryCounter missCounter;
+  private final TelemetryCounter totalCallsCounter;
+  private final TelemetryGauge cacheSizeGauge;
+
+
+  public DataCacheConnectionPlugin(final PluginService pluginService, final Properties props) {
+    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.dataCacheTriggerCondition = DATA_CACHE_TRIGGER_CONDITION.getString(props);
+
+    this.hitCounter = telemetryFactory.createCounter("dataCache.cache.hit");
+    this.missCounter = telemetryFactory.createCounter("dataCache.cache.miss");
+    this.totalCallsCounter = telemetryFactory.createCounter("dataCache.cache.totalCalls");
+    this.cacheSizeGauge = telemetryFactory.createGauge("dataCache.cache.size", () -> (long) dataCache.size());
   }
 
   public static void clearCache() {
@@ -100,6 +117,8 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
+    totalCallsCounter.inc();
+
     ResultSet result;
     boolean needToCache = false;
     final String sql = getQuery(jdbcMethodArgs);
@@ -108,11 +127,13 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
       result = dataCache.get(sql);
       if (result == null) {
         needToCache = true;
+        missCounter.inc();
         LOGGER.finest(
             () -> Messages.get(
                 "DataCacheConnectionPlugin.queryResultsCached",
                 new Object[]{methodName, sql}));
       } else {
+        hitCounter.inc();
         try {
           result.beforeFirst();
         } catch (final SQLException ex) {

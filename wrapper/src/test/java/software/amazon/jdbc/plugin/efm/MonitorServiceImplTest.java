@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -43,6 +44,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorServiceImplTest {
 
@@ -61,6 +64,8 @@ class MonitorServiceImplTest {
   @Mock private HostSpec hostSpec;
   @Mock private JdbcConnection connection;
   @Mock private PluginService pluginService;
+  @Mock private TelemetryFactory telemetryFactory;
+  @Mock private TelemetryCounter telemetryCounter;
 
   private Properties properties;
   private AutoCloseable closeable;
@@ -73,6 +78,8 @@ class MonitorServiceImplTest {
     closeable = MockitoAnnotations.openMocks(this);
     contextCaptor = ArgumentCaptor.forClass(MonitorConnectionContext.class);
 
+    when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
+    when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(monitorInitializer.createMonitor(
             any(HostSpec.class), any(Properties.class), any(MonitorService.class)))
         .thenReturn(monitorA, monitorB);

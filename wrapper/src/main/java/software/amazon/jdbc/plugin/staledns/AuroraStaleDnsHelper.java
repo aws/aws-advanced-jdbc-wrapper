@@ -37,12 +37,18 @@ import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class AuroraStaleDnsHelper {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsHelper.class.getName());
 
   private final PluginService pluginService;
+  private final TelemetryFactory telemetryFactory;
+
+  private final TelemetryCounter staleDNSDetectedCounter;
+
   private final RdsUtils rdsUtils = new RdsUtils();
 
   private HostSpec writerHostSpec = null;
@@ -52,6 +58,9 @@ public class AuroraStaleDnsHelper {
 
   public AuroraStaleDnsHelper(final PluginService pluginService) {
     this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
+
+    this.staleDNSDetectedCounter = telemetryFactory.createCounter("staleDNS.stale.detected");
   }
 
   public Connection getVerifiedConnection(
@@ -134,6 +143,7 @@ public class AuroraStaleDnsHelper {
 
       LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
           new Object[]{this.writerHostSpec}));
+      staleDNSDetectedCounter.inc();
 
       final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
       if (isInitialConnection) {

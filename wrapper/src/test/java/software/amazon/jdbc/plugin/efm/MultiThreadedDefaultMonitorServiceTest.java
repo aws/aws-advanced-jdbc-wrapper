@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.efm;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
@@ -55,6 +56,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * Multithreaded tests for {@link MultiThreadedDefaultMonitorServiceTest}. Repeats each testcase
@@ -71,6 +74,9 @@ class MultiThreadedDefaultMonitorServiceTest {
   @Mock Properties properties;
   @Mock JdbcConnection connection;
   @Mock PluginService pluginService;
+  @Mock TelemetryCounter abortedConnectionsCounter;
+
+  @Mock TelemetryFactory telemetryFactory;
 
   private final AtomicInteger counter = new AtomicInteger(0);
   private final AtomicInteger concurrentCounter = new AtomicInteger(0);
@@ -106,6 +112,8 @@ class MultiThreadedDefaultMonitorServiceTest {
     doNothing().when(monitor).stopMonitoring(stopMonitoringCaptor.capture());
     when(properties.getProperty(any(String.class)))
         .thenReturn(String.valueOf(MONITOR_DISPOSE_TIME));
+    when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
+    when(telemetryFactory.createCounter(anyString())).thenReturn(abortedConnectionsCounter);
   }
 
   @AfterEach
@@ -386,7 +394,8 @@ class MultiThreadedDefaultMonitorServiceTest {
                   null,
                   FAILURE_DETECTION_TIME,
                   FAILURE_DETECTION_INTERVAL,
-                  FAILURE_DETECTION_COUNT));
+                  FAILURE_DETECTION_COUNT,
+                  abortedConnectionsCounter));
         });
 
     return contexts;

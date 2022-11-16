@@ -16,6 +16,10 @@
 
 package integration.refactored.container;
 
+import com.amazonaws.xray.AWSXRay;
+import com.amazonaws.xray.AWSXRayRecorderBuilder;
+import com.amazonaws.xray.config.DaemonConfiguration;
+import com.amazonaws.xray.emitters.Emitter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.rekawek.toxiproxy.Proxy;
@@ -73,6 +77,27 @@ public class TestEnvironment {
         .getFeatures()
         .contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
       initProxies(environment);
+    }
+
+    if (environment
+        .info
+        .getRequest()
+        .getFeatures()
+        .contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED)) {
+      try {
+        String xrayEndpoint = String.format("%s:%d",
+            environment.info.getXRayTelemetryInfo().getEndpoint(),
+            environment.info.getXRayTelemetryInfo().getEndpointPort());
+
+        DaemonConfiguration configuration = new DaemonConfiguration();
+        configuration.setUDPAddress(xrayEndpoint);
+
+        Emitter emitter = Emitter.create(configuration);
+        AWSXRayRecorderBuilder builder = AWSXRayRecorderBuilder.standard().withEmitter(emitter);
+        AWSXRay.setGlobalRecorder(builder.build());
+      } catch (Exception ex) {
+        throw new RuntimeException("Error initializing XRay.", ex);
+      }
     }
 
     return environment;

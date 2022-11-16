@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -47,6 +48,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorImplTest {
 
@@ -62,6 +65,8 @@ class MonitorImplTest {
   @Mock ExecutorService executorService;
   @Mock Future<?> futureResult;
   @Mock MonitorServiceImpl monitorService;
+  @Mock TelemetryFactory telemetryFactory;
+  @Mock TelemetryContext telemetryContext;
 
   private static final long SHORT_INTERVAL_MILLIS = 30;
   private static final long SHORT_INTERVAL_SECONDS = TimeUnit.MILLISECONDS.toSeconds(SHORT_INTERVAL_MILLIS);
@@ -81,6 +86,8 @@ class MonitorImplTest {
     when(booleanProperty.getStringValue()).thenReturn(Boolean.TRUE.toString());
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
     when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
+    when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
+    when(telemetryFactory.openTelemetryContext(anyString())).thenReturn(telemetryContext);
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
     MonitorThreadContainer.getInstance(executorServiceInitializer);
 

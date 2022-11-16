@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
@@ -61,6 +62,8 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.DynamicHostListProvider;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class FailoverConnectionPluginTest {
 
@@ -73,6 +76,8 @@ class FailoverConnectionPluginTest {
   @Mock HostSpec mockHostSpec;
   @Mock HostListProviderService mockHostListProviderService;
   @Mock AuroraHostListProvider mockHostListProvider;
+  @Mock TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryCounter mockTelemetryCounter;
   @Mock JdbcCallable<Void, SQLException> mockInitHostProviderFunc;
   @Mock ClusterAwareReaderFailoverHandler mockReaderFailoverHandler;
   @Mock ClusterAwareWriterFailoverHandler mockWriterFailoverHandler;
@@ -98,6 +103,8 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(mockHostSpec);
     when(mockPluginService.connect(any(HostSpec.class), eq(properties))).thenReturn(mockConnection);
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     when(mockReaderFailoverHandler.failover(any(), any())).thenReturn(mockReaderResult);
     when(mockWriterFailoverHandler.failover(any())).thenReturn(mockWriterResult);
 

@@ -52,6 +52,7 @@ dependencies {
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
+    testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.13.0")
 }
 
 tasks.withType<Test> {

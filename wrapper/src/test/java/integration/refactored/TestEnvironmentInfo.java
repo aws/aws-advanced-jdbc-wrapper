@@ -32,6 +32,7 @@ public class TestEnvironmentInfo {
   private TestProxyDatabaseInfo proxyDatabaseInfo;
   private String databaseEngine;
   private String databaseEngineVersion;
+  private TestXRayTelemetryInfo xrayTelemetryInfo;
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
@@ -47,6 +48,10 @@ public class TestEnvironmentInfo {
 
   public String getDatabaseEngineVersion() {
     return databaseEngineVersion;
+  }
+
+  public TestXRayTelemetryInfo getXRayTelemetryInfo() {
+    return this.xrayTelemetryInfo;
   }
 
   public TestEnvironmentRequest getRequest() {
@@ -103,6 +108,10 @@ public class TestEnvironmentInfo {
 
   public void setDatabaseEngineVersion(String databaseEngineVersion) {
     this.databaseEngineVersion = databaseEngineVersion;
+  }
+
+  public void setXRayTelemetryInfo(TestXRayTelemetryInfo xrayTelemetryInfo) {
+    this.xrayTelemetryInfo = xrayTelemetryInfo;
   }
 
   public void setAwsAccessKeyId(String awsAccessKeyId) {
