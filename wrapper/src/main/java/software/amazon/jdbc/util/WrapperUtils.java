@@ -55,6 +55,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcRunnable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ArrayWrapper;
 import software.amazon.jdbc.wrapper.BlobWrapper;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
@@ -181,10 +183,19 @@ public class WrapperUtils {
       final Object... jdbcMethodArgs) {
 
     pluginManager.lock();
+    TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
+    TelemetryContext context = null;
 
     try {
+      try {
+        context = telemetryFactory.openTelemetryContext(methodName);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       final Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
+
+      context.setAttribute("methodName", methodName);
 
       final T result =
           pluginManager.execute(
@@ -195,14 +206,23 @@ public class WrapperUtils {
               jdbcMethodFunc,
               argsCopy);
 
+      context.setSuccess(true);
+
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
       } catch (final InstantiationException e) {
+        context.setSuccess(false);
         throw new RuntimeException(e);
       }
-
     } finally {
       pluginManager.unlock();
+      if (context != null) {
+        try {
+          context.close();
+        } catch (Exception e) {
+          // Ignore if an exception is thrown
+        }
+      }
     }
   }
 
@@ -217,23 +237,42 @@ public class WrapperUtils {
       throws E {
 
     pluginManager.lock();
+    TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
+    TelemetryContext context = null;
 
     try {
+      try {
+        context = telemetryFactory.openTelemetryContext(methodName);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
       final Object[] argsCopy =
           jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
+
+      context.setAttribute("methodName", methodName);
 
       final T result =
           pluginManager.execute(
               resultClass, exceptionClass, methodInvokeOn, methodName, jdbcMethodFunc, argsCopy);
 
+      context.setSuccess(true);
+
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
       } catch (final InstantiationException e) {
+        context.setSuccess(false);
         throw new RuntimeException(e);
       }
 
     } finally {
       pluginManager.unlock();
+      if (context != null) {
+        try {
+          context.close();
+        } catch (Exception e) {
+          // Ignore if an exception is thrown
+        }
+      }
     }
   }
 

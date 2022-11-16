@@ -21,4 +21,8 @@ dependencies {
     implementation("software.amazon.awssdk:rds:2.17.289")
     implementation("software.amazon.awssdk:secretsmanager:2.17.285")
     implementation(project(":aws-advanced-jdbc-wrapper"))
+    implementation("io.opentelemetry:opentelemetry-api:1.20.1")
+    implementation("io.opentelemetry:opentelemetry-sdk:1.20.1")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.20.1")
+    implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.13.0")
 }

@@ -14,17 +14,26 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.util.telemetry;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+public class NullTelemetryCounter implements TelemetryCounter {
 
-public class AuroraHostListConnectionPluginFactory implements ConnectionPluginFactory {
+  private final String name;
+
+  public NullTelemetryCounter(String name) {
+    this.name = name;
+  }
 
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new AuroraHostListConnectionPlugin();
+  public void add(long value) {
   }
+
+  @Override
+  public void inc() {
+  }
+
+  public String getName() {
+    return name;
+  }
+
 }

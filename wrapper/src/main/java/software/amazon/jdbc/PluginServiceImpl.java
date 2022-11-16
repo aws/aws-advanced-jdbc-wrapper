@@ -35,6 +35,7 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.ExpiringCache;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
     HostListProviderService, PluginManagerService {
@@ -447,4 +448,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public boolean isLoginException(String sqlState) {
     return this.exceptionManager.isLoginException(this.driverProtocol, sqlState);
   }
+
+  public TelemetryFactory getTelemetryFactory() {
+    return this.pluginManager.getTelemetryFactory();
+  }
+
 }

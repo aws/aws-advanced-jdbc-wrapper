@@ -27,16 +27,13 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Collections.singletonList("initHostProvider")));
-  private final PluginService pluginService;
-
-  public AuroraHostListConnectionPlugin(PluginService pluginService, Properties properties) {
-    this.pluginService = pluginService;
-  }
 
   @Override
   public Set<String> getSubscribedMethods() {

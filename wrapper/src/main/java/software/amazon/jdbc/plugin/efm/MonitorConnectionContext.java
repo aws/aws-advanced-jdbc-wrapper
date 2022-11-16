@@ -25,7 +25,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
+
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 /**
  * Monitoring context for each connection. This contains each connection's criteria for whether a
@@ -34,6 +39,8 @@ import software.amazon.jdbc.util.Messages;
 public class MonitorConnectionContext {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
+
+  private final TelemetryCounter abortedConnectionsCounter;
 
   private final long failureDetectionIntervalMillis;
   private final long failureDetectionTimeMillis;
@@ -64,13 +71,15 @@ public class MonitorConnectionContext {
       Set<String> hostAliases,
       long failureDetectionTimeMillis,
       long failureDetectionIntervalMillis,
-      long failureDetectionCount) {
+      long failureDetectionCount,
+      TelemetryCounter abortedConnectionsCounter) {
     this.connectionToAbort = connectionToAbort;
     // Variable is never written, so it does not need to be thread-safe
     this.hostAliases = new HashSet<>(hostAliases);
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
     this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
     this.failureDetectionCount = failureDetectionCount;
+    this.abortedConnectionsCounter = abortedConnectionsCounter;
   }
 
   void setStartMonitorTimeNano(long startMonitorTimeNano) {
@@ -139,6 +148,7 @@ public class MonitorConnectionContext {
     }
 
     try {
+      abortedConnectionsCounter.inc();
       this.connectionToAbort.close();
     } catch (SQLException sqlEx) {
       // ignore

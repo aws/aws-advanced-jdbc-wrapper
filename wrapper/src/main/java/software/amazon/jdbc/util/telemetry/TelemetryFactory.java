@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.util.telemetry;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
+import java.util.function.Consumer;
 
-public class AuroraHostListConnectionPluginFactory implements ConnectionPluginFactory {
+public interface TelemetryFactory {
 
-  @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new AuroraHostListConnectionPlugin();
-  }
+  TelemetryContext openTelemetryContext(String name);
+
+  TelemetryCounter createCounter(String name);
+
+  TelemetryGauge createGauge(String name, Consumer<ObservableLongMeasurement> measure);
+
 }

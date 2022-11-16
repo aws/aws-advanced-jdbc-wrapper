@@ -25,6 +25,6 @@ public class DataCacheConnectionPluginFactory implements ConnectionPluginFactory
 
   @Override
   public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new DataCacheConnectionPlugin(props);
+    return new DataCacheConnectionPlugin(pluginService, props);
   }
 }

@@ -30,17 +30,28 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
+import software.amazon.jdbc.plugin.AuroraHostListConnectionPlugin;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
+import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
+import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
+import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.amazon.jdbc.plugin.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
+import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
+import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
+import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.Messages;
@@ -48,6 +59,8 @@ import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
@@ -77,6 +90,25 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover,efm";
 
+  protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
+      new HashMap<Class<? extends ConnectionPlugin>, String>() {
+        {
+          put(ExecutionTimeConnectionPlugin.class, "executionTime");
+          put(AuroraConnectionTrackerPlugin.class, "auroraConnectionTracker");
+          put(AuroraHostListConnectionPlugin.class, "auroraHostList");
+          put(LogQueryConnectionPlugin.class, "logQuery");
+          put(DataCacheConnectionPlugin.class, "dataCache");
+          put(HostMonitoringConnectionPlugin.class, "efm");
+          put(FailoverConnectionPlugin.class, "failover");
+          put(IamAuthConnectionPlugin.class, "iam");
+          put(AwsSecretsManagerConnectionPlugin.class, "awsSecretsManager");
+          put(AuroraStaleDnsPlugin.class, "auroraStaleDns");
+          put(ReadWriteSplittingPlugin.class, "readWriteSplitting");
+          put(DefaultConnectionPlugin.class, "driver");
+        }
+      };
+
+
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
   private static final String ALL_METHODS = "*";
   private static final String CONNECT_METHOD = "connect";
@@ -91,13 +123,17 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected final ConnectionProvider connectionProvider;
   protected final ConnectionWrapper connectionWrapper;
   protected PluginService pluginService;
+  protected final TelemetryFactory telemetryFactory;
 
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
-  public ConnectionPluginManager(ConnectionProvider connectionProvider, ConnectionWrapper connectionWrapper) {
+  public ConnectionPluginManager(ConnectionProvider connectionProvider,
+      ConnectionWrapper connectionWrapper,
+      TelemetryFactory telemetryFactory) {
     this.connectionProvider = connectionProvider;
     this.connectionWrapper = connectionWrapper;
+    this.telemetryFactory = telemetryFactory;
   }
 
   /**
@@ -108,8 +144,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
       Properties props,
       ArrayList<ConnectionPlugin> plugins,
       ConnectionWrapper connectionWrapper,
-      PluginService pluginService) {
-    this(connectionProvider, props, plugins, connectionWrapper);
+      PluginService pluginService,
+      TelemetryFactory telemetryFactory) {
+    this(connectionProvider, props, plugins, connectionWrapper, telemetryFactory);
     this.pluginService = pluginService;
   }
 
@@ -120,11 +157,13 @@ public class ConnectionPluginManager implements CanReleaseResources {
       ConnectionProvider connectionProvider,
       Properties props,
       ArrayList<ConnectionPlugin> plugins,
-      ConnectionWrapper connectionWrapper) {
+      ConnectionWrapper connectionWrapper,
+      TelemetryFactory telemetryFactory) {
     this.connectionProvider = connectionProvider;
     this.props = props;
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
+    this.telemetryFactory = telemetryFactory;
   }
 
   public void lock() {
@@ -251,6 +290,30 @@ public class ConnectionPluginManager implements CanReleaseResources {
     return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc);
   }
 
+
+  protected <T, E extends Exception> T executeWithTelemetry(
+      final @NonNull JdbcCallable<T, E> execution,
+      final @NonNull String pluginName) throws E {
+    TelemetryContext context = null;
+    try {
+      try {
+        final String contextName = pluginName;
+        context = telemetryFactory.openTelemetryContext(contextName);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      return execution.call();
+    } finally {
+      if (context != null) {
+        try {
+          context.close();
+        } catch (Exception e) {
+          // Ignore if an exception is thrown
+        }
+      }
+    }
+  }
+
   @Nullable
   protected <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
       final @NonNull String methodName) {
@@ -259,6 +322,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     for (int i = this.plugins.size() - 1; i >= 0; i--) {
       final ConnectionPlugin plugin = this.plugins.get(i);
+      final String pluginName = pluginNameByClass.getOrDefault(plugin.getClass(), plugin.getClass().getSimpleName());
       Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
       boolean isSubscribed =
           pluginSubscribedMethods.contains(ALL_METHODS)
@@ -266,11 +330,13 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
       if (isSubscribed) {
         if (pluginChainFunc == null) {
-          pluginChainFunc = (pipelineFunc, jdbcFunc) -> pipelineFunc.call(plugin, jdbcFunc);
+          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+              executeWithTelemetry(() -> pipelineFunc.call(plugin, jdbcFunc), pluginName);
         } else {
           final PluginChainJdbcCallable<T, E> finalPluginChainFunc = pluginChainFunc;
           pluginChainFunc = (pipelineFunc, jdbcFunc) ->
-              pipelineFunc.call(plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc));
+              executeWithTelemetry(() -> pipelineFunc.call(plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc)),
+                  pluginName);
         }
       }
     }
@@ -304,6 +370,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   public ConnectionWrapper getConnectionWrapper() {
     return this.connectionWrapper;
+  }
+
+  public TelemetryFactory getTelemetryFactory() {
+    return this.telemetryFactory;
   }
 
   public <T, E extends Exception> T execute(

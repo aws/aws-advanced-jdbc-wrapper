@@ -25,6 +25,7 @@ import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
@@ -67,4 +68,7 @@ public interface PluginService extends ExceptionHandler {
   void forceRefreshHostList(Connection connection) throws SQLException;
 
   Connection connect(HostSpec hostSpec, Properties props) throws SQLException;
+
+  TelemetryFactory getTelemetryFactory();
+
 }

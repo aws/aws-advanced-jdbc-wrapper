@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
 
 class DataCacheConnectionPluginTest {
 
@@ -38,6 +39,8 @@ class DataCacheConnectionPluginTest {
 
   private AutoCloseable closeable;
 
+  @Mock
+  PluginService mockPluginService;
   @Mock
   ResultSet mockResult1;
   @Mock
@@ -78,7 +81,7 @@ class DataCacheConnectionPluginTest {
   void test_execute_withEmptyCache() throws SQLException {
     final String methodName = "Statement.executeQuery";
 
-    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(props);
+    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(mockPluginService, props);
 
     final ResultSet rs = plugin.execute(
         ResultSet.class,
@@ -95,7 +98,7 @@ class DataCacheConnectionPluginTest {
   void test_execute_withCache() throws Exception {
     final String methodName = "Statement.executeQuery";
 
-    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(props);
+    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(mockPluginService, props);
 
     when(mockCallable.call()).thenReturn(mockResult1, mockResult2);
 
