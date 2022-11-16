@@ -766,7 +766,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return false;
     }
 
-    return SqlState.isConnectionError(((SQLException) t).getSQLState());
+    return this.pluginService.isNetworkException(t);
   }
 
   /**

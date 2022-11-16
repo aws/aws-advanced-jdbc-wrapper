@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.exceptions;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+public interface ExceptionHandler {
 
-public class AwsSecretsManagerConnectionPluginFactory implements ConnectionPluginFactory {
-  @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new AwsSecretsManagerConnectionPlugin(pluginService, props);
-  }
+  boolean isNetworkException(Throwable throwable);
+
+  boolean isNetworkException(String sqlState);
+
+  boolean isLoginException(String sqlState);
+
+  boolean isLoginException(Throwable throwable);
 }

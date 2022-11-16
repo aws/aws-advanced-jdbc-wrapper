@@ -36,7 +36,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 /**
@@ -258,7 +257,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
           } catch (final SQLException exception) {
             // Propagate exceptions that are not caused by network errors.
-            if (!SqlState.isConnectionError(exception)) {
+            if (!pluginService.isNetworkException(exception)) {
               LOGGER.finer(
                   () -> Messages.get(
                       "ClusterAwareWriterFailoverHandler.taskAEncounteredException",

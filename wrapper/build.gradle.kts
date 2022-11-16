@@ -31,6 +31,9 @@ dependencies {
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.17.285")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.4")
+    compileOnly("mysql:mysql-connector-java:8.0.31")
+    compileOnly("org.postgresql:postgresql:42.5.0")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.0.6")
     compileOnly("org.osgi:org.osgi.core:4.3.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
