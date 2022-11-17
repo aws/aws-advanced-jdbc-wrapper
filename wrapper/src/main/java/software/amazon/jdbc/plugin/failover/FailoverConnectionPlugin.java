@@ -70,8 +70,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       });
 
   static final String METHOD_SET_READ_ONLY = "setReadOnly";
-  static final String METHOD_COMMIT = "commit";
-  static final String METHOD_ROLLBACK = "rollback";
   private static final String METHOD_GET_AUTO_COMMIT = "getAutoCommit";
   private static final String METHOD_GET_CATALOG = "getCatalog";
   private static final String METHOD_GET_SCHEMA = "getSchema";
@@ -213,9 +211,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
     initHostProvider(
-        driverProtocol,
         initialUrl,
-        props,
         hostListProviderService,
         initHostProviderFunc,
         () -> new AuroraHostListProvider(driverProtocol, hostListProviderService, props, initialUrl),
@@ -237,9 +233,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   void initHostProvider(
-      final String driverProtocol,
       final String initialUrl,
-      final Properties props,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc,
       final Supplier<HostListProvider> hostListProviderSupplier,
@@ -367,15 +361,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return this.explicitlyReadOnly != null && this.explicitlyReadOnly;
   }
 
-  /**
-   * Checks if there is an underlying connection for this proxy.
-   *
-   * @return true if there is a connection
-   */
-  boolean isConnected() {
-    return this.pluginService.getCurrentHostSpec().getAvailability() == HostAvailability.AVAILABLE;
-  }
-
   private HostSpec getCurrentWriter() throws SQLException {
     final List<HostSpec> topology = this.pluginService.getHosts();
     if (topology == null) {
@@ -384,7 +369,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return getWriter(topology);
   }
 
-  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) throws SQLException {
+  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
     for (final HostSpec hostSpec : hosts) {
       if (hostSpec.getRole() == HostRole.WRITER) {
         return hostSpec;
@@ -468,11 +453,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private void performSpecialMethodHandlingIfRequired(final Object[] args, final String methodName)
       throws SQLException {
-    if (methodName.contains(METHOD_COMMIT) || methodName.contains(METHOD_ROLLBACK)) {
-      if (this.pluginManagerService != null) {
-        this.pluginManagerService.setInTransaction(false);
-      }
-    }
 
     if (methodName.contains(METHOD_SET_READ_ONLY)) {
       this.explicitlyReadOnly = (Boolean) args[0];

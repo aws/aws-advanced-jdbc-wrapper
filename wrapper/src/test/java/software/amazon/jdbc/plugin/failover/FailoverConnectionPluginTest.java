@@ -113,9 +113,7 @@ class FailoverConnectionPluginTest {
     initializePlugin();
 
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
@@ -132,9 +130,7 @@ class FailoverConnectionPluginTest {
     initializePlugin();
 
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
@@ -153,9 +149,7 @@ class FailoverConnectionPluginTest {
     initializePlugin();
 
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
@@ -304,9 +298,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
@@ -335,9 +327,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
@@ -359,9 +349,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
@@ -383,9 +371,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,
@@ -410,9 +396,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
     plugin.initHostProvider(
-        "driverProtocol",
         "initialUrl",
-        properties,
         mockHostListProviderService,
         mockInitHostProviderFunc,
         () -> mockHostListProvider,

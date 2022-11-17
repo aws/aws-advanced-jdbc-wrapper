@@ -21,9 +21,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.AnyOf.anyOf;
 import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,6 +36,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
@@ -83,11 +87,13 @@ public class ReadWriteSplittingPluginTest {
 
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<ResultSet, SQLException> mockSqlFunction;
+  @Mock private JdbcCallable<Void, SQLException> mockVoidFunction;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockWriterConn;
   @Mock private Connection mockNewWriterConn;
   @Mock private Connection mockClosedWriterConn;
+  @Mock private Connection mockOldWriterConn;
   @Mock private Connection mockReaderConn1;
   @Mock private Connection mockReaderConn2;
   @Mock private Connection mockReaderConn3;
@@ -128,7 +134,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getHosts()).thenReturn(singleReaderTopology);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -158,7 +164,7 @@ public class ReadWriteSplittingPluginTest {
     when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -178,7 +184,7 @@ public class ReadWriteSplittingPluginTest {
     when(mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -198,7 +204,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getHosts()).thenReturn(singleReaderTopology);
     when(mockPluginService.isInTransaction()).thenReturn(true);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -211,7 +217,7 @@ public class ReadWriteSplittingPluginTest {
 
   @Test
   public void testSetReadOnly_true() throws SQLException {
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(mockPluginService, defaultProps);
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(mockPluginService, defaultProps);
     plugin.switchConnectionIfRequired(true);
 
     assertThat(plugin.getReaderConnection(), anyOf(is(mockReaderConn1), is(mockReaderConn2), is(mockReaderConn3)));
@@ -222,7 +228,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -235,9 +241,9 @@ public class ReadWriteSplittingPluginTest {
 
   @Test
   public void testSetReadOnly_true_oneHost() throws SQLException {
-    when(this.mockPluginService.getHosts()).thenReturn(Arrays.asList(writerHostSpec));
+    when(this.mockPluginService.getHosts()).thenReturn(Collections.singletonList(writerHostSpec));
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -252,10 +258,10 @@ public class ReadWriteSplittingPluginTest {
 
   @Test
   public void testSetReadOnly_true_oneHost_writerClosed() throws SQLException {
-    when(this.mockPluginService.getHosts()).thenReturn(Arrays.asList(writerHostSpec));
+    when(this.mockPluginService.getHosts()).thenReturn(Collections.singletonList(writerHostSpec));
     when(this.mockPluginService.getCurrentConnection()).thenReturn(mockClosedWriterConn);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -276,7 +282,7 @@ public class ReadWriteSplittingPluginTest {
     when(mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
     when(mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -294,7 +300,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.connect(eq(readerHostSpec2), eq(defaultProps))).thenThrow(SQLException.class);
     when(this.mockPluginService.connect(eq(readerHostSpec3), eq(defaultProps))).thenThrow(SQLException.class);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -313,7 +319,7 @@ public class ReadWriteSplittingPluginTest {
     when(mockPluginService.connect(eq(readerHostSpec3), eq(defaultProps))).thenThrow(SQLException.class);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockClosedWriterConn);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -331,7 +337,7 @@ public class ReadWriteSplittingPluginTest {
     when(mockSqlFunction.call()).thenThrow(FailoverSuccessSQLException.class);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockNewWriterConn);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
@@ -343,7 +349,7 @@ public class ReadWriteSplittingPluginTest {
         () -> plugin.execute(
             ResultSet.class,
             SQLException.class,
-            Statement.class,
+            mockStatement,
             "Statement.executeQuery",
             mockSqlFunction,
             new Object[] {
@@ -353,14 +359,14 @@ public class ReadWriteSplittingPluginTest {
 
   @Test
   public void testNotifyConnectionChange() {
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
         null,
         null);
 
-    OldConnectionSuggestedAction suggestion = plugin.notifyConnectionChanged(mockChanges);
+    final OldConnectionSuggestedAction suggestion = plugin.notifyConnectionChanged(mockChanges);
 
     assertEquals(mockWriterConn, plugin.getWriterConnection());
     assertEquals(OldConnectionSuggestedAction.NO_OPINION, suggestion);
@@ -371,9 +377,9 @@ public class ReadWriteSplittingPluginTest {
   public void testExecute_pickNewReader() throws SQLException {
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
 
-    Properties props = new Properties(defaultProps);
+    final Properties props = new Properties(defaultProps);
     ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         props,
         mockHostListProviderService,
@@ -386,7 +392,7 @@ public class ReadWriteSplittingPluginTest {
     plugin.execute(
         ResultSet.class,
         SQLException.class,
-        Statement.class,
+        mockStatement,
         "Statement.executeQuery",
         mockSqlFunction,
         new Object[] {
@@ -396,15 +402,70 @@ public class ReadWriteSplittingPluginTest {
   }
 
   @Test
+  public void testExecute_closeAtTransactionBoundary() throws SQLException {
+    when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
+    when(this.mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(mockStatement.getConnection()).thenReturn(mockReaderConn1);
+
+    final Properties props = new Properties(defaultProps);
+    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        props,
+        mockHostListProviderService,
+        null,
+        mockReaderConn1);
+
+    plugin.setExplicitlyReadOnly(true);
+    plugin.setIsTransactionBoundary(true);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockReaderConn1,
+        "Connection.close",
+        mockVoidFunction,
+        new Object[] {});
+
+    assertTrue(plugin.getIsTransactionBoundary());
+    verify(mockPluginService, never()).connect(any(), any());
+  }
+
+  @Test
+  public void testExecute_oldConnection() throws SQLException {
+    when(mockStatement.getConnection()).thenReturn(mockOldWriterConn);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        defaultProps,
+        mockHostListProviderService,
+        mockWriterConn,
+        null);
+    plugin.setIsTransactionBoundary(false);
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockStatement,
+        "Statement.close",
+        mockVoidFunction,
+        new Object[] {});
+
+    assertFalse(plugin.getIsTransactionBoundary());
+    verify(mockPluginService, never()).connect(any(), any());
+  }
+
+  @Test
   public void testConnectNonInitialConnection() throws SQLException {
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
         mockWriterConn,
         null);
 
-    Connection connection = plugin.connect(TEST_PROTOCOL, writerHostSpec, defaultProps, false, this.mockConnectFunc);
+    final Connection connection =
+        plugin.connect(TEST_PROTOCOL, writerHostSpec, defaultProps, false, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -417,13 +478,13 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpecWithIncorrectRole);
     when(this.mockConnectFunc.call()).thenReturn(mockReaderConn1);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
         null,
         null);
-    Connection connection = plugin.connect(
+    final Connection connection = plugin.connect(
         TEST_PROTOCOL,
         instanceUrlHostSpec,
         defaultProps,
@@ -442,13 +503,14 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockConnectFunc.call()).thenReturn(mockReaderConn1);
     when(mockResultSet.getString(any(String.class))).thenReturn("instance-1");
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
         null,
         null);
-    Connection connection = plugin.connect(TEST_PROTOCOL, ipUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+    final Connection connection =
+        plugin.connect(TEST_PROTOCOL, ipUrlHostSpec, defaultProps, true, this.mockConnectFunc);
 
     assertEquals(mockReaderConn1, connection);
     verify(mockConnectFunc).call();
@@ -459,13 +521,14 @@ public class ReadWriteSplittingPluginTest {
   public void testConnectClusterUrl() throws SQLException {
     when(this.mockPluginService.getCurrentConnection()).thenReturn(null);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,
         null,
         null);
-    Connection connection = plugin.connect(TEST_PROTOCOL, clusterUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+    final Connection connection =
+        plugin.connect(TEST_PROTOCOL, clusterUrlHostSpec, defaultProps, true, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -476,7 +539,7 @@ public class ReadWriteSplittingPluginTest {
   public void testConnect_errorUpdatingHostSpec() {
     when(this.mockPluginService.getCurrentConnection()).thenReturn(null);
 
-    ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
         defaultProps,
         mockHostListProviderService,

@@ -39,8 +39,9 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.ConnectionMethodAnalyzer;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SqlMethodAnalyzer;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
@@ -52,8 +53,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       Logger.getLogger(DefaultConnectionPlugin.class.getName());
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Collections.singletonList("*")));
+  private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
-  private final ConnectionMethodAnalyzer connectionMethodAnalyzer = new ConnectionMethodAnalyzer();
   private final ConnectionProvider connectionProvider;
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
@@ -99,16 +100,21 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     final T result = jdbcMethodFunc.call();
 
     Connection currentConn = this.pluginService.getCurrentConnection();
-    if (this.connectionMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
-      this.pluginManagerService.setInTransaction(true);
+    final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+    if (boundConnection != null && boundConnection != currentConn) {
+      // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
+      // ConnectionPluginManager#execute blocks all methods invoked using old connections except for close/abort.
+      return result;
     }
 
-    if (this.connectionMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {
+    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
+      this.pluginManagerService.setInTransaction(true);
+    } else if (sqlMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(false);
     }
 
-    if (this.connectionMethodAnalyzer.isStatementSettingAutoCommit(methodName, jdbcMethodArgs)) {
-      final Boolean autocommit = this.connectionMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
+    if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, jdbcMethodArgs)) {
+      final Boolean autocommit = sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
       if (autocommit != null) {
         try {
           currentConn.setAutoCommit(autocommit);
