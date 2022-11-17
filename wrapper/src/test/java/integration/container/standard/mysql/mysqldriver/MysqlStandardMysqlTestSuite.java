@@ -23,12 +23,12 @@ import org.junit.platform.suite.api.Suite;
 // To add additional tests, append it inside SelectClasses, comma-separated
 @Suite
 @SelectClasses({
-  StandardMysqlIntegrationTest.class,
-  DataCachePluginTests.class,
-  DataSourceTests.class,
-  HikariTests.class,
-  LogQueryPluginTests.class,
-  SpringTests.class,
-  StandardMysqlReadWriteSplittingTest.class
+    StandardMysqlIntegrationTest.class,
+    DataCachePluginTests.class,
+    DataSourceTests.class,
+    HikariTests.class,
+    LogQueryPluginTests.class,
+    SpringTests.class,
+    StandardMysqlReadWriteSplittingTest.class
 })
 public class MysqlStandardMysqlTestSuite {}

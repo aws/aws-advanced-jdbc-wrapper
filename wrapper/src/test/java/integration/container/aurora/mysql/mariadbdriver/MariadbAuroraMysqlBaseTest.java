@@ -48,6 +48,17 @@ public abstract class MariadbAuroraMysqlBaseTest extends AuroraMysqlBaseTest {
   }
 
   @Override
+  protected List<String> getTopologyEndpoints() throws SQLException {
+    final String dbConnHostBase =
+        DB_CONN_STR_SUFFIX.startsWith(".") ? DB_CONN_STR_SUFFIX.substring(1) : DB_CONN_STR_SUFFIX;
+
+    final String url =
+        DB_CONN_STR_PREFIX + MYSQL_INSTANCE_1_URL + ":" + AURORA_MYSQL_PORT + "/" + AURORA_MYSQL_DB;
+    return this.containerHelper.getAuroraInstanceEndpoints(
+        url + "?permitMysqlScheme", AURORA_MYSQL_USERNAME, AURORA_MYSQL_PASSWORD, dbConnHostBase);
+  }
+
+  @Override
   protected Connection connectToInstance(String instanceUrl, int port, Properties props)
       throws SQLException {
     final String url = DB_CONN_STR_PREFIX + instanceUrl + ":" + port + "/" + AURORA_MYSQL_DB;

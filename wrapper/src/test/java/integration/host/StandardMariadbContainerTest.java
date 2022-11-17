@@ -20,6 +20,9 @@ import com.mysql.cj.util.StringUtils;
 import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,7 +35,9 @@ import software.amazon.jdbc.Driver;
 public class StandardMariadbContainerTest {
 
   private static final String STANDARD_TEST_RUNNER_NAME = "test-container";
-  private static final String STANDARD_MARIADB_HOST = "standard-mariadb-container";
+  private static final String STANDARD_MARIADB_WRITER = "standard-mariadb-writer";
+  private static final String STANDARD_MARIADB_READER = "standard-mariadb-reader";
+  private static final List<String> mariadbInstances = Arrays.asList(STANDARD_MARIADB_WRITER, STANDARD_MARIADB_READER);
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   private static final int STANDARD_MARIADB_PORT = 3306;
 
@@ -48,9 +53,10 @@ public class StandardMariadbContainerTest {
 
   private static final String TEST_CONTAINER_TYPE = System.getenv("TEST_CONTAINER_TYPE");
 
-  private static MariaDBContainer<?> mariadbContainer;
+  private static MariaDBContainer<?> mariadbWriter;
+  private static MariaDBContainer<?> mariadbReader;
   private static GenericContainer<?> integrationTestContainer;
-  private static ToxiproxyContainer proxyContainer;
+  private static List<ToxiproxyContainer> proxyContainers;
   private static int mariadbProxyPort;
   private static Network network;
   private static final ContainerHelper containerHelper = new ContainerHelper();
@@ -65,15 +71,20 @@ public class StandardMariadbContainerTest {
 
     network = Network.newNetwork();
 
-    mariadbContainer = containerHelper.createMariadbContainer(network, STANDARD_MARIADB_HOST,
+    mariadbWriter = containerHelper.createMariadbContainer(network, STANDARD_MARIADB_WRITER,
         STANDARD_MARIADB_DB, STANDARD_MARIADB_USERNAME, STANDARD_MARIADB_PASSWORD);
-    mariadbContainer.start();
+    mariadbWriter.start();
 
-    proxyContainer =
-        containerHelper.createProxyContainer(network, STANDARD_MARIADB_HOST, PROXIED_DOMAIN_NAME_SUFFIX);
-    proxyContainer.start();
-    mariadbProxyPort = containerHelper.createInstanceProxy(STANDARD_MARIADB_HOST, proxyContainer,
-        STANDARD_MARIADB_PORT);
+    mariadbReader = containerHelper.createMariadbContainer(network, STANDARD_MARIADB_READER,
+        STANDARD_MARIADB_DB, STANDARD_MARIADB_USERNAME, STANDARD_MARIADB_PASSWORD);
+    mariadbReader.start();
+
+    proxyContainers = containerHelper.createProxyContainers(network, mariadbInstances, PROXIED_DOMAIN_NAME_SUFFIX);
+    for (ToxiproxyContainer container : proxyContainers) {
+      container.start();
+    }
+
+    mariadbProxyPort = containerHelper.createInstanceProxies(mariadbInstances, proxyContainers, STANDARD_MARIADB_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();
@@ -81,12 +92,18 @@ public class StandardMariadbContainerTest {
 
   @AfterAll
   static void tearDown() {
-    if (proxyContainer != null) {
-      proxyContainer.stop();
+    for (ToxiproxyContainer proxy : proxyContainers) {
+      proxy.stop();
     }
-    if (mariadbContainer != null) {
-      mariadbContainer.stop();
+
+    if (mariadbWriter != null) {
+      mariadbWriter.stop();
     }
+
+    if (mariadbReader != null) {
+      mariadbReader.stop();
+    }
+
     if (integrationTestContainer != null) {
       integrationTestContainer.stop();
     }
@@ -110,13 +127,15 @@ public class StandardMariadbContainerTest {
     return containerHelper.createTestContainerByType(TEST_CONTAINER_TYPE, "aws/rds-test-container")
         .withNetworkAliases(STANDARD_TEST_RUNNER_NAME)
         .withNetwork(network)
-        .withEnv("STANDARD_MARIADB_HOST", STANDARD_MARIADB_HOST)
+        .withEnv("STANDARD_MARIADB_WRITER", STANDARD_MARIADB_WRITER)
+        .withEnv("STANDARD_MARIADB_READER", STANDARD_MARIADB_READER)
         .withEnv("STANDARD_MARIADB_PORT", String.valueOf(STANDARD_MARIADB_PORT))
         .withEnv("STANDARD_MARIADB_DB", STANDARD_MARIADB_DB)
         .withEnv("STANDARD_MARIADB_USERNAME", STANDARD_MARIADB_USERNAME)
         .withEnv("STANDARD_MARIADB_PASSWORD", STANDARD_MARIADB_PASSWORD)
         .withEnv("PROXY_PORT", Integer.toString(mariadbProxyPort))
         .withEnv("PROXIED_DOMAIN_NAME_SUFFIX", PROXIED_DOMAIN_NAME_SUFFIX)
-        .withEnv("TOXIPROXY_HOST", "toxiproxy-instance");
+        .withEnv("TOXIPROXY_WRITER", "toxiproxy-instance-1")
+        .withEnv("TOXIPROXY_READER", "toxiproxy-instance-2");
   }
 }
