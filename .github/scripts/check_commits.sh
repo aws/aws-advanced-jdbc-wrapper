@@ -4,6 +4,8 @@
 FilesArray=("gradle\databases.gradle"  "hibernate-core\hibernate-core.gradle"  "gradle\java-module.gradle"  "databases\pgsql\matrix.gradle"  "settings.gradle")
 
 echo "Print every file's commit ID in new line"
+currentPath=$(pwd)
+echo "$currentPath"
 for val in ${FilesArray[*]}; do
   commitID=$(git rev-list -1 HEAD "$val")
   echo "$commitID"

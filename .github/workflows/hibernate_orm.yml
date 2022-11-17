@@ -37,8 +37,11 @@ jobs:
         with:
           job-id: jdk8
           arguments: publishToMavenLocal
-      - name: clone hibernate_orm and run tests
-        run: ./.github/scripts/check_commits.sh
+      - name: clone hibernate_orm and run testsw
+        run: |
+          git clone --depth 1 https://github.com/hibernate/hibernate-orm.git
+          cd hibernate-orm
+          ../.github/scripts/check_commits.sh
         shell: bash
         env:
           HIBERNATE_COMMIT_ID: ${{ secrets.HIBERNATE_COMMIT_ID }}
