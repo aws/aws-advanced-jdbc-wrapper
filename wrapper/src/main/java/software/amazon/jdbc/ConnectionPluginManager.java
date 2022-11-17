@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -46,6 +45,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.ResourceLock;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -82,7 +82,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
-  private final ReentrantLock lock = new ReentrantLock();
+  private final ResourceLock lock = new ResourceLock();
 
   protected Properties props = new Properties();
   protected ArrayList<ConnectionPlugin> plugins;
@@ -125,12 +125,15 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.connectionWrapper = connectionWrapper;
   }
 
-  public void lock() {
-    lock.lock();
+  public ResourceLock acquireLock() {
+    return lock.obtain();
   }
 
-  public void unlock() {
-    lock.unlock();
+  /*
+  For testing only
+   */
+  public void releaseLock() {
+    lock.close();
   }
 
   /**
