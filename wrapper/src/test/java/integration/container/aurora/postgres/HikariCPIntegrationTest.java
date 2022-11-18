@@ -29,13 +29,14 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
@@ -44,6 +45,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
+import software.amazon.jdbc.util.StringUtils;
 
 public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
 
@@ -76,54 +78,15 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
     dataSource.close();
   }
 
-  @BeforeEach
-  public void setUpTest() {
-    final HikariConfig config = new HikariConfig();
-    config.setUsername(AURORA_POSTGRES_USERNAME);
-    config.setPassword(AURORA_POSTGRES_PASSWORD);
-    config.setMaximumPoolSize(3);
-    config.setReadOnly(true);
-    config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
-    config.setInitializationFailTimeout(75000);
-    config.setConnectionTimeout(1000);
-
-    config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
-    config.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
-    config.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql://");
-    config.addDataSourceProperty("portPropertyName", "portNumber");
-    config.addDataSourceProperty("serverPropertyName", "serverName");
-    config.addDataSourceProperty("databasePropertyName", "databaseName");
-
-    Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
-    targetDataSourceProps.setProperty("portNumber", String.valueOf(POSTGRES_PROXY_PORT));
-    targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
-    targetDataSourceProps.setProperty("socketTimeout", "3");
-    targetDataSourceProps.setProperty("connectTimeout", "3");
-    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1");
-    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1");
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
-    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
-        PROXIED_CLUSTER_TEMPLATE);
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "30000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "3000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1500");
-    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
-
-    dataSource = new HikariDataSource(config);
-
-    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
-
-    logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
-    logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
-    logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
-  }
-
   /**
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @Test
   public void test_1_1_hikariCP_lost_connection() throws SQLException {
+    Properties customProps = new Properties();
+    customProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "1");
+    PGProperty.SOCKET_TIMEOUT.set(customProps, "1");
+    createDataSource(customProps);
     try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
@@ -153,6 +116,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
+    createDataSource(null);
 
     // Get a valid connection, then make it fail over to a different instance
     try (Connection conn = dataSource.getConnection()) {
@@ -191,6 +155,7 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
     logger.fine("Instance to fail over to: " + readerIdentifier);
 
     bringUpInstance(writerIdentifier);
+    createDataSource(null);
 
     // Get a valid connection, then make it fail over to a different instance
     try (Connection conn = dataSource.getConnection()) {
@@ -211,6 +176,65 @@ public class HikariCPIntegrationTest extends AuroraPostgresBaseTest {
       assertTrue(currentInstance.equalsIgnoreCase(readerIdentifier));
     }
   }
+
+  private void createDataSource(final Properties customProps) {
+    final HikariConfig config = getConfig(customProps);
+    dataSource = new HikariDataSource(config);
+
+    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
+
+    logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
+    logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
+    logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
+  }
+
+  private HikariConfig getConfig(Properties customProps) {
+    final HikariConfig config = new HikariConfig();
+    config.setUsername(AURORA_POSTGRES_USERNAME);
+    config.setPassword(AURORA_POSTGRES_PASSWORD);
+    config.setMaximumPoolSize(3);
+    config.setReadOnly(true);
+    config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
+    config.setInitializationFailTimeout(75000);
+    config.setConnectionTimeout(1000);
+
+    config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
+    config.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
+    config.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql://");
+    config.addDataSourceProperty("portPropertyName", "portNumber");
+    config.addDataSourceProperty("serverPropertyName", "serverName");
+    config.addDataSourceProperty("databasePropertyName", "databaseName");
+
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty("serverName", clusterTopology.get(0) + PROXIED_DOMAIN_NAME_SUFFIX);
+    targetDataSourceProps.setProperty("portNumber", String.valueOf(POSTGRES_PROXY_PORT));
+    targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
+    targetDataSourceProps.setProperty("socketTimeout", "3");
+    targetDataSourceProps.setProperty("connectTimeout", "3");
+    targetDataSourceProps.setProperty("monitoring-connectTimeout", "1");
+    targetDataSourceProps.setProperty("monitoring-socketTimeout", "1");
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
+        PROXIED_CLUSTER_TEMPLATE);
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
+
+    if (customProps != null) {
+      final Enumeration<?> propertyNames = customProps.propertyNames();
+      while (propertyNames.hasMoreElements()) {
+        String propertyName = propertyNames.nextElement().toString();
+        if (!StringUtils.isNullOrEmpty(propertyName)) {
+          final String propertyValue = customProps.getProperty(propertyName);
+          targetDataSourceProps.setProperty(propertyName, propertyValue);
+        }
+      }
+    }
+
+    config.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
+    return config;
+  }
+
 
   private void putDownInstance(String targetInstance) {
     Proxy toPutDown = proxyMap.get(targetInstance);

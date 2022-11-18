@@ -263,8 +263,8 @@ public abstract class AuroraPostgresBaseTest {
 
   protected static Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
+    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "3");
+    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "1");
 
     return props;
   }
@@ -378,7 +378,8 @@ public abstract class AuroraPostgresBaseTest {
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", instanceID + DB_CONN_STR_SUFFIX);
     targetDataSourceProps.setProperty("databaseName", AURORA_POSTGRES_DB);
-    targetDataSourceProps.setProperty("wrapperPlugins", "failover");
+    targetDataSourceProps.setProperty("socketTimeout", "1");
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     return ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD);

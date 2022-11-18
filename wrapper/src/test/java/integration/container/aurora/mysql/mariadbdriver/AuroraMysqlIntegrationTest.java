@@ -329,7 +329,7 @@ public class AuroraMysqlIntegrationTest extends MariadbAuroraMysqlBaseTest {
     final String currentWriterId = instanceIDs[0];
 
     Properties props = initDefaultProxiedProps();
-    props.setProperty("failoverTimeoutMs", "10000");
+    props.setProperty("failoverTimeoutMs", "2000");
     try (Connection conn = connectToInstance(
         currentWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
         MYSQL_PROXY_PORT,

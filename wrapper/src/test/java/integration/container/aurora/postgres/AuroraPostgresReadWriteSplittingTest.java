@@ -672,10 +672,8 @@ public class AuroraPostgresReadWriteSplittingTest extends AuroraPostgresBaseTest
   public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException, InterruptedException, IOException {
     final String initialWriterId = instanceIDs[0];
 
-    final Properties props = getProxiedProps_allPlugins();
-    PGProperty.SOCKET_TIMEOUT.set(props, "2");
     try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        POSTGRES_PROXY_PORT, props)) {
+        POSTGRES_PROXY_PORT, getProxiedProps_allPlugins())) {
       // Kill all reader instances
       for (int i = 1; i < clusterSize; i++) {
         final String instanceId = instanceIDs[i];
