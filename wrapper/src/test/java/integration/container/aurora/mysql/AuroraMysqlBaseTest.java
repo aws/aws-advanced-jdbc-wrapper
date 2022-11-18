@@ -19,6 +19,7 @@ package integration.container.aurora.mysql;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.mysql.cj.conf.PropertyKey;
 import eu.rekawek.toxiproxy.Proxy;
@@ -292,9 +293,14 @@ public abstract class AuroraMysqlBaseTest {
     return DriverManager.getConnection(url, props);
   }
 
-  protected String hostToIP(String hostname) throws UnknownHostException {
-    final InetAddress inet = InetAddress.getByName(hostname);
-    return inet.getHostAddress();
+  protected String hostToIP(String hostname) {
+    try {
+      final InetAddress inet = InetAddress.getByName(hostname);
+      return inet.getHostAddress();
+    } catch (UnknownHostException e) {
+      fail("The IP address of host " + hostname + " could not be determined");
+      return null;
+    }
   }
 
   // Return list of instance endpoints.
@@ -456,8 +462,10 @@ public abstract class AuroraMysqlBaseTest {
   // Helpers
   protected void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
       throws InterruptedException {
+    waitUntilClusterHasRightState();
+    String initialWriterClusterIP = hostToIP(MYSQL_CLUSTER_URL);
     failoverCluster();
-    waitUntilWriterInstanceChanged(clusterWriterId);
+    waitUntilWriterInstanceChanged(initialWriterClusterIP, clusterWriterId);
   }
 
   protected void failoverCluster() throws InterruptedException {
@@ -475,8 +483,10 @@ public abstract class AuroraMysqlBaseTest {
   protected void failoverClusterToATargetAndWaitUntilWriterChanged(
       String clusterWriterId,
       String targetInstanceId) throws InterruptedException {
+    waitUntilClusterHasRightState();
+    String initialWriterClusterIP = hostToIP(MYSQL_CLUSTER_URL);
     failoverClusterWithATargetInstance(targetInstanceId);
-    waitUntilWriterInstanceChanged(clusterWriterId);
+    waitUntilWriterInstanceChanged(initialWriterClusterIP, clusterWriterId);
   }
 
   protected void failoverClusterWithATargetInstance(String targetInstanceId)
@@ -495,13 +505,15 @@ public abstract class AuroraMysqlBaseTest {
     }
   }
 
-  protected void waitUntilWriterInstanceChanged(String initialWriterInstanceId)
+  protected void waitUntilWriterInstanceChanged(String initialWriterClusterIP, String initialWriterInstanceId)
       throws InterruptedException {
     String nextClusterWriterId = getDBClusterWriterInstanceId();
-    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
+    String nextClusterIP = hostToIP(MYSQL_CLUSTER_URL);
+    while (initialWriterInstanceId.equals(nextClusterWriterId) || initialWriterClusterIP.equals(nextClusterIP)) {
       TimeUnit.MILLISECONDS.sleep(3000);
       // Calling the RDS API to get writer Id.
       nextClusterWriterId = getDBClusterWriterInstanceId();
+      nextClusterIP = hostToIP(MYSQL_CLUSTER_URL);
     }
   }
 
