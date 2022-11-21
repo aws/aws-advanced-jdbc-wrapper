@@ -251,7 +251,7 @@ public abstract class AuroraMysqlBaseTest {
   protected static Properties initDefaultProps() {
     final Properties props = initDefaultPropsNoTimeouts();
     props.setProperty(PropertyKey.connectTimeout.getKeyName(), "3000");
-    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "1000");
+    props.setProperty(PropertyKey.socketTimeout.getKeyName(), "3000");
 
     return props;
   }
