@@ -49,6 +49,7 @@ public class MonitorImpl implements Monitor {
   }
 
   private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
+  private static final long DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS = 100;
   private static final long THREAD_SLEEP_WHEN_INACTIVE_MILLIS = 100;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
@@ -57,7 +58,8 @@ public class MonitorImpl implements Monitor {
   private final Properties properties;
   private final HostSpec hostSpec;
   private Connection monitoringConn = null;
-  private long connectionCheckIntervalMillis = Long.MAX_VALUE;
+  private long connectionCheckIntervalMillis = DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS;
+  private boolean isConnectionCheckIntervalInitialized = false;
   private final AtomicLong lastContextUsedTimestamp = new AtomicLong(); // in nanos
   private final long monitorDisposalTimeMillis;
   private final MonitorService monitorService;
@@ -92,8 +94,15 @@ public class MonitorImpl implements Monitor {
 
   @Override
   public void startMonitoring(MonitorConnectionContext context) {
-    this.connectionCheckIntervalMillis =
-        Math.min(this.connectionCheckIntervalMillis, context.getFailureDetectionIntervalMillis());
+    if (!this.isConnectionCheckIntervalInitialized) {
+      this.connectionCheckIntervalMillis = context.getFailureDetectionIntervalMillis();
+      this.isConnectionCheckIntervalInitialized = true;
+    } else {
+      this.connectionCheckIntervalMillis = Math.min(
+          this.connectionCheckIntervalMillis,
+          context.getFailureDetectionIntervalMillis());
+    }
+
     final long currentTime = this.getCurrentTimeNano();
     context.setStartMonitorTime(currentTime);
     this.lastContextUsedTimestamp.set(currentTime);
@@ -111,11 +120,13 @@ public class MonitorImpl implements Monitor {
     this.contexts.remove(context);
 
     this.connectionCheckIntervalMillis = findShortestIntervalMillis();
+    this.isConnectionCheckIntervalInitialized = true;
   }
 
   public synchronized void clearContexts() {
     this.contexts.clear();
     this.connectionCheckIntervalMillis = findShortestIntervalMillis();
+    this.isConnectionCheckIntervalInitialized = true;
   }
 
   @Override
@@ -205,9 +216,8 @@ public class MonitorImpl implements Monitor {
   }
 
   long getConnectionCheckIntervalMillis() {
-    if (this.connectionCheckIntervalMillis == Long.MAX_VALUE) {
-      // connectionCheckIntervalMillis is at Long.MAX_VALUE because there are no contexts
-      // available.
+    if (this.connectionCheckIntervalMillis == DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS) {
+      // connectionCheckIntervalMillis is set to the default because there are no contexts available.
       return 0;
     }
     return this.connectionCheckIntervalMillis;
@@ -223,6 +233,6 @@ public class MonitorImpl implements Monitor {
     for (MonitorConnectionContext context : this.contexts) {
       currentMin = Math.min(currentMin, context.getFailureDetectionIntervalMillis());
     }
-    return currentMin;
+    return currentMin == Long.MAX_VALUE ? DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS : currentMin;
   }
 }
