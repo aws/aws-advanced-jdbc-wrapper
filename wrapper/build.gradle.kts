@@ -18,6 +18,7 @@ plugins {
     checkstyle
     java
     jacoco
+    id("biz.aQute.bnd.builder")
     id("com.diffplug.spotless")
     id("com.github.spotbugs")
     id("com.github.vlsi.gradle-extensions")
@@ -30,6 +31,7 @@ dependencies {
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.17.285")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.4")
+    compileOnly("org.osgi:org.osgi.core:4.3.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
     testImplementation("org.junit.platform:junit-platform-engine:1.9.0")
@@ -172,6 +174,24 @@ tasks.jar {
 
     from("${buildDir}/META-INF/services/") {
         into("META-INF/services/")
+    }
+
+    bundle {
+        bnd(
+            """
+            -exportcontents: software.*
+            -removeheaders: Created-By
+            Bundle-Description: Amazon Web Services (AWS) Advanced JDBC Wrapper Driver
+            Bundle-DocURL: https://github.com/awslabs/aws-advanced-jdbc-wrapper
+            Bundle-Vendor: Amazon Web Services (AWS)
+            Import-Package: javax.sql, javax.transaction.xa, javax.naming, javax.security.sasl;resolution:=optional, *;resolution:=optional
+            Bundle-Activator: software.amazon.jdbc.osgi.WrapperBundleActivator
+            Bundle-SymbolicName: software.aws.rds
+            Bundle-Name: Amazon Web Services (AWS) Advanced JDBC Wrapper Driver
+            Bundle-Copyright: Copyright Amazon.com Inc. or affiliates.
+            Require-Capability: osgi.ee;filter:="(&(|(osgi.ee=J2SE)(osgi.ee=JavaSE))(version>=1.8))"
+            """
+        )
     }
 
     doFirst {
