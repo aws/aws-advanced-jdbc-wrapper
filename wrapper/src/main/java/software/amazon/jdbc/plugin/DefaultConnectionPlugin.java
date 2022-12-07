@@ -110,6 +110,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       this.pluginManagerService.setInTransaction(true);
     } else if (
         sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
+            // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
             || sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(currentConn, methodName,
             jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(false);
