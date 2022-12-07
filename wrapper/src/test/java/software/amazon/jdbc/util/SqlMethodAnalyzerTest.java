@@ -17,6 +17,8 @@
 package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
@@ -24,16 +26,21 @@ import java.sql.SQLException;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import software.amazon.jdbc.PluginService;
+
 class SqlMethodAnalyzerTest {
 
-  @Mock
-  Connection conn;
+  @Mock Connection conn;
+
+  @Mock PluginService pluginService;
+
 
   private final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private AutoCloseable closeable;
@@ -41,6 +48,7 @@ class SqlMethodAnalyzerTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
+    when(pluginService.getCurrentConnection()).thenReturn(conn);
   }
 
   @AfterEach
@@ -60,8 +68,18 @@ class SqlMethodAnalyzerTest {
     }
 
     when(conn.getAutoCommit()).thenReturn(autocommit);
-    final boolean actual = sqlMethodAnalyzer.doesOpenTransaction(conn, methodName, args);
+    final boolean actual = sqlMethodAnalyzer.doesOpenTransaction(pluginService, methodName, args);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void testOpenTransactionChecksTransactionStatus() {
+    final Object[] args = new Object[] {"START TRANSACTION"};
+
+    assertTrue(sqlMethodAnalyzer.doesOpenTransaction(pluginService, "Statement.execute", args));
+
+    when(pluginService.isInTransaction()).thenReturn(true);
+    assertFalse(sqlMethodAnalyzer.doesOpenTransaction(pluginService, "Statement.execute", args));
   }
 
   @ParameterizedTest
@@ -74,8 +92,18 @@ class SqlMethodAnalyzerTest {
       args = new Object[] {};
     }
 
-    final boolean actual = sqlMethodAnalyzer.doesCloseTransaction(methodName, args);
+    final boolean actual = sqlMethodAnalyzer.doesCloseTransaction(pluginService, methodName, args);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void testCloseTransactionChecksTransactionStatus() {
+    final Object[] args = new Object[] {"COMMIT"};
+
+    assertFalse(sqlMethodAnalyzer.doesCloseTransaction(pluginService, "Statement.execute", args));
+
+    when(pluginService.isInTransaction()).thenReturn(true);
+    assertTrue(sqlMethodAnalyzer.doesCloseTransaction(pluginService, "Statement.execute", args));
   }
 
   @ParameterizedTest

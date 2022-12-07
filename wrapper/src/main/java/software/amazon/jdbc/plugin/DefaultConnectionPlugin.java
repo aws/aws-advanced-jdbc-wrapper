@@ -29,6 +29,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostAvailability;
@@ -94,9 +95,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throws E {
 
     LOGGER.finest(
-        () -> Messages.get(
-            "DefaultConnectionPlugin.executingMethod",
-            new Object[] {methodName}));
+        () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
     final T result = jdbcMethodFunc.call();
 
     Connection currentConn = this.pluginService.getCurrentConnection();
@@ -107,9 +106,12 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return result;
     }
 
-    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
+    if (sqlMethodAnalyzer.doesOpenTransaction(this.pluginService, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
-    } else if (sqlMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {
+    } else if (
+        sqlMethodAnalyzer.doesCloseTransaction(this.pluginService, methodName, jdbcMethodArgs)
+            || sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(currentConn, methodName,
+            jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(false);
     }
 
@@ -160,7 +162,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(
+      final EnumSet<NodeChangeOptions> changes) {
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 

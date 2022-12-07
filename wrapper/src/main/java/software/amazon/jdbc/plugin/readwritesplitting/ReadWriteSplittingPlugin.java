@@ -306,7 +306,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private boolean isTransactionBoundary(final String methodName, final Object[] args) {
-    if (sqlMethodAnalyzer.doesCloseTransaction(methodName, args)) {
+    if (sqlMethodAnalyzer.doesCloseTransaction(this.pluginService, methodName, args)) {
       return true;
     }
 

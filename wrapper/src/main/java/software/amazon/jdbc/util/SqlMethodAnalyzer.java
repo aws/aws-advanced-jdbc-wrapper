@@ -23,9 +23,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import software.amazon.jdbc.PluginService;
+
 public class SqlMethodAnalyzer {
 
-  public boolean doesOpenTransaction(final Connection currentConn, final String methodName, final Object[] args) {
+  public boolean doesOpenTransaction(final PluginService pluginService, final String methodName,
+      final Object[] args) {
+    if (pluginService.isInTransaction()) {
+      return false;
+    }
+
     if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
       return false;
     }
@@ -35,9 +42,10 @@ public class SqlMethodAnalyzer {
       return true;
     }
 
+    final Connection conn = pluginService.getCurrentConnection();
     final boolean autocommit;
     try {
-      autocommit = currentConn.getAutoCommit();
+      autocommit = conn.getAutoCommit();
     } catch (final SQLException e) {
       return false;
     }
@@ -67,9 +75,19 @@ public class SqlMethodAnalyzer {
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
   }
 
-  public boolean doesCloseTransaction(final String methodName, final Object[] args) {
+  public boolean doesCloseTransaction(final PluginService pluginService, final String methodName,
+      final Object[] args) {
+    if (!pluginService.isInTransaction()) {
+      return false;
+    }
+
     if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")
         || methodName.equals("Connection.close") || methodName.equals("Connection.abort")) {
+      return true;
+    }
+
+    final Connection conn = pluginService.getCurrentConnection();
+    if (doesSwitchAutoCommitFalseTrue(conn, methodName, args)) {
       return true;
     }
 
@@ -118,6 +136,31 @@ public class SqlMethodAnalyzer {
 
     final String statement = getFirstSqlStatement(String.valueOf(args[0]));
     return statement.startsWith("SET AUTOCOMMIT");
+  }
+
+  public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,
+      final Object[] jdbcMethodArgs) {
+    boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
+        methodName, jdbcMethodArgs);
+    if (!methodName.contains("setAutoCommit") && !isStatementSettingAutoCommit) {
+      return false;
+    }
+
+    Boolean oldAutoCommitVal;
+    Boolean newAutoCommitVal = null;
+    try {
+      oldAutoCommitVal = conn.getAutoCommit();
+    } catch (SQLException e) {
+      return false;
+    }
+
+    if (methodName.contains("setAutoCommit") && jdbcMethodArgs.length > 0) {
+      newAutoCommitVal = (Boolean) jdbcMethodArgs[0];
+    } else if (isStatementSettingAutoCommit) {
+      newAutoCommitVal = getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
+    }
+
+    return Boolean.FALSE.equals(oldAutoCommitVal) && Boolean.TRUE.equals(newAutoCommitVal);
   }
 
   public Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {
