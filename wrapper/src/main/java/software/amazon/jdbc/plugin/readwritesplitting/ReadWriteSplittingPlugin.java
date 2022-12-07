@@ -306,7 +306,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private boolean isTransactionBoundary(final String methodName, final Object[] args) {
-    if (sqlMethodAnalyzer.doesCloseTransaction(this.pluginService, methodName, args)) {
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    if (sqlMethodAnalyzer.doesCloseTransaction(currentConnection, methodName, args)) {
       return true;
     }
 
@@ -316,7 +317,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
     final boolean autocommit;
     try {
-      final Connection currentConnection = this.pluginService.getCurrentConnection();
       autocommit = currentConnection.getAutoCommit();
     } catch (final SQLException e) {
       return false;

@@ -27,12 +27,8 @@ import software.amazon.jdbc.PluginService;
 
 public class SqlMethodAnalyzer {
 
-  public boolean doesOpenTransaction(final PluginService pluginService, final String methodName,
+  public boolean doesOpenTransaction(final Connection conn, final String methodName,
       final Object[] args) {
-    if (pluginService.isInTransaction()) {
-      return false;
-    }
-
     if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
       return false;
     }
@@ -42,7 +38,6 @@ public class SqlMethodAnalyzer {
       return true;
     }
 
-    final Connection conn = pluginService.getCurrentConnection();
     final boolean autocommit;
     try {
       autocommit = conn.getAutoCommit();
@@ -75,18 +70,13 @@ public class SqlMethodAnalyzer {
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
   }
 
-  public boolean doesCloseTransaction(final PluginService pluginService, final String methodName,
+  public boolean doesCloseTransaction(final Connection conn, final String methodName,
       final Object[] args) {
-    if (!pluginService.isInTransaction()) {
-      return false;
-    }
-
     if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")
         || methodName.equals("Connection.close") || methodName.equals("Connection.abort")) {
       return true;
     }
 
-    final Connection conn = pluginService.getCurrentConnection();
     if (doesSwitchAutoCommitFalseTrue(conn, methodName, args)) {
       return true;
     }

@@ -106,10 +106,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return result;
     }
 
-    if (sqlMethodAnalyzer.doesOpenTransaction(this.pluginService, methodName, jdbcMethodArgs)) {
+    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
     } else if (
-        sqlMethodAnalyzer.doesCloseTransaction(this.pluginService, methodName, jdbcMethodArgs)
+        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
             || sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(currentConn, methodName,
             jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(false);
