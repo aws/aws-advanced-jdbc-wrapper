@@ -21,6 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,10 +32,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.stream.Stream;
 
 class SqlMethodAnalyzerTest {
 
@@ -205,6 +204,8 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Statement.execute", " begin ; ", false),
         Arguments.of("Statement.execute", " rollback ; ", false),
         Arguments.of("Statement.execute", "   SET autocommit = 0 ; ", false),
+        Arguments.of("Statement.execute", "   SHOW DATABASES ; ", false),
+        Arguments.of("Statement.execute", "   USE mydatabase ; ", false),
         Arguments.of("Statement.executeQuery", "   SELECT 1; ", true),
         Arguments.of("Statement.executeUpdate", "INSERT INTO test_table VALUES (1)", true)
     );

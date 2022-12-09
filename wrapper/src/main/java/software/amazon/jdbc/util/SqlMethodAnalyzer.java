@@ -23,8 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import software.amazon.jdbc.PluginService;
-
 public class SqlMethodAnalyzer {
 
   public boolean doesOpenTransaction(final Connection conn, final String methodName,
@@ -101,11 +99,9 @@ public class SqlMethodAnalyzer {
   public boolean isStatementDml(final String statement) {
     return !isStatementStartingTransaction(statement)
         && !isStatementClosingTransaction(statement)
-        && !isStatementSettingState(statement);
-  }
-
-  public boolean isStatementSettingState(final String statement) {
-    return statement.startsWith("SET ");
+        && !statement.startsWith("SET ")
+        && !statement.startsWith("USE ")
+        && !statement.startsWith("SHOW ");
   }
 
   public boolean isStatementStartingTransaction(final String statement) {
