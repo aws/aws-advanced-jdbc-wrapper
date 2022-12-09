@@ -55,6 +55,16 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       Arrays.asList("connect", "initHostProvider", "notifyNodeListChanged", "*")));
   private final PluginService pluginService;
   private final AuroraStaleDnsHelper helper;
+  private static final String POSTGRESQL_READONLY_QUERY = "SELECT rt.server_id, CASE\n"
+      + "           WHEN 'MASTER_SESSION_ID' = rt.session_id THEN 'false'\n"
+      + "           ELSE 'true'\n"
+      + "           END AS is_reader\n"
+      + "FROM aurora_replica_status() rt,\n"
+      + "     aurora_db_instance_identifier() di\n"
+      + "WHERE rt.server_id = di;";
+
+  private static final String MYSQL_READONLY_QUERY = "SELECT @@innodb_read_only AS is_reader";
+  static final String IS_READER_COLUMN = "is_reader";
 
   public AuroraStaleDnsPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
@@ -74,8 +84,11 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+    final String readonly_query = driverProtocol.contains("postgresql")
+        ? POSTGRESQL_READONLY_QUERY
+        : MYSQL_READONLY_QUERY;
 
-    return this.helper.getVerifiedConnection(hostSpec, props, connectFunc);
+    return this.helper.getVerifiedConnection(hostSpec, props, connectFunc, readonly_query);
   }
 
   @Override

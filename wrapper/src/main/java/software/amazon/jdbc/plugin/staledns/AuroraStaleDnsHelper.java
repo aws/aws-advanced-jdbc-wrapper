@@ -19,7 +19,9 @@ package software.amazon.jdbc.plugin.staledns;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
@@ -50,7 +52,8 @@ public class AuroraStaleDnsHelper {
   public Connection getVerifiedConnection(
       HostSpec hostSpec,
       Properties props,
-      JdbcCallable<Connection, SQLException> connectFunc)
+      JdbcCallable<Connection, SQLException> connectFunc,
+      final String query)
       throws SQLException {
 
     if (!this.rdsUtils.isWriterClusterDns(hostSpec.getHost())) {
@@ -74,7 +77,12 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    this.pluginService.refreshHostList(conn);
+    if (isReadOnly(conn, query)) {
+      this.pluginService.forceRefreshHostList(conn);
+    } else {
+      this.pluginService.refreshHostList(conn);
+    }
+
     LOGGER.finest(() -> Utils.logTopology(this.pluginService.getHosts()));
 
     if (this.writerHostSpec == null) {
@@ -152,5 +160,17 @@ public class AuroraStaleDnsHelper {
       }
     }
     return null;
+  }
+
+  private boolean isReadOnly(Connection connection, final String query) {
+    try (final Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery(query)) {
+      while (rs.next()) {
+        return rs.getBoolean(AuroraStaleDnsPlugin.IS_READER_COLUMN);
+      }
+    } catch (SQLException e) {
+      return false;
+    }
+    return false;
   }
 }
