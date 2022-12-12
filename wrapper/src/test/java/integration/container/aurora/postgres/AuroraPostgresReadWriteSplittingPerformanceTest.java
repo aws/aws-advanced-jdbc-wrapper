@@ -126,7 +126,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   protected static Properties initReadWritePluginProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
-
+    props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     return props;
   }
 
@@ -184,13 +184,19 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     Properties propsWithPlugin = initReadWritePluginProps();
     Result resultsWithPlugin = getSetReadOnlyResults(propsWithPlugin);
 
-    final long setReadOnlyTrueMinOverhead = resultsWithPlugin.setReadOnlyTrueMin - resultsWithoutPlugin.setReadOnlyTrueMin;
-    final long setReadOnlyTrueMaxOverhead = resultsWithPlugin.setReadOnlyTrueMax - resultsWithoutPlugin.setReadOnlyTrueMax;
-    final long setReadOnlyTrueAvgOverhead = resultsWithPlugin.setReadOnlyTrueAvg - resultsWithoutPlugin.setReadOnlyTrueAvg;
+    final long setReadOnlyTrueMinOverhead =
+        resultsWithPlugin.setReadOnlyTrueMin - resultsWithoutPlugin.setReadOnlyTrueMin;
+    final long setReadOnlyTrueMaxOverhead =
+        resultsWithPlugin.setReadOnlyTrueMax - resultsWithoutPlugin.setReadOnlyTrueMax;
+    final long setReadOnlyTrueAvgOverhead =
+        resultsWithPlugin.setReadOnlyTrueAvg - resultsWithoutPlugin.setReadOnlyTrueAvg;
 
-    final long setReadOnlyFalseMinOverhead = resultsWithPlugin.setReadOnlyFalseMin - resultsWithoutPlugin.setReadOnlyFalseMin;
-    final long setReadOnlyFalseMaxOverhead = resultsWithPlugin.setReadOnlyFalseMax - resultsWithoutPlugin.setReadOnlyFalseMax;
-    final long setReadOnlyFalseAvgOverhead = resultsWithPlugin.setReadOnlyFalseAvg - resultsWithoutPlugin.setReadOnlyFalseAvg;
+    final long setReadOnlyFalseMinOverhead =
+        resultsWithPlugin.setReadOnlyFalseMin - resultsWithoutPlugin.setReadOnlyFalseMin;
+    final long setReadOnlyFalseMaxOverhead =
+        resultsWithPlugin.setReadOnlyFalseMax - resultsWithoutPlugin.setReadOnlyFalseMax;
+    final long setReadOnlyFalseAvgOverhead =
+        resultsWithPlugin.setReadOnlyFalseAvg - resultsWithoutPlugin.setReadOnlyFalseAvg;
 
     final PerfStatSetReadOnly dataTrue = new PerfStatSetReadOnly();
     dataTrue.setReadOnly = "True";
@@ -209,7 +215,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
 
   @ParameterizedTest
   @MethodSource("executeStatementsParameters")
-  public void test_executeStatements(final Properties props)
+  public void test_readerLoadBalancing_executeStatements(final Properties props)
       throws SQLException {
     // This test isolates how much overhead is caused by reader load-balancing.
     final AtomicLong readerSwitchExecuteStatementsStartTime = new AtomicLong();
@@ -226,7 +232,10 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     }
 
     for (int i = 0; i < REPEAT_TIMES; i++) {
-      try (final Connection conn = connectToInstance(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT, props)) {
+      try (final Connection conn = connectToInstance(
+          POSTGRES_CLUSTER_URL,
+          AURORA_POSTGRES_PORT,
+          props)) {
         conn.setReadOnly(true);
         try (final Statement stmt1 = conn.createStatement()) {
           stmt1.executeQuery(QUERY_FOR_INSTANCE);
@@ -239,7 +248,6 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
             stmt2.executeQuery(QUERY_FOR_INSTANCE);
           }
         }
-        // timer end
         final long readerSwitchExecuteStatementsTime =
             (System.nanoTime() - readerSwitchExecuteStatementsStartTime.get());
         elapsedReaderSwitchExecuteStatementsTimes.add(readerSwitchExecuteStatementsTime / EXECUTE_QUERY_TIMES);
