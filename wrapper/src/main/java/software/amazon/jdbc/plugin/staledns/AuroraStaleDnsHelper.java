@@ -21,6 +21,7 @@ import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.util.EnumSet;
 import java.util.Map;
@@ -33,6 +34,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraStaleDnsHelper {
@@ -44,6 +46,7 @@ public class AuroraStaleDnsHelper {
 
   private HostSpec writerHostSpec = null;
   private InetAddress writerHostAddress = null;
+  private static final int RETRIES = 3;
 
   public AuroraStaleDnsHelper(PluginService pluginService) {
     this.pluginService = pluginService;
@@ -78,6 +81,9 @@ public class AuroraStaleDnsHelper {
     }
 
     if (isReadOnly(conn, query)) {
+      // This is if-statement is only reached if the connection url is a writer cluster endpoint.
+      // If the new connection resolves to a reader instance, this means the topology is outdated.
+      // Force refresh to update the topology.
       this.pluginService.forceRefreshHostList(conn);
     } else {
       this.pluginService.refreshHostList(conn);
@@ -162,14 +168,23 @@ public class AuroraStaleDnsHelper {
     return null;
   }
 
-  private boolean isReadOnly(Connection connection, final String query) {
-    try (final Statement statement = connection.createStatement();
-        ResultSet rs = statement.executeQuery(query)) {
-      while (rs.next()) {
-        return rs.getBoolean(AuroraStaleDnsPlugin.IS_READER_COLUMN);
+  private boolean isReadOnly(Connection connection, final String query)
+      throws SQLSyntaxErrorException {
+    for (int i = 0; i < RETRIES; i++) {
+      try (final Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(query)) {
+        if (rs.next()) {
+          return rs.getBoolean(AuroraStaleDnsPlugin.IS_READER_COLUMN);
+        }
+      } catch (SQLSyntaxErrorException e) {
+        throw e;
+      } catch (SQLException e) {
+
+        // Return false if the SQLException is not a network error. Otherwise, retry.
+        if (!SqlState.isConnectionError(e)) {
+          return false;
+        }
       }
-    } catch (SQLException e) {
-      return false;
     }
     return false;
   }
