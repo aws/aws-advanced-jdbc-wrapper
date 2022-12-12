@@ -218,6 +218,7 @@ tasks.register<Test>("test-integration-aurora-postgres") {
 tasks.register<Test>("test-performance-aurora-postgres") {
     group = "verification"
     filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.runPerformanceTestInContainer")
+    filter.includeTestsMatching("integration.host.AuroraPostgresContainerTest.runReadWriteSplittingPerformanceTestInContainer")
 }
 
 // Run standard Postgres tests in container
