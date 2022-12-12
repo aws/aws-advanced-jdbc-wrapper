@@ -315,6 +315,10 @@ public class WrapperUtils {
 
     for (final Class<?> iface : clazz.getInterfaces()) {
       if (isJdbcInterface(iface)) {
+        if (isJdbcInterfaceCache.containsKey(iface)) {
+          return false;
+        }
+
         isJdbcInterfaceCache.putIfAbsent(clazz, true);
         return true;
       }
