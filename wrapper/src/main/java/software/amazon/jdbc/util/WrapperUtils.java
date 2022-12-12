@@ -254,7 +254,7 @@ public class WrapperUtils {
       return toProxy;
     }
 
-    final Class<?> wrapperClass = availableWrappers.get(resultClass);
+    Class<?> wrapperClass = availableWrappers.get(resultClass);
 
     if (wrapperClass != null) {
       return createInstance(
@@ -263,6 +263,20 @@ public class WrapperUtils {
           new Class<?>[] {resultClass, ConnectionPluginManager.class},
           toProxy,
           pluginManager);
+    }
+
+    for (final Class<?> iface : toProxy.getClass().getInterfaces()) {
+      if (isJdbcInterface(iface)) {
+        wrapperClass = availableWrappers.get(iface);
+        if (wrapperClass != null) {
+          return createInstance(
+              wrapperClass,
+              resultClass,
+              new Class<?>[] {iface, ConnectionPluginManager.class},
+              toProxy,
+              pluginManager);
+        }
+      }
     }
 
     if (isJdbcInterface(toProxy.getClass())) {
@@ -315,10 +329,6 @@ public class WrapperUtils {
 
     for (final Class<?> iface : clazz.getInterfaces()) {
       if (isJdbcInterface(iface)) {
-        if (isJdbcInterfaceCache.containsKey(iface)) {
-          return false;
-        }
-
         isJdbcInterfaceCache.putIfAbsent(clazz, true);
         return true;
       }
