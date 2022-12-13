@@ -16,8 +16,6 @@
 
 package integration.container.aurora.postgres;
 
-import static org.apache.commons.math3.util.Precision.round;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -66,14 +63,13 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     );
   }
 
-
   @AfterAll
   public static void cleanUp() throws IOException {
     doWritePerfDataToFile(
         "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SetReadOnly.xlsx",
         setReadOnlyPerfDataList);
     doWritePerfDataToFile(
-        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing.xlsx",
+        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing_largedataset_nanoseconds.xlsx",
         executeStatementsPerfDataList);
   }
 
@@ -117,8 +113,8 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
+    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "30");
+    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "30");
 
     return props;
   }
@@ -132,25 +128,25 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
 
   Result getSetReadOnlyResults(final Properties props)
       throws SQLException {
-    final AtomicLong setReadOnlyTrueStartTime = new AtomicLong();
+    Long setReadOnlyTrueStartTime;
     final List<Long> elapsedSetReadOnlyTrueTimes = new ArrayList<>(REPEAT_TIMES);
-    final AtomicLong setReadOnlyFalseStartTime = new AtomicLong();
+    Long setReadOnlyFalseStartTime;
     final List<Long> elapsedSetReadOnlyFalseTimes = new ArrayList<>(REPEAT_TIMES);
     final Result result = new Result();
 
     for (int i = 0; i < REPEAT_TIMES; i++) {
 
       try (final Connection conn = connectToInstance(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT, props)) {
-        setReadOnlyTrueStartTime.set(System.nanoTime());
+
+        setReadOnlyTrueStartTime = System.nanoTime();
         conn.setReadOnly(true);
-        final long setReadOnlyTrueElapsedTime = (System.nanoTime() - setReadOnlyTrueStartTime.get());
+        final long setReadOnlyTrueElapsedTime = (System.nanoTime() - setReadOnlyTrueStartTime);
         elapsedSetReadOnlyTrueTimes.add(setReadOnlyTrueElapsedTime);
 
-        setReadOnlyFalseStartTime.set(System.nanoTime());
+        setReadOnlyFalseStartTime = System.nanoTime();
         conn.setReadOnly(false);
-        final long setReadOnlyFalseElapsedTime = (System.nanoTime() - setReadOnlyFalseStartTime.get());
+        final long setReadOnlyFalseElapsedTime = (System.nanoTime() - setReadOnlyFalseStartTime);
         elapsedSetReadOnlyFalseTimes.add(setReadOnlyFalseElapsedTime);
-
       }
     }
     final long setReadOnlyTrueMin = elapsedSetReadOnlyTrueTimes.stream().min(Long::compare).orElse(0L);
@@ -200,16 +196,16 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
 
     final PerfStatSetReadOnly dataTrue = new PerfStatSetReadOnly();
     dataTrue.setReadOnly = "True";
-    dataTrue.minOverheadTime = round(setReadOnlyTrueMinOverhead / NANO_TO_MILLIS_CONVERSION, 3);
-    dataTrue.maxOverheadTime = round(setReadOnlyTrueMaxOverhead / NANO_TO_MILLIS_CONVERSION, 3);
-    dataTrue.avgOverheadTime = round(setReadOnlyTrueAvgOverhead / NANO_TO_MILLIS_CONVERSION, 3);
+    dataTrue.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyTrueMinOverhead);
+    dataTrue.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyTrueMaxOverhead);
+    dataTrue.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyTrueAvgOverhead);
     setReadOnlyPerfDataList.add(dataTrue);
 
     final PerfStatSetReadOnly dataFalse = new PerfStatSetReadOnly();
     dataFalse.setReadOnly = "False";
-    dataFalse.minOverheadTime = round(setReadOnlyFalseMinOverhead / NANO_TO_MILLIS_CONVERSION, 3);
-    dataFalse.maxOverheadTime = round(setReadOnlyFalseMaxOverhead / NANO_TO_MILLIS_CONVERSION, 3);
-    dataFalse.avgOverheadTime = round(setReadOnlyFalseAvgOverhead / NANO_TO_MILLIS_CONVERSION, 3);
+    dataFalse.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyFalseMinOverhead);
+    dataFalse.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyFalseMaxOverhead);
+    dataFalse.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyFalseAvgOverhead);
     setReadOnlyPerfDataList.add(dataFalse);
   }
 
@@ -218,7 +214,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   public void test_readerLoadBalancing_executeStatements(final Properties props)
       throws SQLException {
     // This test isolates how much overhead is caused by reader load-balancing.
-    final AtomicLong readerSwitchExecuteStatementsStartTime = new AtomicLong();
+    Long readerSwitchExecuteStatementsStartTime;
     final List<Long> elapsedReaderSwitchExecuteStatementsTimes = new ArrayList<>(REPEAT_TIMES);
     final PerfStatExecuteQueries data = new PerfStatExecuteQueries();
 
@@ -236,21 +232,26 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
           POSTGRES_CLUSTER_URL,
           AURORA_POSTGRES_PORT,
           props)) {
+
         conn.setReadOnly(true);
         try (final Statement stmt1 = conn.createStatement()) {
           stmt1.executeQuery(QUERY_FOR_INSTANCE);
         }
 
         // The plugin does not switch readers on the first execute, so we'll start the timer after
-        readerSwitchExecuteStatementsStartTime.set(System.nanoTime());
         for (int j = 0; j < EXECUTE_QUERY_TIMES; j++) {
+          // timer start
+          readerSwitchExecuteStatementsStartTime = System.nanoTime();
           try (Statement stmt2 = conn.createStatement()) {
+
+            // timer end
+            final long readerSwitchExecuteStatementsTime =
+                (System.nanoTime() - readerSwitchExecuteStatementsStartTime);
+            elapsedReaderSwitchExecuteStatementsTimes.add(readerSwitchExecuteStatementsTime);
+
             stmt2.executeQuery(QUERY_FOR_INSTANCE);
           }
         }
-        final long readerSwitchExecuteStatementsTime =
-            (System.nanoTime() - readerSwitchExecuteStatementsStartTime.get());
-        elapsedReaderSwitchExecuteStatementsTimes.add(readerSwitchExecuteStatementsTime / EXECUTE_QUERY_TIMES);
       }
     }
 
@@ -261,9 +262,9 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     final long avgAverageExecuteStatementTime =
         (long) elapsedReaderSwitchExecuteStatementsTimes.stream().mapToLong(a -> a).summaryStatistics().getAverage();
 
-    data.minAverageExecuteStatementTime = TimeUnit.NANOSECONDS.toMillis(minAverageExecuteStatementTime);
-    data.maxAverageExecuteStatementTime = TimeUnit.NANOSECONDS.toMillis(maxAverageReaderSwitchExecuteStatementTime);
-    data.avgExecuteStatementTime = TimeUnit.NANOSECONDS.toMillis(avgAverageExecuteStatementTime);
+    data.minAverageExecuteStatementTime = TimeUnit.NANOSECONDS.toNanos(minAverageExecuteStatementTime);
+    data.maxAverageExecuteStatementTime = TimeUnit.NANOSECONDS.toNanos(maxAverageReaderSwitchExecuteStatementTime);
+    data.avgExecuteStatementTime = TimeUnit.NANOSECONDS.toNanos(avgAverageExecuteStatementTime);
     executeStatementsPerfDataList.add(data);
   }
 
@@ -296,11 +297,11 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
       Cell cell = row.createCell(0);
       cell.setCellValue("setReadOnly");
       cell = row.createCell(1);
-      cell.setCellValue("minOverheadTime");
+      cell.setCellValue("minOverheadTimeMillis");
       cell = row.createCell(2);
-      cell.setCellValue("maxOverheadTime");
+      cell.setCellValue("maxOverheadTimeMillis");
       cell = row.createCell(3);
-      cell.setCellValue("avgOverheadTime");
+      cell.setCellValue("avgOverheadTimeMillis");
     }
 
     @Override
