@@ -16,6 +16,8 @@
 
 package integration.container.aurora.postgres;
 
+import static org.apache.commons.math3.util.Precision.round;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -51,16 +53,14 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
       ? 1000
       : Integer.parseInt(System.getenv("EXECUTE_QUERY_TIMES"));
 
-  private static final double NANO_TO_MILLIS_CONVERSION = 1E6;
-
   private static final List<PerfStatSetReadOnly> setReadOnlyPerfDataList = new ArrayList<>();
   private static final List<PerfStatExecuteQueries> executeStatementsPerfDataList = new ArrayList<>();
 
   private static Stream<Arguments> executeStatementsParameters() {
     return Stream.of(
-        Arguments.of(initNoPluginPropsWithTimeouts()),
-        Arguments.of(initReadWritePluginProps())
-    );
+        Arguments.of(initReadWritePluginProps()),
+        Arguments.of(initNoPluginPropsWithTimeouts())
+        );
   }
 
   @AfterAll
@@ -262,9 +262,12 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     final long avgAverageExecuteStatementTime =
         (long) elapsedReaderSwitchExecuteStatementsTimes.stream().mapToLong(a -> a).summaryStatistics().getAverage();
 
-    data.minAverageExecuteStatementTime = TimeUnit.NANOSECONDS.toNanos(minAverageExecuteStatementTime);
-    data.maxAverageExecuteStatementTime = TimeUnit.NANOSECONDS.toNanos(maxAverageReaderSwitchExecuteStatementTime);
-    data.avgExecuteStatementTime = TimeUnit.NANOSECONDS.toNanos(avgAverageExecuteStatementTime);
+    data.minAverageExecuteStatementTime =
+        round((minAverageExecuteStatementTime / (double) TimeUnit.MILLISECONDS.toNanos(1)), 3);
+    data.maxAverageExecuteStatementTime =
+        round((maxAverageReaderSwitchExecuteStatementTime / (double) TimeUnit.MILLISECONDS.toNanos(1)), 3);
+    data.avgExecuteStatementTime =
+        round((avgAverageExecuteStatementTime / (double) TimeUnit.MILLISECONDS.toNanos(1)), 3);
     executeStatementsPerfDataList.add(data);
   }
 
@@ -288,9 +291,9 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   private class PerfStatSetReadOnly extends PerfStatBase {
 
     public String setReadOnly;
-    public double minOverheadTime;
-    public double maxOverheadTime;
-    public double avgOverheadTime;
+    public long minOverheadTime;
+    public long maxOverheadTime;
+    public long avgOverheadTime;
 
     @Override
     public void writeHeader(Row row) {
@@ -320,20 +323,20 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   private class PerfStatExecuteQueries extends PerfStatBase {
 
     public String pluginEnabled;
-    public long minAverageExecuteStatementTime;
-    public long maxAverageExecuteStatementTime;
-    public long avgExecuteStatementTime;
+    public double minAverageExecuteStatementTime;
+    public double maxAverageExecuteStatementTime;
+    public double avgExecuteStatementTime;
 
     @Override
     public void writeHeader(Row row) {
       Cell cell = row.createCell(0);
       cell.setCellValue("readWriteSplittingPlugin");
       cell = row.createCell(1);
-      cell.setCellValue("minAverageExecuteStatementTime");
+      cell.setCellValue("minAverageExecuteStatementTimeMillis");
       cell = row.createCell(2);
-      cell.setCellValue("maxAverageExecuteStatementTime");
+      cell.setCellValue("maxAverageExecuteStatementTimeMillis");
       cell = row.createCell(3);
-      cell.setCellValue("avgExecuteStatementTime");
+      cell.setCellValue("avgExecuteStatementTimeMillis");
     }
 
     @Override
