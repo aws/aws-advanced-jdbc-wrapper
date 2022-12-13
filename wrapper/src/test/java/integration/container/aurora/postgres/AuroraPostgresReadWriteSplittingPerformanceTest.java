@@ -69,7 +69,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
         "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SetReadOnly.xlsx",
         setReadOnlyPerfDataList);
     doWritePerfDataToFile(
-        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing_largedataset_nanoseconds.xlsx",
+        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing.xlsx",
         executeStatementsPerfDataList);
   }
 
