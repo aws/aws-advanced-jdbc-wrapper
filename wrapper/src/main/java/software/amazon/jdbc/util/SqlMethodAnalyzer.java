@@ -146,7 +146,7 @@ public class SqlMethodAnalyzer {
       newAutoCommitVal = getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
     }
 
-    return oldAutoCommitVal == false && Boolean.TRUE.equals(newAutoCommitVal);
+    return !oldAutoCommitVal && Boolean.TRUE.equals(newAutoCommitVal);
   }
 
   public Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {
