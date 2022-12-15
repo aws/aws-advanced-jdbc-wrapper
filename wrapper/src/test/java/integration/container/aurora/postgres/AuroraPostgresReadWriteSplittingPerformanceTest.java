@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LongSummaryStatistics;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -53,6 +54,8 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
       ? 1000
       : Integer.parseInt(System.getenv("EXECUTE_QUERY_TIMES"));
 
+  private static final double NANOS_TO_MILLIS = (double) TimeUnit.MILLISECONDS.toNanos(1);
+
   private static final List<PerfStatSetReadOnly> setReadOnlyPerfDataList = new ArrayList<>();
   private static final List<PerfStatExecuteQueries> executeStatementsPerfDataList = new ArrayList<>();
 
@@ -60,16 +63,16 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     return Stream.of(
         Arguments.of(initReadWritePluginProps()),
         Arguments.of(initNoPluginPropsWithTimeouts())
-        );
+    );
   }
 
   @AfterAll
   public static void cleanUp() throws IOException {
     doWritePerfDataToFile(
-        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SetReadOnly.xlsx",
+        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SetReadOnly_3.xlsx",
         setReadOnlyPerfDataList);
     doWritePerfDataToFile(
-        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing.xlsx",
+        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing_3.xlsx",
         executeStatementsPerfDataList);
   }
 
@@ -113,8 +116,8 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "30");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "30");
+    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
+    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
 
     return props;
   }
@@ -128,9 +131,9 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
 
   Result getSetReadOnlyResults(final Properties props)
       throws SQLException {
-    Long setReadOnlyTrueStartTime;
+    long setReadOnlyTrueStartTime;
     final List<Long> elapsedSetReadOnlyTrueTimes = new ArrayList<>(REPEAT_TIMES);
-    Long setReadOnlyFalseStartTime;
+    long setReadOnlyFalseStartTime;
     final List<Long> elapsedSetReadOnlyFalseTimes = new ArrayList<>(REPEAT_TIMES);
     final Result result = new Result();
 
@@ -149,23 +152,18 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
         elapsedSetReadOnlyFalseTimes.add(setReadOnlyFalseElapsedTime);
       }
     }
-    final long setReadOnlyTrueMin = elapsedSetReadOnlyTrueTimes.stream().min(Long::compare).orElse(0L);
-    final long setReadOnlyTrueMax = elapsedSetReadOnlyTrueTimes.stream().max(Long::compare).orElse(0L);
-    final long setReadOnlyTrueAvg =
-        (long) elapsedSetReadOnlyTrueTimes.stream().mapToLong(a -> a).summaryStatistics().getAverage();
 
-    final long setReadOnlyFalseMin = elapsedSetReadOnlyFalseTimes.stream().min(Long::compare).orElse(0L);
-    final long setReadOnlyFalseMax = elapsedSetReadOnlyFalseTimes.stream().max(Long::compare).orElse(0L);
-    final long setReadOnlyFalseAvg =
-        (long) elapsedSetReadOnlyFalseTimes.stream().mapToLong(a -> a).summaryStatistics().getAverage();
+    final LongSummaryStatistics setReadOnlyTrueStats
+        = elapsedSetReadOnlyTrueTimes.stream().mapToLong(a -> a).summaryStatistics();
+    result.setReadOnlyTrueMin  = setReadOnlyTrueStats.getMin();
+    result.setReadOnlyTrueMax = setReadOnlyTrueStats.getMax();
+    result.setReadOnlyTrueAvg = (long) setReadOnlyTrueStats.getAverage();
 
-    result.setReadOnlyTrueMin = setReadOnlyTrueMin;
-    result.setReadOnlyTrueMax = setReadOnlyTrueMax;
-    result.setReadOnlyTrueAvg = setReadOnlyTrueAvg;
-
-    result.setReadOnlyFalseMin = setReadOnlyFalseMin;
-    result.setReadOnlyFalseMax = setReadOnlyFalseMax;
-    result.setReadOnlyFalseAvg = setReadOnlyFalseAvg;
+    final LongSummaryStatistics setReadOnlyFalseStats =
+        elapsedSetReadOnlyFalseTimes.stream().mapToLong(a -> a).summaryStatistics();
+    result.setReadOnlyFalseMin  = setReadOnlyFalseStats.getMin();
+    result.setReadOnlyFalseMax = setReadOnlyFalseStats.getMax();
+    result.setReadOnlyFalseAvg = (long) setReadOnlyFalseStats.getAverage();
 
     return result;
   }
@@ -214,17 +212,17 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   public void test_readerLoadBalancing_executeStatements(final Properties props)
       throws SQLException {
     // This test isolates how much overhead is caused by reader load-balancing.
-    Long readerSwitchExecuteStatementsStartTime;
+    long readerSwitchExecuteStatementsStartTime;
     final List<Long> elapsedReaderSwitchExecuteStatementsTimes = new ArrayList<>(REPEAT_TIMES);
-    final PerfStatExecuteQueries data = new PerfStatExecuteQueries();
+    final PerfStatExecuteQueries results = new PerfStatExecuteQueries();
 
     final String plugins = props.getProperty(PropertyDefinition.PLUGINS.name);
 
     if (plugins != null && plugins.contains("readWriteSplitting")) {
-      data.pluginEnabled = "Enabled";
+      results.pluginEnabled = "Enabled";
       props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     } else {
-      data.pluginEnabled = "Disabled";
+      results.pluginEnabled = "Disabled";
     }
 
     for (int i = 0; i < REPEAT_TIMES; i++) {
@@ -255,23 +253,15 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
       }
     }
 
-    final long minAverageExecuteStatementTime =
-        elapsedReaderSwitchExecuteStatementsTimes.stream().min(Long::compare).orElse(0L);
-    final long maxAverageReaderSwitchExecuteStatementTime =
-        elapsedReaderSwitchExecuteStatementsTimes.stream().max(Long::compare).orElse(0L);
-    final long avgAverageExecuteStatementTime =
-        (long) elapsedReaderSwitchExecuteStatementsTimes.stream().mapToLong(a -> a).summaryStatistics().getAverage();
-
-    data.minAverageExecuteStatementTime =
-        round((minAverageExecuteStatementTime / (double) TimeUnit.MILLISECONDS.toNanos(1)), 3);
-    data.maxAverageExecuteStatementTime =
-        round((maxAverageReaderSwitchExecuteStatementTime / (double) TimeUnit.MILLISECONDS.toNanos(1)), 3);
-    data.avgExecuteStatementTime =
-        round((avgAverageExecuteStatementTime / (double) TimeUnit.MILLISECONDS.toNanos(1)), 3);
-    executeStatementsPerfDataList.add(data);
+    final LongSummaryStatistics executeStatementStats =
+        elapsedReaderSwitchExecuteStatementsTimes.stream().mapToLong(a -> a).summaryStatistics();
+    results.minAverageExecuteStatementTime = round(executeStatementStats.getMin() / NANOS_TO_MILLIS, 3);
+    results.maxAverageExecuteStatementTime = round(executeStatementStats.getMax() / NANOS_TO_MILLIS, 3);
+    results.avgExecuteStatementTime = round(executeStatementStats.getAverage() / NANOS_TO_MILLIS, 3);
+    executeStatementsPerfDataList.add(results);
   }
 
-  private class Result {
+  private static class Result {
     public long setReadOnlyTrueMin;
     public long setReadOnlyTrueMax;
     public long setReadOnlyTrueAvg;
@@ -281,7 +271,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     public long setReadOnlyFalseAvg;
   }
 
-  private abstract class PerfStatBase {
+  private abstract static class PerfStatBase {
 
     public abstract void writeHeader(Row row);
 
