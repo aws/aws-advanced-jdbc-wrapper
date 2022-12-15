@@ -69,10 +69,10 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   @AfterAll
   public static void cleanUp() throws IOException {
     doWritePerfDataToFile(
-        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SetReadOnly_3.xlsx",
+        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SetReadOnly.xlsx",
         setReadOnlyPerfDataList);
     doWritePerfDataToFile(
-        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing_3.xlsx",
+        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing.xlsx",
         executeStatementsPerfDataList);
   }
 
