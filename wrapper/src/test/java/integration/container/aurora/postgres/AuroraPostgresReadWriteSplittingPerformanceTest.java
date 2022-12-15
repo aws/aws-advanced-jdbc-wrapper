@@ -69,7 +69,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   @AfterAll
   public static void cleanUp() throws IOException {
     doWritePerfDataToFile(
-        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SetReadOnly.xlsx",
+        "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_SwitchReaderWriterConnection.xlsx",
         setReadOnlyPerfDataList);
     doWritePerfDataToFile(
         "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing.xlsx",
@@ -169,7 +169,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   }
 
   @Test
-  public void test_setReadOnly()
+  public void test_switchReaderWriterConnection()
       throws SQLException {
     // This test measures the time to switch connections between the reader and writer.
     final Properties propsWithoutPlugin = initNoPluginPropsWithTimeouts();
@@ -193,14 +193,14 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
         resultsWithPlugin.setReadOnlyFalseAvg - resultsWithoutPlugin.setReadOnlyFalseAvg;
 
     final PerfStatSetReadOnly dataTrue = new PerfStatSetReadOnly();
-    dataTrue.setReadOnly = "True";
+    dataTrue.setReadOnly = "Switch to reader - open new connection";
     dataTrue.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyTrueMinOverhead);
     dataTrue.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyTrueMaxOverhead);
     dataTrue.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyTrueAvgOverhead);
     setReadOnlyPerfDataList.add(dataTrue);
 
     final PerfStatSetReadOnly dataFalse = new PerfStatSetReadOnly();
-    dataFalse.setReadOnly = "False";
+    dataFalse.setReadOnly = "Switch back to writer - use cached connection";
     dataFalse.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyFalseMinOverhead);
     dataFalse.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyFalseMaxOverhead);
     dataFalse.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(setReadOnlyFalseAvgOverhead);
@@ -288,7 +288,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     @Override
     public void writeHeader(Row row) {
       Cell cell = row.createCell(0);
-      cell.setCellValue("setReadOnly");
+      cell.setCellValue("");
       cell = row.createCell(1);
       cell.setCellValue("minOverheadTimeMillis");
       cell = row.createCell(2);
