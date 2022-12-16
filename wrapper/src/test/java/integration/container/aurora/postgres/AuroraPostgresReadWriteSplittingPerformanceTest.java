@@ -57,9 +57,9 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   private static final double NANOS_TO_MILLIS = (double) TimeUnit.MILLISECONDS.toNanos(1);
 
   private static final List<PerfStatSwitchConnection> setReadOnlyPerfDataList = new ArrayList<>();
-  private static final List<PerfStatExecuteQueries> executeStatementsPerfDataList = new ArrayList<>();
+  private static final List<PerfStatExecuteQueries> createStatementPerfDataList = new ArrayList<>();
 
-  private static Stream<Arguments> executeStatementsParameters() {
+  private static Stream<Arguments> createStatementParameters() {
     return Stream.of(
         Arguments.of(initReadWritePluginProps()),
         Arguments.of(initNoPluginPropsWithTimeouts())
@@ -73,7 +73,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
         setReadOnlyPerfDataList);
     doWritePerfDataToFile(
         "./build/reports/tests/PostgresSQL_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing.xlsx",
-        executeStatementsPerfDataList);
+        createStatementPerfDataList);
   }
 
   private static void doWritePerfDataToFile(
@@ -193,14 +193,14 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
         resultsWithPlugin.switchToWriterAvg - resultsWithoutPlugin.switchToWriterAvg;
 
     final PerfStatSwitchConnection connectReaderData = new PerfStatSwitchConnection();
-    connectReaderData.connectionSwitch = "Switch to reader - open new connection";
+    connectReaderData.connectionSwitch = "Switch to reader (open new connection)";
     connectReaderData.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToReaderMinOverhead);
     connectReaderData.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToReaderMaxOverhead);
     connectReaderData.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToReaderAvgOverhead);
     setReadOnlyPerfDataList.add(connectReaderData);
 
     final PerfStatSwitchConnection connectWriterData = new PerfStatSwitchConnection();
-    connectWriterData.connectionSwitch = "Switch back to writer - use cached connection";
+    connectWriterData.connectionSwitch = "Switch back to writer (use cached connection)";
     connectWriterData.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterMinOverhead);
     connectWriterData.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterMaxOverhead);
     connectWriterData.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterAvgOverhead);
@@ -208,21 +208,21 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   }
 
   @ParameterizedTest
-  @MethodSource("executeStatementsParameters")
-  public void test_readerLoadBalancing_executeStatements(final Properties props)
+  @MethodSource("createStatementParameters")
+  public void test_readerLoadBalancing_createStatement(final Properties props)
       throws SQLException {
     // This test isolates how much overhead is caused by reader load-balancing.
-    long readerSwitchExecuteStatementsStartTime;
-    final List<Long> elapsedReaderSwitchExecuteStatementsTimes = new ArrayList<>(REPEAT_TIMES);
+    long readerSwitchCreateStatementStartTime;
+    final List<Long> elapsedReaderSwitchCreateStatementTimes = new ArrayList<>(REPEAT_TIMES);
     final PerfStatExecuteQueries results = new PerfStatExecuteQueries();
 
     final String plugins = props.getProperty(PropertyDefinition.PLUGINS.name);
 
     if (plugins != null && plugins.contains("readWriteSplitting")) {
-      results.pluginEnabled = "Enabled";
+      results.pluginEnabled = "Enabled (load balances readers)";
       props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     } else {
-      results.pluginEnabled = "Disabled";
+      results.pluginEnabled = "Disabled (no load balancing)";
     }
 
     for (int i = 0; i < REPEAT_TIMES; i++) {
@@ -239,13 +239,13 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
         // The plugin does not switch readers on the first execute, so we'll start the timer after
         for (int j = 0; j < EXECUTE_QUERY_TIMES; j++) {
           // timer start
-          readerSwitchExecuteStatementsStartTime = System.nanoTime();
+          readerSwitchCreateStatementStartTime = System.nanoTime();
           try (Statement stmt2 = conn.createStatement()) {
 
             // timer end
-            final long readerSwitchExecuteStatementsTime =
-                (System.nanoTime() - readerSwitchExecuteStatementsStartTime);
-            elapsedReaderSwitchExecuteStatementsTimes.add(readerSwitchExecuteStatementsTime);
+            final long readerSwitchCreateStatementTime =
+                (System.nanoTime() - readerSwitchCreateStatementStartTime);
+            elapsedReaderSwitchCreateStatementTimes.add(readerSwitchCreateStatementTime);
 
             stmt2.executeQuery(QUERY_FOR_INSTANCE);
           }
@@ -253,12 +253,12 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
       }
     }
 
-    final LongSummaryStatistics executeStatementStats =
-        elapsedReaderSwitchExecuteStatementsTimes.stream().mapToLong(a -> a).summaryStatistics();
-    results.minAverageExecuteStatementTime = round(executeStatementStats.getMin() / NANOS_TO_MILLIS, 4);
-    results.maxAverageExecuteStatementTime = round(executeStatementStats.getMax() / NANOS_TO_MILLIS, 4);
-    results.avgExecuteStatementTime = round(executeStatementStats.getAverage() / NANOS_TO_MILLIS, 4);
-    executeStatementsPerfDataList.add(results);
+    final LongSummaryStatistics createStatementStats =
+        elapsedReaderSwitchCreateStatementTimes.stream().mapToLong(a -> a).summaryStatistics();
+    results.minAverageCreateStatementTime = round(createStatementStats.getMin() / NANOS_TO_MILLIS, 4);
+    results.maxAverageCreateStatementTime = round(createStatementStats.getMax() / NANOS_TO_MILLIS, 4);
+    results.avgCreateStatementTime = round(createStatementStats.getAverage() / NANOS_TO_MILLIS, 4);
+    createStatementPerfDataList.add(results);
   }
 
   private static class Result {
@@ -313,20 +313,20 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   private class PerfStatExecuteQueries extends PerfStatBase {
 
     public String pluginEnabled;
-    public double minAverageExecuteStatementTime;
-    public double maxAverageExecuteStatementTime;
-    public double avgExecuteStatementTime;
+    public double minAverageCreateStatementTime;
+    public double maxAverageCreateStatementTime;
+    public double avgCreateStatementTime;
 
     @Override
     public void writeHeader(Row row) {
       Cell cell = row.createCell(0);
       cell.setCellValue("readWriteSplittingPlugin");
       cell = row.createCell(1);
-      cell.setCellValue("minAverageExecuteStatementTimeMillis");
+      cell.setCellValue("minAverageCreateStatementTimeMillis");
       cell = row.createCell(2);
-      cell.setCellValue("maxAverageExecuteStatementTimeMillis");
+      cell.setCellValue("maxAverageCreateStatementTimeMillis");
       cell = row.createCell(3);
-      cell.setCellValue("avgExecuteStatementTimeMillis");
+      cell.setCellValue("avgCreateStatementTimeMillis");
     }
 
     @Override
@@ -334,11 +334,11 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
       Cell cell = row.createCell(0);
       cell.setCellValue(this.pluginEnabled);
       cell = row.createCell(1);
-      cell.setCellValue(this.minAverageExecuteStatementTime);
+      cell.setCellValue(this.minAverageCreateStatementTime);
       cell = row.createCell(2);
-      cell.setCellValue(this.maxAverageExecuteStatementTime);
+      cell.setCellValue(this.maxAverageCreateStatementTime);
       cell = row.createCell(3);
-      cell.setCellValue(this.avgExecuteStatementTime);
+      cell.setCellValue(this.avgCreateStatementTime);
     }
   }
 }
