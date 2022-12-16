@@ -138,9 +138,7 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     final Result result = new Result();
 
     for (int i = 0; i < REPEAT_TIMES; i++) {
-
       try (final Connection conn = connectToInstance(POSTGRES_CLUSTER_URL, AURORA_POSTGRES_PORT, props)) {
-
         switchToReaderStartTime = System.nanoTime();
         conn.setReadOnly(true);
         final long switchToReaderElapsedTime = (System.nanoTime() - switchToReaderStartTime);
@@ -174,7 +172,6 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     // This test measures the time to switch connections between the reader and writer.
     final Properties propsWithoutPlugin = initNoPluginPropsWithTimeouts();
     Result resultsWithoutPlugin = getSetReadOnlyResults(propsWithoutPlugin);
-
     Properties propsWithPlugin = initReadWritePluginProps();
     Result resultsWithPlugin = getSetReadOnlyResults(propsWithPlugin);
 
@@ -211,11 +208,10 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   @MethodSource("createStatementParameters")
   public void test_readerLoadBalancing_createStatement(final Properties props)
       throws SQLException {
-    // This test isolates how much overhead is caused by reader load-balancing.
+    // This test isolates how much overhead is caused by reader load-balancing when switching connections.
     long readerSwitchCreateStatementStartTime;
     final List<Long> elapsedReaderSwitchCreateStatementTimes = new ArrayList<>(REPEAT_TIMES);
     final PerfStatExecuteQueries results = new PerfStatExecuteQueries();
-
     final String plugins = props.getProperty(PropertyDefinition.PLUGINS.name);
 
     if (plugins != null && plugins.contains("readWriteSplitting")) {
@@ -230,7 +226,6 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
           POSTGRES_CLUSTER_URL,
           AURORA_POSTGRES_PORT,
           props)) {
-
         conn.setReadOnly(true);
         try (final Statement stmt1 = conn.createStatement()) {
           stmt1.executeQuery(QUERY_FOR_INSTANCE);
@@ -241,7 +236,6 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
           // timer start
           readerSwitchCreateStatementStartTime = System.nanoTime();
           try (Statement stmt2 = conn.createStatement()) {
-
             // timer end
             final long readerSwitchCreateStatementTime =
                 (System.nanoTime() - readerSwitchCreateStatementStartTime);
