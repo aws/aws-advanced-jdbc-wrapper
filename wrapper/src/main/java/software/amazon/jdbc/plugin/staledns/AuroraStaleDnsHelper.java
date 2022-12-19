@@ -181,7 +181,7 @@ public class AuroraStaleDnsHelper {
       } catch (SQLException e) {
 
         // Return false if the SQLException is not a network error. Otherwise, retry.
-        if (!SqlState.isConnectionError(e)) {
+        if (!pluginService.isNetworkException(e)) {
           return false;
         }
       }
