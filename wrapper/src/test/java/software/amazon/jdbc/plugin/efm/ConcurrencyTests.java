@@ -329,6 +329,26 @@ public class ConcurrencyTests {
     public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
       return new TestConnection();
     }
+
+    @Override
+    public boolean isNetworkException(Throwable throwable) {
+      return false;
+    }
+
+    @Override
+    public boolean isNetworkException(String sqlState) {
+      return false;
+    }
+
+    @Override
+    public boolean isLoginException(String sqlState) {
+      return false;
+    }
+
+    @Override
+    public boolean isLoginException(Throwable throwable) {
+      return false;
+    }
   }
 
   public static class TestConnection implements Connection {

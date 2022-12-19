@@ -24,11 +24,12 @@ import java.util.Properties;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.exceptions.ExceptionHandler;
 
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
  */
-public interface PluginService {
+public interface PluginService extends ExceptionHandler {
 
   Connection getCurrentConnection();
 

@@ -14,16 +14,8 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.exceptions;
 
-import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
-import software.amazon.jdbc.PluginService;
+public class MariaDBExceptionHandler extends MySQLExceptionHandler {
 
-public class AwsSecretsManagerConnectionPluginFactory implements ConnectionPluginFactory {
-  @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new AwsSecretsManagerConnectionPlugin(pluginService, props);
-  }
 }

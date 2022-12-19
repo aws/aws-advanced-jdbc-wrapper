@@ -87,8 +87,10 @@ class ClusterAwareReaderFailoverHandlerTest {
     final int successHostIndex = 4;
     for (int i = 0; i < hosts.size(); i++) {
       if (i != successHostIndex) {
+        final SQLException exception = new SQLException("exception", "08S01", null);
         when(mockPluginService.connect(hosts.get(i), properties))
-            .thenThrow(new SQLException("exception", "08S01", null));
+            .thenThrow(exception);
+        when(mockPluginService.isNetworkException(exception)).thenReturn(true);
       } else {
         when(mockPluginService.connect(hosts.get(i), properties)).thenReturn(mockConnection);
       }
@@ -347,7 +349,7 @@ class ClusterAwareReaderFailoverHandlerTest {
     List<HostSpec> hostsByPriority = target.getHostsByPriority(hosts);
     assertEquals(expectedReaderHost, hostsByPriority);
 
-    // Should pick reader even if unavailable.
+    // Should pick the reader even if unavailable.
     reader.setAvailability(HostAvailability.NOT_AVAILABLE);
 
     hostsByPriority = target.getHostsByPriority(hosts);

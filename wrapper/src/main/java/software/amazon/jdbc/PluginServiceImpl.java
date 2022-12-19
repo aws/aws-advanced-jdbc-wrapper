@@ -31,12 +31,13 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.ExpiringCache;
 import software.amazon.jdbc.util.Messages;
 
-public class PluginServiceImpl implements PluginService, CanReleaseResources, HostListProviderService,
-    PluginManagerService {
+public class PluginServiceImpl implements PluginService, CanReleaseResources,
+    HostListProviderService, PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   private static final int DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
@@ -54,9 +55,19 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
   protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
   private boolean explicitReadOnly;
+  private ExceptionManager exceptionManager;
 
   public PluginServiceImpl(
       @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final Properties props,
+      @NonNull final String originalUrl,
+      final String targetDriverProtocol) {
+    this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol);
+  }
+
+  public PluginServiceImpl(
+      @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       final String targetDriverProtocol) {
@@ -64,6 +75,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
+    this.exceptionManager = exceptionManager;
   }
 
   @Override
@@ -410,4 +422,26 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources, Ho
       canReleaseResourcesObject.releaseResources();
     }
   }
+
+  @Override
+  public boolean isNetworkException(Throwable throwable) {
+    return this.exceptionManager.isLoginException(this.driverProtocol, throwable);
+  }
+
+  @Override
+  public boolean isNetworkException(String sqlState) {
+    return this.exceptionManager.isNetworkException(this.driverProtocol, sqlState);
+  }
+
+  @Override
+  public boolean isLoginException(Throwable throwable) {
+    return this.exceptionManager.isLoginException(this.driverProtocol, throwable);
+
+  }
+
+  @Override
+  public boolean isLoginException(String sqlState) {
+    return this.exceptionManager.isLoginException(this.driverProtocol, sqlState);
+  }
+
 }

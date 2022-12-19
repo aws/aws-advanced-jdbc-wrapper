@@ -37,7 +37,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 /**
@@ -411,7 +410,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
                 "ClusterAwareReaderFailoverHandler.failedReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
         // Propagate exceptions that are not caused by network errors.
-        if (!SqlState.isConnectionError(e)) {
+        if (!pluginService.isNetworkException(e)) {
           return new ReaderFailoverResult(
               null,
               null,
