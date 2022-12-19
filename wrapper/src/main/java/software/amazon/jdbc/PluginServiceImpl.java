@@ -425,7 +425,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public boolean isNetworkException(Throwable throwable) {
-    return this.exceptionManager.isLoginException(this.driverProtocol, throwable);
+    return this.exceptionManager.isNetworkException(this.driverProtocol, throwable);
   }
 
   @Override
