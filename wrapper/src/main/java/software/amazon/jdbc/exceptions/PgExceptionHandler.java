@@ -29,6 +29,7 @@ public class PgExceptionHandler implements ExceptionHandler {
       "57P02", // crash shutdown
       "57P03", // cannot connect now
       "58", // system error (backend)
+      "08", // connection error
       "99", // unexpected error
       "F0", // configuration file error (backend)
       "XX" // internal error (backend)
