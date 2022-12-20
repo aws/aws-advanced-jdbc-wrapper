@@ -40,16 +40,17 @@ public class MonitorImpl implements Monitor {
   static class ConnectionStatus {
 
     boolean isValid;
-    long elapsedTime; // in nanos
+    long elapsedTimeNano;
 
     ConnectionStatus(boolean isValid, long elapsedTimeNano) {
       this.isValid = isValid;
-      this.elapsedTime = elapsedTimeNano;
+      this.elapsedTimeNano = elapsedTimeNano;
     }
   }
 
+  static final long DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS = 100;
+  static final long DEFAULT_CONNECTION_CHECK_TIMEOUT_MILLIS = 3000;
   private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
-  private static final long DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS = 100;
   private static final long THREAD_SLEEP_WHEN_INACTIVE_MILLIS = 100;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
@@ -60,7 +61,7 @@ public class MonitorImpl implements Monitor {
   private Connection monitoringConn = null;
   private long connectionCheckIntervalMillis = DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS;
   private boolean isConnectionCheckIntervalInitialized = false;
-  private final AtomicLong lastContextUsedTimestamp = new AtomicLong(); // in nanos
+  private final AtomicLong contextLastUsedTimestampNano = new AtomicLong();
   private final long monitorDisposalTimeMillis;
   private final MonitorService monitorService;
   private final AtomicBoolean stopped = new AtomicBoolean(true);
@@ -68,14 +69,16 @@ public class MonitorImpl implements Monitor {
   /**
    * Store the monitoring configuration for a connection.
    *
-   * @param pluginService A service for creating new connections.
-   * @param hostSpec The {@link HostSpec} of the server this {@link MonitorImpl} instance is
-   *     monitoring.
-   * @param properties The {@link Properties} containing additional monitoring configuration.
-   * @param monitorDisposalTimeMillis Time before stopping the monitoring thread where there are no active
-   *     connection to the server this {@link MonitorImpl} instance is monitoring.
-   * @param monitorService A reference to the {@link MonitorServiceImpl} implementation that
-   *     initialized this class.
+   * @param pluginService             A service for creating new connections.
+   * @param hostSpec                  The {@link HostSpec} of the server this {@link MonitorImpl}
+   *                                  instance is monitoring.
+   * @param properties                The {@link Properties} containing additional monitoring
+   *                                  configuration.
+   * @param monitorDisposalTimeMillis Time in milliseconds before stopping the monitoring thread
+   *                                  where there are no active connection to the server this
+   *                                  {@link MonitorImpl} instance is monitoring.
+   * @param monitorService            A reference to the {@link MonitorServiceImpl} implementation
+   *                                  that initialized this class.
    */
   public MonitorImpl(
       final @NonNull PluginService pluginService,
@@ -89,7 +92,7 @@ public class MonitorImpl implements Monitor {
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;
     this.monitorService = monitorService;
 
-    this.lastContextUsedTimestamp.set(this.getCurrentTimeNano());
+    this.contextLastUsedTimestampNano.set(this.getCurrentTimeNano());
   }
 
   @Override
@@ -103,9 +106,9 @@ public class MonitorImpl implements Monitor {
           context.getFailureDetectionIntervalMillis());
     }
 
-    final long currentTime = this.getCurrentTimeNano();
-    context.setStartMonitorTime(currentTime);
-    this.lastContextUsedTimestamp.set(currentTime);
+    final long currentTimeNano = this.getCurrentTimeNano();
+    context.setStartMonitorTimeNano(currentTimeNano);
+    this.contextLastUsedTimestampNano.set(currentTimeNano);
     this.contexts.add(context);
   }
 
@@ -135,21 +138,22 @@ public class MonitorImpl implements Monitor {
       this.stopped.set(false);
       while (true) {
         if (!this.contexts.isEmpty()) {
-          final long statusCheckStartTime = this.getCurrentTimeNano();
-          this.lastContextUsedTimestamp.set(statusCheckStartTime);
+          final long statusCheckStartTimeNano = this.getCurrentTimeNano();
+          this.contextLastUsedTimestampNano.set(statusCheckStartTimeNano);
 
           final ConnectionStatus status =
-              checkConnectionStatus(this.getConnectionCheckIntervalMillis());
+              checkConnectionStatus(this.getConnectionCheckTimeoutMillis());
 
           for (MonitorConnectionContext monitorContext : this.contexts) {
             monitorContext.updateConnectionStatus(
-                statusCheckStartTime, statusCheckStartTime + status.elapsedTime, status.isValid);
+                statusCheckStartTimeNano, statusCheckStartTimeNano + status.elapsedTimeNano, status.isValid);
           }
 
           TimeUnit.MILLISECONDS.sleep(
-              Math.max(0, this.getConnectionCheckIntervalMillis() - TimeUnit.NANOSECONDS.toMillis(status.elapsedTime)));
+              Math.max(0,
+                  this.getConnectionCheckIntervalMillis() - TimeUnit.NANOSECONDS.toMillis(status.elapsedTimeNano)));
         } else {
-          if ((this.getCurrentTimeNano() - this.lastContextUsedTimestamp.get())
+          if ((this.getCurrentTimeNano() - this.contextLastUsedTimestampNano.get())
               >= TimeUnit.MILLISECONDS.toNanos(this.monitorDisposalTimeMillis)) {
             monitorService.notifyUnused(this);
             break;
@@ -175,12 +179,13 @@ public class MonitorImpl implements Monitor {
    * Check the status of the monitored server by sending a ping.
    *
    * @param shortestFailureDetectionIntervalMillis The shortest failure detection interval used by
-   *     all the connections to this server. This value is used as the maximum time to wait for a
-   *     response from the server.
+   *                                               all the connections to this server. This value is
+   *                                               used as the maximum time to wait for a response
+   *                                               from the server.
    * @return whether the server is still alive and the elapsed time spent checking.
    */
   ConnectionStatus checkConnectionStatus(final long shortestFailureDetectionIntervalMillis) {
-    long start = this.getCurrentTimeNano();
+    long startNano = this.getCurrentTimeNano();
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
         // open a new connection
@@ -196,17 +201,17 @@ public class MonitorImpl implements Monitor {
                   monitoringConnProperties.remove(p);
                 });
 
-        start = this.getCurrentTimeNano();
+        startNano = this.getCurrentTimeNano();
         this.monitoringConn = this.pluginService.connect(this.hostSpec, monitoringConnProperties);
-        return new ConnectionStatus(true, this.getCurrentTimeNano() - start);
+        return new ConnectionStatus(true, this.getCurrentTimeNano() - startNano);
       }
 
-      start = this.getCurrentTimeNano();
+      startNano = this.getCurrentTimeNano();
       boolean isValid = this.monitoringConn.isValid(
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis));
-      return new ConnectionStatus(isValid, this.getCurrentTimeNano() - start);
+      return new ConnectionStatus(isValid, this.getCurrentTimeNano() - startNano);
     } catch (SQLException sqlEx) {
-      return new ConnectionStatus(false, this.getCurrentTimeNano() - start);
+      return new ConnectionStatus(false, this.getCurrentTimeNano() - startNano);
     }
   }
 
@@ -215,12 +220,14 @@ public class MonitorImpl implements Monitor {
     return System.nanoTime();
   }
 
+  long getConnectionCheckTimeoutMillis() {
+    return this.connectionCheckIntervalMillis == 0 ? DEFAULT_CONNECTION_CHECK_TIMEOUT_MILLIS
+        : this.connectionCheckIntervalMillis;
+  }
+
   long getConnectionCheckIntervalMillis() {
-    if (this.connectionCheckIntervalMillis == DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS) {
-      // connectionCheckIntervalMillis is set to the default because there are no contexts available.
-      return 0;
-    }
-    return this.connectionCheckIntervalMillis;
+    return this.connectionCheckIntervalMillis == 0 ? DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS
+        : this.connectionCheckIntervalMillis;
   }
 
   @Override

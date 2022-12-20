@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
@@ -65,7 +66,7 @@ class MonitorImplTest {
   @Mock MonitorServiceImpl monitorService;
 
   private static final long SHORT_INTERVAL_MILLIS = 30;
-  private static final long SHORT_INTERVAL_SECONDS = SHORT_INTERVAL_MILLIS / 1000;
+  private static final long SHORT_INTERVAL_SECONDS = TimeUnit.MILLISECONDS.toSeconds(SHORT_INTERVAL_MILLIS);
   private static final long LONG_INTERVAL_MILLIS = 300;
 
   private AutoCloseable closeable;
@@ -101,8 +102,8 @@ class MonitorImplTest {
     monitor.startMonitoring(contextWithLongInterval);
 
     assertEquals(SHORT_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
-    verify(contextWithShortInterval).setStartMonitorTime(anyLong());
-    verify(contextWithLongInterval).setStartMonitorTime(anyLong());
+    verify(contextWithShortInterval).setStartMonitorTimeNano(anyLong());
+    verify(contextWithLongInterval).setStartMonitorTimeNano(anyLong());
   }
 
   @Test
@@ -117,7 +118,7 @@ class MonitorImplTest {
   @Test
   void test_3_stopMonitoringWithNoMatchingContexts() {
     assertDoesNotThrow(() -> monitor.stopMonitoring(contextWithLongInterval));
-    assertEquals(0, monitor.getConnectionCheckIntervalMillis());
+    assertEquals(MonitorImpl.DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
 
     monitor.startMonitoring(contextWithShortInterval);
     assertDoesNotThrow(() -> monitor.stopMonitoring(contextWithLongInterval));
@@ -132,7 +133,7 @@ class MonitorImplTest {
           monitor.stopMonitoring(contextWithLongInterval);
           monitor.stopMonitoring(contextWithLongInterval);
         });
-    assertEquals(0, monitor.getConnectionCheckIntervalMillis());
+    assertEquals(MonitorImpl.DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
   }
 
   @Test
@@ -142,7 +143,7 @@ class MonitorImplTest {
 
     verify(pluginService).connect(any(HostSpec.class), any(Properties.class));
     assertTrue(status.isValid);
-    assertTrue(status.elapsedTime >= 0);
+    assertTrue(status.elapsedTimeNano >= 0);
   }
 
   @Test
@@ -177,7 +178,7 @@ class MonitorImplTest {
           final MonitorImpl.ConnectionStatus status =
               monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
           assertFalse(status.isValid);
-          assertTrue(status.elapsedTime >= 0);
+          assertTrue(status.elapsedTimeNano >= 0);
         });
   }
 
@@ -189,10 +190,10 @@ class MonitorImplTest {
     final Map<Monitor, Future<?>> taskMap = container.getTasksMap();
 
     doAnswer(
-            invocation -> {
-              container.releaseResource(invocation.getArgument(0));
-              return null;
-            })
+        invocation -> {
+          container.releaseResource(invocation.getArgument(0));
+          return null;
+        })
         .when(monitorService)
         .notifyUnused(any(Monitor.class));
 
@@ -221,10 +222,10 @@ class MonitorImplTest {
     final Map<Monitor, Future<?>> taskMap = container.getTasksMap();
 
     doAnswer(
-            invocation -> {
-              container.releaseResource(invocation.getArgument(0));
-              return null;
-            })
+        invocation -> {
+          container.releaseResource(invocation.getArgument(0));
+          return null;
+        })
         .when(monitorService)
         .notifyUnused(any(Monitor.class));
 

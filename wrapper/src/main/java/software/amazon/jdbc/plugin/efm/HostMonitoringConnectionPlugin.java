@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -147,7 +146,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
 
     final int failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
-    final int failureDetectionIntervalMillis = FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
+    final int failureDetectionIntervalMillis =
+        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
     final int failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
 
     initMonitorService();
@@ -204,7 +204,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
       LOGGER.finest(
           () -> Messages.get(
-              "HostMonitoringConnectionPlugin.activatedMonitoring",
+              "HostMonitoringConnectionPlugin.monitoringDeactivated",
               new Object[] {methodName}));
     }
 
