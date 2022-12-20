@@ -42,7 +42,7 @@ Once this parameter is enabled and `setReadOnly(true)` has been called on the `C
 - After executing `COMMIT`, `ROLLBACK` or `ABORT` as a SQL statement
 - After executing any SQL statement while autocommit is on, with the following exceptions:
     - The statement started a transaction via `BEGIN` or `START TRANSACTION`
-    - The statement began with `SET` (eg `SET time_zone = "+00:00"`)
+    - The statement began with `SET`, `USE`, or `SHOW`
 
 ### Limitations with Reader Load Balancing
 
