@@ -19,7 +19,10 @@ package software.amazon.jdbc.plugin.staledns;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
+import java.sql.Statement;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
@@ -31,6 +34,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraStaleDnsHelper {
@@ -43,15 +47,24 @@ public class AuroraStaleDnsHelper {
   private HostSpec writerHostSpec = null;
   private InetAddress writerHostAddress = null;
 
+  private static final int RETRIES = 3;
+  private static final String POSTGRESQL_READONLY_QUERY = "SELECT pg_is_in_recovery() AS is_reader";
+  private static final String MYSQL_READONLY_QUERY = "SELECT @@innodb_read_only AS is_reader";
+  private static final String IS_READER_COLUMN = "is_reader";
+
   public AuroraStaleDnsHelper(PluginService pluginService) {
     this.pluginService = pluginService;
   }
 
   public Connection getVerifiedConnection(
+      final String driverProtocol,
       HostSpec hostSpec,
       Properties props,
-      JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
+      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+
+    final String query = driverProtocol.contains("postgresql")
+        ? POSTGRESQL_READONLY_QUERY
+        : MYSQL_READONLY_QUERY;
 
     if (!this.rdsUtils.isWriterClusterDns(hostSpec.getHost())) {
       return connectFunc.call();
@@ -74,7 +87,15 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    this.pluginService.refreshHostList(conn);
+    if (isReadOnly(conn, query)) {
+      // This is if-statement is only reached if the connection url is a writer cluster endpoint.
+      // If the new connection resolves to a reader instance, this means the topology is outdated.
+      // Force refresh to update the topology.
+      this.pluginService.forceRefreshHostList(conn);
+    } else {
+      this.pluginService.refreshHostList(conn);
+    }
+
     LOGGER.finest(() -> Utils.logTopology(this.pluginService.getHosts()));
 
     if (this.writerHostSpec == null) {
@@ -152,5 +173,26 @@ public class AuroraStaleDnsHelper {
       }
     }
     return null;
+  }
+
+  private boolean isReadOnly(Connection connection, final String query)
+      throws SQLSyntaxErrorException {
+    for (int i = 0; i < RETRIES; i++) {
+      try (final Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(query)) {
+        if (rs.next()) {
+          return rs.getBoolean(IS_READER_COLUMN);
+        }
+      } catch (SQLSyntaxErrorException e) {
+        throw e;
+      } catch (SQLException e) {
+
+        // Return false if the SQLException is not a network error. Otherwise, retry.
+        if (!pluginService.isNetworkException(e)) {
+          return false;
+        }
+      }
+    }
+    return false;
   }
 }
