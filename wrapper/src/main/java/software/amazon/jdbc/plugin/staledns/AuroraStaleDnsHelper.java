@@ -46,18 +46,25 @@ public class AuroraStaleDnsHelper {
 
   private HostSpec writerHostSpec = null;
   private InetAddress writerHostAddress = null;
+
   private static final int RETRIES = 3;
+  private static final String POSTGRESQL_READONLY_QUERY = "SELECT pg_is_in_recovery() AS is_reader";
+  private static final String MYSQL_READONLY_QUERY = "SELECT @@innodb_read_only AS is_reader";
+  private static final String IS_READER_COLUMN = "is_reader";
 
   public AuroraStaleDnsHelper(PluginService pluginService) {
     this.pluginService = pluginService;
   }
 
   public Connection getVerifiedConnection(
+      final String driverProtocol,
       HostSpec hostSpec,
       Properties props,
-      JdbcCallable<Connection, SQLException> connectFunc,
-      final String query)
-      throws SQLException {
+      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+
+    final String query = driverProtocol.contains("postgresql")
+        ? POSTGRESQL_READONLY_QUERY
+        : MYSQL_READONLY_QUERY;
 
     if (!this.rdsUtils.isWriterClusterDns(hostSpec.getHost())) {
       return connectFunc.call();
@@ -174,7 +181,7 @@ public class AuroraStaleDnsHelper {
       try (final Statement statement = connection.createStatement();
           ResultSet rs = statement.executeQuery(query)) {
         if (rs.next()) {
-          return rs.getBoolean(AuroraStaleDnsPlugin.IS_READER_COLUMN);
+          return rs.getBoolean(IS_READER_COLUMN);
         }
       } catch (SQLSyntaxErrorException e) {
         throw e;
