@@ -16,6 +16,8 @@
 
 package integration.container.aurora.mysql.mysqldriver;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -24,8 +26,12 @@ import java.util.Properties;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 
 public class AuroraMysqlAwsIamIntegrationTest extends MysqlAuroraMysqlBaseTest {
+
+  public static String mysqlProtocolPrefix = "jdbc:mysql://";
+
   /**
    * Attempt to connect using the wrong database username.
    */
@@ -129,5 +135,28 @@ public class AuroraMysqlAwsIamIntegrationTest extends MysqlAuroraMysqlBaseTest {
                 dbConn + "?" + PropertyDefinition.USER.name + "=WRONG_" + AURORA_MYSQL_DB_USER,
                 awsIamProp)
     );
+  }
+
+  /**
+   * Attempts a valid connection with a datasource and makes sure that the user and password
+   * properties persist.
+   */
+  @Test
+  void test_AwsIam_UserAndPasswordPropertiesArePreserved() throws SQLException {
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setJdbcProtocol(mysqlProtocolPrefix);
+    ds.setServerPropertyName("serverName");
+    ds.setDatabasePropertyName("databaseName");
+
+    ds.setTargetDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
+
+    final Properties props = initAwsIamProps(AURORA_MYSQL_DB_USER, AURORA_MYSQL_PASSWORD);
+    props.setProperty("serverName", MYSQL_CLUSTER_URL);
+    props.setProperty("databaseName", AURORA_MYSQL_DB);
+    ds.setTargetDataSourceProperties(props);
+
+    try (final Connection conn = ds.getConnection()) {
+      assertTrue(conn.isValid(10));
+    }
   }
 }

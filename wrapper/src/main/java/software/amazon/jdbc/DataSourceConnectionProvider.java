@@ -99,7 +99,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
               urlProperties));
     }
 
-    PropertyDefinition.removeAll(copy);
+    PropertyDefinition.removeAllExceptCredentials(copy);
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();
   }
@@ -124,7 +124,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.put(this.databasePropertyName, PropertyDefinition.DATABASE.getString(props));
     }
 
-    PropertyDefinition.removeAll(copy);
+    PropertyDefinition.removeAllExceptCredentials(copy);
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();
   }
