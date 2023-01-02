@@ -21,7 +21,6 @@ public class ReadWriteSplittingLoadBenchmarks {
   private static final String AURORA_POSTGRES_USERNAME = "pgadmin";
   private static final String AURORA_POSTGRES_PASSWORD = "my_password_2020";
   private static final int NUM_THREADS = 10;
-
   protected static final String QUERY_1 = "select " +
       "l_returnflag, " +
       "l_linestatus, " +
@@ -113,7 +112,6 @@ public class ReadWriteSplittingLoadBenchmarks {
     for (Thread thread : connectionsList){
       thread.interrupt();
     }
-
   }
 
   private Thread getThread_PGReadWriteSplitting(Properties props) {
@@ -130,7 +128,6 @@ public class ReadWriteSplittingLoadBenchmarks {
       } catch (InterruptedException interruptedException) {
         // Ignore, stop the thread
       } catch (Exception exception) {
-      } finally {
       }
     });
   }
