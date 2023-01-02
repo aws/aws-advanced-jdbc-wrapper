@@ -100,66 +100,65 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
-  public void initAndReleaseBaseLine() throws SQLException, InterruptedException {
-
+  public void initAndReleaseBaseLine() throws SQLException {
   }
 
-//  @Benchmark
-//  public ConnectionWrapper initAndReleaseWithAllPlugins() throws SQLException {
-//    try (ConnectionWrapper wrapper = new ConnectionWrapper(
-//        useAllPlugins(),
-//        CONNECTION_STRING,
-//        mockConnectionProvider)) {
-//      wrapper.releaseResources();
-//      return wrapper;
-//    }
-//  }
-//
-//  @Benchmark
-//  public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
-//    try (ConnectionWrapper wrapper = new ConnectionWrapper(
-//        useExecutionPlugin(),
-//        CONNECTION_STRING,
-//        mockConnectionProvider)) {
-//      wrapper.releaseResources();
-//      return wrapper;
-//    }
-//  }
-//
- @Benchmark
- public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
-   try (ConnectionWrapper wrapper = new ConnectionWrapper(
-       useAuroraHostList(),
-       CONNECTION_STRING,
-       mockConnectionProvider)) {
-     wrapper.releaseResources();
-     return wrapper;
-   }
- }
-//
-//  @Benchmark
-//  public Statement executeStatementBaseline() throws SQLException {
-//    try (ConnectionWrapper wrapper = new ConnectionWrapper(
-//        useAuroraHostList(),
-//        CONNECTION_STRING,
-//        mockConnectionProvider);
-//         Statement statement = wrapper.createStatement()) {
-//      return statement;
-//    }
-//  }
-//
- @Benchmark
- public ResultSet executeStatementWithExecutionTimePlugin() throws SQLException {
-   try (
-       ConnectionWrapper wrapper = new ConnectionWrapper(
-           useAuroraHostList(),
-           CONNECTION_STRING,
-           mockConnectionProvider);
-       Statement statement = wrapper.createStatement();
-       ResultSet resultSet = statement.executeQuery("some sql")) {
-     return resultSet;
-   }
- }
+  @Benchmark
+  public ConnectionWrapper initAndReleaseWithAllPlugins() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useAllPlugins(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+      return wrapper;
+    }
+  }
+
+  @Benchmark
+  public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useExecutionPlugin(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+      return wrapper;
+    }
+  }
+
+  @Benchmark
+  public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useAuroraHostList(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+      return wrapper;
+    }
+  }
+
+  @Benchmark
+  public Statement executeStatementBaseline() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useAuroraHostList(),
+        CONNECTION_STRING,
+        mockConnectionProvider);
+         Statement statement = wrapper.createStatement()) {
+      return statement;
+    }
+  }
+
+  @Benchmark
+  public ResultSet executeStatementWithExecutionTimePlugin() throws SQLException {
+    try (
+        ConnectionWrapper wrapper = new ConnectionWrapper(
+            useAuroraHostList(),
+            CONNECTION_STRING,
+            mockConnectionProvider);
+        Statement statement = wrapper.createStatement();
+        ResultSet resultSet = statement.executeQuery("some sql")) {
+      return resultSet;
+    }
+  }
 
   Properties useAllPlugins() {
     final Properties properties = new Properties();
