@@ -42,7 +42,7 @@ public class MonitorServiceImpl implements MonitorService {
           "60000",
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
 
-  MonitorThreadContainer threadContainer;
+  private MonitorThreadContainer threadContainer;
 
   final MonitorInitializer monitorInitializer;
 
@@ -166,5 +166,9 @@ public class MonitorServiceImpl implements MonitorService {
   protected Monitor getMonitor(Set<String> nodeKeys, HostSpec hostSpec, Properties properties) {
     return this.threadContainer.getOrCreateMonitor(
         nodeKeys, () -> monitorInitializer.createMonitor(hostSpec, properties, this));
+  }
+
+  MonitorThreadContainer getThreadContainer() {
+    return this.threadContainer;
   }
 }

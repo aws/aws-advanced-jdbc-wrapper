@@ -126,7 +126,7 @@ public class MonitorImpl implements Monitor {
     this.isConnectionCheckIntervalInitialized.set(true);
   }
 
-  public synchronized void clearContexts() {
+  public void clearContexts() {
     this.contexts.clear();
     this.connectionCheckIntervalMillis.set(findShortestIntervalMillis());
     this.isConnectionCheckIntervalInitialized.set(true);
