@@ -18,9 +18,11 @@ package software.amazon.jdbc.plugin.efm;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.Messages;
 
@@ -39,11 +41,11 @@ public class MonitorConnectionContext {
   private final Set<String> hostAliases;
   private final Connection connectionToAbort;
 
-  private long startMonitorTimeNano;
+  private final AtomicBoolean activeContext = new AtomicBoolean(true);
+  private AtomicBoolean nodeUnhealthy = new AtomicBoolean();
+  private AtomicLong startMonitorTimeNano = new AtomicLong();
   private long invalidNodeStartTimeNano;
   private long failureCount;
-  private boolean nodeUnhealthy;
-  private final AtomicBoolean activeContext = new AtomicBoolean(true);
 
   /**
    * Constructor.
@@ -63,14 +65,14 @@ public class MonitorConnectionContext {
       long failureDetectionIntervalMillis,
       long failureDetectionCount) {
     this.connectionToAbort = connectionToAbort;
-    this.hostAliases = hostAliases;
+    this.hostAliases = new HashSet<>(hostAliases);
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
     this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
     this.failureDetectionCount = failureDetectionCount;
   }
 
   void setStartMonitorTimeNano(long startMonitorTimeNano) {
-    this.startMonitorTimeNano = startMonitorTimeNano;
+    this.startMonitorTimeNano.set(startMonitorTimeNano);
   }
 
   Set<String> getHostAliases() {
@@ -114,11 +116,11 @@ public class MonitorConnectionContext {
   }
 
   public boolean isNodeUnhealthy() {
-    return this.nodeUnhealthy;
+    return this.nodeUnhealthy.get();
   }
 
   void setNodeUnhealthy(boolean nodeUnhealthy) {
-    this.nodeUnhealthy = nodeUnhealthy;
+    this.nodeUnhealthy.set(nodeUnhealthy);
   }
 
   public boolean isActiveContext() {
@@ -158,7 +160,7 @@ public class MonitorConnectionContext {
       return;
     }
 
-    final long totalElapsedTimeNano = statusCheckEndTimeNano - this.startMonitorTimeNano;
+    final long totalElapsedTimeNano = statusCheckEndTimeNano - this.startMonitorTimeNano.get();
 
     if (totalElapsedTimeNano > TimeUnit.MILLISECONDS.toNanos(this.failureDetectionTimeMillis)) {
       this.setConnectionValid(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);

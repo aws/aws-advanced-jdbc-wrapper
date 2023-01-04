@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -87,10 +88,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       Arrays.asList(".get", ".abort", ".close", ".next", ".create");
 
   protected @NonNull Properties properties;
-  private MonitorService monitorService;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
-  private final Set<String> nodeKeys = new HashSet<>();
   private final @NonNull PluginService pluginService;
+  private final @NonNull Set<String> nodeKeys = ConcurrentHashMap.newKeySet();
+  private MonitorService monitorService;
 
   /**
    * Initialize the node monitoring plugin.

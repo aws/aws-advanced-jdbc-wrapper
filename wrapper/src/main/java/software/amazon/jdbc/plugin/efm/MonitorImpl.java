@@ -54,17 +54,17 @@ public class MonitorImpl implements Monitor {
   private static final long THREAD_SLEEP_WHEN_INACTIVE_MILLIS = 100;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
+  private final long monitorDisposalTimeMillis;
   private final Queue<MonitorConnectionContext> contexts = new ConcurrentLinkedQueue<>();
   private final PluginService pluginService;
   private final Properties properties;
   private final HostSpec hostSpec;
-  private Connection monitoringConn = null;
-  private long connectionCheckIntervalMillis = DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS;
-  private boolean isConnectionCheckIntervalInitialized = false;
   private final AtomicLong contextLastUsedTimestampNano = new AtomicLong();
-  private final long monitorDisposalTimeMillis;
   private final MonitorService monitorService;
   private final AtomicBoolean stopped = new AtomicBoolean(true);
+  private AtomicLong connectionCheckIntervalMillis = new AtomicLong(DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS);
+  private AtomicBoolean isConnectionCheckIntervalInitialized = new AtomicBoolean(false);
+  private Connection monitoringConn = null;
 
   /**
    * Store the monitoring configuration for a connection.
@@ -97,13 +97,13 @@ public class MonitorImpl implements Monitor {
 
   @Override
   public void startMonitoring(MonitorConnectionContext context) {
-    if (!this.isConnectionCheckIntervalInitialized) {
-      this.connectionCheckIntervalMillis = context.getFailureDetectionIntervalMillis();
-      this.isConnectionCheckIntervalInitialized = true;
+    if (!this.isConnectionCheckIntervalInitialized.get()) {
+      this.connectionCheckIntervalMillis.set(context.getFailureDetectionIntervalMillis());
+      this.isConnectionCheckIntervalInitialized.set(true);
     } else {
-      this.connectionCheckIntervalMillis = Math.min(
-          this.connectionCheckIntervalMillis,
-          context.getFailureDetectionIntervalMillis());
+      this.connectionCheckIntervalMillis.set(Math.min(
+          this.connectionCheckIntervalMillis.get(),
+          context.getFailureDetectionIntervalMillis()));
     }
 
     final long currentTimeNano = this.getCurrentTimeNano();
@@ -122,14 +122,14 @@ public class MonitorImpl implements Monitor {
     context.invalidate();
     this.contexts.remove(context);
 
-    this.connectionCheckIntervalMillis = findShortestIntervalMillis();
-    this.isConnectionCheckIntervalInitialized = true;
+    this.connectionCheckIntervalMillis.set(findShortestIntervalMillis());
+    this.isConnectionCheckIntervalInitialized.set(true);
   }
 
   public synchronized void clearContexts() {
     this.contexts.clear();
-    this.connectionCheckIntervalMillis = findShortestIntervalMillis();
-    this.isConnectionCheckIntervalInitialized = true;
+    this.connectionCheckIntervalMillis.set(findShortestIntervalMillis());
+    this.isConnectionCheckIntervalInitialized.set(true);
   }
 
   @Override
@@ -221,13 +221,13 @@ public class MonitorImpl implements Monitor {
   }
 
   long getConnectionCheckTimeoutMillis() {
-    return this.connectionCheckIntervalMillis == 0 ? DEFAULT_CONNECTION_CHECK_TIMEOUT_MILLIS
-        : this.connectionCheckIntervalMillis;
+    return this.connectionCheckIntervalMillis.get() == 0 ? DEFAULT_CONNECTION_CHECK_TIMEOUT_MILLIS
+        : this.connectionCheckIntervalMillis.get();
   }
 
   long getConnectionCheckIntervalMillis() {
-    return this.connectionCheckIntervalMillis == 0 ? DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS
-        : this.connectionCheckIntervalMillis;
+    return this.connectionCheckIntervalMillis.get() == 0 ? DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS
+        : this.connectionCheckIntervalMillis.get();
   }
 
   @Override
