@@ -363,9 +363,9 @@ public class TestEnvironment implements AutoCloseable {
   private static String getAuroraDbEngineVersion(TestEnvironmentRequest request) {
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        return "8.0.mysql_aurora.3.01.0"; // TODO: verify
+        return "8.0.mysql_aurora.3.02.2";
       case PG:
-        return "13.7"; // TODO: verify
+        return "14.5";
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
@@ -374,9 +374,9 @@ public class TestEnvironment implements AutoCloseable {
   private static String getAuroraInstanceClass(TestEnvironmentRequest request) {
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        return "db.r6g.large"; // TODO: verify
+        return "db.r6g.large";
       case PG:
-        return "db.r5.large"; // TODO: verify
+        return "db.r5.large";
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
