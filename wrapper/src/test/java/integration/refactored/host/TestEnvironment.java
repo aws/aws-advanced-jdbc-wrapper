@@ -374,9 +374,8 @@ public class TestEnvironment implements AutoCloseable {
   private static String getAuroraInstanceClass(TestEnvironmentRequest request) {
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        return "db.r6g.large";
       case PG:
-        return "db.r5.large";
+        return "db.r6g.large";
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
