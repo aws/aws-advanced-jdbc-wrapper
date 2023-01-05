@@ -502,11 +502,11 @@ public class TestEnvironment implements AutoCloseable {
               proxyPort);
     }
 
-    if (!StringUtils.isNullOrEmpty(env.info.getDatabaseInfo().getInstanceEndpointPrefix())) {
+    if (!StringUtils.isNullOrEmpty(env.info.getDatabaseInfo().getInstanceEndpointSuffix())) {
       env.info
           .getProxyDatabaseInfo()
           .setInstanceEndpointPrefix(
-              env.info.getDatabaseInfo().getInstanceEndpointPrefix() + PROXIED_DOMAIN_NAME_SUFFIX,
+              env.info.getDatabaseInfo().getInstanceEndpointSuffix() + PROXIED_DOMAIN_NAME_SUFFIX,
               proxyPort);
     }
 

@@ -218,7 +218,7 @@ public class PerformanceTest {
             + TestEnvironment.getCurrent()
                 .getInfo()
                 .getProxyDatabaseInfo()
-                .getInstanceEndpointPrefix());
+                .getInstanceEndpointSuffix());
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);
@@ -272,7 +272,7 @@ public class PerformanceTest {
             + TestEnvironment.getCurrent()
                 .getInfo()
                 .getProxyDatabaseInfo()
-                .getInstanceEndpointPrefix());
+                .getInstanceEndpointSuffix());
     props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
 
     final PerfStatSocketTimeout data = new PerfStatSocketTimeout();

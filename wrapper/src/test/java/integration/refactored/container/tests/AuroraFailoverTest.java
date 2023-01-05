@@ -594,7 +594,7 @@ public class AuroraFailoverTest {
             + TestEnvironment.getCurrent()
                 .getInfo()
                 .getProxyDatabaseInfo()
-                .getInstanceEndpointPrefix());
+                .getInstanceEndpointSuffix());
     return props;
   }
 

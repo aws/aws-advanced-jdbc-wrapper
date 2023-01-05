@@ -30,8 +30,8 @@ public class TestDatabaseInfo {
   private String clusterReadOnlyEndpoint; // "ABC.cluster-ro-XYZ.us-west-2.rds.amazonaws.com"
   private int clusterReadOnlyEndpointPort;
 
-  private String instanceEndpointPrefix; // "XYZ.us-west-2.rds.amazonaws.com"
-  private int instanceEndpointPrefixPort;
+  private String instanceEndpointSuffix; // "XYZ.us-west-2.rds.amazonaws.com"
+  private int instanceEndpointSuffixPort;
 
   private final ArrayList<TestInstanceInfo> instances = new ArrayList<>();
 
@@ -94,16 +94,16 @@ public class TestDatabaseInfo {
 
   public void setInstanceEndpointPrefix(
       String instanceEndpointPrefix, int instanceEndpointPrefixPort) {
-    this.instanceEndpointPrefix = instanceEndpointPrefix;
-    this.instanceEndpointPrefixPort = instanceEndpointPrefixPort;
+    this.instanceEndpointSuffix = instanceEndpointPrefix;
+    this.instanceEndpointSuffixPort = instanceEndpointPrefixPort;
   }
 
-  public String getInstanceEndpointPrefix() {
-    return this.instanceEndpointPrefix;
+  public String getInstanceEndpointSuffix() {
+    return this.instanceEndpointSuffix;
   }
 
-  public int getInstanceEndpointPrefixPort() {
-    return this.instanceEndpointPrefixPort;
+  public int getInstanceEndpointSuffixPort() {
+    return this.instanceEndpointSuffixPort;
   }
 
   public TestInstanceInfo getInstance(String instanceName) {
