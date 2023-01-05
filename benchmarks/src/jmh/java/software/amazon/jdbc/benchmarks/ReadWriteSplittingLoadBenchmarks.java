@@ -46,6 +46,7 @@ public class ReadWriteSplittingLoadBenchmarks {
   private static final String PASSWORD = "password";
 
   private static final int NUM_THREADS = 10;
+  private static final int EXECUTE_QUERY_TIMES = 5;
   protected static final String QUERY_1 = "select " +
       "l_returnflag, " +
       "l_linestatus, " +
@@ -109,76 +110,80 @@ public class ReadWriteSplittingLoadBenchmarks {
   }
 
   @Benchmark
-  public void noPluginEnabledBenchmarkTest() throws SQLException {
-    final List<Thread> connectionsList = new ArrayList<>(NUM_THREADS);
+  public void noPluginEnabledBenchmarkTest() {
+    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
-      connectionsList.add(getThread_PGReadWriteSplitting(initNoPluginPropsWithTimeouts()));
+      connectionThreadsList.add(getThread_PGReadWriteSplitting(initNoPluginPropsWithTimeouts()));
     }
 
-    // begin all connections
-    for (Thread thread : connectionsList) {
-      thread.start();
+    for (Thread connectionThread : connectionThreadsList) {
+      connectionThread.start();
     }
 
-    // stop all connections
-    for (Thread thread : connectionsList){
-      thread.interrupt();
+    for (Thread connectionThread : connectionThreadsList){
+      connectionThread.interrupt();
     }
   }
 
   @Benchmark
-  public void readWriteSplittingPluginEnabledBenchmarkTest() throws SQLException {
-    final List<Thread> connectionsList = new ArrayList<>(NUM_THREADS);
+  public void readWriteSplittingPluginEnabledBenchmarkTest() {
+    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
-      connectionsList.add(getThread_PGReadWriteSplitting(initReadWritePluginProps()));
+      connectionThreadsList.add(getThread_PGReadWriteSplitting(initReadWritePluginProps()));
     }
 
-    // begin all connections
-    for (Thread thread : connectionsList) {
-      thread.start();
+    for (Thread connectionThread : connectionThreadsList) {
+      connectionThread.start();
     }
 
-    // stop all connections
-    for (Thread thread : connectionsList){
-      thread.interrupt();
+    for (Thread connectionThread : connectionThreadsList){
+      connectionThread.interrupt();
     }
   }
 
   @Benchmark
-  public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() throws SQLException {
-    final List<Thread> connectionsList = new ArrayList<>(NUM_THREADS);
+  public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() {
+    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
-      connectionsList.add(getThread_PGReadWriteSplitting(initReadWritePluginLoadBalancingProps()));
+      connectionThreadsList.add(getThread_PGReadWriteSplitting(initReadWritePluginLoadBalancingProps()));
     }
 
-    // begin all connections
-    for (Thread thread : connectionsList) {
-      thread.start();
+    for (Thread connectionThread : connectionThreadsList) {
+      connectionThread.start();
     }
 
-    // stop all connections
-    for (Thread thread : connectionsList){
-      thread.interrupt();
+    for (Thread connectionThread : connectionThreadsList){
+      connectionThread.interrupt();
     }
   }
 
   private Thread getThread_PGReadWriteSplitting(Properties props) {
     return new Thread(() -> {
       try {
+
         Connection conn = connectToInstance(POSTGRESQL_CONNECTION_STRING, props);
 
         Thread.sleep(5000);
 
-        // Execute long query
+        // execute long query
         final Statement statement = conn.createStatement();
         statement.executeQuery(QUERY_1);
 
         try (final ResultSet result = statement.executeQuery(QUERY_1)) {
           fail("Sleep query finished, should not be possible with the network down.");
         }
+        // switch to reader if read-write splitting plugin is enabled
+        conn.setReadOnly(true);
+
+        // execute multiple queries to trigger reader load balancing, if enabled
+        for (int i = 0; i < EXECUTE_QUERY_TIMES; i++) {
+          statement.executeQuery(QUERY_1);
+        }
+
+
       } catch (InterruptedException interruptedException) {
         // Ignore, stop the thread
       } catch (Exception exception) {
