@@ -1,9 +1,32 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package software.amazon.jdbc.benchmarks;
 
+import static org.junit.jupiter.api.Assertions.fail;
+
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 import software.amazon.jdbc.Driver;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -13,13 +36,15 @@ import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
+@State(Scope.Benchmark)
 public class ReadWriteSplittingLoadBenchmarks {
 
+  // User configures connection properties here
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://atlas-postgres.cluster-czygpppufgy4.us-east-2.rds.amazonaws" +
-          ".com:5432/postgres";
-  private static final String AURORA_POSTGRES_USERNAME = "pgadmin";
-  private static final String AURORA_POSTGRES_PASSWORD = "my_password_2020";
+      "jdbc:aws-wrapper:postgresql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
+  private static final String USERNAME = "username";
+  private static final String PASSWORD = "password";
+
   private static final int NUM_THREADS = 10;
   protected static final String QUERY_1 = "select " +
       "l_returnflag, " +
@@ -43,6 +68,7 @@ public class ReadWriteSplittingLoadBenchmarks {
       "l_returnflag, " +
       "l_linestatus;";
 
+  @Setup(Level.Iteration)
   public static void setUp() throws SQLException {
     if (!org.postgresql.Driver.isRegistered()) {
       org.postgresql.Driver.register();
@@ -55,8 +81,8 @@ public class ReadWriteSplittingLoadBenchmarks {
 
   protected static Properties initNoPluginPropsWithTimeouts() {
     final Properties props = new Properties();
-    props.setProperty(PGProperty.USER.getName(), AURORA_POSTGRES_USERNAME);
-    props.setProperty(PGProperty.PASSWORD.getName(), AURORA_POSTGRES_PASSWORD);
+    props.setProperty(PGProperty.USER.getName(), USERNAME);
+    props.setProperty(PGProperty.PASSWORD.getName(), PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
     props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
     props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
@@ -84,31 +110,56 @@ public class ReadWriteSplittingLoadBenchmarks {
 
   @Benchmark
   public void noPluginEnabledBenchmarkTest() throws SQLException {
-    runTest(getThread_PGReadWriteSplitting(initNoPluginPropsWithTimeouts()));
-  }
-
-  @Benchmark
-  public void readWriteSplittingPluginEnabledBenchmarkTest() throws SQLException {
-    runTest(getThread_PGReadWriteSplitting(initReadWritePluginProps()));
-  }
-
-  @Benchmark
-  public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() throws SQLException {
-    runTest(getThread_PGReadWriteSplitting(initReadWritePluginLoadBalancingProps()));
-  }
-
-  private void runTest(Thread addThread) throws SQLException {
     final List<Thread> connectionsList = new ArrayList<>(NUM_THREADS);
-    setUp();
 
     for (int i = 0; i < NUM_THREADS; i++) {
-      connectionsList.add(addThread);
+      connectionsList.add(getThread_PGReadWriteSplitting(initNoPluginPropsWithTimeouts()));
     }
 
+    // begin all connections
     for (Thread thread : connectionsList) {
       thread.start();
     }
 
+    // stop all connections
+    for (Thread thread : connectionsList){
+      thread.interrupt();
+    }
+  }
+
+  @Benchmark
+  public void readWriteSplittingPluginEnabledBenchmarkTest() throws SQLException {
+    final List<Thread> connectionsList = new ArrayList<>(NUM_THREADS);
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+      connectionsList.add(getThread_PGReadWriteSplitting(initReadWritePluginProps()));
+    }
+
+    // begin all connections
+    for (Thread thread : connectionsList) {
+      thread.start();
+    }
+
+    // stop all connections
+    for (Thread thread : connectionsList){
+      thread.interrupt();
+    }
+  }
+
+  @Benchmark
+  public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() throws SQLException {
+    final List<Thread> connectionsList = new ArrayList<>(NUM_THREADS);
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+      connectionsList.add(getThread_PGReadWriteSplitting(initReadWritePluginLoadBalancingProps()));
+    }
+
+    // begin all connections
+    for (Thread thread : connectionsList) {
+      thread.start();
+    }
+
+    // stop all connections
     for (Thread thread : connectionsList){
       thread.interrupt();
     }
@@ -125,6 +176,9 @@ public class ReadWriteSplittingLoadBenchmarks {
         final Statement statement = conn.createStatement();
         statement.executeQuery(QUERY_1);
 
+        try (final ResultSet result = statement.executeQuery(QUERY_1)) {
+          fail("Sleep query finished, should not be possible with the network down.");
+        }
       } catch (InterruptedException interruptedException) {
         // Ignore, stop the thread
       } catch (Exception exception) {
