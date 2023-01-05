@@ -28,7 +28,7 @@ import software.amazon.jdbc.util.Messages;
 
 /**
  * Monitoring context for each connection. This contains each connection's criteria for whether a
- * server should be considered unhealthy.
+ * server should be considered unhealthy. The context is shared between the main thread and the monitor thread.
  */
 public class MonitorConnectionContext {
 
@@ -38,14 +38,14 @@ public class MonitorConnectionContext {
   private final long failureDetectionTimeMillis;
   private final long failureDetectionCount;
 
-  private final Set<String> hostAliases;
+  private final Set<String> hostAliases; // Read-only
   private final Connection connectionToAbort;
 
   private final AtomicBoolean activeContext = new AtomicBoolean(true);
-  private AtomicBoolean nodeUnhealthy = new AtomicBoolean();
-  private AtomicLong startMonitorTimeNano = new AtomicLong();
-  private long invalidNodeStartTimeNano;
-  private long failureCount;
+  private final AtomicBoolean nodeUnhealthy = new AtomicBoolean();
+  private final AtomicLong startMonitorTimeNano = new AtomicLong();
+  private long invalidNodeStartTimeNano; // Only accessed by monitor thread
+  private long failureCount; // Only accessed by monitor thread
 
   /**
    * Constructor.
@@ -65,7 +65,7 @@ public class MonitorConnectionContext {
       long failureDetectionIntervalMillis,
       long failureDetectionCount) {
     this.connectionToAbort = connectionToAbort;
-    this.hostAliases = new HashSet<>(hostAliases);
+    this.hostAliases = new HashSet<>(hostAliases); // Read-only variable, so does not need to be ConcurrentHashSet
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
     this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
     this.failureDetectionCount = failureDetectionCount;

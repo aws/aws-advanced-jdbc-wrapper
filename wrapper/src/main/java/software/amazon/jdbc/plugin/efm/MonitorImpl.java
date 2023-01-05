@@ -62,8 +62,8 @@ public class MonitorImpl implements Monitor {
   private final AtomicLong contextLastUsedTimestampNano = new AtomicLong();
   private final MonitorService monitorService;
   private final AtomicBoolean stopped = new AtomicBoolean(true);
-  private AtomicLong connectionCheckIntervalMillis = new AtomicLong(DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS);
-  private AtomicBoolean isConnectionCheckIntervalInitialized = new AtomicBoolean(false);
+  private final AtomicLong connectionCheckIntervalMillis = new AtomicLong(DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS);
+  private final AtomicBoolean isConnectionCheckIntervalInitialized = new AtomicBoolean(false);
   private Connection monitoringConn = null;
 
   /**

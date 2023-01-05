@@ -145,7 +145,7 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
-  public synchronized void notifyUnused(Monitor monitor) {
+  public void notifyUnused(Monitor monitor) {
     if (monitor == null) {
       LOGGER.warning(() -> Messages.get("MonitorServiceImpl.nullMonitorParam"));
       return;
