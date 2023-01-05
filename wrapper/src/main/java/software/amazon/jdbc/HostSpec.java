@@ -18,20 +18,24 @@ package software.amazon.jdbc;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * An object representing connection info for a given host. Modifiable fields are thread-safe to support sharing this
+ * object with the EFM monitor thread.
+ */
 public class HostSpec {
 
   public static final int NO_PORT = -1;
 
   protected final String host;
   protected final int port;
-  protected HostAvailability availability;
+  protected volatile HostAvailability availability;
   protected HostRole role;
-  protected Set<String> aliases = new HashSet<>();
-  protected Set<String> allAliases = new HashSet<>();
+  protected Set<String> aliases = ConcurrentHashMap.newKeySet();
+  protected Set<String> allAliases = ConcurrentHashMap.newKeySet();
 
   public HostSpec(final String host) {
     this.host = host;

@@ -90,7 +90,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
   private final @NonNull PluginService pluginService;
-  private final @NonNull Set<String> nodeKeys = ConcurrentHashMap.newKeySet();
+  private final @NonNull Set<String> nodeKeys = ConcurrentHashMap.newKeySet(); // Shared with monitor thread
   private MonitorService monitorService;
 
   /**
