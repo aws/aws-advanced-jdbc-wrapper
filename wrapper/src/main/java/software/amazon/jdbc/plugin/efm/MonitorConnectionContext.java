@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.efm;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +39,7 @@ public class MonitorConnectionContext {
   private final long failureDetectionTimeMillis;
   private final long failureDetectionCount;
 
-  private final Set<String> hostAliases; // Read-only
+  private final Set<String> hostAliases; // Variable is never written, so it does not need to be thread-safe
   private final Connection connectionToAbort;
 
   private final AtomicBoolean activeContext = new AtomicBoolean(true);
@@ -65,7 +66,8 @@ public class MonitorConnectionContext {
       long failureDetectionIntervalMillis,
       long failureDetectionCount) {
     this.connectionToAbort = connectionToAbort;
-    this.hostAliases = new HashSet<>(hostAliases); // Read-only variable, so does not need to be ConcurrentHashSet
+    // Variable is never written, so it does not need to be thread-safe
+    this.hostAliases = new HashSet<>(hostAliases);
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
     this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
     this.failureDetectionCount = failureDetectionCount;
@@ -76,7 +78,7 @@ public class MonitorConnectionContext {
   }
 
   Set<String> getHostAliases() {
-    return this.hostAliases;
+    return Collections.unmodifiableSet(this.hostAliases);
   }
 
   public long getFailureDetectionTimeMillis() {
