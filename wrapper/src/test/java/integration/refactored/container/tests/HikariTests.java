@@ -73,16 +73,15 @@ public class HikariTests {
     ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
     // Configure AwsWrapperDataSource:
-    ds.addDataSourceProperty(
-        "jdbcProtocol", DriverHelper.getDriverProtocol());
+    ds.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
     ds.addDataSourceProperty("databasePropertyName", "databaseName");
     ds.addDataSourceProperty("portPropertyName", "port");
     ds.addDataSourceProperty("serverPropertyName", "serverName");
 
-    // Specify the driver-specific data source for AwsWrapperDataSource:
+    // Specify the driver-specific DataSource for AwsWrapperDataSource:
     ds.addDataSourceProperty("targetDataSourceClassName", DriverHelper.getDataSourceClassname());
 
-    // Configuring MariadbDataSource:
+    // Configuring driver-specific DataSource:
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "serverName",
