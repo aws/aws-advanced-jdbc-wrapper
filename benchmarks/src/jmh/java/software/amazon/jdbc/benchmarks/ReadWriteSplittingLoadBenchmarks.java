@@ -22,17 +22,22 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+
 import software.amazon.jdbc.Driver;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+
 import org.postgresql.PGProperty;
+
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
@@ -41,9 +46,10 @@ public class ReadWriteSplittingLoadBenchmarks {
 
   // User configures connection properties here
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
-  private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
+      "jdbc:aws-wrapper:postgresql://atlas-postgres.cluster-czygpppufgy4.us-east-2.rds.amazonaws" +
+          ".com:5432/postgres";
+  private static final String USERNAME = "pgadmin";
+  private static final String PASSWORD = "my_password_2020";
 
   private static final int NUM_THREADS = 10;
   private static final int EXECUTE_QUERY_TIMES = 5;
@@ -117,11 +123,13 @@ public class ReadWriteSplittingLoadBenchmarks {
       connectionThreadsList.add(getThread_PGReadWriteSplitting(initNoPluginPropsWithTimeouts()));
     }
 
+    // start all connection threads
     for (Thread connectionThread : connectionThreadsList) {
       connectionThread.start();
     }
 
-    for (Thread connectionThread : connectionThreadsList){
+    // stop all connection threads
+    for (Thread connectionThread : connectionThreadsList) {
       connectionThread.interrupt();
     }
   }
@@ -134,11 +142,13 @@ public class ReadWriteSplittingLoadBenchmarks {
       connectionThreadsList.add(getThread_PGReadWriteSplitting(initReadWritePluginProps()));
     }
 
+    // start all connection threads
     for (Thread connectionThread : connectionThreadsList) {
       connectionThread.start();
     }
 
-    for (Thread connectionThread : connectionThreadsList){
+    // stop all connection threads
+    for (Thread connectionThread : connectionThreadsList) {
       connectionThread.interrupt();
     }
   }
@@ -148,33 +158,27 @@ public class ReadWriteSplittingLoadBenchmarks {
     final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
 
     for (int i = 0; i < NUM_THREADS; i++) {
-      connectionThreadsList.add(getThread_PGReadWriteSplitting(initReadWritePluginLoadBalancingProps()));
+      connectionThreadsList.add(
+          getThread_PGReadWriteSplitting(initReadWritePluginLoadBalancingProps()));
     }
 
+    // start all connection threads
     for (Thread connectionThread : connectionThreadsList) {
       connectionThread.start();
     }
 
-    for (Thread connectionThread : connectionThreadsList){
+    // stop all connection threads
+    for (Thread connectionThread : connectionThreadsList) {
       connectionThread.interrupt();
     }
   }
 
   private Thread getThread_PGReadWriteSplitting(Properties props) {
     return new Thread(() -> {
-      try {
+      try (Connection conn = connectToInstance(POSTGRESQL_CONNECTION_STRING, props);
+           final Statement statement = conn.createStatement();
+           final ResultSet result = statement.executeQuery(QUERY_1)) {
 
-        Connection conn = connectToInstance(POSTGRESQL_CONNECTION_STRING, props);
-
-        Thread.sleep(5000);
-
-        // execute long query
-        final Statement statement = conn.createStatement();
-        statement.executeQuery(QUERY_1);
-
-        try (final ResultSet result = statement.executeQuery(QUERY_1)) {
-          fail("Sleep query finished, should not be possible with the network down.");
-        }
         // switch to reader if read-write splitting plugin is enabled
         conn.setReadOnly(true);
 
@@ -182,14 +186,11 @@ public class ReadWriteSplittingLoadBenchmarks {
         for (int i = 0; i < EXECUTE_QUERY_TIMES; i++) {
           statement.executeQuery(QUERY_1);
         }
-
-
-      } catch (InterruptedException interruptedException) {
-        // Ignore, stop the thread
       } catch (Exception exception) {
       }
     });
   }
+
 
   public static void main(String[] args) throws Exception {
     org.openjdk.jmh.Main.main(args);
