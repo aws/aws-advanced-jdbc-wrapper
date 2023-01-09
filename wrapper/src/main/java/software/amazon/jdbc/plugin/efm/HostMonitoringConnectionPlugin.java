@@ -27,8 +27,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -88,10 +88,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       Arrays.asList(".get", ".abort", ".close", ".next", ".create");
 
   protected @NonNull Properties properties;
-  private MonitorService monitorService;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
-  private final Set<String> nodeKeys = new HashSet<>();
   private final @NonNull PluginService pluginService;
+  private final @NonNull Set<String> nodeKeys = ConcurrentHashMap.newKeySet(); // Shared with monitor thread
+  private MonitorService monitorService;
 
   /**
    * Initialize the node monitoring plugin.
@@ -147,7 +147,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
 
     final int failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
-    final int failureDetectionIntervalMillis = FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
+    final int failureDetectionIntervalMillis =
+        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
     final int failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
 
     initMonitorService();
@@ -204,7 +205,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       }
       LOGGER.finest(
           () -> Messages.get(
-              "HostMonitoringConnectionPlugin.activatedMonitoring",
+              "HostMonitoringConnectionPlugin.monitoringDeactivated",
               new Object[] {methodName}));
     }
 

@@ -142,7 +142,7 @@ class MultiThreadedDefaultMonitorServiceTest {
 
       final List<MonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
 
-      assertEquals(numConnections, services.get(0).threadContainer.getMonitorMap().size());
+      assertEquals(numConnections, services.get(0).getThreadContainer().getMonitorMap().size());
       assertTrue(
           (contexts.size() == capturedContexts.size())
               && contexts.containsAll(capturedContexts)
@@ -167,7 +167,7 @@ class MultiThreadedDefaultMonitorServiceTest {
 
       final List<MonitorConnectionContext> capturedContexts = startMonitoringCaptor.getAllValues();
 
-      assertEquals(1, services.get(0).threadContainer.getMonitorMap().size());
+      assertEquals(1, services.get(0).getThreadContainer().getMonitorMap().size());
       assertTrue(
           (contexts.size() == capturedContexts.size())
               && contexts.containsAll(capturedContexts)
