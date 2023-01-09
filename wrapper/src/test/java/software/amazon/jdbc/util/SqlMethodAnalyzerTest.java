@@ -17,6 +17,8 @@
 package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
@@ -24,6 +26,7 @@ import java.sql.SQLException;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -32,8 +35,8 @@ import org.mockito.MockitoAnnotations;
 
 class SqlMethodAnalyzerTest {
 
-  @Mock
-  Connection conn;
+  @Mock Connection conn;
+
 
   private final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
   private AutoCloseable closeable;
@@ -50,7 +53,8 @@ class SqlMethodAnalyzerTest {
 
   @ParameterizedTest
   @MethodSource("openTransactionQueries")
-  void testOpenTransaction(final String methodName, final String sql, final boolean autocommit, final boolean expected)
+  void testOpenTransaction(final String methodName, final String sql, final boolean autocommit,
+      final boolean expected)
       throws SQLException {
     final Object[] args;
     if (sql != null) {
@@ -74,8 +78,34 @@ class SqlMethodAnalyzerTest {
       args = new Object[] {};
     }
 
-    final boolean actual = sqlMethodAnalyzer.doesCloseTransaction(methodName, args);
+    final boolean actual = sqlMethodAnalyzer.doesCloseTransaction(conn, methodName, args);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void testDoesSwitchAutoCommitFalseTrue() throws SQLException {
+    assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
+        new Object[] {false}));
+    assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
+        new Object[] {"SET autocommit = 0"}));
+
+    assertTrue(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
+        new Object[] {true}));
+    assertTrue(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
+        new Object[] {"SET autocommit = 1"}));
+
+    when(conn.getAutoCommit()).thenReturn(true);
+
+    assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
+        new Object[] {false}));
+    assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
+        new Object[] {"SET autocommit = 0"}));
+    assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Connection.setAutoCommit",
+        new Object[] {true}));
+    assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
+        new Object[] {"SET autocommit = 1"}));
+    assertFalse(sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(conn, "Statement.execute",
+        new Object[] {"SET TIME ZONE 'UTC'"}));
   }
 
   @ParameterizedTest
@@ -94,7 +124,8 @@ class SqlMethodAnalyzerTest {
 
   @ParameterizedTest
   @MethodSource("isSettingAutoCommitQueries")
-  void testIsStatementSettingAutoCommit(final String methodName, final String sql, final boolean expected) {
+  void testIsStatementSettingAutoCommit(final String methodName, final String sql,
+      final boolean expected) {
     final Object[] args;
     if (sql != null) {
       args = new Object[] {sql};
@@ -135,13 +166,16 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Statement.execute", "START/* COMMENT */TRANSACTION;", true, true),
         Arguments.of("Statement.execute", "START      /* COMMENT */    TRANSACTION;", true, true),
         Arguments.of("Statement.executeUpdate", "START   /*COMMENT*/TRANSACTION;", true, true),
-        Arguments.of("Statement.executeUpdate", "/*COMMENT*/START   /*COMMENT*/TRANSACTION;", true, true),
-        Arguments.of("Statement.executeUpdate", " /*COMMENT*/ START   /*COMMENT*/TRANSACTION;", true, true),
+        Arguments.of("Statement.executeUpdate", "/*COMMENT*/START   /*COMMENT*/TRANSACTION;", true,
+            true),
+        Arguments.of("Statement.executeUpdate", " /*COMMENT*/ START   /*COMMENT*/TRANSACTION;",
+            true, true),
         Arguments.of("Statement.executeUpdate", " /*COMMENT*/ begin", true, true),
         Arguments.of("Statement.executeUpdate", "commit", false, false),
         Arguments.of("Statement.executeQuery", " select 1", true, false),
         Arguments.of("Statement.executeQuery", " SELECT 1", false, true),
-        Arguments.of("Statement.executeUpdate", " INSERT INTO test_table VALUES (1) ; ", false, true),
+        Arguments.of("Statement.executeUpdate", " INSERT INTO test_table VALUES (1) ; ", false,
+            true),
         Arguments.of("Statement.executeUpdate", " set autocommit = 1 ", false, false),
         Arguments.of("Connection.commit", null, false, false)
     );
@@ -170,6 +204,8 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Statement.execute", " begin ; ", false),
         Arguments.of("Statement.execute", " rollback ; ", false),
         Arguments.of("Statement.execute", "   SET autocommit = 0 ; ", false),
+        Arguments.of("Statement.execute", "   SHOW DATABASES ; ", false),
+        Arguments.of("Statement.execute", "   USE mydatabase ; ", false),
         Arguments.of("Statement.executeQuery", "   SELECT 1; ", true),
         Arguments.of("Statement.executeUpdate", "INSERT INTO test_table VALUES (1)", true)
     );

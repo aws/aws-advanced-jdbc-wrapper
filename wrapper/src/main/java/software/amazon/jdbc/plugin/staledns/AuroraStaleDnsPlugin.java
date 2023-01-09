@@ -75,7 +75,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    return this.helper.getVerifiedConnection(hostSpec, props, connectFunc);
+    return this.helper.getVerifiedConnection(driverProtocol, hostSpec, props, connectFunc);
   }
 
   @Override

@@ -121,23 +121,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   }
 
   @Test
-  public void testConnectionWithDataSourceClassNameMissingDatabase() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setJdbcProtocol(postgresProtocolPrefix);
-    ds.setServerPropertyName("serverName");
-
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", POSTGRES_CLUSTER_URL);
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD));
-  }
-
-  @Test
   public void testConnectionWithDataSourceClassNameMissingUser() {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(postgresProtocolPrefix);
@@ -291,22 +274,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
   }
 
   @Test
-  public void testConnectionWithDataSourceClassNameUsingUrlMissingDatabase() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setServerPropertyName("serverName");
-
-    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
-
-    final Properties targetDataSourceProps = new Properties();
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
-    ds.setJdbcUrl(postgresProtocolPrefix + POSTGRES_CLUSTER_URL + "/");
-
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD));
-  }
-
-  @Test
   public void testConnectionWithUrl() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setPortPropertyName("port");
@@ -351,17 +318,6 @@ public class AuroraPostgresDataSourceTest extends AuroraPostgresBaseTest {
 
       assertTrue(conn.isValid(10));
     }
-  }
-
-  @Test
-  public void testConnectionWithUrlMissingDatabase() {
-    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setPortPropertyName("port");
-    ds.setJdbcUrl(DB_CONN_STR_PREFIX + POSTGRES_CLUSTER_URL + ":" + AURORA_POSTGRES_PORT + "/");
-
-    assertThrows(
-        PSQLException.class,
-        () -> ds.getConnection(AURORA_POSTGRES_USERNAME, AURORA_POSTGRES_PASSWORD));
   }
 
   @Test

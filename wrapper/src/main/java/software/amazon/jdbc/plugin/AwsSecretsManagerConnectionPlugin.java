@@ -22,10 +22,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -41,6 +39,7 @@ import software.amazon.awssdk.utils.Pair;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -55,19 +54,18 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       "secretsManagerRegion", "us-east-1",
       "The region of the secret to retrieve.");
 
-  // Error code "28P01" is specific to PostgreSQL.
-  static final List<String> SQLSTATE_ACCESS_ERROR = Arrays.asList("28000", "28P01");
-
   protected static final Map<Pair<String, Region>, Secret> SECRET_CACHE = new ConcurrentHashMap<>();
 
   private final SecretsManagerClient secretsManagerClient;
   private final GetSecretValueRequest getSecretValueRequest;
   private final Pair<String, Region> secretKey;
   private Secret secret;
+  protected PluginService pluginService;
 
-  public AwsSecretsManagerConnectionPlugin(Properties props) {
+  public AwsSecretsManagerConnectionPlugin(PluginService pluginService, Properties props) {
 
     this(
+        pluginService,
         props,
         null,
         null
@@ -75,9 +73,11 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   }
 
   AwsSecretsManagerConnectionPlugin(
+      PluginService pluginService,
       Properties props,
       SecretsManagerClient secretsManagerClient,
       GetSecretValueRequest getSecretValueRequest) {
+    this.pluginService = pluginService;
 
     try {
       Class.forName("software.amazon.awssdk.services.secretsmanager.SecretsManagerClient");
@@ -151,7 +151,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       return connectFunc.call();
 
     } catch (SQLException exception) {
-      if (isLoginUnsuccessful(exception) && !secretWasFetched) {
+      if (this.pluginService.isLoginException(exception) && !secretWasFetched) {
         // Login unsuccessful with cached credentials
         // Try to re-fetch credentials and try again
 
@@ -226,22 +226,6 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       PropertyDefinition.USER.set(properties, secret.getUsername());
       PropertyDefinition.PASSWORD.set(properties, secret.getPassword());
     }
-  }
-
-  /**
-   * Called to analyse a thrown exception.
-   *
-   * @param exception Login attempt exception.
-   * @return true, if specified exception is caused by unsuccessful login attempt.
-   */
-  private boolean isLoginUnsuccessful(SQLException exception) {
-    LOGGER.log(
-        Level.WARNING,
-        exception,
-        () -> Messages.get(
-            "AwsSecretsManagerConnectionPlugin.failedLogin",
-            new Object[] {exception.getSQLState()}));
-    return SQLSTATE_ACCESS_ERROR.contains(exception.getSQLState());
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

@@ -94,9 +94,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throws E {
 
     LOGGER.finest(
-        () -> Messages.get(
-            "DefaultConnectionPlugin.executingMethod",
-            new Object[] {methodName}));
+        () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
     final T result = jdbcMethodFunc.call();
 
     Connection currentConn = this.pluginService.getCurrentConnection();
@@ -109,7 +107,11 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(true);
-    } else if (sqlMethodAnalyzer.doesCloseTransaction(methodName, jdbcMethodArgs)) {
+    } else if (
+        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
+            // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
+            || sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(currentConn, methodName,
+            jdbcMethodArgs)) {
       this.pluginManagerService.setInTransaction(false);
     }
 
@@ -160,7 +162,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(
+      final EnumSet<NodeChangeOptions> changes) {
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 

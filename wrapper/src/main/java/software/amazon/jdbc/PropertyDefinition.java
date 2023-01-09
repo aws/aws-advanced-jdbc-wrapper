@@ -98,4 +98,19 @@ public class PropertyDefinition {
   public static void removeAll(Properties props) {
     PROPS_BY_NAME.keySet().forEach(props::remove);
   }
+
+  public static void removeAllExceptCredentials(Properties props) {
+    String user = props.getProperty(PropertyDefinition.USER.name, null);
+    String password = props.getProperty(PropertyDefinition.PASSWORD.name, null);
+
+    PROPS_BY_NAME.keySet().forEach(props::remove);
+
+    if (user != null) {
+      props.setProperty(PropertyDefinition.USER.name, user);
+    }
+
+    if (password != null) {
+      props.setProperty(PropertyDefinition.PASSWORD.name, password);
+    }
+  }
 }

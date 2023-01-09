@@ -346,11 +346,12 @@ class ClusterAwareWriterFailoverHandlerTest {
    */
   @Test
   public void testFailedToConnect_taskAException_taskBWriterException() throws SQLException {
-    when(mockPluginService.connect(refEq(writer), eq(properties))).thenThrow(
-        new SQLException("exception", "08S01", null));
+    final SQLException exception = new SQLException("exception", "08S01", null);
+    when(mockPluginService.connect(refEq(writer), eq(properties))).thenThrow(exception);
     when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
     when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenThrow(SQLException.class);
+    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenThrow(exception);
+    when(mockPluginService.isNetworkException(exception)).thenReturn(true);
 
     when(mockPluginService.getHosts()).thenReturn(newTopology);
 
