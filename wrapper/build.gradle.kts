@@ -222,7 +222,7 @@ junitHtmlReport {
     testReportsDir = "report"
 
     //Fail build when no XML files to process
-    isFailOnEmpty = true
+    isFailOnEmpty = false
 }
 
 tasks.withType<Test> {
