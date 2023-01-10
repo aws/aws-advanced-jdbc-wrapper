@@ -172,7 +172,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     return String.format("%s:%s:%d:%s", region, hostname, port, user);
   }
 
-  static void clearCache() {
+  public static void clearCache() {
     tokenCache.clear();
   }
 

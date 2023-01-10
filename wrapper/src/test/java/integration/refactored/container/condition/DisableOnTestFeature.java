@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-package integration.container.standard.mariadb;
+package integration.refactored.container.condition;
 
-import org.junit.platform.suite.api.SelectClasses;
-import org.junit.platform.suite.api.Suite;
-import org.junit.platform.suite.api.SuiteDisplayName;
+import integration.refactored.TestEnvironmentFeatures;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-// Tests will run in order of top to bottom.
-// To add additional tests, append it inside SelectClasses, comma-separated
-@Suite
-@SelectClasses({
-  StandardMariadbIntegrationTest.class,
-  DataCachePluginTests.class,
-  DataSourceTests.class,
-  HikariTests.class,
-  LogQueryPluginTests.class,
-  SpringTests.class,
-  StandardMariadbReadWriteSplittingTest.class
-})
-public class StandardMariadbTestSuite {}
+@Target({ElementType.TYPE, ElementType.METHOD})
+@ExtendWith(DisableOnTestFeatureCondition.class)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface DisableOnTestFeature {
+  TestEnvironmentFeatures[] value() default {};
+}

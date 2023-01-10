@@ -22,12 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        databases:
-          [
-            postgres,
-            mysql
-          ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v2
@@ -39,11 +33,18 @@ jobs:
           java-version: 8
       - name: 'Run standard integration tests'
         run: |
-          ./gradlew --no-parallel --no-daemon test-integration-standard-${{ matrix.databases }}
+          ./gradlew --no-parallel --no-daemon test-all-docker
       - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: junit-report-standard-${{ matrix.databases }}
-          path: ./wrapper/build/reports/tests/
+          name: junit-report
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: 'Archive html summary report'
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: html-summary-report
+          path: ./wrapper/build/report
           retention-days: 5

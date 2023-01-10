@@ -83,10 +83,13 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.setProperty(this.databasePropertyName, PropertyDefinition.DATABASE.getString(props));
     }
 
-    if (!isNullOrEmpty(this.urlPropertyName) && !isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
+    if (!isNullOrEmpty(this.urlPropertyName)) {
       Properties urlProperties = PropertyUtils.copyProperties(copy);
-      // Remove the current url property to replace with a new url built from updated HostSpec and properties
-      urlProperties.remove(this.urlPropertyName);
+
+      if (!isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
+        // Remove the current url property to replace with a new url built from updated HostSpec and properties
+        urlProperties.remove(this.urlPropertyName);
+      }
 
       copy.setProperty(
           this.urlPropertyName,

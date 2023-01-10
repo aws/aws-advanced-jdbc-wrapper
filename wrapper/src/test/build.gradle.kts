@@ -51,13 +51,19 @@ dependencies {
     testImplementation("org.testcontainers:toxiproxy:1.17.+")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
 }
 
 tasks.withType<Test> {
+
+    testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test")
+    classpath += fileTree("./libs") { include("*.jar") } + project.files("./test")
+    outputs.upToDateWhen { false }
+
     useJUnitPlatform()
 
     testLogging {
-        events(FAILED, SKIPPED)
+        events(PASSED, FAILED, SKIPPED)
         showStandardStreams = true
         exceptionFormat = FULL
         showExceptions = true
@@ -66,50 +72,13 @@ tasks.withType<Test> {
     }
 
     systemProperty("java.util.logging.config.file", "./test/resources/logging-test.properties")
+
+    reports.junitXml.required.set(true)
+    reports.junitXml.outputLocation.set(file("${project.buildDir}/test-results/container-" + System.currentTimeMillis()))
+
+    reports.html.required.set(false)
 }
 
-// Integration tests are run in a specific order.
-// To add more tests, see integration.container.aurora.postgres.AuroraPostgresTestSuite.java
-tasks.register<Test>("in-container-aurora-postgres") {
-    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresTestSuite")
-}
-
-tasks.register<Test>("in-container-aurora-postgres-performance") {
-    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresPerformanceTest")
-    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraAdvancedPerformanceTest")
-    filter.includeTestsMatching("integration.container.aurora.postgres.AuroraPostgresReadWriteSplittingPerformanceTest")
-
-}
-
-// Integration tests are run in a specific order.
-// To add more tests, see integration.container.standard.postgres.StandardPostgresTestSuite.java
-tasks.register<Test>("in-container-standard-postgres") {
-    filter.includeTestsMatching("integration.container.standard.postgres.StandardPostgresTestSuite")
-}
-
-// Integration tests are run in a specific order.
-// To add more tests, see integration.container.aurora.mysql.mysqldriver.AuroraMysqlTestSuite.java
-// and integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite.java
-tasks.register<Test>("in-container-aurora-mysql") {
-    filter.includeTestsMatching("integration.container.aurora.mysql.mysqldriver.MysqlAuroraMysqlTestSuite")
-    filter.includeTestsMatching("integration.container.aurora.mysql.mariadbdriver.MariadbAuroraMysqlTestSuite")
-}
-
-// Integration tests are run in a specific order.
-// To add more tests, see integration.container.standard.mysql.mysqldriver.StandardMysqlTestSuite.java
-// and integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite.java
-tasks.register<Test>("in-container-standard-mysql") {
-    filter.includeTestsMatching("integration.container.standard.mysql.mysqldriver.MysqlStandardMysqlTestSuite")
-    filter.includeTestsMatching("integration.container.standard.mysql.mariadbdriver.MariadbStandardMysqlTestSuite")
-}
-
-tasks.register<Test>("in-container-standard-mariadb") {
-    filter.includeTestsMatching("integration.container.standard.mariadb.StandardMariadbTestSuite")
-}
-
-tasks.withType<Test> {
-    testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test")
-    classpath += fileTree("./libs") { include("*.jar") } + project.files("./test")
-    outputs.upToDateWhen { false }
-    useJUnitPlatform()
+tasks.register<Test>("in-container") {
+    filter.includeTestsMatching("integration.refactored.container.tests.*")
 }

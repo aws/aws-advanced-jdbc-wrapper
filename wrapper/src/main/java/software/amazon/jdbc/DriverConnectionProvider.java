@@ -19,13 +19,13 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.util.PropertyUtils;
 
 /**
- * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and returns a connection
- * provided by a target driver or a data source.
+ * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
+ * returns a connection provided by a target driver or a data source.
  */
 public class DriverConnectionProvider implements ConnectionProvider {
 
@@ -42,7 +42,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
    *
    * @param protocol The connection protocol (example "jdbc:mysql://")
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props    The Properties to use for the connection
+   * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
@@ -52,19 +52,22 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
-    final String databaseName = PropertyDefinition.DATABASE.getString(props) != null
-        ? PropertyDefinition.DATABASE.getString(props)
-        : "";
+    final String databaseName =
+        PropertyDefinition.DATABASE.getString(props) != null
+            ? PropertyDefinition.DATABASE.getString(props)
+            : "";
     final StringBuilder urlBuilder = new StringBuilder();
     urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
 
     // In the case where we are connecting to MySQL using MariaDB driver,
     // we need to append "?permitMysqlScheme" to the connection URL
-    if (protocol.startsWith("jdbc:mysql:") && props.stringPropertyNames().contains("permitMysqlScheme")) {
+    if (protocol.startsWith("jdbc:mysql:")
+        && props.stringPropertyNames().contains("permitMysqlScheme")) {
       urlBuilder.append("?permitMysqlScheme");
     }
 
     LOGGER.finest(() -> "Connecting to " + urlBuilder);
+    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
 
     return this.driver.connect(urlBuilder.toString(), props);
   }
