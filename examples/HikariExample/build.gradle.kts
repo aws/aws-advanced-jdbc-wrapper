@@ -16,6 +16,6 @@
 
 dependencies {
     implementation("org.postgresql:postgresql:42.5.0")
-    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:1.0.0")
+    implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("com.zaxxer:HikariCP:4.0.3")
 }
