@@ -22,7 +22,7 @@ dependencies {
     jmhImplementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("org.postgresql:postgresql:42.5.0")
     implementation("mysql:mysql-connector-java:8.0.31")
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.1.1")
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.1.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
     testImplementation("org.mockito:mockito-inline:4.8.0")
