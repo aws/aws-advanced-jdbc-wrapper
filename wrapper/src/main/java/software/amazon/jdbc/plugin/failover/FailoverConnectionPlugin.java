@@ -42,6 +42,7 @@ import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -98,6 +99,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private PluginManagerService pluginManagerService;
   private boolean isInTransaction = false;
   private RdsUrlType rdsUrlType;
+  private final AuroraStaleDnsHelper staleDnsHelper;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -154,6 +156,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     initSettings();
+
+    this.staleDnsHelper = new AuroraStaleDnsHelper(this.pluginService);
   }
 
   @Override
@@ -750,7 +754,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected boolean shouldExceptionTriggerConnectionSwitch(final Throwable t) {
-    // TODO: support other drivers
 
     if (!isFailoverEnabled()) {
       LOGGER.fine(() -> Messages.get("Failover.failoverDisabled"));
@@ -790,7 +793,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    final Connection conn = connectFunc.call();
+    final Connection conn = this.staleDnsHelper.getVerifiedConnection(driverProtocol, hostSpec, props, connectFunc);
 
     if (isInitialConnection) {
       this.pluginService.refreshHostList(conn);

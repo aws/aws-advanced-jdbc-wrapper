@@ -33,6 +33,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
  * After Aurora DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
@@ -51,8 +52,16 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsPlugin.class.getName());
 
-  private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
-      Arrays.asList("connect", "initHostProvider", "notifyNodeListChanged", "*")));
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+          add("initHostProvider");
+          add("connect");
+          add("notifyNodeListChanged");
+        }
+      });
+
   private final PluginService pluginService;
   private final AuroraStaleDnsHelper helper;
 
