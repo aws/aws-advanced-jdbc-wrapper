@@ -174,7 +174,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     if (updatedCurrentHost == null) {
-      logAndThrowException("ReadWriteSplittingPlugin.errorUpdatingHostSpecRole");
+      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorUpdatingHostSpecRole"));
       return null;
     }
 
@@ -585,7 +585,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     if (writerHost == null) {
-      logAndThrowException("ReadWriteSplittingPlugin.noWriterFound");
+      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noWriterFound"));
     }
 
     return writerHost;

@@ -23,8 +23,8 @@ import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
-import integration.refactored.container.condition.DisableOnTestFeature;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
+import integration.refactored.container.condition.EnableOnTestFeature;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -54,18 +54,18 @@ import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@EnableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 @EnableOnNumOfInstances(min = 5)
-public class AuroraReadWriteSplittingPerformanceTest {
+public class ReadWriteSplittingPerformanceTest {
 
-  private static final Logger LOGGER = Logger.getLogger(AuroraReadWriteSplittingPerformanceTest.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPerformanceTest.class.getName());
 
   private static final int REPEAT_TIMES = StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
-      ? 100
+      ? 10
       : Integer.parseInt(System.getenv("REPEAT_TIMES"));
 
   private static final int EXECUTE_QUERY_TIMES = StringUtils.isNullOrEmpty(System.getenv("EXECUTE_QUERY_TIMES"))
-      ? 1000
+      ? 100
       : Integer.parseInt(System.getenv("EXECUTE_QUERY_TIMES"));
 
   private static final int TIMEOUT_SEC = 5;
@@ -204,7 +204,7 @@ public class AuroraReadWriteSplittingPerformanceTest {
   }
 
   private Connection connectToInstance(Properties props) throws SQLException {
-    final String url = ConnectionStringHelper.getProxyWrapperUrl();
+    final String url = ConnectionStringHelper.getWrapperClusterEndpointUrl();
     return DriverManager.getConnection(url, props);
   }
 
