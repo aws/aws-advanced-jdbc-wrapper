@@ -41,7 +41,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsService;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -55,7 +55,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       "secretsManagerRegion", "us-east-1",
       "The region of the secret to retrieve.");
 
-  protected static final Map<Pair<String, Region>, Secret> SECRET_CACHE = new ConcurrentHashMap<>();
+  protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
   private final SecretsManagerClient secretsManagerClient;
   private final GetSecretValueRequest getSecretValueRequest;
@@ -123,7 +123,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
     } else {
       this.secretsManagerClient = SecretsManagerClient.builder()
-          .credentialsProvider(AwsCredentialsService.getProvider())
+          .credentialsProvider(AwsCredentialsManager.getProvider())
           .region(region)
           .build();
       this.getSecretValueRequest = GetSecretValueRequest.builder()
@@ -183,14 +183,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private boolean updateSecret(boolean forceReFetch) throws SQLException {
 
     boolean fetched = false;
-    this.secret = SECRET_CACHE.get(this.secretKey);
+    this.secret = secretsCache.get(this.secretKey);
 
     if (secret == null || forceReFetch) {
       try {
         this.secret = fetchLatestCredentials();
         if (this.secret != null) {
           fetched = true;
-          SECRET_CACHE.put(this.secretKey, this.secret);
+          secretsCache.put(this.secretKey, this.secret);
         }
       } catch (SecretsManagerException | JsonProcessingException exception) {
         LOGGER.log(

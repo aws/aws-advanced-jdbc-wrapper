@@ -104,7 +104,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @AfterEach
   void cleanUp() throws Exception {
     closeable.close();
-    AwsSecretsManagerConnectionPlugin.SECRET_CACHE.clear();
+    AwsSecretsManagerConnectionPlugin.secretsCache.clear();
     TEST_PROPS.clear();
   }
 
@@ -114,11 +114,11 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithCachedSecrets() throws SQLException {
     // Add initial cached secret to be used for a connection.
-    AwsSecretsManagerConnectionPlugin.SECRET_CACHE.put(SECRET_CACHE_KEY, TEST_SECRET);
+    AwsSecretsManagerConnectionPlugin.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -136,7 +136,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -149,7 +149,7 @@ public class AwsSecretsManagerConnectionPluginTest {
    */
   @Test
   public void testFailedInitialConnectionWithUnhandledError() throws SQLException {
-    AwsSecretsManagerConnectionPlugin.SECRET_CACHE.put(SECRET_CACHE_KEY, TEST_SECRET);
+    AwsSecretsManagerConnectionPlugin.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
     final SQLException failedFirstConnectionGenericException = new SQLException(TEST_SQL_ERROR, UNHANDLED_ERROR_CODE);
     doThrow(failedFirstConnectionGenericException).when(connectFunc).call();
 
@@ -186,7 +186,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     // Fail the initial connection attempt with cached secret.
     // Second attempt should be successful.
-    AwsSecretsManagerConnectionPlugin.SECRET_CACHE.put(SECRET_CACHE_KEY, TEST_SECRET);
+    AwsSecretsManagerConnectionPlugin.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
     final SQLException failedFirstConnectionAccessException = new SQLException(TEST_SQL_ERROR,
         accessError);
     doThrow(failedFirstConnectionAccessException).when(connectFunc).call();
@@ -202,7 +202,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(connectFunc, times(2)).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -232,7 +232,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         readSecretsFailedException.getMessage(),
         Messages.get(
             "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-    assertEquals(0, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(0, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();
   }
@@ -259,7 +259,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         getSecretsFailedException.getMessage(),
         Messages.get(
             "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-    assertEquals(0, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(0, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();
   }
@@ -290,7 +290,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -320,7 +320,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -350,7 +350,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.SECRET_CACHE.size());
+    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));

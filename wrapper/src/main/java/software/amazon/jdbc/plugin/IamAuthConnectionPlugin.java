@@ -33,7 +33,7 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsService;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -153,7 +153,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       final int port,
       final Region region) {
     final RdsUtilities utilities = RdsUtilities.builder()
-        .credentialsProvider(AwsCredentialsService.getProvider())
+        .credentialsProvider(AwsCredentialsManager.getProvider())
         .region(region)
         .build();
     return utilities.generateAuthenticationToken((builder) ->

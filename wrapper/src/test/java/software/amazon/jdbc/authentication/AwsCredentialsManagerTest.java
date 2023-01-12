@@ -33,7 +33,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
-class AwsCredentialsServiceTest {
+class AwsCredentialsManagerTest {
 
   private AutoCloseable closeable;
 
@@ -45,7 +45,7 @@ class AwsCredentialsServiceTest {
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockSupplier.get()).thenReturn(mockProvider2);
-    AwsCredentialsService.resetCustomSupplier();
+    AwsCredentialsManager.resetCustomSupplier();
   }
 
   @AfterEach
@@ -55,46 +55,46 @@ class AwsCredentialsServiceTest {
 
   @Test
   public void testCustomSupplierGetterSetter() {
-    assertTrue(AwsCredentialsService.getProvider() instanceof DefaultCredentialsProvider);
+    assertTrue(AwsCredentialsManager.getProvider() instanceof DefaultCredentialsProvider);
 
-    AwsCredentialsService.setCustomSupplier(() -> mockProvider1, 15, TimeUnit.SECONDS);
-    assertEquals(mockProvider1, AwsCredentialsService.getProvider());
-    assertEquals(mockProvider1, AwsCredentialsService.PROVIDER_CACHE);
-    assertEquals(15, AwsCredentialsService.cacheTimeout);
-    assertEquals(TimeUnit.SECONDS, AwsCredentialsService.timeoutUnit);
+    AwsCredentialsManager.setCustomSupplier(() -> mockProvider1, 15, TimeUnit.SECONDS);
+    assertEquals(mockProvider1, AwsCredentialsManager.getProvider());
+    assertEquals(mockProvider1, AwsCredentialsManager.providerCache);
+    assertEquals(15, AwsCredentialsManager.cacheTimeout);
+    assertEquals(TimeUnit.SECONDS, AwsCredentialsManager.timeoutUnit);
 
-    AwsCredentialsService.setCustomSupplier(mockSupplier);
-    assertEquals(mockSupplier, AwsCredentialsService.customSupplier);
-    assertNull(AwsCredentialsService.PROVIDER_CACHE);
-    assertEquals(mockProvider2, AwsCredentialsService.getProvider());
-    assertEquals(mockProvider2, AwsCredentialsService.PROVIDER_CACHE);
-    assertEquals(0, AwsCredentialsService.cacheTimeout);
-    assertNull(AwsCredentialsService.timeoutUnit);
+    AwsCredentialsManager.setCustomSupplier(mockSupplier);
+    assertEquals(mockSupplier, AwsCredentialsManager.customSupplier);
+    assertNull(AwsCredentialsManager.providerCache);
+    assertEquals(mockProvider2, AwsCredentialsManager.getProvider());
+    assertNull(AwsCredentialsManager.providerCache);
+    assertEquals(0, AwsCredentialsManager.cacheTimeout);
+    assertNull(AwsCredentialsManager.timeoutUnit);
 
-    AwsCredentialsService.getProvider();
+    AwsCredentialsManager.getProvider();
     verify(mockSupplier, times(2)).get();
   }
 
   @Test
   public void testResetCustomSupplier() {
-    AwsCredentialsService.setCustomSupplier(() -> mockProvider1, 15, TimeUnit.SECONDS);
-    AwsCredentialsService.resetCustomSupplier();
-    assertNull(AwsCredentialsService.PROVIDER_CACHE);
-    assertEquals(0, AwsCredentialsService.cacheTimeout);
-    assertNull(AwsCredentialsService.timeoutUnit);
+    AwsCredentialsManager.setCustomSupplier(() -> mockProvider1, 15, TimeUnit.SECONDS);
+    AwsCredentialsManager.resetCustomSupplier();
+    assertNull(AwsCredentialsManager.providerCache);
+    assertEquals(0, AwsCredentialsManager.cacheTimeout);
+    assertNull(AwsCredentialsManager.timeoutUnit);
   }
 
   @Test
   public void testCacheExpiration() throws InterruptedException {
-    AwsCredentialsService.setCustomSupplier(mockSupplier, 15, TimeUnit.SECONDS);
-    AwsCredentialsService.getProvider();
-    AwsCredentialsService.getProvider();
+    AwsCredentialsManager.setCustomSupplier(mockSupplier, 15, TimeUnit.SECONDS);
+    AwsCredentialsManager.getProvider();
+    AwsCredentialsManager.getProvider();
     verify(mockSupplier, times(1)).get();
 
-    AwsCredentialsService.setCustomSupplier(mockSupplier, 100, TimeUnit.MILLISECONDS);
-    AwsCredentialsService.getProvider();
+    AwsCredentialsManager.setCustomSupplier(mockSupplier, 100, TimeUnit.MILLISECONDS);
+    AwsCredentialsManager.getProvider();
     Thread.sleep(100);
-    AwsCredentialsService.getProvider();
+    AwsCredentialsManager.getProvider();
     verify(mockSupplier, times(3)).get();
   }
 }

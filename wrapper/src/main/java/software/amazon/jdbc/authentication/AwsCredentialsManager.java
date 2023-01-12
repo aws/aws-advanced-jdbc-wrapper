@@ -21,28 +21,29 @@ import java.util.function.Supplier;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
-
-public class AwsCredentialsService {
+public class AwsCredentialsManager {
   static Supplier<AwsCredentialsProvider> customSupplier = null;
   static int cacheTimeout = 0;
   static TimeUnit timeoutUnit;
   static long lastRefreshTimeNano;
-  static AwsCredentialsProvider PROVIDER_CACHE = null;
+  static AwsCredentialsProvider providerCache = null;
 
-  public static void setCustomSupplier(Supplier<AwsCredentialsProvider> customSupplier) {
-    AwsCredentialsService.customSupplier = customSupplier;
+  public static synchronized void setCustomSupplier(
+      Supplier<AwsCredentialsProvider> customSupplier) {
+    AwsCredentialsManager.customSupplier = customSupplier;
     clearCache();
   }
 
-  public static void setCustomSupplier(Supplier<AwsCredentialsProvider> customSupplier, int timeout,
+  public static synchronized void setCustomSupplier(Supplier<AwsCredentialsProvider> customSupplier,
+      int timeout,
       TimeUnit timeoutUnits) {
-    AwsCredentialsService.customSupplier = customSupplier;
-    AwsCredentialsService.cacheTimeout = timeout;
-    AwsCredentialsService.timeoutUnit = timeoutUnits;
-    PROVIDER_CACHE = null;
+    AwsCredentialsManager.customSupplier = customSupplier;
+    AwsCredentialsManager.cacheTimeout = timeout;
+    AwsCredentialsManager.timeoutUnit = timeoutUnits;
+    providerCache = null;
   }
 
-  public static void resetCustomSupplier() {
+  public static synchronized void resetCustomSupplier() {
     customSupplier = null;
     clearCache();
   }
@@ -50,19 +51,18 @@ public class AwsCredentialsService {
   private static void clearCache() {
     cacheTimeout = 0;
     timeoutUnit = null;
-    PROVIDER_CACHE = null;
+    providerCache = null;
   }
 
-  public static AwsCredentialsProvider getProvider() {
-    if (PROVIDER_CACHE == null || cacheTimeout == 0 || timeoutUnit == null) {
-      return refreshProvider();
-    }
-
+  public static synchronized AwsCredentialsProvider getProvider() {
     long timeSinceLastRefreshNano = System.nanoTime() - lastRefreshTimeNano;
-    if (timeSinceLastRefreshNano >= timeoutUnit.toNanos(cacheTimeout)) {
+    if (providerCache == null
+        || cacheTimeout == 0
+        || timeoutUnit == null
+        || timeSinceLastRefreshNano > timeoutUnit.toNanos(cacheTimeout)) {
       return refreshProvider();
     } else {
-      return PROVIDER_CACHE;
+      return providerCache;
     }
   }
 
@@ -74,8 +74,10 @@ public class AwsCredentialsService {
       provider = getDefaultProvider();
     }
 
-    lastRefreshTimeNano = System.nanoTime();
-    PROVIDER_CACHE = provider;
+    if (cacheTimeout != 0 && timeoutUnit != null) {
+      lastRefreshTimeNano = System.nanoTime();
+      providerCache = provider;
+    }
     return provider;
   }
 
