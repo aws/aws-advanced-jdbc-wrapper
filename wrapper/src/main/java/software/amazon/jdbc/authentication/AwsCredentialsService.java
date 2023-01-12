@@ -16,11 +16,11 @@
 
 package software.amazon.jdbc.authentication;
 
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 public class AwsCredentialsService {
   static Supplier<AwsCredentialsProvider> customSupplier = null;
@@ -34,7 +34,8 @@ public class AwsCredentialsService {
     clearCache();
   }
 
-  public static void setCustomSupplier(Supplier<AwsCredentialsProvider> customSupplier, int timeout, TimeUnit timeoutUnits) {
+  public static void setCustomSupplier(Supplier<AwsCredentialsProvider> customSupplier, int timeout,
+      TimeUnit timeoutUnits) {
     AwsCredentialsService.customSupplier = customSupplier;
     AwsCredentialsService.cacheTimeout = timeout;
     AwsCredentialsService.timeoutUnit = timeoutUnits;
