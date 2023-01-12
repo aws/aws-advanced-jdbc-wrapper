@@ -41,6 +41,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -122,6 +123,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
     } else {
       this.secretsManagerClient = SecretsManagerClient.builder()
+          .credentialsProvider(AwsCredentialsService.getProvider())
           .region(region)
           .build();
       this.getSecretValueRequest = GetSecretValueRequest.builder()
