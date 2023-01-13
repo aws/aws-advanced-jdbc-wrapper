@@ -18,30 +18,37 @@ package software.amazon.jdbc.benchmarks;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.sql.ResultSet;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Level;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-
-import software.amazon.jdbc.Driver;
-
+import java.util.concurrent.TimeUnit;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 import org.postgresql.PGProperty;
-
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
 @State(Scope.Benchmark)
+@Fork(1)
+@Warmup(iterations = 1)
+@Measurement(iterations = 1)
+@BenchmarkMode(Mode.SingleShotTime)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class ReadWriteSplittingLoadBenchmarks {
 
   // User configures connection properties here
@@ -50,29 +57,10 @@ public class ReadWriteSplittingLoadBenchmarks {
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
 
+  private static final int NUM_ITERATIONS = 10;
   private static final int NUM_THREADS = 10;
-  private static final int EXECUTE_QUERY_TIMES = 5;
-  protected static final String QUERY_1 = "select " +
-      "l_returnflag, " +
-      "l_linestatus, " +
-      "sum(l_quantity) as sum_qty, " +
-      "sum(l_extendedprice) as sum_base_price, " +
-      "sum(l_extendedprice * (1 - l_discount)) as sum_disc_price, " +
-      "sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) as sum_charge, " +
-      "avg(l_quantity) as avg_qty, " +
-      "avg(l_extendedprice) as avg_price, " +
-      "avg(l_discount) as avg_disc, " +
-      "count(*) as count_order " +
-      "from " +
-      "LINEITEM " +
-      "where " +
-      "l_shipdate <= date '1998-12-01' - interval '110' day " +
-      "group by " +
-      "l_returnflag, " +
-      "l_linestatus " +
-      "order by " +
-      "l_returnflag, " +
-      "l_linestatus;";
+  private static final int NUM_EXECUTE_QUERIES = 10;
+  protected static final String QUERY_1 = "SELECT pg_sleep(10)";
 
   @Setup(Level.Iteration)
   public static void setUp() throws SQLException {
@@ -85,14 +73,16 @@ public class ReadWriteSplittingLoadBenchmarks {
     }
   }
 
+  protected static Connection connectToInstance(String url, Properties props)
+      throws SQLException {
+    return DriverManager.getConnection(url, props);
+  }
+
   protected static Properties initNoPluginPropsWithTimeouts() {
     final Properties props = new Properties();
     props.setProperty(PGProperty.USER.getName(), USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), PASSWORD);
     props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
-    props.setProperty(PGProperty.CONNECT_TIMEOUT.getName(), "5");
-    props.setProperty(PGProperty.SOCKET_TIMEOUT.getName(), "5");
-
     return props;
   }
 
@@ -109,87 +99,67 @@ public class ReadWriteSplittingLoadBenchmarks {
     return props;
   }
 
-  protected static Connection connectToInstance(String instanceUrl, Properties props)
-      throws SQLException {
-    return DriverManager.getConnection(instanceUrl, props);
-  }
-
-  @Benchmark
-  public void noPluginEnabledBenchmarkTest() {
-    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-      connectionThreadsList.add(getThread_PGReadWriteSplitting(initNoPluginPropsWithTimeouts()));
-    }
-
-    // start all connection threads
-    for (Thread connectionThread : connectionThreadsList) {
-      connectionThread.start();
-    }
-
-    // stop all connection threads
-    for (Thread connectionThread : connectionThreadsList) {
-      connectionThread.interrupt();
-    }
-  }
-
-  @Benchmark
-  public void readWriteSplittingPluginEnabledBenchmarkTest() {
-    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-      connectionThreadsList.add(getThread_PGReadWriteSplitting(initReadWritePluginProps()));
-    }
-
-    // start all connection threads
-    for (Thread connectionThread : connectionThreadsList) {
-      connectionThread.start();
-    }
-
-    // stop all connection threads
-    for (Thread connectionThread : connectionThreadsList) {
-      connectionThread.interrupt();
-    }
-  }
-
-  @Benchmark
-  public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() {
-    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-      connectionThreadsList.add(
-          getThread_PGReadWriteSplitting(initReadWritePluginLoadBalancingProps()));
-    }
-
-    // start all connection threads
-    for (Thread connectionThread : connectionThreadsList) {
-      connectionThread.start();
-    }
-
-    // stop all connection threads
-    for (Thread connectionThread : connectionThreadsList) {
-      connectionThread.interrupt();
-    }
-  }
-
-  private Thread getThread_PGReadWriteSplitting(Properties props) {
+  private Thread getThread_PGReadWriteSplitting(final Properties props) {
     return new Thread(() -> {
       try (Connection conn = connectToInstance(POSTGRESQL_CONNECTION_STRING, props);
-           final Statement statement = conn.createStatement();
-           final ResultSet result = statement.executeQuery(QUERY_1)) {
+           final Statement stmt1 = conn.createStatement()) {
+
+        stmt1.executeQuery(QUERY_1);
 
         // switch to reader if read-write splitting plugin is enabled
         conn.setReadOnly(true);
 
         // execute multiple queries to trigger reader load balancing, if enabled
-        for (int i = 0; i < EXECUTE_QUERY_TIMES; i++) {
-          statement.executeQuery(QUERY_1);
+        for (int i = 0; i < NUM_EXECUTE_QUERIES; i++) {
+          try (Statement statement2 = conn.createStatement()) {
+
+            statement2.executeQuery(QUERY_1);
+          }
         }
-      } catch (Exception exception) {
+      } catch (Exception e) {
+        fail("Encountered an error while executing benchmark load test: " + e.getMessage());
       }
     });
   }
 
+  private void runBenchmarkTest(Properties props) throws InterruptedException {
+    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
+
+    for (int j = 0; j < NUM_THREADS; j++) {
+      connectionThreadsList.add(getThread_PGReadWriteSplitting(props));
+    }
+
+    // start all connection threads
+    for (Thread connectionThread : connectionThreadsList) {
+      connectionThread.start();
+    }
+
+    // stop all connection threads after finishing
+    for (Thread connectionThread : connectionThreadsList) {
+      connectionThread.join();
+    }
+  }
+
+  @Benchmark
+  public void noPluginEnabledBenchmarkTest() throws InterruptedException {
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
+      runBenchmarkTest(initNoPluginPropsWithTimeouts());
+    }
+  }
+
+  @Benchmark
+  public void readWriteSplittingPluginEnabledBenchmarkTest() throws InterruptedException {
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
+      runBenchmarkTest(initReadWritePluginProps());
+    }
+  }
+
+  @Benchmark
+  public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() throws InterruptedException {
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
+      runBenchmarkTest(initReadWritePluginLoadBalancingProps());
+    }
+  }
 
   public static void main(String[] args) throws Exception {
     org.openjdk.jmh.Main.main(args);
