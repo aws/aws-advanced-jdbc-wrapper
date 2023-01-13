@@ -54,10 +54,9 @@ public class ReadWriteSplittingLoadBenchmarks {
 
   // User configures connection properties here
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://atlas-postgres.cluster-czygpppufgy4.us-east-2.rds.amazonaws" +
-          ".com:5432/postgres";
-  private static final String USERNAME = "pgadmin";
-  private static final String PASSWORD = "my_password_2020";
+      "jdbc:aws-wrapper:postgresql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
+  private static final String USERNAME = "username";
+  private static final String PASSWORD = "password";
 
   private static final int NUM_ITERATIONS = 10;
   private static final int NUM_THREADS = 10;
