@@ -39,13 +39,13 @@ class AwsCredentialsManagerTest {
 
   @Mock AwsCredentialsProvider mockProvider1;
   @Mock AwsCredentialsProvider mockProvider2;
-  @Mock Supplier<AwsCredentialsProvider> mockSupplier;
+  @Mock Supplier<AwsCredentialsProvider> mockHandler;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockSupplier.get()).thenReturn(mockProvider2);
-    AwsCredentialsManager.resetCustomSupplier();
+    when(mockHandler.get()).thenReturn(mockProvider1);
+    AwsCredentialsManager.resetCustomHandler();
   }
 
   @AfterEach
@@ -54,47 +54,53 @@ class AwsCredentialsManagerTest {
   }
 
   @Test
-  public void testCustomSupplierGetterSetter() {
+  public void testCustomHandlerGetterSetter() {
     assertTrue(AwsCredentialsManager.getProvider() instanceof DefaultCredentialsProvider);
 
-    AwsCredentialsManager.setCustomSupplier(() -> mockProvider1, 15, TimeUnit.SECONDS);
-    assertEquals(mockProvider1, AwsCredentialsManager.getProvider());
-    assertEquals(mockProvider1, AwsCredentialsManager.providerCache);
-    assertEquals(15, AwsCredentialsManager.cacheTimeout);
+    AwsCredentialsManager.setCustomHandler(() -> mockProvider2, 15, TimeUnit.SECONDS);
+    assertEquals(mockProvider2, AwsCredentialsManager.getProvider());
+    assertEquals(mockProvider2, AwsCredentialsManager.providerCache);
+    assertEquals(15, AwsCredentialsManager.timeout);
     assertEquals(TimeUnit.SECONDS, AwsCredentialsManager.timeoutUnit);
 
-    AwsCredentialsManager.setCustomSupplier(mockSupplier);
-    assertEquals(mockSupplier, AwsCredentialsManager.customSupplier);
+    AwsCredentialsManager.setCustomHandler(mockHandler);
+    assertEquals(mockHandler, AwsCredentialsManager.handler);
     assertNull(AwsCredentialsManager.providerCache);
-    assertEquals(mockProvider2, AwsCredentialsManager.getProvider());
+    assertEquals(mockProvider1, AwsCredentialsManager.getProvider());
     assertNull(AwsCredentialsManager.providerCache);
-    assertEquals(0, AwsCredentialsManager.cacheTimeout);
+    assertEquals(0, AwsCredentialsManager.timeout);
     assertNull(AwsCredentialsManager.timeoutUnit);
 
     AwsCredentialsManager.getProvider();
-    verify(mockSupplier, times(2)).get();
+    verify(mockHandler, times(2)).get();
   }
 
   @Test
-  public void testResetCustomSupplier() {
-    AwsCredentialsManager.setCustomSupplier(() -> mockProvider1, 15, TimeUnit.SECONDS);
-    AwsCredentialsManager.resetCustomSupplier();
+  public void testResetCustomHandler() {
+    AwsCredentialsManager.setCustomHandler(() -> mockProvider2, 15, TimeUnit.SECONDS);
+    AwsCredentialsManager.resetCustomHandler();
     assertNull(AwsCredentialsManager.providerCache);
-    assertEquals(0, AwsCredentialsManager.cacheTimeout);
+    assertEquals(0, AwsCredentialsManager.timeout);
     assertNull(AwsCredentialsManager.timeoutUnit);
   }
 
   @Test
-  public void testCacheExpiration() throws InterruptedException {
-    AwsCredentialsManager.setCustomSupplier(mockSupplier, 15, TimeUnit.SECONDS);
+  public void testCache() throws InterruptedException {
+    AwsCredentialsManager.setCustomHandler(mockHandler, 15, TimeUnit.SECONDS);
     AwsCredentialsManager.getProvider();
     AwsCredentialsManager.getProvider();
-    verify(mockSupplier, times(1)).get();
+    verify(mockHandler, times(1)).get();
 
-    AwsCredentialsManager.setCustomSupplier(mockSupplier, 100, TimeUnit.MILLISECONDS);
+    AwsCredentialsManager.configureCache(10000, TimeUnit.MILLISECONDS);
+    assertEquals(10000,  AwsCredentialsManager.timeout);
+    assertEquals(TimeUnit.MILLISECONDS, AwsCredentialsManager.timeoutUnit);
+    assertEquals(mockHandler, AwsCredentialsManager.handler);
+    assertEquals(mockProvider1, AwsCredentialsManager.providerCache);
+
+    AwsCredentialsManager.setCustomHandler(mockHandler, 100, TimeUnit.MILLISECONDS);
     AwsCredentialsManager.getProvider();
     Thread.sleep(100);
     AwsCredentialsManager.getProvider();
-    verify(mockSupplier, times(3)).get();
+    verify(mockHandler, times(3)).get();
   }
 }
