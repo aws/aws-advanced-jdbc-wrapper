@@ -22,6 +22,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
@@ -36,12 +38,14 @@ public class AwsCredentialsManagerExample {
 
     final Properties properties = new Properties();
 
-    // Enable AWS IAM database authentication and configure driver property values
+    // Enable AWS IAM database authentication and configure driver property values.
     properties.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     properties.setProperty(PropertyDefinition.USER.name, USERNAME);
 
-    // Configure AwsCredentialsManager to use EnvironmentVariableCredentialsProvider
-    AwsCredentialsManager.setCustomHandler(() -> EnvironmentVariableCredentialsProvider.create());
+    // Configure AwsCredentialsManager to use EnvironmentVariableCredentialsProvider.
+    // The provider will be cached, with a cache expiration of 3 minutes.
+    AwsCredentialsManager.setCustomHandler(() -> EnvironmentVariableCredentialsProvider.create(),
+        3, TimeUnit.MINUTES);
 
     // Attempt a connection
     try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, properties);
