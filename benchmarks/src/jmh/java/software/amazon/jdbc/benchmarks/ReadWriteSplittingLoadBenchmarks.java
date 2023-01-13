@@ -18,7 +18,6 @@ package software.amazon.jdbc.benchmarks;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -60,7 +59,7 @@ public class ReadWriteSplittingLoadBenchmarks {
   private static final int NUM_ITERATIONS = 10;
   private static final int NUM_THREADS = 10;
   private static final int NUM_EXECUTE_QUERIES = 10;
-  protected static final String QUERY_1 = "SELECT pg_sleep(10)";
+  private static final String QUERY_1 = "SELECT pg_sleep(10)";
 
   @Setup(Level.Iteration)
   public static void setUp() throws SQLException {
@@ -73,7 +72,7 @@ public class ReadWriteSplittingLoadBenchmarks {
     }
   }
 
-  protected static Connection connectToInstance(String url, Properties props)
+  protected static Connection connectToInstance(final String url, final Properties props)
       throws SQLException {
     return DriverManager.getConnection(url, props);
   }
@@ -102,8 +101,7 @@ public class ReadWriteSplittingLoadBenchmarks {
   private Thread getThread_PGReadWriteSplitting(final Properties props) {
     return new Thread(() -> {
       try (Connection conn = connectToInstance(POSTGRESQL_CONNECTION_STRING, props);
-           final Statement stmt1 = conn.createStatement()) {
-
+           Statement stmt1 = conn.createStatement()) {
         stmt1.executeQuery(QUERY_1);
 
         // switch to reader if read-write splitting plugin is enabled
@@ -112,10 +110,10 @@ public class ReadWriteSplittingLoadBenchmarks {
         // execute multiple queries to trigger reader load balancing, if enabled
         for (int i = 0; i < NUM_EXECUTE_QUERIES; i++) {
           try (Statement statement2 = conn.createStatement()) {
-
             statement2.executeQuery(QUERY_1);
           }
         }
+
       } catch (Exception e) {
         fail("Encountered an error while executing benchmark load test: " + e.getMessage());
       }
@@ -123,7 +121,7 @@ public class ReadWriteSplittingLoadBenchmarks {
   }
 
   private void runBenchmarkTest(Properties props) throws InterruptedException {
-    final List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
+    List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
 
     for (int j = 0; j < NUM_THREADS; j++) {
       connectionThreadsList.add(getThread_PGReadWriteSplitting(props));
