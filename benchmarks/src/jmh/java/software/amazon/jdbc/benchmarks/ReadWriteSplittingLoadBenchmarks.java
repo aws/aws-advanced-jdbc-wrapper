@@ -26,6 +26,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -36,6 +37,7 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Timeout;
 import org.openjdk.jmh.annotations.Warmup;
 import org.postgresql.PGProperty;
 import software.amazon.jdbc.Driver;
@@ -45,8 +47,9 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @State(Scope.Benchmark)
 @Fork(1)
 @Warmup(iterations = 1)
+@Timeout(time = 10, timeUnit = TimeUnit.HOURS)
 @Measurement(iterations = 1)
-@BenchmarkMode(Mode.SingleShotTime)
+@BenchmarkMode({Mode.SingleShotTime})
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class ReadWriteSplittingLoadBenchmarks {
 
@@ -120,7 +123,7 @@ public class ReadWriteSplittingLoadBenchmarks {
     });
   }
 
-  private void runBenchmarkTest(Properties props) throws InterruptedException {
+  private void runBenchmarkTest(Properties props) {
     List<Thread> connectionThreadsList = new ArrayList<>(NUM_THREADS);
 
     for (int j = 0; j < NUM_THREADS; j++) {
@@ -134,24 +137,28 @@ public class ReadWriteSplittingLoadBenchmarks {
 
     // stop all connection threads after finishing
     for (Thread connectionThread : connectionThreadsList) {
-      connectionThread.join();
+      try { connectionThread.join();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+
     }
   }
 
-  @Benchmark
-  public void noPluginEnabledBenchmarkTest() throws InterruptedException {
-    for (int i = 0; i < NUM_ITERATIONS; i++) {
-      runBenchmarkTest(initNoPluginPropsWithTimeouts());
-    }
-  }
-
-  @Benchmark
-  public void readWriteSplittingPluginEnabledBenchmarkTest() throws InterruptedException {
-    for (int i = 0; i < NUM_ITERATIONS; i++) {
-      runBenchmarkTest(initReadWritePluginProps());
-    }
-  }
-
+//   @Benchmark
+//   public void noPluginEnabledBenchmarkTest() throws InterruptedException {
+//     for (int i = 0; i < NUM_ITERATIONS; i++) {
+//       runBenchmarkTest(initNoPluginPropsWithTimeouts());
+//     }
+//   }
+//
+//   @Benchmark
+//   public void readWriteSplittingPluginEnabledBenchmarkTest() throws InterruptedException {
+//     for (int i = 0; i < NUM_ITERATIONS; i++) {
+//       runBenchmarkTest(initReadWritePluginProps());
+//     }
+//   }
+//
   @Benchmark
   public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() throws InterruptedException {
     for (int i = 0; i < NUM_ITERATIONS; i++) {
