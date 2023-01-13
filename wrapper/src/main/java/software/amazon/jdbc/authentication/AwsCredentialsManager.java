@@ -38,8 +38,7 @@ public class AwsCredentialsManager {
       int cacheTimeout,
       TimeUnit cacheTimeoutUnit) {
     handler = customHandler;
-    timeout = cacheTimeout;
-    timeoutUnit = cacheTimeoutUnit;
+    configureCache(cacheTimeout, cacheTimeoutUnit);
     providerCache = null;
   }
 
@@ -49,19 +48,21 @@ public class AwsCredentialsManager {
   }
 
   public static synchronized void configureCache(int cacheTimeout, TimeUnit cacheTimeoutUnit) {
+    if (cacheTimeout != 0 && cacheTimeoutUnit == null) {
+      throw new UnsupportedOperationException("AwsCredentialsManager.invalidCacheSettings");
+    }
+
     timeout = cacheTimeout;
     timeoutUnit = cacheTimeoutUnit;
   }
 
   private static void clearCache() {
-    timeout = 0;
-    timeoutUnit = null;
+    configureCache(0, null);
     providerCache = null;
   }
 
   public static synchronized AwsCredentialsProvider getProvider() {
-    long timeSinceLastRefreshNano = System.nanoTime() - lastRefreshTimeNano;
-    if (timeout == 0 || providerCache == null || timeSinceLastRefreshNano >= timeoutUnit.toNanos(timeout)) {
+    if (isProviderFetchNeeded()) {
       AwsCredentialsProvider provider = handler != null ? handler.get() : getDefaultProvider();
       if (timeout == 0) {
         providerCache = null;
@@ -72,6 +73,12 @@ public class AwsCredentialsManager {
       }
     }
     return providerCache;
+  }
+
+  private static boolean isProviderFetchNeeded() {
+    long timeSinceLastRefreshNano = System.nanoTime() - lastRefreshTimeNano;
+    return timeout == 0 || providerCache == null
+        || timeSinceLastRefreshNano >= timeoutUnit.toNanos(timeout);
   }
 
   private static AwsCredentialsProvider getDefaultProvider() {

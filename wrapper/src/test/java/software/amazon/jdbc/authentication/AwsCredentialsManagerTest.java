@@ -18,6 +18,7 @@ package software.amazon.jdbc.authentication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -92,7 +93,7 @@ class AwsCredentialsManagerTest {
     verify(mockHandler, times(1)).get();
 
     AwsCredentialsManager.configureCache(10000, TimeUnit.MILLISECONDS);
-    assertEquals(10000,  AwsCredentialsManager.timeout);
+    assertEquals(10000, AwsCredentialsManager.timeout);
     assertEquals(TimeUnit.MILLISECONDS, AwsCredentialsManager.timeoutUnit);
     assertEquals(mockHandler, AwsCredentialsManager.handler);
     assertEquals(mockProvider1, AwsCredentialsManager.providerCache);
@@ -102,5 +103,8 @@ class AwsCredentialsManagerTest {
     Thread.sleep(100);
     AwsCredentialsManager.getProvider();
     verify(mockHandler, times(3)).get();
+
+    assertThrows(UnsupportedOperationException.class,
+        () -> AwsCredentialsManager.configureCache(15, null));
   }
 }
