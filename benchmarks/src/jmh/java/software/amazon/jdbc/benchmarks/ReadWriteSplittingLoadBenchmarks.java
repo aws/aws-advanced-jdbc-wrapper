@@ -26,7 +26,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -55,9 +54,10 @@ public class ReadWriteSplittingLoadBenchmarks {
 
   // User configures connection properties here
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
-  private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
+      "jdbc:aws-wrapper:postgresql://atlas-postgres.cluster-czygpppufgy4.us-east-2.rds.amazonaws" +
+          ".com:5432/postgres";
+  private static final String USERNAME = "pgadmin";
+  private static final String PASSWORD = "my_password_2020";
 
   private static final int NUM_ITERATIONS = 10;
   private static final int NUM_THREADS = 10;
@@ -145,20 +145,20 @@ public class ReadWriteSplittingLoadBenchmarks {
     }
   }
 
-//   @Benchmark
-//   public void noPluginEnabledBenchmarkTest() throws InterruptedException {
-//     for (int i = 0; i < NUM_ITERATIONS; i++) {
-//       runBenchmarkTest(initNoPluginPropsWithTimeouts());
-//     }
-//   }
-//
-//   @Benchmark
-//   public void readWriteSplittingPluginEnabledBenchmarkTest() throws InterruptedException {
-//     for (int i = 0; i < NUM_ITERATIONS; i++) {
-//       runBenchmarkTest(initReadWritePluginProps());
-//     }
-//   }
-//
+  @Benchmark
+  public void noPluginEnabledBenchmarkTest() throws InterruptedException {
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
+      runBenchmarkTest(initNoPluginPropsWithTimeouts());
+    }
+  }
+
+  @Benchmark
+  public void readWriteSplittingPluginEnabledBenchmarkTest() throws InterruptedException {
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
+      runBenchmarkTest(initReadWritePluginProps());
+    }
+  }
+
   @Benchmark
   public void readWriteSplittingPluginLoadBalancingEnabledBenchmarkTest() throws InterruptedException {
     for (int i = 0; i < NUM_ITERATIONS; i++) {
