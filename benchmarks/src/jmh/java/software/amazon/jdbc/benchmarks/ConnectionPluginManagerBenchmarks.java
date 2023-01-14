@@ -115,6 +115,7 @@ public class ConnectionPluginManagerBenchmarks {
     when(mockResultSet.getString(eq(FIELD_SESSION_ID))).thenReturn(WRITER_SESSION_ID);
     when(mockResultSet.getString(eq(FIELD_SERVER_ID)))
         .thenReturn("myInstance1.domain.com", "myInstance2.domain.com", "myInstance3.domain.com");
+    when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
 
     // Create a plugin chain with 10 custom test plugins.
     final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new ArrayList<>(
