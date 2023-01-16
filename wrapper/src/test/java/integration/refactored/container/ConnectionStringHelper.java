@@ -19,6 +19,7 @@ package integration.refactored.container;
 import integration.refactored.DriverHelper;
 import java.util.Properties;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.StringUtils;
 
 public class ConnectionStringHelper {
 
@@ -106,6 +107,23 @@ public class ConnectionStringHelper {
             .getInstances()
             .get(0)
             .getEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+  }
+
+  public static String getWrapperClusterEndpointUrl() {
+    if (StringUtils.isNullOrEmpty(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())) {
+      throw new RuntimeException("Cluster Endpoint is not available in this test environment.");
+    }
+    return getWrapperUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
   }
 

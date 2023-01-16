@@ -244,7 +244,9 @@ tasks.withType<Test> {
 
     systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
 
-    finalizedBy("junitHtmlReport")
+    if (!name.contains("performance")) {
+        finalizedBy("junitHtmlReport")
+    }
 }
 
 tasks.register<Test>("test-all-environments") {
