@@ -1,0 +1,6 @@
+version: "1.0"
+linter: jetbrains/qodana-jvm-community:2022.2
+exclude:
+  - name: "FieldAccessedSynchronizedAndUnsynchronized"
+    paths:
+      - "wrapper/src/main/java/software/amazon/jdbc/authentication/AwsCredentialsManager.java"
