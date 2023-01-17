@@ -33,9 +33,11 @@ public class AwsCredentialsManager {
     handler = null;
   }
 
-  public static synchronized AwsCredentialsProvider getProvider(HostSpec hostSpec,
+  public static synchronized AwsCredentialsProvider getProvider(
+      HostSpec hostSpec,
       Properties props) {
-    AwsCredentialsProvider provider =  handler != null ? handler.getAwsCredentialsProvider(hostSpec, props)
+    AwsCredentialsProvider provider =  handler != null
+        ? handler.getAwsCredentialsProvider(hostSpec, props)
         : getDefaultProvider();
     if (provider == null) {
       throw new IllegalArgumentException(Messages.get("AwsCredentialsManager.nullProvider"));
