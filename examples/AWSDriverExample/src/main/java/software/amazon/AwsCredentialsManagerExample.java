@@ -68,8 +68,8 @@ public class AwsCredentialsManagerExample {
 
     // Enable AWS IAM database authentication and configure driver property values.
     final Properties mysqlProps = new Properties();
-    postgresProps.setProperty(PropertyDefinition.PLUGINS.name, "iam");
-    postgresProps.setProperty(PropertyDefinition.USER.name, MYSQL_IAM_USER);
+    mysqlProps.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+    mysqlProps.setProperty(PropertyDefinition.USER.name, MYSQL_IAM_USER);
 
     // Connect to MySQL
     try (Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, mysqlProps);
