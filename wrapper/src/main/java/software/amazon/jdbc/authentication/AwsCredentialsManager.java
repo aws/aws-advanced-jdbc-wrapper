@@ -20,6 +20,7 @@ import java.util.Properties;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.Messages;
 
 public class AwsCredentialsManager {
   private static AwsCredentialsProviderHandler handler = null;
@@ -34,8 +35,12 @@ public class AwsCredentialsManager {
 
   public static synchronized AwsCredentialsProvider getProvider(HostSpec hostSpec,
       Properties props) {
-    return handler != null ? handler.getAwsCredentialsProvider(hostSpec, props)
+    AwsCredentialsProvider provider =  handler != null ? handler.getAwsCredentialsProvider(hostSpec, props)
         : getDefaultProvider();
+    if (provider == null) {
+      throw new IllegalArgumentException(Messages.get("AwsCredentialsManager.nullProvider"));
+    }
+    return provider;
   }
 
   private static AwsCredentialsProvider getDefaultProvider() {

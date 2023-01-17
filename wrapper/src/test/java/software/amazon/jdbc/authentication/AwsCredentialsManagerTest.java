@@ -17,6 +17,7 @@
 package software.amazon.jdbc.authentication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -38,6 +39,7 @@ class AwsCredentialsManagerTest {
   @Mock AwsCredentialsProvider mockProvider1;
   @Mock AwsCredentialsProvider mockProvider2;
   @Mock AwsCredentialsProviderHandler mockHandler;
+  @Mock HostSpec mockHostSpec;
   @Mock Properties mockProps;
 
   @BeforeEach
@@ -75,5 +77,12 @@ class AwsCredentialsManagerTest {
     AwsCredentialsManager.resetCustomHandler();
     assertTrue(AwsCredentialsManager.getProvider(postgresHostSpec,
         mockProps) instanceof DefaultCredentialsProvider);
+  }
+
+  @Test
+  public void testNullProvider() {
+    AwsCredentialsManager.setCustomHandler(((hostSpec, props) -> null));
+    assertThrows(IllegalArgumentException.class,
+        () -> AwsCredentialsManager.getProvider(mockHostSpec, mockProps));
   }
 }
