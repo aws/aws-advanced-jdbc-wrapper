@@ -16,12 +16,10 @@
 
 package software.amazon.jdbc.authentication;
 
-import software.amazon.jdbc.HostSpec;
-
+import java.util.Properties;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-
-import java.util.Properties;
+import software.amazon.jdbc.HostSpec;
 
 public class AwsCredentialsManager {
   private static AwsCredentialsProviderHandler handler = null;

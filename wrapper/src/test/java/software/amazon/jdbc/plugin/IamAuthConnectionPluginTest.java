@@ -23,11 +23,10 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import software.amazon.jdbc.Driver;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PropertyDefinition;
-
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Properties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,11 +34,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.regions.Region;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.time.Instant;
-import java.util.Properties;
+import software.amazon.jdbc.Driver;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
 
 class IamAuthConnectionPluginTest {
 

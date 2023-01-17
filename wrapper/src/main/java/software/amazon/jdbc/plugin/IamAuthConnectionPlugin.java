@@ -16,18 +16,6 @@
 
 package software.amazon.jdbc.plugin;
 
-import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsManager;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.StringUtils;
-
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsUtilities;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -39,6 +27,16 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.rds.RdsUtilities;
+import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 
 public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 

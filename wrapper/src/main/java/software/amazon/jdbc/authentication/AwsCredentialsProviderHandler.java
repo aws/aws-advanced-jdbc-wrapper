@@ -16,11 +16,9 @@
 
 package software.amazon.jdbc.authentication;
 
-import software.amazon.jdbc.HostSpec;
-
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-
 import java.util.Properties;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.jdbc.HostSpec;
 
 /**
  * Interface for selecting an {@link AwsCredentialsProvider} based on the passed in parameters.
