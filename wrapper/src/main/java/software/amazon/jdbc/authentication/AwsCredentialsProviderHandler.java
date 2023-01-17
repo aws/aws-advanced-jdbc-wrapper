@@ -16,12 +16,19 @@
 
 package software.amazon.jdbc.authentication;
 
-import java.util.Properties;
+import software.amazon.jdbc.HostSpec;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
-import software.amazon.jdbc.HostSpec;
+import java.util.Properties;
 
+/**
+ * Interface for selecting an {@link AwsCredentialsProvider} based on the passed in parameters.
+ * The AwsCredentialsProviderHandler should be passed to the {@link AwsCredentialsManager} via
+ * {@link AwsCredentialsManager#setCustomHandler(AwsCredentialsProviderHandler)
+ * AwsCredentialsManager.setCustomHandler}.
+ */
+@FunctionalInterface
 public interface AwsCredentialsProviderHandler {
   AwsCredentialsProvider getAwsCredentialsProvider(HostSpec hostSpec, Properties props);
 }
