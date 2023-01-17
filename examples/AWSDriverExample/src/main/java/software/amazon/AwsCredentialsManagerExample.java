@@ -16,41 +16,65 @@
 
 package software.amazon;
 
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
+
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-
-import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsManager;
 
 public class AwsCredentialsManagerExample {
 
+  public static final String POSTGRESQL_URL = "db-identifier-postgres.XYZ.us-east-2.rds.amazonaws.com";
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:5432/employees";
-  private static final String USERNAME = "john_smith";
+      "jdbc:aws-wrapper:postgresql://" + POSTGRESQL_URL + ":5432/employees";
+  private static final String POSTGRESQL_IAM_USER = "pg_iam_user";
+
+  public static final String MYSQL_URL = "db-identifier-mysql.XYZ.us-east-2.rds.amazonaws.com";
+  public static final String MYSQL_CONNECTION_STRING =
+      "jdbc:aws-wrapper:mysql://" + MYSQL_URL + ":3306/items";
+  private static final String MYSQL_IAM_USER = "mysql_iam_user";
 
   public static void main(String[] args) throws SQLException {
 
-    final Properties properties = new Properties();
+    // Configure AwsCredentialsManager to use EnvironmentVariableCredentialsProvider when connecting
+    // to MySQL and DefaultCredentialsProvider otherwise.
+    AwsCredentialsManager.setCustomHandler((hostSpec, props) -> {
+      if (MYSQL_URL.equals(hostSpec.getHost())) {
+        return EnvironmentVariableCredentialsProvider.create();
+      } else {
+        return DefaultCredentialsProvider.create();
+      }
+    });
 
     // Enable AWS IAM database authentication and configure driver property values.
-    properties.setProperty(PropertyDefinition.PLUGINS.name, "iam");
-    properties.setProperty(PropertyDefinition.USER.name, USERNAME);
+    final Properties postgresProps = new Properties();
+    postgresProps.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+    postgresProps.setProperty(PropertyDefinition.USER.name, POSTGRESQL_IAM_USER);
 
-    // Configure AwsCredentialsManager to use EnvironmentVariableCredentialsProvider.
-    // The provider will be cached, with a cache expiration of 3 minutes.
-    AwsCredentialsManager.setCustomHandler(() -> EnvironmentVariableCredentialsProvider.create(),
-        3, TimeUnit.MINUTES);
-
-    // Attempt a connection
-    try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, properties);
+    // Connect to Postgres
+    try (Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, postgresProps);
          Statement statement = conn.createStatement();
-         ResultSet result = statement.executeQuery("select aurora_db_instance_identifier()")) {
+         ResultSet result = statement.executeQuery("SELECT aurora_db_instance_identifier()")) {
+
+      System.out.println(Util.getResult(result));
+    }
+
+    // Enable AWS IAM database authentication and configure driver property values.
+    final Properties mysqlProps = new Properties();
+    postgresProps.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+    postgresProps.setProperty(PropertyDefinition.USER.name, MYSQL_IAM_USER);
+
+    // Connect to MySQL
+    try (Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, mysqlProps);
+         Statement statement = conn.createStatement();
+         ResultSet result = statement.executeQuery("SELECT @@aurora_server_id")) {
 
       System.out.println(Util.getResult(result));
     }

@@ -16,69 +16,28 @@
 
 package software.amazon.jdbc.authentication;
 
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import software.amazon.jdbc.HostSpec;
+
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
+import java.util.Properties;
+
 public class AwsCredentialsManager {
-  static Supplier<AwsCredentialsProvider> handler = null;
-  static int timeout = 0;
-  static TimeUnit timeoutUnit;
-  static long lastRefreshTimeNano;
-  static AwsCredentialsProvider providerCache = null;
+  private static AwsCredentialsProviderHandler handler = null;
 
-  public static synchronized void setCustomHandler(
-      Supplier<AwsCredentialsProvider> customHandler) {
+  public static synchronized void setCustomHandler(AwsCredentialsProviderHandler customHandler) {
     handler = customHandler;
-    clearCache();
-  }
-
-  public static synchronized void setCustomHandler(Supplier<AwsCredentialsProvider> customHandler,
-      int cacheTimeout,
-      TimeUnit cacheTimeoutUnit) {
-    handler = customHandler;
-    configureCache(cacheTimeout, cacheTimeoutUnit);
-    providerCache = null;
   }
 
   public static synchronized void resetCustomHandler() {
     handler = null;
-    clearCache();
   }
 
-  public static synchronized void configureCache(int cacheTimeout, TimeUnit cacheTimeoutUnit) {
-    if (cacheTimeout != 0 && cacheTimeoutUnit == null) {
-      throw new UnsupportedOperationException("AwsCredentialsManager.invalidCacheSettings");
-    }
-
-    timeout = cacheTimeout;
-    timeoutUnit = cacheTimeoutUnit;
-  }
-
-  private static void clearCache() {
-    configureCache(0, null);
-    providerCache = null;
-  }
-
-  public static synchronized AwsCredentialsProvider getProvider() {
-    if (isProviderFetchNeeded()) {
-      AwsCredentialsProvider provider = handler != null ? handler.get() : getDefaultProvider();
-      if (timeout == 0) {
-        providerCache = null;
-        return provider;
-      } else {
-        lastRefreshTimeNano = System.nanoTime();
-        providerCache = provider;
-      }
-    }
-    return providerCache;
-  }
-
-  private static boolean isProviderFetchNeeded() {
-    long timeSinceLastRefreshNano = System.nanoTime() - lastRefreshTimeNano;
-    return timeout == 0 || providerCache == null
-        || timeSinceLastRefreshNano >= timeoutUnit.toNanos(timeout);
+  public static synchronized AwsCredentialsProvider getProvider(HostSpec hostSpec,
+      Properties props) {
+    return handler != null ? handler.getAwsCredentialsProvider(hostSpec, props)
+        : getDefaultProvider();
   }
 
   private static AwsCredentialsProvider getDefaultProvider() {

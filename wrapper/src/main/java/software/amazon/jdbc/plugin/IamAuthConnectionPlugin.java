@@ -16,6 +16,18 @@
 
 package software.amazon.jdbc.plugin;
 
+import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
+
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.rds.RdsUtilities;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -27,16 +39,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsUtilities;
-import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsManager;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.StringUtils;
 
 public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -131,7 +133,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
       final String token = generateAuthenticationToken(
-          PropertyDefinition.USER.getString(props),
+          hostSpec,
+          props,
           host,
           port,
           region);
@@ -148,12 +151,14 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   String generateAuthenticationToken(
-      final String user,
+      final HostSpec originalHostSpec,
+      final Properties props,
       final String hostname,
       final int port,
       final Region region) {
+    final String user = PropertyDefinition.USER.getString(props);
     final RdsUtilities utilities = RdsUtilities.builder()
-        .credentialsProvider(AwsCredentialsManager.getProvider())
+        .credentialsProvider(AwsCredentialsManager.getProvider(originalHostSpec, props))
         .region(region)
         .build();
     return utilities.generateAuthenticationToken((builder) ->

@@ -23,10 +23,11 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.time.Instant;
-import java.util.Properties;
+import software.amazon.jdbc.Driver;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,10 +35,11 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.jdbc.Driver;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PropertyDefinition;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Properties;
 
 class IamAuthConnectionPluginTest {
 
@@ -178,7 +180,8 @@ class IamAuthConnectionPluginTest {
 
     doReturn(GENERATED_TOKEN).when(spyPlugin)
         .generateAuthenticationToken(
-            PropertyDefinition.USER.getString(props),
+            hostSpec,
+            props,
             expectedHost,
             DEFAULT_PG_PORT,
             Region.US_EAST_2);

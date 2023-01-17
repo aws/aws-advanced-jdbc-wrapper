@@ -17,15 +17,12 @@
 package software.amazon.jdbc.authentication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import software.amazon.jdbc.HostSpec;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,18 +31,22 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
+import java.util.Properties;
+
 class AwsCredentialsManagerTest {
 
   private AutoCloseable closeable;
 
   @Mock AwsCredentialsProvider mockProvider1;
   @Mock AwsCredentialsProvider mockProvider2;
-  @Mock Supplier<AwsCredentialsProvider> mockHandler;
+  @Mock AwsCredentialsProviderHandler mockHandler;
+  @Mock Properties mockProps;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockHandler.get()).thenReturn(mockProvider1);
+    when(mockHandler.getAwsCredentialsProvider(any(HostSpec.class),
+        any(Properties.class))).thenReturn(mockProvider1);
     AwsCredentialsManager.resetCustomHandler();
   }
 
@@ -55,56 +56,26 @@ class AwsCredentialsManagerTest {
   }
 
   @Test
-  public void testCustomHandlerGetterSetter() {
-    assertTrue(AwsCredentialsManager.getProvider() instanceof DefaultCredentialsProvider);
+  public void testAwsCredentialsManager() {
+    final String postgresUrl = "db-identifier-postgres.XYZ.us-east-2.rds.amazonaws.com";
+    final HostSpec postgresHostSpec = new HostSpec(postgresUrl);
 
-    AwsCredentialsManager.setCustomHandler(() -> mockProvider2, 15, TimeUnit.SECONDS);
-    assertEquals(mockProvider2, AwsCredentialsManager.getProvider());
-    assertEquals(mockProvider2, AwsCredentialsManager.providerCache);
-    assertEquals(15, AwsCredentialsManager.timeout);
-    assertEquals(TimeUnit.SECONDS, AwsCredentialsManager.timeoutUnit);
+    final String mysqlUrl = "db-identifier-mysql.XYZ.us-east-2.rds.amazonaws.com";
+    final HostSpec mysqlHostSpec = new HostSpec(mysqlUrl);
 
-    AwsCredentialsManager.setCustomHandler(mockHandler);
-    assertEquals(mockHandler, AwsCredentialsManager.handler);
-    assertNull(AwsCredentialsManager.providerCache);
-    assertEquals(mockProvider1, AwsCredentialsManager.getProvider());
-    assertNull(AwsCredentialsManager.providerCache);
-    assertEquals(0, AwsCredentialsManager.timeout);
-    assertNull(AwsCredentialsManager.timeoutUnit);
+    AwsCredentialsManager.setCustomHandler((hostSpec, props) -> {
+      if (postgresUrl.equals(hostSpec.getHost())) {
+        return mockProvider1;
+      } else {
+        return mockProvider2;
+      }
+    });
 
-    AwsCredentialsManager.getProvider();
-    verify(mockHandler, times(2)).get();
-  }
+    assertEquals(mockProvider1, AwsCredentialsManager.getProvider(postgresHostSpec, mockProps));
+    assertEquals(mockProvider2, AwsCredentialsManager.getProvider(mysqlHostSpec, mockProps));
 
-  @Test
-  public void testResetCustomHandler() {
-    AwsCredentialsManager.setCustomHandler(() -> mockProvider2, 15, TimeUnit.SECONDS);
     AwsCredentialsManager.resetCustomHandler();
-    assertNull(AwsCredentialsManager.providerCache);
-    assertEquals(0, AwsCredentialsManager.timeout);
-    assertNull(AwsCredentialsManager.timeoutUnit);
-  }
-
-  @Test
-  public void testCache() throws InterruptedException {
-    AwsCredentialsManager.setCustomHandler(mockHandler, 15, TimeUnit.SECONDS);
-    AwsCredentialsManager.getProvider();
-    AwsCredentialsManager.getProvider();
-    verify(mockHandler, times(1)).get();
-
-    AwsCredentialsManager.configureCache(10000, TimeUnit.MILLISECONDS);
-    assertEquals(10000, AwsCredentialsManager.timeout);
-    assertEquals(TimeUnit.MILLISECONDS, AwsCredentialsManager.timeoutUnit);
-    assertEquals(mockHandler, AwsCredentialsManager.handler);
-    assertEquals(mockProvider1, AwsCredentialsManager.providerCache);
-
-    AwsCredentialsManager.setCustomHandler(mockHandler, 100, TimeUnit.MILLISECONDS);
-    AwsCredentialsManager.getProvider();
-    Thread.sleep(100);
-    AwsCredentialsManager.getProvider();
-    verify(mockHandler, times(3)).get();
-
-    assertThrows(UnsupportedOperationException.class,
-        () -> AwsCredentialsManager.configureCache(15, null));
+    assertTrue(AwsCredentialsManager.getProvider(postgresHostSpec,
+        mockProps) instanceof DefaultCredentialsProvider);
   }
 }

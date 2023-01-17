@@ -4,7 +4,7 @@
 
 The `IamAuthenticationPlugin` and `AwsSecretsManagerPlugin` both require authentication via AWS credentials to provide the functionality they offer. In the plugin logic, the mechanism to locate your credentials is defined by passing in an `AwsCredentialsProvider` object to the applicable AWS SDK client. By default, an instance of `DefaultCredentialsProvider` will be passed, which locates your credentials using the default credential provider chain described [in this doc](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/credentials.html). 
 
-If you would like to use a different `AwsCredentialsProvider` or would like to define your own mechanism for providing AWS credentials, you can do so using the methods defined in the `AwsCredentialsManager` class. To configure the plugins to use your own logic, you can call the `AwsCredentialsManager.setCustomHandler` method, passing in a lambda that returns an object that implements the `AwsCredentialsProvider` interface. Optionally, you can configure the `AwsCredentialsManager` to cache the `AwsCredentialsProvider` returned by your lambda as well. 
+If you would like to use a different `AwsCredentialsProvider` or would like to define your own mechanism for providing AWS credentials, you can do so using the methods defined in the `AwsCredentialsManager` class. To configure the plugins to use your own logic, you can call the `AwsCredentialsManager.setCustomHandler` method, passing in a lambda or `AwsCredentialsProviderHandler` that returns an `AwsCredentialsProvider`.
 
 ## Sample code
 [AwsCredentialsManagerExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsCredentialsManagerExample.java)

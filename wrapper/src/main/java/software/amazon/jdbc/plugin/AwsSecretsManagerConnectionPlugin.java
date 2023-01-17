@@ -16,10 +16,26 @@
 
 package software.amazon.jdbc.plugin;
 
+import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.StringUtils;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
+import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
+import software.amazon.awssdk.utils.Pair;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -30,20 +46,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
-import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
-import software.amazon.awssdk.utils.Pair;
-import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.authentication.AwsCredentialsManager;
-import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.StringUtils;
 
 public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
@@ -57,9 +59,9 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
-  private final SecretsManagerClient secretsManagerClient;
-  private final GetSecretValueRequest getSecretValueRequest;
   private final Pair<String, Region> secretKey;
+  private SecretsManagerClient secretsManagerClient;
+  private GetSecretValueRequest getSecretValueRequest;
   private Secret secret;
   protected PluginService pluginService;
 
@@ -120,15 +122,6 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     if (secretsManagerClient != null && getSecretValueRequest != null) {
       this.secretsManagerClient = secretsManagerClient;
       this.getSecretValueRequest = getSecretValueRequest;
-
-    } else {
-      this.secretsManagerClient = SecretsManagerClient.builder()
-          .credentialsProvider(AwsCredentialsManager.getProvider())
-          .region(region)
-          .build();
-      this.getSecretValueRequest = GetSecretValueRequest.builder()
-          .secretId(secretId)
-          .build();
     }
   }
 
@@ -145,6 +138,16 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+
+    if (this.secretsManagerClient == null || this.getSecretValueRequest == null) {
+      this.secretsManagerClient = SecretsManagerClient.builder()
+          .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+          .region(this.secretKey.right())
+          .build();
+      this.getSecretValueRequest = GetSecretValueRequest.builder()
+          .secretId(this.secretKey.left())
+          .build();
+    }
 
     boolean secretWasFetched = updateSecret(false);
 
