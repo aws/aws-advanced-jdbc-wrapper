@@ -46,7 +46,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @State(Scope.Benchmark)
 @Fork(1)
 @Warmup(iterations = 1)
-@Timeout(time = 10, timeUnit = TimeUnit.HOURS)
+@Timeout(time = 60, timeUnit = TimeUnit.MINUTES)
 @Measurement(iterations = 1)
 @BenchmarkMode({Mode.SingleShotTime})
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -74,26 +74,25 @@ public class ReadWriteSplittingLoadBenchmarks {
     }
   }
 
-  protected static Connection connectToInstance(final String url, final Properties props)
+  protected Connection connectToInstance(final String url, final Properties props)
       throws SQLException {
     return DriverManager.getConnection(url, props);
   }
 
-  protected static Properties initNoPluginPropsWithTimeouts() {
+  protected Properties initNoPluginPropsWithTimeouts() {
     final Properties props = new Properties();
     props.setProperty(PGProperty.USER.getName(), USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), PASSWORD);
-    props.setProperty(PGProperty.TCP_KEEP_ALIVE.getName(), Boolean.FALSE.toString());
     return props;
   }
 
-  protected static Properties initReadWritePluginProps() {
+  protected Properties initReadWritePluginProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
     return props;
   }
 
-  protected static Properties initReadWritePluginLoadBalancingProps() {
+  protected Properties initReadWritePluginLoadBalancingProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
     props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
@@ -115,7 +114,6 @@ public class ReadWriteSplittingLoadBenchmarks {
             statement2.executeQuery(QUERY_1);
           }
         }
-
       } catch (Exception e) {
         fail("Encountered an error while executing benchmark load test: " + e.getMessage());
       }
@@ -140,7 +138,6 @@ public class ReadWriteSplittingLoadBenchmarks {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
-
     }
   }
 
