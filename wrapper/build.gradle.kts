@@ -34,7 +34,7 @@ dependencies {
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.4")
     compileOnly("mysql:mysql-connector-java:8.0.31")
     compileOnly("org.postgresql:postgresql:42.5.0")
-    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.0.6")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.0")
     compileOnly("org.osgi:org.osgi.core:4.3.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
@@ -48,7 +48,7 @@ dependencies {
     testImplementation("org.apache.commons:commons-dbcp2:2.9.0")
     testImplementation("org.postgresql:postgresql:42.5.0")
     testImplementation("mysql:mysql-connector-java:8.0.31")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.0.6")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.0")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.4")
     testImplementation("org.mockito:mockito-inline:4.8.0")
@@ -234,7 +234,7 @@ tasks.withType<Test> {
 
     System.getProperties().forEach {
         if (it.key.toString().startsWith("test-no-")) {
-            systemProperty(it.key.toString(), it.value.toString());
+            systemProperty(it.key.toString(), it.value.toString())
         }
     }
 
@@ -244,7 +244,9 @@ tasks.withType<Test> {
 
     systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/test/logging-test.properties")
 
-    finalizedBy("junitHtmlReport")
+    if (!name.contains("performance")) {
+        finalizedBy("junitHtmlReport")
+    }
 }
 
 tasks.register<Test>("test-all-environments") {

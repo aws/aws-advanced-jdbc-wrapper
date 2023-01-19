@@ -92,6 +92,8 @@ public class PluginBenchmarks {
     when(mockResultSet.getString(eq(FIELD_SESSION_ID))).thenReturn(WRITER_SESSION_ID);
     when(mockResultSet.getString(eq(FIELD_SERVER_ID)))
         .thenReturn("myInstance1.domain.com", "myInstance2.domain.com", "myInstance3.domain.com");
+    when(mockResultSet.getStatement()).thenReturn(mockStatement);
+    when(mockStatement.getConnection()).thenReturn(mockConnection);
   }
 
   @TearDown(Level.Iteration)
