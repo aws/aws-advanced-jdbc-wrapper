@@ -1,4 +1,4 @@
-# Performance Results
+# EFM and Failover Plugin Performance Results
 
 ## Benchmarks
 | Benchmark                                                         | Score    | Error   | Units |
@@ -45,8 +45,8 @@
 
 ### Failover Performance with 30 Seconds Socket Timeout Configuration
 
-| SocketTimeout | NetworkOutageDelayMillis | MinFailureDetectionTimeMillis | MaxFailureDetectionTimeMillis | AvgFailureDetectionTimeMillis |
-|---------------|--------------------------|-------------------------------|-------------------------------|-------------------------------|
+`| SocketTimeout | NetworkOutageDelayMillis | MinFailureDetectionTimeMillis | MaxFailureDetectionTimeMillis | AvgFailureDetectionTimeMillis |
+`|---------------|--------------------------|-------------------------------|-------------------------------|-------------------------------|
 | 30            | 5000                     | 25181                         | 25302                         | 25244                         |
 | 30            | 10000                    | 20164                         | 20279                         | 20191                         |
 | 30            | 15000                    | 15176                         | 15186                         | 15180                         |
@@ -92,7 +92,7 @@
 | 30000                     | 5000                     | 3                     | 35000                    | 16273                         | 16284                         | 16279                         |
 | 30000                     | 5000                     | 3                     | 40000                    | 16265                         | 16287                         | 16277                         |
 | 30000                     | 5000                     | 3                     | 50000                    | 16275                         | 16312                         | 16284                         |
-| 30000          p          | 5000                     | 3                     | 60000                    | 16272                         | 16293                         | 16282                         |
+| 30000                     | 5000                     | 3                     | 60000                    | 16272                         | 16293                         | 16282                         |
 | 6000                      | 1000                     | 1                     | 1000                     | 5261                          | 5301                          | 5276                          |
 | 6000                      | 1000                     | 1                     | 2000                     | 4259                          | 4275                          | 4267                          |
 | 6000                      | 1000                     | 1                     | 3000                     | 3263                          | 3280                          | 3271                          |
