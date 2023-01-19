@@ -16,7 +16,13 @@ body:
     attributes:
       label: Expected Behavior
       description: |
-    What did you expect to happen?
+        What did you expect to happen?
+    validations:
+      required: true
+  - type: input
+    id: connection-config
+    attributes:
+      label: What plugins are used? What other connection properties were set?
     validations:
       required: true
   - type: textarea
@@ -24,9 +30,11 @@ body:
     attributes:
       label: Current Behavior
       description: |
-    What actually happened?
-    
-    Please include full errors, uncaught exceptions, stack traces, and relevant logs.
+        What actually happened?
+  
+        Please include full errors, uncaught exceptions, stack traces, and relevant logs.
+        
+        To see how to enable driver logging see https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging.
     validations:
       required: true
   - type: textarea
@@ -34,11 +42,11 @@ body:
     attributes:
       label: Reproduction Steps
       description: |
-    Provide a self-contained, concise snippet of code that can be used to reproduce the issue.
-    For more complex issues provide a repo with the smallest sample that reproduces the bug.
-    
-    Avoid including business logic or unrelated code, it makes diagnosis more difficult.
-    The code sample should be an SSCCE. See http://sscce.org/ for details. In short, please provide a code sample that we can copy/paste, run and reproduce.
+        Provide a self-contained, concise snippet of code that can be used to reproduce the issue.
+        For more complex issues provide a repo with the smallest sample that reproduces the bug.
+        
+        Avoid including business logic or unrelated code, it makes diagnosis more difficult.
+        The code sample should be an SSCCE. See http://sscce.org/ for details. In short, please provide a code sample that we can copy/paste, run and reproduce.
     validations:
       required: true
   - type: textarea
@@ -64,7 +72,6 @@ body:
       label: The AWS Advanced JDBC Driver version used
     validations:
       required: true
-
   - type: input
     id: jdk-version
     attributes:
@@ -72,7 +79,6 @@ body:
       description: Output of `java -version`
     validations:
       required: true
-
   - type: input
     id: operating-system
     attributes:
