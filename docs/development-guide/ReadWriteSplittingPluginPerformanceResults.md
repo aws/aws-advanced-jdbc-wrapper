@@ -1,4 +1,4 @@
-# Read-Write Splitting Plugin Performance Test Results
+# Read-Write Splitting Plugin Performance Results
 
 ## Benchmarks
 | Benchmark                                                     | Score       | Units |
@@ -14,7 +14,6 @@
 |-----------------------------------------------|-----------------------|-----------------------|-----------------------|
 | Switch to reader (open new connection)        | 773                   | 901                   | 804                   |
 | Switch back to writer (use cached connection) | 137                   | 145                   | 141                   |
-
 
 ### Reader Load Balancing Performance Test
 | readWriteSplittingPlugin | minAverageExecuteStatementTimeMillis | maxAverageExecuteStatementTimeMillis | avgExecuteStatementTimeMillis |
