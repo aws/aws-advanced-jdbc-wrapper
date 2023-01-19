@@ -45,8 +45,8 @@
 
 ### Failover Performance with 30 Seconds Socket Timeout Configuration
 
-`| SocketTimeout | NetworkOutageDelayMillis | MinFailureDetectionTimeMillis | MaxFailureDetectionTimeMillis | AvgFailureDetectionTimeMillis |
-`|---------------|--------------------------|-------------------------------|-------------------------------|-------------------------------|
+| SocketTimeout | NetworkOutageDelayMillis | MinFailureDetectionTimeMillis | MaxFailureDetectionTimeMillis | AvgFailureDetectionTimeMillis |
+|---------------|--------------------------|-------------------------------|-------------------------------|-------------------------------|
 | 30            | 5000                     | 25181                         | 25302                         | 25244                         |
 | 30            | 10000                    | 20164                         | 20279                         | 20191                         |
 | 30            | 15000                    | 15176                         | 15186                         | 15180                         |
