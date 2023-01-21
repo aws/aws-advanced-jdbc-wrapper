@@ -139,6 +139,28 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
+  public ConnectionWrapper initAndReleaseWithReadWriteSplittingPlugin() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useReadWriteSplittingPlugin(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+      return wrapper;
+    }
+  }
+
+  @Benchmark
+  public ConnectionWrapper initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useAuroraHostListAndReadWriteSplittingPlugin(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+      return wrapper;
+    }
+  }
+
+  @Benchmark
   public Statement executeStatementBaseline() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
         useAuroraHostList(),
@@ -162,21 +184,59 @@ public class PluginBenchmarks {
     }
   }
 
+  @Benchmark
+  public ResultSet executeStatementWithReadWriteSplittingPlugin() throws SQLException {
+    try (
+        ConnectionWrapper wrapper = new ConnectionWrapper(
+            useReadWriteSplittingPlugin(),
+            CONNECTION_STRING,
+            mockConnectionProvider);
+        Statement statement = wrapper.createStatement();
+        ResultSet resultSet = statement.executeQuery("some sql")) {
+      return resultSet;
+    }
+  }
+
+  @Benchmark
+  public ResultSet executeStatementWithAuroraHostListAndReadWriteSplittingPlugin() throws SQLException {
+    try (
+        ConnectionWrapper wrapper = new ConnectionWrapper(
+            useAuroraHostListAndReadWriteSplittingPlugin(),
+            CONNECTION_STRING,
+            mockConnectionProvider);
+        Statement statement = wrapper.createStatement();
+        ResultSet resultSet = statement.executeQuery("some sql")) {
+      return resultSet;
+    }
+  }
+
   Properties useAllPlugins() {
     final Properties properties = new Properties();
-    properties.setProperty("proxyDriverPlugins", "executionTime,auroraHostList");
+    properties.setProperty("wrapperPlugins", "executionTime,auroraHostList");
     return properties;
   }
 
   Properties useExecutionPlugin() {
     final Properties properties = new Properties();
-    properties.setProperty("proxyDriverPlugins", "executionTime");
+    properties.setProperty("wrapperPlugins", "executionTime");
     return properties;
   }
 
   Properties useAuroraHostList() {
     final Properties properties = new Properties();
-    properties.setProperty("proxyDriverPlugins", "auroraHostList");
+    properties.setProperty("wrapperPlugins", "auroraHostList");
+    return properties;
+  }
+
+  Properties useReadWriteSplittingPlugin() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "readWriteSplitting");
+    return properties;
+  }
+
+  Properties useAuroraHostListAndReadWriteSplittingPlugin() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "auroraHostList, readWriteSplitting");
     return properties;
   }
 }
