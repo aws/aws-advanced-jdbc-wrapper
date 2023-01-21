@@ -225,7 +225,7 @@ public class PluginBenchmarks {
   public ResultSet executeStatementWithReadWriteSplittingPluginAndReaderLoadBalancing() throws SQLException {
     try (
         ConnectionWrapper wrapper = new ConnectionWrapper(
-            useReadWriteSplittingPluginWithReaderLoadBalancing(),
+            useReadWriteSplittingPluginAndReaderLoadBalancing(),
             CONNECTION_STRING,
             mockConnectionProvider);
         Statement statement = wrapper.createStatement();
@@ -268,7 +268,6 @@ public class PluginBenchmarks {
     final Properties properties = new Properties();
     properties.setProperty("wrapperPlugins", "readWriteSplitting");
     properties.setProperty("loadBalanceReadOnlyTraffic", "true");
-
     return properties;
   }
 }
