@@ -63,10 +63,14 @@ public class PluginBenchmarks {
   private static final String FIELD_SESSION_ID = "SESSION_ID";
   private static final String CONNECTION_STRING = "driverProtocol://my.domain.com";
 
-  @Mock ConnectionProvider mockConnectionProvider;
-  @Mock Connection mockConnection;
-  @Mock Statement mockStatement;
-  @Mock ResultSet mockResultSet;
+  @Mock
+  ConnectionProvider mockConnectionProvider;
+  @Mock
+  Connection mockConnection;
+  @Mock
+  Statement mockStatement;
+  @Mock
+  ResultSet mockResultSet;
   private AutoCloseable closeable;
 
   public static void main(String[] args) throws RunnerException {
@@ -190,7 +194,7 @@ public class PluginBenchmarks {
   @Benchmark
   public Statement executeStatementBaseline() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePlugins("auroraHostList"),
+        usePlugins("executionTime"),
         CONNECTION_STRING,
         mockConnectionProvider);
          Statement statement = wrapper.createStatement()) {
