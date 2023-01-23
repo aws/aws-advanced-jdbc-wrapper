@@ -178,7 +178,8 @@ class IamAuthConnectionPluginTest {
 
     doReturn(GENERATED_TOKEN).when(spyPlugin)
         .generateAuthenticationToken(
-            PropertyDefinition.USER.getString(props),
+            hostSpec,
+            props,
             expectedHost,
             DEFAULT_PG_PORT,
             Region.US_EAST_2);

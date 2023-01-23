@@ -41,6 +41,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -54,11 +55,11 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       "secretsManagerRegion", "us-east-1",
       "The region of the secret to retrieve.");
 
-  protected static final Map<Pair<String, Region>, Secret> SECRET_CACHE = new ConcurrentHashMap<>();
+  protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
-  private final SecretsManagerClient secretsManagerClient;
-  private final GetSecretValueRequest getSecretValueRequest;
   private final Pair<String, Region> secretKey;
+  private SecretsManagerClient secretsManagerClient;
+  private GetSecretValueRequest getSecretValueRequest;
   private Secret secret;
   protected PluginService pluginService;
 
@@ -119,14 +120,6 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     if (secretsManagerClient != null && getSecretValueRequest != null) {
       this.secretsManagerClient = secretsManagerClient;
       this.getSecretValueRequest = getSecretValueRequest;
-
-    } else {
-      this.secretsManagerClient = SecretsManagerClient.builder()
-          .region(region)
-          .build();
-      this.getSecretValueRequest = GetSecretValueRequest.builder()
-          .secretId(secretId)
-          .build();
     }
   }
 
@@ -143,6 +136,16 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+
+    if (this.secretsManagerClient == null || this.getSecretValueRequest == null) {
+      this.secretsManagerClient = SecretsManagerClient.builder()
+          .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+          .region(this.secretKey.right())
+          .build();
+      this.getSecretValueRequest = GetSecretValueRequest.builder()
+          .secretId(this.secretKey.left())
+          .build();
+    }
 
     boolean secretWasFetched = updateSecret(false);
 
@@ -181,14 +184,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private boolean updateSecret(boolean forceReFetch) throws SQLException {
 
     boolean fetched = false;
-    this.secret = SECRET_CACHE.get(this.secretKey);
+    this.secret = secretsCache.get(this.secretKey);
 
     if (secret == null || forceReFetch) {
       try {
         this.secret = fetchLatestCredentials();
         if (this.secret != null) {
           fetched = true;
-          SECRET_CACHE.put(this.secretKey, this.secret);
+          secretsCache.put(this.secretKey, this.secret);
         }
       } catch (SecretsManagerException | JsonProcessingException exception) {
         LOGGER.log(

@@ -27,13 +27,13 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsUtilities;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -51,16 +51,16 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       "Overrides the host that is used to generate the IAM token");
 
   public static final AwsWrapperProperty IAM_DEFAULT_PORT = new AwsWrapperProperty(
-          "iamDefaultPort", null,
-          "Overrides default port that is used to generate the IAM token");
+      "iamDefaultPort", null,
+      "Overrides default port that is used to generate the IAM token");
 
   public static final AwsWrapperProperty IAM_REGION = new AwsWrapperProperty(
-          "iamRegion", null,
-          "Overrides AWS region that is used to generate the IAM token");
+      "iamRegion", null,
+      "Overrides AWS region that is used to generate the IAM token");
 
   public static final AwsWrapperProperty IAM_EXPIRATION = new AwsWrapperProperty(
-          "iamExpiration", String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC),
-          "IAM token cache expiration in seconds");
+      "iamExpiration", String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC),
+      "IAM token cache expiration in seconds");
 
   protected final RdsUtils rdsUtils = new RdsUtils();
 
@@ -71,12 +71,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-          final String driverProtocol,
-          final HostSpec hostSpec,
-          final Properties props,
-          final boolean isInitialConnection,
-          final JdbcCallable<Connection, SQLException> connectFunc)
-          throws SQLException {
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
 
     if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
@@ -90,7 +90,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     int port = hostSpec.getPort();
     if (!hostSpec.isPortSpecified()) {
       if (StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props))) {
-        if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith("jdbc:mysql:")) {
+        if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith(
+            "jdbc:mysql:")) {
           throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.missingPort"));
         } else if (driverProtocol.startsWith("jdbc:mysql:")) {
           port = MYSQL_PORT;
@@ -116,10 +117,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);
 
     final String cacheKey = getCacheKey(
-            PropertyDefinition.USER.getString(props),
-            host,
-            port,
-            region);
+        PropertyDefinition.USER.getString(props),
+        host,
+        port,
+        region);
     final TokenInfo tokenInfo = tokenCache.get(cacheKey);
 
     if (tokenInfo != null && !tokenInfo.isExpired()) {
@@ -130,7 +131,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
       final String token = generateAuthenticationToken(
-          PropertyDefinition.USER.getString(props),
+          hostSpec,
+          props,
           host,
           port,
           region);
@@ -140,34 +142,36 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
               new Object[] {token}));
       PropertyDefinition.PASSWORD.set(props, token);
       tokenCache.put(
-              cacheKey,
-              new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
+          cacheKey,
+          new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
     }
     return connectFunc.call();
   }
 
   String generateAuthenticationToken(
-          final String user,
-          final String hostname,
-          final int port,
-          final Region region) {
+      final HostSpec originalHostSpec,
+      final Properties props,
+      final String hostname,
+      final int port,
+      final Region region) {
+    final String user = PropertyDefinition.USER.getString(props);
     final RdsUtilities utilities = RdsUtilities.builder()
-            .credentialsProvider(DefaultCredentialsProvider.create())
-            .region(region)
-            .build();
+        .credentialsProvider(AwsCredentialsManager.getProvider(originalHostSpec, props))
+        .region(region)
+        .build();
     return utilities.generateAuthenticationToken((builder) ->
-            builder
-                    .hostname(hostname)
-                    .port(port)
-                    .username(user)
+        builder
+            .hostname(hostname)
+            .port(port)
+            .username(user)
     );
   }
 
   private String getCacheKey(
-          final String user,
-          final String hostname,
-          final int port,
-          final Region region) {
+      final String user,
+      final String hostname,
+      final int port,
+      final Region region) {
 
     return String.format("%s:%s:%d:%s", region, hostname, port, user);
   }
@@ -193,8 +197,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     // Check Region
     final Optional<Region> regionOptional = Region.regions().stream()
-            .filter(r -> r.id().equalsIgnoreCase(rdsRegion))
-            .findFirst();
+        .filter(r -> r.id().equalsIgnoreCase(rdsRegion))
+        .findFirst();
 
     if (!regionOptional.isPresent()) {
       final String exceptionMessage = Messages.get(
