@@ -77,7 +77,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           add("CallableStatement.executeQuery");
           add("CallableStatement.executeWithFlags");
           // executeUpdate and executeBatch not included since they cannot be executed in
-          // read-only mode
+          // read-only mode.
         }
       });
   static final String METHOD_SET_READ_ONLY = "setReadOnly";
@@ -161,8 +161,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
-    if (RdsUrlType.RDS_WRITER_CLUSTER.equals(urlType) || RdsUrlType.RDS_READER_CLUSTER.equals(
-        urlType)) {
+    if (RdsUrlType.RDS_WRITER_CLUSTER.equals(urlType)
+        || RdsUrlType.RDS_READER_CLUSTER.equals(urlType)) {
       return currentConnection;
     }
 
@@ -390,7 +390,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     }
     // If we get here we failed to connect to a new reader. In this case we will stick with the
-    // current one
+    // current one.
   }
 
   private ArrayDeque<HostSpec> getRandomReaderHosts() {
@@ -667,7 +667,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private void closeInternalConnection(final Connection internalConnection) {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     try {
-      if (internalConnection != null && internalConnection != currentConnection
+      if (internalConnection != null
+          && internalConnection != currentConnection
           && !internalConnection.isClosed()) {
         internalConnection.close();
         if (internalConnection == writerConnection) {
