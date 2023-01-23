@@ -22,6 +22,20 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
@@ -38,20 +52,6 @@ import integration.refactored.container.condition.EnableOnDatabaseEngine;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
@@ -384,16 +384,12 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_setReadOnlyTrue_allInstancesDown_writerClosed() throws SQLException {
+  public void test_setReadOnly_closedConnection() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
-
       conn.close();
 
-      // Kill all instances
-      ProxyHelper.disableAllConnectivity();
-
       final SQLException exception = assertThrows(SQLException.class, () -> conn.setReadOnly(true));
-      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
+      assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), exception.getSQLState());
     }
   }
 
