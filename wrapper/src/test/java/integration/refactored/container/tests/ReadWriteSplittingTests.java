@@ -101,32 +101,32 @@ public class ReadWriteSplittingTests {
   protected String getUrl() {
     return DriverHelper.getWrapperDriverProtocol()
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getEndpoint()
+        .getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(0)
+        .getEndpoint()
         + ":"
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getEndpointPort()
+        .getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(0)
+        .getEndpointPort()
         + ","
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(1)
-            .getEndpoint()
+        .getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(1)
+        .getEndpoint()
         + ":"
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(1)
-            .getEndpointPort()
+        .getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(1)
+        .getEndpointPort()
         + "/"
         + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
         + DriverHelper.getDriverRequiredParameters();
@@ -135,32 +135,32 @@ public class ReadWriteSplittingTests {
   protected String getProxiedUrl() {
     return DriverHelper.getWrapperDriverProtocol()
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getProxyDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getEndpoint()
+        .getInfo()
+        .getProxyDatabaseInfo()
+        .getInstances()
+        .get(0)
+        .getEndpoint()
         + ":"
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getProxyDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getEndpointPort()
+        .getInfo()
+        .getProxyDatabaseInfo()
+        .getInstances()
+        .get(0)
+        .getEndpointPort()
         + ","
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getProxyDatabaseInfo()
-            .getInstances()
-            .get(1)
-            .getEndpoint()
+        .getInfo()
+        .getProxyDatabaseInfo()
+        .getInstances()
+        .get(1)
+        .getEndpoint()
         + ":"
         + TestEnvironment.getCurrent()
-            .getInfo()
-            .getProxyDatabaseInfo()
-            .getInstances()
-            .get(1)
-            .getEndpointPort()
+        .getInfo()
+        .getProxyDatabaseInfo()
+        .getInstances()
+        .get(1)
+        .getEndpointPort()
         + "/"
         + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()
         + DriverHelper.getDriverRequiredParameters();
@@ -316,7 +316,8 @@ public class ReadWriteSplittingTests {
 
       final Statement stmt2 = conn.createStatement();
       stmt2.executeUpdate(
-          "INSERT INTO test_readWriteSplitting_readOnlyTrueInTransaction VALUES (1, 'test_field value 1')");
+          "INSERT INTO test_readWriteSplitting_readOnlyTrueInTransaction VALUES (1, 'test_field "
+              + "value 1')");
 
       assertDoesNotThrow(() -> conn.setReadOnly(true));
       final String currentConnectionId = queryInstanceId(conn);
@@ -480,7 +481,7 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_transactionResolutionUnknown() throws SQLException {
     try (final Connection conn =
-        DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
+             DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
 
       final String writerConnectionId = queryInstanceId(conn);
 
@@ -506,7 +507,7 @@ public class ReadWriteSplittingTests {
               || SqlState.CONNECTION_FAILURE.getState().equals(e.getSQLState()));
 
       try (final Connection newConn =
-          DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
+               DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
         newConn.setReadOnly(true);
         final Statement newStmt = newConn.createStatement();
         final ResultSet rs = newStmt.executeQuery("SELECT 1");
