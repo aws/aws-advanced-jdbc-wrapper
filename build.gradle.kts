@@ -55,11 +55,15 @@ allprojects {
                 ?: throw GradleException("Unable to parse major.minor.patch version parts from project.version '$version'")
             val (major, minor, patch) = matchResult.destructured
 
+            val git = org.ajoberstar.grgit.Grgit.open(mapOf("currentDir" to project.rootDir))
+            val revision = git.head().id
+
             variables.apply {
                 put("version", version)
                 put("version.major", major)
                 put("version.minor", minor)
                 put("version.patch", patch.ifBlank { "0" })
+                put("version.revision", revision.toString())
             }
         }
     }

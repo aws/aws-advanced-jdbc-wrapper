@@ -26,6 +26,7 @@ public final class DriverInfo {
   public static final int MAJOR_VERSION = /*$version.major+";"$*//*-*/0;
   public static final int MINOR_VERSION = /*$version.minor+";"$*//*-*/1;
   public static final int PATCH_VERSION = /*$version.patch+";"$*//*-*/0;
+  public static final String REVISION_VERSION = "/*$version.revision$*/";
 
   // JDBC specification
   public static final String JDBC_VERSION = "4.2";
