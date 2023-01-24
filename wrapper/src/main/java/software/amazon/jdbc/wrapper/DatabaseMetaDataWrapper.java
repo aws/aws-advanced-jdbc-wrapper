@@ -21,8 +21,10 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.RowIdLifetime;
 import java.sql.SQLException;
+import java.util.StringJoiner;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
+import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class DatabaseMetaDataWrapper implements DatabaseMetaData {
@@ -159,44 +161,27 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public String getDriverName() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.databaseMetaData,
-        "DatabaseMetaData.getDriverName",
-        () -> this.databaseMetaData.getDriverName());
+    return DriverInfo.DRIVER_NAME;
   }
 
   @Override
   public String getDriverVersion() throws SQLException {
-    return WrapperUtils.executeWithPlugins(
-        String.class,
-        SQLException.class,
-        this.pluginManager,
-        this.databaseMetaData,
-        "DatabaseMetaData.getDriverVersion",
-        () -> this.databaseMetaData.getDriverVersion());
+    final StringJoiner joiner = new StringJoiner(" ");
+    joiner
+        .add(DriverInfo.DRIVER_NAME)
+        .add(DriverInfo.DRIVER_VERSION)
+        .add("( Revision:").add(DriverInfo.REVISION_VERSION).add(")");
+    return joiner.toString();
   }
 
   @Override
   public int getDriverMajorVersion() {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        this.pluginManager,
-        this.databaseMetaData,
-        "DatabaseMetaData.getDriverMajorVersion",
-        () -> this.databaseMetaData.getDriverMajorVersion());
+    return DriverInfo.MAJOR_VERSION;
   }
 
   @Override
   public int getDriverMinorVersion() {
-    return WrapperUtils.executeWithPlugins(
-        int.class,
-        this.pluginManager,
-        this.databaseMetaData,
-        "DatabaseMetaData.getDriverMinorVersion",
-        () -> this.databaseMetaData.getDriverMinorVersion());
+    return DriverInfo.MINOR_VERSION;
   }
 
   @Override
