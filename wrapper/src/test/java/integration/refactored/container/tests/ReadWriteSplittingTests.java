@@ -316,8 +316,8 @@ public class ReadWriteSplittingTests {
 
       final Statement stmt2 = conn.createStatement();
       stmt2.executeUpdate(
-          "INSERT INTO test_readWriteSplitting_readOnlyTrueInTransaction VALUES (1, 'test_field "
-              + "value 1')");
+          "INSERT INTO test_readWriteSplitting_readOnlyTrueInTransaction "
+              + "VALUES (1, 'test_field value 1')");
 
       assertDoesNotThrow(() -> conn.setReadOnly(true));
       final String currentConnectionId = queryInstanceId(conn);
