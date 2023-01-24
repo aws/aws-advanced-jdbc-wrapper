@@ -454,7 +454,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     if (readOnly) {
-      if (!pluginService.isInTransaction() && (!isReader(currentHost))) {
+      if (!pluginService.isInTransaction() && !isReader(currentHost)) {
         try {
           switchToReaderConnection(hosts);
         } catch (final SQLException e) {
