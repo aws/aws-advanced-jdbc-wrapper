@@ -514,14 +514,12 @@ public class AuroraFailoverTest {
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               conn));
 
+      // Sleep for a second to allow daemon threads to finish running.
+      Thread.sleep(1000);
+
       // Ensure that all idle connections are closed.
       for (Connection idleConnection : idleConnections) {
-        assertThrows(
-            SQLTransientConnectionException.class,
-            () ->
-                auroraUtil.queryInstanceId(
-                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-                    idleConnection));
+        assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
       }
     }
   }

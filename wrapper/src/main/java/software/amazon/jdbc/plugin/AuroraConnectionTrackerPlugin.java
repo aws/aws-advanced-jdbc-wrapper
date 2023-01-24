@@ -132,9 +132,9 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       }
       return result;
     } catch (Exception e) {
-      tracker.logOpenedConnections();
       if (e instanceof FailoverSQLException) {
         tracker.invalidateAllConnections(originalHost);
+        tracker.logOpenedConnections();
       }
       throw e;
     }

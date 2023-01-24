@@ -90,7 +90,8 @@ public class OpenedConnectionTracker {
     if (!instanceEndpoint.isPresent()) {
       return;
     }
-
+    final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(instanceEndpoint.get());
+    logConnectionQueue(instanceEndpoint.get(), connectionQueue);
     invalidateConnections(openedConnections.get(instanceEndpoint.get()));
   }
 
@@ -104,6 +105,7 @@ public class OpenedConnectionTracker {
     }
 
     final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(host);
+    logConnectionQueue(host, connectionQueue);
     connectionQueue.removeIf(connectionWeakReference -> Objects.equals(connectionWeakReference.get(), connection));
   }
 
@@ -136,18 +138,34 @@ public class OpenedConnectionTracker {
 
   public void logOpenedConnections() {
     LOGGER.finest(() -> {
-      StringBuilder builder = new StringBuilder();
+      final StringBuilder builder = new StringBuilder();
       openedConnections.forEach((key, queue) -> {
-        builder.append("\t[ ");
-        builder.append(key).append(":");
-        builder.append("\n\t {");
-        for (WeakReference<Connection> connection : queue) {
-          builder.append("\n\t\t").append(connection.get());
+        if (!queue.isEmpty()) {
+          builder.append("\t[ ");
+          builder.append(key).append(":");
+          builder.append("\n\t {");
+          for (WeakReference<Connection> connection : queue) {
+            builder.append("\n\t\t").append(connection.get());
+          }
+          builder.append("\n\t }\n");
+          builder.append("\t");
         }
-        builder.append("\n\t }\n");
-        builder.append("\t");
       });
       return String.format("Opened Connections Tracked: \n[\n%s\n]", builder);
     });
+  }
+
+  private void logConnectionQueue(final String host, Queue<WeakReference<Connection>> queue) {
+    if (queue == null || queue.isEmpty()) {
+      return;
+    }
+
+    final StringBuilder builder = new StringBuilder();
+    builder.append(host).append("[");
+    for (WeakReference<Connection> connection : queue) {
+      builder.append("\n\t").append(connection.get());
+    }
+    builder.append("\n]");
+    LOGGER.finest(Messages.get("OpenedConnectionTracker.invalidatingConnections", new Object[] {builder.toString()}));
   }
 }
