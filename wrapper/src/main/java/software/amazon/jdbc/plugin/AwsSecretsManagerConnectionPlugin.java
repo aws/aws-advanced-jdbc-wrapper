@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.awssdk.regions.Region;
@@ -58,8 +59,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
   private final Pair<String, Region> secretKey;
-  private SecretsManagerClient secretsManagerClient;
-  private GetSecretValueRequest getSecretValueRequest;
+  private final Function<Region, SecretsManagerClient> secretsManagerClientFunc;
+  private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
   private Secret secret;
   protected PluginService pluginService;
 
@@ -68,16 +69,20 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     this(
         pluginService,
         props,
-        null,
-        null
+        (region) -> SecretsManagerClient.builder()
+            .region(region)
+            .build(),
+        (secretId) -> GetSecretValueRequest.builder()
+            .secretId(secretId)
+            .build()
     );
   }
 
   AwsSecretsManagerConnectionPlugin(
       PluginService pluginService,
       Properties props,
-      SecretsManagerClient secretsManagerClient,
-      GetSecretValueRequest getSecretValueRequest) {
+      Function<Region, SecretsManagerClient> secretsManagerClientFunc,
+      Function<String, GetSecretValueRequest> getSecretValueRequestFunc) {
     this.pluginService = pluginService;
 
     try {
@@ -117,10 +122,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     }
     this.secretKey = Pair.of(secretId, region);
 
-    if (secretsManagerClient != null && getSecretValueRequest != null) {
-      this.secretsManagerClient = secretsManagerClient;
-      this.getSecretValueRequest = getSecretValueRequest;
-    }
+    this.secretsManagerClientFunc = secretsManagerClientFunc;
+    this.getSecretValueRequestFunc = getSecretValueRequestFunc;
   }
 
   @Override
@@ -136,16 +139,6 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
-    if (this.secretsManagerClient == null || this.getSecretValueRequest == null) {
-      this.secretsManagerClient = SecretsManagerClient.builder()
-          .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
-          .region(this.secretKey.right())
-          .build();
-      this.getSecretValueRequest = GetSecretValueRequest.builder()
-          .secretId(this.secretKey.left())
-          .build();
-    }
 
     boolean secretWasFetched = updateSecret(false);
 
@@ -213,7 +206,16 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * @throws JsonProcessingException if credentials can't be mapped to a Secret object.
    */
   Secret fetchLatestCredentials() throws SecretsManagerException, JsonProcessingException {
-    final GetSecretValueResponse valueResponse = this.secretsManagerClient.getSecretValue(this.getSecretValueRequest);
+    final SecretsManagerClient client = secretsManagerClientFunc.apply(this.secretKey.right());
+    final GetSecretValueRequest request = getSecretValueRequestFunc.apply(this.secretKey.left());
+
+    final GetSecretValueResponse valueResponse;
+    try {
+      valueResponse = client.getSecretValue(request);
+    } finally {
+      client.close();
+    }
+
     final ObjectMapper mapper = new ObjectMapper();
     return mapper.readValue(valueResponse.secretString(), Secret.class);
   }

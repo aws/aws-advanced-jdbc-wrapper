@@ -97,8 +97,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         mockService,
         TEST_PROPS,
-        mockSecretsManagerClient,
-        mockGetValueRequest);
+        (r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest);
   }
 
   @AfterEach
@@ -181,8 +181,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", protocol),
         TEST_PROPS,
-        mockSecretsManagerClient,
-        mockGetValueRequest);
+        (r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest);
 
     // Fail the initial connection attempt with cached secret.
     // Second attempt should be successful.
@@ -270,8 +270,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
         TEST_PROPS,
-        mockSecretsManagerClient,
-        mockGetValueRequest);
+        (r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest);
 
     // Fail the initial connection attempt with a wrapped exception.
     // Second attempt should be successful.
@@ -301,8 +301,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_MYSQL_PROTOCOL),
         TEST_PROPS,
-        mockSecretsManagerClient,
-        mockGetValueRequest);
+        (r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest);
 
     final CJException targetException = new CJException("28000");
     final SQLException wrappedException = new SQLException(targetException);
@@ -331,8 +331,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
         TEST_PROPS,
-        mockSecretsManagerClient,
-        mockGetValueRequest);
+        (r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest);
 
     final PSQLException targetException = new PSQLException("login error", PSQLState.INVALID_PASSWORD, null);
     final SQLException wrappedException = new SQLException(targetException);
