@@ -249,7 +249,7 @@ public class PluginBenchmarks {
 
   Properties useAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing() {
     final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "auroraHostList,readWriteSplitting");
+    useAuroraHostListAndReadWriteSplittingPlugin();
     properties.setProperty("loadBalanceReadOnlyTraffic", "true");
     return properties;
   }
