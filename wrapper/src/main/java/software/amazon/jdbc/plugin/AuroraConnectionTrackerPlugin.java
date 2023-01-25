@@ -127,7 +127,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     final HostSpec originalHost = this.pluginService.getCurrentHostSpec();
     try {
       T result = jdbcMethodFunc.call();
-      if ((methodName.contains(METHOD_CLOSE) || methodName.contains(METHOD_ABORT))) {
+      if ((methodName.equals(METHOD_CLOSE) || methodName.equals(METHOD_ABORT))) {
         tracker.invalidateCurrentConnection(originalHost, this.pluginService.getCurrentConnection());
       }
       return result;
