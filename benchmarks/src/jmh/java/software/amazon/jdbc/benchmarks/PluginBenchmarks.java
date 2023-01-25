@@ -110,9 +110,9 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
-  public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
+  public ConnectionWrapper initAndReleaseWithAllPlugins() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePlugins("executionTime"),
+        useAllPlugins(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -123,7 +123,7 @@ public class PluginBenchmarks {
   @Benchmark
   public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePlugins("auroraHostList"),
+        useAuroraHostList(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -135,7 +135,7 @@ public class PluginBenchmarks {
   public ConnectionWrapper initAndReleaseWithExecutionTimeAndAuroraHostListPlugins()
       throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePlugins("executionTime,auroraHostList"),
+        useAllPlugins(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -146,7 +146,7 @@ public class PluginBenchmarks {
   @Benchmark
   public ConnectionWrapper initAndReleaseWithReadWriteSplittingPlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePlugins("readWriteSplitting"),
+        useReadWriteSplittingPlugin(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -158,7 +158,7 @@ public class PluginBenchmarks {
   public ConnectionWrapper initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin()
       throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePlugins("auroraHostList,readWriteSplitting"),
+        useAuroraHostListAndReadWriteSplittingPlugin(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -170,7 +170,7 @@ public class PluginBenchmarks {
   public ConnectionWrapper initAndReleaseWithReadWriteSplittingPluginWithReaderLoadBalancing()
       throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePluginsWithReaderLoadBalancing("readWriteSplitting"),
+        useReadWriteSplittingPluginWithReaderLoadBalancing(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -183,7 +183,7 @@ public class PluginBenchmarks {
   initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing()
       throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePluginsWithReaderLoadBalancing("auroraHostList,readWriteSplitting"),
+        useAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -194,7 +194,7 @@ public class PluginBenchmarks {
   @Benchmark
   public Statement executeStatementBaseline() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        usePlugins("executionTime"),
+        useExecutionPlugin(),
         CONNECTION_STRING,
         mockConnectionProvider);
          Statement statement = wrapper.createStatement()) {
@@ -206,7 +206,7 @@ public class PluginBenchmarks {
   public ResultSet executeStatementWithExecutionTimePlugin() throws SQLException {
     try (
         ConnectionWrapper wrapper = new ConnectionWrapper(
-            usePlugins("executionTime"),
+            useExecutionPlugin(),
             CONNECTION_STRING,
             mockConnectionProvider);
         Statement statement = wrapper.createStatement();
@@ -215,17 +215,49 @@ public class PluginBenchmarks {
     }
   }
 
-  Properties usePlugins(String propsStr) {
+  Properties useAllPlugins() {
     final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", propsStr);
+    properties.setProperty("wrapperPlugins", "executionTime,auroraHostList");
     return properties;
   }
 
-  Properties usePluginsWithReaderLoadBalancing(String propsStr) {
+  Properties useExecutionPlugin() {
     final Properties properties = new Properties();
-    // "readWriteSplitting" must be included to enable reader load balancing
-    properties.setProperty("wrapperPlugins", propsStr);
+    properties.setProperty("wrapperPlugins", "executionTime");
+    return properties;
+  }
+
+  Properties useAuroraHostList() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "auroraHostList");
+    return properties;
+  }
+
+  Properties useReadWriteSplittingPlugin() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "readWriteSplitting");
+    return properties;
+  }
+
+  Properties useAuroraHostListAndReadWriteSplittingPlugin() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "auroraHostList,readWriteSplitting");
+    return properties;
+  }
+
+  Properties useReadWriteSplittingPluginWithReaderLoadBalancing() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "readWriteSplitting");
+    properties.setProperty("loadBalanceReadOnlyTraffic", "true");
+    return properties;
+  }
+
+  Properties useAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "auroraHostList,readWriteSplitting");
     properties.setProperty("loadBalanceReadOnlyTraffic", "true");
     return properties;
   }
 }
+
+
