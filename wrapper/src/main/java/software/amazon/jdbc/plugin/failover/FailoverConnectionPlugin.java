@@ -70,16 +70,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       });
 
-  static final String METHOD_SET_READ_ONLY = "setReadOnly";
-  private static final String METHOD_GET_AUTO_COMMIT = "getAutoCommit";
-  private static final String METHOD_GET_CATALOG = "getCatalog";
-  private static final String METHOD_GET_SCHEMA = "getSchema";
-  private static final String METHOD_GET_DATABASE = "getDatabase";
-  private static final String METHOD_GET_TRANSACTION_ISOLATION = "getTransactionIsolation";
-  private static final String METHOD_GET_SESSION_MAX_ROWS = "getSessionMaxRows";
-  static final String METHOD_ABORT = "abort";
-  static final String METHOD_CLOSE = "close";
-  static final String METHOD_IS_CLOSED = "isClosed";
+  static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
+  private static final String METHOD_GET_AUTO_COMMIT = "Connection.getAutoCommit";
+  private static final String METHOD_GET_CATALOG = "Connection.getCatalog";
+  private static final String METHOD_GET_SCHEMA = "Connection.getSchema";
+  private static final String METHOD_GET_TRANSACTION_ISOLATION = "Connection.getTransactionIsolation";
+  static final String METHOD_ABORT = "Connection.abort";
+  static final String METHOD_CLOSE = "Connection.close";
+  static final String METHOD_IS_CLOSED = "Connection.isClosed";
   private final PluginService pluginService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
@@ -400,12 +398,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @return true if the given method is allowed on closed connections
    */
   private boolean allowedOnClosedConnection(final String methodName) {
-    return methodName.contains(METHOD_GET_AUTO_COMMIT)
-        || methodName.contains(METHOD_GET_CATALOG)
-        || methodName.contains(METHOD_GET_SCHEMA)
-        || methodName.contains(METHOD_GET_DATABASE)
-        || methodName.contains(METHOD_GET_TRANSACTION_ISOLATION)
-        || methodName.contains(METHOD_GET_SESSION_MAX_ROWS);
+    return methodName.equals(METHOD_GET_AUTO_COMMIT)
+        || methodName.equals(METHOD_GET_CATALOG)
+        || methodName.equals(METHOD_GET_SCHEMA)
+        || methodName.equals(METHOD_GET_TRANSACTION_ISOLATION);
   }
 
   /**
@@ -458,7 +454,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private void performSpecialMethodHandlingIfRequired(final Object[] args, final String methodName)
       throws SQLException {
 
-    if (methodName.contains(METHOD_SET_READ_ONLY)) {
+    if (methodName.equals(METHOD_SET_READ_ONLY)) {
       this.explicitlyReadOnly = (Boolean) args[0];
       LOGGER.finer(
           () -> Messages.get(
@@ -779,9 +775,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @return true if the method can be executed directly; false otherwise.
    */
   private boolean canDirectExecute(final String methodName) {
-    return (methodName.contains(METHOD_CLOSE)
-        || methodName.contains(METHOD_IS_CLOSED)
-        || methodName.contains(METHOD_ABORT));
+    return (methodName.equals(METHOD_CLOSE)
+        || methodName.equals(METHOD_IS_CLOSED)
+        || methodName.equals(METHOD_ABORT));
   }
 
   @Override
