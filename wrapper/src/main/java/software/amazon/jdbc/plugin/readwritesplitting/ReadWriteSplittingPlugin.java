@@ -80,7 +80,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           // read-only mode.
         }
       });
-  static final String METHOD_SET_READ_ONLY = "setReadOnly";
+  static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
   static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
   static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
   static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
@@ -282,7 +282,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return jdbcMethodFunc.call();
     }
 
-    if (methodName.contains(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
+    if (methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
       try {
         switchConnectionIfRequired((Boolean) args[0]);
       } catch (final SQLException e) {
@@ -298,7 +298,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     try {
       final T result = jdbcMethodFunc.call();
       this.isTransactionBoundary = isTransactionBoundary(methodName, args);
-      if (methodName.contains(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
+      if (methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
         this.explicitlyReadOnly = (Boolean) args[0];
       }
       return result;
