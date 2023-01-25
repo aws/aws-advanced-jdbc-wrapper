@@ -117,9 +117,9 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
-  public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
+  public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useAuroraHostList(),
+        useExecutionPlugin(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -128,10 +128,9 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
-  public ConnectionWrapper initAndReleaseWithExecutionTimeAndAuroraHostListPlugins()
-      throws SQLException {
+  public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useAllPlugins(),
+        useAuroraHostList(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
