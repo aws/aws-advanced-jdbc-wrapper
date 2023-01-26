@@ -97,7 +97,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         mockService,
         TEST_PROPS,
-        (r) -> mockSecretsManagerClient,
+        (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
   }
 
@@ -181,7 +181,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", protocol),
         TEST_PROPS,
-        (r) -> mockSecretsManagerClient,
+        (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
 
     // Fail the initial connection attempt with cached secret.
@@ -270,7 +270,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
         TEST_PROPS,
-        (r) -> mockSecretsManagerClient,
+        (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
 
     // Fail the initial connection attempt with a wrapped exception.
@@ -301,7 +301,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_MYSQL_PROTOCOL),
         TEST_PROPS,
-        (r) -> mockSecretsManagerClient,
+        (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
 
     final CJException targetException = new CJException("28000");
@@ -331,7 +331,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
         TEST_PROPS,
-        (r) -> mockSecretsManagerClient,
+        (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
 
     final PSQLException targetException = new PSQLException("login error", PSQLState.INVALID_PASSWORD, null);

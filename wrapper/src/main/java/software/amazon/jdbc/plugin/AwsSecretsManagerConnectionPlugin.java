@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -59,7 +60,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
   private final Pair<String, Region> secretKey;
-  private final Function<Region, SecretsManagerClient> secretsManagerClientFunc;
+  private final BiFunction<HostSpec, Region, SecretsManagerClient>
+      secretsManagerClientFunc;
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
   private Secret secret;
   protected PluginService pluginService;
@@ -69,7 +71,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     this(
         pluginService,
         props,
-        (region) -> SecretsManagerClient.builder()
+        (hostSpec, region) -> SecretsManagerClient.builder()
+            .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
             .region(region)
             .build(),
         (secretId) -> GetSecretValueRequest.builder()
@@ -81,7 +84,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   AwsSecretsManagerConnectionPlugin(
       PluginService pluginService,
       Properties props,
-      Function<Region, SecretsManagerClient> secretsManagerClientFunc,
+      BiFunction<HostSpec, Region, SecretsManagerClient> secretsManagerClientFunc,
       Function<String, GetSecretValueRequest> getSecretValueRequestFunc) {
     this.pluginService = pluginService;
 
@@ -140,7 +143,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    boolean secretWasFetched = updateSecret(false);
+    boolean secretWasFetched = updateSecret(hostSpec, false);
 
     try {
       applySecretToProperties(props);
@@ -151,7 +154,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
         // Login unsuccessful with cached credentials
         // Try to re-fetch credentials and try again
 
-        secretWasFetched = updateSecret(true);
+        secretWasFetched = updateSecret(hostSpec, true);
         if (secretWasFetched) {
           applySecretToProperties(props);
           return connectFunc.call();
@@ -174,14 +177,14 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * @param forceReFetch Allows ignoring cached credentials and force fetches the latest credentials from the service.
    * @return true, if credentials were fetched from the service.
    */
-  private boolean updateSecret(boolean forceReFetch) throws SQLException {
+  private boolean updateSecret(final HostSpec hostSpec, boolean forceReFetch) throws SQLException {
 
     boolean fetched = false;
     this.secret = secretsCache.get(this.secretKey);
 
     if (secret == null || forceReFetch) {
       try {
-        this.secret = fetchLatestCredentials();
+        this.secret = fetchLatestCredentials(hostSpec);
         if (this.secret != null) {
           fetched = true;
           secretsCache.put(this.secretKey, this.secret);
@@ -201,12 +204,16 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   /**
    * Fetches the current credentials from AWS Secrets Manager service.
    *
+   * @param hostSpec A {@link HostSpec} instance containing host information for the current connection.
    * @return a Secret object containing the credentials fetched from the AWS Secrets Manager service.
    * @throws SecretsManagerException if credentials can't be fetched from the AWS Secrets Manager service.
    * @throws JsonProcessingException if credentials can't be mapped to a Secret object.
    */
-  Secret fetchLatestCredentials() throws SecretsManagerException, JsonProcessingException {
-    final SecretsManagerClient client = secretsManagerClientFunc.apply(this.secretKey.right());
+  Secret fetchLatestCredentials(final HostSpec hostSpec)
+      throws SecretsManagerException, JsonProcessingException {
+    final SecretsManagerClient client = secretsManagerClientFunc.apply(
+        hostSpec,
+        this.secretKey.right());
     final GetSecretValueRequest request = getSecretValueRequestFunc.apply(this.secretKey.left());
 
     final GetSecretValueResponse valueResponse;
