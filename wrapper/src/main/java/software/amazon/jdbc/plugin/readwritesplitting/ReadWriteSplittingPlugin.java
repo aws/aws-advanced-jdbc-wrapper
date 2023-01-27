@@ -127,7 +127,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   public static final AwsWrapperProperty READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX =
       new AwsWrapperProperty(
           "readerBalanceAutoCommitStatementRegex",
-          "(?s).*",
+          null,
           "While autocommit is on and loadBalanceReadOnlyTraffic is set to true, this property "
               + "defines the regex to match statements against. Each time the regex is matched, a"
               + " counter will increase until the limit defined by readerBalanceAutoCommitStatementLimit is "
@@ -140,8 +140,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.loadBalanceReadOnlyTraffic = LOAD_BALANCE_READ_ONLY_TRAFFIC.getBoolean(this.properties);
     this.readerBalanceAutoCommitStatementLimit =
         READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.getInteger(this.properties);
-    this.readerBalanceAutoCommitStatementRegex =
-        Pattern.compile(READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX.getString(this.properties));
+    String autoCommitStatementRegex =
+        READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX.getString(this.properties);
+    this.readerBalanceAutoCommitStatementRegex = autoCommitStatementRegex == null
+        ? null : Pattern.compile(autoCommitStatementRegex);
   }
 
   /**
@@ -355,11 +357,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       if (!this.isAutoCommitMode) {
         this.autoCommitStatementCount = 0;
       }
-    } else if (this.readerBalanceAutoCommitStatementLimit > 0
-        && this.isReadOnlyMode
-        && this.isAutoCommitMode
-        && sqlMethodAnalyzer.doesSqlMatchPattern(
-            methodName, args, this.readerBalanceAutoCommitStatementRegex)) {
+    } else if (shouldIncrementAutoCommitStatementCount(methodName, args)) {
       this.autoCommitStatementCount++;
     }
 
@@ -376,20 +374,29 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return methodName.equals(METHOD_SET_AUTO_COMMIT) && args != null && args.length > 0;
   }
 
+  private boolean shouldIncrementAutoCommitStatementCount(String methodName, Object[] args) {
+    return this.readerBalanceAutoCommitStatementLimit > 0
+        && this.loadBalanceReadOnlyTraffic
+        && this.isReadOnlyMode
+        && this.isAutoCommitMode
+        && (this.readerBalanceAutoCommitStatementRegex == null
+          || sqlMethodAnalyzer.doesSqlMatchPattern(
+              methodName, args, this.readerBalanceAutoCommitStatementRegex));
+  }
+
   private boolean shouldPickNewReader(String methodName) {
-    if (sqlMethodAnalyzer.isMethodClosingSqlObject(methodName) || !this.isReadOnlyMode) {
+    if (!this.loadBalanceReadOnlyTraffic
+        || !this.isReadOnlyMode
+        || sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
       return false;
     }
 
-    if (this.loadBalanceReadOnlyTraffic && this.isTransactionBoundary) {
-      return true;
+    if (this.isAutoCommitMode) {
+      return this.readerBalanceAutoCommitStatementLimit > 0
+          && this.autoCommitStatementCount >= this.readerBalanceAutoCommitStatementLimit;
+    } else {
+      return this.isTransactionBoundary;
     }
-
-    if (this.readerBalanceAutoCommitStatementLimit > 0 && this.isAutoCommitMode) {
-      return this.autoCommitStatementCount >= this.readerBalanceAutoCommitStatementLimit;
-    }
-
-    return false;
   }
 
   private void updateInternalConnectionInfo() throws SQLException {
