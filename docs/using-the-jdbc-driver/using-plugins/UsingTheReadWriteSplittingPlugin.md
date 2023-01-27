@@ -1,6 +1,6 @@
 ## Read-Write Splitting Plugin
 
-The read-write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will establish a connection to a random reader instance and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the boolean argument you supply to the `setReadOnly` method.
+The read-write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will establish a connection to a random reader instance and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the argument you supply to the `setReadOnly` method.
 
 ### Loading the Read-Write Splitting Plugin
 
@@ -10,7 +10,7 @@ final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
 ```
 
-If you would like to load the read-write splitting plugin alongside the failover and host monitoring plugins, the read-write splitting plugin must be the first plugin in the connection chain, otherwise failover exceptions will not be properly processed by the plugin. See the example above to properly load the read-write splitting plugin with the failover and host monitoring plugins.
+If you would like to load the read-write splitting plugin alongside the failover and host monitoring plugins, the read-write splitting plugin must be placed before these plugins in the plugin chain. If it is not, failover exceptions will not be properly processed by the plugin. See the example above to properly load the read-write splitting plugin alongside these plugins.
 
 If you would like to use the read-write splitting plugin without the failover plugin against an Aurora cluster, you will need to include the Aurora host list plugin before the read-write splitting plugin. This informs the driver that it should query for Aurora's topology.
 ```
@@ -25,11 +25,11 @@ The plugin can also load balance queries among available reader instances by ena
 properties.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
 ```
 
-Once this parameter is enabled and `setReadOnly(true)` has been called on the `Connection` object, the plugin will switch to a new randomly selected reader instance at each transaction boundary while autocommit is off. The following scenarios are considered transaction boundaries:
+Once this parameter is enabled and `setReadOnly(true)` has been called, the plugin will load balance readers while autocommit is off. The reader switch will occur at each transaction boundary. The following scenarios are considered transaction boundaries:
 - After calling `commit()` or `rollback()`
-- After executing `COMMIT`, `ROLLBACK` or `ABORT` as a SQL statement
+- After executing `COMMIT`, `ROLLBACK` or `ABORT` as a SQL statement (see limitations [here](#multi-statement-sql-limitations-with-reader-load-balancing))
 
-By default, the plugin will not load balance queries while autocommit is on, even if `loadBalanceReadOnlyTraffic` is set to true. To enable load balancing with autocommit enabled, set `loadBalanceReadOnlyTraffic` to true and `readerBalanceAutoCommitStatementLimit` to a positive value X. The plugin will then load balance after every X statements executed while in read-only mode with autocommit on. If you would instead like to load balance after every X statements matching a custom regex, set the `readerBalanceAutoCommitStatementRegex` parameter (note that `readerBalanceAutoCommitStatementLimit` must also be set to a positive value).
+By default, the plugin will not load balance queries while autocommit is on, even if `loadBalanceReadOnlyTraffic` is enabled. To enable load balancing with autocommit on, set `loadBalanceReadOnlyTraffic` to true and `readerBalanceAutoCommitStatementLimit` to a positive value X. The plugin will then load balance after every X statements executed in read-only mode with autocommit on. If you would like to load balance after every X statements matching a custom regex, set the `readerBalanceAutoCommitStatementRegex` parameter as well.
 
 ### Using the Read-Write Splitting Plugin against RDS/Aurora clusters
 
@@ -43,19 +43,19 @@ properties.setProperty(ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION
 String connectionUrl = "jdbc:aws-wrapper:mysql://writer-instance-1.com,reader-instance-1.com,reader-instance-2.com/database-name"
 ```
 
-Additionally, you should avoid using the Aurora host list plugin and the failover plugin in this scenario, as they are designed to specifically operate against Aurora databases.
+Additionally, you should avoid using the Aurora host list plugin and the failover plugin in this scenario, as they are designed to operate against Aurora databases only.
 
 ### Limitations
 
 #### General plugin limitations
 
-When a Statement or ResultSet object is created, it is internally bound to the physical database connection established at the time of object creation. There is no standard JDBC functionality to change the underlying connection used by Statement or ResultSet objects. Consequently, even if the read-write plugin switches the internal connection, any Statements/ResultSets created before this event will continue using the old database connection. This  bypasses any desired functionality provided by the read-write plugin. To prevent these scenarios, an exception will be thrown if your code uses any Statements/ResultSets created before a change in internal connection. To solve this problem, please ensure you create new Statement/ResultSet objects after each change in internal connection. See the section on [scenarios that cause a change in internal connection](#scenarios-that-cause-a-change-in-internal-connection) for more info.
+When a Statement or ResultSet object is created, it is internally bound to the physical database connection established at that moment. There is no standard JDBC functionality to change the underlying connection used by Statement or ResultSet objects. Consequently, even if the read-write plugin switches the internal connection, any Statements/ResultSets created before this event will continue using the old database connection. This  bypasses any desired functionality provided by the read-write plugin. To prevent these scenarios, an exception will be thrown if your code uses any Statements/ResultSets created before a change in internal connection. To solve this problem, please ensure you create new Statement/ResultSet objects after each change in internal connection. See the section on [scenarios that cause a change in internal connection](#scenarios-that-cause-a-change-in-internal-connection) for more info.
 
-#### Reader load balancing limitations
+#### Multi-statement SQL limitations with reader load balancing
 
 When reader load balancing is enabled and autocommit is off, the read-write splitting plugin will analyze SQL statements executed to determine if `COMMIT`, `ROLLBACK` or `ABORT` are executed. In addition to `commit()` and `rollback()`, these statements indicate a transaction boundary. This analysis does not support SQL strings containing multiple statements. If your SQL strings use `COMMIT`, `ROLLBACK`, or `ABORT` and they contain multiple statements, we recommend that you do not enable reader load balancing as the plugin will not detect the transaction boundary if these keywords are not the first statement.
 
-#### Session State Limitations
+#### Session state limitations
 
 There are many session state attributes that can change during a session, and many ways to change them. Consequently, the read-write splitting plugin has limited support for transferring session state between connections. The following attributes will be automatically transferred when switching connections:
 
@@ -70,13 +70,13 @@ If your SQL workflow depends on session state attributes that are not mentioned 
 
 1. If you have loaded the plugin, the connection will switch between the writer/reader when calling `setReadOnly`.
 2. If you have set the `loadBalanceReadOnlyTraffic` parameter to true, the connection will also switch at transaction boundaries while read-only is true and autocommit is off. By default, the plugin will not load balance queries while autocommit is on. See the section on [reader load balancing](#reader-load-balancing) for more information.
-3. If you have set the `loadBalanceReadOnlyTraffic` parameter to true and the `readerBalanceAutoCommitStatementLimit` parameter to a positive value X, the connection will also switch after every X statements executed while autocommit is on and read-only is true. You can optionally set the readerBalanceAutoCommitStatementRegex parameter to switch after every X statements matching a given regex. See the section on [reader load balancing](#reader-load-balancing) for more information.
+3. If you have set the `loadBalanceReadOnlyTraffic` parameter to true and the `readerBalanceAutoCommitStatementLimit` parameter to a positive value X, the connection will also switch after every X statements executed while autocommit is on and read-only is true. You can optionally set the `readerBalanceAutoCommitStatementRegex` parameter to switch after every X statements matching a given regex. See the section on [reader load balancing](#reader-load-balancing) for more information.
 
 ### Read Write Splitting Plugin Parameters
 
-| Parameter                               | Value   | Required | Description                                                                                                                                                                                                                                                                                                                                                                  | Default Value                                                              |
-|-----------------------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
-| `loadBalanceReadOnlyTraffic`            | Boolean | No       | Set to `true` to load balance queries among available reader instances when the connection has been set to read-only mode via `Connection#setReadOnly` and autocommit-off mode via `Connection.setAutoCommit`. To load balance while autocommit is on, also set the `readerBalanceAutoCommitStatementLimit` parameter.                                                       | `false`                                                                    |
-| `readerBalanceAutoCommitStatementLimit` | Integer | No       | Set to a positive value X to load balance reader instances after every X queries while autocommit is on. To use this value, the connection must also be in read-only mode and have `loadBalanceReadOnlyTraffic` enabled. To configure the plugin to switch after every X queries matching a custom regex, set the `readerBalanceAutoCommitStatementRegex` parameter as well. | `0` (Reader balancing is disabled while autocommit is on)                  |
-| `readerBalanceAutoCommitStatementRegex` | String  | No       | Set to your desired regex R to load balance reader instances after every X queries matching R while autocommit is on, where X is defined by `readerBalanceAutoCommitStatementLimit`. To use this value, the connection must also be in read-only mode and have `loadBalanceReadOnlyTraffic` enabled and `readerBalanceAutoCommitStatementLimit` set to a positive value.     | `null` (All executes count towards `readerBalanceAutoComimtStatementLimit` |
+| Parameter                               | Value   | Required | Description                                                                                                                                                                                                                                                                                                                                                                  | Default Value | Default behavior                                                   |
+|-----------------------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|--------------------------------------------------------------------|
+| `loadBalanceReadOnlyTraffic`            | Boolean | No       | Set to `true` to load balance queries among available reader instances when the connection has been set to read-only mode and autocommit-off mode. To load balance while autocommit is on, enable this parameter and set the `readerBalanceAutoCommitStatementLimit` parameter.                                                                                              | `false`       | Reader queries are not load balanced                               |
+| `readerBalanceAutoCommitStatementLimit` | Integer | No       | Set to a positive value X to load balance reader instances after every X queries while autocommit is on. To use this value, the connection must also be in read-only mode and have `loadBalanceReadOnlyTraffic` enabled. To configure the plugin to switch after every X queries matching a custom regex, set the `readerBalanceAutoCommitStatementRegex` parameter as well. | `0`           | Reader query balancing is disabled while autocommit is on          |
+| `readerBalanceAutoCommitStatementRegex` | String  | No       | Set to your desired regex R to load balance reader instances after every X queries matching R while autocommit is on, where X is defined by `readerBalanceAutoCommitStatementLimit`. To use this value, the connection must also be in read-only mode and have `loadBalanceReadOnlyTraffic` enabled and `readerBalanceAutoCommitStatementLimit` set to a positive value.     | `null`        | All executes count towards `readerBalanceAutoCommitStatementLimit` |
 
