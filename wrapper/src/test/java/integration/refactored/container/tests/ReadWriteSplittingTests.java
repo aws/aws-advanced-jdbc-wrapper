@@ -435,7 +435,7 @@ public class ReadWriteSplittingTests {
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_readerLoadBalancing_singleReader() throws SQLException {
-    Properties props = new Properties(this.staticHostListProps);
+    Properties props = this.staticHostListProps;
     props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     props.setProperty(ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.name, "1");
     try (final Connection conn = DriverManager.getConnection(getStaticHostListUrl(), props)) {
@@ -456,7 +456,7 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnNumOfInstances(min = 3)
   public void test_readerLoadBalancing_autocommitTrue_defaultSettings() throws SQLException {
-    Properties props = new Properties(this.auroraHostListProps);
+    Properties props = this.auroraHostListProps;
     props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     try (final Connection conn = DriverManager.getConnection(getClusterUrl(), props)) {
       final String writerConnectionId = queryInstanceId(conn);
@@ -479,7 +479,7 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_readerLoadBalancing_autocommitTrue_regex() throws SQLException {
     String regexTrigger = "SELECT 9";
-    Properties props = new Properties(this.auroraHostListProps);
+    Properties props = this.auroraHostListProps;
     props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     props.setProperty(ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.name, "2");
     props.setProperty(ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX.name, regexTrigger);
@@ -508,7 +508,7 @@ public class ReadWriteSplittingTests {
   @EnableOnNumOfInstances(min = 3)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_readerLoadBalancing_switchAutoCommit() throws SQLException {
-    Properties props = new Properties(this.auroraHostListProps);
+    Properties props = this.auroraHostListProps;
     props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     props.setProperty(ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.name, "2");
     try (final Connection conn = DriverManager.getConnection(getClusterUrl(), props)) {
@@ -569,7 +569,7 @@ public class ReadWriteSplittingTests {
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_transactionResolutionUnknown() throws SQLException {
-    Properties props = new Properties(this.staticHostListProps);
+    Properties props = this.staticHostListProps;
     props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     try (final Connection conn = DriverManager.getConnection(getProxiedStaticHostListUrl(), props)) {
       final String writerConnectionId = queryInstanceId(conn);
