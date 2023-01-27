@@ -174,7 +174,7 @@ public class PluginBenchmarks {
       throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
         useReadWriteSplittingPluginWithReaderLoadBalancing(),
-        PG_CONNECTION_STRING,
+        CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
       return wrapper;
