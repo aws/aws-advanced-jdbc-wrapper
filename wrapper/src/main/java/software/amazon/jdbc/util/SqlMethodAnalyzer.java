@@ -88,15 +88,6 @@ public class SqlMethodAnalyzer {
     return isStatementClosingTransaction(statement);
   }
 
-  public boolean isExecuteDml(final String methodName, final Object[] args) {
-    if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
-      return false;
-    }
-
-    final String statement = getFirstSqlStatement(String.valueOf(args[0]));
-    return isStatementDml(statement);
-  }
-
   public boolean isStatementDml(final String statement) {
     return !isStatementStartingTransaction(statement)
         && !isStatementClosingTransaction(statement)

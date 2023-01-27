@@ -379,6 +379,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         && this.loadBalanceReadOnlyTraffic
         && this.isReadOnlyMode
         && this.isAutoCommitMode
+        && methodName.contains(".execute")
         && (this.readerBalanceAutoCommitStatementRegex == null
           || sqlMethodAnalyzer.doesSqlMatchPattern(
               methodName, args, this.readerBalanceAutoCommitStatementRegex));
