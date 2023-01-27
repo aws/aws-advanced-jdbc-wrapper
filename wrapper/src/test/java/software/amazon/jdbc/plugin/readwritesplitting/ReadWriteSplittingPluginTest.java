@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.AdditionalMatchers.not;
+import static org.mockito.AdditionalMatchers.or;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -150,7 +151,7 @@ public class ReadWriteSplittingPluginTest {
 
     verify(mockPluginService, times(1))
         .setCurrentConnection(eq(mockReaderConn1), not(eq(writerHostSpec)));
-    verify(mockPluginService, times(0))
+    verify(mockPluginService, never())
         .setCurrentConnection(eq(mockWriterConn), any(HostSpec.class));
     assertEquals(mockReaderConn1, plugin.getReaderConnection());
     assertEquals(mockWriterConn, plugin.getWriterConnection());
@@ -183,7 +184,7 @@ public class ReadWriteSplittingPluginTest {
 
     plugin.switchConnectionIfRequired(true);
 
-    verify(mockPluginService, times(0))
+    verify(mockPluginService, never())
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertEquals(mockReaderConn1, plugin.getReaderConnection());
     Assertions.assertNull(plugin.getWriterConnection());
@@ -203,7 +204,7 @@ public class ReadWriteSplittingPluginTest {
         null);
     plugin.switchConnectionIfRequired(false);
 
-    verify(mockPluginService, times(0))
+    verify(mockPluginService, never())
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertEquals(mockWriterConn, plugin.getWriterConnection());
     Assertions.assertNull(plugin.getReaderConnection());
@@ -266,7 +267,7 @@ public class ReadWriteSplittingPluginTest {
         null);
     plugin.switchConnectionIfRequired(true);
 
-    verify(mockPluginService, times(0))
+    verify(mockPluginService, never())
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertEquals(mockWriterConn, plugin.getWriterConnection());
     assertEquals(mockWriterConn, plugin.getReaderConnection());
@@ -290,7 +291,7 @@ public class ReadWriteSplittingPluginTest {
     final SQLException e =
         assertThrows(SQLException.class, () -> plugin.switchConnectionIfRequired(false));
     assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), e.getSQLState());
-    verify(mockPluginService, times(0))
+    verify(mockPluginService, never())
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
   }
 
@@ -311,7 +312,7 @@ public class ReadWriteSplittingPluginTest {
         null);
     plugin.switchConnectionIfRequired(true);
 
-    verify(mockPluginService, times(0))
+    verify(mockPluginService, never())
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertEquals(mockWriterConn, plugin.getReaderConnection());
   }
@@ -330,7 +331,7 @@ public class ReadWriteSplittingPluginTest {
     final SQLException e =
         assertThrows(SQLException.class, () -> plugin.switchConnectionIfRequired(true));
     assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), e.getSQLState());
-    verify(mockPluginService, times(0))
+    verify(mockPluginService, never())
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     Assertions.assertNull(plugin.getReaderConnection());
   }
@@ -347,16 +348,7 @@ public class ReadWriteSplittingPluginTest {
         mockWriterConn,
         null);
 
-    assertThrows(
-        SQLException.class,
-        () -> plugin.execute(
-            ResultSet.class,
-            SQLException.class,
-            mockStatement,
-            "Statement.executeQuery",
-            mockSqlFunction,
-            new Object[] {
-                "begin"}));
+    assertThrows(SQLException.class, () -> executeQuery(plugin, "begin"));
     verify(mockWriterConn, times(1)).close();
   }
 
@@ -389,18 +381,10 @@ public class ReadWriteSplittingPluginTest {
         null,
         mockReaderConn1);
 
-    plugin.setExplicitlyReadOnly(true);
+    plugin.setReadOnlyMode(true);
     plugin.setIsTransactionBoundary(true);
 
-    plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        mockStatement,
-        "Statement.executeQuery",
-        mockSqlFunction,
-        new Object[] {
-            "begin"});
-
+    executeQuery(plugin, "begin");
     verify(mockPluginService, times(1))
         .setCurrentConnection(any(Connection.class), not(eq(readerHostSpec1)));
   }
@@ -420,7 +404,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         mockReaderConn1);
 
-    plugin.setExplicitlyReadOnly(true);
+    plugin.setReadOnlyMode(true);
     plugin.setIsTransactionBoundary(true);
 
     plugin.execute(
@@ -473,7 +457,7 @@ public class ReadWriteSplittingPluginTest {
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
-    verify(mockHostListProviderService, times(0)).setInitialConnectionHostSpec(any(HostSpec.class));
+    verify(mockHostListProviderService, never()).setInitialConnectionHostSpec(any(HostSpec.class));
   }
 
   @Test
@@ -536,7 +520,7 @@ public class ReadWriteSplittingPluginTest {
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
-    verify(mockHostListProviderService, times(0)).setInitialConnectionHostSpec(any(HostSpec.class));
+    verify(mockHostListProviderService, never()).setInitialConnectionHostSpec(any(HostSpec.class));
   }
 
   @Test
@@ -558,6 +542,130 @@ public class ReadWriteSplittingPluginTest {
             defaultProps,
             true,
             this.mockConnectFunc));
-    verify(mockHostListProviderService, times(0)).setInitialConnectionHostSpec(any(HostSpec.class));
+    verify(mockHostListProviderService, never()).setInitialConnectionHostSpec(any(HostSpec.class));
+  }
+
+  @Test
+  public void testLoadBalancing_autoCommitOff() throws SQLException {
+    when(this.mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
+
+    Properties props = new Properties(defaultProps);
+
+    // Verify autocommit-on properties do not affect autocommit-off operation
+    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
+    ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.set(props, "2");
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        props,
+        mockHostListProviderService,
+        mockWriterConn,
+        mockReaderConn1);
+    plugin.setReadOnlyMode(true);
+    plugin.setAutoCommitMode(false);
+
+    String[] queries = new String[] {
+        "SELECT * FROM testTable",
+        "SELECT test_field FROM testTable WHERE other_test_field = 4",
+        "SELECT * FROM testFunction()"
+    };
+
+    for (String query : queries) {
+      executeQuery(plugin, query);
+    }
+    verify(mockPluginService, never()).connect(any(HostSpec.class), any(Properties.class));
+
+    plugin.execute(
+        Void.class,
+        SQLException.class,
+        mockReaderConn1,
+        "Connection.commit",
+        mockVoidFunction,
+        new Object[]{}
+    );
+    executeQuery(plugin, "SELECT * FROM testTable");
+
+    verify(mockPluginService, times(1))
+        .connect(or(not(eq(writerHostSpec)), not(eq(readerHostSpec1))), eq(props));
+  }
+
+  @Test
+  public void testLoadBalancing_autoCommitOn() throws SQLException {
+    when(this.mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
+
+    Properties props = new Properties(defaultProps);
+    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
+    ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.set(props, "2");
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        props,
+        mockHostListProviderService,
+        mockWriterConn,
+        mockReaderConn1);
+    plugin.setReadOnlyMode(true);
+
+    String[] queries = new String[] {
+        "SELECT * FROM testTable",
+        "SELECT test_field FROM testTable WHERE other_test_field = 4",
+        "SELECT * FROM testFunction()"
+    };
+
+    verifyLastQueryPicksNewReader(plugin, props, queries);
+  }
+
+  private void verifyLastQueryPicksNewReader(ReadWriteSplittingPlugin plugin, Properties props,
+      String[] queries)
+      throws SQLException {
+    for (int i = 0; i < queries.length; i++) {
+      executeQuery(plugin, queries[i]);
+
+      if (i < queries.length - 1) {
+        verify(mockPluginService, never()).connect(any(HostSpec.class), any(Properties.class));
+      } else {
+        verify(mockPluginService, times(1))
+            .connect(or(not(eq(writerHostSpec)), not(eq(readerHostSpec1))), eq(props));
+      }
+    }
+  }
+
+  private void executeQuery(ReadWriteSplittingPlugin plugin, String query) throws SQLException {
+    plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        "Statement.executeQuery",
+        mockSqlFunction,
+        new Object[] {query}
+    );
+  }
+
+  @Test
+  public void testLoadBalancing_autoCommitOn_regex() throws SQLException {
+    when(this.mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
+    when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
+
+    Properties props = new Properties(defaultProps);
+    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
+    ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.set(props, "2");
+    ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX.set(props,
+        "SELECT .* testTable( |;|$).*");
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        props,
+        mockHostListProviderService,
+        mockWriterConn,
+        mockReaderConn1);
+    plugin.setReadOnlyMode(true);
+
+    String[] queries = new String[] {
+        "SELECT * FROM testTable",
+        "SELECT test_field FROM testTable2 WHERE other_test_field = 4",
+        "SELECT * FROM testFunction()",
+        "SELECT test_field FROM testTable WHERE other_test_field = 4",
+        "SELECT * FROM testFunction()"
+    };
+
+    verifyLastQueryPicksNewReader(plugin, props, queries);
   }
 }

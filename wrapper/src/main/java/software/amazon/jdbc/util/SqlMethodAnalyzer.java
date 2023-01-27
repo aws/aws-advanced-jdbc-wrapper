@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SqlMethodAnalyzer {
@@ -187,5 +188,13 @@ public class SqlMethodAnalyzer {
 
   public boolean isMethodClosingSqlObject(String methodName) {
     return methodName.endsWith(".close") || methodName.endsWith(".abort");
+  }
+
+  public boolean doesSqlMatchPattern(String methodName, Object[] args, Pattern pattern) {
+    if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
+      return false;
+    }
+
+    return pattern.matcher(String.valueOf(args[0])).matches();
   }
 }

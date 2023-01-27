@@ -32,6 +32,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
@@ -66,6 +67,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           add("Connection.commit");
           add("Connection.rollback");
           add("Connection.createStatement");
+          add("Connection.setAutoCommit");
           add("Connection.setReadOnly");
           add("Statement.execute");
           add("Statement.executeQuery");
@@ -81,6 +83,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         }
       });
   static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
+  static final String METHOD_SET_AUTO_COMMIT = "Connection.setAutoCommit";
   static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
   static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
   static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
@@ -93,12 +96,16 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private final RdsUtils rdsUtils = new RdsUtils();
   private final AtomicBoolean inReadWriteSplit = new AtomicBoolean(false);
   private final boolean loadBalanceReadOnlyTraffic;
+  private final Pattern readerBalanceAutoCommitStatementRegex;
+  private final int readerBalanceAutoCommitStatementLimit;
   private HostListProviderService hostListProviderService;
   private Connection writerConnection;
   private Connection readerConnection;
   private HostSpec readerHostSpec;
+  private int autoCommitStatementCount = 0;
   private boolean isTransactionBoundary = false;
-  private boolean explicitlyReadOnly = false;
+  private boolean isReadOnlyMode = false;
+  private boolean isAutoCommitMode = true;
 
   public static final AwsWrapperProperty LOAD_BALANCE_READ_ONLY_TRAFFIC =
       new AwsWrapperProperty(
@@ -107,11 +114,34 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           "Set to true to automatically load-balance read-only transactions when setReadOnly is "
               + "set to true");
 
+  public static final AwsWrapperProperty READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT =
+      new AwsWrapperProperty(
+          "readerBalanceAutoCommitStatementLimit",
+          "0",
+          "While autocommit is on and loadBalanceReadOnlyTraffic is set to true, this property "
+              + "defines the number of statements matching the regex defined by "
+              + "readerBalanceAutoCommitStatementRegex to perform on the current reader before switching to a"
+              + " new one. A default value of 0 means reader load balancing will not be performed"
+              + " while autocommit is on.");
+
+  public static final AwsWrapperProperty READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX =
+      new AwsWrapperProperty(
+          "readerBalanceAutoCommitStatementRegex",
+          "(?s).*",
+          "While autocommit is on and loadBalanceReadOnlyTraffic is set to true, this property "
+              + "defines the regex to match statements against. Each time the regex is matched, a"
+              + " counter will increase until the limit defined by readerBalanceAutoCommitStatementLimit is "
+              + "hit, which will trigger a switch to a new reader");
+
   ReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
     this.properties = properties;
 
     this.loadBalanceReadOnlyTraffic = LOAD_BALANCE_READ_ONLY_TRAFFIC.getBoolean(this.properties);
+    this.readerBalanceAutoCommitStatementLimit =
+        READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.getInteger(this.properties);
+    this.readerBalanceAutoCommitStatementRegex =
+        Pattern.compile(READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX.getString(this.properties));
   }
 
   /**
@@ -259,6 +289,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       // ignore
     }
 
+    if (changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)) {
+      this.autoCommitStatementCount = 0;
+    }
+
     if (this.inReadWriteSplit.get()) {
       return OldConnectionSuggestedAction.PRESERVE;
     }
@@ -282,25 +316,21 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return jdbcMethodFunc.call();
     }
 
-    if (methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
+    if (isSetReadOnlyMethod(methodName, args)) {
       try {
         switchConnectionIfRequired((Boolean) args[0]);
       } catch (final SQLException e) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
       }
-    } else if (!sqlMethodAnalyzer.isMethodClosingSqlObject(methodName) && this.explicitlyReadOnly
-        && this.loadBalanceReadOnlyTraffic && this.isTransactionBoundary) {
+    } else if (shouldPickNewReader(methodName)) {
       LOGGER.finer(() -> Messages.get(
           "ReadWriteSplittingPlugin.transactionBoundaryDetectedSwitchingToNewReader"));
       pickNewReaderConnection();
     }
 
     try {
-      final T result = jdbcMethodFunc.call();
-      this.isTransactionBoundary = isTransactionBoundary(methodName, args);
-      if (methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
-        this.explicitlyReadOnly = (Boolean) args[0];
-      }
+      T result = jdbcMethodFunc.call();
+      processSuccessfulMethod(methodName, args);
       return result;
     } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
@@ -317,24 +347,51 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
   }
 
-  private boolean isTransactionBoundary(final String methodName, final Object[] args) {
-    final Connection currentConnection = this.pluginService.getCurrentConnection();
-    if (sqlMethodAnalyzer.doesCloseTransaction(currentConnection, methodName, args)) {
+  private void processSuccessfulMethod(String methodName, Object[] args) {
+    if (isSetReadOnlyMethod(methodName, args)) {
+      this.isReadOnlyMode = (Boolean) args[0];
+    } else if (isSetAutoCommitMethod(methodName, args)) {
+      this.isAutoCommitMode = (Boolean) args[0];
+      if (!this.isAutoCommitMode) {
+        this.autoCommitStatementCount = 0;
+      }
+    } else if (this.readerBalanceAutoCommitStatementLimit > 0
+        && this.isReadOnlyMode
+        && this.isAutoCommitMode
+        && sqlMethodAnalyzer.doesSqlMatchPattern(
+            methodName, args, this.readerBalanceAutoCommitStatementRegex)) {
+      this.autoCommitStatementCount++;
+    }
+    this.isTransactionBoundary = isTransactionBoundary(methodName, args);
+  }
+
+  private boolean isSetReadOnlyMethod(String methodName, Object[] args) {
+    return methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0;
+  }
+
+  private boolean isSetAutoCommitMethod(String methodName, Object[] args) {
+    return methodName.equals(METHOD_SET_AUTO_COMMIT) && args != null && args.length > 0;
+  }
+
+  private boolean shouldPickNewReader(String methodName) {
+    if (sqlMethodAnalyzer.isMethodClosingSqlObject(methodName) || !this.isReadOnlyMode) {
+      return false;
+    }
+
+    if (this.loadBalanceReadOnlyTraffic && this.isTransactionBoundary) {
       return true;
     }
 
-    if (this.pluginService.isInTransaction()) {
-      return false;
+    if (this.readerBalanceAutoCommitStatementLimit > 0 && this.isAutoCommitMode) {
+      return this.autoCommitStatementCount >= this.readerBalanceAutoCommitStatementLimit;
     }
 
-    final boolean autocommit;
-    try {
-      autocommit = currentConnection.getAutoCommit();
-    } catch (final SQLException e) {
-      return false;
-    }
+    return false;
+  }
 
-    return autocommit && sqlMethodAnalyzer.isExecuteDml(methodName, args);
+  private boolean isTransactionBoundary(final String methodName, final Object[] args) {
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    return sqlMethodAnalyzer.doesCloseTransaction(currentConnection, methodName, args);
   }
 
   private void updateInternalConnectionInfo() throws SQLException {
@@ -542,13 +599,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   /**
-   * Transfers basic session state from one connection to another, except for the read-only
-   * status. This method is only called when setReadOnly is being called; the read-only status
-   * will be updated when the setReadOnly call continues down the plugin chain
+   * Transfers basic session state from one connection to another, except for the read-only status. This method is only
+   * called when setReadOnly is being called; the read-only status will be updated when the setReadOnly call continues
+   * down the plugin chain
    *
    * @param to The connection to transfer state to
-   * @throws SQLException if a database access error occurs, this method is called on a closed
-   *                      connection, or this method is called during a distributed transaction
+   * @throws SQLException if a database access error occurs, this method is called on a closed connection, or this
+   *                      method is called during a distributed transaction
    */
   protected void transferSessionStateOnReadWriteSplit(
       final Connection to) throws SQLException {
@@ -703,7 +760,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.isTransactionBoundary = transactionBoundary;
   }
 
-  void setExplicitlyReadOnly(final boolean readOnly) {
-    this.explicitlyReadOnly = readOnly;
+  void setReadOnlyMode(final boolean readOnlyMode) {
+    this.isReadOnlyMode = readOnlyMode;
+  }
+
+  void setAutoCommitMode(final boolean autoCommitMode) {
+    this.isAutoCommitMode = autoCommitMode;
   }
 }
