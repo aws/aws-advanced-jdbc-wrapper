@@ -53,7 +53,7 @@ When a Statement or ResultSet object is created, it is internally bound to the p
 
 #### Reader load balancing limitations
 
-When reader load balancing is enabled and autocommit is off, the read-write splitting plugin will analyze statements executed to determine when `COMMIT`, `ROLLBACK` or `ABORT` is executed. This analysis does not support SQL strings containing multiple statements. If your SQL strings contain multiple statements, we recommend that you do not enable reader load balancing as the resulting behavior is not defined. If a SQL string with multiple statements is provided, the plugin will only analyze the first statement.
+When reader load balancing is enabled and autocommit is off, the read-write splitting plugin will analyze SQL statements executed to determine if `COMMIT`, `ROLLBACK` or `ABORT` are executed. In addition to `commit()` and `rollback()`, these statements indicate a transaction boundary. This analysis does not support SQL strings containing multiple statements. If your SQL strings use `COMMIT`, `ROLLBACK`, or `ABORT` and they contain multiple statements, we recommend that you do not enable reader load balancing as the plugin will not detect the transaction boundary if these keywords are not the first statement.
 
 #### Session State Limitations
 
