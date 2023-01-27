@@ -362,7 +362,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
             methodName, args, this.readerBalanceAutoCommitStatementRegex)) {
       this.autoCommitStatementCount++;
     }
-    this.isTransactionBoundary = isTransactionBoundary(methodName, args);
+
+    final Connection currentConnection = this.pluginService.getCurrentConnection();
+    this.isTransactionBoundary =
+        sqlMethodAnalyzer.doesCloseTransaction(currentConnection, methodName, args);
   }
 
   private boolean isSetReadOnlyMethod(String methodName, Object[] args) {
@@ -387,11 +390,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     return false;
-  }
-
-  private boolean isTransactionBoundary(final String methodName, final Object[] args) {
-    final Connection currentConnection = this.pluginService.getCurrentConnection();
-    return sqlMethodAnalyzer.doesCloseTransaction(currentConnection, methodName, args);
   }
 
   private void updateInternalConnectionInfo() throws SQLException {
