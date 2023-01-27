@@ -293,14 +293,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
 
     private boolean isCurrentHostWriter(final List<HostSpec> latestTopology) {
-      final Set<String> currentAliases = this.originalWriterHost.getAliases();
       final HostSpec latestWriter = getWriter(latestTopology);
-      if (currentAliases == null) {
-        return false;
-      }
-      final Set<String> latestWriterAliases = latestWriter.getAliases();
+      final Set<String> latestWriterAllAliases = latestWriter.asAliases();
+      final Set<String> currentAliases = this.originalWriterHost.getAliases();
 
-      return latestWriterAliases.stream().anyMatch(currentAliases::contains);
+      return (currentAliases != null)
+          && (latestWriterAllAliases.stream().anyMatch(currentAliases::contains));
     }
   }
 

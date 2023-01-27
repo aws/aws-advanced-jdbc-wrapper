@@ -797,5 +797,4 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     return conn;
   }
-
 }
