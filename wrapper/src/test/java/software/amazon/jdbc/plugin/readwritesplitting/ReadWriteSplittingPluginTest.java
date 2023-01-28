@@ -382,6 +382,7 @@ public class ReadWriteSplittingPluginTest {
         mockReaderConn1);
 
     plugin.setReadOnlyMode(true);
+    plugin.setAutoCommitMode(false);
     plugin.setIsTransactionBoundary(true);
 
     executeQuery(plugin, "begin");
