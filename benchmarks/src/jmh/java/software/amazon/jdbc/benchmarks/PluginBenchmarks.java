@@ -47,7 +47,6 @@ import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import software.amazon.jdbc.ConnectionProvider;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -67,7 +66,7 @@ public class PluginBenchmarks {
   private static final String PG_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://instance-0.XYZ.us-east-2.rds.amazonaws.com";
   private static final int TEST_PORT = 5432;
-  private final HostSpec writerHostSpec = new HostSpec("instance-0", TEST_PORT, HostRole.WRITER);
+  private final HostSpec writerHostSpec = new HostSpec("instance-0", TEST_PORT);
 
   @Mock private PluginService mockPluginService;
   @Mock ConnectionProvider mockConnectionProvider;
