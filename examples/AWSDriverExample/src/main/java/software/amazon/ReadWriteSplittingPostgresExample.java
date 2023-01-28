@@ -57,8 +57,20 @@ public class ReadWriteSplittingPostgresExample {
     //    "INSERT INTO bank_test VALUES (0, 'Jane Doe', 200), (1, 'John Smith', 200), (2, 'Sally Smith', 200), (3, 'Joe Smith', 200)");
     // }
 
-    // Uncomment to enable reader load balancing
+    // Scenario A: uncomment to enable reader load balancing while autocommit is off.
+    // A new reader will be selected after each transaction.
     // props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
+
+    // Scenario B: uncomment to load balance reader queries regardless of autocommit mode.
+    // A new reader will be selected after every 3 statements while autocommit is on.
+    // props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
+    // props.setProperty(ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.name, "3");
+
+    // Scenario C: uncomment to load balance reader queries regardless of autocommit mode.
+    // A new reader will be selected after every bank_test query while autocommit is on.
+    // props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
+    // props.setProperty(ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_LIMIT.name, "1");
+    // props.setProperty(ReadWriteSplittingPlugin.READER_BALANCE_AUTOCOMMIT_STATEMENT_REGEX.name, "SELECT .* FROM bank_test.*");
 
     // Example Step: Open connection and perform transaction
     try (final Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
@@ -74,14 +86,30 @@ public class ReadWriteSplittingPostgresExample {
           conn,
           "UPDATE bank_test SET account_balance=account_balance + 100 WHERE name='John Smith'");
 
-      // Commit business transaction
-      executeWithFailoverHandling(conn, "commit");
+      conn.commit();
       // Change connection to the reader connection internally
       conn.setReadOnly(true);
 
-      // If reader load-balancing was enabled, each execute will be performed against a new reader.
+      // If reader load balancing was enabled (scenario A, B, or C) each transaction will be performed against a new reader
       for (int i = 0; i < 4; i++) {
         ResultSet rs = executeWithFailoverHandling(conn, "SELECT * FROM bank_test WHERE id = " + i);
+        processResults(rs);
+        conn.commit();
+      }
+
+      // If properties were set according to scenario B, every 3 executes will be performed against a new reader
+      conn.setAutoCommit(true);
+      for (int i = 0; i < 6; i++) {
+        ResultSet rs = executeWithFailoverHandling(conn, "SELECT * FROM bank_test WHERE id = " + i);
+        processResults(rs);
+      }
+
+      // If properties were set according to scenario C, every bank_test query will be performed against a new reader
+      conn.setAutoCommit(true);
+      for (int i = 0; i < 6; i++) {
+        ResultSet rs = executeWithFailoverHandling(conn, "SELECT 1");
+        processResults(rs);
+        rs = executeWithFailoverHandling(conn, "SELECT * FROM bank_test WHERE id = " + i);
         processResults(rs);
       }
 
