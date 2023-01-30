@@ -52,7 +52,7 @@ class SqlMethodAnalyzerTest {
   }
 
   @ParameterizedTest
-  @MethodSource("openTransactionQueries")
+  @MethodSource("openTransactionMethods")
   void testOpenTransaction(final String methodName, final String sql, final boolean autocommit,
       final boolean expected)
       throws SQLException {
@@ -69,7 +69,21 @@ class SqlMethodAnalyzerTest {
   }
 
   @ParameterizedTest
-  @MethodSource("closeTransactionQueries")
+  @MethodSource("isTransactionBoundaryMethods")
+  void testTransactionBoundary(final String methodName, final String sql, final boolean expected) {
+    final Object[] args;
+    if (sql != null) {
+      args = new Object[] {sql};
+    } else {
+      args = new Object[] {};
+    }
+
+    final boolean actual = sqlMethodAnalyzer.isTransactionBoundary(conn, methodName, args);
+    assertEquals(expected, actual);
+  }
+
+  @ParameterizedTest
+  @MethodSource("closeTransactionMethods")
   void testCloseTransaction(final String methodName, final String sql, final boolean expected) {
     final Object[] args;
     if (sql != null) {
@@ -144,7 +158,7 @@ class SqlMethodAnalyzerTest {
     assertEquals(expected, actual);
   }
 
-  private static Stream<Arguments> openTransactionQueries() {
+  private static Stream<Arguments> openTransactionMethods() {
     return Stream.of(
         Arguments.of("Statement.execute", "  bEgIn ; ", true, true),
         Arguments.of("Statement.execute", "START TRANSACTION", true, true),
@@ -167,7 +181,23 @@ class SqlMethodAnalyzerTest {
     );
   }
 
-  private static Stream<Arguments> closeTransactionQueries() {
+  private static Stream<Arguments> isTransactionBoundaryMethods() {
+    return Stream.of(
+        Arguments.of("Statement.execute", "rollback;", true),
+        Arguments.of("Statement.execute", "commit;", true),
+        Arguments.of("Statement.executeUpdate", "end", true),
+        Arguments.of("Statement.executeUpdate", "abort;", false),
+        Arguments.of("Statement.execute", "select 1", false),
+        Arguments.of("Statement.close", null, false),
+        Arguments.of("Statement.isClosed", null, false),
+        Arguments.of("Connection.commit", null, true),
+        Arguments.of("Connection.rollback", null, true),
+        Arguments.of("Connection.close", null, false),
+        Arguments.of("Connection.abort", null, false)
+    );
+  }
+
+  private static Stream<Arguments> closeTransactionMethods() {
     return Stream.of(
         Arguments.of("Statement.execute", "rollback;", true),
         Arguments.of("Statement.execute", "commit;", true),

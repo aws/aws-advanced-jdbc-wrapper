@@ -27,7 +27,7 @@ properties.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.n
 
 Once this parameter is enabled and `setReadOnly(true)` has been called, the plugin will load balance readers while autocommit is off. The reader switch will occur at each transaction boundary. The following scenarios are considered transaction boundaries:
 - After calling `commit()` or `rollback()`
-- After executing `COMMIT`, `ROLLBACK` or `ABORT` as a SQL statement (see limitations [here](#multi-statement-sql-limitations-with-reader-load-balancing))
+- After executing `COMMIT` or `ROLLBACK` as a SQL statement (see limitations [here](#multi-statement-sql-limitations-with-reader-load-balancing))
 
 By default, the plugin will not load balance queries while autocommit is on, even if `loadBalanceReadOnlyTraffic` is enabled. To enable load balancing with autocommit on, set `loadBalanceReadOnlyTraffic` to true and `readerBalanceAutoCommitStatementLimit` to a positive value X. The plugin will then load balance after every X statements executed in read-only mode with autocommit on. If you would like to load balance after every X statements matching a custom regex, set the `readerBalanceAutoCommitStatementRegex` parameter as well.
 
@@ -53,7 +53,7 @@ When a Statement or ResultSet object is created, it is internally bound to the p
 
 #### Multi-statement SQL limitations with reader load balancing
 
-When reader load balancing is enabled and autocommit is off, the read-write splitting plugin will analyze SQL statements executed to determine if `COMMIT`, `ROLLBACK` or `ABORT` are executed. In addition to `commit()` and `rollback()`, these statements indicate a transaction boundary. This analysis does not support SQL strings containing multiple statements. If your SQL strings use `COMMIT`, `ROLLBACK`, or `ABORT` and they contain multiple statements, we recommend that you do not enable reader load balancing as the plugin will not detect the transaction boundary if these keywords are not the first statement.
+When reader load balancing is enabled and autocommit is off, the read-write splitting plugin will analyze SQL statements executed to determine if `COMMIT` or `ROLLBACK` are executed. In addition to `commit()` and `rollback()`, these statements indicate a transaction boundary. This analysis does not support SQL strings containing multiple statements. If your SQL strings use `COMMIT` or `ROLLBACK` and they contain multiple statements, we recommend that you do not enable reader load balancing as the plugin will not detect the transaction boundary if these keywords are not the first statement.
 
 #### Session state limitations
 

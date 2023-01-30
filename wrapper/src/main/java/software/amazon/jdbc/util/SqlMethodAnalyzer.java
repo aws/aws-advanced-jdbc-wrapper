@@ -69,6 +69,30 @@ public class SqlMethodAnalyzer {
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
   }
 
+  public boolean isTransactionBoundary(final Connection conn, final String methodName,
+      final Object[] args) {
+    if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")) {
+      return true;
+    }
+
+    if (doesSwitchAutoCommitFalseTrue(conn, methodName, args)) {
+      return true;
+    }
+
+    if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
+      return false;
+    }
+
+    final String statement = getFirstSqlStatement(String.valueOf(args[0]));
+    return isTransactionBoundary(statement);
+  }
+
+  public boolean isTransactionBoundary(String statement) {
+    return statement.startsWith("COMMIT")
+        || statement.startsWith("ROLLBACK")
+        || statement.startsWith("END");
+  }
+
   public boolean doesCloseTransaction(final Connection conn, final String methodName,
       final Object[] args) {
     if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")

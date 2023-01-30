@@ -363,7 +363,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     this.isTransactionBoundary =
-        sqlMethodAnalyzer.doesCloseTransaction(currentConnection, methodName, args);
+        sqlMethodAnalyzer.isTransactionBoundary(currentConnection, methodName, args);
   }
 
   private boolean isSetReadOnlyMethod(String methodName, Object[] args) {
