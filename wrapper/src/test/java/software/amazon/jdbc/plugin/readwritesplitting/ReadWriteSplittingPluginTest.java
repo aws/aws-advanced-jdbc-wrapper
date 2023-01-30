@@ -416,7 +416,7 @@ public class ReadWriteSplittingPluginTest {
         mockVoidFunction,
         new Object[] {});
 
-    assertTrue(plugin.getIsTransactionBoundary());
+    assertFalse(plugin.getIsTransactionBoundary());
     verify(mockPluginService, never()).connect(any(), any());
   }
 
