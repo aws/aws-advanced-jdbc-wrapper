@@ -379,3 +379,23 @@ tasks.register<Test>("test-aurora-mysql-performance") {
         systemProperty("test-no-mariadb-engine", "true")
     }
 }
+
+tasks.register<Test>("test-pg-hibernate") {
+    group = "verification"
+    filter.includeTestsMatching("integration.hibernate.HibernateContainerTest.testPGHibernate")
+}
+
+tasks.register<Test>("test-mysql-hibernate") {
+    group = "verification"
+    filter.includeTestsMatching("integration.hibernate.HibernateContainerTest.testMySQLHibernate")
+}
+
+tasks.register<Test>("debug-pg-hibernate") {
+    group = "verification"
+    filter.includeTestsMatching("integration.hibernate.HibernateContainerTest.debugPGHibernate")
+}
+
+tasks.register<Test>("debug-mysql-hibernate") {
+    group = "verification"
+    filter.includeTestsMatching("integration.hibernate.HibernateContainerTest.debugMySQLHibernate")
+}

@@ -1,0 +1,61 @@
+name: Test Hibernate ORM
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - '**/release_draft.yml'
+      - '**/maven*.yml'
+      - '**/*.md'
+      - '**/docs/**'
+      - '**/*.jpg'
+      - '**/*.png'
+
+jobs:
+  test_hibernate:
+    name: Hibernate ORM
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        driver:
+          [
+            mysql,
+            pg
+          ]
+    env:
+      ACTIONS_STEP_DEBUG: true
+      ACTIONS_RUNNER_DEBUG: true
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 50
+      - name: 'Set up JDK 11'
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: 11
+      - name: Clone hibernate_orm and check file history
+        run: |
+          git clone --branch 6.2.0.CR2 https://github.com/hibernate/hibernate-orm.git
+      - name: 'Run standard integration tests'
+        run: |
+          ./gradlew --no-parallel --no-daemon test-${{ matrix.driver }}-hibernate
+      - name: 'Enable access to Hibernate test results'
+        if: always()
+        run: |
+          sudo chown -R $USER ./hibernate-orm
+      - name: 'Archive all Hibernate test results'
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: hibernate-all-junit-test-report-${{ matrix.driver }}
+          path: |
+            ./hibernate-orm/**/target/reports/tests/
+            !./hibernate-orm/.gradle
+          retention-days: 5
