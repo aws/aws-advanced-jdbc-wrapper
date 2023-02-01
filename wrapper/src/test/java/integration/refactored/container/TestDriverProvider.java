@@ -64,8 +64,9 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       @Override
       public String getDisplayName(int invocationIndex) {
         return String.format(
-            "[%d] - [Driver: %-7s] - [%s]",
+            "[%d] - %s - [Driver: %-7s] - [%s]",
             invocationIndex,
+            context.getDisplayName(),
             testDriver,
             TestEnvironment.getCurrent().getInfo().getRequest().getDisplayName());
       }

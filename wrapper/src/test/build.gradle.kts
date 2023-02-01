@@ -72,6 +72,7 @@ tasks.withType<Test> {
     }
 
     systemProperty("java.util.logging.config.file", "./test/resources/logging-test.properties")
+    systemProperty("junit.jupiter.params.displayname.default", "{displayName} - {arguments}")
 
     reports.junitXml.required.set(true)
     reports.junitXml.outputLocation.set(file("${project.buildDir}/test-results/container-" + System.currentTimeMillis()))

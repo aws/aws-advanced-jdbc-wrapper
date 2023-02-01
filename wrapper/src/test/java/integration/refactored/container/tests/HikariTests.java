@@ -26,6 +26,7 @@ import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
 import integration.refactored.container.condition.DisableOnTestFeature;
+import integration.refactored.container.condition.EnableOnTestFeature;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -38,6 +39,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
+@EnableOnTestFeature(TestEnvironmentFeatures.HIKARI)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 public class HikariTests {
 
