@@ -248,12 +248,20 @@ public class TestEnvironment implements AutoCloseable {
       throw new RuntimeException("Environment variable AURORA_CLUSTER_DOMAIN is required.");
     }
 
-    env.auroraUtil =
-        new AuroraTestUtility(
-            env.info.getAuroraRegion(),
-            env.awsAccessKeyId,
-            env.awsSecretAccessKey,
-            env.awsSessionToken);
+    if (env.awsSessionToken == null) {
+      env.auroraUtil =
+          new AuroraTestUtility(
+              env.info.getAuroraRegion(),
+              env.awsAccessKeyId,
+              env.awsSecretAccessKey);
+    } else {
+      env.auroraUtil =
+          new AuroraTestUtility(
+              env.info.getAuroraRegion(),
+              env.awsAccessKeyId,
+              env.awsSecretAccessKey,
+              env.awsSessionToken);
+    }
     ArrayList<TestInstanceInfo> instances = new ArrayList<>();
 
     if (env.reuseAuroraDbCluster) {
@@ -423,9 +431,6 @@ public class TestEnvironment implements AutoCloseable {
     }
     if (StringUtils.isNullOrEmpty(env.awsSecretAccessKey)) {
       throw new RuntimeException("Environment variable AWS_SECRET_ACCESS_KEY is required.");
-    }
-    if (StringUtils.isNullOrEmpty(env.awsSessionToken)) {
-      throw new RuntimeException("Environment variable AWS_SESSION_TOKEN is required.");
     }
 
     if (env.info
@@ -656,7 +661,7 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private void deleteAuroraDbCluster() {
-    if (!StringUtils.isNullOrEmpty(this.runnerIP)) {
+    if (!this.reuseAuroraDbCluster && !StringUtils.isNullOrEmpty(this.runnerIP)) {
       auroraUtil.ec2DeauthorizesIP(runnerIP);
     }
 

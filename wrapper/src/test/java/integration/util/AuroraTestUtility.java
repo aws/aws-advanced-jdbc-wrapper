@@ -43,6 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -120,6 +121,13 @@ public class AuroraTestUtility {
    */
   public AuroraTestUtility(String region) {
     this(getRegionInternal(region), DefaultCredentialsProvider.create());
+  }
+
+  public AuroraTestUtility(String region, String awsAccessKeyId, String awsSecretAccessKey) {
+    this(
+        getRegionInternal(region),
+        StaticCredentialsProvider.create(
+            AwsBasicCredentials.create(awsAccessKeyId, awsSecretAccessKey)));
   }
 
   public AuroraTestUtility(
