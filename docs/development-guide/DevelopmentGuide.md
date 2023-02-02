@@ -128,8 +128,7 @@ See [here](EFMAndFailoverPluginPerformanceResults.md#enhanced-failure-monitoring
 
 The diagrams in this section show the AWS JDBC Driver's performance when using the read-write splitting plugin, with or without reader load balancing. This test sets up a large number of connections in parallel; the initial connection is to the writer but will be changed to various reader instances if the plugin is enabled. The test executes a long query many times to simulate heavy queries.
 
-The average overhead time is measured as the average time difference between running the test when no plugins are enabled and running the test with the plugins enabled. The baseline number indicates there is no overhead time when no plugins are enabled.
-
+The average overhead time is measured as the average time difference between running the entire test with the read-write plugin and running the entire test without any plugins. The baseline overhead time is 0 because there are no plugins in this scenario and thus there is no plugin overhead. Note that the given overhead values represent the total overhead of running the entire test rather than the overhead of executing a single method.
 ![](../images/jdbc_wrapper_postgresql_readwritesplitting_performance.png)
 See [here](ReadWriteSplittingPluginPerformanceResults.md#read-write-splitting-plugin-postgres-performance-results) for a more detailed performance breakdown.
 
