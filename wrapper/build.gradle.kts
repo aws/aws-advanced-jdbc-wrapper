@@ -247,6 +247,12 @@ tasks.withType<Test> {
     if (!name.contains("performance")) {
         finalizedBy("junitHtmlReport")
     }
+
+    val testReportsPath = "${buildDir}/test-results"
+    val testReportsDir: File = file(testReportsPath)
+    doFirst {
+        testReportsDir.deleteRecursively()
+    }
 }
 
 tasks.register<Test>("test-all-environments") {
