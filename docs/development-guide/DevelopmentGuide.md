@@ -130,9 +130,8 @@ The diagrams in this section show the AWS JDBC Driver's performance when using t
 
 The average overhead time is measured as the average time difference between running the test when no plugins are enabled and running the test with the plugins enabled. The baseline number indicates there is no overhead time when no plugins are enabled.
 
-
-
 ![](../images/jdbc_wrapper_postgresql_readwritesplitting_performance.png)
+See [here](ReadWriteSplittingPluginPerformanceResults.md#read-write-splitting-plugin-postgres-performance-results) for a more detailed performance breakdown.
 
 ### Running the Tests
 

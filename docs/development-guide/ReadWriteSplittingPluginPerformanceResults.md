@@ -1,6 +1,6 @@
 # Read-Write Splitting Plugin Performance Results
 
-## Benchmarks
+### Read-Write Splitting Plugin Postgres Performance Results
 | Benchmark                                                     | Overhead Time | Units |
 |---------------------------------------------------------------|---------------|-------|
 | No Plugin Enabled                                             | 0 (baseline)  | ms/op |
