@@ -124,6 +124,16 @@ See [here](EFMAndFailoverPluginPerformanceResults.md#failover-performance-with-d
 ![](../images/jdbc_wrapper_postgresql_efm_6000_1000_1.png)
 See [here](EFMAndFailoverPluginPerformanceResults.md#enhanced-failure-monitoring-performance-with-different-failure-detection-configuration) for a more detailed performance breakdown.
 
+#### Read-Write Splitting and Reader Load Balancing Performance Tests
+
+The diagrams in this section show the AWS JDBC Driver's performance when using the read-write splitting plugin, with or without reader load balancing. This test sets up a large number of connections in parallel; the initial connection is to the writer but will be changed to various reader instances if the plugin is enabled. The test executes a long query many times to simulate heavy queries.
+
+The average overhead time is measured as the average time difference between running the test when no plugins are enabled and running the test with the plugins enabled. The baseline number indicates there is no overhead time when no plugins are enabled.
+
+
+
+![](../images/jdbc_wrapper_postgresql_readwritesplitting_performance.png)
+
 ### Running the Tests
 
 After building the AWS JDBC Driver you can now run the unit tests.
