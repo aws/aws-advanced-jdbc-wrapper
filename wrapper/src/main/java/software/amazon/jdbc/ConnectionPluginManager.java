@@ -75,7 +75,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
         }
       };
 
-  protected static final String DEFAULT_PLUGINS = "";
+  protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover,efm";
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
   private static final String ALL_METHODS = "*";
@@ -87,7 +87,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private final ReentrantLock lock = new ReentrantLock();
 
   protected Properties props = new Properties();
-  protected ArrayList<ConnectionPlugin> plugins;
+  protected List<ConnectionPlugin> plugins;
   protected final ConnectionProvider connectionProvider;
   protected final ConnectionWrapper connectionWrapper;
   protected PluginService pluginService;
