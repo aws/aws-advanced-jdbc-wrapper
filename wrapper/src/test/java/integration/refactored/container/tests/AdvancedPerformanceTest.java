@@ -281,7 +281,7 @@ public class AdvancedPerformanceTest {
             LOGGER.finest("Trigger failover...");
 
             // trigger failover
-            failoverCluster();
+            auroraUtil.failoverClusterAndWaitUntilWriterChanged();
             downtime.set(System.nanoTime());
             LOGGER.finest("Failover is started.");
 
@@ -609,10 +609,6 @@ public class AdvancedPerformanceTest {
       fail("Can't connect to " + url);
     }
     return conn;
-  }
-
-  private void failoverCluster() throws InterruptedException {
-    auroraUtil.failoverCluster(TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
   }
 
   private void ensureClusterHealthy() throws InterruptedException {

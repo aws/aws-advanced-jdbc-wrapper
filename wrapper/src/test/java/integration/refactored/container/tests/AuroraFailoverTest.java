@@ -140,7 +140,7 @@ public class AuroraFailoverTest {
             props)) {
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Connection invocation
       assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
@@ -180,7 +180,7 @@ public class AuroraFailoverTest {
       final Statement stmt = conn.createStatement();
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Statement invocation
       assertFirstQueryThrows(stmt, SqlState.COMMUNICATION_LINK_CHANGED.getState());
@@ -306,7 +306,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -367,7 +367,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -426,7 +426,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_4 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       final SQLException exception =
           assertThrows(
@@ -528,7 +528,7 @@ public class AuroraFailoverTest {
       testStmt1.executeQuery("select 1; select 2; select 3;");
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
