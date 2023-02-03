@@ -68,6 +68,11 @@ public class RdsUtils {
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com)",
           Pattern.CASE_INSENSITIVE);
 
+  private static final Pattern AURORA_INSTANCE_PATTERN =
+      Pattern.compile(
+          "(?<instance>.+)\\.(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com)",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Pattern AURORA_CLUSTER_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
@@ -93,6 +98,12 @@ public class RdsUtils {
           "(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com\\.cn)",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern AURORA_CHINA_INSTANCE_PATTERN =
+      Pattern.compile(
+          "(?<instance>.+)\\."
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_CHINA_CLUSTER_PATTERN =
@@ -136,12 +147,17 @@ public class RdsUtils {
   public boolean isRdsCustomClusterDns(String host) {
     return !StringUtils.isNullOrEmpty(host)
         && (AURORA_CUSTOM_CLUSTER_PATTERN.matcher(host).find()
-            || AURORA_CHINA_CUSTOM_CLUSTER_PATTERN.matcher(host).find());
+        || AURORA_CHINA_CUSTOM_CLUSTER_PATTERN.matcher(host).find());
   }
 
   public boolean isRdsDns(String host) {
     return !StringUtils.isNullOrEmpty(host)
         && (AURORA_DNS_PATTERN.matcher(host).find() || AURORA_CHINA_DNS_PATTERN.matcher(host).find());
+  }
+
+  public boolean isRdsInstance(String host) {
+    return !StringUtils.isNullOrEmpty(host)
+        && (AURORA_INSTANCE_PATTERN.matcher(host).find() || AURORA_CHINA_INSTANCE_PATTERN.matcher(host).find());
   }
 
   public boolean isRdsProxyDns(String host) {

@@ -43,6 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -69,8 +70,8 @@ import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
- * Creates and destroys AWS RDS Clusters and Instances. To use this functionality the following
- * environment variables must be defined: - AWS_ACCESS_KEY_ID - AWS_SECRET_ACCESS_KEY
+ * Creates and destroys AWS RDS Clusters and Instances. To use this functionality the following environment variables
+ * must be defined: - AWS_ACCESS_KEY_ID - AWS_SECRET_ACCESS_KEY
  */
 public class AuroraTestUtility {
 
@@ -95,8 +96,8 @@ public class AuroraTestUtility {
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
 
   /**
-   * Initializes an AmazonRDS & AmazonEC2 client. RDS client used to create/destroy clusters &
-   * instances. EC2 client used to add/remove IP from security group.
+   * Initializes an AmazonRDS & AmazonEC2 client. RDS client used to create/destroy clusters & instances. EC2 client
+   * used to add/remove IP from security group.
    */
   public AuroraTestUtility() {
     this(Region.US_EAST_1, DefaultCredentialsProvider.create());
@@ -106,7 +107,7 @@ public class AuroraTestUtility {
    * Initializes an AmazonRDS & AmazonEC2 client.
    *
    * @param region define AWS Regions, refer to
-   *     https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
+   *               https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
    */
   public AuroraTestUtility(Region region) {
     this(region, DefaultCredentialsProvider.create());
@@ -116,7 +117,7 @@ public class AuroraTestUtility {
    * Initializes an AmazonRDS & AmazonEC2 client.
    *
    * @param region define AWS Regions, refer to
-   *     https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
+   *               https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
    */
   public AuroraTestUtility(String region) {
     this(getRegionInternal(region), DefaultCredentialsProvider.create());
@@ -128,14 +129,16 @@ public class AuroraTestUtility {
     this(
         getRegionInternal(region),
         StaticCredentialsProvider.create(
-            AwsSessionCredentials.create(awsAccessKeyId, awsSecretAccessKey, awsSessionToken)));
+            StringUtils.isNullOrEmpty(awsSessionToken)
+                ? AwsBasicCredentials.create(awsAccessKeyId, awsSecretAccessKey)
+                : AwsSessionCredentials.create(awsAccessKeyId, awsSecretAccessKey, awsSessionToken)));
   }
 
   /**
    * Initializes an AmazonRDS & AmazonEC2 client.
    *
-   * @param region define AWS Regions, refer to
-   *     https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
+   * @param region              define AWS Regions, refer to
+   *                            https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
    * @param credentialsProvider Specific AWS credential provider
    */
   public AuroraTestUtility(Region region, AwsCredentialsProvider credentialsProvider) {
@@ -176,18 +179,17 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for
-   * databases.
+   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
    *
-   * @param username Master username for access to database
-   * @param password Master password for access to database
-   * @param dbName Database name
-   * @param identifier Database cluster identifier
-   * @param engine Database engine to use, refer to
-   *     https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html
+   * @param username      Master username for access to database
+   * @param password      Master password for access to database
+   * @param dbName        Database name
+   * @param identifier    Database cluster identifier
+   * @param engine        Database engine to use, refer to
+   *                      https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html
    * @param instanceClass instance class, refer to
-   *     https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html
-   * @param version the database engine's version
+   *                      https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html
+   * @param version       the database engine's version
    * @return An endpoint for one of the instances
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
@@ -220,12 +222,11 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for
-   * databases.
+   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
    *
-   * @param username Master username for access to database
-   * @param password Master password for access to database
-   * @param name Database name
+   * @param username   Master username for access to database
+   * @param password   Master password for access to database
+   * @param name       Database name
    * @param identifier Database identifier
    * @return An endpoint for one of the instances
    * @throws InterruptedException when clusters have not started after 30 minutes
@@ -243,8 +244,7 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for
-   * databases.
+   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
    *
    * @return An endpoint for one of the instances
    * @throws InterruptedException when clusters have not started after 30 minutes
@@ -338,7 +338,9 @@ public class AuroraTestUtility {
     return ip;
   }
 
-  /** Authorizes IP to EC2 Security groups for RDS access. */
+  /**
+   * Authorizes IP to EC2 Security groups for RDS access.
+   */
   public void ec2AuthorizeIP(String ipAddress) {
     if (StringUtils.isNullOrEmpty(ipAddress)) {
       return;
@@ -379,7 +381,9 @@ public class AuroraTestUtility {
     return response != null && !response.securityGroups().isEmpty();
   }
 
-  /** De-authorizes IP from EC2 Security groups. */
+  /**
+   * De-authorizes IP from EC2 Security groups.
+   */
   public void ec2DeauthorizesIP(String ipAddress) {
     if (StringUtils.isNullOrEmpty(ipAddress)) {
       return;
@@ -408,7 +412,9 @@ public class AuroraTestUtility {
     deleteCluster();
   }
 
-  /** Destroys all instances and clusters. Removes IP from EC2 whitelist. */
+  /**
+   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
+   */
   public void deleteCluster() {
     // Tear down instances
     for (int i = 1; i <= numOfInstances; i++) {

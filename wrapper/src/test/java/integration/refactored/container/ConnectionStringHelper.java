@@ -23,6 +23,22 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class ConnectionStringHelper {
 
+  public static String getClusterUrl() {
+    return getUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+  }
+
   public static String getUrl() {
     return getUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
@@ -47,14 +63,14 @@ public class ConnectionStringHelper {
 
   public static String getUrl(TestDriver testDriver, String host, int port, String databaseName) {
     return DriverHelper.getDriverProtocol(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
         + host
         + ":"
         + port
         + "/"
         + databaseName
         + DriverHelper.getDriverRequiredParameters(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
   }
 
   public static String getWrapperUrl() {
@@ -82,14 +98,14 @@ public class ConnectionStringHelper {
   public static String getWrapperUrl(
       TestDriver testDriver, String host, int port, String databaseName) {
     return DriverHelper.getWrapperDriverProtocol(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
         + host
         + ":"
         + port
         + "/"
         + databaseName
         + DriverHelper.getDriverRequiredParameters(
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
   }
 
   public static String getProxyWrapperUrl() {

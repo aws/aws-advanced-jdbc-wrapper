@@ -55,7 +55,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
   private boolean explicitReadOnly;
-  private ExceptionManager exceptionManager;
+  private final ExceptionManager exceptionManager;
 
   public PluginServiceImpl(
       @NonNull final ConnectionPluginManager pluginManager,
@@ -393,7 +393,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
-    return this.pluginManager.connect(this.driverProtocol, hostSpec, props, this.currentConnection == null);
+    return this.pluginManager.connect(
+        this.driverProtocol,
+        hostSpec,
+        props,
+        this.currentConnection == null);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
@@ -443,5 +447,4 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public boolean isLoginException(String sqlState) {
     return this.exceptionManager.isLoginException(this.driverProtocol, sqlState);
   }
-
 }

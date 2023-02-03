@@ -424,9 +424,6 @@ public class TestEnvironment implements AutoCloseable {
     if (StringUtils.isNullOrEmpty(env.awsSecretAccessKey)) {
       throw new RuntimeException("Environment variable AWS_SECRET_ACCESS_KEY is required.");
     }
-    if (StringUtils.isNullOrEmpty(env.awsSessionToken)) {
-      throw new RuntimeException("Environment variable AWS_SESSION_TOKEN is required.");
-    }
 
     if (env.info
         .getRequest()
@@ -434,7 +431,9 @@ public class TestEnvironment implements AutoCloseable {
         .contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
       env.info.setAwsAccessKeyId(env.awsAccessKeyId);
       env.info.setAwsSecretAccessKey(env.awsSecretAccessKey);
-      env.info.setAwsSessionToken(env.awsSessionToken);
+      if (!StringUtils.isNullOrEmpty(env.awsSessionToken)) {
+        env.info.setAwsSessionToken(env.awsSessionToken);
+      }
     }
   }
 
