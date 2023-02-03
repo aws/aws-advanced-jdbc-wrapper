@@ -17,6 +17,7 @@
 package integration.util;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
@@ -629,8 +630,17 @@ public class AuroraTestUtility {
 
   public void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
       throws InterruptedException {
-    failoverClusterAndWaitUntilWriterChanged(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), clusterWriterId);
+    List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+    String anyReaderId = "";
+    for (TestInstanceInfo instance : instances) {
+      if (!clusterWriterId.equals(instance.getInstanceName())) {
+        anyReaderId = instance.getInstanceName();
+      }
+    }
+    if (StringUtils.isNullOrEmpty(anyReaderId)) {
+      fail("Could not find instance info for a reader.");
+    }
+    failoverClusterToATargetAndWaitUntilWriterChanged(clusterWriterId, anyReaderId);
   }
 
   public void failoverClusterAndWaitUntilWriterChanged(String clusterId, String clusterWriterId)
