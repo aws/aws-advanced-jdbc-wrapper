@@ -650,7 +650,13 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.releaseSavepoint",
-        () -> this.pluginService.getCurrentConnection().releaseSavepoint(savepoint),
+        () -> {
+          if (savepoint instanceof SavepointWrapper) {
+            this.pluginService.getCurrentConnection().releaseSavepoint(((SavepointWrapper) savepoint).savepoint);
+          } else {
+            this.pluginService.getCurrentConnection().releaseSavepoint(savepoint);
+          }
+        },
         savepoint);
   }
 
@@ -675,7 +681,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginService.getCurrentConnection(),
         "Connection.rollback",
         () -> {
-          this.pluginService.getCurrentConnection().rollback(savepoint);
+          if (savepoint instanceof SavepointWrapper) {
+            this.pluginService.getCurrentConnection().rollback(((SavepointWrapper) savepoint).savepoint);
+          } else {
+            this.pluginService.getCurrentConnection().rollback(savepoint);
+          }
           this.pluginManagerService.setInTransaction(false);
         },
         savepoint);
