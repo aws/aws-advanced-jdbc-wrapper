@@ -503,7 +503,7 @@ public class AuroraFailoverTest {
       }
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Assert failover has occurred.
       assertThrows(
