@@ -226,7 +226,7 @@ public class AdvancedPerformanceTest {
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getInstanceName());
+                .getInstanceId());
     final String writerIpAddress =
         InetAddress.getByName(
                 TestEnvironment.getCurrent()

@@ -213,13 +213,13 @@ public class AuroraFailoverTest {
               .getProxyDatabaseInfo()
               .getInstances()
               .get(i)
-              .getInstanceName());
+              .getInstanceId());
     }
 
     // Connect to Instance2 which is the only reader that is up.
     final TestInstanceInfo instanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(1);
-    final String instanceId = instanceInfo.getInstanceName();
+    final String instanceId = instanceInfo.getInstanceId();
 
     final Properties props = initDefaultProxiedProps();
     DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
@@ -251,7 +251,7 @@ public class AuroraFailoverTest {
               .getProxyDatabaseInfo()
               .getInstances()
               .get(1)
-              .getInstanceName();
+              .getInstanceId();
       ProxyHelper.enableConnectivity(readerAId);
 
       final String readerBId =
@@ -260,7 +260,7 @@ public class AuroraFailoverTest {
               .getProxyDatabaseInfo()
               .getInstances()
               .get(2)
-              .getInstanceName();
+              .getInstanceId();
       ProxyHelper.enableConnectivity(readerBId);
 
       // Crash writer Instance1.
@@ -467,7 +467,7 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0);
     TestInstanceInfo nominatedWriterInstanceInfo =
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
-    final String nominatedWriterId = nominatedWriterInstanceInfo.getInstanceName();
+    final String nominatedWriterId = nominatedWriterInstanceInfo.getInstanceId();
 
     try (final Connection conn =
         createDataSourceConnectionWithFailoverUsingInstanceId(
@@ -475,7 +475,7 @@ public class AuroraFailoverTest {
 
       // Crash writer Instance1 and nominate Instance2 as the new writer
       auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
-          initialWriterInstanceInfo.getInstanceName(), nominatedWriterId);
+          initialWriterInstanceInfo.getInstanceId(), nominatedWriterId);
 
       assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 

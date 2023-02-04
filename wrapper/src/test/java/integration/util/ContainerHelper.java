@@ -425,12 +425,11 @@ public class ContainerHelper {
     return new ToxiproxyContainer(TOXIPROXY_IMAGE)
         .withNetwork(network)
         .withNetworkAliases(
-            "proxy-instance-" + instance.getInstanceName(),
+            "proxy-instance-" + instance.getInstanceId(),
             instance.getEndpoint() + proxyDomainNameSuffix);
   }
 
-  // return db cluster instance proxy port
-  public int createInstanceProxies(
+  public int getProxyPort(
       List<String> clusterInstances, List<ToxiproxyContainer> containers, int port) {
     Set<Integer> proxyPorts = new HashSet<>();
 
@@ -444,13 +443,12 @@ public class ContainerHelper {
     return proxyPorts.stream().findFirst().orElse(0);
   }
 
-  // return db cluster instance proxy port
-  public int createInstanceProxies(
+  public int getProxyPort(
       List<TestInstanceInfo> instances, HashMap<String, ToxiproxyContainer> containers) {
     Set<Integer> proxyPorts = new HashSet<>();
 
     for (TestInstanceInfo instance : instances) {
-      ToxiproxyContainer container = containers.get(instance.getInstanceName());
+      ToxiproxyContainer container = containers.get(instance.getInstanceId());
       ToxiproxyContainer.ContainerProxy proxy =
           container.getProxy(instance.getEndpoint(), instance.getEndpointPort());
       proxyPorts.add(proxy.getOriginalProxyPort());

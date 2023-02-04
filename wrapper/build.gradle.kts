@@ -23,7 +23,7 @@ plugins {
     id("com.github.spotbugs")
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
-    id("com.kncept.junit.reporter") version "2.1.0"
+    id("com.kncept.junit.reporter")
 }
 
 dependencies {

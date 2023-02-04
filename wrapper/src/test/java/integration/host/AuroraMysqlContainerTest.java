@@ -163,7 +163,7 @@ public class AuroraMysqlContainerTest {
       container.start();
     }
     mysqlProxyPort =
-        containerHelper.createInstanceProxies(
+        containerHelper.getProxyPort(
             mysqlInstances, proxyContainers, AURORA_MYSQL_PORT);
 
     proxyContainers.add(

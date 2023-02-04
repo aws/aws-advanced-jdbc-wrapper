@@ -20,7 +20,6 @@ import com.mysql.cj.util.StringUtils;
 import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
@@ -90,7 +89,7 @@ public class StandardPostgresContainerTest {
     }
 
     postgresProxyPort =
-        containerHelper.createInstanceProxies(postgresInstances, proxyContainers, STANDARD_POSTGRES_PORT);
+        containerHelper.getProxyPort(postgresInstances, proxyContainers, STANDARD_POSTGRES_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();

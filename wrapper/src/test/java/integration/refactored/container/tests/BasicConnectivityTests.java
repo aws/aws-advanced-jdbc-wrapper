@@ -180,11 +180,11 @@ public class BasicConnectivityTests {
     rs.next();
     assertEquals(1, rs.getInt(1));
 
-    ProxyHelper.disableConnectivity(instanceInfo.getInstanceName());
+    ProxyHelper.disableConnectivity(instanceInfo.getInstanceId());
 
     assertFalse(conn.isValid(5));
 
-    ProxyHelper.enableConnectivity(instanceInfo.getInstanceName());
+    ProxyHelper.enableConnectivity(instanceInfo.getInstanceId());
 
     conn.close();
   }
@@ -224,11 +224,11 @@ public class BasicConnectivityTests {
     rs.next();
     assertEquals(1, rs.getInt(1));
 
-    ProxyHelper.disableConnectivity(instanceInfo.getInstanceName());
+    ProxyHelper.disableConnectivity(instanceInfo.getInstanceId());
 
     assertFalse(conn.isValid(5));
 
-    ProxyHelper.enableConnectivity(instanceInfo.getInstanceName());
+    ProxyHelper.enableConnectivity(instanceInfo.getInstanceId());
 
     conn.close();
   }

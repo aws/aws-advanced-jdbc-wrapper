@@ -531,14 +531,12 @@ public class AuroraTestUtility {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-        final Statement stmt = conn.createStatement()) {
-      // Get instances
-      try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
-        while (resultSet.next()) {
-          // Get Instance endpoints
-          final String hostEndpoint = resultSet.getString("SERVER_ID");
-          auroraInstances.add(hostEndpoint);
-        }
+         final Statement stmt = conn.createStatement();
+         final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
+      while (resultSet.next()) {
+        // Get Instance endpoints
+        final String hostEndpoint = resultSet.getString("SERVER_ID");
+        auroraInstances.add(hostEndpoint);
       }
     }
     return auroraInstances;

@@ -355,7 +355,7 @@ public class ReadWriteSplittingTests {
                 .getDatabaseInfo()
                 .getInstances()
                 .get(i)
-                .getInstanceName());
+                .getInstanceId());
       }
 
       assertDoesNotThrow(() -> conn.setReadOnly(true));
@@ -499,7 +499,7 @@ public class ReadWriteSplittingTests {
               .getDatabaseInfo()
               .getInstances()
               .get(1)
-              .getInstanceName());
+              .getInstanceId());
 
       final SQLException e = assertThrows(SQLException.class, conn::rollback);
       assertTrue(

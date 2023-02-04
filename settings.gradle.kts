@@ -42,5 +42,6 @@ pluginManagement {
         id("com.github.vlsi.ide") version "1.+"
         id("me.champeau.jmh") version "0.+"
         id("org.checkerframework") version "0.+"
+        id("com.kncept.junit.reporter") version "2.1.0"
     }
 }
