@@ -643,6 +643,7 @@ public class AuroraTestUtility {
     for (String instanceId : latestTopology) {
       if (!writerId.equals(instanceId)) {
         anyReaderId = instanceId;
+        break;
       }
     }
     if (StringUtils.isNullOrEmpty(anyReaderId)) {
