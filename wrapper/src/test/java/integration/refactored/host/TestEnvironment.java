@@ -128,7 +128,9 @@ public class TestEnvironment implements AutoCloseable {
       case MULTI_INSTANCE:
         env.numOfInstances = env.info.getRequest().getNumOfInstances();
         if (env.numOfInstances < 1 || env.numOfInstances > 15) {
-          LOGGER.warning(env.numOfInstances + " instances were requested but the requested number must be between 1 and 15. 5 instances will be used as a default.");
+          LOGGER.warning(
+              env.numOfInstances + " instances were requested but the requested number must be "
+                  + "between 1 and 15. 5 instances will be used as a default.");
           env.numOfInstances = 5;
         }
         break;
@@ -221,7 +223,9 @@ public class TestEnvironment implements AutoCloseable {
 
         env.numOfInstances = env.info.getRequest().getNumOfInstances();
         if (env.numOfInstances < 1 || env.numOfInstances > 15) {
-          LOGGER.warning(env.numOfInstances + " instances were requested but the requested number must be between 1 and 15. 5 instances will be used as a default.");
+          LOGGER.warning(
+              env.numOfInstances + " instances were requested but the requested number must be "
+                  + "between 1 and 15. 5 instances will be used as a default.");
           env.numOfInstances = 5;
         }
 
