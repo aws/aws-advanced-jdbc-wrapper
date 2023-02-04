@@ -86,10 +86,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
           + "ORDER BY LAST_UPDATE_TIMESTAMP";
   static final int DEFAULT_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
-  static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
-  static final String MYSQL_GET_INSTANCE_NAME_COL = "@@aurora_server_id";
-  static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
-  static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
   static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   static final String FIELD_SERVER_ID = "SERVER_ID";
   static final String FIELD_SESSION_ID = "SESSION_ID";
@@ -113,8 +109,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
   private static final String PG_DRIVER_PROTOCOL = "postgresql";
   private final String retrieveTopologyQuery;
-  private final String retrieveInstanceQuery;
-  private final String instanceNameCol;
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
   protected ConnectionUrlParser connectionUrlParser;
@@ -151,12 +145,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
     if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
       retrieveTopologyQuery = PG_RETRIEVE_TOPOLOGY_SQL;
-      retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = PG_INSTANCE_NAME_COL;
     } else {
       retrieveTopologyQuery = MYSQL_RETRIEVE_TOPOLOGY_SQL;
-      retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = MYSQL_GET_INSTANCE_NAME_COL;
     }
   }
 
@@ -545,41 +535,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       return (clusterTopologyInfo != null
           && clusterTopologyInfo.isMultiWriterCluster);
     }
-  }
-
-  /**
-   * Return the {@link HostSpec} object that is associated with a provided connection from the
-   * topology host list.
-   *
-   * @param conn A connection to database.
-   * @return The HostSpec object from the topology host list. Returns null if the connection host is
-   *     not found in the latest topology.
-   */
-  public HostSpec getHostByName(Connection conn) {
-    try (Statement stmt = conn.createStatement();
-        ResultSet resultSet = stmt.executeQuery(retrieveInstanceQuery)) {
-      String instanceName = null;
-      if (resultSet.next()) {
-        instanceName = resultSet.getString(instanceNameCol);
-      }
-      ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
-      return instanceNameToHost(instanceName, clusterTopologyInfo == null ? null : clusterTopologyInfo.hosts);
-    } catch (SQLException e) {
-      return null;
-    }
-  }
-
-  private HostSpec instanceNameToHost(String name, List<HostSpec> hosts) {
-    if (name == null || hosts == null) {
-      return null;
-    }
-
-    for (HostSpec host : hosts) {
-      if (host != null && host.getAliases().stream().anyMatch(name::equalsIgnoreCase)) {
-        return host;
-      }
-    }
-    return null;
   }
 
   /**

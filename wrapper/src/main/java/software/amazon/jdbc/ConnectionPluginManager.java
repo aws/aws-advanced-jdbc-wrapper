@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
@@ -70,6 +71,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
           put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
+          put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
         }
       };
 

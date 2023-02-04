@@ -18,6 +18,7 @@
   - [Architecture](./development-guide/Architecture.md)
     - [Plugin Manager](./development-guide/PluginManager.md)
     - [Loadable Plugins](./development-guide/LoadablePlugins.md)
-    - [Performance Results](./development-guide/PerformanceResults.md)
+    - [EFM and Failover Plugin Performance Results](./development-guide/EFMAndFailoverPluginPerformanceResults.md)
+    - [Read-Write Splitting Plugin Performance Results](./development-guide/ReadWriteSplittingPluginPerformanceResults.md)
     - [Plugin Service](./development-guide/PluginService.md)
     - [Pipelines](./development-guide/Pipelines.md)

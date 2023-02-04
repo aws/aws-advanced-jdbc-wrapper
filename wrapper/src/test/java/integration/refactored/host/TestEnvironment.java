@@ -445,7 +445,9 @@ public class TestEnvironment implements AutoCloseable {
         .contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
       env.info.setAwsAccessKeyId(env.awsAccessKeyId);
       env.info.setAwsSecretAccessKey(env.awsSecretAccessKey);
-      env.info.setAwsSessionToken(env.awsSessionToken);
+      if (!StringUtils.isNullOrEmpty(env.awsSessionToken)) {
+        env.info.setAwsSessionToken(env.awsSessionToken);
+      }
     }
   }
 

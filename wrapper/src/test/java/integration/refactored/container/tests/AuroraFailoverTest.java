@@ -17,6 +17,7 @@
 package integration.refactored.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,6 +58,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -73,6 +75,7 @@ public class AuroraFailoverTest {
   protected static final int IS_VALID_TIMEOUT = 5;
 
   protected String currentWriter;
+  private static final int IDLE_CONNECTIONS_NUM = 5;
 
   @BeforeEach
   public void setUpEach() throws InterruptedException {
@@ -456,6 +459,66 @@ public class AuroraFailoverTest {
       assertEquals(0, rs1.getInt(1));
 
       testStmt3.executeUpdate("DROP TABLE IF EXISTS test3_4");
+    }
+  }
+
+  @TestTemplate
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void testServerFailoverWithIdleConnections() throws SQLException, InterruptedException {
+    final List<Connection> idleConnections = new ArrayList<>();
+    final String initialWriterId = this.currentWriter;
+    final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
+    final int clusterEndpointPort = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort();
+
+    final Properties props = initDefaultProps();
+    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover");
+    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
+
+    for (int i = 0; i < IDLE_CONNECTIONS_NUM; i++) {
+      // Keep references to 5 idle connections created using the cluster endpoints.
+      idleConnections.add(DriverManager.getConnection(
+          ConnectionStringHelper.getWrapperUrl(
+              clusterEndpoint,
+              clusterEndpointPort,
+              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+          props));
+    }
+
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperUrl(
+            clusterEndpoint,
+            clusterEndpointPort,
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+        props)) {
+
+      final String instanceId = auroraUtil.queryInstanceId(
+          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+          conn);
+      assertEquals(this.currentWriter, instanceId);
+
+      // Ensure that all idle connections are still opened.
+      for (Connection idleConnection : idleConnections) {
+        assertFalse(idleConnection.isClosed());
+      }
+
+      // Crash Instance1 and nominate a new writer
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+
+      // Assert failover has occurred.
+      assertThrows(
+          FailoverSQLException.class,
+          () -> auroraUtil.queryInstanceId(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              conn));
+
+      // Sleep for a second to allow daemon threads to finish running.
+      Thread.sleep(1000);
+
+      // Ensure that all idle connections are closed.
+      for (Connection idleConnection : idleConnections) {
+        assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
+      }
     }
   }
 

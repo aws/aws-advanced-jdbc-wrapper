@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.util;
+package software.amazon.jdbc.plugin;
 
-import com.zaxxer.hikari.SQLExceptionOverride;
-import java.sql.SQLException;
-import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
-import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginService;
 
-public class HikariCPSQLException implements SQLExceptionOverride {
-
-  public Override adjudicate(final SQLException sqlException) {
-    if (sqlException instanceof FailoverSuccessSQLException
-        || sqlException instanceof TransactionStateUnknownSQLException) {
-      return Override.DO_NOT_EVICT;
-    } else {
-      return Override.CONTINUE_EVICT;
-    }
+public class AuroraConnectionTrackerPluginFactory implements ConnectionPluginFactory {
+  @Override
+  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+    return new AuroraConnectionTrackerPlugin(pluginService, props);
   }
 }
