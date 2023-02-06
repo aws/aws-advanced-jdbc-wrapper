@@ -169,7 +169,9 @@ public class HikariTests {
    * connection fails over to another instance. A connection is then retrieved to check that connections
    * to failed instances are not returned.
    */
-  @Test
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_1_2_hikariCP_get_dead_connection() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 
@@ -209,7 +211,9 @@ public class HikariTests {
    * After getting a successful connection from the pool, the connected instance becomes unavailable and the
    * connection fails over to another instance through the Enhanced Failure Monitor.
    */
-  @Test
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_2_1_hikariCP_efm_failover() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 

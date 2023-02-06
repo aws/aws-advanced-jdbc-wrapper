@@ -244,7 +244,6 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
-  // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_connectToReaderCluster_setReadOnlyTrueFalse(final Properties props) throws SQLException {
     final String url = getUrl();
@@ -572,8 +571,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @ParameterizedTest(name = "test_readerLoadBalancing_switchAutoCommitInTransaction")
-  @MethodSource("testParameters")
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_readerLoadBalancing_switchAutoCommitInTransaction(final Properties props) throws SQLException {
     ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
     final String url = getUrl();
@@ -627,8 +627,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @ParameterizedTest(name = "test_readerLoadBalancing_remainingStateTransitions")
-  @MethodSource("testParameters")
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_readerLoadBalancing_remainingStateTransitions(final Properties props) throws SQLException {
 
     ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
@@ -673,8 +674,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @ParameterizedTest(name = "test_readerLoadBalancing_lostConnectivity")
-  @MethodSource("proxiedTestParameters")
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_readerLoadBalancing_lostConnectivity(final Properties props) throws SQLException {
 
     ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
@@ -807,8 +809,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @ParameterizedTest(name = "test_executeWithOldConnection")
-  @MethodSource("testParameters")
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_executeWithOldConnection(final Properties props) throws SQLException {
     try (final Connection conn = DriverManager.getConnection(getUrl(), this.defaultProps)) {
 
@@ -833,7 +836,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @Test
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException, InterruptedException, IOException {
     try (final Connection conn =
              DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
@@ -879,7 +884,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @Test
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_failoverToNewReader_setReadOnlyFalseTrue() throws SQLException, IOException {
     try (final Connection conn =
              DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
@@ -933,7 +940,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @Test
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_failoverReaderToWriter_setReadOnlyTrueFalse() throws SQLException, IOException {
     // PGProperty.SOCKET_TIMEOUT.set(props, "2");
     try (final Connection conn =
@@ -973,7 +982,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @Test
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_multiHostUrl_topologyOverridesHostList() throws SQLException {
     try (final Connection conn =
              DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
@@ -986,7 +997,9 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @Test
+  @TestTemplate
+  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_transactionResolutionUnknown_readWriteSplittingPluginOnly() throws SQLException, IOException {
     try (final Connection conn =
              DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
