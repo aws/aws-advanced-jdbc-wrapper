@@ -51,7 +51,7 @@ dependencies {
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.0")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.4")
-    testImplementation("org.mockito:mockito-inline:4.8.0")
+    testImplementation("org.mockito:mockito-inline:5.1.1")
     testImplementation("software.amazon.awssdk:rds:2.17.285")
     testImplementation("software.amazon.awssdk:ec2:2.18.1")
     testImplementation("software.amazon.awssdk:secretsmanager:2.17.285")
