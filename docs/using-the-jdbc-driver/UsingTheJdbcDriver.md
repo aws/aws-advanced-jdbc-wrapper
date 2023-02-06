@@ -66,13 +66,21 @@ Plugins are loaded and managed through the Connection Plugin Manager and may be 
 | `wrapperProfileName` | `String` | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`        |
 
 To use a built-in plugin, specify its relevant plugin code for the `wrapperPlugins`.
-For instance, to use the [FailoverConnectionPlugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/failover/FailoverConnectionPlugin.java) and the [Host Monitoring Connection Plugin](../../wrapper/src/main/java/software/amazon/jdbc/plugin/efm/HostMonitoringConnectionPlugin.java):
+The default value for `wrapperPlugins` is `auroraConnectionTracker,failover,efm`. These 3 plugins are enabled by default. To read more about these plugins, see the [List of Available Plugins](#list-of-available-plugins) section.
+To override the default plugins, simply provide a new value for `wrapperPlugins`.
+For instance, to use the [IAM Authentication Connection Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md) and the [Failover Connection Plugin](./using-plugins/UsingTheFailoverPlugin.md):
 
 ```java
-properties.setProperty("wrapperPlugins", "failover,efm");
+properties.setProperty("wrapperPlugins", "iam,failover");
 ```
 
 > :exclamation:**NOTE**: The plugins will be initialized and executed in the order they have been specified.
+
+Provide an empty string to disable all plugins:
+```java
+properties.setProperty("wrapperPlugins", "");
+```
+The Wrapper behaves like the target driver when no plugins are used.
 
 ### Configuration Profiles
 An alternative way of loading plugins is to use a configuration profile. You can create custom configuration profiles that specify which plugins the AWS JDBC Driver should load. After creating the profile, set the [`wrapperProfileName`](#connection-plugin-manager-parameters) parameter to the name of the created profile.
