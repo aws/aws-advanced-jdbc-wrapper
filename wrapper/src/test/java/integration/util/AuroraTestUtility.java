@@ -694,7 +694,7 @@ public class AuroraTestUtility {
           nextWriterIP = hostToIP(clusterEndpoint);
 
           if (nextWriterId.equals(targetInstanceId) && !initialWriterIP.equals(nextWriterIP)) {
-            break;
+            return;
           }
         }
       } catch (final Exception e) {
