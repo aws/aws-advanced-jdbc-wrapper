@@ -67,6 +67,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           add("Connection.commit");
           add("Connection.rollback");
           add("Connection.createStatement");
+          add("Connection.prepareCall");
+          add("Connection.prepareStatement");
           add("Connection.setAutoCommit");
           add("Connection.setReadOnly");
           add("Statement.execute");
