@@ -260,6 +260,10 @@ tasks.register<Test>("test-all-environments") {
     filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-performance", "true")
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
     }
 }
 
