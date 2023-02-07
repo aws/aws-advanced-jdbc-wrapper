@@ -668,31 +668,15 @@ public class AuroraTestUtility {
     }
   }
 
-  public void waitUntilWriterInstanceChanged(String initialWriterIP, String initialWriterId)
-      throws InterruptedException {
-    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
-    String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
-
-    String nextWriterIP = hostToIP(clusterEndpoint);
-    String nextWriterId = getDBClusterWriterInstanceId(clusterId);
-    while (initialWriterId.equals(nextWriterId) || initialWriterIP.equals(nextWriterIP)) {
-      TimeUnit.MILLISECONDS.sleep(3000);
-      // Calling the RDS API to get writer Id.
-      nextWriterId = getDBClusterWriterInstanceId(clusterId);
-      nextWriterIP = hostToIP(clusterEndpoint);
-    }
-  }
-
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
       String initialWriterId, String targetInstanceId) throws InterruptedException {
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
-    String initialWriterIP = hostToIP(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
-    failoverClusterWithATargetInstance(clusterId, targetInstanceId);
-    waitUntilWriterInstanceChanged(initialWriterIP, initialWriterId);
-  }
+    String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
+    String initialWriterIP = hostToIP(clusterEndpoint);
+    String nextWriterId;
+    String nextWriterIP;
+    int checksBeforeRetry = 5;
 
-  public void failoverClusterWithATargetInstance(String clusterId, String targetInstanceId)
-      throws InterruptedException {
     waitUntilClusterHasRightState(clusterId);
 
     while (true) {
@@ -702,7 +686,17 @@ public class AuroraTestUtility {
                 builder
                     .dbClusterIdentifier(clusterId)
                     .targetDBInstanceIdentifier(targetInstanceId));
-        break;
+
+        for (int i = 0; i < checksBeforeRetry; i++) {
+          TimeUnit.MILLISECONDS.sleep(3000);
+          // Calling the RDS API to get writer Id.
+          nextWriterId = getDBClusterWriterInstanceId(clusterId);
+          nextWriterIP = hostToIP(clusterEndpoint);
+
+          if (nextWriterId.equals(targetInstanceId) && !initialWriterIP.equals(nextWriterIP)) {
+            break;
+          }
+        }
       } catch (final Exception e) {
         TimeUnit.MILLISECONDS.sleep(1000);
       }
