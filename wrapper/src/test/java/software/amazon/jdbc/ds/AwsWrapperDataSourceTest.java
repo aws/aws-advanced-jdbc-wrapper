@@ -16,15 +16,10 @@
 
 package software.amazon.jdbc.ds;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
@@ -36,10 +31,10 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.DataSourceConnectionProvider;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 class AwsWrapperDataSourceTest {
+
   @Mock ConnectionWrapper mockConnection;
   @Captor ArgumentCaptor<String> urlArgumentCaptor;
   @Captor ArgumentCaptor<Properties> propertiesArgumentCaptor;
@@ -70,7 +65,8 @@ class AwsWrapperDataSourceTest {
     expectedProperties2.setProperty("password", "pass2");
     expectedProperties2.setProperty("serverName", "testserver");
 
-    doReturn(mockConnection).when(ds).createConnectionWrapper(propertiesArgumentCaptor.capture(), urlArgumentCaptor.capture(), any());
+    doReturn(mockConnection).when(ds)
+        .createConnectionWrapper(propertiesArgumentCaptor.capture(), urlArgumentCaptor.capture(), any());
 
     ds.setJdbcProtocol("protocol");
     ds.setServerPropertyName("serverName");
@@ -97,7 +93,7 @@ class AwsWrapperDataSourceTest {
   @Test
   public void testGetConnectionWithNewCredentialsWithDriverManager() throws SQLException {
     final AwsWrapperDataSource ds = Mockito.spy(new AwsWrapperDataSource());
-    final String expectedUrl ="jdbc:postgresql://testserver/";
+    final String expectedUrl = "jdbc:postgresql://testserver/";
     final Properties expectedProperties1 = new Properties();
     expectedProperties1.setProperty("user", "user1");
     expectedProperties1.setProperty("password", "pass1");
@@ -106,7 +102,8 @@ class AwsWrapperDataSourceTest {
     expectedProperties2.setProperty("user", "user2");
     expectedProperties2.setProperty("password", "pass2");
 
-    doReturn(mockConnection).when(ds).createConnectionWrapper(propertiesArgumentCaptor.capture(), urlArgumentCaptor.capture(), any());
+    doReturn(mockConnection).when(ds)
+        .createConnectionWrapper(propertiesArgumentCaptor.capture(), urlArgumentCaptor.capture(), any());
 
     ds.setJdbcUrl("jdbc:postgresql://testserver/");
 
