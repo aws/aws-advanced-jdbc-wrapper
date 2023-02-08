@@ -656,7 +656,7 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private void deleteAuroraDbCluster() {
-    if (!StringUtils.isNullOrEmpty(this.runnerIP)) {
+    if (!this.reuseAuroraDbCluster && !StringUtils.isNullOrEmpty(this.runnerIP)) {
       auroraUtil.ec2DeauthorizesIP(runnerIP);
     }
 

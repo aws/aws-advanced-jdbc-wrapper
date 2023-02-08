@@ -24,8 +24,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
-import integration.refactored.DatabaseEngine;
-import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
@@ -35,8 +33,6 @@ import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
 import integration.refactored.container.condition.DisableOnTestFeature;
-import integration.refactored.container.condition.EnableOnDatabaseEngine;
-import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -47,11 +43,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
@@ -144,12 +138,9 @@ public class HikariTests {
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @TestTemplate
-  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_1_1_hikariCP_lost_connection() throws SQLException {
     Properties customProps = new Properties();
-    customProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "1");
-    PGProperty.SOCKET_TIMEOUT.set(customProps, "1");
+    customProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "2");
     createDataSource(customProps);
     HikariDataSource ds = new HikariDataSource();
     try (Connection conn = ds.getConnection()) {
@@ -170,13 +161,10 @@ public class HikariTests {
    * to failed instances are not returned.
    */
   @TestTemplate
-  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_1_2_hikariCP_get_dead_connection() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 
     HikariDataSource ds = new HikariDataSource();
-
     List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
 
     String writerIdentifier = instances.get(0).getEndpoint();
@@ -212,14 +200,11 @@ public class HikariTests {
    * connection fails over to another instance through the Enhanced Failure Monitor.
    */
   @TestTemplate
-  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_2_1_hikariCP_efm_failover() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 
     HikariDataSource ds = new HikariDataSource();
     List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
-
 
     String writerIdentifier = instances.get(0).getEndpoint();
     String readerIdentifier = instances.get(1).getEndpoint();
@@ -324,6 +309,4 @@ public class HikariTests {
     rs.next();
     return rs.getString(1);
   }
-
-
 }

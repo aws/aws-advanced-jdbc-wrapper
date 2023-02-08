@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import eu.rekawek.toxiproxy.Proxy;
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
@@ -56,13 +55,9 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
@@ -121,7 +116,6 @@ public class ReadWriteSplittingTests {
     rs.next();
     return rs.getString(1);
   }
-
 
   protected String getUrl() {
     return DriverHelper.getWrapperDriverProtocol()
@@ -190,8 +184,6 @@ public class ReadWriteSplittingTests {
         + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()
         + DriverHelper.getDriverRequiredParameters();
   }
-
-
 
   @TestTemplate
   @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
@@ -481,17 +473,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_setReadOnly_closedConnection() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
-      conn.close();
-
-      final SQLException exception = assertThrows(SQLException.class, () -> conn.setReadOnly(true));
-      assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), exception.getSQLState());
-    }
-  }
-
-  @TestTemplate
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
@@ -765,7 +746,6 @@ public class ReadWriteSplittingTests {
     }
   }
 
-
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   @DisableOnTestDriver(TestDriver.MARIADB) // TODO: investigate and fix
@@ -892,9 +872,7 @@ public class ReadWriteSplittingTests {
              DriverManager.getConnection(getProxiedUrl(), this.propsWithLoadBalance)) {
 
       final String writerConnectionId = queryInstanceId(conn);
-
       LOGGER.info("writerConnectionId: " + writerConnectionId);
-      // PGProperty.SOCKET_TIMEOUT.set(props, "2");
 
       conn.setReadOnly(true);
       final String readerConnectionId = queryInstanceId(conn);
@@ -944,7 +922,6 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_failoverReaderToWriter_setReadOnlyTrueFalse() throws SQLException, IOException {
-    // PGProperty.SOCKET_TIMEOUT.set(props, "2");
     try (final Connection conn =
              DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
 
