@@ -286,7 +286,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       throws E {
     final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
 
-    if (methodName.contains(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
+    if (methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
       try {
         switchConnectionIfRequired((Boolean) args[0]);
       } catch (final SQLException e) {
@@ -310,7 +310,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
     this.internalConnectionChanged = false;
 
-    this.isTransactionBoundary = isTransactionBoundary(methodName, args);
     if ("Connection.createStatement".equals(methodName)) {
       return (T) this.currentStatement;
     }
