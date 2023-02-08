@@ -35,6 +35,7 @@ import javax.naming.StringRefAddr;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.DataSourceConnectionProvider;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.DriverConnectionProvider;
@@ -130,7 +131,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       }
       PropertyUtils.applyProperties(targetDataSource, props);
 
-      return new ConnectionWrapper(
+      return createConnectionWrapper(
           props,
           this.jdbcUrl,
           new DataSourceConnectionProvider(
@@ -152,11 +153,15 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       setCredentialProperties(props);
       setDatabasePropertyFromUrl(props);
 
-      return new ConnectionWrapper(
-          props,
-          this.jdbcUrl,
-          new DriverConnectionProvider(targetDriver));
+      return createConnectionWrapper(props, this.jdbcUrl, new DriverConnectionProvider(targetDriver));
     }
+  }
+
+  ConnectionWrapper createConnectionWrapper(
+      final Properties props,
+      final String url,
+      final ConnectionProvider provider) throws SQLException {
+    return new ConnectionWrapper(props, url, provider);
   }
 
   public void setTargetDataSourceClassName(@Nullable String dataSourceClassName) {
