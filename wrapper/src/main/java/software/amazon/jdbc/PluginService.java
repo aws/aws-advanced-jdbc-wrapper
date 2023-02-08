@@ -58,6 +58,8 @@ public interface PluginService extends ExceptionHandler {
 
   HostListProvider getHostListProvider();
 
+  ConnectionPluginManager getConnectionPluginManager();
+
   void refreshHostList() throws SQLException;
 
   void refreshHostList(Connection connection) throws SQLException;

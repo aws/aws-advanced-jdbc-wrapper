@@ -50,6 +50,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.wrapper.StatementWrapper;
 
 public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
@@ -99,6 +100,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private HostSpec readerHostSpec;
   private boolean isTransactionBoundary = false;
   private boolean explicitlyReadOnly = false;
+  private boolean internalConnectionChanged = false;
+  private StatementWrapper currentStatement;
 
   public static final AwsWrapperProperty LOAD_BALANCE_READ_ONLY_TRAFFIC =
       new AwsWrapperProperty(
@@ -163,7 +166,9 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
     if (RdsUrlType.RDS_WRITER_CLUSTER.equals(urlType)
         || RdsUrlType.RDS_READER_CLUSTER.equals(urlType)) {
-      return currentConnection;
+      Statement stmt = currentConnection.createStatement();
+      this.currentStatement = new StatementWrapper(stmt,
+          this.pluginService.getConnectionPluginManager());
     }
 
     // The current HostSpec role might not be accurate. The rest of the logic in this method
@@ -188,6 +193,9 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
             currentHost.getAvailability());
 
     this.hostListProviderService.setInitialConnectionHostSpec(updatedRoleHostSpec);
+    Statement stmt = currentConnection.createStatement();
+    this.currentStatement = new StatementWrapper(stmt,
+        this.pluginService.getConnectionPluginManager());
     return currentConnection;
   }
 
@@ -253,6 +261,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   @Override
   public OldConnectionSuggestedAction notifyConnectionChanged(
       final EnumSet<NodeChangeOptions> changes) {
+    internalConnectionChanged = true;
+
     try {
       updateInternalConnectionInfo();
     } catch (final SQLException e) {
@@ -275,14 +285,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final Object[] args)
       throws E {
     final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-    if (conn != null && conn != this.pluginService.getCurrentConnection()) {
-      LOGGER.fine(
-          () -> Messages.get("ReadWriteSplittingPlugin.executingAgainstOldConnection",
-              new Object[] {methodInvokeOn}));
-      return jdbcMethodFunc.call();
-    }
 
-    if (methodName.equals(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
+    if (methodName.contains(METHOD_SET_READ_ONLY) && args != null && args.length > 0) {
       try {
         switchConnectionIfRequired((Boolean) args[0]);
       } catch (final SQLException e) {
@@ -295,6 +299,21 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       pickNewReaderConnection();
     }
 
+    if (this.internalConnectionChanged) {
+      Statement stmt;
+      try {
+        stmt = this.pluginService.getCurrentConnection().createStatement();
+      } catch (SQLException e) {
+        throw new RuntimeException(e);
+      }
+      this.currentStatement.setStatement(stmt);
+    }
+    this.internalConnectionChanged = false;
+
+    this.isTransactionBoundary = isTransactionBoundary(methodName, args);
+    if ("Connection.createStatement".equals(methodName)) {
+      return (T) this.currentStatement;
+    }
     try {
       final T result = jdbcMethodFunc.call();
       this.isTransactionBoundary = isTransactionBoundary(methodName, args);

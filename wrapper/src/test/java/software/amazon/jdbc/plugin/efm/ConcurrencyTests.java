@@ -52,6 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostSpec;
@@ -306,6 +307,11 @@ public class ConcurrencyTests {
 
     @Override
     public HostListProvider getHostListProvider() {
+      return null;
+    }
+
+    @Override
+    public ConnectionPluginManager getConnectionPluginManager() {
       return null;
     }
 

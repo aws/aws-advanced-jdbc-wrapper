@@ -36,6 +36,10 @@ public class StatementWrapper implements Statement {
     this.pluginManager = pluginManager;
   }
 
+  public void setStatement(Statement stmt) {
+    this.statement = stmt;
+  }
+
   @Override
   public ResultSet executeQuery(String sql) throws SQLException {
     return WrapperUtils.executeWithPlugins(

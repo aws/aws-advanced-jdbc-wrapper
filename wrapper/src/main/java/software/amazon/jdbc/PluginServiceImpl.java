@@ -306,6 +306,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public ConnectionPluginManager getConnectionPluginManager() {
+    return this.pluginManager;
+  }
+
+  @Override
   public void refreshHostList() throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
     if (updatedHostList != null) {
