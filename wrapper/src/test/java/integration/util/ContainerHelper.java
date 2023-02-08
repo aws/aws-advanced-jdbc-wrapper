@@ -106,7 +106,7 @@ public class ContainerHelper {
         execInContainer(
             container, consumer, "./gradlew", task, "--debug-jvm", "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
-    // assertEquals(0, exitCode, "Some tests failed.");
+    assertEquals(0, exitCode, "Some tests failed.");
   }
 
   public GenericContainer<?> createTestContainerByType(
