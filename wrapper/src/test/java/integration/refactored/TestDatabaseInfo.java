@@ -93,9 +93,9 @@ public class TestDatabaseInfo {
   }
 
   public void setInstanceEndpointSuffix(
-      String instanceEndpointSuffix, int instanceEndpointSuffixPort) {
+      String instanceEndpointSuffix, int instanceEndpointPort) {
     this.instanceEndpointSuffix = instanceEndpointSuffix;
-    this.instanceEndpointPort = instanceEndpointSuffixPort;
+    this.instanceEndpointPort = instanceEndpointPort;
   }
 
   public String getInstanceEndpointSuffix() {
