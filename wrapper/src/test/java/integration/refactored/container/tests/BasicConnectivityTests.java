@@ -249,13 +249,12 @@ public class BasicConnectivityTests {
                 .getEndpoint()
             + "/"
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-            + DriverHelper.getDriverRequiredParameters()
-            + "&wrapperPlugins=\"\"";
+            + DriverHelper.getDriverRequiredParameters();
 
     LOGGER.finest("Connecting to " + url);
 
     try (Connection conn =
-        DriverManager.getConnection(url, ConnectionStringHelper.getDefaultProperties())) {
+        DriverManager.getConnection(url, ConnectionStringHelper.getDefaultPropertiesWithNoPlugins())) {
 
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isValid(10));

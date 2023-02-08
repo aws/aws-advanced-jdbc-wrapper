@@ -451,7 +451,7 @@ public class ConnectionPluginManagerTests {
   @Test
   public void testNoWrapperPlugins() throws SQLException {
     final Properties testProperties = new Properties();
-    testProperties.setProperty("wrapperPlugins", "");
+    testProperties.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
         mockConnectionProvider,
