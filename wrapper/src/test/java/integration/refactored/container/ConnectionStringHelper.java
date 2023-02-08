@@ -154,4 +154,10 @@ public class ConnectionStringHelper {
     DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
     return props;
   }
+
+  public static Properties getDefaultPropertiesWithNoPlugins() {
+    final Properties properties = getDefaultProperties();
+    properties.setProperty(PropertyDefinition.PLUGINS.name, "");
+    return properties;
+  }
 }

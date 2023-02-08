@@ -34,6 +34,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -50,6 +51,7 @@ public class HikariTests {
     ds.setJdbcUrl(ConnectionStringHelper.getWrapperUrl());
     ds.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    ds.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "");
 
     Connection conn = ds.getConnection();
 
@@ -97,6 +99,7 @@ public class HikariTests {
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     Connection conn = ds.getConnection();

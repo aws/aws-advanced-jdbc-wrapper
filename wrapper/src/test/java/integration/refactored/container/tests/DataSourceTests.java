@@ -47,6 +47,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -68,6 +69,7 @@ public class DataSourceTests {
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn =
@@ -128,6 +130,7 @@ public class DataSourceTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn =
@@ -171,6 +174,7 @@ public class DataSourceTests {
         "user", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     targetDataSourceProps.setProperty(
         "password", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     try (final Connection conn = ds.getConnection()) {
@@ -205,6 +209,7 @@ public class DataSourceTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -227,6 +232,7 @@ public class DataSourceTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -258,6 +264,7 @@ public class DataSourceTests {
             .getInstances()
             .get(0)
             .getEndpoint());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -287,6 +294,7 @@ public class DataSourceTests {
             .getInstances()
             .get(0)
             .getEndpoint());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     Connection conn =
@@ -339,6 +347,7 @@ public class DataSourceTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -371,6 +380,7 @@ public class DataSourceTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -401,6 +411,7 @@ public class DataSourceTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(
@@ -422,6 +433,7 @@ public class DataSourceTests {
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
     ds.setJdbcUrl(
         DriverHelper.getDriverProtocol()
@@ -479,7 +491,8 @@ public class DataSourceTests {
             + "user="
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername()
             + "&password="
-            + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+            + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword()
+            + "&wrapperPlugins=\"\"");
 
     try (final Connection conn = ds.getConnection()) {
       assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
@@ -515,7 +528,8 @@ public class DataSourceTests {
                 .getEndpointPort()
             + "/"
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-            + DriverHelper.getDriverRequiredParameters());
+            + DriverHelper.getDriverRequiredParameters()
+            + "&wrapperPlugins=\"\"");
 
     try (final Connection conn =
         ds.getConnection(
@@ -546,7 +560,8 @@ public class DataSourceTests {
                 .getEndpoint()
             + "/"
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-            + DriverHelper.getDriverRequiredParameters());
+            + DriverHelper.getDriverRequiredParameters()
+            + "&wrapperPlugins=\"\"");
 
     assertThrows(
         SQLException.class,
@@ -568,6 +583,7 @@ public class DataSourceTests {
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
     ds.setJdbcUrl(
         DriverHelper.getDriverProtocol()
@@ -578,7 +594,8 @@ public class DataSourceTests {
                 .get(0)
                 .getEndpoint()
             + "/"
-            + DriverHelper.getDriverRequiredParameters());
+            + DriverHelper.getDriverRequiredParameters()
+            + "&wrapperPlugins=\"\"");
 
     assertThrows(
         SQLException.class,
@@ -616,7 +633,8 @@ public class DataSourceTests {
             + "user="
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername()
             + "&password="
-            + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+            + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword()
+            + "&wrapperPlugins=\"\"");
 
     try (final Connection conn = ds.getConnection()) {
       assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
@@ -643,7 +661,8 @@ public class DataSourceTests {
                 .getEndpoint()
             + "/"
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-            + DriverHelper.getDriverRequiredParameters());
+            + DriverHelper.getDriverRequiredParameters()
+            + "&wrapperPlugins=\"\"");
 
     try (final Connection conn =
         ds.getConnection(
@@ -684,7 +703,8 @@ public class DataSourceTests {
                 .get(0)
                 .getEndpointPort()
             + "/"
-            + DriverHelper.getDriverRequiredParameters());
+            + DriverHelper.getDriverRequiredParameters()
+            + "&wrapperPlugins=\"\"");
 
     assertThrows(
         SQLException.class,
@@ -733,7 +753,8 @@ public class DataSourceTests {
                 .getInstances()
                 .get(0)
                 .getEndpointPort()
-            + "/");
+            + "/"
+            + "?wrapperPlugins=\"\"");
 
     assertThrows(
         SQLException.class,
@@ -763,7 +784,8 @@ public class DataSourceTests {
                 .get(0)
                 .getEndpointPort()
             + "/"
-            + DriverHelper.getDriverRequiredParameters());
+            + DriverHelper.getDriverRequiredParameters()
+            + "&wrapperPlugins=\"\"");
 
     assertThrows(
         SQLException.class,
@@ -796,6 +818,7 @@ public class DataSourceTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -839,6 +862,7 @@ public class DataSourceTests {
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();

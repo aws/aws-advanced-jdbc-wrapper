@@ -65,7 +65,7 @@ public class BasicConnectivityTests {
   public void test_DirectConnection(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
-    final Properties props = ConnectionStringHelper.getDefaultProperties();
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
 
@@ -113,6 +113,7 @@ public class BasicConnectivityTests {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     String url =
         ConnectionStringHelper.getWrapperUrl(
@@ -159,6 +160,7 @@ public class BasicConnectivityTests {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     TestInstanceInfo instanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
@@ -204,6 +206,7 @@ public class BasicConnectivityTests {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
     DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
+    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     TestInstanceInfo instanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
@@ -246,7 +249,8 @@ public class BasicConnectivityTests {
                 .getEndpoint()
             + "/"
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-            + DriverHelper.getDriverRequiredParameters();
+            + DriverHelper.getDriverRequiredParameters()
+            + "&wrapperPlugins=\"\"";
 
     LOGGER.finest("Connecting to " + url);
 
@@ -271,7 +275,7 @@ public class BasicConnectivityTests {
         SQLException.class,
         () -> {
           Connection conn =
-              DriverManager.getConnection(url, ConnectionStringHelper.getDefaultProperties());
+              DriverManager.getConnection(url, ConnectionStringHelper.getDefaultPropertiesWithNoPlugins());
           conn.close();
         });
   }
@@ -301,6 +305,7 @@ public class BasicConnectivityTests {
     final Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, username);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
+    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     LOGGER.finest("Connecting to " + url);
 

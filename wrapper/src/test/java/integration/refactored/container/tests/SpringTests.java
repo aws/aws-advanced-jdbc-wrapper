@@ -58,6 +58,7 @@ public class SpringTests {
 
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "");
     dataSource.setConnectionProperties(props);
 
     return dataSource;
