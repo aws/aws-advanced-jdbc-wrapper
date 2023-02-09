@@ -32,14 +32,18 @@
 | releaseResourcesWithNoPlugins                | 8.030   | 3.776  | us/op |
 | releaseResourcesTenGenericPlugins            | 15.243  | 4.906  | us/op |
 
-| Benchmark                                                 | Score    | Error   | Units |
-|-----------------------------------------------------------|----------|---------|-------|
-| executeStatementBaseline                                  | 706.629  | 139.833 | us/op |
-| executeStatementWithExecutionTimePlugin                   | 1037.951 | 187.424 | us/op |
-| initAndReleaseBaseLine                                    | 0.667    | 0.140   | us/op |
-| initAndReleaseWithAllPlugins                              | 668.783  | 118.127 | us/op |
-| initAndReleaseWithAuroraHostListPlugin                    | 667.868  | 122.335 | us/op |
-| initAndReleaseWithExecutionTimePlugin                     | 679.230  | 136.899 | us/op |
+| Benchmark                                                                          | Score    | Error   | Units |
+|------------------------------------------------------------------------------------|----------|---------|-------|
+| executeStatementBaseline                                                           | 890.541  | 103.673 | us/op |
+| executeStatementWithExecutionTimePlugin                                            | 1770.788 | 294.834 | us/op |
+| initAndReleaseBaseLine                                                             | 0.580    | 0.079   | us/op |
+| initAndReleaseWithAuroraHostListPlugin                                             | 956.375  | 146.997 | us/op |
+| initAndReleaseWithExecutionTimePlugin                                              | 787.146  | 152.519 | us/op |
+| initAndReleaseWithExecutionTimeAndAuroraHostListPlugins                            | 987.878  | 125.639 | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin                        | 1981.932 | 653.925 | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing | 1590.045 | 243.160 | us/op |
+| initAndReleaseWithReadWriteSplittingPlugin                                         | 860.050  | 147.365 | us/op |
+| initAndReleaseWithReadWriteSplittingPluginWithReaderLoadBalancing                  | 926.952  | 152.613 | us/op |
 
 ## Performance Tests
 

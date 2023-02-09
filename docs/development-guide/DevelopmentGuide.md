@@ -76,6 +76,7 @@ These benchmarks do not make actual connections to the databases and use simple 
 The goal of these benchmarks is to measure the overhead of using the AWS JDBC Driver with multiple plugins enabled.
 ![](../images/jdbc_wrapper_connect_execute_pipelines_benchmarks.png)
 ![](../images/jdbc_wrapper_pipelines_benchmarks.png)
+![](../images/jdbc_wrapper_init_release_pipelines_benchmarks.png)
 
 See [here](EFMAndFailoverPluginPerformanceResults.md#benchmarks) for a more detailed performance breakdown.
 
