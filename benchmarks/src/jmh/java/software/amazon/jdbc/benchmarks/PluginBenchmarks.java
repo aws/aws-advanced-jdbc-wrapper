@@ -56,7 +56,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @Warmup(iterations = 3)
 @Measurement(iterations = 10)
 @BenchmarkMode(Mode.SingleShotTime)
-@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class PluginBenchmarks {
 
   private static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
