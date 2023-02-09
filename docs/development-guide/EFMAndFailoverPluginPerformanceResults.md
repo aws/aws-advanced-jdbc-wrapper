@@ -34,16 +34,16 @@
 
 | Benchmark                                                                          | Score    | Error   | Units |
 |------------------------------------------------------------------------------------|----------|---------|-------|
-| executeStatementBaseline                                                           | 890.541  | 103.673 | us/op |
-| executeStatementWithExecutionTimePlugin                                            | 1770.788 | 294.834 | us/op |
-| initAndReleaseBaseLine                                                             | 0.580    | 0.079   | us/op |
-| initAndReleaseWithAuroraHostListPlugin                                             | 956.375  | 146.997 | us/op |
-| initAndReleaseWithExecutionTimePlugin                                              | 787.146  | 152.519 | us/op |
-| initAndReleaseWithExecutionTimeAndAuroraHostListPlugins                            | 987.878  | 125.639 | us/op |
-| initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin                        | 1981.932 | 653.925 | us/op |
-| initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing | 1590.045 | 243.160 | us/op |
-| initAndReleaseWithReadWriteSplittingPlugin                                         | 860.050  | 147.365 | us/op |
-| initAndReleaseWithReadWriteSplittingPluginWithReaderLoadBalancing                  | 926.952  | 152.613 | us/op |
+| executeStatementBaseline                                                           | 912.928  | 137.285 | us/op |
+| executeStatementWithExecutionTimePlugin                                            | 1739.314 | 286.132 | us/op |
+| initAndReleaseBaseLine                                                             | 1.132    | 1.123   | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin                        | 1562.297 | 245.078 | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing | 1519.943 | 243.188 | us/op |
+| initAndReleaseWithAuroraHostListPlugin                                             | 964.033  | 149.767 | us/op |
+| initAndReleaseWithExecutionTimeAndAuroraHostListPlugins                            | 1005.531 | 165.567 | us/op |
+| initAndReleaseWithExecutionTimePlugin                                              | 804.334  | 150.357 | us/op |
+| initAndReleaseWithReadWriteSplittingPlugin                                         | 870.167  | 158.707 | us/op |
+| initAndReleaseWithReadWriteSplittingPluginWithReaderLoadBalancing                  | 867.317  | 149.344 | us/op |
 
 ## Performance Tests
 
