@@ -78,7 +78,7 @@ The goal of these benchmarks is to measure the overhead of using the AWS JDBC Dr
 ![](../images/jdbc_wrapper_pipelines_benchmarks.png)
 ![](../images/jdbc_wrapper_init_release_pipelines_benchmarks.png)
 
-See [here](EFMAndFailoverPluginPerformanceResults.md#benchmarks) for a more detailed performance breakdown.
+See [here](PluginPerformanceResults.md#benchmarks) for a more detailed performance breakdown.
 
 #### Failover-specific Performance Tests
 The diagrams in this section show the AWS JDBC Driver's failure detection performance with or without the Failover Connection Plugin under different settings.
@@ -93,7 +93,7 @@ Varying values for the network outage delay are tested, represented on the X axi
 
 This diagram shows the failover time with a 30-seconds socket timeout and different network outage delays.
 ![](../images/jdbc_wrapper_postgresql_failover_with_30s_socket_timeout.png)
-See [here](EFMAndFailoverPluginPerformanceResults.md#failover-performance-with-30-seconds-socket-timeout-configuration) for a more detailed performance breakdown.
+See [here](PluginPerformanceResults.md#failover-performance-with-30-seconds-socket-timeout-configuration) for a more detailed performance breakdown.
 
 The following diagrams show how the AWS JDBC Driver performs under a more common failure detection setting versus a more aggressive setting.
 
@@ -119,11 +119,11 @@ For more details on failure detection settings, see [here](../using-the-jdbc-dri
 For more details on failover settings, see [here](../using-the-jdbc-driver/FailoverConfigurationGuide.md).
 ![](../images/jdbc_wrapper_postgresql_failover_efm_30000_5000_3.png)
 ![](../images/jdbc_wrapper_postgresql_failover_efm_6000_1000_1.png)
-See [here](EFMAndFailoverPluginPerformanceResults.md#failover-performance-with-different-enhanced-failure-monitoring-configuration) for a more detailed performance breakdown.
+See [here](PluginPerformanceResults.md#failover-performance-with-different-enhanced-failure-monitoring-configuration) for a more detailed performance breakdown.
 
 ![](../images/jdbc_wrapper_postgresql_efm_30000_5000_3.png)
 ![](../images/jdbc_wrapper_postgresql_efm_6000_1000_1.png)
-See [here](EFMAndFailoverPluginPerformanceResults.md#enhanced-failure-monitoring-performance-with-different-failure-detection-configuration) for a more detailed performance breakdown.
+See [here](PluginPerformanceResults.md#enhanced-failure-monitoring-performance-with-different-failure-detection-configuration) for a more detailed performance breakdown.
 
 #### Read-Write Splitting and Reader Load Balancing Performance Tests
 

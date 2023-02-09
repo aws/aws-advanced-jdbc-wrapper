@@ -1,4 +1,4 @@
-# EFM and Failover Plugin Performance Results
+# Plugin Performance Results
 
 ## Benchmarks
 | Benchmark                                                         | Score    | Error   | Units |
