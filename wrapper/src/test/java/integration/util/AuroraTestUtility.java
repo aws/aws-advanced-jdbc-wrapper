@@ -693,7 +693,8 @@ public class AuroraTestUtility {
           nextWriterId = getDBClusterWriterInstanceId(clusterId);
           nextWriterIP = hostToIP(clusterEndpoint);
 
-          if (nextWriterId.equals(targetInstanceId) && !initialWriterIP.equals(nextWriterIP)) {
+          // if (nextWriterId.equals(targetInstanceId) && !initialWriterIP.equals(nextWriterIP)) {
+          if (nextWriterId.equals(targetInstanceId)) {
             return;
           }
         }
