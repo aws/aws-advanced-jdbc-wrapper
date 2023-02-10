@@ -1,4 +1,4 @@
-# Plugin Performance Results
+# Plugin Pipeline Performance Results
 
 ## Benchmarks
 | Benchmark                                                         | Score    | Error   | Units |

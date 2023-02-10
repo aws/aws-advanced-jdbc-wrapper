@@ -18,7 +18,7 @@
   - [Architecture](./development-guide/Architecture.md)
     - [Plugin Manager](./development-guide/PluginManager.md)
     - [Loadable Plugins](./development-guide/LoadablePlugins.md)
-    - [Plugin Performance Results](./development-guide/PluginPerformanceResults.md)
+    - [Plugin Pipeline Performance Results](./development-guide/PluginPipelinePerformanceResults.md)
     - [Read-Write Splitting Plugin Performance Results](./development-guide/ReadWriteSplittingPluginPerformanceResults.md)
     - [Plugin Service](./development-guide/PluginService.md)
     - [Pipelines](./development-guide/Pipelines.md)
