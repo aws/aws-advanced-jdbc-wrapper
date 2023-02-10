@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc;
 
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -41,7 +42,7 @@ public interface ConnectionPlugin {
       throws E;
 
   Connection connect(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
@@ -49,7 +50,7 @@ public interface ConnectionPlugin {
       throws SQLException;
 
   void initHostProvider(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final String initialUrl,
       final Properties props,
       final HostListProviderService hostListProviderService,

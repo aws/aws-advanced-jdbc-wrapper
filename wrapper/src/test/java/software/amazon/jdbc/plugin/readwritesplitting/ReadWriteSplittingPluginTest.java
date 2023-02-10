@@ -53,6 +53,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DefaultDatabaseDialect;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
@@ -469,7 +470,7 @@ public class ReadWriteSplittingPluginTest {
         null);
 
     final Connection connection =
-        plugin.connect(TEST_PROTOCOL, writerHostSpec, defaultProps, false, this.mockConnectFunc);
+        plugin.connect(new DefaultDatabaseDialect(), writerHostSpec, defaultProps, false, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -489,7 +490,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection = plugin.connect(
-        TEST_PROTOCOL,
+        new DefaultDatabaseDialect(),
         instanceUrlHostSpec,
         defaultProps,
         true,
@@ -514,7 +515,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(TEST_PROTOCOL, ipUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+        plugin.connect(new DefaultDatabaseDialect(), ipUrlHostSpec, defaultProps, true, this.mockConnectFunc);
 
     assertEquals(mockReaderConn1, connection);
     verify(mockConnectFunc).call();
@@ -532,7 +533,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(TEST_PROTOCOL, clusterUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+        plugin.connect(new DefaultDatabaseDialect(), clusterUrlHostSpec, defaultProps, true, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -553,7 +554,7 @@ public class ReadWriteSplittingPluginTest {
     assertThrows(
         SQLException.class,
         () -> plugin.connect(
-            TEST_PROTOCOL,
+            new DefaultDatabaseDialect(),
             ipUrlHostSpec,
             defaultProps,
             true,

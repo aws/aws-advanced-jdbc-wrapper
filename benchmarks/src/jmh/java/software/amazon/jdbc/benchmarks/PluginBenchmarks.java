@@ -90,7 +90,7 @@ public class PluginBenchmarks {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(HostSpec.class), any(Properties.class)))
+    when(mockConnectionProvider.connect(new JMHDatabaseDialect(anyString()), any(HostSpec.class), any(Properties.class)))
         .thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);

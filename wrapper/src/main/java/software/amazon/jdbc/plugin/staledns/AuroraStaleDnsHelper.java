@@ -32,6 +32,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
@@ -48,23 +49,17 @@ public class AuroraStaleDnsHelper {
   private InetAddress writerHostAddress = null;
 
   private static final int RETRIES = 3;
-  private static final String POSTGRESQL_READONLY_QUERY = "SELECT pg_is_in_recovery() AS is_reader";
-  private static final String MYSQL_READONLY_QUERY = "SELECT @@innodb_read_only AS is_reader";
-  private static final String IS_READER_COLUMN = "is_reader";
-
   public AuroraStaleDnsHelper(PluginService pluginService) {
     this.pluginService = pluginService;
   }
 
   public Connection getVerifiedConnection(
-      final String driverProtocol,
+      DatabaseDialect databaseDialect,
       HostSpec hostSpec,
       Properties props,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
-    final String query = driverProtocol.contains("postgresql")
-        ? POSTGRESQL_READONLY_QUERY
-        : MYSQL_READONLY_QUERY;
+    final String query = databaseDialect.getReadOnlyQuery();
 
     if (!this.rdsUtils.isWriterClusterDns(hostSpec.getHost())) {
       return connectFunc.call();
@@ -87,7 +82,7 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    if (isReadOnly(conn, query)) {
+    if (isReadOnly(conn, query, databaseDialect.getInstanceNameColumn())) {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
@@ -175,13 +170,13 @@ public class AuroraStaleDnsHelper {
     return null;
   }
 
-  private boolean isReadOnly(Connection connection, final String query)
+  private boolean isReadOnly(Connection connection, final String query, final String readerColumn)
       throws SQLSyntaxErrorException {
     for (int i = 0; i < RETRIES; i++) {
       try (final Statement statement = connection.createStatement();
           ResultSet rs = statement.executeQuery(query)) {
         if (rs.next()) {
-          return rs.getBoolean(IS_READER_COLUMN);
+          return rs.getBoolean(readerColumn);
         }
       } catch (SQLSyntaxErrorException e) {
         throw e;

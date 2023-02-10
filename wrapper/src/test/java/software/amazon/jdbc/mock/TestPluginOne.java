@@ -31,6 +31,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -81,7 +82,7 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      String driverProtocol,
+      DatabaseDialect databaseDialect,
       HostSpec hostSpec,
       Properties props,
       boolean isInitialConnection,
@@ -96,7 +97,7 @@ public class TestPluginOne implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      String driverProtocol,
+      DatabaseDialect databaseDialect,
       String initialUrl,
       Properties props,
       HostListProviderService hostListProviderService,

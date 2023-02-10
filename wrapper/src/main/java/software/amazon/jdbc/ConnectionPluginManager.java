@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
@@ -332,7 +333,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   public Connection connect(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection)
@@ -342,7 +343,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       return executeWithSubscribedPlugins(
           CONNECT_METHOD,
           (plugin, func) ->
-              plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
+              plugin.connect(databaseDialect, hostSpec, props, isInitialConnection, func),
           () -> {
             throw new SQLException("Shouldn't be called.");
           });
@@ -354,7 +355,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   public void initHostProvider(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final String initialUrl,
       final Properties props,
       final HostListProviderService hostListProviderService)
@@ -365,7 +366,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
         (PluginPipeline<Void, SQLException>)
             (plugin, func) -> {
               plugin.initHostProvider(
-                  driverProtocol, initialUrl, props, hostListProviderService, func);
+                  databaseDialect, initialUrl, props, hostListProviderService, func);
               return null;
             },
         () -> {

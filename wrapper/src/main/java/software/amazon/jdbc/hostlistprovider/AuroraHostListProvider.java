@@ -40,6 +40,7 @@ import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.ExpiringCache;
 import software.amazon.jdbc.util.Messages;
@@ -73,18 +74,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
-  static final String PG_RETRIEVE_TOPOLOGY_SQL =
-      "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
-          // filter out nodes that haven't been updated in the last 5 minutes
-          + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
-          + "ORDER BY LAST_UPDATE_TIMESTAMP";
-
-  static final String MYSQL_RETRIEVE_TOPOLOGY_SQL =
-      "SELECT SERVER_ID, SESSION_ID "
-          + "FROM information_schema.replica_host_status "
-          // filter out nodes that haven't been updated in the last 5 minutes
-          + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
-          + "ORDER BY LAST_UPDATE_TIMESTAMP";
   static final int DEFAULT_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
   static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   static final String FIELD_SERVER_ID = "SERVER_ID";
@@ -124,15 +113,15 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   Properties properties;
 
   public AuroraHostListProvider(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final HostListProviderService hostListProviderService,
       final Properties properties,
       final String originalUrl) {
-    this(driverProtocol, hostListProviderService, properties, originalUrl, new ConnectionUrlParser());
+    this(databaseDialect, hostListProviderService, properties, originalUrl, new ConnectionUrlParser());
   }
 
   public AuroraHostListProvider(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final HostListProviderService hostListProviderService,
       final Properties properties,
       final String originalUrl,
@@ -143,11 +132,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     this.originalUrl = originalUrl;
     this.connectionUrlParser = connectionUrlParser;
 
-    if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
-      retrieveTopologyQuery = PG_RETRIEVE_TOPOLOGY_SQL;
-    } else {
-      retrieveTopologyQuery = MYSQL_RETRIEVE_TOPOLOGY_SQL;
-    }
+    retrieveTopologyQuery = databaseDialect.getTopologyQuery();
   }
 
   private static ExpiringCache.OnEvictRunnable<ClusterTopologyInfo> getOnEvict() {

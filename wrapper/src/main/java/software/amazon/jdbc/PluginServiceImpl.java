@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.ExpiringCache;
@@ -47,7 +48,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
-  private final String driverProtocol;
+  private final DatabaseDialect databaseDialect;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> hosts = new ArrayList<>();
   protected Connection currentConnection;
@@ -61,8 +62,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final ConnectionPluginManager pluginManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol) {
-    this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol);
+      final DatabaseDialect databaseDialect) {
+    this(pluginManager, new ExceptionManager(), props, originalUrl, databaseDialect);
   }
 
   public PluginServiceImpl(
@@ -70,11 +71,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol) {
+      final DatabaseDialect databaseDialect) {
     this.pluginManager = pluginManager;
     this.props = props;
     this.originalUrl = originalUrl;
-    this.driverProtocol = targetDriverProtocol;
+    this.databaseDialect = databaseDialect;
     this.exceptionManager = exceptionManager;
   }
 
@@ -394,7 +395,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
     return this.pluginManager.connect(
-        this.driverProtocol,
+        this.databaseDialect,
         hostSpec,
         props,
         this.currentConnection == null);
@@ -429,22 +430,22 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public boolean isNetworkException(Throwable throwable) {
-    return this.exceptionManager.isNetworkException(this.driverProtocol, throwable);
+    return this.exceptionManager.isNetworkException(this.databaseDialect, throwable);
   }
 
   @Override
   public boolean isNetworkException(String sqlState) {
-    return this.exceptionManager.isNetworkException(this.driverProtocol, sqlState);
+    return this.exceptionManager.isNetworkException(this.databaseDialect, sqlState);
   }
 
   @Override
   public boolean isLoginException(Throwable throwable) {
-    return this.exceptionManager.isLoginException(this.driverProtocol, throwable);
+    return this.exceptionManager.isLoginException(this.databaseDialect, throwable);
 
   }
 
   @Override
   public boolean isLoginException(String sqlState) {
-    return this.exceptionManager.isLoginException(this.driverProtocol, sqlState);
+    return this.exceptionManager.isLoginException(this.databaseDialect, sqlState);
   }
 }

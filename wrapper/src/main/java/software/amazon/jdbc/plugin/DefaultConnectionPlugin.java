@@ -39,6 +39,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -131,14 +132,14 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    final Connection conn = this.connectionProvider.connect(driverProtocol, hostSpec, props);
+    final Connection conn = this.connectionProvider.connect(databaseDialect, hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // omitted.
@@ -149,7 +150,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final String initialUrl,
       final Properties props,
       final HostListProviderService hostListProviderService,

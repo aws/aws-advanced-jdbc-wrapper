@@ -21,6 +21,8 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.dialect.DatabaseDialect;
+import software.amazon.jdbc.dialect.MariaDBDialect;
 import software.amazon.jdbc.util.PropertyUtils;
 
 /**
@@ -40,7 +42,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param databaseDialect The connection DatabaseDialect
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
@@ -48,7 +50,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
    */
   @Override
   public Connection connect(
-      final @NonNull String protocol,
+      final @NonNull DatabaseDialect databaseDialect,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
@@ -56,12 +58,13 @@ public class DriverConnectionProvider implements ConnectionProvider {
         PropertyDefinition.DATABASE.getString(props) != null
             ? PropertyDefinition.DATABASE.getString(props)
             : "";
-    final StringBuilder urlBuilder = new StringBuilder();
-    urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
+    final StringBuilder urlBuilder = new StringBuilder(databaseDialect.getURLScheme());
+    urlBuilder.append(hostSpec.getUrl()).append(databaseName);
 
     // In the case where we are connecting to MySQL using MariaDB driver,
     // we need to append "?permitMysqlScheme" to the connection URL
-    if (protocol.startsWith("jdbc:mysql:")
+    // TODO: this is a bit ugly
+    if (databaseDialect instanceof MariaDBDialect
         && props.stringPropertyNames().contains("permitMysqlScheme")) {
       urlBuilder.append("?permitMysqlScheme");
     }

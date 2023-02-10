@@ -44,6 +44,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -136,7 +137,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,

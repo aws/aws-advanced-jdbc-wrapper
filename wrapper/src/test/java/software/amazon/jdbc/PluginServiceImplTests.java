@@ -47,12 +47,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.dialect.DatabaseDialect;
+import software.amazon.jdbc.dialect.DefaultDatabaseDialect;
+import software.amazon.jdbc.dialect.PostgreSQLDialect;
 
 public class PluginServiceImplTests {
 
   private static final Properties PROPERTIES = new Properties();
   private static final String URL = "url";
-  private static final String DRIVER_PROTOCOL = "driverProtocol";
+  private static final DatabaseDialect databaseDialect = new DefaultDatabaseDialect();
   private AutoCloseable closeable;
 
   @Mock ConnectionPluginManager pluginManager;
@@ -83,7 +86,7 @@ public class PluginServiceImplTests {
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -101,7 +104,7 @@ public class PluginServiceImplTests {
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.DISPOSE));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -119,7 +122,7 @@ public class PluginServiceImplTests {
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.PRESERVE));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -141,7 +144,7 @@ public class PluginServiceImplTests {
                 OldConnectionSuggestedAction.DISPOSE));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpec("old-host");
 
@@ -160,7 +163,7 @@ public class PluginServiceImplTests {
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
         new HostSpec("old-host", 1000, HostRole.WRITER, HostAvailability.AVAILABLE);
@@ -188,7 +191,7 @@ public class PluginServiceImplTests {
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
         new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.NOT_AVAILABLE);
@@ -215,7 +218,7 @@ public class PluginServiceImplTests {
         .thenReturn(EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
         new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE);
@@ -241,7 +244,7 @@ public class PluginServiceImplTests {
         EnumSet.of(OldConnectionSuggestedAction.NO_OPINION));
 
     PluginServiceImpl target =
-        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        spy(new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
         new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE);
@@ -260,7 +263,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostA")));
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.hosts = new ArrayList<>();
     target.hostListProvider = hostListProvider;
 
@@ -284,7 +287,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostB")));
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.hosts = Arrays.asList(new HostSpec("hostA"), new HostSpec("hostB"));
     target.hostListProvider = hostListProvider;
 
@@ -309,7 +312,7 @@ public class PluginServiceImplTests {
         Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.WRITER));
     target.hostListProvider = hostListProvider;
 
@@ -335,7 +338,7 @@ public class PluginServiceImplTests {
         Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER));
     target.hostListProvider = hostListProvider;
 
@@ -351,7 +354,7 @@ public class PluginServiceImplTests {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.hosts = Collections.singletonList(
         new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
 
@@ -369,7 +372,7 @@ public class PluginServiceImplTests {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.hosts = Collections.singletonList(
         new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
 
@@ -394,7 +397,7 @@ public class PluginServiceImplTests {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     target.hosts = Collections.singletonList(
         new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE));
 
@@ -426,7 +429,7 @@ public class PluginServiceImplTests {
     hostB.addAlias("hostB.custom.domain.com");
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
 
     target.hosts = Arrays.asList(hostA, hostB);
 
@@ -458,7 +461,7 @@ public class PluginServiceImplTests {
     hostB.addAlias("hostB.custom.domain.com");
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
 
     target.hosts = Arrays.asList(hostA, hostB);
 
@@ -506,7 +509,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.refresh(newConnection)).thenReturn(newHostSpecs);
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     assertNotEquals(expectedHostSpecs, newHostSpecs);
@@ -540,7 +543,7 @@ public class PluginServiceImplTests {
     when(hostListProvider.forceRefresh(newConnection)).thenReturn(newHostSpecs);
 
     PluginServiceImpl target = spy(
-        new PluginServiceImpl(pluginManager, PROPERTIES, URL, DRIVER_PROTOCOL));
+        new PluginServiceImpl(pluginManager, PROPERTIES, URL, databaseDialect));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     assertNotEquals(expectedHostSpecs, newHostSpecs);

@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 
 public class TestPluginThrowException extends TestPluginOne {
 
@@ -76,7 +77,7 @@ public class TestPluginThrowException extends TestPluginOne {
 
   @Override
   public Connection connect(
-      String driverProtocol,
+      DatabaseDialect databaseDialect,
       HostSpec hostSpec,
       Properties props,
       boolean isInitialConnection,

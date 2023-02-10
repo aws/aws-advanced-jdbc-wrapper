@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 
 /**
  * Implement this interface in order to handle physical connection creation process.
@@ -29,14 +30,14 @@ public interface ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param databaseDialect Dialect for the database we are connecting to
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @param props    The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
   Connection connect(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props)
+      @NonNull DatabaseDialect databaseDialect, @NonNull HostSpec hostSpec, @NonNull Properties props)
       throws SQLException;
 
   /**

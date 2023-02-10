@@ -38,6 +38,9 @@ import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.DatabaseDialect;
+import software.amazon.jdbc.dialect.MySQLDialect;
+import software.amazon.jdbc.dialect.PostgreSQLDialect;
 
 class IamAuthConnectionPluginTest {
 
@@ -85,7 +88,7 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
-    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
+    testTokenSetInProps(new PostgreSQLDialect(), PG_HOST_SPEC);
   }
 
   @Test
@@ -95,7 +98,7 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(MYSQL_CACHE_KEY,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
-    testTokenSetInProps(MYSQL_DRIVER_PROTOCOL, MYSQL_HOST_SPEC);
+    testTokenSetInProps(new MySQLDialect(), MYSQL_HOST_SPEC);
   }
 
   @Test
@@ -104,7 +107,7 @@ class IamAuthConnectionPluginTest {
     final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
 
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-      targetPlugin.connect(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, props, true, mockLambda);
+      targetPlugin.connect(new PostgreSQLDialect(), PG_HOST_SPEC, props, true, mockLambda);
     });
 
     assertEquals("Port number: 0 is not valid. Port number should be greater than zero.", exception.getMessage());
@@ -115,12 +118,12 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().minusMillis(300000)));
 
-    testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
+    testGenerateToken(new PostgreSQLDialect(), PG_HOST_SPEC);
   }
 
   @Test
   public void testConnectEmptyCache() throws SQLException {
-    testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
+    testGenerateToken(new PostgreSQLDialect(), PG_HOST_SPEC);
   }
 
   @Test
@@ -129,7 +132,7 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
-    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
+    testTokenSetInProps(new PostgreSQLDialect(), PG_HOST_SPEC_WITH_PORT);
   }
 
   @Test
@@ -140,7 +143,7 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewRegion,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
-    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_REGION);
+    testTokenSetInProps(new PostgreSQLDialect(), PG_HOST_SPEC_WITH_REGION);
   }
 
   @Test
@@ -149,28 +152,28 @@ class IamAuthConnectionPluginTest {
     props.setProperty(IamAuthConnectionPlugin.IAM_HOST.name, "pg.testdb.us-east-2.rds.amazonaws.com");
 
     testGenerateToken(
-        PG_DRIVER_PROTOCOL,
+        new PostgreSQLDialect(),
         new HostSpec("8.8.8.8"),
         "pg.testdb.us-east-2.rds.amazonaws.com");
   }
 
-  public void testTokenSetInProps(final String protocol, final HostSpec hostSpec) throws SQLException {
+  public void testTokenSetInProps(DatabaseDialect databaseDialect, final HostSpec hostSpec) throws SQLException {
 
     IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
     doThrow(new SQLException()).when(mockLambda).call();
 
-    assertThrows(SQLException.class, () -> targetPlugin.connect(protocol, hostSpec, props, true, mockLambda));
+    assertThrows(SQLException.class, () -> targetPlugin.connect(databaseDialect, hostSpec, props, true, mockLambda));
     verify(mockLambda, times(1)).call();
 
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
   }
 
-  private void testGenerateToken(final String protocol, final HostSpec hostSpec) throws SQLException {
-    testGenerateToken(protocol, hostSpec, hostSpec.getHost());
+  private void testGenerateToken(final DatabaseDialect databaseDialect, final HostSpec hostSpec) throws SQLException {
+    testGenerateToken(databaseDialect, hostSpec, hostSpec.getHost());
   }
 
   private void testGenerateToken(
-      final String protocol,
+      final DatabaseDialect databaseDialect,
       final HostSpec hostSpec,
       final String expectedHost) throws SQLException {
     final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
@@ -186,7 +189,7 @@ class IamAuthConnectionPluginTest {
     doThrow(new SQLException()).when(mockLambda).call();
 
     assertThrows(SQLException.class, () -> {
-      spyPlugin.connect(protocol, hostSpec, props, true, mockLambda);
+      spyPlugin.connect(databaseDialect, hostSpec, props, true, mockLambda);
     });
     verify(mockLambda, times(1)).call();
 

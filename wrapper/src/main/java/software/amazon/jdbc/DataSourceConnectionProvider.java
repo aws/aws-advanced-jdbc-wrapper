@@ -25,6 +25,7 @@ import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.util.PropertyUtils;
 
 /**
@@ -55,7 +56,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param databaseDialect The DatabaseDialect for the connection
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
@@ -63,7 +64,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
    */
   @Override
   public Connection connect(
-      final @NonNull String protocol,
+      final @NonNull DatabaseDialect databaseDialect,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
@@ -94,7 +95,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       copy.setProperty(
           this.urlPropertyName,
           buildUrl(
-              protocol,
+              databaseDialect.getURLScheme(),
               hostSpec,
               this.serverPropertyName,
               this.portPropertyName,

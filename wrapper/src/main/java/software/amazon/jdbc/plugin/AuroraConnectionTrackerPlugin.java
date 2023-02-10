@@ -30,8 +30,10 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
@@ -83,16 +85,17 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
+  public Connection connect(DatabaseDialect databaseDialect, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
-      this.retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
-      this.instanceNameCol = PG_INSTANCE_NAME_COL;
+    if (databaseDialect.isSupported()) {
+      this.retrieveInstanceQuery = databaseDialect.getInstanceNameQuery();
+      this.instanceNameCol = databaseDialect.getInstanceNameColumn();
     } else {
-      this.retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
-      this.instanceNameCol = MYSQL_GET_INSTANCE_NAME_COL;
+      throw new UnsupportedOperationException(
+          Messages.get(
+              "DatabaseDialect.unsupportedDriverProtocol",
+              new Object[] {databaseDialect}));
     }
-
     final Connection conn = connectFunc.call();
     final HostSpec currentHostSpec = (this.pluginService.getCurrentHostSpec() == null)
         ? this.pluginService.getCurrentHostSpec()

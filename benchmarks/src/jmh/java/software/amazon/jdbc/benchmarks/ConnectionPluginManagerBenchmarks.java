@@ -107,7 +107,7 @@ public class ConnectionPluginManagerBenchmarks {
 
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(HostSpec.class), any(Properties.class)))
+    when(mockConnectionProvider.connect(new JMHDatabaseDialect(anyString()), any(HostSpec.class), any(Properties.class)))
         .thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
@@ -156,7 +156,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public Connection connectWithPlugins() throws SQLException {
     return pluginManager.connect(
-        "driverProtocol",
+        new JMHDatabaseDialect( "driverProtocol"),
         new HostSpec("host"),
         propertiesWithPlugins,
         true);
@@ -165,7 +165,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public Connection connectWithNoPlugins() throws SQLException {
     return pluginManagerWithNoPlugins.connect(
-        "driverProtocol",
+        new JMHDatabaseDialect( "driverProtocol"),
         new HostSpec("host"),
         emptyProperties,
         true);
@@ -198,7 +198,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public ConnectionPluginManager initHostProvidersWithPlugins() throws SQLException {
     pluginManager.initHostProvider(
-        "protocol",
+        new JMHDatabaseDialect( "driverProtocol"),
         "url",
         propertiesWithPlugins,
         mockHostListProvider);
@@ -208,7 +208,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public ConnectionPluginManager initHostProvidersWithNoPlugins() throws SQLException {
     pluginManagerWithNoPlugins.initHostProvider(
-        "protocol",
+        new JMHDatabaseDialect( "driverProtocol"),
         "url",
         emptyProperties,
         mockHostListProvider);

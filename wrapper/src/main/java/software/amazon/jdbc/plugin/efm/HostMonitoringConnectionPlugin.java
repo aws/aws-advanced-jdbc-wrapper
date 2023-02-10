@@ -39,6 +39,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 
@@ -78,11 +79,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
-
-  private static final String MYSQL_RETRIEVE_HOST_PORT_SQL =
-      "SELECT CONCAT(@@hostname, ':', @@port)";
-  private static final String PG_RETRIEVE_HOST_PORT_SQL =
-      "SELECT CONCAT(inet_server_addr(), ':', inet_server_port())";
 
   private static final List<String> METHODS_TO_SKIP_MONITORING =
       Arrays.asList(".get", ".abort", ".close", ".next", ".create");
@@ -266,19 +262,19 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   /**
    * Generate a set of node keys representing the node to monitor.
    *
-   * @param driverProtocol Driver protocol for provided connection
+   * @param databaseDialect dialect for provided connection
    * @param connection the connection to a specific node.
    * @param hostSpec host details to add node keys to
    */
   private void generateHostAliases(
-      final @NonNull String driverProtocol,
+      final @NonNull DatabaseDialect databaseDialect,
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec) {
 
     hostSpec.addAlias(hostSpec.asAlias());
 
     try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet rs = stmt.executeQuery(getHostPortSql(driverProtocol))) {
+      try (final ResultSet rs = stmt.executeQuery(getHostPortSql(databaseDialect))) {
         while (rs.next()) {
           hostSpec.addAlias(rs.getString(1));
         }
@@ -289,17 +285,15 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
   }
 
-  private String getHostPortSql(final @NonNull String driverProtocol) {
-    if (driverProtocol.startsWith("jdbc:postgresql:")) {
-      return PG_RETRIEVE_HOST_PORT_SQL;
-    } else if (driverProtocol.startsWith("jdbc:mysql:")) {
-      return MYSQL_RETRIEVE_HOST_PORT_SQL;
-    } else {
-      throw new UnsupportedOperationException(
-          Messages.get(
-              "HostMonitoringConnectionPlugin.unsupportedDriverProtocol",
-              new Object[] {driverProtocol}));
+  private String getHostPortSql(final @NonNull DatabaseDialect dialect) {
+    if (dialect.isSupported()) {
+      return dialect.getHostPortQuery();
     }
+    throw new UnsupportedOperationException(
+        Messages.get(
+            "Dialect.unsupportedDriverProtocol",
+            new Object[] {dialect}));
+
   }
 
   @Override
@@ -319,7 +313,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
   @Override
   public Connection connect(
-      final @NonNull String driverProtocol,
+      DatabaseDialect databaseDialect,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final boolean isInitialConnection,
@@ -329,7 +323,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     final Connection conn = connectFunc.call();
 
     if (conn != null) {
-      generateHostAliases(driverProtocol, conn, hostSpec);
+      generateHostAliases(databaseDialect, conn, hostSpec);
     }
 
     return conn;

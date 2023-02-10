@@ -40,6 +40,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
@@ -206,7 +207,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final String initialUrl,
       final Properties props,
       final HostListProviderService hostListProviderService,
@@ -216,7 +217,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         initialUrl,
         hostListProviderService,
         initHostProviderFunc,
-        () -> new AuroraHostListProvider(driverProtocol, hostListProviderService, props, initialUrl),
+        () -> new AuroraHostListProvider(databaseDialect, hostListProviderService, props, initialUrl),
         () ->
             new ClusterAwareReaderFailoverHandler(
                 this.pluginService,
@@ -782,14 +783,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final DatabaseDialect databaseDialect,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    final Connection conn = this.staleDnsHelper.getVerifiedConnection(driverProtocol, hostSpec, props, connectFunc);
+    final Connection conn = this.staleDnsHelper.getVerifiedConnection(databaseDialect, hostSpec, props, connectFunc);
 
     if (isInitialConnection) {
       this.pluginService.refreshHostList(conn);

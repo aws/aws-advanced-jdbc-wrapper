@@ -46,11 +46,14 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.*;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+
+import static software.amazon.jdbc.dialect.DatabaseDialect.DATABASE_DIALECT;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
 
@@ -61,7 +64,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected HostListProviderService hostListProviderService;
 
   protected PluginManagerService pluginManagerService;
-  protected String targetDriverProtocol; // TODO: consider moving to PluginService
+  protected DatabaseDialect databaseDialect; // TODO: consider moving to PluginService
   protected String originalUrl; // TODO: consider moving to PluginService
 
   protected @Nullable Throwable openConnectionStacktrace;
@@ -77,10 +80,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
 
     this.originalUrl = url;
-    this.targetDriverProtocol = getProtocol(url);
+    this.databaseDialect = getDialect(url, props);
 
     final ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider, this);
-    final PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
+    final PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.databaseDialect);
 
     init(props, pluginManager, pluginService, pluginService, pluginService);
 
@@ -122,14 +125,14 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         new ConnectionStringHostListProvider(props, this.originalUrl, this.hostListProviderService));
 
     this.pluginManager.initHostProvider(
-        this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
+        this.databaseDialect, this.originalUrl, props, this.hostListProviderService);
 
     this.pluginService.refreshHostList();
 
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn =
           this.pluginManager.connect(
-              this.targetDriverProtocol, this.pluginService.getInitialConnectionHostSpec(), props, true);
+              this.databaseDialect, this.pluginService.getInitialConnectionHostSpec(), props, true);
 
       if (conn == null) {
         throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());
@@ -139,7 +142,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
-  protected String getProtocol(final String url) {
+  protected DatabaseDialect getDialect(final String url, Properties info) {
+    String dialectClassName = DATABASE_DIALECT.getString(info);
+    if (dialectClassName != null ){
+      try {
+        return (DatabaseDialect) Class.forName(dialectClassName).getDeclaredConstructor().newInstance();
+      }catch (Exception ex) {
+
+      }
+    }
     final int index = url.indexOf("//");
     if (index < 0) {
       throw new IllegalArgumentException(
@@ -147,7 +158,15 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
               "ConnectionWrapper.protocolNotFound",
               new Object[] {url}));
     }
-    return url.substring(0, index + 2);
+    switch(url.substring(0, index + 2)) {
+      case "postgres":
+        return new PostgreSQLDialect();
+      case "mysql":
+        return new MySQLDialect();
+      case "mariadb":
+        return new MariaDBDialect();
+    }
+    return new DefaultDatabaseDialect();
   }
 
   public void releaseResources() {

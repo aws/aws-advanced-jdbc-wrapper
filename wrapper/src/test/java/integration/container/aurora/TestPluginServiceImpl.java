@@ -20,14 +20,15 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.PluginServiceImpl;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 
 public class TestPluginServiceImpl extends PluginServiceImpl {
 
   public TestPluginServiceImpl(
       @NonNull ConnectionPluginManager pluginManager,
       @NonNull Properties props,
-      @NonNull String originalUrl, String targetDriverProtocol) {
-    super(pluginManager, props, originalUrl, targetDriverProtocol);
+      @NonNull String originalUrl, DatabaseDialect databaseDialect) {
+    super(pluginManager, props, originalUrl, databaseDialect);
   }
 
   public static void clearHostAvailabilityCache() {

@@ -42,6 +42,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.Messages;
@@ -81,13 +82,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         }
       });
   static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
-  static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
-  static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
-  static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
-  static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
-  static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
-  static final String MYSQL_INSTANCE_NAME_COL = "@@aurora_server_id";
-
   private final PluginService pluginService;
   private final Properties properties;
   private final RdsUtils rdsUtils = new RdsUtils();
@@ -136,7 +130,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   @Override
   public void initHostProvider(
-      final String driverProtocol,
+      final DatabaseDialect dialect,
       final String initialUrl,
       final Properties props,
       final HostListProviderService hostListProviderService,
@@ -149,7 +143,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      final DatabaseDialect dialect,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
@@ -175,7 +169,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       updatedCurrentHost = getHostSpecFromUrl(currentHost.getUrl());
     } else {
       updatedCurrentHost =
-          getHostSpecFromInstanceId(getCurrentInstanceId(currentConnection, driverProtocol));
+          getHostSpecFromInstanceId(getCurrentInstanceId(currentConnection, dialect));
     }
 
     if (updatedCurrentHost == null) {
@@ -221,20 +215,14 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return null;
   }
 
-  private String getCurrentInstanceId(final Connection conn, final String driverProtocol) {
-    final String retrieveInstanceQuery;
-    final String instanceNameCol;
-    if (driverProtocol.startsWith(PG_DRIVER_PROTOCOL)) {
-      retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = PG_INSTANCE_NAME_COL;
-    } else if (driverProtocol.startsWith(MYSQL_DRIVER_PROTOCOL)) {
-      retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = MYSQL_INSTANCE_NAME_COL;
-    } else {
+  private String getCurrentInstanceId(final Connection conn, final DatabaseDialect databaseDialect) {
+    final String retrieveInstanceQuery = databaseDialect.getInstanceNameQuery();
+    final String instanceNameCol = databaseDialect.getInstanceNameQuery();
+    if (!databaseDialect.isSupported()) {
       throw new UnsupportedOperationException(
           Messages.get(
-              "ReadWriteSplittingPlugin.unsupportedDriverProtocol",
-              new Object[] {driverProtocol}));
+              "DatabaseDialect.unsupportedDriverProtocol",
+              new Object[] {databaseDialect}));
     }
 
     String instanceName = null;

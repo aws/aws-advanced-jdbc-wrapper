@@ -57,6 +57,9 @@ import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.MySQLDialect;
+import software.amazon.jdbc.dialect.PostgreSQLDialect;
+import software.amazon.jdbc.dialect.TestDatabaseDialect;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider.ClusterTopologyInfo;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider.FetchTopologyResult;
 
@@ -96,7 +99,7 @@ class AuroraHostListProviderTest {
   @Test
   void testGetTopology_returnCachedTopology() throws SQLException {
     auroraHostListProvider = Mockito.spy(new AuroraHostListProvider(
-        "protocol", mockHostListProviderService, new Properties(), "protocol://url/"));
+        new TestDatabaseDialect("protocol"), mockHostListProviderService, new Properties(), "protocol://url/"));
 
     final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
@@ -113,7 +116,7 @@ class AuroraHostListProviderTest {
   @Test
   void testGetTopology_withForceUpdate_returnsUpdatedTopology() throws SQLException {
     auroraHostListProvider = Mockito.spy(
-        new AuroraHostListProvider("", mockHostListProviderService, new Properties(), "url"));
+        new AuroraHostListProvider(new TestDatabaseDialect(""), mockHostListProviderService, new Properties(), "url"));
 
     final Instant lastUpdated = Instant.now();
     final ClusterTopologyInfo oldTopology = new ClusterTopologyInfo(
@@ -134,7 +137,7 @@ class AuroraHostListProviderTest {
   @Test
   void testGetTopology_withoutForceUpdate_returnsEmptyHostList() throws SQLException {
     auroraHostListProvider = Mockito.spy(
-        new AuroraHostListProvider("", mockHostListProviderService, new Properties(), "url"));
+        new AuroraHostListProvider(new TestDatabaseDialect(""), mockHostListProviderService, new Properties(), "url"));
 
     final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
@@ -155,7 +158,7 @@ class AuroraHostListProviderTest {
   @Test
   void testGetTopology_withForceUpdate_returnsEmptyHostList() throws SQLException {
     auroraHostListProvider = Mockito.spy(
-        new AuroraHostListProvider("", mockHostListProviderService, new Properties(), "url"));
+        new AuroraHostListProvider(new TestDatabaseDialect(""), mockHostListProviderService, new Properties(), "url"));
     auroraHostListProvider.clear();
 
     final Instant lastUpdated = Instant.now();
@@ -179,27 +182,27 @@ class AuroraHostListProviderTest {
 
     when(mockResultSet.getString(eq(AuroraHostListProvider.FIELD_SERVER_ID))).thenReturn("mysql");
     auroraHostListProvider = new AuroraHostListProvider(
-        "mysql", mockHostListProviderService, new Properties(), "mysql://url/");
+        new MySQLDialect(), mockHostListProviderService, new Properties(), "mysql://url/");
 
     ClusterTopologyInfo result = auroraHostListProvider.queryForTopology(mockConnection);
     String query = queryCaptor.getValue();
     assertEquals(expectedMySQL, result.hosts);
-    assertEquals(AuroraHostListProvider.MYSQL_RETRIEVE_TOPOLOGY_SQL, query);
+    assertEquals(new MySQLDialect().getTopologyQuery(), query);
 
     when(mockResultSet.next()).thenReturn(true, false);
     when(mockResultSet.getString(eq(AuroraHostListProvider.FIELD_SERVER_ID))).thenReturn("postgresql");
     auroraHostListProvider = new AuroraHostListProvider(
-        "postgresql", mockHostListProviderService, new Properties(), "postgresql://url/");
+        new PostgreSQLDialect(), mockHostListProviderService, new Properties(), "postgresql://url/");
     result = auroraHostListProvider.queryForTopology(mockConnection);
     query = queryCaptor.getValue();
     assertEquals(expectedPostgres, result.hosts);
-    assertEquals(AuroraHostListProvider.PG_RETRIEVE_TOPOLOGY_SQL, query);
+    assertEquals(new PostgreSQLDialect().getTopologyQuery(), query);
   }
 
   @Test
   void testQueryForTopology_queryResultsInException() throws SQLException {
     auroraHostListProvider = new AuroraHostListProvider(
-        "protocol", mockHostListProviderService, new Properties(), "protocol://url/");
+        new TestDatabaseDialect("protocol"), mockHostListProviderService, new Properties(), "protocol://url/");
     when(mockStatement.executeQuery(anyString())).thenThrow(new SQLSyntaxErrorException());
     assertThrows(
         SQLException.class,
@@ -209,7 +212,7 @@ class AuroraHostListProviderTest {
   @Test
   void testGetCachedTopology_returnCachedTopology() {
     auroraHostListProvider = new AuroraHostListProvider(
-        "", mockHostListProviderService, new Properties(), "url");
+        new TestDatabaseDialect(""), mockHostListProviderService, new Properties(), "url");
 
     final Instant lastUpdated = Instant.now();
     final List<HostSpec> expected = hosts;
@@ -224,13 +227,13 @@ class AuroraHostListProviderTest {
   @Test
   void testGetCachedTopology_returnNull() {
     auroraHostListProvider = new AuroraHostListProvider(
-        "", mockHostListProviderService, new Properties(), "url");
+        new TestDatabaseDialect(""), mockHostListProviderService, new Properties(), "url");
     // Test getCachedTopology with empty topology.
     assertNull(auroraHostListProvider.getCachedTopology());
     auroraHostListProvider.clear();
 
     auroraHostListProvider = new AuroraHostListProvider(
-        "", mockHostListProviderService, new Properties(), "url");
+        new TestDatabaseDialect(""), mockHostListProviderService, new Properties(), "url");
     final Instant lastUpdated = Instant.now().minus(1, ChronoUnit.DAYS);
     final ClusterTopologyInfo info = new ClusterTopologyInfo("any", hosts, lastUpdated, false, false);
     AuroraHostListProvider.topologyCache.put(auroraHostListProvider.clusterId, info);
@@ -243,7 +246,7 @@ class AuroraHostListProviderTest {
     AuroraHostListProvider.topologyCache.clear();
 
     AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://cluster-a.domain.com/"));
@@ -266,7 +269,7 @@ class AuroraHostListProviderTest {
     assertEquals(topologyClusterA, topologyProvider1);
 
     AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://cluster-b.domain.com/"));
@@ -295,7 +298,7 @@ class AuroraHostListProviderTest {
     AuroraHostListProvider.topologyCache.clear();
 
     AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
@@ -318,7 +321,7 @@ class AuroraHostListProviderTest {
     assertEquals(topologyClusterA, topologyProvider1);
 
     AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
@@ -339,7 +342,7 @@ class AuroraHostListProviderTest {
     AuroraHostListProvider.topologyCache.clear();
 
     AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
@@ -362,7 +365,7 @@ class AuroraHostListProviderTest {
     assertEquals(topologyClusterA, topologyProvider1);
 
     AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://instance-a-3.xyz.us-east-2.rds.amazonaws.com/"));
@@ -383,7 +386,7 @@ class AuroraHostListProviderTest {
     AuroraHostListProvider.topologyCache.clear();
 
     AuroraHostListProvider provider1 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://instance-a-2.xyz.us-east-2.rds.amazonaws.com/"));
@@ -410,7 +413,7 @@ class AuroraHostListProviderTest {
     //AuroraHostListProvider.logCache();
 
     AuroraHostListProvider provider2 = Mockito.spy(new AuroraHostListProvider(
-        "jdbc:something://",
+        new TestDatabaseDialect("jdbc:something://"),
         Mockito.spy(HostListProviderService.class),
         new Properties(),
         "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));

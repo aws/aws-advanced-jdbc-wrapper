@@ -49,17 +49,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.HostAvailability;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.NodeChangeOptions;
-import software.amazon.jdbc.OldConnectionSuggestedAction;
-import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.*;
+import software.amazon.jdbc.dialect.DatabaseDialect;
+import software.amazon.jdbc.dialect.TestDatabaseDialect;
 import software.amazon.jdbc.util.Messages;
 
 class HostMonitoringConnectionPluginTest {
@@ -264,19 +260,19 @@ class HostMonitoringConnectionPluginTest {
 
   @ParameterizedTest
   @MethodSource("getHostPortSQLParameters")
-  void test_connect_withNoAdditionalHostAlias(final String protocol, final String expectedSql) throws SQLException {
+  void test_connect_withNoAdditionalHostAlias(final DatabaseDialect databaseDialect, final String expectedSql) throws SQLException {
     initializePlugin();
 
     when(hostSpec.asAlias()).thenReturn("hostSpec alias");
 
-    plugin.connect(protocol, hostSpec, properties, true, () -> connection);
+    plugin.connect(databaseDialect, hostSpec, properties, true, () -> connection);
     verify(hostSpec).addAlias("hostSpec alias");
     verify(statement).executeQuery(eq(expectedSql));
   }
 
   @ParameterizedTest
   @MethodSource("getHostPortSQLParameters")
-  void test_connect_withHostAliases(final String protocol, final String expectedSql) throws SQLException {
+  void test_connect_withHostAliases(final DatabaseDialect databaseDialect, final String expectedSql) throws SQLException {
     initializePlugin();
 
     when(hostSpec.asAlias()).thenReturn("hostSpec alias");
@@ -285,7 +281,7 @@ class HostMonitoringConnectionPluginTest {
     when(resultSet.next()).thenReturn(true, false);
     when(resultSet.getString(eq(1))).thenReturn("second alias");
 
-    plugin.connect(protocol, hostSpec, properties, true, () -> connection);
+    plugin.connect(databaseDialect, hostSpec, properties, true, () -> connection);
     verify(hostSpec, times(2)).addAlias(stringArgumentCaptor.capture());
     final List<String> captures = stringArgumentCaptor.getAllValues();
     assertEquals(2, captures.size());
@@ -301,7 +297,7 @@ class HostMonitoringConnectionPluginTest {
     doThrow(new SQLException()).when(connection).createStatement();
 
     // Ensure SQLException raised in `generateHostAliases` are ignored.
-    final Connection conn = plugin.connect("protocol", hostSpec, properties, true, () -> connection);
+    final Connection conn = plugin.connect(new TestDatabaseDialect("protocol"), hostSpec, properties, true, () -> connection);
     assertNotNull(conn);
   }
 
@@ -310,7 +306,7 @@ class HostMonitoringConnectionPluginTest {
     initializePlugin();
     assertThrows(
         UnsupportedOperationException.class,
-        () -> plugin.connect("badProtocol", hostSpec, properties, true, () -> connection));
+        () -> plugin.connect(new TestDatabaseDialect("badprotocol"), hostSpec, properties, true, () -> connection));
   }
 
   @ParameterizedTest

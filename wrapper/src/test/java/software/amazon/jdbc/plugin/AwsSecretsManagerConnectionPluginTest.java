@@ -51,6 +51,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.DatabaseDialect;
+import software.amazon.jdbc.dialect.MySQLDialect;
+import software.amazon.jdbc.dialect.PostgreSQLDialect;
 import software.amazon.jdbc.util.Messages;
 
 public class AwsSecretsManagerConnectionPluginTest {
@@ -116,7 +119,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     // Add initial cached secret to be used for a connection.
     AwsSecretsManagerConnectionPlugin.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
 
-    this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
+    this.plugin.connect(new PostgreSQLDialect(), TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
     assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
@@ -134,7 +137,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
         .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
 
-    this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
+    this.plugin.connect(new PostgreSQLDialect(), TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
     assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
@@ -156,7 +159,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     final SQLException connectionFailedException = assertThrows(
         SQLException.class,
         () -> this.plugin.connect(
-            TEST_PG_PROTOCOL,
+            new PostgreSQLDialect(),
             TEST_HOSTSPEC,
             TEST_PROPS,
             true,
@@ -177,9 +180,9 @@ public class AwsSecretsManagerConnectionPluginTest {
   @MethodSource("provideExceptionCodeForDifferentDrivers")
   public void testConnectWithNewSecretsAfterTryingWithCachedSecrets(
       String accessError,
-      String protocol) throws SQLException {
+      DatabaseDialect databaseDialect) throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", protocol),
+        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", databaseDialect),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -196,7 +199,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     assertThrows(
         SQLException.class,
         () -> this.plugin.connect(
-            TEST_PG_PROTOCOL,
+            new PostgreSQLDialect(),
             TEST_HOSTSPEC,
             TEST_PROPS,
             true,
@@ -222,7 +225,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         assertThrows(
             SQLException.class,
             () -> this.plugin.connect(
-                TEST_PG_PROTOCOL,
+                new PostgreSQLDialect(),
                 TEST_HOSTSPEC,
                 TEST_PROPS,
                 true,
@@ -249,7 +252,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         assertThrows(
             SQLException.class,
             () -> this.plugin.connect(
-                TEST_PG_PROTOCOL,
+                new PostgreSQLDialect(),
                 TEST_HOSTSPEC,
                 TEST_PROPS,
                 true,
@@ -268,7 +271,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @ValueSource(strings = {"28000", "28P01"})
   public void testFailedInitialConnectionWithWrappedGenericError(final String accessError) throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
+        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", new PostgreSQLDialect()),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -284,7 +287,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     assertThrows(
         SQLException.class,
         () -> this.plugin.connect(
-            TEST_PG_PROTOCOL,
+            new PostgreSQLDialect(),
             TEST_HOSTSPEC,
             TEST_PROPS,
             true,
@@ -299,7 +302,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithWrappedMySQLException() throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_MYSQL_PROTOCOL),
+        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", new MySQLDialect()),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -314,7 +317,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     assertThrows(
         SQLException.class,
         () -> this.plugin.connect(
-            TEST_MYSQL_PROTOCOL,
+            new MySQLDialect(),
             TEST_HOSTSPEC,
             TEST_PROPS,
             true,
@@ -329,7 +332,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithWrappedPostgreSQLException() throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
+        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", new PostgreSQLDialect()),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -344,7 +347,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     assertThrows(
         SQLException.class,
         () -> this.plugin.connect(
-            TEST_PG_PROTOCOL,
+            new PostgreSQLDialect(),
             TEST_HOSTSPEC,
             TEST_PROPS,
             true,

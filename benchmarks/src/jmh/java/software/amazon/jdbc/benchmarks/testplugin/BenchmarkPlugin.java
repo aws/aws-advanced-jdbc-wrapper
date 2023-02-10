@@ -36,6 +36,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 
 public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   final List<String> resources = new ArrayList<>();
@@ -57,16 +58,16 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
+  public Connection connect(DatabaseDialect databaseDialect, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    LOGGER.finer(() -> String.format("connect=''%s''", driverProtocol));
+    LOGGER.finer(() -> String.format("connect=''%s''", databaseDialect.getURLScheme()));
     resources.add("connect");
     return connectFunc.call();
   }
 
   @Override
-  public void initHostProvider(String driverProtocol, String initialUrl, Properties props,
+  public void initHostProvider(DatabaseDialect databaseDialect, String initialUrl, Properties props,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {
     LOGGER.finer(() -> String.format("initHostProvider=''%s''", initialUrl));

@@ -31,6 +31,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
@@ -77,19 +78,19 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
-      final String driverProtocol,
+      DatabaseDialect databaseDialect,
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    return this.helper.getVerifiedConnection(driverProtocol, hostSpec, props, connectFunc);
+    return this.helper.getVerifiedConnection(databaseDialect, hostSpec, props, connectFunc);
   }
 
   @Override
   public void initHostProvider(
-      String driverProtocol,
+      DatabaseDialect databaseDialect,
       String initialUrl,
       Properties props,
       HostListProviderService hostListProviderService,

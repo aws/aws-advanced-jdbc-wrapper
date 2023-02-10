@@ -25,6 +25,7 @@ import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.Messages;
 
@@ -45,7 +46,7 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      String driverProtocol,
+      DatabaseDialect databaseDialect,
       String initialUrl,
       Properties props,
       HostListProviderService hostListProviderService,
@@ -58,7 +59,7 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 
     if (hostListProviderService.isStaticHostListProvider()) {
       hostListProviderService.setHostListProvider(
-          new AuroraHostListProvider(driverProtocol, hostListProviderService, props, initialUrl));
+          new AuroraHostListProvider(databaseDialect, hostListProviderService, props, initialUrl));
     } else if (!(provider instanceof AuroraHostListProvider)) {
       throw new SQLException(Messages.get("AuroraHostListConnectionPlugin.providerAlreadySet",
           new Object[] {provider.getClass().getName()}));

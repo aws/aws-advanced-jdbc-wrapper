@@ -44,6 +44,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUtils;
 
@@ -84,7 +85,7 @@ public class AuroraConnectionTrackerPluginTest {
   @ParameterizedTest
   @MethodSource("trackNewConnectionsParameters")
   public void testTrackNewInstanceConnections(
-      final String protocol,
+      final DatabaseDialect databaseDialect,
       final boolean isInitialConnection) throws SQLException {
     final HostSpec hostSpec = new HostSpec("instance1");
     when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
@@ -97,7 +98,7 @@ public class AuroraConnectionTrackerPluginTest {
         mockTracker);
 
     final Connection actualConnection = plugin.connect(
-        protocol,
+        databaseDialect,
         hostSpec,
         EMPTY_PROPERTIES,
         isInitialConnection,
@@ -112,7 +113,7 @@ public class AuroraConnectionTrackerPluginTest {
   @ParameterizedTest
   @MethodSource("trackNewConnectionsParameters")
   public void testTrackNewClusterConnections(
-      final String protocol,
+      final DatabaseDialect databaseDialect,
       final boolean isInitialConnection) throws SQLException {
     final HostSpec hostSpec = new HostSpec("writerCluster");
     when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
@@ -127,7 +128,7 @@ public class AuroraConnectionTrackerPluginTest {
         mockTracker);
 
     final Connection actualConnection = plugin.connect(
-        protocol,
+        databaseDialect,
         hostSpec,
         EMPTY_PROPERTIES,
         isInitialConnection,
