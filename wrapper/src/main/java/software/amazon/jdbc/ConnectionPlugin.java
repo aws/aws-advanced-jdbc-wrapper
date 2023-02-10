@@ -16,13 +16,13 @@
 
 package software.amazon.jdbc;
 
-import software.amazon.jdbc.dialect.DatabaseDialect;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import software.amazon.jdbc.dialect.DatabaseDialect;
 
 /**
  * Interface for connection plugins. This class implements ways to execute a JDBC method and to

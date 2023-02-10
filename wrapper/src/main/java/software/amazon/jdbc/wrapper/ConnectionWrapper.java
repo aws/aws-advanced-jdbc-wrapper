@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.wrapper;
 
+import static software.amazon.jdbc.dialect.DatabaseDialect.DATABASE_DIALECT;
+
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -48,16 +50,14 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.dialect.DefaultDatabaseDialect;
-import software.amazon.jdbc.dialect.PostgreSQLDialect;
 import software.amazon.jdbc.dialect.MariaDBDialect;
 import software.amazon.jdbc.dialect.MySQLDialect;
+import software.amazon.jdbc.dialect.PostgreSQLDialect;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-
-import static software.amazon.jdbc.dialect.DatabaseDialect.DATABASE_DIALECT;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
 
@@ -148,11 +148,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   protected DatabaseDialect getDialect(final String url, Properties info) {
     String dialectClassName = DATABASE_DIALECT.getString(info);
-    if (dialectClassName != null ){
+    if (dialectClassName != null) {
       try {
         return (DatabaseDialect) Class.forName(dialectClassName).getDeclaredConstructor().newInstance();
-      }catch (Exception ex) {
-
+      } catch (Exception ex) {
+        // ignore if we don't have a dialect in the properties we will try to figure it out from the
+        // URL scheme
       }
     }
     final int index = url.indexOf("//");
@@ -162,15 +163,17 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
               "ConnectionWrapper.protocolNotFound",
               new Object[] {url}));
     }
-    switch(url.substring(0, index + 2)) {
+    switch (url.substring(0, index + 2)) {
       case "postgres":
         return new PostgreSQLDialect();
       case "mysql":
         return new MySQLDialect();
       case "mariadb":
         return new MariaDBDialect();
+      default:
+        return new DefaultDatabaseDialect();
     }
-    return new DefaultDatabaseDialect();
+
   }
 
   public void releaseResources() {

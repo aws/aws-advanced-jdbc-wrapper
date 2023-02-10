@@ -19,7 +19,7 @@ package software.amazon.jdbc.dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
 
-public class DefaultDatabaseDialect implements DatabaseDialect{
+public class DefaultDatabaseDialect implements DatabaseDialect {
   @Override
   public String getInstanceNameQuery() {
     return null;
@@ -64,6 +64,7 @@ public class DefaultDatabaseDialect implements DatabaseDialect{
   public String getHostPortQuery() {
     return null;
   }
+
   public String getURLScheme() {
     return null;
   }

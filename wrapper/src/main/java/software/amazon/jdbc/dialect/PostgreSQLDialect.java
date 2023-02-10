@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package software.amazon.jdbc.dialect;
 
 import software.amazon.jdbc.exceptions.ExceptionHandler;
@@ -33,18 +34,22 @@ public class PostgreSQLDialect implements DatabaseDialect {
   private static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
   private static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
   private static final int PG_PORT = 5432;
-  private static final String URL_SCHEME="jdbc:postgresql://";
+  private static final String URL_SCHEME = "jdbc:postgresql://";
+
   @Override
   public String getInstanceNameQuery() {
     return PG_GET_INSTANCE_NAME_SQL;
   }
+
   public String getInstanceNameColumn() {
     return PG_INSTANCE_NAME_COL;
   }
+
   @Override
   public boolean isSupported() {
     return true;
   }
+
   public int getDefaultPort() {
     return PG_PORT;
   }
@@ -53,6 +58,7 @@ public class PostgreSQLDialect implements DatabaseDialect {
   public ExceptionHandler getExceptionHandler() {
     return exceptionHandler;
   }
+
   public String getTopologyQuery() {
     return PG_RETRIEVE_TOPOLOGY_SQL;
   }

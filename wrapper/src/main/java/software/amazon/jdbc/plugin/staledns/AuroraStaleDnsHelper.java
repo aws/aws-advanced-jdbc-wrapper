@@ -49,6 +49,7 @@ public class AuroraStaleDnsHelper {
   private InetAddress writerHostAddress = null;
 
   private static final int RETRIES = 3;
+
   public AuroraStaleDnsHelper(PluginService pluginService) {
     this.pluginService = pluginService;
   }

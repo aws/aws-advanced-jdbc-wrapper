@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package software.amazon.jdbc.dialect;
 
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -29,14 +30,24 @@ public interface DatabaseDialect {
   public static DatabaseDialect getInstance() {
     return new DefaultDatabaseDialect();
   }
+
   public String getInstanceNameQuery();
+
   public String getInstanceNameColumn();
+
   public boolean isSupported();
+
   public int getDefaultPort();
+
   public ExceptionHandler getExceptionHandler();
+
   public String getTopologyQuery();
+
   public String getReadOnlyQuery();
+
   public String getReadOnlyColumnName();
+
   public String getHostPortQuery();
+
   public String getURLScheme();
 }

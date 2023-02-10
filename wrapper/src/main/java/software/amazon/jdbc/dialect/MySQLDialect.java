@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package software.amazon.jdbc.dialect;
 
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 
-public class MySQLDialect implements DatabaseDialect{
+public class MySQLDialect implements DatabaseDialect {
   private static final ExceptionHandler exceptionHandler = new MySQLExceptionHandler();
   private static final String MYSQL_RETRIEVE_TOPOLOGY_SQL =
       "SELECT SERVER_ID, SESSION_ID "
@@ -46,17 +47,21 @@ public class MySQLDialect implements DatabaseDialect{
   public String getInstanceNameColumn() {
     return MYSQL_INSTANCE_NAME_COL;
   }
+
   public boolean isSupported() {
     return true;
   }
+
   public int getDefaultPort() {
     return MYSQL_PORT;
   }
+
 
   @Override
   public ExceptionHandler getExceptionHandler() {
     return exceptionHandler;
   }
+
   @Override
   public String getTopologyQuery() {
     return MYSQL_RETRIEVE_TOPOLOGY_SQL;
@@ -66,7 +71,8 @@ public class MySQLDialect implements DatabaseDialect{
   public String getReadOnlyQuery() {
     return MYSQL_READONLY_QUERY;
   }
-  public String getReadOnlyColumnName(){
+
+  public String getReadOnlyColumnName() {
     return READ_ONLY_COLUMN_NAME;
   }
 
@@ -74,6 +80,7 @@ public class MySQLDialect implements DatabaseDialect{
   public String getHostPortQuery() {
     return MYSQL_RETRIEVE_HOST_PORT_SQL;
   }
+
   public String getURLScheme() {
     return URL_SCHEME;
   }
