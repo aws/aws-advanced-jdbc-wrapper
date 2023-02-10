@@ -48,14 +48,14 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.dialect.DatabaseDialect;
-import software.amazon.jdbc.dialect.DefaultDatabaseDialect;
-import software.amazon.jdbc.dialect.PostgreSQLDialect;
+import software.amazon.jdbc.dialect.TestDatabaseDialect;
+
 
 public class PluginServiceImplTests {
 
   private static final Properties PROPERTIES = new Properties();
   private static final String URL = "url";
-  private static final DatabaseDialect databaseDialect = new DefaultDatabaseDialect();
+  private static final DatabaseDialect databaseDialect = new TestDatabaseDialect("driverProtocol");
   private AutoCloseable closeable;
 
   @Mock ConnectionPluginManager pluginManager;
