@@ -53,7 +53,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.*;
+import software.amazon.jdbc.HostAvailability;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.NodeChangeOptions;
+import software.amazon.jdbc.OldConnectionSuggestedAction;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.DatabaseDialect;
 import software.amazon.jdbc.dialect.TestDatabaseDialect;
 import software.amazon.jdbc.util.Messages;
@@ -260,7 +265,8 @@ class HostMonitoringConnectionPluginTest {
 
   @ParameterizedTest
   @MethodSource("getHostPortSQLParameters")
-  void test_connect_withNoAdditionalHostAlias(final DatabaseDialect databaseDialect, final String expectedSql) throws SQLException {
+  void test_connect_withNoAdditionalHostAlias(final DatabaseDialect databaseDialect, final String expectedSql)
+      throws SQLException {
     initializePlugin();
 
     when(hostSpec.asAlias()).thenReturn("hostSpec alias");
@@ -272,7 +278,8 @@ class HostMonitoringConnectionPluginTest {
 
   @ParameterizedTest
   @MethodSource("getHostPortSQLParameters")
-  void test_connect_withHostAliases(final DatabaseDialect databaseDialect, final String expectedSql) throws SQLException {
+  void test_connect_withHostAliases(final DatabaseDialect databaseDialect, final String expectedSql)
+      throws SQLException {
     initializePlugin();
 
     when(hostSpec.asAlias()).thenReturn("hostSpec alias");
@@ -297,7 +304,8 @@ class HostMonitoringConnectionPluginTest {
     doThrow(new SQLException()).when(connection).createStatement();
 
     // Ensure SQLException raised in `generateHostAliases` are ignored.
-    final Connection conn = plugin.connect(new TestDatabaseDialect("protocol"), hostSpec, properties, true, () -> connection);
+    final Connection conn = plugin.connect(new TestDatabaseDialect("protocol"), hostSpec,
+        properties, true, () -> connection);
     assertNotNull(conn);
   }
 
