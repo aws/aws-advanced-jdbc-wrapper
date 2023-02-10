@@ -23,9 +23,8 @@ public interface DatabaseDialect {
   public static final AwsWrapperProperty DATABASE_DIALECT =
       new AwsWrapperProperty(
           "databaseDialect",
-          "false",
-          "Set to true to automatically load-balance read-only transactions when setReadOnly is "
-              + "set to true");
+          "",
+          "Fully Qualified ClassName of DatabaseDialect to be used");
 
   public static DatabaseDialect getInstance() {
     return new DefaultDatabaseDialect();
