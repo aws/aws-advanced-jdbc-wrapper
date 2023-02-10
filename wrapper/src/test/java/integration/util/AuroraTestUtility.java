@@ -633,6 +633,7 @@ public class AuroraTestUtility {
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
+    LOGGER.finest("Inside failoverCluster method");
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
     waitUntilClusterHasRightState(clusterId);
     List<String> latestTopology = null;
@@ -671,6 +672,7 @@ public class AuroraTestUtility {
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
       String initialWriterId, String targetInstanceId) throws InterruptedException {
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    LOGGER.fine("Inside failoverClusterToTarget method. Initial writer: " + initialWriterId + ", target writer: " + targetInstanceId);
     String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
     String initialWriterIP = hostToIP(clusterEndpoint);
     String nextWriterId;
@@ -679,8 +681,11 @@ public class AuroraTestUtility {
 
     waitUntilClusterHasRightState(clusterId);
 
+    boolean idChanged = false;
+    boolean IPChanged = false;
     while (true) {
       try {
+        LOGGER.finest("Sending failover request");
         rdsClient.failoverDBCluster(
             (builder) ->
                 builder
@@ -693,12 +698,27 @@ public class AuroraTestUtility {
           nextWriterId = getDBClusterWriterInstanceId(clusterId);
           nextWriterIP = hostToIP(clusterEndpoint);
 
-          // if (nextWriterId.equals(targetInstanceId) && !initialWriterIP.equals(nextWriterIP)) {
           if (nextWriterId.equals(targetInstanceId)) {
+            idChanged = true;
+            LOGGER.finest("Writer instance has successfully changed to " + targetInstanceId);
+          }
+
+          if (!initialWriterIP.equals(nextWriterIP)) {
+            IPChanged = true;
+            LOGGER.finest("Instance IP has successfully changed");
+          }
+
+          if (idChanged && IPChanged) {
+            LOGGER.finest("Failover method finished");
             return;
+          }
+
+          if (i == 4) {
+            LOGGER.finest("Failover conditions have not been met, sending another request...");
           }
         }
       } catch (final Exception e) {
+        LOGGER.finest("Exception while executing failover: " + e);
         TimeUnit.MILLISECONDS.sleep(1000);
       }
     }
