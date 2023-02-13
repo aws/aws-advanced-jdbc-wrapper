@@ -1,4 +1,4 @@
-# EFM and Failover Plugin Performance Results
+# Plugin Pipeline Performance Results
 
 ## Benchmarks
 | Benchmark                                                         | Score    | Error   | Units |
@@ -32,14 +32,18 @@
 | releaseResourcesWithNoPlugins                | 8.030   | 3.776  | us/op |
 | releaseResourcesTenGenericPlugins            | 15.243  | 4.906  | us/op |
 
-| Benchmark                                                 | Score    | Error   | Units |
-|-----------------------------------------------------------|----------|---------|-------|
-| executeStatementBaseline                                  | 706.629  | 139.833 | us/op |
-| executeStatementWithExecutionTimePlugin                   | 1037.951 | 187.424 | us/op |
-| initAndReleaseBaseLine                                    | 0.667    | 0.140   | us/op |
-| initAndReleaseWithAllPlugins                              | 668.783  | 118.127 | us/op |
-| initAndReleaseWithAuroraHostListPlugin                    | 667.868  | 122.335 | us/op |
-| initAndReleaseWithExecutionTimePlugin                     | 679.230  | 136.899 | us/op |
+| Benchmark                                                                          | Score    | Error   | Units |
+|------------------------------------------------------------------------------------|----------|---------|-------|
+| executeStatementBaseline                                                           | 912.928  | 137.285 | us/op |
+| executeStatementWithExecutionTimePlugin                                            | 1739.314 | 286.132 | us/op |
+| initAndReleaseBaseLine                                                             | 1.132    | 1.123   | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin                        | 1562.297 | 245.078 | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing | 1519.943 | 243.188 | us/op |
+| initAndReleaseWithAuroraHostListPlugin                                             | 964.033  | 149.767 | us/op |
+| initAndReleaseWithExecutionTimeAndAuroraHostListPlugins                            | 1005.531 | 165.567 | us/op |
+| initAndReleaseWithExecutionTimePlugin                                              | 804.334  | 150.357 | us/op |
+| initAndReleaseWithReadWriteSplittingPlugin                                         | 870.167  | 158.707 | us/op |
+| initAndReleaseWithReadWriteSplittingPluginWithReaderLoadBalancing                  | 867.317  | 149.344 | us/op |
 
 ## Performance Tests
 

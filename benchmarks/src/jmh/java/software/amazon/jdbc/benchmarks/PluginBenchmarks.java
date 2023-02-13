@@ -113,20 +113,9 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
-  public ConnectionWrapper initAndReleaseWithAllPlugins() throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useAllPlugins(),
-        CONNECTION_STRING,
-        mockConnectionProvider)) {
-      wrapper.releaseResources();
-      return wrapper;
-    }
-  }
-
-  @Benchmark
   public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useExecutionPlugin(),
+        useExecutionTimePlugin(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -137,7 +126,18 @@ public class PluginBenchmarks {
   @Benchmark
   public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useAuroraHostList(),
+        useAuroraHostListPlugin(),
+        CONNECTION_STRING,
+        mockConnectionProvider)) {
+      wrapper.releaseResources();
+      return wrapper;
+    }
+  }
+
+  @Benchmark
+  public ConnectionWrapper initAndReleaseWithExecutionTimeAndAuroraHostListPlugins() throws SQLException {
+    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+        useExecutionTimeAndAuroraHostListPlugins(),
         CONNECTION_STRING,
         mockConnectionProvider)) {
       wrapper.releaseResources();
@@ -196,7 +196,7 @@ public class PluginBenchmarks {
   @Benchmark
   public Statement executeStatementBaseline() throws SQLException {
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useExecutionPlugin(),
+        useExecutionTimePlugin(),
         CONNECTION_STRING,
         mockConnectionProvider);
          Statement statement = wrapper.createStatement()) {
@@ -208,7 +208,7 @@ public class PluginBenchmarks {
   public ResultSet executeStatementWithExecutionTimePlugin() throws SQLException {
     try (
         ConnectionWrapper wrapper = new ConnectionWrapper(
-            useExecutionPlugin(),
+            useExecutionTimePlugin(),
             CONNECTION_STRING,
             mockConnectionProvider);
         Statement statement = wrapper.createStatement();
@@ -217,21 +217,21 @@ public class PluginBenchmarks {
     }
   }
 
-  Properties useAllPlugins() {
-    final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "executionTime,auroraHostList");
-    return properties;
-  }
-
-  Properties useExecutionPlugin() {
+  Properties useExecutionTimePlugin() {
     final Properties properties = new Properties();
     properties.setProperty("wrapperPlugins", "executionTime");
     return properties;
   }
 
-  Properties useAuroraHostList() {
+  Properties useAuroraHostListPlugin() {
     final Properties properties = new Properties();
     properties.setProperty("wrapperPlugins", "auroraHostList");
+    return properties;
+  }
+
+  Properties useExecutionTimeAndAuroraHostListPlugins() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "executionTime,auroraHostList");
     return properties;
   }
 
