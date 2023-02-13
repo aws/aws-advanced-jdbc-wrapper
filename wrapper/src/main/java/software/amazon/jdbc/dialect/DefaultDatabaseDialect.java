@@ -66,7 +66,7 @@ public class DefaultDatabaseDialect implements DatabaseDialect {
   }
 
   public String getURLScheme() {
-    return null;
+    return "";
   }
 
 }
