@@ -58,8 +58,6 @@ import software.amazon.jdbc.util.Messages;
 
 public class AwsSecretsManagerConnectionPluginTest {
 
-  private static final String TEST_PG_PROTOCOL = "jdbc:aws-wrapper:postgresql:";
-  private static final String TEST_MYSQL_PROTOCOL = "jdbc:aws-wrapper:mysql:";
   private static final String TEST_REGION = "us-east-2";
   private static final String TEST_SECRET_ID = "secretId";
   private static final String TEST_USERNAME = "testUser";
@@ -361,8 +359,8 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   private static Stream<Arguments> provideExceptionCodeForDifferentDrivers() {
     return Stream.of(
-        Arguments.of("28000", TEST_MYSQL_PROTOCOL),
-        Arguments.of("28P01", TEST_PG_PROTOCOL)
+        Arguments.of("28000", new MySQLDialect()),
+        Arguments.of("28P01", new PostgreSQLDialect())
     );
   }
 }

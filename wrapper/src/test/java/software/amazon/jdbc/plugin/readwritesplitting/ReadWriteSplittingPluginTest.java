@@ -53,12 +53,11 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.DefaultDatabaseDialect;
+import software.amazon.jdbc.dialect.TestDatabaseDialect;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
 public class ReadWriteSplittingPluginTest {
-  private static final String TEST_PROTOCOL = "jdbc:postgresql:";
   private static final int TEST_PORT = 5432;
   private static final Properties defaultProps = new Properties();
 
@@ -470,7 +469,8 @@ public class ReadWriteSplittingPluginTest {
         null);
 
     final Connection connection =
-        plugin.connect(new DefaultDatabaseDialect(), writerHostSpec, defaultProps, false, this.mockConnectFunc);
+        plugin.connect(new TestDatabaseDialect("jdbc:postgresql://"), writerHostSpec, defaultProps,
+            false, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -490,7 +490,7 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection = plugin.connect(
-        new DefaultDatabaseDialect(),
+        new TestDatabaseDialect("jdbc:postgresql://"),
         instanceUrlHostSpec,
         defaultProps,
         true,
@@ -515,7 +515,8 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(new DefaultDatabaseDialect(), ipUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+        plugin.connect(new TestDatabaseDialect("jdbc:postgresql://"), ipUrlHostSpec, defaultProps,
+            true, this.mockConnectFunc);
 
     assertEquals(mockReaderConn1, connection);
     verify(mockConnectFunc).call();
@@ -533,7 +534,8 @@ public class ReadWriteSplittingPluginTest {
         null,
         null);
     final Connection connection =
-        plugin.connect(new DefaultDatabaseDialect(), clusterUrlHostSpec, defaultProps, true, this.mockConnectFunc);
+        plugin.connect(new TestDatabaseDialect("jdbc:postgresql://"), clusterUrlHostSpec, defaultProps,
+            true, this.mockConnectFunc);
 
     assertEquals(mockWriterConn, connection);
     verify(mockConnectFunc).call();
@@ -554,7 +556,7 @@ public class ReadWriteSplittingPluginTest {
     assertThrows(
         SQLException.class,
         () -> plugin.connect(
-            new DefaultDatabaseDialect(),
+            new TestDatabaseDialect("jdbc:postgresql://"),
             ipUrlHostSpec,
             defaultProps,
             true,

@@ -60,6 +60,8 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.DatabaseDialect;
+import software.amazon.jdbc.dialect.MySQLDialect;
+import software.amazon.jdbc.dialect.PostgreSQLDialect;
 import software.amazon.jdbc.dialect.TestDatabaseDialect;
 import software.amazon.jdbc.util.Messages;
 
@@ -366,10 +368,8 @@ class HostMonitoringConnectionPluginTest {
     final String PG_RETRIEVE_HOST_PORT_SQL = "SELECT CONCAT(inet_server_addr(), ':', inet_server_port())";
 
     return Stream.of(
-        Arguments.of("jdbc:mysql:", MYSQL_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:mysql:someUrl", MYSQL_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:postgresql:", PG_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:postgresql:someUrl", PG_RETRIEVE_HOST_PORT_SQL)
+        Arguments.of(new MySQLDialect(), MYSQL_RETRIEVE_HOST_PORT_SQL),
+        Arguments.of(new PostgreSQLDialect(), PG_RETRIEVE_HOST_PORT_SQL)
     );
   }
 

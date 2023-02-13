@@ -291,8 +291,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
     throw new UnsupportedOperationException(
         Messages.get(
-            "Dialect.unsupportedDriverProtocol",
-            new Object[] {dialect}));
+            "DatabaseDialect.unsupportedDriverProtocol",
+            new Object[] {dialect.getURLScheme()}));
 
   }
 

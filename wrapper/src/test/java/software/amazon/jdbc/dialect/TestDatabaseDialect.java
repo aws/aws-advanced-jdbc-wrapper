@@ -26,7 +26,11 @@ public class TestDatabaseDialect extends DefaultDatabaseDialect implements Datab
 
   @Override
   public boolean isSupported() {
-    return true;
+    if (urlScheme.equals("badprotocol")) {
+      return false;
+    } else {
+      return true;
+    }
   }
 
   @Override
