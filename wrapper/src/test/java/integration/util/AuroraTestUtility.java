@@ -630,6 +630,7 @@ public class AuroraTestUtility {
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
     LOGGER.finest("Inside failoverCluster method");
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    waitUntilClusterHasRightState(clusterId);
     failoverClusterToATargetAndWaitUntilWriterChanged(
         clusterId,
         getDBClusterWriterInstanceId(clusterId),
@@ -650,7 +651,6 @@ public class AuroraTestUtility {
       throws InterruptedException {
     LOGGER.finest(String.format("failover from %s to target: %s", clusterWriterId, targetInstanceId));
     final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
-    waitUntilClusterHasRightState(clusterId);
     final String initialWriterIP = hostToIP(clusterEndpoint);
     String nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
 
