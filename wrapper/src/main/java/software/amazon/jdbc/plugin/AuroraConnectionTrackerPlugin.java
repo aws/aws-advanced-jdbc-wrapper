@@ -40,13 +40,8 @@ import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
-  static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
-  static final String MYSQL_GET_INSTANCE_NAME_COL = "@@aurora_server_id";
-  static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
-  static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
-  private static final String PG_DRIVER_PROTOCOL = "postgresql";
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {

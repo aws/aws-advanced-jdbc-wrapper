@@ -45,6 +45,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.DatabaseDialect;
+import software.amazon.jdbc.dialect.PostgreSQLDialect;
 import software.amazon.jdbc.dialect.TestDatabaseDialect;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUtils;
@@ -195,8 +196,8 @@ public class AuroraConnectionTrackerPluginTest {
 
   private static Stream<Arguments> trackNewConnectionsParameters() {
     return Stream.of(
-        Arguments.of(new TestDatabaseDialect("postgresql"), true),
-        Arguments.of(new TestDatabaseDialect("postgresql"), false),
+        Arguments.of(new PostgreSQLDialect(), true),
+        Arguments.of(new PostgreSQLDialect(), false),
         Arguments.of(new TestDatabaseDialect("otherProtocol"), true),
         Arguments.of(new TestDatabaseDialect("otherProtocol"), false)
     );

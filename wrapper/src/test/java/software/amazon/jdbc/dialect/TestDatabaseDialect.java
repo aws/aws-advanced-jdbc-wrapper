@@ -24,6 +24,20 @@ public class TestDatabaseDialect extends DefaultDatabaseDialect implements Datab
     this.urlScheme = urlScheme;
   }
 
+  @Override
+  public boolean isSupported() {
+    return true;
+  }
+
+  @Override
+  public String getInstanceNameQuery() {
+    return "select 1";
+  }
+
+  @Override
+  public String getInstanceNameColumn() {
+    return "instanceColumn";
+  }
 
   @Override
   public String getURLScheme() {
