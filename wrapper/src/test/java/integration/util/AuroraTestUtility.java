@@ -630,7 +630,6 @@ public class AuroraTestUtility {
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
     LOGGER.finest("Inside failoverCluster method");
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
-    waitUntilClusterHasRightState(clusterId);
     failoverClusterToATargetAndWaitUntilWriterChanged(
         clusterId,
         getDBClusterWriterInstanceId(clusterId),
@@ -651,11 +650,12 @@ public class AuroraTestUtility {
       throws InterruptedException {
     LOGGER.finest(String.format("failover from %s to target: %s", clusterWriterId, targetInstanceId));
     final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
+    waitUntilClusterHasRightState(clusterId);
     final String initialWriterIP = hostToIP(clusterEndpoint);
     String nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
 
     while (clusterWriterId.equals(nextClusterWriterId)) {
-      failoverClusterWithATargetInstance(clusterId, targetInstanceId);
+      failoverClusterToTarget(clusterId, targetInstanceId);
       TimeUnit.SECONDS.sleep(5);
       // Calling the RDS API to get writer Id.
       nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
@@ -671,7 +671,7 @@ public class AuroraTestUtility {
     LOGGER.finest(String.format("finished failover from %s to target: %s", clusterWriterId, targetInstanceId));
   }
 
-  public void failoverClusterWithATargetInstance(String clusterId, String targetInstanceId)
+  public void failoverClusterToTarget(String clusterId, String targetInstanceId)
       throws InterruptedException {
     waitUntilClusterHasRightState(clusterId);
 
