@@ -64,13 +64,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: junit-report
+          name: junit-report-${{ matrix.driver }}
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: html-summary-report
+          name: html-summary-report-${{ matrix.driver }}
           path: ./wrapper/build/report
           retention-days: 5
