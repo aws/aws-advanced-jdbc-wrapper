@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -94,6 +95,7 @@ public class AuroraTestUtility {
 
   private final RdsClient rdsClient;
   private final Ec2Client ec2Client;
+  private static final Random rand = new Random();
 
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
 
@@ -123,13 +125,6 @@ public class AuroraTestUtility {
    */
   public AuroraTestUtility(String region) {
     this(getRegionInternal(region), DefaultCredentialsProvider.create());
-  }
-
-  public AuroraTestUtility(String region, String awsAccessKeyId, String awsSecretAccessKey) {
-    this(
-        getRegionInternal(region),
-        StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(awsAccessKeyId, awsSecretAccessKey)));
   }
 
   public AuroraTestUtility(
@@ -636,27 +631,63 @@ public class AuroraTestUtility {
     LOGGER.finest("Inside failoverCluster method");
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
     waitUntilClusterHasRightState(clusterId);
-    List<String> latestTopology = null;
-    try {
-      latestTopology = getAuroraInstanceIds();
-    } catch (SQLException e) {
-      fail("Failed to failover cluster - cluster topology could not be retrieved.");
+    failoverClusterToATargetAndWaitUntilWriterChanged(
+        clusterId,
+        getDBClusterWriterInstanceId(clusterId),
+        getRandomDBClusterReaderInstanceId(clusterId));
+  }
+
+  public void failoverClusterToATargetAndWaitUntilWriterChanged(
+      String clusterWriterId, String targetInstanceId) throws InterruptedException {
+
+    failoverClusterToATargetAndWaitUntilWriterChanged(
+        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
+        clusterWriterId,
+        targetInstanceId);
+  }
+
+  public void failoverClusterToATargetAndWaitUntilWriterChanged(
+      String clusterId, String clusterWriterId, String targetInstanceId)
+      throws InterruptedException {
+    LOGGER.finest(String.format("failover from %s to target: %s", clusterWriterId, targetInstanceId));
+    final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
+    final String initialWriterIP = hostToIP(clusterEndpoint);
+    String nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
+
+    while (clusterWriterId.equals(nextClusterWriterId)) {
+      failoverClusterWithATargetInstance(clusterId, targetInstanceId);
+      TimeUnit.SECONDS.sleep(5);
+      // Calling the RDS API to get writer Id.
+      nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
     }
 
-    String writerId = latestTopology.get(0);
-    assertTrue(isDBInstanceWriter(clusterId, writerId));
-    String anyReaderId = "";
-    for (String instanceId : latestTopology) {
-      if (!writerId.equals(instanceId)) {
-        anyReaderId = instanceId;
+    // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
+    String nextWriterIP = hostToIP(clusterEndpoint);
+    while (initialWriterIP.equals(nextWriterIP)) {
+      TimeUnit.SECONDS.sleep(1);
+      nextWriterIP = hostToIP(clusterEndpoint);
+    }
+
+    LOGGER.finest(String.format("finished failover from %s to target: %s", clusterWriterId, targetInstanceId));
+  }
+
+  public void failoverClusterWithATargetInstance(String clusterId, String targetInstanceId)
+      throws InterruptedException {
+    waitUntilClusterHasRightState(clusterId);
+
+    while (true) {
+      try {
+        rdsClient.failoverDBCluster(
+            (builder) ->
+                builder
+                    .dbClusterIdentifier(clusterId)
+                    .targetDBInstanceIdentifier(targetInstanceId));
         break;
+      } catch (final Exception e) {
+        LOGGER.finest(String.format("failoverDBCluster request to %s failed: %s", targetInstanceId, e.getMessage()));
+        TimeUnit.MILLISECONDS.sleep(1000);
       }
     }
-    if (StringUtils.isNullOrEmpty(anyReaderId)) {
-      fail("Failed to failover cluster - a reader instance could not be found.");
-    }
-
-    failoverClusterToATargetAndWaitUntilWriterChanged(writerId, anyReaderId);
   }
 
   protected String hostToIP(String hostname) {
@@ -669,59 +700,17 @@ public class AuroraTestUtility {
     }
   }
 
-  public void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String initialWriterId, String targetInstanceId) throws InterruptedException {
-    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
-    LOGGER.fine("Inside failoverClusterToTarget method. Initial writer: " + initialWriterId + ", target writer: " + targetInstanceId);
-    String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
-    String initialWriterIP = hostToIP(clusterEndpoint);
-    String nextWriterId;
-    String nextWriterIP;
-    int checksBeforeRetry = 5;
+  public String getRandomDBClusterReaderInstanceId(String clusterId) {
+    final List<DBClusterMember> matchedMemberList =
+        getDBClusterMemberList(clusterId).stream()
+            .filter(x -> !x.isClusterWriter())
+            .collect(Collectors.toList());
 
-    waitUntilClusterHasRightState(clusterId);
-
-    boolean idChanged = false;
-    boolean IPChanged = false;
-    while (true) {
-      try {
-        LOGGER.finest("Sending failover request");
-        rdsClient.failoverDBCluster(
-            (builder) ->
-                builder
-                    .dbClusterIdentifier(clusterId)
-                    .targetDBInstanceIdentifier(targetInstanceId));
-
-        for (int i = 0; i < checksBeforeRetry; i++) {
-          TimeUnit.MILLISECONDS.sleep(3000);
-          // Calling the RDS API to get writer Id.
-          nextWriterId = getDBClusterWriterInstanceId(clusterId);
-          nextWriterIP = hostToIP(clusterEndpoint);
-
-          if (nextWriterId.equals(targetInstanceId)) {
-            idChanged = true;
-            LOGGER.finest("Writer instance has successfully changed to " + targetInstanceId);
-          }
-
-          if (!initialWriterIP.equals(nextWriterIP)) {
-            IPChanged = true;
-            LOGGER.finest("Instance IP has successfully changed");
-          }
-
-          if (idChanged && IPChanged) {
-            LOGGER.finest("Failover method finished");
-            return;
-          }
-
-          if (i == 4) {
-            LOGGER.finest("Failover conditions have not been met, sending another request...");
-          }
-        }
-      } catch (final Exception e) {
-        LOGGER.finest("Exception while executing failover: " + e);
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
+    if (matchedMemberList.isEmpty()) {
+      fail("Failed to failover cluster - a reader instance could not be found.");
     }
+
+    return matchedMemberList.get(rand.nextInt(numOfInstances - 1)).dbInstanceIdentifier();
   }
 
   public String getDBClusterWriterInstanceId() {

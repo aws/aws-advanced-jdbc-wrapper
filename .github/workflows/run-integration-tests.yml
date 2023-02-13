@@ -12,8 +12,16 @@ concurrency:
 
 jobs:
   all-integration-tests:
-    name: 'Run integration tests on all environments'
+    name: 'Run integration tests on all Aurora environments'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        driver:
+          [
+            pg,
+            mysql
+          ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v3
@@ -43,9 +51,9 @@ jobs:
           echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
-      - name: Run integration tests
+      - name: Run integration tests (${{ matrix.driver }})
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-environments
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.driver }}-aurora
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}

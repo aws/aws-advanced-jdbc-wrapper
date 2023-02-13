@@ -281,6 +281,30 @@ tasks.register<Test>("test-all-aurora") {
     }
 }
 
+tasks.register<Test>("test-all-pg-aurora") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+    }
+}
+
+tasks.register<Test>("test-all-mysql-aurora") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
+    }
+}
+
 // Debug
 
 tasks.register<Test>("debug-all-environments") {

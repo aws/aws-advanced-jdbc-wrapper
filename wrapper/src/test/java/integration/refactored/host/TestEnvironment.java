@@ -254,20 +254,13 @@ public class TestEnvironment implements AutoCloseable {
       throw new RuntimeException("Environment variable AURORA_CLUSTER_DOMAIN is required.");
     }
 
-    if (env.awsSessionToken == null) {
-      env.auroraUtil =
-          new AuroraTestUtility(
-              env.info.getAuroraRegion(),
-              env.awsAccessKeyId,
-              env.awsSecretAccessKey);
-    } else {
-      env.auroraUtil =
-          new AuroraTestUtility(
-              env.info.getAuroraRegion(),
-              env.awsAccessKeyId,
-              env.awsSecretAccessKey,
-              env.awsSessionToken);
-    }
+    env.auroraUtil =
+        new AuroraTestUtility(
+            env.info.getAuroraRegion(),
+            env.awsAccessKeyId,
+            env.awsSecretAccessKey,
+            env.awsSessionToken);
+
     ArrayList<TestInstanceInfo> instances = new ArrayList<>();
 
     if (env.reuseAuroraDbCluster) {
