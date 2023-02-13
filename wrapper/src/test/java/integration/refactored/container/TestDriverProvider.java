@@ -17,15 +17,22 @@
 package integration.refactored.container;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.container.aurora.TestAuroraHostListProvider;
+import integration.container.aurora.TestPluginServiceImpl;
+import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.GenericTypedParameterResolver;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.condition.EnableBasedOnEnvironmentFeatureExtension;
 import integration.refactored.container.condition.EnableBasedOnTestDriverExtension;
+import integration.util.AuroraTestUtility;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -36,6 +43,8 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
 
+  private static final AuroraTestUtility auroraUtil =
+      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
   private static final Logger LOGGER = Logger.getLogger(TestDriverProvider.class.getName());
 
   @Override
@@ -92,6 +101,36 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     .contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
                   // Enable all proxies
                   ProxyHelper.enableAllConnectivity();
+                }
+
+                if (TestEnvironment.getCurrent().getInfo().getRequest()
+                    .getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
+                  auroraUtil.waitUntilClusterHasRightState(
+                      TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
+
+                  List<String> latestTopology = new ArrayList<>();
+
+                  // Need to ensure that cluster details through API matches topology fetched through SQL
+                  // Wait up to 5min
+                  long startTimeNano = System.nanoTime();
+                  while ((latestTopology.size()
+                      != TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
+                      || !auroraUtil.isDBInstanceWriter(latestTopology.get(0)))
+                      && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
+
+                    Thread.sleep(5000);
+
+                    try {
+                      latestTopology = auroraUtil.getAuroraInstanceIds();
+                    } catch (SQLException ex) {
+                      latestTopology = new ArrayList<>();
+                    }
+                  }
+
+                  auroraUtil.makeSureInstancesUp(latestTopology);
+
+                  TestAuroraHostListProvider.clearCache();
+                  TestPluginServiceImpl.clearHostAvailabilityCache();
                 }
               }
             });
