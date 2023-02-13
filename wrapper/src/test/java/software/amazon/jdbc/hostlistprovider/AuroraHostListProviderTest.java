@@ -204,6 +204,11 @@ class AuroraHostListProviderTest {
     auroraHostListProvider = new AuroraHostListProvider(
         new TestDatabaseDialect("protocol"), mockHostListProviderService, new Properties(), "protocol://url/");
     when(mockStatement.executeQuery(anyString())).thenThrow(new SQLSyntaxErrorException());
+    try {
+      auroraHostListProvider.queryForTopology(mockConnection);
+    }catch (Exception ex ) {
+      ex.printStackTrace();
+    }
     assertThrows(
         SQLException.class,
         () -> auroraHostListProvider.queryForTopology(mockConnection));

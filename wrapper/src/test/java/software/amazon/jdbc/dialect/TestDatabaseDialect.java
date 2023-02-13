@@ -24,6 +24,7 @@ public class TestDatabaseDialect extends DefaultDatabaseDialect implements Datab
     this.urlScheme = urlScheme;
   }
 
+
   @Override
   public String getURLScheme() {
     return urlScheme;

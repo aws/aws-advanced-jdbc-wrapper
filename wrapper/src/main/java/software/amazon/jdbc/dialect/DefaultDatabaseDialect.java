@@ -47,7 +47,7 @@ public class DefaultDatabaseDialect implements DatabaseDialect {
 
   @Override
   public String getTopologyQuery() {
-    return null;
+    return "select 1";
   }
 
   @Override
