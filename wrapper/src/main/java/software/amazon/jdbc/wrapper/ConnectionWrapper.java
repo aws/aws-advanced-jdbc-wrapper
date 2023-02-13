@@ -146,6 +146,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
+
   protected DatabaseDialect getDialect(final String url, Properties info) {
     String dialectClassName = DATABASE_DIALECT.getString(info);
     if (dialectClassName != null) {
@@ -164,11 +165,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
               new Object[] {url}));
     }
     switch (url.substring(0, index + 2)) {
-      case "postgres":
+      case "jdbc:postgresql://":
         return new PostgreSQLDialect();
-      case "mysql":
+      case "jdbc:mysql://":
         return new MySQLDialect();
-      case "mariadb":
+      case "jdbc:mariadb://":
         return new MariaDBDialect();
       default:
         return new DefaultDatabaseDialect();

@@ -23,7 +23,7 @@ public interface DatabaseDialect {
   public static final AwsWrapperProperty DATABASE_DIALECT =
       new AwsWrapperProperty(
           "databaseDialect",
-          "",
+          null,
           "Fully Qualified ClassName of DatabaseDialect to be used");
 
   public static DatabaseDialect getInstance() {
