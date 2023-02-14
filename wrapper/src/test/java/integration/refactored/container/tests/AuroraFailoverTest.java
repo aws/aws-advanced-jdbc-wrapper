@@ -30,6 +30,7 @@ import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
+import integration.refactored.container.MakeSureFirstInstanceWriterExtension;
 import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
@@ -63,6 +64,7 @@ import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
+@ExtendWith(MakeSureFirstInstanceWriterExtension.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 @EnableOnNumOfInstances(min = 2)
@@ -78,44 +80,9 @@ public class AuroraFailoverTest {
   private static final int IDLE_CONNECTIONS_NUM = 5;
 
   @BeforeEach
-  public void setUpEach() throws InterruptedException {
-
-    auroraUtil.waitUntilClusterHasRightState(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
-
-    // Always get the latest topology info with writer as first
-    List<String> latestTopology = new ArrayList<>();
-
-    // Need to ensure that cluster details through API matches topology fetched through SQL
-    // Wait up to 5min
-    long startTimeNano = System.nanoTime();
-    while ((latestTopology.size()
-                != TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
-            || !auroraUtil.isDBInstanceWriter(latestTopology.get(0)))
-        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
-
-      Thread.sleep(5000);
-
-      try {
-        latestTopology = auroraUtil.getAuroraInstanceIds();
-      } catch (SQLException ex) {
-        latestTopology = new ArrayList<>();
-      }
-    }
-    assertTrue(
-        auroraUtil.isDBInstanceWriter(
-            TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), latestTopology.get(0)));
-    currentWriter = latestTopology.get(0);
-
-    // Adjust database info to reflect a current writer and to move corresponding instance to
-    // position 0.
-    TestEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
-    TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
-
-    auroraUtil.makeSureInstancesUp(latestTopology);
-
-    TestAuroraHostListProvider.clearCache();
-    TestPluginServiceImpl.clearHostAvailabilityCache();
+  public void setUpEach() {
+    currentWriter = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0)
+        .getInstanceId();
   }
 
   /**
