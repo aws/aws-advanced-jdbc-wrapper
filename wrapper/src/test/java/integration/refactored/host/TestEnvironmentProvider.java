@@ -263,19 +263,37 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
       if (!noMysqlEngine && !noOpenJdk) {
         resultContextList.add(
             getEnvironment(
+               new TestEnvironmentRequest(
+                   DatabaseEngine.MYSQL,
+                   DatabaseInstances.MULTI_INSTANCE,
+                   5,
+                   DatabaseEngineDeployment.AURORA,
+                   TargetJvm.OPENJDK,
+                   TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
+                   noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
+                   TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
+                   noIam ? null : TestEnvironmentFeatures.IAM,
+                   noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
+                   noHikari ? null : TestEnvironmentFeatures.HIKARI,
+                   noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
+                   noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
+                   noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
+                   noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+
+        // Tests for HIKARI, IAM, SECRETS_MANAGER and PERFORMANCE are covered by
+        // cluster configuration above, so it's safe to skip these tests for configurations below.
+        // The main goal of the following cluster configurations is to check failover.
+        resultContextList.add(
+            getEnvironment(
                 new TestEnvironmentRequest(
                     DatabaseEngine.MYSQL,
                     DatabaseInstances.MULTI_INSTANCE,
-                    5,
+                    2,
                     DatabaseEngineDeployment.AURORA,
                     TargetJvm.OPENJDK,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
                     TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                    noIam ? null : TestEnvironmentFeatures.IAM,
-                    noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
                     noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
                     noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
@@ -283,19 +301,37 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
       if (!noPgEngine && !noOpenJdk) {
         resultContextList.add(
             getEnvironment(
+               new TestEnvironmentRequest(
+                   DatabaseEngine.PG,
+                   DatabaseInstances.MULTI_INSTANCE,
+                   5,
+                   DatabaseEngineDeployment.AURORA,
+                   TargetJvm.OPENJDK,
+                   TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
+                   noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
+                   TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
+                   noIam ? null : TestEnvironmentFeatures.IAM,
+                   noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
+                   noHikari ? null : TestEnvironmentFeatures.HIKARI,
+                   noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
+                   noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
+                   noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
+                   noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+
+        // Tests for HIKARI, IAM, SECRETS_MANAGER and PERFORMANCE are covered by
+        // cluster configuration above, so it's safe to skip these tests for configurations below.
+        // The main goal of the following cluster configurations is to check failover.
+        resultContextList.add(
+            getEnvironment(
                 new TestEnvironmentRequest(
                     DatabaseEngine.PG,
                     DatabaseInstances.MULTI_INSTANCE,
-                    5,
+                    2,
                     DatabaseEngineDeployment.AURORA,
                     TargetJvm.OPENJDK,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
                     TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                    noIam ? null : TestEnvironmentFeatures.IAM,
-                    noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
                     noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
                     noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));

@@ -731,7 +731,7 @@ public class AuroraTestUtility {
       fail("Failed to failover cluster - a reader instance could not be found.");
     }
 
-    return matchedMemberList.get(rand.nextInt(numOfInstances - 1)).dbInstanceIdentifier();
+    return matchedMemberList.get(rand.nextInt(matchedMemberList.size())).dbInstanceIdentifier();
   }
 
   public String getDBClusterWriterInstanceId() {
