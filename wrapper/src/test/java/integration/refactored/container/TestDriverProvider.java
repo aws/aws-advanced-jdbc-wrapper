@@ -42,9 +42,6 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
-
-  private static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
   private static final Logger LOGGER = Logger.getLogger(TestDriverProvider.class.getName());
 
   @Override
@@ -105,6 +102,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                 if (TestEnvironment.getCurrent().getInfo().getRequest()
                     .getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
+                  AuroraTestUtility auroraUtil =
+                      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
                   auroraUtil.waitUntilClusterHasRightState(
                       TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
 
