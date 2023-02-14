@@ -42,12 +42,12 @@ gradlew build
 
 The AWS JDBC Driver uses the following tests to verify its correctness and performance on both JVM and GraalVM:
 
-| Tests                                         | Description                                                  |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| Unit tests                                    | Tests for AWS JDBC Driver correctness.                       |
-| Failover integration tests                    | Driver-specific tests for different reader and writer failover workflows using the Failover Connection Plugin. |
-| Enhanced failure monitoring integration tests | Driver-specific tests for the enhanced failure monitoring functionality using the Host Monitoring Connection Plugin. |
-| AWS authentication integration tests          | Driver-specific tests for AWS authentication methods with the AWS Secrets Manager Plugin or the AWS IAM Authentication Plugin. |
+| Tests                                         | Description                                                                                                                                              |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Unit tests                                    | Tests for AWS JDBC Driver correctness.                                                                                                                   |
+| Failover integration tests                    | Driver-specific tests for different reader and writer failover workflows using the Failover Connection Plugin.                                           |
+| Enhanced failure monitoring integration tests | Driver-specific tests for the enhanced failure monitoring functionality using the Host Monitoring Connection Plugin.                                     |
+| AWS authentication integration tests          | Driver-specific tests for AWS authentication methods with the AWS Secrets Manager Plugin or the AWS IAM Authentication Plugin.                           |
 | Connection plugin manager benchmarks          | The [benchmarks](../../benchmarks/README.md) subproject measures the overhead from executing JDBC method calls with multiple connection plugins enabled. |
 
 ### Extra Integration Tests
@@ -76,8 +76,9 @@ These benchmarks do not make actual connections to the databases and use simple 
 The goal of these benchmarks is to measure the overhead of using the AWS JDBC Driver with multiple plugins enabled.
 ![](../images/jdbc_wrapper_connect_execute_pipelines_benchmarks.png)
 ![](../images/jdbc_wrapper_pipelines_benchmarks.png)
+![](../images/jdbc_wrapper_init_release_pipelines_benchmarks.png)
 
-See [here](EFMAndFailoverPluginPerformanceResults.md#benchmarks) for a more detailed performance breakdown.
+See [here](PluginPipelinePerformanceResults.md#benchmarks) for a more detailed performance breakdown.
 
 #### Failover-specific Performance Tests
 The diagrams in this section show the AWS JDBC Driver's failure detection performance with or without the Failover Connection Plugin under different settings.
@@ -92,7 +93,7 @@ Varying values for the network outage delay are tested, represented on the X axi
 
 This diagram shows the failover time with a 30-seconds socket timeout and different network outage delays.
 ![](../images/jdbc_wrapper_postgresql_failover_with_30s_socket_timeout.png)
-See [here](EFMAndFailoverPluginPerformanceResults.md#failover-performance-with-30-seconds-socket-timeout-configuration) for a more detailed performance breakdown.
+See [here](PluginPipelinePerformanceResults.md#failover-performance-with-30-seconds-socket-timeout-configuration) for a more detailed performance breakdown.
 
 The following diagrams show how the AWS JDBC Driver performs under a more common failure detection setting versus a more aggressive setting.
 
@@ -118,11 +119,11 @@ For more details on failure detection settings, see [here](../using-the-jdbc-dri
 For more details on failover settings, see [here](../using-the-jdbc-driver/FailoverConfigurationGuide.md).
 ![](../images/jdbc_wrapper_postgresql_failover_efm_30000_5000_3.png)
 ![](../images/jdbc_wrapper_postgresql_failover_efm_6000_1000_1.png)
-See [here](EFMAndFailoverPluginPerformanceResults.md#failover-performance-with-different-enhanced-failure-monitoring-configuration) for a more detailed performance breakdown.
+See [here](PluginPipelinePerformanceResults.md#failover-performance-with-different-enhanced-failure-monitoring-configuration) for a more detailed performance breakdown.
 
 ![](../images/jdbc_wrapper_postgresql_efm_30000_5000_3.png)
 ![](../images/jdbc_wrapper_postgresql_efm_6000_1000_1.png)
-See [here](EFMAndFailoverPluginPerformanceResults.md#enhanced-failure-monitoring-performance-with-different-failure-detection-configuration) for a more detailed performance breakdown.
+See [here](PluginPipelinePerformanceResults.md#enhanced-failure-monitoring-performance-with-different-failure-detection-configuration) for a more detailed performance breakdown.
 
 #### Read-Write Splitting and Reader Load Balancing Performance Tests
 
