@@ -27,7 +27,6 @@ import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
-import integration.refactored.container.MakeSureFirstInstanceWriterExtension;
 import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
@@ -59,7 +58,6 @@ import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@ExtendWith(MakeSureFirstInstanceWriterExtension.class)
 @EnableOnNumOfInstances(min = 2)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 public class ReadWriteSplittingTests {
