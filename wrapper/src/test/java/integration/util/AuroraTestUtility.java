@@ -605,7 +605,6 @@ public class AuroraTestUtility {
                 remainingInstances.remove(id);
                 break;
               } catch (final SQLException ex) {
-                ex.printStackTrace();
                 // Continue waiting until instance is up.
               } catch (final Exception ex) {
                 System.out.println("Exception: " + ex);
@@ -628,9 +627,7 @@ public class AuroraTestUtility {
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
-    LOGGER.finest("Inside failoverCluster method");
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
-    waitUntilClusterHasRightState(clusterId);
     failoverClusterToATargetAndWaitUntilWriterChanged(
         clusterId,
         getDBClusterWriterInstanceId(clusterId),
@@ -638,37 +635,56 @@ public class AuroraTestUtility {
   }
 
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterWriterId, String targetInstanceId) throws InterruptedException {
-
+      String initialWriterId, String targetWriterId) throws InterruptedException {
     failoverClusterToATargetAndWaitUntilWriterChanged(
         TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
-        clusterWriterId,
-        targetInstanceId);
+        initialWriterId,
+        targetWriterId);
   }
 
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterId, String clusterWriterId, String targetInstanceId)
+      String clusterId, String initialWriterId, String targetWriterId)
       throws InterruptedException {
-    LOGGER.finest(String.format("failover from %s to target: %s", clusterWriterId, targetInstanceId));
+    LOGGER.finest(String.format("failover from %s to target: %s", initialWriterId, targetWriterId));
     final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
     final String initialWriterIP = hostToIP(clusterEndpoint);
-    String nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
 
-    while (clusterWriterId.equals(nextClusterWriterId)) {
-      failoverClusterToTarget(clusterId, targetInstanceId);
-      TimeUnit.SECONDS.sleep(5);
-      // Calling the RDS API to get writer Id.
-      nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
+    failoverClusterToTarget(clusterId, targetWriterId);
+
+    int remainingAttempts = 3;
+    while (!hasWriterChanged(initialWriterId, TimeUnit.MINUTES.toNanos(3))) {
+      // if writer is not changed, try triggering failover again
+      remainingAttempts--;
+      if (remainingAttempts == 0) {
+        throw new RuntimeException("Failover cluster request was not successful.");
+      }
+      failoverClusterToTarget(clusterId, targetWriterId);
     }
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
-    String nextWriterIP = hostToIP(clusterEndpoint);
-    while (initialWriterIP.equals(nextWriterIP)) {
+    String currentWriterIP = hostToIP(clusterEndpoint);
+    while (initialWriterIP.equals(currentWriterIP)) {
       TimeUnit.SECONDS.sleep(1);
-      nextWriterIP = hostToIP(clusterEndpoint);
+      currentWriterIP = hostToIP(clusterEndpoint);
     }
 
-    LOGGER.finest(String.format("finished failover from %s to target: %s", clusterWriterId, targetInstanceId));
+    LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
+  }
+
+  private boolean hasWriterChanged(String initialWriterId, long timeoutNanos)
+      throws InterruptedException {
+    final long waitUntil = System.nanoTime() + timeoutNanos;
+
+    String currentWriterId = getDBClusterWriterInstanceId();
+    while (initialWriterId.equals(currentWriterId)) {
+      if (waitUntil < System.nanoTime()) {
+        return false;
+      }
+      TimeUnit.MILLISECONDS.sleep(3000);
+      // Calling the RDS API to get writer Id.
+      currentWriterId = getDBClusterWriterInstanceId();
+    }
+    return true;
   }
 
   public void failoverClusterToTarget(String clusterId, String targetInstanceId)

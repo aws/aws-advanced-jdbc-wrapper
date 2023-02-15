@@ -125,6 +125,19 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                       latestTopology = new ArrayList<>();
                     }
                   }
+                  assertTrue(
+                      auroraUtil.isDBInstanceWriter(
+                          TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
+                          latestTopology.get(0)));
+                  String currentWriter = latestTopology.get(0);
+
+                  // Adjust database info to reflect a current writer and to move corresponding
+                  // instance to
+                  // position 0.
+                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo()
+                      .moveInstanceFirst(currentWriter);
+                  TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+                      .moveInstanceFirst(currentWriter);
 
                   auroraUtil.makeSureInstancesUp(latestTopology);
 
