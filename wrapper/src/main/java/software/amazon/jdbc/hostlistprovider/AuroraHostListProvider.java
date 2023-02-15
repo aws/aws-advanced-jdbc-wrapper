@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -109,6 +110,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
   private static final String PG_DRIVER_PROTOCOL = "postgresql";
   private final String retrieveTopologyQuery;
+  private final ReentrantLock lock = new ReentrantLock();
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
   protected ConnectionUrlParser connectionUrlParser;
@@ -162,6 +164,12 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       return;
     }
 
+    lock.lock();
+    if (this.isInitialized) {
+      lock.unlock();
+      return;
+    }
+
     // initial topology is based on connection string
     this.initialHostList = this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false);
     if (this.initialHostList == null || this.initialHostList.isEmpty()) {
@@ -207,6 +215,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     }
 
     this.isInitialized = true;
+    lock.unlock();
   }
 
   /**
