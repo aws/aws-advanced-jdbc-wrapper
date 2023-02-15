@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -73,6 +74,13 @@ public class AuroraFailoverTest {
 
   protected String currentWriter;
   private static final int IDLE_CONNECTIONS_NUM = 5;
+
+  @BeforeEach
+  public void setUpEach() {
+    this.currentWriter =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0)
+            .getInstanceId();
+  }
 
   /**
    * Current writer dies, a reader instance is nominated to be a new writer, failover to the new
