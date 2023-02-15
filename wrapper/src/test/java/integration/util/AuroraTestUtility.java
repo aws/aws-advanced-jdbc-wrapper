@@ -668,6 +668,11 @@ public class AuroraTestUtility {
       currentWriterIP = hostToIP(clusterEndpoint);
     }
 
+    // Wait for target instance to be verified as a writer
+    while (!isDBInstanceWriter(targetWriterId)) {
+      TimeUnit.SECONDS.sleep(1);
+    }
+
     LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
   }
 
