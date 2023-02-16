@@ -28,6 +28,7 @@ import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
+import integration.refactored.container.MakeSureFirstInstanceWriterExtension;
 import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
@@ -60,7 +61,7 @@ import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@ExtendWith(TestDriverProvider.class)
+@ExtendWith({TestDriverProvider.class, MakeSureFirstInstanceWriterExtension.class})
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 @EnableOnNumOfInstances(min = 2)

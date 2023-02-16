@@ -27,6 +27,7 @@ import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
+import integration.refactored.container.MakeSureFirstInstanceWriterExtension;
 import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
@@ -57,7 +58,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@ExtendWith(TestDriverProvider.class)
+@ExtendWith({TestDriverProvider.class, MakeSureFirstInstanceWriterExtension.class})
 @EnableOnNumOfInstances(min = 2)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 public class ReadWriteSplittingTests {
@@ -72,7 +73,7 @@ public class ReadWriteSplittingTests {
    * example, socket timeout). That's why properties needs to be initialized before each test run.
    */
   @BeforeEach
-  public void beforeEach() throws SQLException, InterruptedException {
+  public void beforeEach() {
     this.defaultProps = getPropertiesWithReadWritePlugin();
 
     final Properties props = getPropertiesWithReadWritePlugin();

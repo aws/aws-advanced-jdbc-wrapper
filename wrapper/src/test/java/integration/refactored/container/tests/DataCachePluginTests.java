@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
+import integration.refactored.container.MakeSureFirstInstanceWriterExtension;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.condition.DisableOnTestFeature;
 import java.sql.Connection;
@@ -43,7 +44,7 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@ExtendWith(TestDriverProvider.class)
+@ExtendWith({TestDriverProvider.class, MakeSureFirstInstanceWriterExtension.class})
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 public class DataCachePluginTests {
 
