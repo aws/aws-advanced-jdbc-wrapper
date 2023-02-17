@@ -524,6 +524,9 @@ public class WrapperUtils {
   }
 
   public static Connection getConnectionFromSqlObject(final Object obj) {
+    if (obj == null) {
+      return null;
+    }
     try {
       if (obj instanceof Connection) {
         return (Connection) obj;
@@ -532,11 +535,11 @@ public class WrapperUtils {
         return stmt.getConnection();
       } else if (obj instanceof ResultSet) {
         final ResultSet rs = (ResultSet) obj;
-        return rs.getStatement().getConnection();
+        return rs.getStatement() != null ? rs.getStatement().getConnection() : null;
       }
     } catch (final SQLException | UnsupportedOperationException e) {
-      // Do nothing. The UnsupportedOperationException comes from ResultSets returned by DataCacheConnectionPlugin and
-      // will be triggered when getStatement is called.
+      // Do nothing. The UnsupportedOperationException comes from ResultSets returned by
+      // DataCacheConnectionPlugin and will be triggered when getStatement is called.
     }
 
     return null;
