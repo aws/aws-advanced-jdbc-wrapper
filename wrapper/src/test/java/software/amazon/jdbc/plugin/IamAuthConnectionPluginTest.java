@@ -25,7 +25,6 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -160,7 +159,8 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testAwsSupportedRegionsUrlExists() throws IOException {
-    URL url = new URL("https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html");
+    URL url =
+        new URL("https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html");
     HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
     urlConnection.setRequestMethod("HEAD");
     int responseCode = urlConnection.getResponseCode();
