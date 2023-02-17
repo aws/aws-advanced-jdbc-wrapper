@@ -159,11 +159,10 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testAwsSupportedRegionsUrlExists() throws IOException {
-    URL url =
+    final URL url =
         new URL("https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html");
-    HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-    urlConnection.setRequestMethod("HEAD");
-    int responseCode = urlConnection.getResponseCode();
+    final HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+    final int responseCode = urlConnection.getResponseCode();
 
     assertEquals(HttpURLConnection.HTTP_OK, responseCode);
   }
@@ -207,6 +206,4 @@ class IamAuthConnectionPluginTest {
     assertEquals(GENERATED_TOKEN, PropertyDefinition.PASSWORD.getString(props));
     assertEquals(GENERATED_TOKEN, IamAuthConnectionPlugin.tokenCache.get(PG_CACHE_KEY).getToken());
   }
-
-
 }
