@@ -31,9 +31,11 @@ import integration.refactored.container.condition.EnableBasedOnEnvironmentFeatur
 import integration.refactored.container.condition.EnableBasedOnTestDriverExtension;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -113,29 +115,46 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   boolean makeSureFirstInstanceWriter =
                       isAnnotated(context.getElement(), MakeSureFirstInstanceWriter.class)
                       || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
+                  List<String> instanceIDs;
                   if (makeSureFirstInstanceWriter) {
-                    List<String> instanceIDs = auroraUtil.getAuroraInstanceIds();
-                    auroraUtil.makeSureInstancesUp(instanceIDs);
-                    assertTrue(auroraUtil.isDBInstanceWriter(
-                        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), instanceIDs.get(0)));
-                    String currentWriter = instanceIDs.get(0);
-                    LOGGER.finest("Current writer: " + currentWriter);
+                    instanceIDs = new ArrayList<>();
 
-                    // Adjust database info to reflect a current writer and to move corresponding instance to
-                    // position 0.
-                    TestEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
-                    TestEnvironment.getCurrent()
-                        .getInfo()
-                        .getProxyDatabaseInfo()
+                    // Need to ensure that cluster details through API matches topology fetched through SQL
+                    // Wait up to 5min
+                    long startTimeNano = System.nanoTime();
+                    while ((instanceIDs.size()
+                        != TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
+                        || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
+                        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
+
+                      Thread.sleep(5000);
+
+                      try {
+                        instanceIDs = auroraUtil.getAuroraInstanceIds();
+                      } catch (SQLException ex) {
+                        instanceIDs = new ArrayList<>();
+                      }
+                    }
+                    assertTrue(
+                        auroraUtil.isDBInstanceWriter(
+                            TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
+                            instanceIDs.get(0)));
+                    String currentWriter = instanceIDs.get(0);
+
+                    // Adjust database info to reflect a current writer and to move corresponding
+                    // instance to position 0.
+                    TestEnvironment.getCurrent().getInfo().getDatabaseInfo()
+                        .moveInstanceFirst(currentWriter);
+                    TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
                         .moveInstanceFirst(currentWriter);
                   } else {
-                    List<String> instanceIDs =
+                    instanceIDs =
                         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
                             .stream().map(TestInstanceInfo::getInstanceId)
                             .collect(Collectors.toList());
-                    auroraUtil.makeSureInstancesUp(instanceIDs);
                   }
 
+                  auroraUtil.makeSureInstancesUp(instanceIDs);
                   TestAuroraHostListProvider.clearCache();
                   TestPluginServiceImpl.clearHostAvailabilityCache();
                 }
