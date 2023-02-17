@@ -17,6 +17,8 @@
 package integration.refactored.container;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
 
 import integration.container.aurora.TestAuroraHostListProvider;
 import integration.container.aurora.TestPluginServiceImpl;
@@ -27,6 +29,7 @@ import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.condition.EnableBasedOnEnvironmentFeatureExtension;
 import integration.refactored.container.condition.EnableBasedOnTestDriverExtension;
+import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -102,16 +105,36 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 if (TestEnvironment.getCurrent().getInfo().getRequest()
                     .getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
                   AuroraTestUtility auroraUtil =
-                      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+                      new AuroraTestUtility(
+                          TestEnvironment.getCurrent().getInfo().getAuroraRegion());
                   auroraUtil.waitUntilClusterHasRightState(
                       TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
 
-                  List<String> instanceIDs =
-                      TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
-                          .stream().map(TestInstanceInfo::getInstanceId)
-                          .collect(Collectors.toList());
+                  boolean makeSureFirstInstanceWriter =
+                      isAnnotated(context.getElement(), MakeSureFirstInstanceWriter.class)
+                      || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
+                  if (makeSureFirstInstanceWriter) {
+                    List<String> instanceIDs = auroraUtil.getAuroraInstanceIds();
+                    auroraUtil.makeSureInstancesUp(instanceIDs);
+                    assertTrue(auroraUtil.isDBInstanceWriter(
+                        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), instanceIDs.get(0)));
+                    String currentWriter = instanceIDs.get(0);
+                    LOGGER.finest("Current writer: " + currentWriter);
 
-                  auroraUtil.makeSureInstancesUp(instanceIDs);
+                    // Adjust database info to reflect a current writer and to move corresponding instance to
+                    // position 0.
+                    TestEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
+                    TestEnvironment.getCurrent()
+                        .getInfo()
+                        .getProxyDatabaseInfo()
+                        .moveInstanceFirst(currentWriter);
+                  } else {
+                    List<String> instanceIDs =
+                        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
+                            .stream().map(TestInstanceInfo::getInstanceId)
+                            .collect(Collectors.toList());
+                    auroraUtil.makeSureInstancesUp(instanceIDs);
+                  }
 
                   TestAuroraHostListProvider.clearCache();
                   TestPluginServiceImpl.clearHostAvailabilityCache();

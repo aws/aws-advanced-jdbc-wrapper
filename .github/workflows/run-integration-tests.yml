@@ -12,16 +12,8 @@ concurrency:
 
 jobs:
   all-integration-tests:
-    name: 'Run integration tests on all Aurora environments'
+    name: 'Run integration tests on all environments'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        driver:
-          [
-            pg,
-            mysql
-          ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v3
@@ -51,9 +43,9 @@ jobs:
           echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
-      - name: Run integration tests (${{ matrix.driver }})
+      - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.driver }}-aurora
+          ./gradlew --no-parallel --no-daemon test-all-environments
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -64,13 +56,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: junit-report-${{ matrix.driver }}
+          name: junit-report
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: html-summary-report-${{ matrix.driver }}
+          name: html-summary-report
           path: ./wrapper/build/report
           retention-days: 5
