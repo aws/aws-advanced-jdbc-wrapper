@@ -37,7 +37,7 @@ public class ProxyHelper {
   /** Stops all traffic to and from server. */
   public static void disableConnectivity(List<TestInstanceInfo> instances) {
     for (TestInstanceInfo instanceInfo : instances) {
-      disableConnectivity(instanceInfo.getInstanceName());
+      disableConnectivity(instanceInfo.getInstanceId());
     }
   }
 
@@ -82,7 +82,7 @@ public class ProxyHelper {
   /** Allow traffic to and from server. */
   public static void enableConnectivity(List<TestInstanceInfo> instances) {
     for (TestInstanceInfo instanceInfo : instances) {
-      enableConnectivity(instanceInfo.getInstanceName());
+      enableConnectivity(instanceInfo.getInstanceId());
     }
   }
 

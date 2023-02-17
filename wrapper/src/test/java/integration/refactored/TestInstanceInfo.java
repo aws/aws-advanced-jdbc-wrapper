@@ -18,21 +18,21 @@ package integration.refactored;
 
 public class TestInstanceInfo {
 
-  private String instanceName; // "instance-1"
+  private String instanceId; // "instance-1"
   private String endpoint; // "instance-1.ABC.cluster-XYZ.us-west-2.rds.amazonaws.com"
   private int endpointPort;
 
   // This constructor should NOT be used in the code. It's required for serialization.
   public TestInstanceInfo() {}
 
-  public TestInstanceInfo(String instanceName, String endpoint, int endpointPort) {
-    this.instanceName = instanceName;
+  public TestInstanceInfo(String instanceId, String endpoint, int endpointPort) {
+    this.instanceId = instanceId;
     this.endpoint = endpoint;
     this.endpointPort = endpointPort;
   }
 
-  public String getInstanceName() {
-    return this.instanceName;
+  public String getInstanceId() {
+    return this.instanceId;
   }
 
   public String getEndpoint() {

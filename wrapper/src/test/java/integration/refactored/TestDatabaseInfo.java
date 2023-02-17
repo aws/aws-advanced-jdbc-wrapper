@@ -31,7 +31,7 @@ public class TestDatabaseInfo {
   private int clusterReadOnlyEndpointPort;
 
   private String instanceEndpointSuffix; // "XYZ.us-west-2.rds.amazonaws.com"
-  private int instanceEndpointSuffixPort;
+  private int instanceEndpointPort;
 
   private final ArrayList<TestInstanceInfo> instances = new ArrayList<>();
 
@@ -92,23 +92,23 @@ public class TestDatabaseInfo {
     this.clusterReadOnlyEndpointPort = clusterReadOnlyEndpointPort;
   }
 
-  public void setInstanceEndpointPrefix(
-      String instanceEndpointPrefix, int instanceEndpointPrefixPort) {
-    this.instanceEndpointSuffix = instanceEndpointPrefix;
-    this.instanceEndpointSuffixPort = instanceEndpointPrefixPort;
+  public void setInstanceEndpointSuffix(
+      String instanceEndpointSuffix, int instanceEndpointPort) {
+    this.instanceEndpointSuffix = instanceEndpointSuffix;
+    this.instanceEndpointPort = instanceEndpointPort;
   }
 
   public String getInstanceEndpointSuffix() {
     return this.instanceEndpointSuffix;
   }
 
-  public int getInstanceEndpointSuffixPort() {
-    return this.instanceEndpointSuffixPort;
+  public int getInstanceEndpointPort() {
+    return this.instanceEndpointPort;
   }
 
   public TestInstanceInfo getInstance(String instanceName) {
     for (TestInstanceInfo instance : this.instances) {
-      if (instanceName != null && instanceName.equals(instance.getInstanceName())) {
+      if (instanceName != null && instanceName.equals(instance.getInstanceId())) {
         return instance;
       }
     }
@@ -118,7 +118,7 @@ public class TestDatabaseInfo {
   public void moveInstanceFirst(String instanceName) {
     for (int i = 0; i < this.instances.size(); i++) {
       TestInstanceInfo currentInstance = this.instances.get(i);
-      if (instanceName != null && instanceName.equals(currentInstance.getInstanceName())) {
+      if (instanceName != null && instanceName.equals(currentInstance.getInstanceId())) {
         // move this instance to position 0
         this.instances.remove(i);
         this.instances.add(0, currentInstance);

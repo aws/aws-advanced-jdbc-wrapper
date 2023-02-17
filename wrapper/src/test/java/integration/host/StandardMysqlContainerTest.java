@@ -20,7 +20,6 @@ import com.mysql.cj.util.StringUtils;
 import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
@@ -85,7 +84,7 @@ public class StandardMysqlContainerTest {
       container.start();
     }
 
-    mysqlProxyPort = containerHelper.createInstanceProxies(mySqlInstances, proxyContainers, STANDARD_MYSQL_PORT);
+    mysqlProxyPort = containerHelper.getProxyPort(mySqlInstances, proxyContainers, STANDARD_MYSQL_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();

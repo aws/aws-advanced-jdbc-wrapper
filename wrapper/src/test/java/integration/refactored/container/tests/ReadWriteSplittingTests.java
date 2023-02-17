@@ -27,7 +27,6 @@ import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
-import integration.refactored.container.MakeSureFirstInstanceWriterExtension;
 import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
@@ -38,6 +37,7 @@ import integration.refactored.container.condition.EnableOnDatabaseEngine;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
+import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -59,9 +59,9 @@ import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@ExtendWith(MakeSureFirstInstanceWriterExtension.class)
 @EnableOnNumOfInstances(min = 2)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@MakeSureFirstInstanceWriter
 public class ReadWriteSplittingTests {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
@@ -74,7 +74,7 @@ public class ReadWriteSplittingTests {
    * example, socket timeout). That's why properties needs to be initialized before each test run.
    */
   @BeforeEach
-  public void beforeEach() throws SQLException, InterruptedException {
+  public void beforeEach() {
     this.defaultProps = getPropertiesWithReadWritePlugin();
 
     final Properties props = getPropertiesWithReadWritePlugin();
@@ -355,7 +355,7 @@ public class ReadWriteSplittingTests {
                 .getDatabaseInfo()
                 .getInstances()
                 .get(i)
-                .getInstanceName());
+                .getInstanceId());
       }
 
       assertDoesNotThrow(() -> conn.setReadOnly(true));
@@ -499,7 +499,7 @@ public class ReadWriteSplittingTests {
               .getDatabaseInfo()
               .getInstances()
               .get(1)
-              .getInstanceName());
+              .getInstanceId());
 
       final SQLException e = assertThrows(SQLException.class, conn::rollback);
       assertTrue(

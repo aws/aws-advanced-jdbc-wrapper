@@ -52,7 +52,7 @@ public class TestEnvironment implements AutoCloseable {
   private final TestEnvironmentInfo info =
       new TestEnvironmentInfo(); // only this info is passed to test container
 
-  // The following variables are local to host portion od test environment. They are not shared to a
+  // The following variables are local to host portion of test environment. They are not shared with a
   // test container.
 
   private int numOfInstances;
@@ -128,6 +128,9 @@ public class TestEnvironment implements AutoCloseable {
       case MULTI_INSTANCE:
         env.numOfInstances = env.info.getRequest().getNumOfInstances();
         if (env.numOfInstances < 1 || env.numOfInstances > 15) {
+          LOGGER.warning(
+              env.numOfInstances + " instances were requested but the requested number must be "
+                  + "between 1 and 15. 5 instances will be used as a default.");
           env.numOfInstances = 5;
         }
         break;
@@ -220,6 +223,9 @@ public class TestEnvironment implements AutoCloseable {
 
         env.numOfInstances = env.info.getRequest().getNumOfInstances();
         if (env.numOfInstances < 1 || env.numOfInstances > 15) {
+          LOGGER.warning(
+              env.numOfInstances + " instances were requested but the requested number must be "
+                  + "between 1 and 15. 5 instances will be used as a default.");
           env.numOfInstances = 5;
         }
 
@@ -254,6 +260,7 @@ public class TestEnvironment implements AutoCloseable {
             env.awsAccessKeyId,
             env.awsSecretAccessKey,
             env.awsSessionToken);
+
     ArrayList<TestInstanceInfo> instances = new ArrayList<>();
 
     if (env.reuseAuroraDbCluster) {
@@ -265,7 +272,7 @@ public class TestEnvironment implements AutoCloseable {
                 + env.auroraClusterDomain);
       }
       LOGGER.finest(
-          "Reuse existing cluster " + env.auroraClusterName + "." + env.auroraClusterDomain);
+          "Reuse existing cluster " + env.auroraClusterName + ".cluster-" + env.auroraClusterDomain);
 
       DatabaseEngine existingClusterDatabaseEngine =
           env.auroraUtil.getClusterDatabaseEngine(env.auroraClusterName);
@@ -299,7 +306,7 @@ public class TestEnvironment implements AutoCloseable {
                 numOfInstances,
                 instances);
         LOGGER.finest(
-            "Created a new cluster " + env.auroraClusterName + "." + env.auroraClusterDomain);
+            "Created a new cluster " + env.auroraClusterName + ".cluster-" + env.auroraClusterDomain);
 
       } catch (Exception e) {
 
@@ -325,7 +332,7 @@ public class TestEnvironment implements AutoCloseable {
         .getDatabaseInfo()
         .setClusterReadOnlyEndpoint(
             env.auroraClusterName + ".cluster-ro-" + env.auroraClusterDomain, port);
-    env.info.getDatabaseInfo().setInstanceEndpointPrefix(env.auroraClusterDomain, port);
+    env.info.getDatabaseInfo().setInstanceEndpointSuffix(env.auroraClusterDomain, port);
 
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
@@ -504,7 +511,7 @@ public class TestEnvironment implements AutoCloseable {
     if (!StringUtils.isNullOrEmpty(env.info.getDatabaseInfo().getInstanceEndpointSuffix())) {
       env.info
           .getProxyDatabaseInfo()
-          .setInstanceEndpointPrefix(
+          .setInstanceEndpointSuffix(
               env.info.getDatabaseInfo().getInstanceEndpointSuffix() + PROXIED_DOMAIN_NAME_SUFFIX,
               proxyPort);
     }
@@ -512,7 +519,7 @@ public class TestEnvironment implements AutoCloseable {
     for (TestInstanceInfo instanceInfo : env.info.getDatabaseInfo().getInstances()) {
       TestInstanceInfo proxyInstanceInfo =
           new TestInstanceInfo(
-              instanceInfo.getInstanceName(),
+              instanceInfo.getInstanceId(),
               instanceInfo.getEndpoint() + PROXIED_DOMAIN_NAME_SUFFIX,
               proxyPort);
       env.info.getProxyDatabaseInfo().getInstances().add(proxyInstanceInfo);
@@ -655,14 +662,14 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private void deleteAuroraDbCluster() {
-    if (!StringUtils.isNullOrEmpty(this.runnerIP)) {
+    if (!this.reuseAuroraDbCluster && !StringUtils.isNullOrEmpty(this.runnerIP)) {
       auroraUtil.ec2DeauthorizesIP(runnerIP);
     }
 
     if (!this.reuseAuroraDbCluster) {
-      LOGGER.finest("Deleting cluster " + this.auroraClusterName + "." + this.auroraClusterDomain);
+      LOGGER.finest("Deleting cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
       auroraUtil.deleteCluster(this.auroraClusterName);
-      LOGGER.finest("Deleted cluster " + this.auroraClusterName + "." + this.auroraClusterDomain);
+      LOGGER.finest("Deleted cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
     }
   }
 }

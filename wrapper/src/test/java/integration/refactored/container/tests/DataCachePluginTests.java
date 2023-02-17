@@ -23,9 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
-import integration.refactored.container.MakeSureFirstInstanceWriterExtension;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.condition.DisableOnTestFeature;
+import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -45,8 +45,8 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@ExtendWith(MakeSureFirstInstanceWriterExtension.class)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@MakeSureFirstInstanceWriter
 public class DataCachePluginTests {
 
   private static final Logger LOGGER = Logger.getLogger(DataCachePluginTests.class.getName());

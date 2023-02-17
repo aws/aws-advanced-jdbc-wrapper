@@ -141,7 +141,7 @@ public class AuroraPostgresContainerTest {
       container.start();
     }
     postgresProxyPort =
-        containerHelper.createInstanceProxies(
+        containerHelper.getProxyPort(
             postgresInstances, proxyContainers, AURORA_POSTGRES_PORT);
 
     proxyContainers.add(

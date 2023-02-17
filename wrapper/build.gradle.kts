@@ -23,7 +23,7 @@ plugins {
     id("com.github.spotbugs")
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
-    id("com.kncept.junit.reporter") version "2.1.0"
+    id("com.kncept.junit.reporter")
 }
 
 dependencies {
@@ -247,6 +247,12 @@ tasks.withType<Test> {
     if (!name.contains("performance")) {
         finalizedBy("junitHtmlReport")
     }
+
+    val testReportsPath = "${buildDir}/test-results"
+    val testReportsDir: File = file(testReportsPath)
+    doFirst {
+        testReportsDir.deleteRecursively()
+    }
 }
 
 tasks.register<Test>("test-all-environments") {
@@ -272,6 +278,30 @@ tasks.register<Test>("test-all-aurora") {
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
+    }
+}
+
+tasks.register<Test>("test-all-pg-aurora") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+    }
+}
+
+tasks.register<Test>("test-all-mysql-aurora") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-pg-engine", "true")
     }
 }
 

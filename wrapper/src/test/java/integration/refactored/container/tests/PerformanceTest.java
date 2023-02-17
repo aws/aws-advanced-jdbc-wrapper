@@ -309,7 +309,7 @@ public class PerformanceTest {
                           .getProxyDatabaseInfo()
                           .getInstances()
                           .get(0)
-                          .getInstanceName());
+                          .getInstanceId());
                   downtime.set(System.nanoTime());
                 } catch (InterruptedException interruptedException) {
                   // Ignore, stop the thread
@@ -339,7 +339,7 @@ public class PerformanceTest {
                 .getProxyDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getInstanceName());
+                .getInstanceId());
       }
     }
 
