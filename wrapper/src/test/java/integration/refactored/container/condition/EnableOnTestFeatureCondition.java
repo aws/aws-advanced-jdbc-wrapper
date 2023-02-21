@@ -47,13 +47,8 @@ class EnableOnTestFeatureCondition implements ExecutionCondition {
                   if (annotation == null || annotation.value() == null) {
                     return true;
                   }
-                  return Arrays.stream(annotation.value())
-                      .allMatch(
-                          v -> {
-                            // LOGGER.finest("value=" + v + ", features=" + features);
-                            return features.contains(v);
-                          });
-                }) //
+                  return Arrays.stream(annotation.value()).allMatch(v -> features.contains(v));
+                })
             .orElse(true);
 
     if (!enabled) {

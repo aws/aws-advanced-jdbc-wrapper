@@ -23,8 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mysql.cj.conf.PropertyKey;
-import integration.container.aurora.TestAuroraHostListProvider;
-import integration.container.aurora.TestPluginServiceImpl;
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
@@ -38,6 +36,7 @@ import integration.refactored.container.condition.DisableOnTestFeature;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestDriver;
 import integration.refactored.container.condition.EnableOnTestFeature;
+import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -66,6 +65,7 @@ import software.amazon.jdbc.util.SqlState;
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
 @DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
 @EnableOnNumOfInstances(min = 2)
+@MakeSureFirstInstanceWriter
 public class AuroraFailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());
@@ -78,44 +78,10 @@ public class AuroraFailoverTest {
   private static final int IDLE_CONNECTIONS_NUM = 5;
 
   @BeforeEach
-  public void setUpEach() throws InterruptedException {
-
-    auroraUtil.waitUntilClusterHasRightState(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
-
-    // Always get the latest topology info with writer as first
-    List<String> latestTopology = new ArrayList<>();
-
-    // Need to ensure that cluster details through API matches topology fetched through SQL
-    // Wait up to 5min
-    long startTimeNano = System.nanoTime();
-    while ((latestTopology.size()
-                != TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
-            || !auroraUtil.isDBInstanceWriter(latestTopology.get(0)))
-        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
-
-      Thread.sleep(5000);
-
-      try {
-        latestTopology = auroraUtil.getAuroraInstanceIds();
-      } catch (SQLException ex) {
-        latestTopology = new ArrayList<>();
-      }
-    }
-    assertTrue(
-        auroraUtil.isDBInstanceWriter(
-            TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), latestTopology.get(0)));
-    currentWriter = latestTopology.get(0);
-
-    // Adjust database info to reflect a current writer and to move corresponding instance to
-    // position 0.
-    TestEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
-    TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
-
-    auroraUtil.makeSureInstancesUp(latestTopology);
-
-    TestAuroraHostListProvider.clearCache();
-    TestPluginServiceImpl.clearHostAvailabilityCache();
+  public void setUpEach() {
+    this.currentWriter =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0)
+            .getInstanceId();
   }
 
   /**
@@ -143,7 +109,7 @@ public class AuroraFailoverTest {
             props)) {
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Connection invocation
       assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
@@ -183,7 +149,7 @@ public class AuroraFailoverTest {
       final Statement stmt = conn.createStatement();
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Statement invocation
       assertFirstQueryThrows(stmt, SqlState.COMMUNICATION_LINK_CHANGED.getState());
@@ -216,13 +182,13 @@ public class AuroraFailoverTest {
               .getProxyDatabaseInfo()
               .getInstances()
               .get(i)
-              .getInstanceName());
+              .getInstanceId());
     }
 
     // Connect to Instance2 which is the only reader that is up.
     final TestInstanceInfo instanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(1);
-    final String instanceId = instanceInfo.getInstanceName();
+    final String instanceId = instanceInfo.getInstanceId();
 
     final Properties props = initDefaultProxiedProps();
     DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
@@ -254,7 +220,7 @@ public class AuroraFailoverTest {
               .getProxyDatabaseInfo()
               .getInstances()
               .get(1)
-              .getInstanceName();
+              .getInstanceId();
       ProxyHelper.enableConnectivity(readerAId);
 
       final String readerBId =
@@ -263,7 +229,7 @@ public class AuroraFailoverTest {
               .getProxyDatabaseInfo()
               .getInstances()
               .get(2)
-              .getInstanceName();
+              .getInstanceId();
       ProxyHelper.enableConnectivity(readerBId);
 
       // Crash writer Instance1.
@@ -309,7 +275,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -370,7 +336,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -429,7 +395,7 @@ public class AuroraFailoverTest {
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_4 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       final SQLException exception =
           assertThrows(
@@ -503,7 +469,7 @@ public class AuroraFailoverTest {
       }
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Assert failover has occurred.
       assertThrows(
@@ -530,7 +496,7 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0);
     TestInstanceInfo nominatedWriterInstanceInfo =
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
-    final String nominatedWriterId = nominatedWriterInstanceInfo.getInstanceName();
+    final String nominatedWriterId = nominatedWriterInstanceInfo.getInstanceId();
 
     try (final Connection conn =
         createDataSourceConnectionWithFailoverUsingInstanceId(
@@ -538,7 +504,7 @@ public class AuroraFailoverTest {
 
       // Crash writer Instance1 and nominate Instance2 as the new writer
       auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
-          initialWriterInstanceInfo.getInstanceName(), nominatedWriterId);
+          initialWriterInstanceInfo.getInstanceId(), nominatedWriterId);
 
       assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 
@@ -591,7 +557,7 @@ public class AuroraFailoverTest {
       testStmt1.executeQuery("select 1; select 2; select 3;");
 
       // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged(initialWriterId);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
 

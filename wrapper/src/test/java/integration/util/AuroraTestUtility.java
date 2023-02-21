@@ -17,6 +17,7 @@
 package integration.util;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
@@ -25,6 +26,7 @@ import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.TestEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -37,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -92,6 +95,7 @@ public class AuroraTestUtility {
 
   private final RdsClient rdsClient;
   private final Ec2Client ec2Client;
+  private static final Random rand = new Random();
 
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
 
@@ -527,14 +531,12 @@ public class AuroraTestUtility {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-        final Statement stmt = conn.createStatement()) {
-      // Get instances
-      try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
-        while (resultSet.next()) {
-          // Get Instance endpoints
-          final String hostEndpoint = resultSet.getString("SERVER_ID");
-          auroraInstances.add(hostEndpoint);
-        }
+         final Statement stmt = conn.createStatement();
+         final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
+      while (resultSet.next()) {
+        // Get Instance endpoints
+        final String hostEndpoint = resultSet.getString("SERVER_ID");
+        auroraInstances.add(hostEndpoint);
       }
     }
     return auroraInstances;
@@ -603,7 +605,6 @@ public class AuroraTestUtility {
                 remainingInstances.remove(id);
                 break;
               } catch (final SQLException ex) {
-                ex.printStackTrace();
                 // Continue waiting until instance is up.
               } catch (final Exception ex) {
                 System.out.println("Exception: " + ex);
@@ -625,58 +626,73 @@ public class AuroraTestUtility {
     }
   }
 
-  public void failoverClusterAndWaitUntilWriterChanged(String clusterWriterId)
-      throws InterruptedException {
-    failoverClusterAndWaitUntilWriterChanged(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), clusterWriterId);
-  }
-
-  public void failoverClusterAndWaitUntilWriterChanged(String clusterId, String clusterWriterId)
-      throws InterruptedException {
-    failoverCluster(clusterId);
-    waitUntilWriterInstanceChanged(clusterId, clusterWriterId);
-  }
-
-  public void failoverCluster(String clusterId) throws InterruptedException {
-    waitUntilClusterHasRightState(clusterId);
-    while (true) {
-      try {
-        rdsClient.failoverDBCluster((builder) -> builder.dbClusterIdentifier(clusterId));
-        break;
-      } catch (final Exception e) {
-        TimeUnit.MILLISECONDS.sleep(1000);
-      }
-    }
-  }
-
-  public void waitUntilWriterInstanceChanged(String clusterId, String initialWriterInstanceId)
-      throws InterruptedException {
-    String nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
-    while (initialWriterInstanceId.equals(nextClusterWriterId)) {
-      TimeUnit.MILLISECONDS.sleep(3000);
-      // Calling the RDS API to get writer Id.
-      nextClusterWriterId = getDBClusterWriterInstanceId(clusterId);
-    }
+  public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
+    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    failoverClusterToATargetAndWaitUntilWriterChanged(
+        clusterId,
+        getDBClusterWriterInstanceId(clusterId),
+        getRandomDBClusterReaderInstanceId(clusterId));
   }
 
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterWriterId, String targetInstanceId) throws InterruptedException {
-
+      String initialWriterId, String targetWriterId) throws InterruptedException {
     failoverClusterToATargetAndWaitUntilWriterChanged(
         TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
-        clusterWriterId,
-        targetInstanceId);
+        initialWriterId,
+        targetWriterId);
   }
 
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
-      String clusterId, String clusterWriterId, String targetInstanceId)
+      String clusterId, String initialWriterId, String targetWriterId)
       throws InterruptedException {
+    LOGGER.finest(String.format("failover from %s to target: %s", initialWriterId, targetWriterId));
+    final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
+    final String initialWriterIP = hostToIP(clusterEndpoint);
 
-    failoverClusterWithATargetInstance(clusterId, targetInstanceId);
-    waitUntilWriterInstanceChanged(clusterId, clusterWriterId);
+    failoverClusterToTarget(clusterId, targetWriterId);
+
+    int remainingAttempts = 3;
+    while (!hasWriterChanged(initialWriterId, TimeUnit.MINUTES.toNanos(3))) {
+      // if writer is not changed, try triggering failover again
+      remainingAttempts--;
+      if (remainingAttempts == 0) {
+        throw new RuntimeException("Failover cluster request was not successful.");
+      }
+      failoverClusterToTarget(clusterId, targetWriterId);
+    }
+
+    // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
+    String currentWriterIP = hostToIP(clusterEndpoint);
+    while (initialWriterIP.equals(currentWriterIP)) {
+      TimeUnit.SECONDS.sleep(1);
+      currentWriterIP = hostToIP(clusterEndpoint);
+    }
+
+    // Wait for target instance to be verified as a writer
+    while (!isDBInstanceWriter(targetWriterId)) {
+      TimeUnit.SECONDS.sleep(1);
+    }
+
+    LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
   }
 
-  public void failoverClusterWithATargetInstance(String clusterId, String targetInstanceId)
+  private boolean hasWriterChanged(String initialWriterId, long timeoutNanos)
+      throws InterruptedException {
+    final long waitUntil = System.nanoTime() + timeoutNanos;
+
+    String currentWriterId = getDBClusterWriterInstanceId();
+    while (initialWriterId.equals(currentWriterId)) {
+      if (waitUntil < System.nanoTime()) {
+        return false;
+      }
+      TimeUnit.MILLISECONDS.sleep(3000);
+      // Calling the RDS API to get writer Id.
+      currentWriterId = getDBClusterWriterInstanceId();
+    }
+    return true;
+  }
+
+  public void failoverClusterToTarget(String clusterId, String targetInstanceId)
       throws InterruptedException {
     waitUntilClusterHasRightState(clusterId);
 
@@ -689,9 +705,33 @@ public class AuroraTestUtility {
                     .targetDBInstanceIdentifier(targetInstanceId));
         break;
       } catch (final Exception e) {
+        LOGGER.finest(String.format("failoverDBCluster request to %s failed: %s", targetInstanceId, e.getMessage()));
         TimeUnit.MILLISECONDS.sleep(1000);
       }
     }
+  }
+
+  protected String hostToIP(String hostname) {
+    try {
+      final InetAddress inet = InetAddress.getByName(hostname);
+      return inet.getHostAddress();
+    } catch (UnknownHostException e) {
+      fail("The IP address of host " + hostname + " could not be determined");
+      return null;
+    }
+  }
+
+  public String getRandomDBClusterReaderInstanceId(String clusterId) {
+    final List<DBClusterMember> matchedMemberList =
+        getDBClusterMemberList(clusterId).stream()
+            .filter(x -> !x.isClusterWriter())
+            .collect(Collectors.toList());
+
+    if (matchedMemberList.isEmpty()) {
+      fail("Failed to failover cluster - a reader instance could not be found.");
+    }
+
+    return matchedMemberList.get(rand.nextInt(numOfInstances - 1)).dbInstanceIdentifier();
   }
 
   public String getDBClusterWriterInstanceId() {

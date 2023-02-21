@@ -20,7 +20,6 @@ import com.mysql.cj.util.StringUtils;
 import integration.util.ContainerHelper;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
@@ -84,7 +83,7 @@ public class StandardMariadbContainerTest {
       container.start();
     }
 
-    mariadbProxyPort = containerHelper.createInstanceProxies(mariadbInstances, proxyContainers, STANDARD_MARIADB_PORT);
+    mariadbProxyPort = containerHelper.getProxyPort(mariadbInstances, proxyContainers, STANDARD_MARIADB_PORT);
 
     integrationTestContainer = createTestContainer();
     integrationTestContainer.start();

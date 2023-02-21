@@ -87,12 +87,12 @@ public class TestEnvironment {
       try {
         proxies = client.getProxies();
       } catch (IOException e) {
-        throw new RuntimeException("Error getting proxies for " + instance.getInstanceName(), e);
+        throw new RuntimeException("Error getting proxies for " + instance.getInstanceId(), e);
       }
       if (proxies == null || proxies.isEmpty()) {
-        throw new RuntimeException("Proxy for " + instance.getInstanceName() + " is not found.");
+        throw new RuntimeException("Proxy for " + instance.getInstanceId() + " is not found.");
       }
-      environment.proxies.put(instance.getInstanceName(), proxies.get(0));
+      environment.proxies.put(instance.getInstanceId(), proxies.get(0));
     }
 
     if (!StringUtils.isNullOrEmpty(environment.info.getProxyDatabaseInfo().getClusterEndpoint())) {
