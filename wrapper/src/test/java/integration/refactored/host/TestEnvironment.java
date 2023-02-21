@@ -16,6 +16,8 @@
 
 package integration.refactored.host;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import integration.refactored.DatabaseEngine;
@@ -33,11 +35,14 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Logger;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
+import org.testcontainers.utility.MountableFile;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment implements AutoCloseable {
@@ -48,6 +53,7 @@ public class TestEnvironment implements AutoCloseable {
   private static final String TEST_CONTAINER_NAME = "test-container";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
+  private static final String HIBERNATE_VERSION = "6.2.0.CR2";
 
   private final TestEnvironmentInfo info =
       new TestEnvironmentInfo(); // only this info is passed to test container
@@ -528,15 +534,39 @@ public class TestEnvironment implements AutoCloseable {
 
   private static void createTestContainer(TestEnvironment env) {
     final ContainerHelper containerHelper = new ContainerHelper();
-    env.testContainer =
-        containerHelper
-            .createTestContainer(
-                "aws/rds-test-container", getContainerBaseImageName(env.info.getRequest()))
-            .withNetworkAliases(TEST_CONTAINER_NAME)
-            .withNetwork(env.network)
-            .withEnv("TEST_ENV_INFO_JSON", getEnvironmentInfoAsString(env))
-            .withEnv("TEST_ENV_DESCRIPTION", env.info.getRequest().getDisplayName());
 
+    if (!env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.SKIP_HIBERNATE_TESTS)) {
+      env.testContainer =
+          containerHelper.createTestContainer(
+                  "aws/rds-test-container",
+                  getContainerBaseImageName(env.info.getRequest()),
+                  builder -> builder
+                      .run("apk", "add", "git")
+                      .run("git", "clone", "--depth", "1", "--branch", HIBERNATE_VERSION,
+                          "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm"))
+              .withCopyFileToContainer(MountableFile.forHostPath(
+                      "src/test/resources/hibernate_files/databases.gradle"),
+                  "app/hibernate-orm/gradle/databases.gradle")
+              .withCopyFileToContainer(MountableFile.forHostPath(
+                      "src/test/resources/hibernate_files/hibernate-core.gradle"),
+                  "hibernate-core/hibernate-core.gradle")
+              .withCopyFileToContainer(MountableFile.forHostPath(
+                      "src/test/resources/hibernate_files/java-module.gradle"),
+                  "app/hibernate-orm/gradle/java-module.gradle")
+              .withCopyFileToContainer(MountableFile.forHostPath(
+                      "src/test/resources/hibernate_files/collect_test_results.sh"),
+                  "app/collect_test_results.sh");
+    } else {
+      env.testContainer = containerHelper.createTestContainer(
+          "aws/rds-test-container",
+          getContainerBaseImageName(env.info.getRequest()));
+    }
+
+    env.testContainer
+        .withNetworkAliases(TEST_CONTAINER_NAME)
+        .withNetwork(env.network)
+        .withEnv("TEST_ENV_INFO_JSON", getEnvironmentInfoAsString(env))
+        .withEnv("TEST_ENV_DESCRIPTION", env.info.getRequest().getDisplayName());
     if (env.info
         .getRequest()
         .getFeatures()
@@ -554,6 +584,8 @@ public class TestEnvironment implements AutoCloseable {
     switch (request.getTargetJvm()) {
       case OPENJDK:
         return "openjdk:8-jdk-alpine";
+      case OPENJDK11:
+        return "adoptopenjdk/openjdk11:alpine";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
       default:
@@ -617,12 +649,59 @@ public class TestEnvironment implements AutoCloseable {
 
   public void runTests(String taskName) throws IOException, InterruptedException {
     final ContainerHelper containerHelper = new ContainerHelper();
-    containerHelper.runTest(this.testContainer, taskName);
+    // containerHelper.runTest(this.testContainer, taskName);
+
+    if (!this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.SKIP_HIBERNATE_TESTS)) {
+      final Long exitCode = containerHelper.runCmdInDirectory(
+          this.testContainer,
+          "/app/hibernate-orm",
+          buildHibernateCommands(false));
+      containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
+      assertEquals(0, exitCode, "failed to run Hibernate ORM tests");
+    }
   }
 
   public void debugTests(String taskName) throws IOException, InterruptedException {
     final ContainerHelper containerHelper = new ContainerHelper();
     containerHelper.debugTest(this.testContainer, taskName);
+
+    if (!this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.SKIP_HIBERNATE_TESTS)) {
+      final Long exitCode = containerHelper.runCmdInDirectory(
+          this.testContainer,
+          "/app/hibernate-orm",
+          buildHibernateCommands(true));
+      containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
+      assertEquals(0, exitCode, "failed to debug Hibernate ORM tests");
+    }
+  }
+
+  private String[] buildHibernateCommands(boolean debugMode) {
+    final TestDatabaseInfo dbInfo = this.info.getDatabaseInfo();
+    final List<String> command = new ArrayList<>(Arrays.asList(
+        "./gradlew", "test",
+        "-DdbHost=" + DATABASE_CONTAINER_NAME_PREFIX + 1, // Hibernate ORM tests only support 1 database instance
+        "-DdbUser=" + dbInfo.getUsername(),
+        "-DdbPass=" + dbInfo.getPassword(),
+        "-DdbName=" + dbInfo.getDefaultDbName(),
+        "--no-parallel", "--no-daemon"
+    ));
+
+    if (debugMode) {
+      command.add("--debug-jvm");
+    }
+
+    switch (this.info.getRequest().getDatabaseEngine()) {
+      case PG:
+        command.add("-Pdb=amazon_ci");
+        command.add("-PexcludeTests=PostgreSQLSkipAutoCommitTest");
+        break;
+      case MYSQL:
+      default:
+        command.add("-Pdb=amazon_mysql_ci");
+        command.add("-PexcludeTests=MySQLSkipAutoCommitTest");
+        break;
+    }
+    return command.toArray(new String[] {});
   }
 
   @Override

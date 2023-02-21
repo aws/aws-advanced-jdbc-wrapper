@@ -12,21 +12,24 @@ ext {
         db = project.hasProperty('db') ? project.getProperty('db') : 'h2'
         dbHost = System.getProperty( 'dbHost', 'localhost' )
         dbService = System.getProperty( 'dbService', '' )
+        dbUser = System.getProperty( 'dbUser', 'hibernate_orm_test' )
+        dbPass = System.getProperty( 'dbPass', 'hibernate_orm_test' )
+        dbName = System.getProperty( 'dbName', 'hibernate_orm_test' )
         dbBundle = [
                 amazon_ci : [
                         'db.dialect' : 'org.hibernate.dialect.PostgreSQLDialect',
                         'jdbc.driver': 'software.amazon.jdbc.Driver',
-                        'jdbc.user'  : 'hibernate_orm_test',
-                        'jdbc.pass'  : 'hibernate_orm_test',
-                        'jdbc.url'   : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/hibernate_orm_test?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn',
+                        'jdbc.user'  : dbUser,
+                        'jdbc.pass'  : dbPass,
+                        'jdbc.url'   : 'jdbc:aws-wrapper:postgresql://' + dbHost + '/' + dbName + '?preparedStatementCacheQueries=0&escapeSyntaxCallMode=callIfNoReturn&wrapperPlugins=',
                         'connection.init_sql' : ''
                 ],
                 amazon_mysql_ci : [
                         'db.dialect' : 'org.hibernate.dialect.MySQLDialect',
                         'jdbc.driver': 'software.amazon.jdbc.Driver',
-                        'jdbc.user'  : 'hibernate_orm_test',
-                        'jdbc.pass'  : 'hibernate_orm_test',
-                        'jdbc.url'   : 'jdbc:aws-wrapper:mysql://' + dbHost + '/hibernate_orm_test?allowPublicKeyRetrieval=true',
+                        'jdbc.user'  : dbUser,
+                        'jdbc.pass'  : dbPass,
+                        'jdbc.url'   : 'jdbc:aws-wrapper:mysql://' + dbHost + '/' + dbName + '?allowPublicKeyRetrieval=true&wrapperPlugins=',
                         'connection.init_sql' : ''
                 ],
                 h2 : [

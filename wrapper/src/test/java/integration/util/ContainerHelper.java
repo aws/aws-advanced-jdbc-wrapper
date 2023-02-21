@@ -26,13 +26,10 @@ import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.model.ToxicDirection;
 import integration.refactored.TestInstanceInfo;
-import software.amazon.jdbc.util.StringUtils;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
@@ -47,6 +44,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -59,11 +57,14 @@ import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 import org.testcontainers.utility.TestEnvironment;
+import software.amazon.jdbc.util.StringUtils;
 
 public class ContainerHelper {
+
   private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK = "openjdk:8-jdk-alpine";
   private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK_11 =
       "adoptopenjdk/openjdk11:alpine";
@@ -146,6 +147,17 @@ public class ContainerHelper {
   }
 
   public GenericContainer<?> createTestContainer(String dockerImageName, String testContainerImageName) {
+    return createTestContainer(
+        dockerImageName,
+        testContainerImageName,
+        builder -> builder // Return directly, do not append extra run commands to the docker builder.
+    );
+  }
+
+  public GenericContainer<?> createTestContainer(
+      String dockerImageName,
+      String testContainerImageName,
+      Function<DockerfileBuilder, DockerfileBuilder> appendExtraCommandsToBuilder) {
     class FixedExposedPortContainer<T extends GenericContainer<T>> extends GenericContainer<T> {
 
       public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
@@ -160,16 +172,16 @@ public class ContainerHelper {
     }
 
     return new FixedExposedPortContainer<>(
-            new ImageFromDockerfile(dockerImageName, true)
-                .withDockerfileFromBuilder(
-                    builder ->
-                        builder
-                            .from(testContainerImageName)
-                            .run("mkdir", "app")
-                            .workDir("/app")
-                            .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
-                            .expose(5005) // Exposing ports for debugger to be attached
-                            .build()))
+        new ImageFromDockerfile(dockerImageName, true)
+            .withDockerfileFromBuilder(
+                builder -> appendExtraCommandsToBuilder.apply(
+                    builder
+                        .from(testContainerImageName)
+                        .run("mkdir", "app")
+                        .workDir("/app")
+                        .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
+                        .expose(5005)
+                ).build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind(
             "./build/reports/tests",
@@ -359,7 +371,7 @@ public class ContainerHelper {
       try {
         auroraInstances.clear();
         try (final Connection conn =
-                DriverManager.getConnection(connectionUrl, userName, password);
+            DriverManager.getConnection(connectionUrl, userName, password);
             final Statement stmt = conn.createStatement()) {
           // Get instances
           try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
@@ -544,16 +556,5 @@ public class ContainerHelper {
     } catch (IOException ex) {
       // ignore
     }
-  }
-
-  /**
-   * Replace a file.
-   *
-   * @param source The new file.
-   * @param dest The old file to be replaced
-   * @throws IOException if an error occurred during the replace process.
-   */
-  public void replaceFiles(File source, File dest) throws IOException {
-    Files.copy(source.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
   }
 }

@@ -18,5 +18,6 @@ package integration.refactored;
 
 public enum TargetJvm {
   OPENJDK,
+  OPENJDK11,
   GRAALVM
 }
