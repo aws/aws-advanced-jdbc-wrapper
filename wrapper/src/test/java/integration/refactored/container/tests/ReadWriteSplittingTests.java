@@ -18,8 +18,11 @@ package integration.refactored.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
@@ -28,14 +31,17 @@ import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.ProxyHelper;
+import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
+import integration.refactored.container.condition.DisableOnTestDriver;
 import integration.refactored.container.condition.DisableOnTestFeature;
 import integration.refactored.container.condition.EnableOnDatabaseEngine;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -131,16 +137,17 @@ public class ReadWriteSplittingTests {
 
   private String getCommaDelimitedHostUrl(List<TestInstanceInfo> instances) {
     return DriverHelper.getWrapperDriverProtocol()
-        + instances.get(0).getUrl() + ","
-        + instances.get(1).getUrl() + "/"
+        + instances.get(0).getEndpoint() + ","
+        + instances.get(1).getEndpoint() + "/"
         + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
         + DriverHelper.getDriverRequiredParameters();
   }
-
   @TestTemplate
-  // Tests use Aurora specific SQL to identify instance name
+// Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  public void test_connectToWriter_setReadOnlyTrueTrueFalseFalseTrue() throws SQLException {
+  public void test_connectToWriter_switchSetReadOnly() throws SQLException {
+    final String url = getUrl();
+    LOGGER.finest("Connecting to url " + url);
     try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
@@ -164,6 +171,50 @@ public class ReadWriteSplittingTests {
       conn.setReadOnly(true);
       currentConnectionId = queryInstanceId(conn);
       assertEquals(readerConnectionId, currentConnectionId);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  // Tests use Aurora specific SQL to identify instance name
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  public void test_connectToReader_setReadOnlyTrueFalse() throws SQLException {
+    final String url = getUrl();
+    LOGGER.finest("Connecting to url " + url);
+    try (final Connection conn = DriverManager.getConnection(url, getProps())) {
+      final String writerConnectionId = queryInstanceId(conn);
+      LOGGER.finest("writerConnectionId: " + writerConnectionId);
+
+      conn.setReadOnly(true);
+      final String readerConnectionId = queryInstanceId(conn);
+      LOGGER.finest("readerConnectionId: " + readerConnectionId);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(false);
+      String currentConnectionId = queryInstanceId(conn);
+      assertEquals(writerConnectionId, currentConnectionId);
+      assertNotEquals(readerConnectionId, currentConnectionId);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  public void test_connectToReaderCluster_setReadOnlyTrueFalse() throws SQLException {
+    final String url = getUrl();
+    LOGGER.finest("Connecting to url " + url);
+    try (final Connection conn = DriverManager.getConnection(url, getProps())) {
+      final String writerConnectionId = queryInstanceId(conn);
+      LOGGER.finest("writerConnectionId: " + writerConnectionId);
+
+      conn.setReadOnly(true);
+      final String readerConnectionId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(false);
+      final String currentConnectionId = queryInstanceId(conn);
+      assertEquals(writerConnectionId, currentConnectionId);
+      assertNotEquals(readerConnectionId, writerConnectionId);
     }
   }
 
@@ -230,7 +281,7 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_setReadOnlyFalseInTransaction_setAutocommitZero() throws SQLException {
@@ -263,7 +314,7 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine(DatabaseEngine.MYSQL)
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_setReadOnlyTrueInTransaction() throws SQLException {
@@ -297,6 +348,32 @@ public class ReadWriteSplittingTests {
       conn.setReadOnly(false);
       stmt2.execute("SET autocommit = 1");
       stmt2.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyTrueInTransaction");
+    }
+  }
+
+  @TestTemplate
+  // Tests use Aurora specific SQL to identify instance name
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_setReadOnlyTrue_oneHost() throws SQLException {
+    // Use static host list with only one host
+    Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
+    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props, "true");
+
+    String writerUrl =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getEndpoint();
+    String url = DriverHelper.getWrapperDriverProtocol()
+        + writerUrl + "/"
+        + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
+        + DriverHelper.getDriverRequiredParameters();
+
+    try (final Connection conn = DriverManager.getConnection(url, props)) {
+      final String writerConnectionId = queryInstanceId(conn);
+
+      conn.setReadOnly(true);
+      final String currentConnectionId = queryInstanceId(conn);
+      assertEquals(writerConnectionId, currentConnectionId);
     }
   }
 
@@ -366,29 +443,290 @@ public class ReadWriteSplittingTests {
     }
   }
 
+
   @TestTemplate
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @DisableOnTestDriver(TestDriver.MARIADB) // TODO: investigate and fix
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_setReadOnlyTrue_oneHost() throws SQLException {
-    // Use static host list with only one host
-    Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
-    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props, "true");
+  public void test_transactionResolutionUnknown() throws SQLException {
+    try (final Connection conn =
+             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
 
-    String writerUrl =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getUrl();
-    String url = DriverHelper.getWrapperDriverProtocol()
-        + writerUrl + "/"
-        + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-        + DriverHelper.getDriverRequiredParameters();
-
-    try (final Connection conn = DriverManager.getConnection(url, props)) {
       final String writerConnectionId = queryInstanceId(conn);
 
       conn.setReadOnly(true);
-      final String currentConnectionId = queryInstanceId(conn);
+      conn.setAutoCommit(false);
+      final String readerId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerId);
+
+      final Statement stmt = conn.createStatement();
+      stmt.executeQuery("SELECT 1");
+
+      ProxyHelper.disableConnectivity(
+          TestEnvironment.getCurrent()
+              .getInfo()
+              .getDatabaseInfo()
+              .getInstances()
+              .get(1)
+              .getInstanceId());
+
+      final SQLException e = assertThrows(SQLException.class, conn::rollback);
+      assertTrue(
+          SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState().equals(e.getSQLState())
+              || SqlState.CONNECTION_FAILURE.getState().equals(e.getSQLState()));
+
+      try (final Connection newConn =
+               DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+        newConn.setReadOnly(true);
+        final Statement newStmt = newConn.createStatement();
+        final ResultSet rs = newStmt.executeQuery("SELECT 1");
+        rs.next();
+        assertEquals(1, rs.getInt(1));
+      }
+    }
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  public void test_executeWithOldConnection() throws SQLException {
+    try (final Connection conn = DriverManager.getConnection(getUrl(), getProxiedProps())) {
+
+      final String writerId = queryInstanceId(conn);
+
+      final Statement oldStmt = conn.createStatement();
+      final ResultSet oldRs = oldStmt.executeQuery("SELECT 1");
+      conn.setReadOnly(true); // Connection is switched internally
+      conn.setAutoCommit(false);
+
+      assertThrows(SQLException.class, () -> oldStmt.execute("SELECT 1"));
+      assertThrows(SQLException.class, () -> oldRs.getInt(1));
+
+      final String readerId = queryInstanceId(conn);
+      assertNotEquals(writerId, readerId);
+
+      assertDoesNotThrow(oldStmt::close);
+      assertDoesNotThrow(oldRs::close);
+
+      final String sameReaderId = queryInstanceId(conn);
+      assertEquals(readerId, sameReaderId);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
+  public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException {
+    try (final Connection conn =
+             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+
+      final String writerConnectionId = queryInstanceId(conn);
+
+      // Kill all reader instances
+      int numOfInstances =
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
+      for (int i = 1; i < numOfInstances; i++) {
+        ProxyHelper.disableConnectivity(
+            TestEnvironment.getCurrent()
+                .getInfo()
+                .getDatabaseInfo()
+                .getInstances()
+                .get(i)
+                .getInstanceId());
+      }
+
+      // Force internal reader connection to the writer instance
+      conn.setReadOnly(true);
+      String currentConnectionId = queryInstanceId(conn);
+      assertEquals(writerConnectionId, currentConnectionId);
+      conn.setReadOnly(false);
+
+      ProxyHelper.enableAllConnectivity();
+
+      // Crash Instance1 and nominate a new writer
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+
+      // Failure occurs on Connection invocation
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+
+      // Assert that we are connected to the new writer after failover happens.
+      currentConnectionId = queryInstanceId(conn);
+      assertNotEquals(currentConnectionId, writerConnectionId);
+
+      conn.setReadOnly(true);
+      currentConnectionId = queryInstanceId(conn);
+
+      conn.setReadOnly(false);
+      currentConnectionId = queryInstanceId(conn);
+
+    }
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
+  public void test_failoverToNewReader_setReadOnlyFalseTrue() throws SQLException {
+    try (final Connection conn =
+             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+
+      final String writerConnectionId = queryInstanceId(conn);
+      LOGGER.info("writerConnectionId: " + writerConnectionId);
+
+      conn.setReadOnly(true);
+      final String readerConnectionId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      String otherReaderId = "";
+      List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+
+      for (int i = 1; i < instances.size(); i++) {
+        if (!instances.get(i).getInstanceId().equals(readerConnectionId)) {
+          otherReaderId = instances.get(i).getInstanceId();
+          break;
+        }
+      }
+      if (otherReaderId.equals("")) {
+        fail("could not acquire new reader ID");
+      }
+
+      // Kill all instances except one other reader
+      for (TestInstanceInfo instance : instances) {
+        final String instanceId = instance.getInstanceId();
+        if (otherReaderId.equals(instanceId)) {
+          continue;
+        }
+        ProxyHelper.disableConnectivity(instanceId);
+      }
+
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      assertFalse(conn.isClosed());
+      String currentConnectionId = queryInstanceId(conn);
+      assertEquals(otherReaderId, currentConnectionId);
+      assertNotEquals(readerConnectionId, currentConnectionId);
+
+      ProxyHelper.enableAllConnectivity();
+
+      conn.setReadOnly(false);
+      currentConnectionId = queryInstanceId(conn);
+      assertEquals(writerConnectionId, currentConnectionId);
+
+      conn.setReadOnly(true);
+      currentConnectionId = queryInstanceId(conn);
+      assertEquals(otherReaderId, currentConnectionId);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
+  public void test_failoverReaderToWriter_setReadOnlyTrueFalse() throws SQLException {
+    try (final Connection conn =
+             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+
+      final String writerConnectionId = queryInstanceId(conn);
+
+      conn.setReadOnly(true);
+      final String readerConnectionId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+
+      // Kill all instances except the writer
+      for (TestInstanceInfo instance : instances) {
+        final String instanceId = instance.getInstanceId();
+        if (writerConnectionId.equals(instanceId)) {
+          continue;
+        }
+        ProxyHelper.disableConnectivity(instanceId);
+      }
+
+      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      assertFalse(conn.isClosed());
+      String currentConnectionId = queryInstanceId(conn);
+      assertEquals(writerConnectionId, currentConnectionId);
+
+      ProxyHelper.enableAllConnectivity();
+
+      conn.setReadOnly(true);
+      currentConnectionId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, currentConnectionId);
+
+      conn.setReadOnly(false);
+      currentConnectionId = queryInstanceId(conn);
       assertEquals(writerConnectionId, currentConnectionId);
     }
+  }
+
+  // TODO: need to fix
+//   @TestTemplate
+//   @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+//   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+//   public void test_multiHostUrl_topologyOverridesHostList() throws SQLException {
+//     try (final Connection conn =
+//              DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+//
+//       final String writerConnectionId = queryInstanceId(conn);
+//
+//       conn.setReadOnly(true);
+//       String currentConnectionId = queryInstanceId(conn);
+//       assertNotEquals(writerConnectionId, currentConnectionId);
+//     }
+//   }
+
+  @TestTemplate
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  public void test_transactionResolutionUnknown_readWriteSplittingPluginOnly() throws SQLException {
+    try (final Connection conn =
+             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+
+      final String writerConnectionId = queryInstanceId(conn);
+
+      conn.setReadOnly(true);
+      conn.setAutoCommit(false);
+      final String readerId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, readerId);
+
+      final Statement stmt = conn.createStatement();
+      stmt.executeQuery("SELECT 1");
+
+      ProxyHelper.disableConnectivity(TestEnvironment.getCurrent()
+          .getInfo()
+          .getDatabaseInfo()
+          .getInstances()
+          .get(1)
+          .getInstanceId());
+
+
+      final SQLException e = assertThrows(SQLException.class, conn::rollback);
+      assertEquals(SqlState.CONNECTION_FAILURE.getState(), e.getSQLState());
+
+      try (final Connection newConn =
+               DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+        newConn.setReadOnly(true);
+        final Statement newStmt = newConn.createStatement();
+        final ResultSet rs = newStmt.executeQuery("SELECT 1");
+        rs.next();
+        assertEquals(1, rs.getInt(1));
+      }
+    }
+  }
+
+  protected void assertFirstQueryThrows(Connection connection, String expectedSQLErrorCode) {
+    final SQLException exception =
+        assertThrows(SQLException.class, () -> queryInstanceId(connection));
+    assertEquals(expectedSQLErrorCode, exception.getSQLState());
+  }
+
+  protected void assertFirstQueryThrows(Statement stmt, String expectedSQLErrorCode) {
+    final SQLException exception = assertThrows(SQLException.class, () ->
+        auroraUtil.executeInstanceIdQuery(
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            stmt));
+    assertEquals(expectedSQLErrorCode, exception.getSQLState(), "Unexpected SQL Exception: " + exception.getMessage());
   }
 }
