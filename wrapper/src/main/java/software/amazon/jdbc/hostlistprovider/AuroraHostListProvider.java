@@ -164,58 +164,63 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       return;
     }
 
-    lock.lock();
-    if (this.isInitialized) {
-      lock.unlock();
-      return;
-    }
+    try {
+      lock.lock();
+      if (this.isInitialized) {
+        return;
+      }
 
-    // initial topology is based on connection string
-    this.initialHostList = this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false);
-    if (this.initialHostList == null || this.initialHostList.isEmpty()) {
-      throw new SQLException(Messages.get("AuroraHostListProvider.parsedListEmpty",
-          new Object[]{this.originalUrl}));
-    }
-    this.initialHostSpec = this.initialHostList.get(0);
-    this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
+      // initial topology is based on connection string
+      this.initialHostList =
+          this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false);
+      if (this.initialHostList == null || this.initialHostList.isEmpty()) {
+        throw new SQLException(Messages.get("AuroraHostListProvider.parsedListEmpty",
+            new Object[] {this.originalUrl}));
+      }
+      this.initialHostSpec = this.initialHostList.get(0);
+      this.hostListProviderService.setInitialConnectionHostSpec(this.initialHostSpec);
 
-    this.clusterId = UUID.randomUUID().toString();
-    this.isPrimaryClusterId = false;
-    this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
-    this.clusterInstanceTemplate = CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
-        ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
-        : new HostSpec(CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
-    validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
+      this.clusterId = UUID.randomUUID().toString();
+      this.isPrimaryClusterId = false;
+      this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
+      this.clusterInstanceTemplate =
+          CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
+              ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
+              : new HostSpec(CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
+      validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
 
-    this.rdsUrlType = rdsHelper.identifyRdsType(originalUrl);
+      this.rdsUrlType = rdsHelper.identifyRdsType(originalUrl);
 
-    final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
-    if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
-      this.clusterId = clusterIdSetting;
-    } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
-      // Each proxy is associated with a single cluster, so it's safe to use RDS Proxy Url as cluster
-      // identification
-      this.clusterId = this.initialHostSpec.getUrl();
-    } else if (rdsUrlType.isRds()) {
-      final ClusterSuggestedResult clusterSuggestedResult =
-          getSuggestedClusterId(this.initialHostSpec.getUrl());
-      if (clusterSuggestedResult != null && !StringUtils.isNullOrEmpty(clusterSuggestedResult.clusterId)) {
-        this.clusterId = clusterSuggestedResult.clusterId;
-        this.isPrimaryClusterId = clusterSuggestedResult.isPrimaryClusterId;
-      } else {
-        final String clusterRdsHostUrl =
-            this.rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getUrl());
-        if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
-          this.clusterId = this.clusterInstanceTemplate.isPortSpecified()
-              ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
-              : clusterRdsHostUrl;
-          this.isPrimaryClusterId = true;
+      final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
+      if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
+        this.clusterId = clusterIdSetting;
+      } else if (rdsUrlType == RdsUrlType.RDS_PROXY) {
+        // Each proxy is associated with a single cluster, so it's safe to use RDS Proxy Url as cluster
+        // identification
+        this.clusterId = this.initialHostSpec.getUrl();
+      } else if (rdsUrlType.isRds()) {
+        final ClusterSuggestedResult clusterSuggestedResult =
+            getSuggestedClusterId(this.initialHostSpec.getUrl());
+        if (clusterSuggestedResult != null && !StringUtils.isNullOrEmpty(
+            clusterSuggestedResult.clusterId)) {
+          this.clusterId = clusterSuggestedResult.clusterId;
+          this.isPrimaryClusterId = clusterSuggestedResult.isPrimaryClusterId;
+        } else {
+          final String clusterRdsHostUrl =
+              this.rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getUrl());
+          if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
+            this.clusterId = this.clusterInstanceTemplate.isPortSpecified()
+                ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
+                : clusterRdsHostUrl;
+            this.isPrimaryClusterId = true;
+          }
         }
       }
-    }
 
-    this.isInitialized = true;
-    lock.unlock();
+      this.isInitialized = true;
+    } finally {
+      lock.unlock();
+    }
   }
 
   /**
