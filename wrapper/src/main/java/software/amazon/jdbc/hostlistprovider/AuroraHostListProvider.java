@@ -164,8 +164,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       return;
     }
 
+    lock.lock();
     try {
-      lock.lock();
       if (this.isInitialized) {
         return;
       }
