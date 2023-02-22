@@ -38,6 +38,7 @@ public class ConnectionUrlParser {
               // follows by any char except "/", "?" or "#"
               + "(?:[/?#].*)?"); // Anything starting with either "/", "?" or "#"
 
+  static final Pattern EMPTY_STRING_IN_QUOTATIONS = Pattern.compile("\"(\\s*)\"");
   private static final RdsUtils rdsUtils = new RdsUtils();
 
   public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection,
@@ -148,15 +149,24 @@ public class ConnectionUrlParser {
 
     String[] listOfParameters = urlParameters[1].split("&");
     for (String param : listOfParameters) {
-      String[] currentParameter = param.split("=");
-      String currentParameterName = currentParameter[0];
+      final String[] currentParameter = param.split("=");
       String currentParameterValue = "";
 
       if (currentParameter.length > 1) {
         currentParameterValue = urlDecode(currentParameter[1]);
       }
 
-      props.setProperty(currentParameterName, currentParameterValue);
+      if (currentParameterValue == null) {
+        continue;
+      }
+
+      // Special handling for empty parameters in the form of [param=\"\"]
+      // Empty parameters would have extra quotations after splitting, i.e. [param, """"], instead of [param, ""]
+      final Matcher matcher = EMPTY_STRING_IN_QUOTATIONS.matcher(currentParameterValue);
+      if (matcher.matches()) {
+        currentParameterValue = "";
+      }
+      props.setProperty(currentParameter[0], currentParameterValue);
     }
   }
 
@@ -169,6 +179,8 @@ public class ConnectionUrlParser {
               "Driver.urlParsingFailed",
               new Object[] {url, e.getMessage()}));
     }
-    return null;
+
+    // Attempt to use the original value for connection.
+    return url;
   }
 }

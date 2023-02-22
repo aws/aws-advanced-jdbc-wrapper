@@ -34,6 +34,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -47,9 +48,10 @@ public class HikariTests {
   public void testOpenConnectionWithUrl() throws SQLException {
 
     HikariDataSource ds = new HikariDataSource();
-    ds.setJdbcUrl(ConnectionStringHelper.getWrapperUrl());
+    ds.setJdbcUrl(ConnectionStringHelper.getWrapperUrl() + "?wrapperPlugins=\"\"");
     ds.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    ds.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "");
 
     Connection conn = ds.getConnection();
 
@@ -96,6 +98,8 @@ public class HikariTests {
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+    // For MariaDB tests, MariaDbDataSource only accepts the url parameter.
     targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl());
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 

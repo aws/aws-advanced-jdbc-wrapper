@@ -16,28 +16,13 @@
 
 package integration.refactored.container;
 
+import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
 import java.util.Properties;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
 
 public class ConnectionStringHelper {
-
-  public static String getClusterUrl() {
-    return getUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getClusterEndpoint(),
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
-  }
 
   public static String getUrl() {
     return getUrl(
@@ -62,15 +47,17 @@ public class ConnectionStringHelper {
   }
 
   public static String getUrl(TestDriver testDriver, String host, int port, String databaseName) {
-    return DriverHelper.getDriverProtocol(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
+    final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    final String requiredParameters = DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
+    return DriverHelper.getDriverProtocol(databaseEngine, testDriver)
         + host
         + ":"
         + port
         + "/"
         + databaseName
-        + DriverHelper.getDriverRequiredParameters(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
+        + requiredParameters
+        + (requiredParameters.startsWith("?") ? "&" : "?")
+        + "wrapperPlugins=\"\"";
   }
 
   public static String getWrapperUrl() {
@@ -153,5 +140,11 @@ public class ConnectionStringHelper {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
     return props;
+  }
+
+  public static Properties getDefaultPropertiesWithNoPlugins() {
+    final Properties properties = getDefaultProperties();
+    properties.setProperty(PropertyDefinition.PLUGINS.name, "");
+    return properties;
   }
 }
