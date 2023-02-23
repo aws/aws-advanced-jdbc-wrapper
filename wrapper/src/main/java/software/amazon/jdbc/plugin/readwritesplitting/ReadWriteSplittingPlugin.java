@@ -23,10 +23,8 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,7 +48,6 @@ import software.amazon.jdbc.util.WrapperUtils;
 
 public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     implements CanReleaseResources {
-  private final Map<String, Connection> liveConnections = new HashMap<>();
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPlugin.class.getName());
   private static final Set<String> subscribedMethods =
@@ -267,7 +264,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         LOGGER.finer(
             () -> Messages.get("ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand",
                 new Object[] {methodName}));
-        closeAllConnections();
+        closeIdleConnections();
       } else {
         LOGGER.finest(
             () -> Messages.get("ReadWriteSplittingPlugin.exceptionWhileExecutingCommand",
@@ -289,10 +286,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     } else {
       setReaderConnection(currentConnection, currentHost);
     }
-
-    if (!currentConnection.isClosed()) {
-      liveConnections.put(currentHost.getUrl(), currentConnection);
-    }
   }
 
   private boolean isWriter(final @NonNull HostSpec hostSpec) {
@@ -304,7 +297,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void getNewWriterConnection(final HostSpec writerHostSpec) throws SQLException {
-    final Connection conn = getConnectionToHost(writerHostSpec);
+    final Connection conn = this.pluginService.connect(writerHostSpec, this.properties);
     setWriterConnection(conn, writerHostSpec);
     switchCurrentConnectionTo(this.writerConnection, writerHostSpec);
   }
@@ -504,7 +497,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void getNewReaderConnection(final HostSpec readerHostSpec) throws SQLException {
-    final Connection conn = getConnectionToHost(readerHostSpec);
+    final Connection conn = this.pluginService.connect(readerHostSpec, this.properties);
     setReaderConnection(conn, readerHostSpec);
     switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
   }
@@ -529,34 +522,18 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     return connection != null && !connection.isClosed();
   }
 
-  private Connection getConnectionToHost(final HostSpec host) throws SQLException {
-    Connection conn = liveConnections.get(host.getUrl());
-    if (conn != null && !conn.isClosed()) {
-      return conn;
-    }
-
-    conn = this.pluginService.connect(host, this.properties);
-    liveConnections.put(host.getUrl(), conn);
-    return conn;
-  }
-
   @Override
   public void releaseResources() {
-    closeAllConnections();
+    closeIdleConnections();
   }
 
-  private void closeAllConnections() {
+  private void closeIdleConnections() {
     LOGGER.finest(() -> Messages.get("ReadWriteSplittingPlugin.closingInternalConnections"));
-    closeInternalConnection(this.readerConnection);
-    closeInternalConnection(this.writerConnection);
-
-    for (final Connection connection : liveConnections.values()) {
-      closeInternalConnection(connection);
-    }
-    liveConnections.clear();
+    closeConnectionIfIdle(this.readerConnection);
+    closeConnectionIfIdle(this.writerConnection);
   }
 
-  private void closeInternalConnection(final Connection internalConnection) {
+  private void closeConnectionIfIdle(final Connection internalConnection) {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     try {
       if (internalConnection != null
