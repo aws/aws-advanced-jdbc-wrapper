@@ -25,6 +25,7 @@ import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
+import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriverProvider;
@@ -40,9 +41,11 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
@@ -337,16 +340,11 @@ public class ReadWriteSplittingTests {
       final String writerConnectionId = queryInstanceId(conn);
 
       // Kill all reader instances
-      int numOfInstances =
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
-      for (int i = 1; i < numOfInstances; i++) {
-        ProxyHelper.disableConnectivity(
-            TestEnvironment.getCurrent()
-                .getInfo()
-                .getDatabaseInfo()
-                .getInstances()
-                .get(i)
-                .getInstanceId());
+      List<String> instanceIDs =
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().stream()
+              .map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
+      for (int i = 1; i < instanceIDs.size(); i++) {
+        ProxyHelper.disableConnectivity(instanceIDs.get(i));
       }
 
       assertDoesNotThrow(() -> conn.setReadOnly(true));
@@ -356,6 +354,12 @@ public class ReadWriteSplittingTests {
       assertDoesNotThrow(() -> conn.setReadOnly(false));
       currentConnectionId = assertDoesNotThrow(() -> queryInstanceId(conn));
       assertEquals(writerConnectionId, currentConnectionId);
+
+      // Bring up one reader
+      ProxyHelper.enableConnectivity(instanceIDs.get(instanceIDs.size() - 1));
+      assertDoesNotThrow(() -> conn.setReadOnly(true));
+      currentConnectionId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, currentConnectionId);
     }
   }
 

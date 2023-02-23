@@ -17,6 +17,7 @@
 package integration.refactored;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class TestDatabaseInfo {
 
@@ -37,7 +38,7 @@ public class TestDatabaseInfo {
 
   public TestDatabaseInfo() {}
 
-  public ArrayList<TestInstanceInfo> getInstances() {
+  public List<TestInstanceInfo> getInstances() {
     return this.instances;
   }
 
