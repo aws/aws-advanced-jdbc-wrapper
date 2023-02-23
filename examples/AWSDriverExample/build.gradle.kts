@@ -15,7 +15,8 @@
  */
 
 dependencies {
-    implementation("org.postgresql:postgresql:42.5.0")
+    implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
+    implementation("org.postgresql:postgresql:42.5.4")
     implementation("software.amazon.awssdk:rds:2.17.289")
     implementation("software.amazon.awssdk:secretsmanager:2.17.285")
     implementation(project(":aws-advanced-jdbc-wrapper"))
