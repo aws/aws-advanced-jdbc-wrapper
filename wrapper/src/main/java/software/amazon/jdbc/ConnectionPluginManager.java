@@ -319,7 +319,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
     if (conn != null && conn != this.pluginService.getCurrentConnection()
         && !sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
       final SQLException e =
-          new SQLException(Messages.get("ConnectionPluginManager.methodInvokedAgainstOldConnection"));
+          new SQLException(Messages.get("ConnectionPluginManager.methodInvokedAgainstOldConnection",
+              new Object[] {methodInvokeOn}));
       throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
 

@@ -21,12 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.AnyOf.anyOf;
 import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -89,13 +86,11 @@ public class ReadWriteSplittingPluginTest {
 
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<ResultSet, SQLException> mockSqlFunction;
-  @Mock private JdbcCallable<Void, SQLException> mockVoidFunction;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockWriterConn;
   @Mock private Connection mockNewWriterConn;
   @Mock private Connection mockClosedWriterConn;
-  @Mock private Connection mockOldWriterConn;
   @Mock private Connection mockReaderConn1;
   @Mock private Connection mockReaderConn2;
   @Mock private Connection mockReaderConn3;
@@ -373,90 +368,6 @@ public class ReadWriteSplittingPluginTest {
 
     assertEquals(mockWriterConn, plugin.getWriterConnection());
     assertEquals(OldConnectionSuggestedAction.NO_OPINION, suggestion);
-  }
-
-
-  @Test
-  public void testExecute_pickNewReader() throws SQLException {
-    when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
-
-    final Properties props = new Properties(defaultProps);
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
-        mockPluginService,
-        props,
-        mockHostListProviderService,
-        null,
-        mockReaderConn1);
-
-    plugin.setExplicitlyReadOnly(true);
-    plugin.setIsTransactionBoundary(true);
-
-    plugin.execute(
-        ResultSet.class,
-        SQLException.class,
-        mockStatement,
-        "Statement.executeQuery",
-        mockSqlFunction,
-        new Object[] {
-            "begin"});
-
-    verify(mockPluginService, times(1))
-        .setCurrentConnection(any(Connection.class), not(eq(readerHostSpec1)));
-  }
-
-  @Test
-  public void testExecute_closeAtTransactionBoundary() throws SQLException {
-    when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
-    when(this.mockPluginService.getCurrentConnection()).thenReturn(mockReaderConn1);
-    when(mockStatement.getConnection()).thenReturn(mockReaderConn1);
-
-    final Properties props = new Properties(defaultProps);
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
-        mockPluginService,
-        props,
-        mockHostListProviderService,
-        null,
-        mockReaderConn1);
-
-    plugin.setExplicitlyReadOnly(true);
-    plugin.setIsTransactionBoundary(true);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        mockReaderConn1,
-        "Connection.close",
-        mockVoidFunction,
-        new Object[] {});
-
-    assertTrue(plugin.getIsTransactionBoundary());
-    verify(mockPluginService, never()).connect(any(), any());
-  }
-
-  @Test
-  public void testExecute_oldConnection() throws SQLException {
-    when(mockStatement.getConnection()).thenReturn(mockOldWriterConn);
-
-    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
-        mockPluginService,
-        defaultProps,
-        mockHostListProviderService,
-        mockWriterConn,
-        null);
-    plugin.setIsTransactionBoundary(false);
-
-    plugin.execute(
-        Void.class,
-        SQLException.class,
-        mockStatement,
-        "Statement.close",
-        mockVoidFunction,
-        new Object[] {});
-
-    assertFalse(plugin.getIsTransactionBoundary());
-    verify(mockPluginService, never()).connect(any(), any());
   }
 
   @Test

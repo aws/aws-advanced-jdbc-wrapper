@@ -16,14 +16,11 @@
 
 package integration.container.aurora.postgres;
 
-import static org.apache.commons.math3.util.Precision.round;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.LongSummaryStatistics;
@@ -36,12 +33,9 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.postgresql.PGProperty;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
 public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostgresBaseTest {
@@ -125,7 +119,6 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
   protected static Properties initReadWritePluginProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
-    props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     return props;
   }
 
@@ -202,57 +195,6 @@ public class AuroraPostgresReadWriteSplittingPerformanceTest extends AuroraPostg
     connectWriterData.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterMaxOverhead);
     connectWriterData.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterAvgOverhead);
     setReadOnlyPerfDataList.add(connectWriterData);
-  }
-
-  @ParameterizedTest
-  @MethodSource("createStatementParameters")
-  public void test_readerLoadBalancing_createStatement(final Properties props)
-      throws SQLException {
-    // This test isolates how much overhead is caused by reader load-balancing when switching connections.
-    long readerSwitchCreateStatementStartTime;
-    final List<Long> elapsedReaderSwitchCreateStatementTimes = new ArrayList<>(REPEAT_TIMES);
-    final PerfStatExecuteQueries results = new PerfStatExecuteQueries();
-    final String plugins = props.getProperty(PropertyDefinition.PLUGINS.name);
-
-    if (plugins != null && plugins.contains("readWriteSplitting")) {
-      results.pluginEnabled = "Enabled (load balances readers)";
-      props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
-    } else {
-      results.pluginEnabled = "Disabled (no load balancing)";
-    }
-
-    for (int i = 0; i < REPEAT_TIMES; i++) {
-      try (final Connection conn = connectToInstance(
-          POSTGRES_CLUSTER_URL,
-          AURORA_POSTGRES_PORT,
-          props)) {
-        conn.setReadOnly(true);
-        try (final Statement stmt1 = conn.createStatement()) {
-          stmt1.executeQuery(QUERY_FOR_INSTANCE);
-        }
-
-        // The plugin does not switch readers on the first execute, so we'll start the timer after
-        for (int j = 0; j < EXECUTE_QUERY_TIMES; j++) {
-          // timer start
-          readerSwitchCreateStatementStartTime = System.nanoTime();
-          try (Statement stmt2 = conn.createStatement()) {
-            // timer end
-            final long readerSwitchCreateStatementTime =
-                (System.nanoTime() - readerSwitchCreateStatementStartTime);
-            elapsedReaderSwitchCreateStatementTimes.add(readerSwitchCreateStatementTime);
-
-            stmt2.executeQuery(QUERY_FOR_INSTANCE);
-          }
-        }
-      }
-    }
-
-    final LongSummaryStatistics createStatementStats =
-        elapsedReaderSwitchCreateStatementTimes.stream().mapToLong(a -> a).summaryStatistics();
-    results.minAverageCreateStatementTime = round(createStatementStats.getMin() / NANOS_TO_MILLIS, 4);
-    results.maxAverageCreateStatementTime = round(createStatementStats.getMax() / NANOS_TO_MILLIS, 4);
-    results.avgCreateStatementTime = round(createStatementStats.getAverage() / NANOS_TO_MILLIS, 4);
-    createStatementPerfDataList.add(results);
   }
 
   private static class Result {

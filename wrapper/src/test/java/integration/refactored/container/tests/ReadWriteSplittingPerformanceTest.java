@@ -16,8 +16,6 @@
 
 package integration.refactored.container.tests;
 
-import static org.apache.commons.math3.util.Precision.round;
-
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
@@ -31,14 +29,12 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -47,9 +43,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -64,19 +58,10 @@ public class ReadWriteSplittingPerformanceTest {
       ? 10
       : Integer.parseInt(System.getenv("REPEAT_TIMES"));
 
-  private static final int EXECUTE_QUERY_TIMES = StringUtils.isNullOrEmpty(System.getenv("EXECUTE_QUERY_TIMES"))
-      ? 100
-      : Integer.parseInt(System.getenv("EXECUTE_QUERY_TIMES"));
-
   private static final int TIMEOUT_SEC = 5;
   private static final int CONNECT_TIMEOUT_SEC = 5;
-  private static final String QUERY = "SELECT 1";
-
-
-  private static final double NANOS_TO_MILLIS = (double) TimeUnit.MILLISECONDS.toNanos(1);
 
   private static final List<PerfStatSwitchConnection> setReadOnlyPerfDataList = new ArrayList<>();
-  private static final List<PerfStatExecuteQueries> createStatementPerfDataList = new ArrayList<>();
 
   @TestTemplate
   public void test_switchReaderWriterConnection() throws SQLException, IOException {
@@ -122,85 +107,8 @@ public class ReadWriteSplittingPerformanceTest {
             "./build/reports/tests/"
             + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_SwitchReaderWriterConnection.xlsx",
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-            TestEnvironment.getCurrent().getCurrentDriver()),
-        setReadOnlyPerfDataList);
-  }
-
-  @TestTemplate
-  public void test_readerLoadBalancing_createStatement() throws IOException {
-
-    createStatementPerfDataList.clear();
-
-    try {
-      Stream<Arguments> argsStream = createStatementParameters();
-      argsStream.forEach(
-          a -> {
-            try {
-
-              Object[] args = a.get();
-              Properties props = (Properties) args[0];
-              String testTitle = (String) args[1];
-
-              // This test isolates how much overhead is caused by reader load-balancing when switching connections.
-              long readerSwitchCreateStatementStartTime;
-              final List<Long> elapsedReaderSwitchCreateStatementTimes = new ArrayList<>(REPEAT_TIMES);
-              final PerfStatExecuteQueries results = new PerfStatExecuteQueries();
-              results.pluginEnabled = testTitle;
-
-              for (int i = 0; i < REPEAT_TIMES; i++) {
-                try (final Connection conn = connectToInstance(props)) {
-                  conn.setReadOnly(true);
-                  try (final Statement stmt1 = conn.createStatement()) {
-                    stmt1.executeQuery(QUERY);
-                  }
-
-                  // The plugin does not switch readers on the first execute, so we'll start the timer after
-                  for (int j = 0; j < EXECUTE_QUERY_TIMES; j++) {
-                    // timer start
-                    readerSwitchCreateStatementStartTime = System.nanoTime();
-                    try (Statement stmt2 = conn.createStatement()) {
-                      // timer end
-                      final long readerSwitchCreateStatementTime =
-                          (System.nanoTime() - readerSwitchCreateStatementStartTime);
-                      elapsedReaderSwitchCreateStatementTimes.add(readerSwitchCreateStatementTime);
-
-                      stmt2.executeQuery(QUERY);
-                    }
-                  }
-                }
-              }
-
-              final LongSummaryStatistics createStatementStats =
-                  elapsedReaderSwitchCreateStatementTimes.stream().mapToLong(x -> x).summaryStatistics();
-              results.minAverageCreateStatementTime = toMillis(createStatementStats.getMin());
-              results.maxAverageCreateStatementTime = toMillis(createStatementStats.getMax());
-              results.avgCreateStatementTime = toMillis(createStatementStats.getAverage());
-              createStatementPerfDataList.add(results);
-
-            } catch (SQLException e) {
-              throw new RuntimeException(e);
-            }
-          });
-
-    } finally {
-      doWritePerfDataToFile(
-          String.format(
-              "./build/reports/tests/"
-              + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_ReaderLoadBalancing.xlsx",
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver()),
-          createStatementPerfDataList);
-
-      createStatementPerfDataList.clear();
-    }
-  }
-
-  private double toMillis(long nanos) {
-    return round(nanos / NANOS_TO_MILLIS, 4);
-  }
-
-  private double toMillis(double nanos) {
-    return round(nanos / NANOS_TO_MILLIS, 4);
+            TestEnvironment.getCurrent().getCurrentDriver())
+    );
   }
 
   private Connection connectToInstance(Properties props) throws SQLException {
@@ -208,12 +116,8 @@ public class ReadWriteSplittingPerformanceTest {
     return DriverManager.getConnection(url, props);
   }
 
-  private void doWritePerfDataToFile(
-      String fileName,
-      List<? extends PerfStatBase> dataList)
-      throws IOException {
-
-    if (dataList.isEmpty()) {
+  private void doWritePerfDataToFile(String fileName) throws IOException {
+    if (setReadOnlyPerfDataList.isEmpty()) {
       return;
     }
 
@@ -223,8 +127,8 @@ public class ReadWriteSplittingPerformanceTest {
 
       final XSSFSheet sheet = workbook.createSheet("PerformanceResults");
 
-      for (int rows = 0; rows < dataList.size(); rows++) {
-        PerfStatBase perfStat = dataList.get(rows);
+      for (int rows = 0; rows < setReadOnlyPerfDataList.size(); rows++) {
+        PerfStatBase perfStat = ((List<? extends PerfStatBase>) setReadOnlyPerfDataList).get(rows);
         Row row;
 
         if (rows == 0) {
@@ -246,13 +150,6 @@ public class ReadWriteSplittingPerformanceTest {
     }
   }
 
-  private Stream<Arguments> createStatementParameters() {
-    return Stream.of(
-        Arguments.of(initReadWritePluginProps(), "Enabled (load balances readers)"),
-        Arguments.of(initNoPluginPropsWithTimeouts(), "Disabled (no load balancing)")
-    );
-  }
-
   protected Properties initNoPluginPropsWithTimeouts() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
@@ -263,7 +160,6 @@ public class ReadWriteSplittingPerformanceTest {
   protected Properties initReadWritePluginProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
-    props.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     return props;
   }
 
@@ -350,38 +246,6 @@ public class ReadWriteSplittingPerformanceTest {
       cell.setCellValue(this.maxOverheadTime);
       cell = row.createCell(3);
       cell.setCellValue(this.avgOverheadTime);
-    }
-  }
-
-  private static class PerfStatExecuteQueries extends PerfStatBase {
-
-    public String pluginEnabled;
-    public double minAverageCreateStatementTime;
-    public double maxAverageCreateStatementTime;
-    public double avgCreateStatementTime;
-
-    @Override
-    public void writeHeader(Row row) {
-      Cell cell = row.createCell(0);
-      cell.setCellValue("readWriteSplittingPlugin");
-      cell = row.createCell(1);
-      cell.setCellValue("minAverageCreateStatementTimeMillis");
-      cell = row.createCell(2);
-      cell.setCellValue("maxAverageCreateStatementTimeMillis");
-      cell = row.createCell(3);
-      cell.setCellValue("avgCreateStatementTimeMillis");
-    }
-
-    @Override
-    public void writeData(Row row) {
-      Cell cell = row.createCell(0);
-      cell.setCellValue(this.pluginEnabled);
-      cell = row.createCell(1);
-      cell.setCellValue(this.minAverageCreateStatementTime);
-      cell = row.createCell(2);
-      cell.setCellValue(this.maxAverageCreateStatementTime);
-      cell = row.createCell(3);
-      cell.setCellValue(this.avgCreateStatementTime);
     }
   }
 }

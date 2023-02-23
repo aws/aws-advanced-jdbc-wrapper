@@ -29,20 +29,17 @@ import static org.junit.jupiter.api.Assertions.fail;
 import eu.rekawek.toxiproxy.Proxy;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 import software.amazon.jdbc.util.SqlState;
 
@@ -311,278 +308,6 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
     }
   }
 
-  @ParameterizedTest(name = "test_readerLoadBalancing_autocommitTrue")
-  @MethodSource("testParameters")
-  public void test_readerLoadBalancing_autocommitTrue(final Properties props) throws SQLException {
-    final String initialWriterId = instanceIDs[0];
-
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setReadOnly(true);
-      String readerId = queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerId);
-      assertTrue(isDBInstanceReader(readerId));
-
-      // Assert switch after each execute
-      String nextReaderId;
-      for (int i = 0; i < 5; i++) {
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-        assertTrue(isDBInstanceReader(readerId));
-        readerId = nextReaderId;
-      }
-
-      // Verify behavior for transactions started while autocommit is on (autocommit is implicitly disabled)
-      // Connection should not be switched while inside a transaction
-      for (int i = 0; i < 5; i++) {
-        final Statement stmt = conn.createStatement();
-        stmt.execute("  bEgiN ");
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        stmt.execute(" CommIT;");
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-    }
-  }
-
-  @ParameterizedTest(name = "test_readerLoadBalancing_autocommitFalse")
-  @MethodSource("testParameters")
-  public void test_readerLoadBalancing_autocommitFalse(final Properties props) throws SQLException {
-    final String initialWriterId = instanceIDs[0];
-
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX, AURORA_MYSQL_PORT, props)) {
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setAutoCommit(false);
-      conn.setReadOnly(true);
-
-      // Connection should not be switched while inside a transaction
-      String readerId;
-      String nextReaderId;
-
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        conn.commit();
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        final Statement stmt = conn.createStatement();
-        stmt.execute("commit");
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        conn.rollback();
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        final Statement stmt = conn.createStatement();
-        stmt.execute(" roLLback ; ");
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-    }
-  }
-
-  @ParameterizedTest(name = "test_readerLoadBalancing_switchAutoCommitInTransaction")
-  @MethodSource("testParameters")
-  public void test_readerLoadBalancing_switchAutoCommitInTransaction(final Properties props) throws SQLException {
-    final String initialWriterId = instanceIDs[0];
-
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setReadOnly(true);
-      String readerId;
-      String nextReaderId;
-
-      // Start transaction while autocommit is on (autocommit is implicitly disabled)
-      // Connection should not be switched while inside a transaction
-      Statement stmt = conn.createStatement();
-      stmt.execute("  StarT   TRanSACtion  REad onLy  ; ");
-      readerId = queryInstanceId(conn);
-      nextReaderId = queryInstanceId(conn);
-      assertEquals(readerId, nextReaderId);
-      conn.setAutoCommit(false); // Switch autocommit value while inside the transaction
-      nextReaderId = queryInstanceId(conn);
-      assertEquals(readerId, nextReaderId);
-      conn.commit();
-
-      assertFalse(conn.getAutoCommit());
-      nextReaderId = queryInstanceId(conn);
-      assertNotEquals(readerId, nextReaderId); // Connection should have switched after committing
-
-      readerId = nextReaderId;
-      nextReaderId = queryInstanceId(conn);
-      // Since autocommit is now off, we should be in a transaction; connection should not be switching
-      assertEquals(readerId, nextReaderId);
-      final ReadWriteSplittingSQLException e =
-          assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(false));
-      assertEquals(SqlState.ACTIVE_SQL_TRANSACTION.getState(), e.getSQLState());
-
-      conn.setAutoCommit(true); // Switch autocommit value while inside the transaction
-      stmt = conn.createStatement();
-      stmt.execute("commit");
-
-      assertTrue(conn.getAutoCommit());
-      readerId = queryInstanceId(conn);
-
-      // Autocommit is now on; connection should switch after each execute
-      for (int i = 0; i < 5; i++) {
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-        readerId = nextReaderId;
-      }
-    }
-  }
-
-  @ParameterizedTest(name = "test_readerLoadBalancing_remainingStateTransitions")
-  @MethodSource("testParameters")
-  public void test_readerLoadBalancing_remainingStateTransitions(final Properties props) throws SQLException {
-    // Main functionality has been tested in the other tests
-    // This test executes state transitions not covered by other tests to verify no unexpected errors are thrown
-    final String initialWriterId = instanceIDs[0];
-
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setReadOnly(true);
-      conn.setReadOnly(false);
-      conn.setReadOnly(true);
-      conn.setAutoCommit(false);
-      conn.setAutoCommit(true);
-      Statement stmt = conn.createStatement();
-      stmt.execute("commit");
-      stmt = conn.createStatement();
-      stmt.execute("commit");
-      stmt = conn.createStatement();
-      stmt.execute("begin");
-      stmt.execute("commit");
-      conn.setAutoCommit(false);
-      conn.commit();
-      conn.commit();
-      stmt = conn.createStatement();
-      stmt.execute("begin");
-      stmt.execute("SELECT 1");
-      conn.commit();
-      conn.setReadOnly(false);
-      conn.setReadOnly(true);
-      conn.setReadOnly(false);
-      conn.setAutoCommit(true);
-      conn.setReadOnly(false);
-      stmt = conn.createStatement();
-      stmt.execute("commit");
-      conn.setReadOnly(false);
-      conn.setReadOnly(true);
-      conn.setAutoCommit(false);
-      conn.commit();
-      conn.setAutoCommit(true);
-    }
-  }
-
-  @ParameterizedTest(name = "test_readerLoadBalancing_lostConnectivity")
-  @MethodSource("proxiedTestParameters")
-  public void test_readerLoadBalancing_lostConnectivity(final Properties props) throws SQLException, IOException {
-    final String initialWriterId = instanceIDs[0];
-
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, props)) {
-      conn.setReadOnly(true);
-      final Statement stmt1 = conn.createStatement();
-      // autocommit on transaction (autocommit implicitly disabled)
-      stmt1.execute("BEGIN");
-      final String readerId = queryInstanceId(conn);
-
-      final Proxy proxyInstance = proxyMap.get(readerId);
-      if (proxyInstance != null) {
-        containerHelper.disableConnectivity(proxyInstance);
-      } else {
-        fail(String.format("%s does not have a proxy setup.", readerId));
-      }
-
-      final SQLException e = assertThrows(SQLException.class, () -> queryInstanceId(conn));
-      containerHelper.enableConnectivity(proxyInstance);
-
-      if (pluginChainIncludesFailoverPlugin(props)) {
-        assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
-      } else {
-        assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
-      }
-
-      if (pluginChainIncludesFailoverPlugin(props)) {
-        final Statement stmt2 = conn.createStatement();
-        stmt2.execute("SELECT 1");
-        final ResultSet rs = stmt2.getResultSet();
-        rs.next();
-        assertEquals(1, rs.getInt(1));
-      }
-    }
-
-    // autocommit off transaction
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, props)) {
-      conn.setReadOnly(true);
-      conn.setAutoCommit(false);
-      final String readerId = queryInstanceId(conn);
-      final Statement stmt1 = conn.createStatement();
-
-      final Proxy proxyInstance = proxyMap.get(readerId);
-      if (proxyInstance != null) {
-        containerHelper.disableConnectivity(proxyInstance);
-      } else {
-        fail(String.format("%s does not have a proxy setup.", readerId));
-      }
-
-      final SQLException e = assertThrows(SQLException.class, () -> stmt1.execute("SELECT 1"));
-      containerHelper.enableConnectivity(proxyInstance);
-
-      if (pluginChainIncludesFailoverPlugin(props)) {
-        assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), e.getSQLState());
-      } else {
-        assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
-        return;
-      }
-
-      final Statement stmt2 = conn.createStatement();
-      stmt2.execute("SELECT 1");
-      final ResultSet rs = stmt2.getResultSet();
-      rs.next();
-      assertEquals(1, rs.getInt(1));
-    }
-  }
-
   @ParameterizedTest(name = "test_setReadOnlyTrue_allReadersDown")
   @MethodSource("proxiedTestParameters")
   public void test_setReadOnlyTrue_allReadersDown(final Properties props) throws SQLException, IOException {
@@ -673,36 +398,6 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
       final ReadWriteSplittingSQLException exception =
           assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(false));
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
-    }
-  }
-
-  @ParameterizedTest(name = "test_executeWithOldConnection")
-  @MethodSource("testParameters")
-  public void test_executeWithOldConnection(final Properties props) throws SQLException {
-    final String writerId = instanceIDs[0];
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    try (final Connection conn = connectToInstance(MYSQL_CLUSTER_URL, AURORA_MYSQL_PORT, props)) {
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(writerId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      final Statement oldStmt = conn.createStatement();
-      final ResultSet oldRs = oldStmt.executeQuery("SELECT 1");
-      conn.setReadOnly(true); // Connection is switched internally
-      conn.setAutoCommit(false);
-
-      assertThrows(SQLException.class, () -> oldStmt.execute("SELECT 1"));
-      assertThrows(SQLException.class, () -> oldRs.getInt(1));
-
-      final String readerId = queryInstanceId(conn);
-      assertNotEquals(writerId, readerId);
-      assertTrue(isDBInstanceReader(readerId));
-
-      assertDoesNotThrow(oldStmt::close);
-      assertDoesNotThrow(oldRs::close);
-
-      final String sameReaderId = queryInstanceId(conn);
-      assertEquals(readerId, sameReaderId);
     }
   }
 
@@ -880,47 +575,6 @@ public class AuroraMysqlReadWriteSplittingTest extends MariadbAuroraMysqlBaseTes
       currentConnectionId = queryInstanceId(conn);
       assertNotEquals(initialWriterId, currentConnectionId);
       assertTrue(isDBInstanceReader(currentConnectionId));
-    }
-  }
-
-  @Test
-  public void test_transactionResolutionUnknown_readWriteSplittingPluginOnly() throws SQLException, IOException {
-    final String initialWriterId = instanceIDs[0];
-
-    final Properties props = getProxiedProps_readWritePlugin();
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    try (final Connection conn = connectToInstance(initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX,
-        MYSQL_PROXY_PORT, props)) {
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setReadOnly(true);
-      conn.setAutoCommit(false);
-      final String readerId = queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerId);
-      assertTrue(isDBInstanceReader(readerId));
-
-      final Statement stmt = conn.createStatement();
-      stmt.executeQuery("SELECT * FROM information_schema.tables");
-      final Proxy proxyInstance = proxyMap.get(readerId);
-      if (proxyInstance != null) {
-        containerHelper.disableConnectivity(proxyInstance);
-      } else {
-        fail(String.format("%s does not have a proxy setup.", readerId));
-      }
-
-      final SQLException e = assertThrows(SQLException.class, conn::rollback);
-      assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
-
-      try (final Connection newConn = connectToInstance(
-          initialWriterId + DB_CONN_STR_SUFFIX + PROXIED_DOMAIN_NAME_SUFFIX, MYSQL_PROXY_PORT, props)) {
-        newConn.setReadOnly(true);
-        final Statement newStmt = newConn.createStatement();
-        final ResultSet rs = newStmt.executeQuery("SELECT 1");
-        rs.next();
-        assertEquals(1, rs.getInt(1));
-      }
     }
   }
 

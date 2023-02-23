@@ -34,19 +34,11 @@ import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.SqlState;
 
 public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBaseTest {
 
   private final Properties defaultProps = getProps_readWritePlugin();
-  private final Properties propsWithLoadBalance;
-
-  StandardMysqlReadWriteSplittingTest() {
-    final Properties props = getProps_readWritePlugin();
-    ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.set(props, "true");
-    this.propsWithLoadBalance = props;
-  }
 
   private Properties getProps_readWritePlugin() {
     final Properties props = initDefaultProps();
@@ -280,90 +272,6 @@ public class StandardMysqlReadWriteSplittingTest extends MariadbStandardMysqlBas
 
       final SQLException exception = assertThrows(SQLException.class, () -> conn.setReadOnly(false));
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
-    }
-  }
-
-  @Test
-  public void test_readerLoadBalancing_autocommitTrue() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), propsWithLoadBalance)) {
-      final String writerConnectionId = queryInstanceId(conn);
-
-      conn.setReadOnly(true);
-      String readerConnectionId = queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerConnectionId);
-
-      for (int i = 0; i < 10; i++) {
-        final Statement stmt = conn.createStatement();
-        stmt.executeQuery("SELECT " + i);
-        readerConnectionId = queryInstanceId(conn);
-        assertNotEquals(writerConnectionId, readerConnectionId);
-
-        final ResultSet rs = stmt.getResultSet();
-        rs.next();
-        assertEquals(i, rs.getInt(1));
-      }
-    }
-  }
-
-  @Test
-  public void test_readerLoadBalancing_autocommitFalse() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getUrlMariadbDriver(), propsWithLoadBalance)) {
-      final String writerConnectionId = queryInstanceId(conn);
-
-      conn.setReadOnly(true);
-      String readerConnectionId = queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerConnectionId);
-
-      conn.setAutoCommit(false);
-      final Statement stmt = conn.createStatement();
-
-      for (int i = 0; i < 5; i++) {
-        stmt.executeQuery("SELECT " + i);
-        conn.commit();
-        readerConnectionId = queryInstanceId(conn);
-        assertNotEquals(writerConnectionId, readerConnectionId);
-
-        final ResultSet rs = stmt.getResultSet();
-        rs.next();
-        assertEquals(i, rs.getInt(1));
-
-        stmt.executeQuery("SELECT " + i);
-        conn.rollback();
-        readerConnectionId = queryInstanceId(conn);
-        assertNotEquals(writerConnectionId, readerConnectionId);
-      }
-    }
-  }
-
-  @Test
-  public void test_transactionResolutionUnknown() throws SQLException, IOException {
-    try (final Connection conn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), propsWithLoadBalance)) {
-      final String writerConnectionId = queryInstanceId(conn);
-
-      conn.setReadOnly(true);
-      conn.setAutoCommit(false);
-      final String readerId = queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerId);
-
-      final Statement stmt = conn.createStatement();
-      stmt.execute("SELECT * from information_schema.tables");
-      final Proxy proxyInstance = proxyMap.get(instanceIDs[1]);
-      if (proxyInstance != null) {
-        containerHelper.disableConnectivity(proxyInstance);
-      } else {
-        fail(String.format("%s does not have a proxy setup.", readerId));
-      }
-
-      final SQLException e = assertThrows(SQLException.class, conn::rollback);
-      assertEquals(SqlState.CONNECTION_EXCEPTION.getState(), e.getSQLState());
-
-      try (final Connection newConn = DriverManager.getConnection(getProxiedUrlMariadbDriver(), propsWithLoadBalance)) {
-        newConn.setReadOnly(true);
-        final Statement newStmt = newConn.createStatement();
-        final ResultSet rs = newStmt.executeQuery("SELECT 1");
-        rs.next();
-        assertEquals(1, rs.getInt(1));
-      }
     }
   }
 }
