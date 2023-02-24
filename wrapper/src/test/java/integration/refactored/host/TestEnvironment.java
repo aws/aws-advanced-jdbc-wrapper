@@ -535,7 +535,7 @@ public class TestEnvironment implements AutoCloseable {
   private static void createTestContainer(TestEnvironment env) {
     final ContainerHelper containerHelper = new ContainerHelper();
 
-    if (!env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.SKIP_HIBERNATE_TESTS)) {
+    if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
       env.testContainer =
           containerHelper.createTestContainer(
                   "aws/rds-test-container",
@@ -582,7 +582,7 @@ public class TestEnvironment implements AutoCloseable {
 
   private static String getContainerBaseImageName(TestEnvironmentRequest request) {
     switch (request.getTargetJvm()) {
-      case OPENJDK:
+      case OPENJDK8:
         return "openjdk:8-jdk-alpine";
       case OPENJDK11:
         return "adoptopenjdk/openjdk11:alpine";
@@ -649,15 +649,16 @@ public class TestEnvironment implements AutoCloseable {
 
   public void runTests(String taskName) throws IOException, InterruptedException {
     final ContainerHelper containerHelper = new ContainerHelper();
-    // containerHelper.runTest(this.testContainer, taskName);
 
-    if (!this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.SKIP_HIBERNATE_TESTS)) {
+    if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
       final Long exitCode = containerHelper.runCmdInDirectory(
           this.testContainer,
           "/app/hibernate-orm",
           buildHibernateCommands(false));
       containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
       assertEquals(0, exitCode, "failed to run Hibernate ORM tests");
+    } else {
+      containerHelper.runTest(this.testContainer, taskName);
     }
   }
 
@@ -665,13 +666,15 @@ public class TestEnvironment implements AutoCloseable {
     final ContainerHelper containerHelper = new ContainerHelper();
     containerHelper.debugTest(this.testContainer, taskName);
 
-    if (!this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.SKIP_HIBERNATE_TESTS)) {
+    if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
       final Long exitCode = containerHelper.runCmdInDirectory(
           this.testContainer,
           "/app/hibernate-orm",
           buildHibernateCommands(true));
       containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
       assertEquals(0, exitCode, "failed to debug Hibernate ORM tests");
+    } else {
+      containerHelper.runTest(this.testContainer, taskName);
     }
   }
 

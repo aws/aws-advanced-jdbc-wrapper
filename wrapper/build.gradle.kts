@@ -273,6 +273,18 @@ tasks.register<Test>("test-all-docker") {
     }
 }
 
+tasks.register<Test>("test-hibernate-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-hibernate-only", "true")
+    }
+}
+
 tasks.register<Test>("test-all-aurora") {
     group = "verification"
     filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
@@ -331,6 +343,18 @@ tasks.register<Test>("debug-all-aurora") {
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
+    }
+}
+
+tasks.register<Test>("debug-hibernate-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-hibernate-only", "true")
     }
 }
 
