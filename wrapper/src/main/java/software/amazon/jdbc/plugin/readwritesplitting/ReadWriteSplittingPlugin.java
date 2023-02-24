@@ -514,8 +514,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noReadersFound"));
     }
 
-    Collections.shuffle(readerHosts);
-    return readerHosts.get(0);
+    int randomReaderIndex = (int) (Math.random() * readerHosts.size());
+    return readerHosts.get(randomReaderIndex);
   }
 
   private boolean isConnectionUsable(final Connection connection) throws SQLException {
