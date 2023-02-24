@@ -17,14 +17,13 @@
 package software.amazon;
 
 import com.zaxxer.hikari.HikariDataSource;
-import software.amazon.jdbc.PropertyDefinition;
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
 public class ReadWriteSplittingSpringJdbcTemplateExample {
 
@@ -45,8 +44,7 @@ public class ReadWriteSplittingSpringJdbcTemplateExample {
   }
 
   private static void scenario1() {
-    // Given readonly not set and using simple PostrgeSQL DataSource implementation
-    // Expect no reader instance load balancing
+    // Simple PostrgeSQL DataSource implementation - readOnly not set
     DataSource dataSource = getSimplePostgresDataSource();
     JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     for (int i = 0; i < QUERY_LOOP_NUM; i++) {
@@ -55,8 +53,7 @@ public class ReadWriteSplittingSpringJdbcTemplateExample {
   }
 
   private static void scenario2() throws SQLException {
-    // Given readonly set and using simple PostrgeSQL DataSource implementation
-    // Expect no reader instance load balancing
+    // Simple PostrgeSQL DataSource implementation - setReadOnly(true)
     DataSource dataSource = getSimplePostgresDataSource();
     JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     try (Connection conn = dataSource.getConnection()) {
@@ -68,8 +65,7 @@ public class ReadWriteSplittingSpringJdbcTemplateExample {
   }
 
   private static void scenario3() throws SQLException {
-    // Given readonly set and using Hikari PostrgeSQL DataSource for connection pooling
-    // Expect no reader instance load balancing
+    // Hikari PostgreSQL DataSource for connection pooling - setReadOnly(true)
     DataSource dataSource = getHikariCPDataSource();
     JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     try (Connection conn = dataSource.getConnection()) {
@@ -92,8 +88,6 @@ public class ReadWriteSplittingSpringJdbcTemplateExample {
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
-    targetDataSourceProps.setProperty(
-        ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
     targetDataSourceProps.setProperty("serverName", DATABASE_URL);
     targetDataSourceProps.setProperty("databaseName", DATABASE_NAME);
     targetDataSourceProps.setProperty("port", "5432");
@@ -128,8 +122,6 @@ public class ReadWriteSplittingSpringJdbcTemplateExample {
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name,
         "readWriteSplitting,failover,efm");
-    targetDataSourceProps.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name,
-        "true");
     targetDataSourceProps.setProperty("serverName", DATABASE_URL);
     targetDataSourceProps.setProperty("databaseName", DATABASE_NAME);
     targetDataSourceProps.setProperty("port", "5432");
