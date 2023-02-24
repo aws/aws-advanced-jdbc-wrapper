@@ -120,7 +120,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     final Region region = Region.of(regionString);
     if (!Region.regions().contains(region)) {
       throw new RuntimeException(Messages.get(
-          "AwsSecretsManagerConnectionPlugin.unsupportedRegion",
+          "AwsSdk.unsupportedRegion",
           new Object[] {regionString}));
     }
     this.secretKey = Pair.of(secretId, region);
