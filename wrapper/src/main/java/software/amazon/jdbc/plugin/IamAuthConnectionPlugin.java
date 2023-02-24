@@ -202,7 +202,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     if (!regionOptional.isPresent()) {
       final String exceptionMessage = Messages.get(
-          "IamAuthConnectionPlugin.unsupportedRegion",
+          "AwsSdk.unsupportedRegion",
           new Object[] {rdsRegion});
 
       LOGGER.fine(() -> exceptionMessage);

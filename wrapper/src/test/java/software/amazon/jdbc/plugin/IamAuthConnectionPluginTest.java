@@ -23,6 +23,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -152,6 +155,16 @@ class IamAuthConnectionPluginTest {
         PG_DRIVER_PROTOCOL,
         new HostSpec("8.8.8.8"),
         "pg.testdb.us-east-2.rds.amazonaws.com");
+  }
+
+  @Test
+  public void testAwsSupportedRegionsUrlExists() throws IOException {
+    final URL url =
+        new URL("https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html");
+    final HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+    final int responseCode = urlConnection.getResponseCode();
+
+    assertEquals(HttpURLConnection.HTTP_OK, responseCode);
   }
 
   public void testTokenSetInProps(final String protocol, final HostSpec hostSpec) throws SQLException {
