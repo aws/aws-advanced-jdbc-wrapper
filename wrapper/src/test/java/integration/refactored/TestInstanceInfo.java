@@ -16,6 +16,10 @@
 
 package integration.refactored;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+// Annotation is required to avoid an error when trying to serialize the getUrl method
+@JsonIgnoreProperties(ignoreUnknown=true)
 public class TestInstanceInfo {
 
   private String instanceId; // "instance-1"

@@ -46,13 +46,13 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.util.SqlState;
 
@@ -64,21 +64,21 @@ import software.amazon.jdbc.util.SqlState;
 public class ReadWriteSplittingTests {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
-  private Properties defaultProps;
 
-  /**
-   * Properties indirectly depends on a test driver since some properties are driver dependent (for
-   * example, socket timeout). That's why properties needs to be initialized before each test run.
-   */
-  @BeforeEach
-  public void beforeEach() {
-    this.defaultProps = getDefaultPropsNoPlugins();
+  protected static Properties getProps() {
+    return TestEnvironment.isAwsDatabase() ? getAuroraProps() : getNonAuroraProps();
+  }
+
+  protected static Properties getProxiedProps() {
     if (TestEnvironment.isAwsDatabase()) {
-      PropertyDefinition.PLUGINS.set(this.defaultProps, "auroraHostList,readWriteSplitting");
+      Properties props = getAuroraProps();
+      AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+          "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+              .getInstanceEndpointSuffix());
+      return props;
     } else {
-      PropertyDefinition.PLUGINS.set(this.defaultProps, "readWriteSplitting");
-      ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(this.defaultProps,
-          "true");
+      // No extra properties needed
+      return getNonAuroraProps();
     }
   }
 
@@ -86,6 +86,20 @@ public class ReadWriteSplittingTests {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
     DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
+    return props;
+  }
+
+  protected static Properties getAuroraProps() {
+    final Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "auroraHostList,readWriteSplitting");
+    return props;
+  }
+
+  protected static Properties getNonAuroraProps() {
+    final Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
+    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props,
+        "true");
     return props;
   }
 
@@ -128,16 +142,12 @@ public class ReadWriteSplittingTests {
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_connectToWriter_setReadOnlyTrueTrueFalseFalseTrue() throws SQLException {
-    final String url = getUrl();
-    LOGGER.finest("Connecting to url " + url);
-    try (final Connection conn = DriverManager.getConnection(url, this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
-      LOGGER.finest("writerConnectionId: " + writerConnectionId);
 
       conn.setReadOnly(true);
       final String readerConnectionId = queryInstanceId(conn);
-      LOGGER.finest("readerConnectionId: " + readerConnectionId);
       assertNotEquals(writerConnectionId, readerConnectionId);
 
       conn.setReadOnly(true);
@@ -162,7 +172,7 @@ public class ReadWriteSplittingTests {
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_setReadOnlyFalseInReadOnlyTransaction() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getUrl(), this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
 
@@ -192,7 +202,7 @@ public class ReadWriteSplittingTests {
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_setReadOnlyFalseInTransaction_setAutocommitFalse() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getUrl(), this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
 
@@ -225,7 +235,7 @@ public class ReadWriteSplittingTests {
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_setReadOnlyFalseInTransaction_setAutocommitZero() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getUrl(), this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
 
@@ -258,12 +268,9 @@ public class ReadWriteSplittingTests {
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_setReadOnlyTrueInTransaction() throws SQLException {
-    String url = getUrl();
-    LOGGER.info("Connecting to " + url);
-    try (final Connection conn = DriverManager.getConnection(url, this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
-      LOGGER.info("writerConnectionId: " + writerConnectionId);
 
       final Statement stmt1 = conn.createStatement();
       stmt1.executeUpdate("DROP TABLE IF EXISTS test_readWriteSplitting_readOnlyTrueInTransaction");
@@ -299,7 +306,7 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnlyTrue_allReadersDown() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
 
@@ -330,7 +337,7 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnly_closedConnection() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
       conn.close();
 
       final SQLException exception = assertThrows(SQLException.class, () -> conn.setReadOnly(true));
@@ -343,7 +350,7 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnlyFalse_allInstancesDown() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
+    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
 
       final String writerConnectionId = queryInstanceId(conn);
 
