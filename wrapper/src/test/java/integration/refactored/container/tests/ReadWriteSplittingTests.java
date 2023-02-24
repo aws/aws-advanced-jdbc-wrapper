@@ -64,7 +64,6 @@ import software.amazon.jdbc.util.SqlState;
 public class ReadWriteSplittingTests {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
-
   private Properties defaultProps;
 
   /**
@@ -73,13 +72,18 @@ public class ReadWriteSplittingTests {
    */
   @BeforeEach
   public void beforeEach() {
-    this.defaultProps = getPropertiesWithReadWritePlugin();
+    this.defaultProps = getDefaultPropsNoPlugins();
+    if (TestEnvironment.isAwsDatabase()) {
+      PropertyDefinition.PLUGINS.set(this.defaultProps, "auroraHostList,readWriteSplitting");
+    } else {
+      PropertyDefinition.PLUGINS.set(this.defaultProps, "readWriteSplitting");
+      ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(this.defaultProps,
+          "true");
+    }
   }
 
-  protected static Properties getPropertiesWithReadWritePlugin() {
+  protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
-    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props, "true");
     DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
     DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
     return props;
@@ -93,70 +97,30 @@ public class ReadWriteSplittingTests {
   }
 
   protected String getUrl() {
-    return DriverHelper.getWrapperDriverProtocol()
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getEndpoint()
-        + ":"
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getEndpointPort()
-        + ","
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(1)
-        .getEndpoint()
-        + ":"
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(1)
-        .getEndpointPort()
-        + "/"
-        + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-        + DriverHelper.getDriverRequiredParameters();
+    if (TestEnvironment.isAwsDatabase()) {
+      return ConnectionStringHelper.getWrapperUrl();
+    } else {
+      List<TestInstanceInfo> instances =
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+      return getCommaDelimitedHostUrl(instances);
+    }
   }
 
   protected String getProxiedUrl() {
+    if (TestEnvironment.isAwsDatabase()) {
+      return ConnectionStringHelper.getProxyWrapperUrl();
+    } else {
+      List<TestInstanceInfo> instances =
+          TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+      return getCommaDelimitedHostUrl(instances);
+    }
+  }
+
+  private String getCommaDelimitedHostUrl(List<TestInstanceInfo> instances) {
     return DriverHelper.getWrapperDriverProtocol()
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getProxyDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getEndpoint()
-        + ":"
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getProxyDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getEndpointPort()
-        + ","
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getProxyDatabaseInfo()
-        .getInstances()
-        .get(1)
-        .getEndpoint()
-        + ":"
-        + TestEnvironment.getCurrent()
-        .getInfo()
-        .getProxyDatabaseInfo()
-        .getInstances()
-        .get(1)
-        .getEndpointPort()
-        + "/"
-        + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()
+        + instances.get(0).getUrl() + ","
+        + instances.get(1).getUrl() + "/"
+        + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
         + DriverHelper.getDriverRequiredParameters();
   }
 
@@ -393,6 +357,32 @@ public class ReadWriteSplittingTests {
       final SQLException exception =
           assertThrows(SQLException.class, () -> conn.setReadOnly(false));
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
+    }
+  }
+
+  @TestTemplate
+  // Tests use Aurora specific SQL to identify instance name
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_setReadOnlyTrue_oneHost() throws SQLException {
+    // Use static host list with only one host
+    Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
+    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props, "true");
+
+    String writerUrl =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getUrl();
+    String url = DriverHelper.getWrapperDriverProtocol()
+        + writerUrl + "/"
+        + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
+        + DriverHelper.getDriverRequiredParameters();
+
+    try (final Connection conn = DriverManager.getConnection(url, props)) {
+      final String writerConnectionId = queryInstanceId(conn);
+
+      conn.setReadOnly(true);
+      final String currentConnectionId = queryInstanceId(conn);
+      assertEquals(writerConnectionId, currentConnectionId);
     }
   }
 }

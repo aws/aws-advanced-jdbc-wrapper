@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.AnyOf.anyOf;
 import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -181,7 +182,7 @@ public class ReadWriteSplittingPluginTest {
     verify(mockPluginService, times(0))
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertEquals(mockReaderConn1, plugin.getReaderConnection());
-    Assertions.assertNull(plugin.getWriterConnection());
+    assertNull(plugin.getWriterConnection());
   }
 
   @Test
@@ -201,7 +202,7 @@ public class ReadWriteSplittingPluginTest {
     verify(mockPluginService, times(0))
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertEquals(mockWriterConn, plugin.getWriterConnection());
-    Assertions.assertNull(plugin.getReaderConnection());
+    assertNull(plugin.getReaderConnection());
   }
 
   @Test
@@ -264,7 +265,7 @@ public class ReadWriteSplittingPluginTest {
     verify(mockPluginService, times(0))
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
     assertEquals(mockWriterConn, plugin.getWriterConnection());
-    assertEquals(mockWriterConn, plugin.getReaderConnection());
+    assertNull(plugin.getReaderConnection());
   }
 
   @Test
@@ -308,7 +309,7 @@ public class ReadWriteSplittingPluginTest {
 
     verify(mockPluginService, times(0))
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
-    assertEquals(mockWriterConn, plugin.getReaderConnection());
+    assertNull(plugin.getReaderConnection());
   }
 
   @Test
@@ -327,7 +328,7 @@ public class ReadWriteSplittingPluginTest {
     assertEquals(SqlState.CONNECTION_NOT_OPEN.getState(), e.getSQLState());
     verify(mockPluginService, times(0))
         .setCurrentConnection(any(Connection.class), any(HostSpec.class));
-    Assertions.assertNull(plugin.getReaderConnection());
+    assertNull(plugin.getReaderConnection());
   }
 
   @Test

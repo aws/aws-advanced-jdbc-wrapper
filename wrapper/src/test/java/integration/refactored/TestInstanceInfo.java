@@ -39,6 +39,8 @@ public class TestInstanceInfo {
     return this.endpoint;
   }
 
+  public String getUrl() { return getEndpoint() + ":" + getEndpointPort();}
+
   public int getEndpointPort() {
     return this.endpointPort;
   }
