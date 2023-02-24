@@ -109,20 +109,6 @@ class SqlMethodAnalyzerTest {
   }
 
   @ParameterizedTest
-  @MethodSource("isExecuteDmlQueries")
-  void testIsExecuteDml(final String methodName, final String sql, final boolean expected) {
-    final Object[] args;
-    if (sql != null) {
-      args = new Object[] {sql};
-    } else {
-      args = new Object[] {};
-    }
-
-    final boolean actual = sqlMethodAnalyzer.isExecuteDml(methodName, args);
-    assertEquals(expected, actual);
-  }
-
-  @ParameterizedTest
   @MethodSource("isSettingAutoCommitQueries")
   void testIsStatementSettingAutoCommit(final String methodName, final String sql,
       final boolean expected) {
@@ -194,20 +180,6 @@ class SqlMethodAnalyzerTest {
         Arguments.of("Connection.rollback", null, true),
         Arguments.of("Connection.close", null, true),
         Arguments.of("Connection.abort", null, true)
-    );
-  }
-
-  private static Stream<Arguments> isExecuteDmlQueries() {
-    return Stream.of(
-        Arguments.of("Connection.commit", null, false),
-        Arguments.of("Statement.execute", " START  TRANSACTION   READ  ONLY", false),
-        Arguments.of("Statement.execute", " begin ; ", false),
-        Arguments.of("Statement.execute", " rollback ; ", false),
-        Arguments.of("Statement.execute", "   SET autocommit = 0 ; ", false),
-        Arguments.of("Statement.execute", "   SHOW DATABASES ; ", false),
-        Arguments.of("Statement.execute", "   USE mydatabase ; ", false),
-        Arguments.of("Statement.executeQuery", "   SELECT 1; ", true),
-        Arguments.of("Statement.executeUpdate", "INSERT INTO test_table VALUES (1)", true)
     );
   }
 

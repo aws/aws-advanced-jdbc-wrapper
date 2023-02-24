@@ -18,7 +18,6 @@ package integration.container.aurora.mysql.mariadbdriver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
-import java.sql.Statement;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
@@ -50,7 +48,6 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -224,161 +221,6 @@ public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
     }
   }
 
-  @ParameterizedTest(name = "test_3_1_readerLoadBalancing_autocommitTrue")
-  @MethodSource("testParameters")
-  public void test_3_1_readerLoadBalancing_autocommitTrue(final Properties customProps) throws SQLException {
-    createDataSourceWithReaderLoadBalancing(customProps);
-    final String initialWriterId = instanceIDs[0];
-
-    try (final Connection conn = dataSource.getConnection()) {
-      conn.setReadOnly(false);
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setReadOnly(true);
-      String readerId = queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerId);
-      assertTrue(isDBInstanceReader(readerId));
-
-      // Assert switch after each execute
-      String nextReaderId;
-      for (int i = 0; i < 5; i++) {
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-        assertTrue(isDBInstanceReader(readerId));
-        readerId = nextReaderId;
-      }
-
-      // Verify behavior for transactions started while autocommit is on (autocommit is implicitly disabled)
-      // Connection should not be switched while inside a transaction
-      for (int i = 0; i < 5; i++) {
-        final Statement stmt = conn.createStatement();
-        stmt.execute("  bEgiN ");
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        stmt.execute(" CommIT;");
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-    }
-  }
-
-
-  @ParameterizedTest(name = "test_3_2_readerLoadBalancing_autocommitFalse")
-  @MethodSource("testParameters")
-  public void test_3_2_readerLoadBalancing_autocommitFalse(final Properties customProps) throws SQLException {
-    createDataSourceWithReaderLoadBalancing(customProps);
-    final String initialWriterId = instanceIDs[0];
-
-    try (final Connection conn = dataSource.getConnection()) {
-      conn.setReadOnly(false);
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setAutoCommit(false);
-      conn.setReadOnly(true);
-
-      // Connection should not be switched while inside a transaction
-      String readerId;
-      String nextReaderId;
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        conn.commit();
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        final Statement stmt = conn.createStatement();
-        stmt.execute("commit");
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        conn.rollback();
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-
-      for (int i = 0; i < 5; i++) {
-        readerId = queryInstanceId(conn);
-        nextReaderId = queryInstanceId(conn);
-        assertEquals(readerId, nextReaderId);
-        final Statement stmt = conn.createStatement();
-        stmt.execute(" roLLback ; ");
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-      }
-    }
-  }
-
-  @ParameterizedTest(name = "test_3_3_readerLoadBalancing_switchAutoCommitInTransaction")
-  @MethodSource("testParameters")
-  public void test_3_3_readerLoadBalancing_switchAutoCommitInTransaction(final Properties customProps)
-      throws SQLException {
-    createDataSourceWithReaderLoadBalancing(customProps);
-    final String initialWriterId = instanceIDs[0];
-
-    try (final Connection conn = dataSource.getConnection()) {
-      conn.setReadOnly(false);
-      final String writerConnectionId = queryInstanceId(conn);
-      assertEquals(initialWriterId, writerConnectionId);
-      assertTrue(isDBInstanceWriter(writerConnectionId));
-
-      conn.setReadOnly(true);
-      String readerId;
-      String nextReaderId;
-
-      // Start transaction while autocommit is on (autocommit is implicitly disabled)
-      // Connection should not be switched while inside a transaction
-      Statement stmt = conn.createStatement();
-      stmt.execute("  StarT   TRanSACtion  REad onLy  ; ");
-      readerId = queryInstanceId(conn);
-      nextReaderId = queryInstanceId(conn);
-      assertEquals(readerId, nextReaderId);
-      conn.setAutoCommit(false); // Switch autocommit value while inside the transaction
-      nextReaderId = queryInstanceId(conn);
-      assertEquals(readerId, nextReaderId);
-      conn.commit();
-
-      assertFalse(conn.getAutoCommit());
-      nextReaderId = queryInstanceId(conn);
-      assertNotEquals(readerId, nextReaderId); // Connection should have switched after committing
-
-      readerId = nextReaderId;
-      nextReaderId = queryInstanceId(conn);
-      // Since autocommit is now off, we should be in a transaction; connection should not be switching
-      assertEquals(readerId, nextReaderId);
-      assertThrows(SQLException.class, () -> conn.setReadOnly(false));
-
-      conn.setAutoCommit(true); // Switch autocommit value while inside the transaction
-      stmt = conn.createStatement();
-      stmt.execute("commit");
-
-      assertTrue(conn.getAutoCommit());
-      readerId = queryInstanceId(conn);
-
-      // Autocommit is now on; connection should switch after each execute
-      for (int i = 0; i < 5; i++) {
-        nextReaderId = queryInstanceId(conn);
-        assertNotEquals(readerId, nextReaderId);
-        readerId = nextReaderId;
-      }
-    }
-  }
-
   private void putDownInstance(final String targetInstance) {
     final Proxy toPutDown = proxyMap.get(targetInstance);
     disableInstanceConnection(toPutDown);
@@ -464,11 +306,6 @@ public class HikariCPReadWriteSplittingTest extends MariadbAuroraMysqlBaseTest {
     logger.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
     logger.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
     logger.fine("Starting total connections: " + hikariPoolMXBean.getTotalConnections());
-  }
-
-  private void createDataSourceWithReaderLoadBalancing(final Properties customProps) {
-    customProps.setProperty(ReadWriteSplittingPlugin.LOAD_BALANCE_READ_ONLY_TRAFFIC.name, "true");
-    createDataSource(customProps);
   }
 
   private boolean pluginChainIncludesFailoverPlugin(final Properties customProps) {
