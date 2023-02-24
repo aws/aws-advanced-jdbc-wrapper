@@ -360,21 +360,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @Disabled // TODO: fix me
-  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_setReadOnlyTrue_allInstancesDown() throws SQLException {
-    try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
-
-      ProxyHelper.disableAllConnectivity();
-
-      final SQLException exception = assertThrows(SQLException.class, () -> conn.setReadOnly(true));
-      // A SQL statement setting the read-only status is sent to server.
-      // Since the server is down, a SQLException is thrown.
-      assertEquals(SqlState.COMMUNICATION_ERROR.getState(), exception.getSQLState());
-    }
-  }
-
-  @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnly_closedConnection() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), this.defaultProps)) {
