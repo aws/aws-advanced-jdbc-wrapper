@@ -507,11 +507,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       try {
         conn = this.pluginService.connect(host, this.properties);
         readerHost = host;
-        LOGGER.finest(
-            () -> Messages.get(
-                "ReadWriteSplittingPlugin.successfullyConnectedToReader",
-                new Object[] {
-                    host.getUrl()}));
         break;
       } catch (final SQLException e) {
         LOGGER.config(
@@ -528,6 +523,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
+    HostSpec finalReaderHost = readerHost;
+    LOGGER.finest(
+        () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
+            new Object[] {finalReaderHost.getUrl()}));
     setReaderConnection(conn, readerHost);
     switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
   }
