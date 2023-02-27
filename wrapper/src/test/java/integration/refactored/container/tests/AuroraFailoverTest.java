@@ -502,7 +502,7 @@ public class AuroraFailoverTest {
         createDataSourceConnectionWithFailoverUsingInstanceId(
             initialWriterInstanceInfo.getEndpoint())) {
 
-      // Crash writer Instance1 and nominate Instance2 as the new writer
+      // Trigger failover
       auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
           initialWriterInstanceInfo.getInstanceId(), nominatedWriterId);
 
@@ -512,7 +512,10 @@ public class AuroraFailoverTest {
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
 
       // Assert that we are connected to the new writer after failover happens.
-      final String nextWriterId = auroraUtil.getDBClusterWriterInstanceId();
+      List<String> instanceIDs = auroraUtil.getAuroraInstanceIds();
+      assertTrue(instanceIDs.size() > 0);
+      final String nextWriterId = instanceIDs.get(0);
+
       assertEquals(nextWriterId, currentConnectionId);
       assertEquals(nominatedWriterId, currentConnectionId);
 

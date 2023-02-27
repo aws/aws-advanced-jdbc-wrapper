@@ -271,7 +271,7 @@ public class TestEnvironment implements AutoCloseable {
                 + "."
                 + env.auroraClusterDomain);
       }
-      LOGGER.finest(
+      LOGGER.finer(
           "Reuse existing cluster " + env.auroraClusterName + ".cluster-" + env.auroraClusterDomain);
 
       DatabaseEngine existingClusterDatabaseEngine =
@@ -290,7 +290,7 @@ public class TestEnvironment implements AutoCloseable {
     } else {
       if (StringUtils.isNullOrEmpty(env.auroraClusterName)) {
         env.auroraClusterName = getRandomName(env.info.getRequest());
-        LOGGER.finest("Cluster to create: " + env.auroraClusterName);
+        LOGGER.finer("Cluster to create: " + env.auroraClusterName);
       }
 
       try {
@@ -305,17 +305,17 @@ public class TestEnvironment implements AutoCloseable {
                 getAuroraDbEngineVersion(env.info.getRequest()),
                 numOfInstances,
                 instances);
-        LOGGER.finest(
+        LOGGER.finer(
             "Created a new cluster " + env.auroraClusterName + ".cluster-" + env.auroraClusterDomain);
 
       } catch (Exception e) {
 
-        LOGGER.finest("Error creating a cluster " + env.auroraClusterName + ". " + e.getMessage());
+        LOGGER.finer("Error creating a cluster " + env.auroraClusterName + ". " + e.getMessage());
 
         // remove cluster and instances
-        LOGGER.finest("Deleting cluster " + env.auroraClusterName);
+        LOGGER.finer("Deleting cluster " + env.auroraClusterName);
         env.auroraUtil.deleteCluster(env.auroraClusterName);
-        LOGGER.finest("Deleted cluster " + env.auroraClusterName);
+        LOGGER.finer("Deleted cluster " + env.auroraClusterName);
 
         throw new RuntimeException(e);
       }
