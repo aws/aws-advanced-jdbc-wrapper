@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.refactored.DatabaseEngine;
+import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestEnvironmentInfo;
 import integration.refactored.TestInstanceInfo;
@@ -198,5 +199,12 @@ public class TestEnvironment {
       return false;
     }
     return true;
+  }
+
+  public static boolean isAwsDatabase() {
+    DatabaseEngineDeployment deployment =
+        getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+    return DatabaseEngineDeployment.AURORA.equals(deployment)
+        || DatabaseEngineDeployment.RDS.equals(deployment);
   }
 }

@@ -16,6 +16,10 @@
 
 package integration.refactored;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+// Annotation is required to avoid an error when trying to serialize the getUrl method
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TestInstanceInfo {
 
   private String instanceId; // "instance-1"
@@ -23,7 +27,8 @@ public class TestInstanceInfo {
   private int endpointPort;
 
   // This constructor should NOT be used in the code. It's required for serialization.
-  public TestInstanceInfo() {}
+  public TestInstanceInfo() {
+  }
 
   public TestInstanceInfo(String instanceId, String endpoint, int endpointPort) {
     this.instanceId = instanceId;
@@ -37,6 +42,10 @@ public class TestInstanceInfo {
 
   public String getEndpoint() {
     return this.endpoint;
+  }
+
+  public String getUrl() {
+    return getEndpoint() + ":" + getEndpointPort();
   }
 
   public int getEndpointPort() {
