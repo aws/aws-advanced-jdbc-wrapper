@@ -514,7 +514,6 @@ public class AuroraFailoverTest {
       // Assert that we are connected to the new writer after failover happens.
       List<String> instanceIDs = auroraUtil.getAuroraInstanceIds();
       assertTrue(instanceIDs.size() > 0);
-      //final String nextWriterId = auroraUtil.getDBClusterWriterInstanceId();
       final String nextWriterId = instanceIDs.get(0);
 
       assertEquals(nextWriterId, currentConnectionId);
