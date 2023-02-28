@@ -19,6 +19,7 @@ package integration.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
@@ -28,8 +29,6 @@ import integration.refactored.TestInstanceInfo;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -42,6 +41,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -54,15 +54,20 @@ import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
 import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 import org.testcontainers.utility.TestEnvironment;
+import software.amazon.jdbc.util.StringUtils;
 
 public class ContainerHelper {
+
   private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK = "openjdk:8-jdk-alpine";
+  private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK_11 =
+      "adoptopenjdk/openjdk11:alpine";
   private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM =
       "ghcr.io/graalvm/jdk:java8-21.2.0";
-  private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:8.0.28";
+  private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:latest";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:latest";
   private static final DockerImageName TOXIPROXY_IMAGE =
@@ -76,12 +81,22 @@ public class ContainerHelper {
           + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
   private static final String SERVER_ID = "SERVER_ID";
 
-  public void runCmd(GenericContainer<?> container, String cmd)
+  public Long runCmd(GenericContainer<?> container, String... cmd)
       throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
     Long exitCode = execInContainer(container, consumer, cmd);
     System.out.println("==== Container console feed ==== <<<<");
+    return exitCode;
+  }
+
+  public Long runCmdInDirectory(GenericContainer<?> container, String workingDirectory, String... cmd)
+      throws IOException, InterruptedException {
+    System.out.println("==== Container console feed ==== >>>>");
+    Consumer<OutputFrame> consumer = new ConsoleConsumer();
+    Long exitCode = execInContainer(container, workingDirectory, consumer, cmd);
+    System.out.println("==== Container console feed ==== <<<<");
+    return exitCode;
   }
 
   public void runTest(GenericContainer<?> container, String task)
@@ -109,22 +124,37 @@ public class ContainerHelper {
     assertEquals(0, exitCode, "Some tests failed.");
   }
 
-  public GenericContainer<?> createTestContainerByType(
-      String containerType, String dockerImageName) {
+  public String getContainerImageName(String containerType) {
     if (containerType == null) {
       containerType = "";
     }
     switch (containerType.toLowerCase()) {
+      case "openjdk11":
+        return TEST_CONTAINER_IMAGE_NAME_OPENJDK_11;
       case "graalvm":
-        return createTestContainer(dockerImageName, TEST_CONTAINER_IMAGE_NAME_GRAALVM);
+        return TEST_CONTAINER_IMAGE_NAME_GRAALVM;
       case "openjdk":
       default:
-        return createTestContainer(dockerImageName, TEST_CONTAINER_IMAGE_NAME_OPENJDK);
+        return TEST_CONTAINER_IMAGE_NAME_OPENJDK;
     }
   }
 
+  public GenericContainer<?> createTestContainerByType(String containerType, String dockerImageName) {
+    return createTestContainer(dockerImageName, getContainerImageName(containerType));
+  }
+
+  public GenericContainer<?> createTestContainer(String dockerImageName, String testContainerImageName) {
+    return createTestContainer(
+        dockerImageName,
+        testContainerImageName,
+        builder -> builder // Return directly, do not append extra run commands to the docker builder.
+    );
+  }
+
   public GenericContainer<?> createTestContainer(
-      String dockerImageName, String testContainerImageName) {
+      String dockerImageName,
+      String testContainerImageName,
+      Function<DockerfileBuilder, DockerfileBuilder> appendExtraCommandsToBuilder) {
     class FixedExposedPortContainer<T extends GenericContainer<T>> extends GenericContainer<T> {
 
       public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
@@ -139,16 +169,16 @@ public class ContainerHelper {
     }
 
     return new FixedExposedPortContainer<>(
-            new ImageFromDockerfile(dockerImageName, true)
-                .withDockerfileFromBuilder(
-                    builder ->
-                        builder
-                            .from(testContainerImageName)
-                            .run("mkdir", "app")
-                            .workDir("/app")
-                            .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
-                            .expose(5005) // Exposing ports for debugger to be attached
-                            .build()))
+        new ImageFromDockerfile(dockerImageName, true)
+            .withDockerfileFromBuilder(
+                builder -> appendExtraCommandsToBuilder.apply(
+                    builder
+                        .from(testContainerImageName)
+                        .run("mkdir", "app")
+                        .workDir("/app")
+                        .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
+                        .expose(5005) // Exposing ports for debugger to be attached
+                ).build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind(
             "./build/reports/tests",
@@ -181,24 +211,23 @@ public class ContainerHelper {
   }
 
   protected Long execInContainer(
-      GenericContainer<?> container, Consumer<OutputFrame> consumer, String... command)
+      GenericContainer<?> container, String workingDirectory, Consumer<OutputFrame> consumer, String... command)
       throws UnsupportedOperationException, IOException, InterruptedException {
-    return execInContainer(container, consumer, StandardCharsets.UTF_8, command);
+    return execInContainer(container.getContainerInfo(), consumer, workingDirectory, command);
   }
 
   protected Long execInContainer(
       GenericContainer<?> container,
       Consumer<OutputFrame> consumer,
-      Charset outputCharset,
       String... command)
       throws UnsupportedOperationException, IOException, InterruptedException {
-    return execInContainer(container.getContainerInfo(), consumer, outputCharset, command);
+    return execInContainer(container.getContainerInfo(), consumer, null, command);
   }
 
   protected Long execInContainer(
       InspectContainerResponse containerInfo,
       Consumer<OutputFrame> consumer,
-      Charset outputCharset,
+      String workingDir,
       String... command)
       throws UnsupportedOperationException, IOException, InterruptedException {
     if (!TestEnvironment.dockerExecutionDriverSupportsExec()) {
@@ -214,15 +243,17 @@ public class ContainerHelper {
 
     final String containerId = containerInfo.getId();
     final DockerClient dockerClient = DockerClientFactory.instance().client();
+    final ExecCreateCmd cmd = dockerClient
+        .execCreateCmd(containerId)
+        .withAttachStdout(true)
+        .withAttachStderr(true)
+        .withCmd(command);
 
-    final ExecCreateCmdResponse execCreateCmdResponse =
-        dockerClient
-            .execCreateCmd(containerId)
-            .withAttachStdout(true)
-            .withAttachStderr(true)
-            .withCmd(command)
-            .exec();
+    if (!StringUtils.isNullOrEmpty(workingDir)) {
+      cmd.withWorkingDir(workingDir);
+    }
 
+    final ExecCreateCmdResponse execCreateCmdResponse = cmd.exec();
     try (final FrameConsumerResultCallback callback = new FrameConsumerResultCallback()) {
       callback.addConsumer(OutputFrame.OutputType.STDOUT, consumer);
       callback.addConsumer(OutputFrame.OutputType.STDERR, consumer);
@@ -264,6 +295,10 @@ public class ContainerHelper {
             "--max_allowed_packet=40M",
             "--max-connections=2048",
             "--secure-file-priv=/var/lib/mysql",
+            "--log_bin_trust_function_creators=1",
+            "--character-set-server=utf8mb4",
+            "--collation-server=utf8mb4_0900_as_cs",
+            "--skip-character-set-client-handshake",
             "--log-error-verbosity=4");
   }
 
@@ -333,7 +368,7 @@ public class ContainerHelper {
       try {
         auroraInstances.clear();
         try (final Connection conn =
-                DriverManager.getConnection(connectionUrl, userName, password);
+            DriverManager.getConnection(connectionUrl, userName, password);
             final Statement stmt = conn.createStatement()) {
           // Get instances
           try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {

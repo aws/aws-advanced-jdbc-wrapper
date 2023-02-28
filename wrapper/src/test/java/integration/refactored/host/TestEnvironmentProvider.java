@@ -72,6 +72,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
     final boolean noHikari = Boolean.parseBoolean(System.getProperty("test-no-hikari", "false"));
     final boolean noGraalVm = Boolean.parseBoolean(System.getProperty("test-no-graalvm", "false"));
     final boolean noOpenJdk = Boolean.parseBoolean(System.getProperty("test-no-openjdk", "false"));
+    final boolean testHibernateOnly = Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
 
     if (!noDocker) {
       if (!noMysqlEngine && !noOpenJdk) {
@@ -82,12 +83,13 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.SINGLE_INSTANCE,
                     1,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK,
+                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
                     noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
+                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null)));
       }
       if (!noPgEngine && !noOpenJdk) {
         resultContextList.add(
@@ -97,12 +99,13 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.SINGLE_INSTANCE,
                     1,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK,
+                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
                     noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
+                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null)));
       }
       if (!noMariadbEngine && !noOpenJdk) {
         resultContextList.add(
@@ -112,7 +115,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.SINGLE_INSTANCE,
                     1,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK,
+                    TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
@@ -175,7 +178,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.MULTI_INSTANCE,
                     2,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK,
+                    TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
@@ -190,7 +193,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.MULTI_INSTANCE,
                     2,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK,
+                    TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
@@ -205,7 +208,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.MULTI_INSTANCE,
                     2,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK,
+                    TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
@@ -263,22 +266,22 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
       if (!noMysqlEngine && !noOpenJdk) {
         resultContextList.add(
             getEnvironment(
-               new TestEnvironmentRequest(
-                   DatabaseEngine.MYSQL,
-                   DatabaseInstances.MULTI_INSTANCE,
-                   5,
-                   DatabaseEngineDeployment.AURORA,
-                   TargetJvm.OPENJDK,
-                   TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                   noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                   TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                   noIam ? null : TestEnvironmentFeatures.IAM,
-                   noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
-                   noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                   noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
-                   noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                   noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                   noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+                new TestEnvironmentRequest(
+                    DatabaseEngine.MYSQL,
+                    DatabaseInstances.MULTI_INSTANCE,
+                    5,
+                    DatabaseEngineDeployment.AURORA,
+                    TargetJvm.OPENJDK8,
+                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
+                    noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
+                    TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
+                    noIam ? null : TestEnvironmentFeatures.IAM,
+                    noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
+                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
+                    noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
+                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
+                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
+                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
 
         // Tests for HIKARI, IAM, SECRETS_MANAGER and PERFORMANCE are covered by
         // cluster configuration above, so it's safe to skip these tests for configurations below.
@@ -290,7 +293,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.MULTI_INSTANCE,
                     2,
                     DatabaseEngineDeployment.AURORA,
-                    TargetJvm.OPENJDK,
+                    TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
                     TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
@@ -301,22 +304,22 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
       if (!noPgEngine && !noOpenJdk) {
         resultContextList.add(
             getEnvironment(
-               new TestEnvironmentRequest(
-                   DatabaseEngine.PG,
-                   DatabaseInstances.MULTI_INSTANCE,
-                   5,
-                   DatabaseEngineDeployment.AURORA,
-                   TargetJvm.OPENJDK,
-                   TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                   noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                   TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                   noIam ? null : TestEnvironmentFeatures.IAM,
-                   noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
-                   noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                   noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
-                   noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                   noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                   noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+                new TestEnvironmentRequest(
+                    DatabaseEngine.PG,
+                    DatabaseInstances.MULTI_INSTANCE,
+                    5,
+                    DatabaseEngineDeployment.AURORA,
+                    TargetJvm.OPENJDK8,
+                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
+                    noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
+                    TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
+                    noIam ? null : TestEnvironmentFeatures.IAM,
+                    noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
+                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
+                    noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
+                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
+                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
+                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
 
         // Tests for HIKARI, IAM, SECRETS_MANAGER and PERFORMANCE are covered by
         // cluster configuration above, so it's safe to skip these tests for configurations below.
@@ -328,7 +331,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.MULTI_INSTANCE,
                     2,
                     DatabaseEngineDeployment.AURORA,
-                    TargetJvm.OPENJDK,
+                    TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
                     TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,

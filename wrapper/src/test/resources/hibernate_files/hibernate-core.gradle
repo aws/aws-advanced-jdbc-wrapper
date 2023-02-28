@@ -1,0 +1,313 @@
+/*
+ * Hibernate, Relational Persistence for Idiomatic Java
+ *
+ * License: GNU Lesser General Public License (LGPL), version 2.1 or later.
+ * See the lgpl.txt file in the root directory or <http://www.gnu.org/licenses/lgpl-2.1.html>.
+ */
+import org.apache.tools.ant.filters.ReplaceTokens
+
+plugins {
+    id 'org.hibernate.build.xjc-jakarta'
+}
+
+description = 'Hibernate\'s core ORM functionality'
+
+apply from: rootProject.file( 'gradle/published-java-module.gradle' )
+apply plugin: 'org.hibernate.orm.antlr'
+apply plugin: 'org.hibernate.matrix-test'
+
+
+configurations {
+    tests {
+        description = 'Configuration for the produced test jar'
+    }
+}
+
+
+dependencies {
+    api jakartaLibs.jpa
+    api jakartaLibs.jta
+
+    implementation libs.hcann
+    implementation libs.jandex
+    implementation libs.classmate
+    implementation libs.byteBuddy
+
+    implementation jakartaLibs.jaxbApi
+    implementation jakartaLibs.jaxb
+    implementation jakartaLibs.inject
+
+    implementation libs.antlrRuntime
+
+    compileOnly jakartaLibs.jacc
+    compileOnly jakartaLibs.validation
+    compileOnly jakartaLibs.cdi
+    compileOnly jakartaLibs.jsonbApi
+    compileOnly libs.jackson
+    compileOnly libs.jacksonXml
+
+    testImplementation project(':hibernate-testing')
+    testImplementation project(':hibernate-ant')
+    testImplementation testLibs.shrinkwrapApi
+    testImplementation testLibs.shrinkwrap
+    testImplementation testLibs.shrinkwrapDescriptors
+    testImplementation testLibs.shrinkwrapDescriptorsApi
+    testImplementation jakartaLibs.cdi
+    testImplementation jakartaLibs.jacc
+    testImplementation jakartaLibs.validation
+    testImplementation jakartaLibs.el
+    testImplementation( libs.validator ) {
+        // for test runtime
+        transitive = true
+    }
+    testImplementation "joda-time:joda-time:2.3"
+    testImplementation files('/app/libs/aws-advanced-jdbc-wrapper-1.0.1.jar')
+    testImplementation dbLibs.postgresql
+    testImplementation dbLibs.mysql
+    testImplementation dbLibs.h2
+
+    testRuntimeOnly libs.byteBuddy
+    testRuntimeOnly testLibs.weld
+    testRuntimeOnly testLibs.wildFlyTxnClient
+    testRuntimeOnly libs.jackson
+
+    testAnnotationProcessor project( ':hibernate-jpamodelgen' )
+
+    // NOTE: it seems like, since 4.10, the Antlr Tool no longer defines
+    // transitive dep on the corresponding Antlr Runtime.  At least, I get
+    // errors about mismatched versions if I do not include the runtime
+    // dependency here.
+    antlr libs.antlr
+    antlr libs.antlrRuntime
+
+    xjc jakartaLibs.xjc
+    xjc jakartaLibs.jaxb
+    xjc rootProject.fileTree(dir: 'patched-libs/jaxb2-basics', include: '*.jar')
+}
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'org.hibernate.Version'
+        )
+    }
+}
+
+ext {
+    jaxbTargetDir = project.file( "${buildDir}/generated/sources/xjc/main" )
+}
+
+sourceSets {
+    main {
+        // add the XJC generated JAXB classes to the main source-set
+        java{
+            srcDir project.jaxbTargetDir
+        }
+    }
+
+    // resources inherently exclude sources
+    test {
+        resources {
+            srcDir 'src/test/java'
+            srcDir 'src/test/resources'
+            srcDir 'src/test/bundles'
+        }
+    }
+}
+
+xjc {
+    outputDirectory = project.jaxbTargetDir
+
+    schemas {
+        cfg {
+            xsdFile = 'src/main/resources/org/hibernate/xsd/cfg/legacy-configuration-4.0.xsd'
+            xjcBindingFile = 'src/main/xjb/hbm-configuration-bindings.xjb'
+        }
+        hbm {
+            xsdFile = file( 'src/main/resources/org/hibernate/xsd/mapping/legacy-mapping-4.0.xsd' )
+            xjcBindingFile = file( 'src/main/xjb/hbm-mapping-bindings.xjb' )
+            xjcExtensions += ['inheritance', 'simplify']
+        }
+        mapping {
+            xsdFile = file( 'src/main/resources/org/hibernate/xsd/mapping/mapping-3.1.0.xsd' )
+            xjcBindingFile = file( 'src/main/xjb/mapping-bindings.xjb' )
+            xjcExtensions += ['inheritance', 'simplify']
+        }
+    }
+}
+
+task copyBundleResourcesXml (type: Copy) {
+    inputs.property( "db", db )
+    inputs.property( "dbHost", dbHost )
+    ext {
+        bundlesTargetDir = file( "${buildDir}/bundles" )
+        // Escape
+        bundleTokens = [
+                'db.dialect' : dbBundle[db]['db.dialect'].replace("&", "&amp;"),
+                'jdbc.driver' : dbBundle[db]['jdbc.driver'].replace("&", "&amp;"),
+                'jdbc.user' : dbBundle[db]['jdbc.user'].replace("&", "&amp;"),
+                'jdbc.pass' : dbBundle[db]['jdbc.pass'].replace("&", "&amp;"),
+                'jdbc.url' : dbBundle[db]['jdbc.url'].replace("&", "&amp;"),
+                'connection.init_sql' : dbBundle[db]['connection.init_sql'].replace("&", "&amp;")
+        ]
+        ext.bundleTokens['buildDirName'] = project.relativePath( buildDir )
+    }
+
+    from('src/test/bundles/templates') {
+        include '**/*.xml'
+    }
+    into ext.bundlesTargetDir
+    filter( ReplaceTokens, tokens: ext.bundleTokens)
+
+    doFirst {
+        ext.bundlesTargetDir.mkdirs()
+    }
+}
+
+task copyBundleResourcesNonXml (type: Copy) {
+    inputs.property( "db", db )
+    ext {
+        bundlesTargetDir = file( "${buildDir}/bundles" )
+        // Escape
+        bundleTokens = dbBundle[db]
+        ext.bundleTokens['buildDirName'] = project.relativePath( buildDir )
+    }
+
+    from('src/test/bundles/templates') {
+        exclude '**/*.xml'
+    }
+    into ext.bundlesTargetDir
+    filter( ReplaceTokens, tokens: ext.bundleTokens)
+
+    doFirst {
+        ext.bundlesTargetDir.mkdirs()
+    }
+}
+
+task copyBundleResources (type: Copy) {
+    inputs.property( "db", db )
+    dependsOn tasks.copyBundleResourcesXml
+    dependsOn tasks.copyBundleResourcesNonXml
+}
+
+processTestResources {
+    dependsOn copyBundleResources
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+sourcesJar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveClassifier.set( 'test' )
+    from sourceSets.test.output
+}
+
+artifacts {
+    tests testJar
+}
+
+task generateEnversStaticMetamodel(
+        type: JavaCompile,
+        description: "Generate the Hibernate Envers revision entity static metamodel classes." ) {
+    source = sourceSets.main.java
+    // we only want to include these specific classes for metamodel generation.
+    // if envers adds any additional revision entity classes, they must be listed here.
+    include 'org/hibernate/envers/DefaultRevisionEntity.java'
+    include 'org/hibernate/envers/DefaultTrackingModifiedEntitiesRevisionEntity.java'
+    include 'org/hibernate/envers/enhanced/SequenceIdRevisionEntity.java'
+    include 'org/hibernate/envers/enhanced/SequenceIdTrackingModifiedEntitiesRevisionEntity.java'
+
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.test.compileClasspath
+    options.compilerArgs = [
+            "-proc:only",
+            "-processor",
+            "org.hibernate.jpamodelgen.JPAMetaModelEntityProcessor"
+    ]
+
+    // put static metamodel classes back out to the source tree since they're version controlled.
+    destinationDirectory = new File( "${projectDir}/src/main/java" )
+}
+
+tasks.withType( Test.class ).each { test ->
+    test.systemProperty 'file.encoding', 'utf-8'
+
+    // See org.hibernate.boot.model.naming.NamingHelperTest.DefaultCharset.set
+    test.jvmArgs( ['--add-opens', 'java.base/java.nio.charset=ALL-UNNAMED'] )
+    // Weld needs this to generate proxies
+    test.jvmArgs( ['--add-opens', 'java.base/java.security=ALL-UNNAMED'] )
+    test.jvmArgs( ['--add-opens', 'java.base/java.lang=ALL-UNNAMED'] )
+
+    test.beforeTest { descriptor ->
+        //println "Starting test: " + descriptor
+    }
+}
+
+// Tests with records
+if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolchainEnabled ) {
+
+    // Add a new source set, which contains tests that can run on JDK17+
+    sourceSets {
+        testJava17 {
+            java {
+                srcDirs = ['src/test/java17']
+            }
+            // Refer to the main test resources to avoid processing variables twice
+            resources {
+                srcDir 'target/resources/test'
+            }
+        }
+    }
+
+    // For the new source set, we need to configure the source and target version to 17
+    compileTestJava17Java {
+        javaCompiler = javaToolchains.compilerFor {
+            languageVersion = gradle.ext.javaVersions.test.compiler
+        }
+        sourceCompatibility = 17
+        targetCompatibility = 17
+        // We also depend on the main test resources
+        dependsOn( tasks.processTestResources )
+    }
+
+    // The source set gets a custom configuration which extends the normal test implementation config
+    configurations {
+        testJava17Implementation.extendsFrom(testImplementation, testRuntimeOnly)
+    }
+
+    // Add the output from src/main/java as dependency
+    dependencies {
+        testJava17Implementation files(sourceSets.main.output.classesDirs) {
+            builtBy compileJava
+        }
+    }
+
+    // We execute the Java 17 tests in a custom test task
+    task testJava17(type: Test) {
+        javaLauncher = javaToolchains.launcherFor {
+            languageVersion = gradle.ext.javaVersions.test.launcher
+        }
+        useJUnitPlatform()
+        testClassesDirs = sourceSets.testJava17.output.classesDirs
+        classpath = sourceSets.testJava17.runtimeClasspath
+
+        if ( gradle.ext.javaVersions.test.launcher.asInt() >= 19 ) {
+            logger.warn( "The version of Java bytecode that will be tested is not supported by Bytebuddy by default. " +
+                    " Setting 'net.bytebuddy.experimental=true'." )
+            systemProperty 'net.bytebuddy.experimental', true
+        }
+    }
+
+    testClasses.dependsOn compileTestJava17Java
+    // And run this as part of the check task by default
+    check.dependsOn testJava17
+}
+
+javadoc {
+    configure(options) {
+        overview = 'src/main/javadoc/overview.html'
+        stylesheetFile = new File(projectDir, 'src/main/javadoc/stylesheet.css')
+    }
+}
