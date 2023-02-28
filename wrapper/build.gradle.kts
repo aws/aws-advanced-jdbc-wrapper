@@ -231,6 +231,7 @@ tasks.withType<Test> {
         this.showStandardStreams = true
     }
     useJUnitPlatform()
+    outputs.upToDateWhen { false }
 
     System.getProperties().forEach {
         if (it.key.toString().startsWith("test-no-")) {
