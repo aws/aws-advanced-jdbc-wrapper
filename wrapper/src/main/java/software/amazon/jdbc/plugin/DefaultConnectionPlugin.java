@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
@@ -55,13 +56,13 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       Collections.singletonList("*")));
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
-  private final ConnectionProvider connectionProvider;
+  private final ConnectionProvider defaultConnProvider;
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
 
   public DefaultConnectionPlugin(
       final PluginService pluginService,
-      final ConnectionProvider connectionProvider,
+      final ConnectionProvider defaultConnProvider,
       final PluginManagerService pluginManagerService) {
     if (pluginService == null) {
       throw new IllegalArgumentException("pluginService");
@@ -69,13 +70,13 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     if (pluginManagerService == null) {
       throw new IllegalArgumentException("pluginManagerService");
     }
-    if (connectionProvider == null) {
+    if (defaultConnProvider == null) {
       throw new IllegalArgumentException("connectionProvider");
     }
 
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
-    this.connectionProvider = connectionProvider;
+    this.defaultConnProvider = defaultConnProvider;
   }
 
   @Override
@@ -137,8 +138,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
-    final Connection conn = this.connectionProvider.connect(driverProtocol, hostSpec, props);
+    final ConnectionProvider connProvider =
+        ConnectionProviderManager.getConnectionProvider(driverProtocol, hostSpec, props, defaultConnProvider);
+    final Connection conn = connProvider.connect(driverProtocol, hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // omitted.

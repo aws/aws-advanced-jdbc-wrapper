@@ -25,6 +25,19 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * Implement this interface in order to handle physical connection creation process.
  */
 public interface ConnectionProvider {
+  /**
+   * Indicates whether this ConnectionProvider can provide connections for the given host and
+   * properties. Some ConnectionProvider implementations may not be able to handle certain URL
+   * types or properties.
+   *
+   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
+   * @param props    The Properties to use for the connection
+   * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
+   * return false
+   */
+  boolean acceptsUrl(
+      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props);
 
   /**
    * Called once per connection that needs to be created.
@@ -49,4 +62,9 @@ public interface ConnectionProvider {
    */
   Connection connect(@NonNull String url, @NonNull Properties props)
       throws SQLException; // TODO: do we need this method?
+
+  /**
+   * Release any resources used by this ConnectionProvider
+   */
+  void releaseResources();
 }

@@ -38,6 +38,23 @@ public class DriverConnectionProvider implements ConnectionProvider {
   }
 
   /**
+   * Indicates whether this ConnectionProvider can provide connections for the given host and
+   * properties. Some ConnectionProvider implementations may not be able to handle certain URL
+   * types or properties.
+   *
+   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
+   * @param props    The Properties to use for the connection
+   * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
+   * return false
+   */
+  @Override
+  public boolean acceptsUrl(
+      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+    return true;
+  }
+
+  /**
    * Called once per connection that needs to be created.
    *
    * @param protocol The connection protocol (example "jdbc:mysql://")
@@ -84,5 +101,10 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);
+  }
+
+  @Override
+  public void releaseResources() {
+    // Do nothing
   }
 }

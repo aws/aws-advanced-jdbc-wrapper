@@ -88,15 +88,15 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
-  protected final ConnectionProvider connectionProvider;
+  protected final ConnectionProvider defaultConnProvider;
   protected final ConnectionWrapper connectionWrapper;
   protected PluginService pluginService;
 
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
-  public ConnectionPluginManager(ConnectionProvider connectionProvider, ConnectionWrapper connectionWrapper) {
-    this.connectionProvider = connectionProvider;
+  public ConnectionPluginManager(ConnectionProvider defaultConnProvider, ConnectionWrapper connectionWrapper) {
+    this.defaultConnProvider = defaultConnProvider;
     this.connectionWrapper = connectionWrapper;
   }
 
@@ -104,12 +104,12 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      ConnectionProvider connectionProvider,
+      ConnectionProvider defaultConnProvider,
       Properties props,
       ArrayList<ConnectionPlugin> plugins,
       ConnectionWrapper connectionWrapper,
       PluginService pluginService) {
-    this(connectionProvider, props, plugins, connectionWrapper);
+    this(defaultConnProvider, props, plugins, connectionWrapper);
     this.pluginService = pluginService;
   }
 
@@ -117,11 +117,11 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      ConnectionProvider connectionProvider,
+      ConnectionProvider defaultConnProvider,
       Properties props,
       ArrayList<ConnectionPlugin> plugins,
       ConnectionWrapper connectionWrapper) {
-    this.connectionProvider = connectionProvider;
+    this.defaultConnProvider = defaultConnProvider;
     this.props = props;
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
@@ -218,7 +218,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     // add default connection plugin to the tail
 
     ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(this.pluginService, this.connectionProvider, pluginManagerService);
+        new DefaultConnectionPlugin(this.pluginService, this.defaultConnProvider, pluginManagerService);
     this.plugins.add(defaultPlugin);
   }
 
