@@ -16,9 +16,6 @@
 
 package integration.refactored.host;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestEnvironmentRequest;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;

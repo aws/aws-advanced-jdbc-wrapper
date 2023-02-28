@@ -27,11 +27,8 @@ import eu.rekawek.toxiproxy.Proxy;
 import eu.rekawek.toxiproxy.model.ToxicDirection;
 import integration.refactored.TestInstanceInfo;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -180,7 +177,7 @@ public class ContainerHelper {
                         .run("mkdir", "app")
                         .workDir("/app")
                         .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
-                        .expose(5005)
+                        .expose(5005) // Exposing ports for debugger to be attached
                 ).build()))
         .withFixedExposedPort(5005, 5005) // Mapping container port to host
         .withFileSystemBind(

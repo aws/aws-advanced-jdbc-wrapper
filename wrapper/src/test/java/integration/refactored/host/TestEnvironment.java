@@ -656,7 +656,7 @@ public class TestEnvironment implements AutoCloseable {
           "/app/hibernate-orm",
           buildHibernateCommands(false));
       containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
-      assertEquals(0, exitCode, "failed to run Hibernate ORM tests");
+      assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
       containerHelper.runTest(this.testContainer, taskName);
     }
@@ -664,7 +664,6 @@ public class TestEnvironment implements AutoCloseable {
 
   public void debugTests(String taskName) throws IOException, InterruptedException {
     final ContainerHelper containerHelper = new ContainerHelper();
-    containerHelper.debugTest(this.testContainer, taskName);
 
     if (this.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY)) {
       final Long exitCode = containerHelper.runCmdInDirectory(
@@ -672,9 +671,9 @@ public class TestEnvironment implements AutoCloseable {
           "/app/hibernate-orm",
           buildHibernateCommands(true));
       containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
-      assertEquals(0, exitCode, "failed to debug Hibernate ORM tests");
+      assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
-      containerHelper.runTest(this.testContainer, taskName);
+      containerHelper.debugTest(this.testContainer, taskName);
     }
   }
 

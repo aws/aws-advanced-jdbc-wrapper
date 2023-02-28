@@ -1,4 +1,4 @@
-name: Run Standard Integration Tests
+name: Run Hibernate ORM integration tests
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ on:
       - '**/maven*.yml'
 
 jobs:
-  standard-integration-tests:
+  hibernate-integration-tests:
     name: 'Run Hibernate ORM integration tests'
     runs-on: ubuntu-latest
     steps:
@@ -30,7 +30,7 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: 8
-      - name: 'Run standard integration tests'
+      - name: 'Run Hibernate ORM integration tests'
         run: |
           ./gradlew --no-parallel --no-daemon test-hibernate-only
       - name: 'Archive junit results'
