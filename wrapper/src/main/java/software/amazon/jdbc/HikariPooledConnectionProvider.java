@@ -23,21 +23,27 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider {
+  static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql://";
+  static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql://";
+  static final String MARIADB_DRIVER_PROTOCOL = "jdbc:mariadb://";
+  static final String DEFAULT_PG_DS = "org.postgresql.ds.PGSimpleDataSource";
+  static final String DEFAULT_MYSQL_DS = "com.mysql.cj.jdbc.MysqlDataSource";
+  static final String DEFAULT_MARIADB_DS = "org.mariadb.jdbc.MariaDbDataSource";
+
 
   private final RdsUtils rdsUtils = new RdsUtils();
   private final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
+  private final HikariPoolConfigurator poolConfigurator;
 
-  public HikariPooledConnectionProvider(
-      BiFunction<HostSpec, Properties, HikariConfig> poolConfigurator) {
+  public HikariPooledConnectionProvider(HikariPoolConfigurator poolConfigurator) {
     this.poolConfigurator = poolConfigurator;
   }
-  private final BiFunction<HostSpec, Properties, HikariConfig> poolConfigurator;
 
   @Override
   public boolean acceptsUrl(
@@ -51,8 +57,66 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider 
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props)
       throws SQLException {
     HikariDataSource ds = databasePools.computeIfAbsent(
-        hostSpec.getUrl(), url -> new HikariDataSource(poolConfigurator.apply(hostSpec,  props)));
+        hostSpec.getUrl(), url -> {
+          HikariConfig defaultConfig = getDefaultConfig(protocol, hostSpec, props);
+          HikariConfig finalConfig = poolConfigurator.configurePool(defaultConfig, hostSpec, props);
+          return new HikariDataSource(finalConfig);
+        });
     return ds.getConnection();
+  }
+
+  private HikariConfig getDefaultConfig(String protocol, HostSpec hostSpec, Properties props) {
+    final HikariConfig config = new HikariConfig();
+    config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
+
+    String user = props.getProperty(PropertyDefinition.USER.name);
+    String password = props.getProperty(PropertyDefinition.PASSWORD.name);
+    if (user != null) {
+      config.setUsername(user);
+    }
+    if (password != null) {
+      config.setPassword(password);
+    }
+
+    if (HostRole.READER.equals(hostSpec.getRole())) {
+      config.setReadOnly(true);
+    }
+
+    switch (protocol) {
+    case PG_DRIVER_PROTOCOL:
+      config.setDataSourceClassName(DEFAULT_PG_DS);
+      break;
+    case MYSQL_DRIVER_PROTOCOL:
+      config.setDataSourceClassName(DEFAULT_MYSQL_DS);
+      break;
+    case MARIADB_DRIVER_PROTOCOL:
+      config.setDataSourceClassName(DEFAULT_MARIADB_DS);
+      break;
+    default:
+      throw new UnsupportedOperationException(
+          "The provided protocol is not supported by the driver: " + protocol);
+    }
+
+    config.setJdbcUrl(getJdbcUrl(protocol, hostSpec, props));
+    return config;
+  }
+
+  private String getJdbcUrl(String protocol, HostSpec hostSpec, Properties props) {
+    final String databaseName =
+        PropertyDefinition.DATABASE.getString(props) != null
+            ? PropertyDefinition.DATABASE.getString(props)
+            : "";
+    final StringBuilder urlBuilder = new StringBuilder();
+    urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
+
+    // In the case where we are connecting to MySQL using MariaDB driver,
+    // we need to append "?permitMysqlScheme" to the connection URL
+    if (protocol.startsWith("jdbc:mysql:")
+        && props.stringPropertyNames().contains("permitMysqlScheme")) {
+      urlBuilder.append("?permitMysqlScheme");
+    }
+
+    return urlBuilder.toString();
   }
 
   @Override
