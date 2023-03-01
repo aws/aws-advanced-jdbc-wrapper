@@ -50,15 +50,22 @@ public class ReadWriteSplittingPooledExample {
     try (Connection conn =
              DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
       Statement stmt = conn.createStatement();
+
+      // Test write statements
       stmt.execute("CREATE TABLE IF NOT EXISTS poolTest (id int, employee varchar(255))");
       stmt.execute("DELETE FROM poolTest WHERE id=1");
       stmt.execute("INSERT INTO poolTest VALUES (1, 'George')");
 
+      ResultSet rs = stmt.executeQuery("SELECT aurora_db_instance_identifier()");
+      rs.next();
+      System.out.println(rs.getString(1));
+
       conn.setReadOnly(true);
       stmt = conn.createStatement();
-      ResultSet rs = stmt.executeQuery("SELECT * FROM poolTest WHERE id=1");
+      rs = stmt.executeQuery("SELECT aurora_db_instance_identifier()");
       rs.next();
-      System.out.println("Name: " + rs.getString(2));
+      // Should indicate different instance than previous query
+      System.out.println(rs.getString(1));
     }
   }
 
