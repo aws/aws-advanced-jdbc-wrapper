@@ -59,15 +59,15 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider 
       throws SQLException {
     HikariDataSource ds = databasePools.computeIfAbsent(
         hostSpec.getUrl(), url -> {
-          HikariConfig defaultConfig = getDefaultConfig(protocol, hostSpec, props);
-          HikariConfig finalConfig = poolConfigurator.configurePool(defaultConfig, hostSpec, props);
-          return new HikariDataSource(finalConfig);
+          HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
+          setConnectionProperties(config, protocol, hostSpec, props);
+          return new HikariDataSource(config);
         });
     return ds.getConnection();
   }
 
-  private HikariConfig getDefaultConfig(String protocol, HostSpec hostSpec, Properties props) {
-    final HikariConfig config = new HikariConfig();
+  private void setConnectionProperties(
+      HikariConfig config, String protocol, HostSpec hostSpec, Properties props) {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
 
     String user = props.getProperty(PropertyDefinition.USER.name);
@@ -113,8 +113,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider 
     if (!StringUtils.isNullOrEmpty(dbPropertyName) && !StringUtils.isNullOrEmpty(db)) {
       config.addDataSourceProperty(dbPropertyName, db);
     }
-
-    return config;
   }
 
   @Override

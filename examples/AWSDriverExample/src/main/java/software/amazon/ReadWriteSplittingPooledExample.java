@@ -69,12 +69,12 @@ public class ReadWriteSplittingPooledExample {
     }
   }
 
-  private static HikariConfig getHikariConfig(
-      HikariConfig defaultConfig, HostSpec hostSpec, Properties props) {
-    defaultConfig.setMaximumPoolSize(10);
-    defaultConfig.setInitializationFailTimeout(75000);
-    defaultConfig.setConnectionTimeout(1000);
+  private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
+    HikariConfig config = new HikariConfig();
+    config.setMaximumPoolSize(10);
+    config.setInitializationFailTimeout(75000);
+    config.setConnectionTimeout(1000);
 
-    return defaultConfig;
+    return config;
   }
 }
