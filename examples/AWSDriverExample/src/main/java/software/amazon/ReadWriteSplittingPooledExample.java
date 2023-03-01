@@ -56,17 +56,25 @@ public class ReadWriteSplittingPooledExample {
       stmt.execute("DELETE FROM poolTest WHERE id=1");
       stmt.execute("INSERT INTO poolTest VALUES (1, 'George')");
 
-      ResultSet rs = stmt.executeQuery("SELECT aurora_db_instance_identifier()");
-      rs.next();
-      System.out.println(rs.getString(1));
+      System.out.println(queryInstanceId(conn));
 
       conn.setReadOnly(true);
-      stmt = conn.createStatement();
-      rs = stmt.executeQuery("SELECT aurora_db_instance_identifier()");
-      rs.next();
       // Should indicate different instance than previous query
-      System.out.println(rs.getString(1));
+      System.out.println(queryInstanceId(conn));
+
+      conn.setReadOnly(false);
+      // Should indicate original writer
+      System.out.println(queryInstanceId(conn));
     }
+  }
+
+  private static String queryInstanceId(Connection conn) throws SQLException {
+    ResultSet rs;
+    Statement stmt;
+    stmt = conn.createStatement();
+    rs = stmt.executeQuery("SELECT aurora_db_instance_identifier()");
+    rs.next();
+    return rs.getString(1);
   }
 
   private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
