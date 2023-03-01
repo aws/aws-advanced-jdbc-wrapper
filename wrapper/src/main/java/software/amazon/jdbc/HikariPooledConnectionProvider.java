@@ -27,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider {
   static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql://";
@@ -97,26 +98,23 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider 
           "The provided protocol is not supported by the driver: " + protocol);
     }
 
-    config.setJdbcUrl(getJdbcUrl(protocol, hostSpec, props));
-    return config;
-  }
-
-  private String getJdbcUrl(String protocol, HostSpec hostSpec, Properties props) {
-    final String databaseName =
-        PropertyDefinition.DATABASE.getString(props) != null
-            ? PropertyDefinition.DATABASE.getString(props)
-            : "";
-    final StringBuilder urlBuilder = new StringBuilder();
-    urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
-
-    // In the case where we are connecting to MySQL using MariaDB driver,
-    // we need to append "?permitMysqlScheme" to the connection URL
-    if (protocol.startsWith("jdbc:mysql:")
-        && props.stringPropertyNames().contains("permitMysqlScheme")) {
-      urlBuilder.append("?permitMysqlScheme");
+    String serverPropertyName = props.getProperty("serverPropertyName");
+    if (!StringUtils.isNullOrEmpty(serverPropertyName)) {
+      config.addDataSourceProperty(serverPropertyName, hostSpec.getHost());
     }
 
-    return urlBuilder.toString();
+    String portPropertyName = props.getProperty("portPropertyName");
+    if (!StringUtils.isNullOrEmpty(portPropertyName) && hostSpec.isPortSpecified()) {
+      config.addDataSourceProperty("portNumber", hostSpec.getPort());
+    }
+
+    String dbPropertyName = props.getProperty("databasePropertyName");
+    String db = PropertyDefinition.DATABASE.getString(props);
+    if (!StringUtils.isNullOrEmpty(dbPropertyName) && !StringUtils.isNullOrEmpty(db)) {
+      config.addDataSourceProperty(dbPropertyName, db);
+    }
+
+    return config;
   }
 
   @Override

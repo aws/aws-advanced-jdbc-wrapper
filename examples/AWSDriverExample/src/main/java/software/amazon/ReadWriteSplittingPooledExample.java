@@ -40,6 +40,9 @@ public class ReadWriteSplittingPooledExample {
     PropertyDefinition.USER.set(props, USERNAME);
     PropertyDefinition.PASSWORD.set(props, PASSWORD);
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
+    props.setProperty("databasePropertyName", "databaseName");
+    props.setProperty("portPropertyName", "portNumber");
+    props.setProperty("serverPropertyName", "serverName");
 
     ConnectionProviderManager.setConnectionProvider(
         new HikariPooledConnectionProvider((ReadWriteSplittingPooledExample::getHikariConfig)));
