@@ -18,27 +18,33 @@ import java.util.Properties;
 
 public class ConnectionProviderManager {
 
-  private static ConnectionProvider connectionProvider = null;
+  private static ConnectionProvider connProvider = null;
+  private ConnectionProvider defaultProvider;
 
-  public static synchronized void setConnectionProvider(ConnectionProvider connProvider) {
-    connectionProvider = connProvider;
+  public ConnectionProviderManager(ConnectionProvider defaultProvider) {
+    this.defaultProvider = defaultProvider;
   }
 
-  public static synchronized ConnectionProvider getConnectionProvider(
-      String driverProtocol, HostSpec host, Properties props, ConnectionProvider defaultProvider) {
-    if (connectionProvider != null && connectionProvider.acceptsUrl(driverProtocol, host, props)) {
-      return connectionProvider;
+  public static synchronized void setConnectionProvider(ConnectionProvider connProvider) {
+    ConnectionProviderManager.connProvider = connProvider;
+  }
+
+  public synchronized ConnectionProvider getConnectionProvider(
+      String driverProtocol, HostSpec host, Properties props) {
+    if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
+      return connProvider;
     }
     return defaultProvider;
   }
 
   public static synchronized void reset() {
-    connectionProvider = null;
+    connProvider = null;
   }
 
-  public static synchronized void releaseResources() {
-    if (connectionProvider != null) {
-      connectionProvider.releaseResources();
+  public synchronized void releaseResources() {
+    if (connProvider != null) {
+      connProvider.releaseResources();
     }
+    defaultProvider.releaseResources();
   }
 }

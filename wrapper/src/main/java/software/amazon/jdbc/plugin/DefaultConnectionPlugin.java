@@ -40,6 +40,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -48,7 +49,7 @@ import software.amazon.jdbc.util.WrapperUtils;
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
  * invoke the JDBC method passed down the chain.
  */
-public final class DefaultConnectionPlugin implements ConnectionPlugin {
+public final class DefaultConnectionPlugin implements ConnectionPlugin, CanReleaseResources {
 
   private static final Logger LOGGER =
       Logger.getLogger(DefaultConnectionPlugin.class.getName());
@@ -56,7 +57,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       Collections.singletonList("*")));
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
-  private final ConnectionProvider defaultConnProvider;
+  private final ConnectionProviderManager connProviderManager;
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
 
@@ -76,7 +77,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
-    this.defaultConnProvider = defaultConnProvider;
+    this.connProviderManager = new ConnectionProviderManager(defaultConnProvider);
   }
 
   @Override
@@ -139,7 +140,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final ConnectionProvider connProvider =
-        ConnectionProviderManager.getConnectionProvider(driverProtocol, hostSpec, props, defaultConnProvider);
+        this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
     final Connection conn = connProvider.connect(driverProtocol, hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
@@ -187,5 +188,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     }
 
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
+  }
+
+  @Override
+  public void releaseResources() {
+    this.connProviderManager.releaseResources();
   }
 }
