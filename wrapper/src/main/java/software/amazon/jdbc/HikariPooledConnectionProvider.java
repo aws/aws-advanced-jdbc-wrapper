@@ -37,13 +37,12 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider 
   static final String DEFAULT_MYSQL_DS = "com.mysql.cj.jdbc.MysqlDataSource";
   static final String DEFAULT_MARIADB_DS = "org.mariadb.jdbc.MariaDbDataSource";
 
+  private static final RdsUtils rdsUtils = new RdsUtils();
+  private static final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
+  private static HikariPoolConfigurator poolConfigurator;
 
-  private final RdsUtils rdsUtils = new RdsUtils();
-  private final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
-  private final HikariPoolConfigurator poolConfigurator;
-
-  public HikariPooledConnectionProvider(HikariPoolConfigurator poolConfigurator) {
-    this.poolConfigurator = poolConfigurator;
+  public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
+    poolConfigurator = hikariPoolConfigurator;
   }
 
   @Override
