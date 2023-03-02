@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.zaxxer.hikari.HikariConfig;
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
@@ -36,6 +37,7 @@ import integration.refactored.container.condition.EnableOnDatabaseEngineDeployme
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -50,6 +52,9 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
@@ -63,6 +68,8 @@ import software.amazon.jdbc.util.SqlState;
 public class ReadWriteSplittingTests {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
+  protected static final AuroraTestUtility auroraUtil =
+      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
 
   protected static Properties getProps() {
     return TestEnvironment.isAwsDatabase() ? getAuroraProps() : getNonAuroraProps();
@@ -390,5 +397,37 @@ public class ReadWriteSplittingTests {
       final String currentConnectionId = queryInstanceId(conn);
       assertEquals(writerConnectionId, currentConnectionId);
     }
+  }
+
+  @TestTemplate
+  // Tests use Aurora specific SQL to identify instance name
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_pooledConnectionFailover() throws SQLException, InterruptedException {
+    Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
+    props.setProperty("databasePropertyName", "databaseName");
+    props.setProperty("portPropertyName", "portNumber");
+    props.setProperty("serverPropertyName", "serverName");
+
+    ConnectionProviderManager.setConnectionProvider(
+        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig));
+
+    try (final Connection conn = DriverManager.getConnection(getUrl(), props)) {
+      final String writerConnectionId = queryInstanceId(conn);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      assertThrows(SQLException.class, () -> queryInstanceId(conn));
+      final String nextWriterId = queryInstanceId(conn);
+      assertNotEquals(writerConnectionId, nextWriterId);
+    }
+  }
+
+  private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
+    HikariConfig config = new HikariConfig();
+    config.setMaximumPoolSize(1);
+    config.setInitializationFailTimeout(75000);
+    config.setConnectionTimeout(1000);
+
+    return config;
   }
 }

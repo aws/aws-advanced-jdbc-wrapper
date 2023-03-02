@@ -60,7 +60,7 @@ public class ReadWriteSplittingPooledTest {
     DriverManager.registerDriver(new org.postgresql.Driver());
 
     ConnectionProviderManager.setConnectionProvider(
-        new HikariPooledConnectionProvider((ReadWriteSplittingPooledTest::getHikariConfig)));
+        new HikariPooledConnectionProvider(ReadWriteSplittingPooledTest::getHikariConfig));
   }
 
   @Test
