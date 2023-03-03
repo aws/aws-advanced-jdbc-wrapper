@@ -117,6 +117,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider 
   @Override
   public Connection connect(
       @NonNull String url, @NonNull Properties props) throws SQLException {
+    // TODO: Is this method ever called? It seems to only be referenced by tests/benchmarks. If
+    //  needed, how should we implement it? The other connect method passes a HostSpec to the
+    //  PoolConfigurator but we only have a URL here. Should we pass a URL instead in both connect
+    //  methods? Or parse the URL and create a HostSpec from it here?
     return null;
   }
 

@@ -55,19 +55,14 @@ public class ConnectionProviderManager {
     lock.unlock();
   }
 
-  public void releaseResources() {
-    // TODO: When should we release connProvider resources given that it is shared between connections?
-    //  This method will be called whenever a connection closes but other connections may need connProvider still
-
-    // lock.lock();
-    // try {
-    //   if (connProvider != null) {
-    //     connProvider.releaseResources();
-    //   }
-    // } finally {
-    //   lock.unlock();
-    // }
-
-    defaultProvider.releaseResources();
+  public static void releaseResources() {
+    lock.lock();
+    try {
+      if (connProvider != null) {
+        connProvider.releaseResources();
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 }

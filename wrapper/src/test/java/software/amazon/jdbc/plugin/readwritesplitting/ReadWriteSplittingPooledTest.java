@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionProviderManager;
@@ -61,6 +62,11 @@ public class ReadWriteSplittingPooledTest {
 
     ConnectionProviderManager.setConnectionProvider(
         new HikariPooledConnectionProvider(ReadWriteSplittingPooledTest::getHikariConfig));
+  }
+
+  @AfterEach
+  public void cleanup() {
+    ConnectionProviderManager.releaseResources();
   }
 
   @Test

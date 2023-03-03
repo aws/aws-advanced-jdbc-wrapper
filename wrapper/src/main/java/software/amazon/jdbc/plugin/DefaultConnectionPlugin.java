@@ -49,7 +49,7 @@ import software.amazon.jdbc.util.WrapperUtils;
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
  * invoke the JDBC method passed down the chain.
  */
-public final class DefaultConnectionPlugin implements ConnectionPlugin, CanReleaseResources {
+public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   private static final Logger LOGGER =
       Logger.getLogger(DefaultConnectionPlugin.class.getName());
@@ -188,10 +188,5 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin, CanRelea
     }
 
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
-  }
-
-  @Override
-  public void releaseResources() {
-    this.connProviderManager.releaseResources();
   }
 }
