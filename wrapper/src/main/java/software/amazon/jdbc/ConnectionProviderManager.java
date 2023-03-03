@@ -15,36 +15,59 @@ package software.amazon.jdbc;/*
  */
 
 import java.util.Properties;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ConnectionProviderManager {
 
   private static ConnectionProvider connProvider = null;
   private ConnectionProvider defaultProvider;
+  private static final ReentrantLock lock = new ReentrantLock();
 
   public ConnectionProviderManager(ConnectionProvider defaultProvider) {
     this.defaultProvider = defaultProvider;
   }
 
-  public static synchronized void setConnectionProvider(ConnectionProvider connProvider) {
-    ConnectionProviderManager.connProvider = connProvider;
+  public static void setConnectionProvider(ConnectionProvider connProvider) {
+    lock.lock();
+    try {
+      ConnectionProviderManager.connProvider = connProvider;
+    } finally {
+      lock.unlock();
+    }
   }
 
-  public synchronized ConnectionProvider getConnectionProvider(
+  public ConnectionProvider getConnectionProvider(
       String driverProtocol, HostSpec host, Properties props) {
-    if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
-      return connProvider;
+    lock.lock();
+    try {
+      if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
+        return connProvider;
+      }
+      return defaultProvider;
+    } finally {
+      lock.unlock();
     }
-    return defaultProvider;
   }
 
-  public static synchronized void reset() {
+  public static void reset() {
+    lock.lock();
     connProvider = null;
+    lock.unlock();
   }
 
-  public synchronized void releaseResources() {
-    if (connProvider != null) {
-      connProvider.releaseResources();
-    }
+  public void releaseResources() {
+    // TODO: When should we release connProvider resources given that it is shared between connections?
+    //  This method will be called whenever a connection closes but other connections may need connProvider still
+
+    // lock.lock();
+    // try {
+    //   if (connProvider != null) {
+    //     connProvider.releaseResources();
+    //   }
+    // } finally {
+    //   lock.unlock();
+    // }
+
     defaultProvider.releaseResources();
   }
 }
