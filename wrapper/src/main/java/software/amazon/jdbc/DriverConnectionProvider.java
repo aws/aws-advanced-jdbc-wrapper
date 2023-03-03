@@ -61,14 +61,6 @@ public class DriverConnectionProvider implements ConnectionProvider {
     final StringBuilder urlBuilder = new StringBuilder(databaseDialect.getURLScheme());
     urlBuilder.append(hostSpec.getUrl()).append(databaseName);
 
-    // In the case where we are connecting to MySQL using MariaDB driver,
-    // we need to append "?permitMysqlScheme" to the connection URL
-    // TODO: this is a bit ugly
-    if (databaseDialect instanceof MariaDBDialect
-        && props.stringPropertyNames().contains("permitMysqlScheme")) {
-      urlBuilder.append("?permitMysqlScheme");
-    }
-
     LOGGER.finest(() -> "Connecting to " + urlBuilder);
     LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
 
