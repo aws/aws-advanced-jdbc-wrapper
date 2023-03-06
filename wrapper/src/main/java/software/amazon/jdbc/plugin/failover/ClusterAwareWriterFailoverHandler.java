@@ -251,7 +251,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
               conn.close();
             }
 
-            conn = pluginService.connect(this.originalWriterHost, initialConnectionProps);
+            conn = pluginService.forceConnect(this.originalWriterHost, initialConnectionProps);
             pluginService.forceRefreshHostList(conn);
             latestTopology = pluginService.getHosts();
 
@@ -450,7 +450,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
                 new Object[] {writerCandidate.getUrl()}));
         try {
           // connect to the new writer
-          this.currentConnection = pluginService.connect(writerCandidate, initialConnectionProps);
+          this.currentConnection = pluginService.forceConnect(writerCandidate, initialConnectionProps);
           pluginService.setAvailability(writerCandidate.asAliases(), HostAvailability.AVAILABLE);
           return true;
         } catch (final SQLException exception) {

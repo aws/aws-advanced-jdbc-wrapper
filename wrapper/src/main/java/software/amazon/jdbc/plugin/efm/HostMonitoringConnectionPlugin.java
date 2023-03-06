@@ -325,7 +325,11 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+    return connectInternal(driverProtocol, hostSpec, connectFunc);
+  }
 
+  private Connection connectInternal(String driverProtocol, HostSpec hostSpec,
+      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     final Connection conn = connectFunc.call();
 
     if (conn != null) {
@@ -333,5 +337,16 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     }
 
     return conn;
+  }
+
+  @Override
+  public Connection forceConnect(
+      final @NonNull String driverProtocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props,
+      final boolean isInitialConnection,
+      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+    return connectInternal(driverProtocol, hostSpec, connectFunc);
   }
 }

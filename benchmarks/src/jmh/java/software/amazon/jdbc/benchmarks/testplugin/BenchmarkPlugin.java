@@ -66,6 +66,15 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
+  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+    LOGGER.finer(() -> String.format("forceConnect=''%s''", driverProtocol));
+    resources.add("forceConnect");
+    return connectFunc.call();
+  }
+
+  @Override
   public void initHostProvider(String driverProtocol, String initialUrl, Properties props,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {

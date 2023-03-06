@@ -331,6 +331,12 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException {
+      return new TestConnection();
+    }
+
+
+    @Override
     public boolean isNetworkException(Throwable throwable) {
       return false;
     }

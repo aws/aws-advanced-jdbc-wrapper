@@ -48,6 +48,14 @@ public interface ConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException;
 
+  Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException;
+
   void initHostProvider(
       final String driverProtocol,
       final String initialUrl,

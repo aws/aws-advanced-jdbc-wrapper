@@ -394,10 +394,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
     return this.pluginManager.connect(
-        this.driverProtocol,
-        hostSpec,
-        props,
-        this.currentConnection == null);
+        this.driverProtocol, hostSpec, props, this.currentConnection == null);
+  }
+
+  @Override
+  public Connection forceConnect(final HostSpec hostSpec, final Properties props) throws SQLException {
+    return this.pluginManager.forceConnect(
+        this.driverProtocol, hostSpec, props, this.currentConnection == null);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {

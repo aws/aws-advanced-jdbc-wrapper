@@ -141,13 +141,31 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throws SQLException {
     final ConnectionProvider connProvider =
         this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+    return connectInternal(driverProtocol, hostSpec, props, connProvider);
+  }
+
+  private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
+      ConnectionProvider connProvider) throws SQLException {
     final Connection conn = connProvider.connect(driverProtocol, hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
-    // omitted.
+    // ignored.
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     return conn;
+  }
+
+  @Override
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+    final ConnectionProvider connProvider =
+        this.connProviderManager.getDefaultProvider();
+    return connectInternal(driverProtocol, hostSpec, props, connProvider);
   }
 
   @Override

@@ -88,9 +88,24 @@ public class TestPluginOne implements ConnectionPlugin {
       JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    this.calls.add(this.getClass().getSimpleName() + ":before");
+    this.calls.add(this.getClass().getSimpleName() + ":before connect");
     Connection result = connectFunc.call();
-    this.calls.add(this.getClass().getSimpleName() + ":after");
+    this.calls.add(this.getClass().getSimpleName() + ":after connect");
+    return result;
+  }
+
+  @Override
+  public Connection forceConnect(
+      String driverProtocol,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+
+    this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
+    Connection result = connectFunc.call();
+    this.calls.add(this.getClass().getSimpleName() + ":after forceConnect");
     return result;
   }
 

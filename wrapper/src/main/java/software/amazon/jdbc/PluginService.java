@@ -67,4 +67,6 @@ public interface PluginService extends ExceptionHandler {
   void forceRefreshHostList(Connection connection) throws SQLException;
 
   Connection connect(HostSpec hostSpec, Properties props) throws SQLException;
+
+  Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException;
 }

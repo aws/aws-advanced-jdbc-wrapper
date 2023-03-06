@@ -50,6 +50,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("connect");
+          add("forceConnect");
           add("notifyNodeListChanged");
         }
       });
@@ -85,6 +86,11 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   @Override
   public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    return connectInternal(driverProtocol, hostSpec, connectFunc);
+  }
+
+  private Connection connectInternal(String driverProtocol, HostSpec hostSpec,
+      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
       this.retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
       this.instanceNameCol = PG_INSTANCE_NAME_COL;
@@ -108,6 +114,12 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     tracker.logOpenedConnections();
 
     return conn;
+  }
+
+  @Override
+  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    return connectInternal(driverProtocol, hostSpec, connectFunc);
   }
 
   private String getInstanceEndpointPattern(final String url) {

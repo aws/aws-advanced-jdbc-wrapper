@@ -344,9 +344,27 @@ public class ConnectionPluginManager implements CanReleaseResources {
           CONNECT_METHOD,
           (plugin, func) ->
               plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
-          () -> {
-            throw new SQLException("Shouldn't be called.");
-          });
+          () -> {throw new SQLException("Shouldn't be called.");});
+    } catch (SQLException | RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new SQLException(e);
+    }
+  }
+
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection)
+      throws SQLException {
+
+    try {
+      return executeWithSubscribedPlugins(
+          CONNECT_METHOD,
+          (plugin, func) ->
+              plugin.forceConnect(driverProtocol, hostSpec, props, isInitialConnection, func),
+          () -> {throw new SQLException("Shouldn't be called.");});
     } catch (SQLException | RuntimeException e) {
       throw e;
     } catch (Exception e) {

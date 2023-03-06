@@ -49,6 +49,10 @@ public class ConnectionProviderManager {
     }
   }
 
+  public ConnectionProvider getDefaultProvider() {
+    return defaultProvider;
+  }
+
   public static void reset() {
     lock.lock();
     connProvider = null;
