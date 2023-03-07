@@ -14,4 +14,4 @@ For instance, the user application had an active connection and an idle connecti
 When the application tries to continue the workflow with the idle connection that is still pointing to a node that has changed roles, i.e. node A, users may get an error caused by unexpected behaviour, such as `ERROR: cannot execute UPDATE in a read-only transaction`.
 
 Since the Aurora Connection Tracker Plugin keeps track of all the open connections, the plugin can close all impacted connections after failover.
-When the application tries to use the outdated idle connection, the application will get connection closed error instead.
+When the application tries to use the outdated idle connection, the application will get a `connection's closed` error instead.
