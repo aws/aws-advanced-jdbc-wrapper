@@ -132,9 +132,15 @@ public class ReadWriteSplittingPooledTest {
     int numThreads = 20;
     List<Future> futures = new ArrayList<>();
 
-    final ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
+    final ExecutorService executorService = Executors.newCachedThreadPool(
+        r -> {
+          final Thread testThread = new Thread(r);
+          testThread.setDaemon(true);
+          return testThread;
+        });
+
     for (int i = 0; i < numThreads; i++) {
-      futures.add(executorService.submit(new ConnectionThread(i)));
+      futures.add(executorService.submit(new TestThread(i)));
     }
 
     executorService.shutdown();
@@ -143,11 +149,11 @@ public class ReadWriteSplittingPooledTest {
     }
   }
 
-  class ConnectionThread implements Runnable {
+  class TestThread implements Runnable {
 
     private final int id;
 
-    ConnectionThread(int id) {
+    TestThread(int id) {
       this.id = id;
     }
 

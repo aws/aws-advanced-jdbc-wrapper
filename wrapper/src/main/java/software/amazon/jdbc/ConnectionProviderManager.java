@@ -19,33 +19,33 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class ConnectionProviderManager {
 
+  private static final ReentrantLock connProviderLock = new ReentrantLock();
   private static ConnectionProvider connProvider = null;
   private ConnectionProvider defaultProvider;
-  private static final ReentrantLock lock = new ReentrantLock();
 
   public ConnectionProviderManager(ConnectionProvider defaultProvider) {
     this.defaultProvider = defaultProvider;
   }
 
   public static void setConnectionProvider(ConnectionProvider connProvider) {
-    lock.lock();
+    connProviderLock.lock();
     try {
       ConnectionProviderManager.connProvider = connProvider;
     } finally {
-      lock.unlock();
+      connProviderLock.unlock();
     }
   }
 
   public ConnectionProvider getConnectionProvider(
       String driverProtocol, HostSpec host, Properties props) {
-    lock.lock();
+    connProviderLock.lock();
     try {
       if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
         return connProvider;
       }
       return defaultProvider;
     } finally {
-      lock.unlock();
+      connProviderLock.unlock();
     }
   }
 
@@ -53,20 +53,20 @@ public class ConnectionProviderManager {
     return defaultProvider;
   }
 
-  public static void reset() {
-    lock.lock();
+  public static void resetProvider() {
+    connProviderLock.lock();
     connProvider = null;
-    lock.unlock();
+    connProviderLock.unlock();
   }
 
   public static void releaseResources() {
-    lock.lock();
+    connProviderLock.lock();
     try {
       if (connProvider != null) {
         connProvider.releaseResources();
       }
     } finally {
-      lock.unlock();
+      connProviderLock.unlock();
     }
   }
 }
