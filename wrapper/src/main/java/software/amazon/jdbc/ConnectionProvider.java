@@ -62,9 +62,4 @@ public interface ConnectionProvider {
    */
   Connection connect(@NonNull String url, @NonNull Properties props)
       throws SQLException; // TODO: do we need this method?
-
-  /**
-   * Release any resources used by this ConnectionProvider
-   */
-  void releaseResources();
 }

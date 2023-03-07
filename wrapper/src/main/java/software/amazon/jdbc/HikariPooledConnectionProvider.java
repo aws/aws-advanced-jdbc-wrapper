@@ -24,12 +24,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class HikariPooledConnectionProvider implements PooledConnectionProvider {
+public class HikariPooledConnectionProvider implements PooledConnectionProvider,
+    CanReleaseResources {
   static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql://";
   static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql://";
   static final String MARIADB_DRIVER_PROTOCOL = "jdbc:mariadb://";
@@ -39,7 +41,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider 
 
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
-  private static HikariPoolConfigurator poolConfigurator;
+  private final HikariPoolConfigurator poolConfigurator;
 
   public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
     poolConfigurator = hikariPoolConfigurator;

@@ -148,9 +148,4 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();
   }
-
-  @Override
-  public void releaseResources() {
-    // Do nothing
-  }
 }

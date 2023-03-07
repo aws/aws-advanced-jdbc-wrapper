@@ -102,9 +102,4 @@ public class DriverConnectionProvider implements ConnectionProvider {
     LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);
   }
-
-  @Override
-  public void releaseResources() {
-    // Do nothing
-  }
 }

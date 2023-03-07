@@ -15,11 +15,12 @@ package software.amazon.jdbc;/*
  */
 
 import java.util.Properties;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 
 public class ConnectionProviderManager {
 
-  private static final ReentrantLock connProviderLock = new ReentrantLock();
+  private static final ReentrantReadWriteLock connProviderLock = new ReentrantReadWriteLock();
   private static ConnectionProvider connProvider = null;
   private ConnectionProvider defaultProvider;
 
@@ -28,24 +29,24 @@ public class ConnectionProviderManager {
   }
 
   public static void setConnectionProvider(ConnectionProvider connProvider) {
-    connProviderLock.lock();
+    connProviderLock.writeLock().lock();
     try {
       ConnectionProviderManager.connProvider = connProvider;
     } finally {
-      connProviderLock.unlock();
+      connProviderLock.writeLock().unlock();
     }
   }
 
   public ConnectionProvider getConnectionProvider(
       String driverProtocol, HostSpec host, Properties props) {
-    connProviderLock.lock();
+    connProviderLock.readLock().lock();
     try {
       if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
         return connProvider;
       }
       return defaultProvider;
     } finally {
-      connProviderLock.unlock();
+      connProviderLock.readLock().unlock();
     }
   }
 
@@ -54,19 +55,19 @@ public class ConnectionProviderManager {
   }
 
   public static void resetProvider() {
-    connProviderLock.lock();
+    connProviderLock.writeLock().lock();
     connProvider = null;
-    connProviderLock.unlock();
+    connProviderLock.writeLock().unlock();
   }
 
   public static void releaseResources() {
-    connProviderLock.lock();
+    connProviderLock.writeLock().lock();
     try {
-      if (connProvider != null) {
-        connProvider.releaseResources();
+      if (connProvider != null && connProvider instanceof CanReleaseResources) {
+        ((CanReleaseResources) connProvider).releaseResources();
       }
     } finally {
-      connProviderLock.unlock();
+      connProviderLock.writeLock().unlock();
     }
   }
 }
