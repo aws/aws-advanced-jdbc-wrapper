@@ -30,14 +30,8 @@ import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
-public class HikariPooledConnectionProvider implements PooledConnectionProvider,
+public abstract class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {
-  static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql://";
-  static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql://";
-  static final String MARIADB_DRIVER_PROTOCOL = "jdbc:mariadb://";
-  static final String DEFAULT_PG_DS = "org.postgresql.ds.PGSimpleDataSource";
-  static final String DEFAULT_MYSQL_DS = "com.mysql.cj.jdbc.MysqlDataSource";
-  static final String DEFAULT_MARIADB_DS = "org.mariadb.jdbc.MariaDbDataSource";
 
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
@@ -61,15 +55,18 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     HikariDataSource ds = databasePools.computeIfAbsent(
         hostSpec.getUrl(), url -> {
           HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
-          setConnectionProperties(config, protocol, hostSpec, props);
+          setConnectionProperties(config, hostSpec, props);
           return new HikariDataSource(config);
         });
     return ds.getConnection();
   }
 
+  abstract String getDataSourceClassName();
+
   private void setConnectionProperties(
-      HikariConfig config, String protocol, HostSpec hostSpec, Properties props) {
+      HikariConfig config, HostSpec hostSpec, Properties props) {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
+    config.setDataSourceClassName(getDataSourceClassName());
 
     String user = props.getProperty(PropertyDefinition.USER.name);
     String password = props.getProperty(PropertyDefinition.PASSWORD.name);
@@ -82,21 +79,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     if (HostRole.READER.equals(hostSpec.getRole())) {
       config.setReadOnly(true);
-    }
-
-    switch (protocol) {
-    case PG_DRIVER_PROTOCOL:
-      config.setDataSourceClassName(DEFAULT_PG_DS);
-      break;
-    case MYSQL_DRIVER_PROTOCOL:
-      config.setDataSourceClassName(DEFAULT_MYSQL_DS);
-      break;
-    case MARIADB_DRIVER_PROTOCOL:
-      config.setDataSourceClassName(DEFAULT_MARIADB_DS);
-      break;
-    default:
-      throw new UnsupportedOperationException(
-          "The provided protocol is not supported by the driver: " + protocol);
     }
 
     String serverPropertyName = props.getProperty("serverPropertyName");
@@ -119,10 +101,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   @Override
   public Connection connect(
       @NonNull String url, @NonNull Properties props) throws SQLException {
-    // TODO: Is this method ever called? It seems to only be referenced by tests/benchmarks. If
-    //  needed, how should we implement it? The other connect method passes a HostSpec to the
-    //  PoolConfigurator but we only have a URL here. Should we pass a URL instead in both connect
-    //  methods? Or parse the URL and create a HostSpec from it here?
+    // This method is only called by tests/benchmarks
     return null;
   }
 

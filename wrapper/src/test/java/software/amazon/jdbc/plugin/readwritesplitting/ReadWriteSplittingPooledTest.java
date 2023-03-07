@@ -37,8 +37,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionProviderManager;
-import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PostgresHikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class ReadWriteSplittingPooledTest {
@@ -61,7 +61,7 @@ public class ReadWriteSplittingPooledTest {
     DriverManager.registerDriver(new org.postgresql.Driver());
 
     ConnectionProviderManager.setConnectionProvider(
-        new HikariPooledConnectionProvider(ReadWriteSplittingPooledTest::getHikariConfig));
+        new PostgresHikariPooledConnectionProvider(ReadWriteSplittingPooledTest::getHikariConfig));
   }
 
   @AfterEach

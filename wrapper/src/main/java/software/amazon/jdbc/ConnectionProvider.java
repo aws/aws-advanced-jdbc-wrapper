@@ -61,5 +61,5 @@ public interface ConnectionProvider {
    * @throws SQLException if an error occurs
    */
   Connection connect(@NonNull String url, @NonNull Properties props)
-      throws SQLException; // TODO: do we need this method?
+      throws SQLException; // TODO: this method is only called by tests/benchmarks and can likely be deprecated
 }

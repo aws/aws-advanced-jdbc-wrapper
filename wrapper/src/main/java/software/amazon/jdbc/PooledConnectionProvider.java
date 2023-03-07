@@ -1,4 +1,4 @@
-package software.amazon.jdbc;/*
+/*
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
@@ -13,6 +13,8 @@ package software.amazon.jdbc;/*
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package software.amazon.jdbc;
 
 // A marker interface for providers that use connection pools to return requested Connections
 public interface PooledConnectionProvider extends ConnectionProvider {
