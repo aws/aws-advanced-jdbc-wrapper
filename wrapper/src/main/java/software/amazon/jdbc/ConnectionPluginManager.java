@@ -80,6 +80,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
   private static final String ALL_METHODS = "*";
   private static final String CONNECT_METHOD = "connect";
+  private static final String FORCE_CONNECT_METHOD = "forceConnect";
+  private static final String GET_HOST_SPEC_BY_STRATEGY_METHOD = "getHostSpecByStrategy";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
@@ -361,9 +363,23 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     try {
       return executeWithSubscribedPlugins(
-          CONNECT_METHOD,
+          FORCE_CONNECT_METHOD,
           (plugin, func) ->
               plugin.forceConnect(driverProtocol, hostSpec, props, isInitialConnection, func),
+          () -> {throw new SQLException("Shouldn't be called.");});
+    } catch (SQLException | RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new SQLException(e);
+    }
+  }
+
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
+    try {
+      return executeWithSubscribedPlugins(
+          GET_HOST_SPEC_BY_STRATEGY_METHOD,
+          (plugin, func) ->
+              plugin.getHostSpecByStrategy(role, strategy, func),
           () -> {throw new SQLException("Shouldn't be called.");});
     } catch (SQLException | RuntimeException e) {
       throw e;

@@ -26,11 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -67,11 +66,20 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
 
   @Override
   public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
     LOGGER.finer(() -> String.format("forceConnect=''%s''", driverProtocol));
     resources.add("forceConnect");
-    return connectFunc.call();
+    return forceConnectFunc.call();
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy,
+      JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
+      throws SQLException {
+    LOGGER.finer(() -> String.format("getHostSpecByStrategy=''%s''", strategy));
+    resources.add("getHostSpecByStrategy");
+    return getHostSpecByStrategyFunc.call();
   }
 
   @Override

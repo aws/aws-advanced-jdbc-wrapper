@@ -166,9 +166,9 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final boolean isInitialConnection,
-      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
+      final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, props, connectFunc);
+    return connectInternal(driverProtocol, hostSpec, props, forceConnectFunc);
   }
 
   String generateAuthenticationToken(

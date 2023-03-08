@@ -18,9 +18,14 @@ package software.amazon.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 /**
@@ -30,6 +35,9 @@ import software.amazon.jdbc.util.PropertyUtils;
 public class DriverConnectionProvider implements ConnectionProvider {
 
   private static final Logger LOGGER = Logger.getLogger(DriverConnectionProvider.class.getName());
+
+  private static final Map<String, HostSelector> acceptedStrategies =
+      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {{ put("random", new RandomHostSelector()); }});
 
   private final java.sql.Driver driver;
 
@@ -52,6 +60,20 @@ public class DriverConnectionProvider implements ConnectionProvider {
   public boolean acceptsUrl(
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
     return true;
+  }
+
+  @Override
+  public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
+    return acceptedStrategies.containsKey(strategy);
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy) throws SQLException {
+    if (!acceptedStrategies.containsKey(strategy)) {
+      throw new SQLException(Messages.get("ConnectionProvider.unsupportedHostSpecSelectorStrategy", new Object[] { strategy }));
+    }
+
+    return acceptedStrategies.get(strategy).getHost(hosts, role);
   }
 
   /**

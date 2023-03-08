@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -100,12 +101,22 @@ public class TestPluginOne implements ConnectionPlugin {
       HostSpec hostSpec,
       Properties props,
       boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc)
+      JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
 
     this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
-    Connection result = connectFunc.call();
+    Connection result = forceConnectFunc.call();
     this.calls.add(this.getClass().getSimpleName() + ":after forceConnect");
+    return result;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy,
+      JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
+      throws SQLException {
+    this.calls.add(this.getClass().getSimpleName() + ":before getHostSpecByStrategy");
+    HostSpec result = getHostSpecByStrategyFunc.call();
+    this.calls.add(this.getClass().getSimpleName() + ":after getHostSpecByStrategy");
     return result;
   }
 

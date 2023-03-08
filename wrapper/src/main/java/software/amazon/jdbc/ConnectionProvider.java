@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -38,6 +39,11 @@ public interface ConnectionProvider {
    */
   boolean acceptsUrl(
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props);
+
+  boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy);
+
+  HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role,
+      @NonNull String strategy) throws SQLException;
 
   /**
    * Called once per connection that needs to be created.

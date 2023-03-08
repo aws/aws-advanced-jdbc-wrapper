@@ -345,8 +345,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final boolean isInitialConnection,
-      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
+      final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, connectFunc);
+    return connectInternal(driverProtocol, hostSpec, forceConnectFunc);
   }
 }

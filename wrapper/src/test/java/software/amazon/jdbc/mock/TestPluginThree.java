@@ -68,7 +68,7 @@ public class TestPluginThree extends TestPluginOne {
       HostSpec hostSpec,
       Properties props,
       boolean isInitialConnection,
-      JdbcCallable<Connection, SQLException> connectFunc)
+      JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
 
     this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
@@ -78,7 +78,7 @@ public class TestPluginThree extends TestPluginOne {
       return this.connection;
     }
 
-    Connection result = connectFunc.call();
+    Connection result = forceConnectFunc.call();
     this.calls.add(this.getClass().getSimpleName() + ":after forceConnect");
 
     return result;

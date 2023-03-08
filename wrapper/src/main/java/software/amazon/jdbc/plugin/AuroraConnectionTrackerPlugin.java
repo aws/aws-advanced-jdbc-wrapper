@@ -118,8 +118,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, connectFunc);
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
+    return connectInternal(driverProtocol, hostSpec, forceConnectFunc);
   }
 
   private String getInstanceEndpointPattern(final String url) {

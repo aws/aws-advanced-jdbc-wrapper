@@ -53,7 +53,13 @@ public interface ConnectionPlugin {
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException;
+
+  HostSpec getHostSpecByStrategy(
+      final HostRole role,
+      final String strategy,
+      final JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
       throws SQLException;
 
   void initHostProvider(

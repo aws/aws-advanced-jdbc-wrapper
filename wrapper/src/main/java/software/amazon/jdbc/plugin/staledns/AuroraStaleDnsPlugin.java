@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin.staledns;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -93,9 +92,9 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return this.helper.getVerifiedConnection(driverProtocol, hostSpec, props, connectFunc);
+    return this.helper.getVerifiedConnection(driverProtocol, hostSpec, props, forceConnectFunc);
   }
 
   @Override

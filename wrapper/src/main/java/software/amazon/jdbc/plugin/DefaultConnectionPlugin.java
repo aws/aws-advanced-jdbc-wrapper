@@ -34,13 +34,13 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -141,15 +141,15 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throws SQLException {
     final ConnectionProvider connProvider =
         this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+
+    // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
+    // ignored.
     return connectInternal(driverProtocol, hostSpec, props, connProvider);
   }
 
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       ConnectionProvider connProvider) throws SQLException {
     final Connection conn = connProvider.connect(driverProtocol, hostSpec, props);
-
-    // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
-    // ignored.
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     return conn;
@@ -161,11 +161,36 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
     final ConnectionProvider connProvider =
         this.connProviderManager.getDefaultProvider();
+
+    // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
+    // ignored.
     return connectInternal(driverProtocol, hostSpec, props, connProvider);
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy,
+      JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
+      throws SQLException {
+    Connection conn = this.pluginService.getCurrentConnection();
+    try {
+      if (conn != null && !conn.isClosed()) {
+        this.pluginService.refreshHostList(conn);
+      }
+    } catch (SQLException e) {
+      // do nothing
+    }
+
+    List<HostSpec> hosts = this.pluginService.getHosts();
+    if (hosts.size() < 1) {
+      throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
+    }
+
+    // It's guaranteed that this plugin is always the last in plugin chain so getHostSpecByStrategyFunc can be ignored.
+    return this.connProviderManager.getHostSpecByStrategy(hosts, role, strategy);
   }
 
   @Override

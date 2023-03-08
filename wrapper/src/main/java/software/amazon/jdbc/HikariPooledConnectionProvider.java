@@ -20,6 +20,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,6 +47,18 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
     return RdsUrlType.RDS_INSTANCE.equals(urlType);
+  }
+
+  @Override
+  public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
+    return false;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy) {
+    // This class does not accept any strategy, so the ConnectionProviderManager should prevent us
+    // from getting here.
+    return null;
   }
 
   @Override

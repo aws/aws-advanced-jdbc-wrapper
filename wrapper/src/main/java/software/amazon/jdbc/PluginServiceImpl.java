@@ -109,8 +109,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.initialConnectionHostSpec = initialConnectionHostSpec;
   }
 
+  @Override
   public HostSpec getInitialConnectionHostSpec() {
     return this.initialConnectionHostSpec;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
+    return this.pluginManager.getHostSpecByStrategy(role, strategy);
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {

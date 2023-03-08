@@ -29,10 +29,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.ConnectionResult;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
-import software.amazon.jdbc.HostSelectorManager;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -72,16 +71,22 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private final Properties properties;
   private final RdsUtils rdsUtils = new RdsUtils();
   private final AtomicBoolean inReadWriteSplit = new AtomicBoolean(false);
-  private final HostSelectorManager hostSelectorManager;
+  private final String readerSelectorStrategy;
   private HostListProviderService hostListProviderService;
   private Connection writerConnection;
   private Connection readerConnection;
   private HostSpec readerHostSpec;
 
+  public static final AwsWrapperProperty READER_HOST_SELECTOR_STRATEGY =
+      new AwsWrapperProperty(
+          "readerHostSelectorStrategy",
+          "random",
+          "The strategy that should be used to select a new reader host.");
+
   ReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
-    this.hostSelectorManager = new HostSelectorManager(pluginService);
     this.properties = properties;
+    this.readerSelectorStrategy = READER_HOST_SELECTOR_STRATEGY.getString(properties);
   }
 
   /**
@@ -173,9 +178,9 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
-      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
+      final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, isInitialConnection, connectFunc);
+    return connectInternal(driverProtocol, hostSpec, isInitialConnection, forceConnectFunc);
   }
 
   private HostSpec getHostSpecFromUrl(final String url) {
@@ -518,11 +523,24 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private void getNewReaderConnection() throws SQLException {
-    final List<HostSpec> excludeList = Collections.singletonList(this.pluginService.getCurrentHostSpec());
-    final ConnectionResult connResult = this.hostSelectorManager.getConnectionByPriority(excludeList,
-        HostRole.READER, this.properties);
-    final Connection conn = connResult.getConnection();
-    final HostSpec readerHost = connResult.getHostSpec();
+    Connection conn = null;
+    HostSpec readerHost = null;
+
+    int connAttempts = this.pluginService.getHosts().size() * 2;
+    for (int i = 0; i < connAttempts; i++) {
+      HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(HostRole.READER, this.readerSelectorStrategy);
+      try {
+        conn = this.pluginService.connect(hostSpec, this.properties);
+        readerHost = hostSpec;
+        break;
+      } catch (final SQLException e) {
+        LOGGER.config(
+            () -> Messages.get(
+                "ReadWriteSplittingPlugin.failedToConnectToReader",
+                new Object[] {
+                    hostSpec.getUrl()}));
+      }
+    }
 
     if (conn == null || readerHost == null) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.noReadersAvailable"),
@@ -530,9 +548,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
+    HostSpec finalReaderHost = readerHost;
     LOGGER.finest(
         () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
-            new Object[] {readerHost.getUrl()}));
+            new Object[] {finalReaderHost.getUrl()}));
     setReaderConnection(conn, readerHost);
     switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
   }

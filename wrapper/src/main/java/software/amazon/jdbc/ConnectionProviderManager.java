@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc;
 
+import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
@@ -46,14 +48,28 @@ public class ConnectionProviderManager {
       if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
         return connProvider;
       }
-      return defaultProvider;
     } finally {
       connProviderLock.readLock().unlock();
     }
+
+    return defaultProvider;
   }
 
   public ConnectionProvider getDefaultProvider() {
     return defaultProvider;
+  }
+
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
+    connProviderLock.readLock().lock();
+    try {
+      if (connProvider != null && connProvider.acceptsStrategy(role, strategy)) {
+        return connProvider.getHostSpecByStrategy(hosts, role, strategy);
+      }
+    } finally {
+      connProviderLock.readLock().unlock();
+    }
+
+    return defaultProvider.getHostSpecByStrategy(hosts, role, strategy);
   }
 
   public static void resetProvider() {

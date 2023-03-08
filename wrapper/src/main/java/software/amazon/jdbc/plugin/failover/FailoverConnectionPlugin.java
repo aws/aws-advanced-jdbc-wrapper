@@ -811,8 +811,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
+    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
   }
 }
