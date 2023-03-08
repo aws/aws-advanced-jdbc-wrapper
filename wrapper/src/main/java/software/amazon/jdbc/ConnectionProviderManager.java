@@ -43,13 +43,15 @@ public class ConnectionProviderManager {
 
   public ConnectionProvider getConnectionProvider(
       String driverProtocol, HostSpec host, Properties props) {
-    connProviderLock.readLock().lock();
-    try {
-      if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
-        return connProvider;
+    if (connProvider != null) {
+      connProviderLock.readLock().lock();
+      try {
+        if (connProvider != null && connProvider.acceptsUrl(driverProtocol, host, props)) {
+          return connProvider;
+        }
+      } finally {
+        connProviderLock.readLock().unlock();
       }
-    } finally {
-      connProviderLock.readLock().unlock();
     }
 
     return defaultProvider;
@@ -60,32 +62,38 @@ public class ConnectionProviderManager {
   }
 
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
-    connProviderLock.readLock().lock();
-    try {
-      if (connProvider != null && connProvider.acceptsStrategy(role, strategy)) {
-        return connProvider.getHostSpecByStrategy(hosts, role, strategy);
+    if (connProvider != null) {
+      connProviderLock.readLock().lock();
+      try {
+        if (connProvider != null && connProvider.acceptsStrategy(role, strategy)) {
+          return connProvider.getHostSpecByStrategy(hosts, role, strategy);
+        }
+      } finally {
+        connProviderLock.readLock().unlock();
       }
-    } finally {
-      connProviderLock.readLock().unlock();
     }
 
     return defaultProvider.getHostSpecByStrategy(hosts, role, strategy);
   }
 
   public static void resetProvider() {
-    connProviderLock.writeLock().lock();
-    connProvider = null;
-    connProviderLock.writeLock().unlock();
+    if (connProvider != null) {
+      connProviderLock.writeLock().lock();
+      connProvider = null;
+      connProviderLock.writeLock().unlock();
+    }
   }
 
   public static void releaseResources() {
-    connProviderLock.writeLock().lock();
-    try {
-      if (connProvider instanceof CanReleaseResources) {
-        ((CanReleaseResources) connProvider).releaseResources();
+    if (connProvider != null) {
+      connProviderLock.writeLock().lock();
+      try {
+        if (connProvider instanceof CanReleaseResources) {
+          ((CanReleaseResources) connProvider).releaseResources();
+        }
+      } finally {
+        connProviderLock.writeLock().unlock();
       }
-    } finally {
-      connProviderLock.writeLock().unlock();
     }
   }
 }
