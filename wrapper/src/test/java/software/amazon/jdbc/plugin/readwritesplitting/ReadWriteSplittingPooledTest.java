@@ -35,12 +35,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PostgresHikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 
+@Disabled("Replace connection details to run")
 public class ReadWriteSplittingPooledTest {
   public static final String POSTGRESQL_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://"

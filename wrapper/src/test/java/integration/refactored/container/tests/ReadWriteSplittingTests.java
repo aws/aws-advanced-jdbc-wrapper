@@ -73,8 +73,6 @@ import software.amazon.jdbc.util.SqlState;
 public class ReadWriteSplittingTests {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
-  protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
 
   protected static Properties getProps() {
     return TestEnvironment.isAwsDatabase() ? getAuroraProps() : getNonAuroraProps();
@@ -409,6 +407,8 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_pooledConnectionFailover() throws SQLException, InterruptedException {
+    AuroraTestUtility auroraUtil =
+        new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
     Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
     props.setProperty("databasePropertyName", "databaseName");

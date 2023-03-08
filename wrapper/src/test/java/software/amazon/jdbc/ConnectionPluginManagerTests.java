@@ -205,10 +205,10 @@ public class ConnectionPluginManagerTests {
 
     assertEquals(expectedConnection, conn);
     assertEquals(4, calls.size());
-    assertEquals("TestPluginOne:before", calls.get(0));
-    assertEquals("TestPluginThree:before", calls.get(1));
+    assertEquals("TestPluginOne:before connect", calls.get(0));
+    assertEquals("TestPluginThree:before connect", calls.get(1));
     assertEquals("TestPluginThree:connection", calls.get(2));
-    assertEquals("TestPluginOne:after", calls.get(3));
+    assertEquals("TestPluginOne:after connect", calls.get(3));
   }
 
   @Test
@@ -231,7 +231,7 @@ public class ConnectionPluginManagerTests {
         () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
     assertEquals(2, calls.size());
-    assertEquals("TestPluginOne:before", calls.get(0));
+    assertEquals("TestPluginOne:before connect", calls.get(0));
     assertEquals("TestPluginThrowException:before", calls.get(1));
   }
 
@@ -255,9 +255,9 @@ public class ConnectionPluginManagerTests {
         () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
     assertEquals(5, calls.size());
-    assertEquals("TestPluginOne:before", calls.get(0));
+    assertEquals("TestPluginOne:before connect", calls.get(0));
     assertEquals("TestPluginThrowException:before", calls.get(1));
-    assertEquals("TestPluginThree:before", calls.get(2));
+    assertEquals("TestPluginThree:before connect", calls.get(2));
     assertEquals("TestPluginThree:connection", calls.get(3));
     assertEquals("TestPluginThrowException:after", calls.get(4));
   }
@@ -283,7 +283,7 @@ public class ConnectionPluginManagerTests {
             () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
     assertEquals(2, calls.size());
-    assertEquals("TestPluginOne:before", calls.get(0));
+    assertEquals("TestPluginOne:before connect", calls.get(0));
     assertEquals("TestPluginThrowException:before", calls.get(1));
   }
 
@@ -308,9 +308,9 @@ public class ConnectionPluginManagerTests {
             () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
 
     assertEquals(5, calls.size());
-    assertEquals("TestPluginOne:before", calls.get(0));
+    assertEquals("TestPluginOne:before connect", calls.get(0));
     assertEquals("TestPluginThrowException:before", calls.get(1));
-    assertEquals("TestPluginThree:before", calls.get(2));
+    assertEquals("TestPluginThree:before connect", calls.get(2));
     assertEquals("TestPluginThree:connection", calls.get(3));
     assertEquals("TestPluginThrowException:after", calls.get(4));
   }

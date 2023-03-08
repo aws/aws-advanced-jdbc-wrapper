@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -115,6 +116,8 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
     when(this.mockPluginService.getHosts()).thenReturn(defaultHosts);
+    when(this.mockPluginService.getHostSpecByStrategy(eq(HostRole.READER), eq("random")))
+        .thenReturn(readerHostSpec1);
     when(this.mockPluginService.connect(eq(writerHostSpec), any(Properties.class)))
         .thenReturn(mockWriterConn);
     when(this.mockPluginService.connect(eq(readerHostSpec1), any(Properties.class)))
@@ -230,8 +233,7 @@ public class ReadWriteSplittingPluginTest {
         new ReadWriteSplittingPlugin(mockPluginService, defaultProps);
     plugin.switchConnectionIfRequired(true);
 
-    assertThat(plugin.getReaderConnection(),
-        anyOf(is(mockReaderConn1), is(mockReaderConn2), is(mockReaderConn3)));
+    assertEquals(mockReaderConn1, plugin.getReaderConnection());
   }
 
   @Test
