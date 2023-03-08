@@ -21,6 +21,4 @@ import java.util.List;
 
 public interface HostSelector {
   HostSpec getHost(List<HostSpec> hosts, HostRole role) throws SQLException;
-  List<HostSpec> getHostsByPriority(List<HostSpec> hosts, HostRole role) throws SQLException;
-  List<HostSpec> getHostsByPriority(List<HostSpec> hosts, List<HostSpec> excludeList, HostRole role) throws SQLException;
 }

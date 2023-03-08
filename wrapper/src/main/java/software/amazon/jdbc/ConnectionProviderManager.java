@@ -26,7 +26,7 @@ public class ConnectionProviderManager {
 
   private static final ReentrantReadWriteLock connProviderLock = new ReentrantReadWriteLock();
   private static ConnectionProvider connProvider = null;
-  private ConnectionProvider defaultProvider;
+  private final ConnectionProvider defaultProvider;
 
   public ConnectionProviderManager(ConnectionProvider defaultProvider) {
     this.defaultProvider = defaultProvider;
@@ -81,7 +81,7 @@ public class ConnectionProviderManager {
   public static void releaseResources() {
     connProviderLock.writeLock().lock();
     try {
-      if (connProvider != null && connProvider instanceof CanReleaseResources) {
+      if (connProvider instanceof CanReleaseResources) {
         ((CanReleaseResources) connProvider).releaseResources();
       }
     } finally {
