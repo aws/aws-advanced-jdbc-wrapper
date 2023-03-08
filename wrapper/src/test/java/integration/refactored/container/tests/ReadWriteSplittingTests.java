@@ -440,6 +440,8 @@ public class ReadWriteSplittingTests {
       final String nextWriterId = queryInstanceId(conn);
       assertNotEquals(writerConnectionId, nextWriterId);
     }
+
+    ConnectionProviderManager.releaseResources();
   }
 
   private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
