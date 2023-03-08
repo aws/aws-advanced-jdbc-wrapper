@@ -22,7 +22,8 @@ public class PostgresHikariPooledConnectionProvider extends HikariPooledConnecti
   private static final String DEFAULT_PG_DATA_SOURCE = "org.postgresql.ds.PGSimpleDataSource";
   private String dataSourceClassName;
 
-  public PostgresHikariPooledConnectionProvider(HikariPoolConfigurator configurator, String dataSourceClassName) {
+  public PostgresHikariPooledConnectionProvider(
+      HikariPoolConfigurator configurator, String dataSourceClassName) {
     super(configurator);
     this.dataSourceClassName = dataSourceClassName;
   }
@@ -33,7 +34,7 @@ public class PostgresHikariPooledConnectionProvider extends HikariPooledConnecti
 
   @Override
   String getDataSourceClassName() {
-    return StringUtils.isNullOrEmpty(this.dataSourceClassName) ?
-        DEFAULT_PG_DATA_SOURCE : this.dataSourceClassName;
+    return StringUtils.isNullOrEmpty(this.dataSourceClassName)
+        ? DEFAULT_PG_DATA_SOURCE : this.dataSourceClassName;
   }
 }

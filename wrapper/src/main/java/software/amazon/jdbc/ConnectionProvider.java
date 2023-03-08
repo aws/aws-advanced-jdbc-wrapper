@@ -35,7 +35,7 @@ public interface ConnectionProvider {
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @param props    The Properties to use for the connection
    * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
-   * return false
+   *         return false
    */
   boolean acceptsUrl(
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props);

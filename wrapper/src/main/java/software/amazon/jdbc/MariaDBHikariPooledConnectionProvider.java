@@ -22,7 +22,8 @@ public class MariaDBHikariPooledConnectionProvider extends HikariPooledConnectio
   private static final String DEFAULT_MARIADB_DATA_SOURCE = "com.mysql.cj.jdbc.MysqlDataSource";
   private String dataSourceClassName;
 
-  public MariaDBHikariPooledConnectionProvider(HikariPoolConfigurator configurator, String dataSourceClassName) {
+  public MariaDBHikariPooledConnectionProvider(
+      HikariPoolConfigurator configurator, String dataSourceClassName) {
     super(configurator);
     this.dataSourceClassName = dataSourceClassName;
   }
@@ -33,7 +34,7 @@ public class MariaDBHikariPooledConnectionProvider extends HikariPooledConnectio
 
   @Override
   String getDataSourceClassName() {
-    return StringUtils.isNullOrEmpty(this.dataSourceClassName) ?
-        DEFAULT_MARIADB_DATA_SOURCE : this.dataSourceClassName;
+    return StringUtils.isNullOrEmpty(this.dataSourceClassName)
+        ? DEFAULT_MARIADB_DATA_SOURCE : this.dataSourceClassName;
   }
 }

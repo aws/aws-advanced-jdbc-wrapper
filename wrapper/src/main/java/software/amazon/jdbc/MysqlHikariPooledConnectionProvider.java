@@ -23,7 +23,8 @@ public class MysqlHikariPooledConnectionProvider extends HikariPooledConnectionP
   private static final String DEFAULT_MYSQL_DATA_SOURCE = "com.mysql.cj.jdbc.MysqlDataSource";
   private String dataSourceClassName;
 
-  public MysqlHikariPooledConnectionProvider(HikariPoolConfigurator configurator, String dataSourceClassName) {
+  public MysqlHikariPooledConnectionProvider(
+      HikariPoolConfigurator configurator, String dataSourceClassName) {
     super(configurator);
     this.dataSourceClassName = dataSourceClassName;
   }
@@ -34,7 +35,7 @@ public class MysqlHikariPooledConnectionProvider extends HikariPooledConnectionP
 
   @Override
   String getDataSourceClassName() {
-    return StringUtils.isNullOrEmpty(this.dataSourceClassName) ?
-        DEFAULT_MYSQL_DATA_SOURCE : this.dataSourceClassName;
+    return StringUtils.isNullOrEmpty(this.dataSourceClassName)
+        ? DEFAULT_MYSQL_DATA_SOURCE : this.dataSourceClassName;
   }
 }

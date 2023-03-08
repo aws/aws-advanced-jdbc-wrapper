@@ -346,7 +346,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
           CONNECT_METHOD,
           (plugin, func) ->
               plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
-          () -> {throw new SQLException("Shouldn't be called.");});
+          () -> {
+            throw new SQLException("Shouldn't be called.");
+          });
     } catch (SQLException | RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -366,7 +368,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
           FORCE_CONNECT_METHOD,
           (plugin, func) ->
               plugin.forceConnect(driverProtocol, hostSpec, props, isInitialConnection, func),
-          () -> {throw new SQLException("Shouldn't be called.");});
+          () -> {
+            throw new SQLException("Shouldn't be called.");
+          });
     } catch (SQLException | RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -380,7 +384,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
           GET_HOST_SPEC_BY_STRATEGY_METHOD,
           (plugin, func) ->
               plugin.getHostSpecByStrategy(role, strategy, func),
-          () -> {throw new SQLException("Shouldn't be called.");});
+          () -> {
+            throw new SQLException("Shouldn't be called.");
+          });
     } catch (SQLException | RuntimeException e) {
       throw e;
     } catch (Exception e) {

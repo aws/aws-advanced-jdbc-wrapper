@@ -418,18 +418,23 @@ public class ReadWriteSplittingTests {
     ConnectionProvider provider = null;
     TestDriver driver = TestEnvironment.getCurrent().getCurrentDriver();
     switch (driver) {
-    case MYSQL:
-      provider = new MysqlHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-      break;
-    case MARIADB:
-      provider =
-          new MariaDBHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-      break;
-    case PG:
-      provider =
-          new PostgresHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-      break;
-    default: fail("The provided test driver does not have an equivalent HikariPooledConnectionProvider class: " + driver);
+      case MYSQL:
+        provider =
+            new MysqlHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        break;
+      case MARIADB:
+        provider =
+            new MariaDBHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        break;
+      case PG:
+        provider =
+            new PostgresHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        break;
+      default:
+        fail(
+            "The provided test driver does not have an equivalent HikariPooledConnectionProvider "
+                + "class: "
+                + driver);
     }
 
     ConnectionProviderManager.setConnectionProvider(provider);

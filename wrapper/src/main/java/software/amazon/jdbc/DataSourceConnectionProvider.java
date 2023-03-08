@@ -39,7 +39,11 @@ import software.amazon.jdbc.util.PropertyUtils;
 public class DataSourceConnectionProvider implements ConnectionProvider {
 
   private static final Map<String, HostSelector> acceptedStrategies =
-      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {{ put("random", new RandomHostSelector()); }});
+      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
+        {
+          put("random", new RandomHostSelector());
+        }
+      });
   private final @NonNull DataSource dataSource;
   private final @Nullable String serverPropertyName;
   private final @Nullable String portPropertyName;
@@ -68,7 +72,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @param props    The Properties to use for the connection
    * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
-   * return false
+   *         return false
    */
   @Override
   public boolean acceptsUrl(
@@ -82,7 +86,9 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy) throws SQLException {
+  public HostSpec getHostSpecByStrategy(
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
+      throws SQLException {
     if (!acceptedStrategies.containsKey(strategy)) {
       throw new SQLException(
           Messages.get("ConnectionProvider.unsupportedHostSpecSelectorStrategy", new Object[] { strategy }));

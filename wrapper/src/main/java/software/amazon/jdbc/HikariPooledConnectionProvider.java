@@ -55,7 +55,8 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy) {
+  public HostSpec getHostSpecByStrategy(
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy) {
     // This class does not accept any strategy, so the ConnectionProviderManager should prevent us
     // from getting here.
     return null;
@@ -72,6 +73,19 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
           return new HikariDataSource(config);
         });
     return ds.getConnection();
+  }
+
+  @Override
+  public Connection connect(
+      @NonNull String url, @NonNull Properties props) throws SQLException {
+    // This method is only called by tests/benchmarks
+    return null;
+  }
+
+  @Override
+  public void releaseResources() {
+    databasePools.forEach((String url, HikariDataSource ds) -> ds.close());
+    databasePools.clear();
   }
 
   abstract String getDataSourceClassName();
@@ -109,18 +123,5 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
     if (!StringUtils.isNullOrEmpty(dbPropertyName) && !StringUtils.isNullOrEmpty(db)) {
       config.addDataSourceProperty(dbPropertyName, db);
     }
-  }
-
-  @Override
-  public Connection connect(
-      @NonNull String url, @NonNull Properties props) throws SQLException {
-    // This method is only called by tests/benchmarks
-    return null;
-  }
-
-  @Override
-  public void releaseResources() {
-    databasePools.forEach((String url, HikariDataSource ds) -> ds.close());
-    databasePools.clear();
   }
 }

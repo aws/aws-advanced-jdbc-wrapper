@@ -43,7 +43,8 @@ import software.amazon.jdbc.PropertyDefinition;
 
 public class ReadWriteSplittingPooledTest {
   public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
+      "jdbc:aws-wrapper:postgresql://"
+          + "test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
   private final Properties props = new Properties();
@@ -97,34 +98,34 @@ public class ReadWriteSplittingPooledTest {
   public void testTwoConnections() throws SQLException {
     try (Connection conn1 = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props);
          Connection conn2 = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
-        String conn1WriterId = queryInstanceId(conn1);
-        String conn2WriterId = queryInstanceId(conn2);
-        assertEquals(conn1WriterId, conn2WriterId);
+      String conn1WriterId = queryInstanceId(conn1);
+      String conn2WriterId = queryInstanceId(conn2);
+      assertEquals(conn1WriterId, conn2WriterId);
 
-        conn1.setReadOnly(true);
-        conn2.setReadOnly(true);
+      conn1.setReadOnly(true);
+      conn2.setReadOnly(true);
 
-        String conn1ReaderId = queryInstanceId(conn1);
-        String conn2ReaderId = queryInstanceId(conn2);
-        assertNotEquals(conn1WriterId, conn1ReaderId);
-        assertNotEquals(conn2WriterId, conn2ReaderId);
+      String conn1ReaderId = queryInstanceId(conn1);
+      String conn2ReaderId = queryInstanceId(conn2);
+      assertNotEquals(conn1WriterId, conn1ReaderId);
+      assertNotEquals(conn2WriterId, conn2ReaderId);
 
-        conn1.setReadOnly(false);
-        conn2.setReadOnly(false);
+      conn1.setReadOnly(false);
+      conn2.setReadOnly(false);
 
-        String conn1CurrentId = queryInstanceId(conn1);
-        String conn2CurrentId = queryInstanceId(conn2);
-        assertEquals(conn1WriterId, conn1CurrentId);
-        assertEquals(conn2WriterId, conn2CurrentId);
+      String conn1CurrentId = queryInstanceId(conn1);
+      String conn2CurrentId = queryInstanceId(conn2);
+      assertEquals(conn1WriterId, conn1CurrentId);
+      assertEquals(conn2WriterId, conn2CurrentId);
 
-        conn1.setReadOnly(true);
-        conn2.setReadOnly(true);
+      conn1.setReadOnly(true);
+      conn2.setReadOnly(true);
 
-        conn1CurrentId = queryInstanceId(conn1);
-        conn2CurrentId = queryInstanceId(conn2);
-        assertEquals(conn1ReaderId, conn1CurrentId);
-        assertEquals(conn2ReaderId, conn2CurrentId);
-      }
+      conn1CurrentId = queryInstanceId(conn1);
+      conn2CurrentId = queryInstanceId(conn2);
+      assertEquals(conn1ReaderId, conn1CurrentId);
+      assertEquals(conn2ReaderId, conn2CurrentId);
+    }
   }
 
   @Test
