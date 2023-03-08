@@ -90,7 +90,7 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
 
   abstract String getDataSourceClassName();
 
-  private void setConnectionProperties(
+  protected void setConnectionProperties(
       HikariConfig config, HostSpec hostSpec, Properties props) {
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setDataSourceClassName(getDataSourceClassName());

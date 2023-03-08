@@ -175,15 +175,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy,
       JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
       throws SQLException {
-    Connection conn = this.pluginService.getCurrentConnection();
-    try {
-      if (conn != null && !conn.isClosed()) {
-        this.pluginService.refreshHostList(conn);
-      }
-    } catch (SQLException e) {
-      // do nothing
-    }
-
     List<HostSpec> hosts = this.pluginService.getHosts();
     if (hosts.size() < 1) {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));

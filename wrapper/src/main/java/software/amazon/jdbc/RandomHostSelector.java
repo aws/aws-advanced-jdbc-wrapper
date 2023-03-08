@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.util.Messages;
 
@@ -31,7 +32,7 @@ public class RandomHostSelector implements HostSelector {
       throw new SQLException(Messages.get("RandomHostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
-    int randomIndex = (int) (Math.random() * eligibleHosts.size());
+    int randomIndex = new Random().nextInt(eligibleHosts.size());
     return eligibleHosts.get(randomIndex);
   }
 }
