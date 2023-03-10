@@ -74,6 +74,19 @@ public class ReadWriteSplittingTests {
     return TestEnvironment.isAwsDatabase() ? getAuroraProps() : getNonAuroraProps();
   }
 
+  protected static Properties getProxiedPropsWithFailover() {
+    if (TestEnvironment.isAwsDatabase()) {
+      Properties props = getAuroraPropsWithFailover();
+      AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+          "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+              .getInstanceEndpointSuffix());
+      return props;
+    } else {
+      // No extra properties needed
+      return getNonAuroraProps();
+    }
+  }
+
   protected static Properties getProxiedProps() {
     if (TestEnvironment.isAwsDatabase()) {
       Properties props = getAuroraProps();
@@ -97,6 +110,12 @@ public class ReadWriteSplittingTests {
   protected static Properties getAuroraProps() {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "auroraHostList,readWriteSplitting");
+    return props;
+  }
+
+  protected static Properties getAuroraPropsWithFailover() {
+    final Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "failover,auroraHostList,readWriteSplitting");
     return props;
   }
 
@@ -463,7 +482,7 @@ public class ReadWriteSplittingTests {
     AuroraTestUtility auroraUtil =
         new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
     try (final Connection conn =
-             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+             DriverManager.getConnection(getProxiedUrl(), getProxiedPropsWithFailover())) {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
 
@@ -515,7 +534,7 @@ public class ReadWriteSplittingTests {
     AuroraTestUtility auroraUtil =
         new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
     try (final Connection conn =
-             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+             DriverManager.getConnection(getProxiedUrl(), getProxiedPropsWithFailover())) {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.info("writerConnectionId: " + writerConnectionId);
