@@ -68,6 +68,9 @@ import software.amazon.jdbc.util.SqlState;
 @MakeSureFirstInstanceWriter
 public class ReadWriteSplittingTests {
 
+  protected static final AuroraTestUtility auroraUtil =
+      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
 
   protected static Properties getProps() {
@@ -518,7 +521,8 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
-  public void test_failoverToNewWriter_setReadOnlyTrueFalse() throws SQLException {
+  public void test_failoverToNewWriter_setReadOnlyTrueFalse()
+      throws SQLException, InterruptedException {
     try (final Connection conn =
              DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
 
