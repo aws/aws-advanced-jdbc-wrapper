@@ -147,6 +147,7 @@ public class HikariTests {
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @TestTemplate
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void testFailoverLostConnection() throws SQLException {
     final Properties customProps = new Properties();
@@ -166,47 +167,6 @@ public class HikariTests {
     }
 
     assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
-  }
-
-  /**
-   * After getting a successful connection from the pool, the connected instance becomes unavailable and the
-   * connection fails over to another instance. A connection is then retrieved to check that connections
-   * to failed instances are not returned.
-   */
-  @TestTemplate
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
-  public void testFailoverDeadConnection() throws SQLException {
-    ProxyHelper.disableAllConnectivity();
-
-    List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
-
-    String writerIdentifier = instances.get(0).getInstanceId();
-    String readerIdentifier = instances.get(1).getInstanceId();
-    LOGGER.fine("Instance to connect to: " + writerIdentifier);
-    LOGGER.fine("Instance to fail over to: " + readerIdentifier);
-
-    ProxyHelper.enableConnectivity(writerIdentifier);
-    HikariDataSource dataSource = createDataSource(null);
-
-    // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = dataSource.getConnection()) {
-      assertTrue(conn.isValid(5));
-      String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertTrue(currentConnectionId.equalsIgnoreCase(instances.get(0).getInstanceId()));
-      ProxyHelper.enableConnectivity(readerIdentifier);
-      ProxyHelper.disableConnectivity(currentConnectionId);
-      assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
-
-      // Check the connection is valid after connecting to a different instance
-      assertTrue(conn.isValid(5));
-      currentConnectionId = auroraUtil.queryInstanceId(conn);
-      LOGGER.fine("Connected to instance: " + currentConnectionId);
-      assertTrue(currentConnectionId.equalsIgnoreCase(readerIdentifier));
-
-      // Try to get a new connection to the failed instance, which times out
-      assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
-    }
   }
 
   /**
@@ -246,6 +206,9 @@ public class HikariTests {
       currentConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.fine("Connected to instance: " + currentConnectionId);
       assertTrue(currentConnectionId.equalsIgnoreCase(readerIdentifier));
+
+      // Try to get a new connection to the failed instance, which times out
+      assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
     }
   }
 

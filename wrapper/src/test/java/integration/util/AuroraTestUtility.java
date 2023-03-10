@@ -16,6 +16,8 @@
 
 package integration.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -23,6 +25,7 @@ import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
+import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -70,6 +73,7 @@ import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
+import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
@@ -626,6 +630,33 @@ public class AuroraTestUtility {
     }
   }
 
+  // Attempt to run a query after the instance is down.
+  // This should initiate the driver failover, first query after a failover
+  // should always throw with the expected error message.
+  public void assertFirstQueryThrows(Connection connection, String expectedSQLErrorCode) {
+    final SQLException exception =
+        assertThrows(
+            SQLException.class,
+            () ->
+                queryInstanceId(
+                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+                    connection));
+    assertEquals(expectedSQLErrorCode, exception.getSQLState());
+  }
+
+  protected void assertFirstQueryThrows(Statement stmt, String expectedSQLErrorCode) {
+    final SQLException exception =
+        assertThrows(
+            SQLException.class,
+            () ->
+                executeInstanceIdQuery(
+                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), stmt));
+    assertEquals(
+        expectedSQLErrorCode,
+        exception.getSQLState(),
+        "Unexpected SQL Exception: " + exception.getMessage());
+  }
+
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
     failoverClusterToATargetAndWaitUntilWriterChanged(
@@ -751,7 +782,7 @@ public class AuroraTestUtility {
     return matchedMemberList.get(0).dbInstanceIdentifier();
   }
 
-  protected String getInstanceIdSql(DatabaseEngine databaseEngine) {
+  protected static String getInstanceIdSql(DatabaseEngine databaseEngine) {
     switch (databaseEngine) {
       case MYSQL:
         return "SELECT @@aurora_server_id as id";
@@ -774,7 +805,7 @@ public class AuroraTestUtility {
     }
   }
 
-  public String executeInstanceIdQuery(DatabaseEngine databaseEngine, Statement stmt)
+  public static String executeInstanceIdQuery(DatabaseEngine databaseEngine, Statement stmt)
       throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(getInstanceIdSql(databaseEngine))) {
       if (rs.next()) {
