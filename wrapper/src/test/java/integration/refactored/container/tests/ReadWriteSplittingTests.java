@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.refactored.DatabaseEngine;
@@ -31,10 +30,8 @@ import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.ProxyHelper;
-import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
-import integration.refactored.container.condition.DisableOnTestDriver;
 import integration.refactored.container.condition.DisableOnTestFeature;
 import integration.refactored.container.condition.EnableOnDatabaseEngine;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
@@ -115,7 +112,7 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getAuroraPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "failover,auroraHostList,readWriteSplitting");
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover");
     return props;
   }
 
@@ -591,7 +588,7 @@ public class ReadWriteSplittingTests {
     AuroraTestUtility auroraUtil =
         new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
     try (final Connection conn =
-             DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
+             DriverManager.getConnection(getProxiedUrl(), getProxiedPropsWithFailover())) {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
 
