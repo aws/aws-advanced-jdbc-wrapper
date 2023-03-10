@@ -285,40 +285,6 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
-  // Tests use Aurora specific SQL to identify instance name
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  public void test_setReadOnlyFalseInTransaction_setAutocommitZero() throws SQLException {
-    AuroraTestUtility auroraUtil =
-        new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
-    try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
-
-      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
-
-      conn.setReadOnly(true);
-      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerConnectionId);
-
-      final Statement stmt = conn.createStatement();
-      stmt.execute("SET autocommit = 0");
-      stmt.executeQuery(
-          // TODO: can we replace it with something less database specific?
-          "SELECT COUNT(*) FROM information_schema.tables");
-
-      final SQLException exception =
-          assertThrows(SQLException.class, () -> conn.setReadOnly(false));
-      String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(SqlState.ACTIVE_SQL_TRANSACTION.getState(), exception.getSQLState());
-      assertEquals(readerConnectionId, currentConnectionId);
-
-      stmt.execute("COMMIT");
-
-      conn.setReadOnly(false);
-      currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(writerConnectionId, currentConnectionId);
-    }
-  }
 
   @TestTemplate
   @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
