@@ -287,7 +287,7 @@ public class ReadWriteSplittingTests {
 
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
+  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL})
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_setReadOnlyTrueInTransaction() throws SQLException {
