@@ -17,14 +17,12 @@
 package software.amazon.jdbc.plugin.efm;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
@@ -94,46 +92,6 @@ class MonitorImplTest {
     monitorService.releaseResources();
     MonitorThreadContainer.releaseInstance();
     closeable.close();
-  }
-
-  @Test
-  void test_1_startMonitoringWithDifferentContexts() {
-    monitor.startMonitoring(contextWithShortInterval);
-    monitor.startMonitoring(contextWithLongInterval);
-
-    assertEquals(SHORT_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
-    verify(contextWithShortInterval).setStartMonitorTimeNano(anyLong());
-    verify(contextWithLongInterval).setStartMonitorTimeNano(anyLong());
-  }
-
-  @Test
-  void test_2_stopMonitoringWithContextRemaining() {
-    monitor.startMonitoring(contextWithShortInterval);
-    monitor.startMonitoring(contextWithLongInterval);
-
-    monitor.stopMonitoring(contextWithShortInterval);
-    assertEquals(LONG_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
-  }
-
-  @Test
-  void test_3_stopMonitoringWithNoMatchingContexts() {
-    assertDoesNotThrow(() -> monitor.stopMonitoring(contextWithLongInterval));
-    assertEquals(MonitorImpl.DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
-
-    monitor.startMonitoring(contextWithShortInterval);
-    assertDoesNotThrow(() -> monitor.stopMonitoring(contextWithLongInterval));
-    assertEquals(SHORT_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
-  }
-
-  @Test
-  void test_4_stopMonitoringTwiceWithSameContext() {
-    monitor.startMonitoring(contextWithLongInterval);
-    assertDoesNotThrow(
-        () -> {
-          monitor.stopMonitoring(contextWithLongInterval);
-          monitor.stopMonitoring(contextWithLongInterval);
-        });
-    assertEquals(MonitorImpl.DEFAULT_CONNECTION_CHECK_INTERVAL_MILLIS, monitor.getConnectionCheckIntervalMillis());
   }
 
   @Test

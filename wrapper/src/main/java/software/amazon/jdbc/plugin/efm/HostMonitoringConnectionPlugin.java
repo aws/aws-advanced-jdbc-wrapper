@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -77,15 +76,84 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           "Number of failed connection checks before considering database node unhealthy.");
 
   private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(Arrays.asList("*")));
+      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
 
   private static final String MYSQL_RETRIEVE_HOST_PORT_SQL =
       "SELECT CONCAT(@@hostname, ':', @@port)";
   private static final String PG_RETRIEVE_HOST_PORT_SQL =
       "SELECT CONCAT(inet_server_addr(), ':', inet_server_port())";
 
-  private static final List<String> METHODS_TO_SKIP_MONITORING =
-      Arrays.asList(".get", ".abort", ".close", ".next", ".create");
+  private static final Set<String> SKIP_MONITORING_METHODS = new HashSet<>(Arrays.asList(
+      ".close",
+      ".next",
+      ".abort",
+      ".closeOnCompletion",
+      ".getName",
+      ".getVendor",
+      ".getVendorTypeNumber",
+      ".getBaseTypeName",
+      ".getBaseType",
+      ".getBinaryStream",
+      ".getBytes",
+      ".getArray",
+      ".getBigDecimal",
+      ".getSubString",
+      ".getCharacterStream",
+      ".getAsciiStream",
+      ".getURL",
+      ".getUserName",
+      ".getDatabaseProductName",
+      ".getParameterCount",
+      ".getPrecision",
+      ".getScale",
+      ".getParameterType",
+      ".getParameterTypeName",
+      ".getParameterClassName",
+      ".getConnection",
+      ".getFetchDirection",
+      ".getFetchSize",
+      ".getColumnCount",
+      ".getColumnDisplaySize",
+      ".getColumnLabel",
+      ".getColumnName",
+      ".getSchemaName",
+      ".getSQLTypeName",
+      ".getSavepointId",
+      ".getSavepointName",
+      ".getMaxFieldSize",
+      ".getMaxRows",
+      ".getQueryTimeout",
+      ".getAttributes",
+      ".getString",
+      ".getTime",
+      ".getTimestamp",
+      ".getType",
+      ".getUnicodeStream",
+      ".getWarnings",
+      ".getBinaryStream",
+      ".getBlob",
+      ".getBoolean",
+      ".getByte",
+      ".getBytes",
+      ".getClob",
+      ".getConcurrency",
+      ".getDate",
+      ".getDouble",
+      ".getFloat",
+      ".getHoldability",
+      ".getInt",
+      ".getLong",
+      ".getMetaData",
+      ".getNCharacterStream",
+      ".getNClob",
+      ".getNString",
+      ".getObject",
+      ".getRef",
+      ".getRow",
+      ".getRowId",
+      ".getSQLXML",
+      ".getShort",
+      ".getStatement"));
 
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
@@ -109,12 +177,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
       final @NonNull Supplier<MonitorService> monitorServiceSupplier) {
-    if (pluginService == null) {
-      throw new IllegalArgumentException("pluginService");
-    } else if (properties == null) {
-      throw new IllegalArgumentException("properties");
-    }
-
     this.pluginService = pluginService;
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
@@ -142,7 +204,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     // update config settings since they may change
     final boolean isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
 
-    if (!isEnabled || !this.doesNeedMonitoring(methodName)) {
+    if (!isEnabled || !SKIP_MONITORING_METHODS.contains(methodName)) {
       return jdbcMethodFunc.call();
     }
 
@@ -179,34 +241,36 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
     } finally {
       if (monitorContext != null) {
-        this.monitorService.stopMonitoring(monitorContext);
+        synchronized (monitorContext) {
+          this.monitorService.stopMonitoring(monitorContext);
 
-        final boolean isConnectionClosed;
-        try {
-          isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
-        } catch (final SQLException e) {
-          throw castException(exceptionClass, e);
-        }
+          if (monitorContext.isNodeUnhealthy()) {
+            this.pluginService.setAvailability(this.nodeKeys, HostAvailability.NOT_AVAILABLE);
 
-        if (monitorContext.isNodeUnhealthy()) {
+            final boolean isConnectionClosed;
+            try {
+              isConnectionClosed = this.pluginService.getCurrentConnection().isClosed();
+            } catch (final SQLException e) {
+              throw castException(exceptionClass, e);
+            }
 
-          this.pluginService.setAvailability(this.nodeKeys, HostAvailability.NOT_AVAILABLE);
-
-          if (!isConnectionClosed) {
-            abortConnection();
-            throw castException(
-                exceptionClass,
-                new SQLException(
-                    Messages.get(
-                        "HostMonitoringConnectionPlugin.unavailableNode",
-                        new Object[] {this.pluginService.getCurrentHostSpec().asAlias()})));
+            if (!isConnectionClosed) {
+              abortConnection();
+              throw castException(
+                  exceptionClass,
+                  new SQLException(
+                      Messages.get(
+                          "HostMonitoringConnectionPlugin.unavailableNode",
+                          new Object[] {this.pluginService.getCurrentHostSpec().asAlias()})));
+            }
           }
         }
+
+        LOGGER.finest(
+            () -> Messages.get(
+                "HostMonitoringConnectionPlugin.monitoringDeactivated",
+                new Object[] {methodName}));
       }
-      LOGGER.finest(
-          () -> Messages.get(
-              "HostMonitoringConnectionPlugin.monitoringDeactivated",
-              new Object[] {methodName}));
     }
 
     return result;
@@ -227,24 +291,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     } catch (final SQLException sqlEx) {
       // ignore
     }
-  }
-
-  /**
-   * Checks whether the JDBC method passed to this connection plugin requires monitoring.
-   *
-   * @param methodName Name of the JDBC method.
-   * @return true if the method requires monitoring; false otherwise.
-   */
-  protected boolean doesNeedMonitoring(final String methodName) {
-
-    for (final String method : METHODS_TO_SKIP_MONITORING) {
-      if (methodName.contains(method)) {
-        return false;
-      }
-    }
-
-    // Monitor all the other methods
-    return true;
   }
 
   private void initMonitorService() {

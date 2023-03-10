@@ -32,17 +32,17 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
-import software.amazon.jdbc.util.ExpiringCache;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -86,7 +86,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
           // filter out nodes that haven't been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
           + "ORDER BY LAST_UPDATE_TIMESTAMP";
-  static final int DEFAULT_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
   static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   static final String FIELD_SERVER_ID = "SERVER_ID";
   static final String FIELD_SESSION_ID = "SESSION_ID";
@@ -95,18 +94,15 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   private RdsUrlType rdsUrlType;
   private final RdsUtils rdsHelper;
 
-  private int refreshRateInMilliseconds = Integer.parseInt(
-      CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
-          ? CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue
-          : "30000");
+  private long refreshRateNano = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue != null
+      ? TimeUnit.MILLISECONDS.toNanos(Long.parseLong(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.defaultValue))
+      : TimeUnit.MILLISECONDS.toNanos(30000);
   private List<HostSpec> hostList = new ArrayList<>();
   private List<HostSpec> lastReturnedHostList;
   private List<HostSpec> initialHostList = new ArrayList<>();
   private HostSpec initialHostSpec;
 
-  protected static final ExpiringCache<String, ClusterTopologyInfo> topologyCache =
-      new ExpiringCache<>(DEFAULT_CACHE_EXPIRE_MS, getOnEvict());
-  private static final Object cacheLock = new Object();
+  public static final CacheMap<String, ClusterTopologyInfo> topologyCache = new CacheMap<>();
 
   private static final String PG_DRIVER_PROTOCOL = "postgresql";
   private final String retrieveTopologyQuery;
@@ -152,13 +148,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     }
   }
 
-  private static ExpiringCache.OnEvictRunnable<ClusterTopologyInfo> getOnEvict() {
-    return (ClusterTopologyInfo evictedEntry) -> {
-      LOGGER.finest(() -> "Entry with clusterId '" + evictedEntry.clusterId
-          + "' has been evicted from the topology cache.");
-    };
-  }
-
   protected void init() throws SQLException {
     if (this.isInitialized) {
       return;
@@ -182,7 +171,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
       this.clusterId = UUID.randomUUID().toString();
       this.isPrimaryClusterId = false;
-      this.refreshRateInMilliseconds = CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties);
+      this.refreshRateNano =
+          TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
       this.clusterInstanceTemplate =
           CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
               ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
@@ -226,7 +216,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   /**
    * Get cluster topology. It may require an extra call to database to fetch the latest topology. A
    * cached copy of topology is returned if it's not yet outdated (controlled by {@link
-   * #refreshRateInMilliseconds}).
+   * #refreshRateNano}).
    *
    * @param conn A connection to database to fetch the latest topology, if needed.
    * @param forceUpdate If true, it forces a service to ignore cached copy of topology and to fetch
@@ -297,7 +287,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   }
 
   private ClusterSuggestedResult getSuggestedClusterId(final String url) {
-    for (Entry<String, ClusterTopologyInfo> entry : topologyCache.entrySet()) {
+    for (Entry<String, ClusterTopologyInfo> entry : topologyCache.getEntries().entrySet()) {
       final String key = entry.getKey();
       final ClusterTopologyInfo value = entry.getValue();
       if (key.equals(url)) {
@@ -327,24 +317,21 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       primaryClusterHostUrls.add(hostSpec.getUrl());
     }
 
-    for (Entry<String, ClusterTopologyInfo> entry : topologyCache.entrySet()) {
-      if (entry.getValue().isPrimaryCluster
-          || !StringUtils.isNullOrEmpty(entry.getValue().suggestedPrimaryClusterId)
-          || Utils.isNullOrEmpty(entry.getValue().hosts)) {
+    for (Entry<String, ClusterTopologyInfo> entry : topologyCache.getEntries().entrySet()) {
+      ClusterTopologyInfo clusterTopologyInfo = entry.getValue();
+      if (clusterTopologyInfo.isPrimaryCluster
+          || !StringUtils.isNullOrEmpty(clusterTopologyInfo.suggestedPrimaryClusterId)
+          || Utils.isNullOrEmpty(clusterTopologyInfo.hosts)) {
         continue;
       }
 
       // The entry is non-primary
-      for (HostSpec host : entry.getValue().hosts) {
+      for (HostSpec host : clusterTopologyInfo.hosts) {
         if (primaryClusterHostUrls.contains(host.getUrl())) {
           // Instance on this cluster matches with one of the instance on primary cluster
           // Suggest the primary clusterId to this entry
-          try {
-            topologyCache.getLock().lock();
-            entry.getValue().suggestedPrimaryClusterId = primaryClusterTopologyInfo.clusterId;
-          } finally {
-            topologyCache.getLock().unlock();
-          }
+          clusterTopologyInfo.suggestedPrimaryClusterId = primaryClusterTopologyInfo.clusterId;
+          topologyCache.put(entry.getKey(), clusterTopologyInfo, this.refreshRateNano);
           break;
         }
       }
@@ -354,7 +341,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   private boolean refreshNeeded(final ClusterTopologyInfo info) {
     final Instant lastUpdateTime = info.lastUpdated;
     return info.hosts.isEmpty()
-        || Duration.between(lastUpdateTime, Instant.now()).toMillis() > refreshRateInMilliseconds;
+        || Duration.between(lastUpdateTime, Instant.now()).toMillis() > refreshRateNano;
   }
 
   /**
@@ -476,54 +463,37 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
     if (clusterTopologyInfo == null) {
       // Add a new entry to the cache
-      topologyCache.put(latestTopologyInfo.clusterId, latestTopologyInfo);
+      topologyCache.put(latestTopologyInfo.clusterId, latestTopologyInfo, this.refreshRateNano);
       return latestTopologyInfo;
-
     }
 
     if (clusterTopologyInfo.clusterId.equals(latestTopologyInfo.clusterId)) {
       // Updating the same item in the cache
-      try {
-        topologyCache.getLock().lock();
+      clusterTopologyInfo.hosts = latestTopologyInfo.hosts;
+      clusterTopologyInfo.lastUpdated = Instant.now();
 
-        clusterTopologyInfo.hosts = latestTopologyInfo.hosts;
-        clusterTopologyInfo.lastUpdated = Instant.now();
-
-        // It's not necessary, but it forces the cache to check for entries to evict
-        topologyCache.put(clusterTopologyInfo.clusterId, clusterTopologyInfo);
-
-      } finally {
-        topologyCache.getLock().unlock();
-      }
+      // It's not necessary, but it forces the cache to check for entries to evict
+      topologyCache.put(clusterTopologyInfo.clusterId, clusterTopologyInfo, this.refreshRateNano);
       return clusterTopologyInfo;
-
     }
 
     // Update existing entry in the cache
     // This instance of AuroraHostListProvider accepts suggested clusterId
     // and effectively needs to update the primary entry
-
     ClusterTopologyInfo primaryClusterTopologyInfo = topologyCache.get(this.clusterId);
-
     if (primaryClusterTopologyInfo != null) {
-      try {
-        topologyCache.getLock().lock();
+      primaryClusterTopologyInfo.hosts = latestTopologyInfo.hosts;
+      primaryClusterTopologyInfo.lastUpdated = Instant.now();
 
-        primaryClusterTopologyInfo.hosts = latestTopologyInfo.hosts;
-        primaryClusterTopologyInfo.lastUpdated = Instant.now();
-
-        // It's not necessary, but it forces the cache to check for entries to evict
-        topologyCache.put(primaryClusterTopologyInfo.clusterId, primaryClusterTopologyInfo);
-
-      } finally {
-        topologyCache.getLock().unlock();
-      }
+      // It's not necessary, but it forces the cache to check for entries to evict
+      topologyCache.put(primaryClusterTopologyInfo.clusterId, primaryClusterTopologyInfo,
+          this.refreshRateNano);
       return primaryClusterTopologyInfo;
     }
 
     // That's suspicious path. Primary entry doesn't exist.
     // Let's create it.
-    topologyCache.put(latestTopologyInfo.clusterId, latestTopologyInfo);
+    topologyCache.put(latestTopologyInfo.clusterId, latestTopologyInfo, this.refreshRateNano);
     return latestTopologyInfo;
   }
 
@@ -539,34 +509,17 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   }
 
   /**
-   * Check if cached topology belongs to multi-writer cluster.
-   *
-   * @return True, if it's multi-writer cluster.
-   */
-  public boolean isMultiWriterCluster() {
-    synchronized (cacheLock) {
-      ClusterTopologyInfo clusterTopologyInfo = topologyCache.get(this.clusterId);
-      return (clusterTopologyInfo != null
-          && clusterTopologyInfo.isMultiWriterCluster);
-    }
-  }
-
-  /**
    * Clear topology cache for all clusters.
    */
   public void clearAll() {
-    synchronized (cacheLock) {
-      topologyCache.clear();
-    }
+    topologyCache.clear();
   }
 
   /**
    * Clear topology cache for the current cluster.
    */
   public void clear() {
-    synchronized (cacheLock) {
-      topologyCache.remove(this.clusterId);
-    }
+    topologyCache.remove(this.clusterId);
   }
 
   @Override
@@ -649,7 +602,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   public static void logCache() {
     LOGGER.finest(() -> {
       StringBuilder sb = new StringBuilder();
-      final Set<Entry<String, ClusterTopologyInfo>> cacheEntries = topologyCache.entrySet();
+      final Set<Entry<String, ClusterTopologyInfo>> cacheEntries = topologyCache.getEntries().entrySet();
 
       if (cacheEntries.isEmpty()) {
         sb.append("Cache is empty.");
