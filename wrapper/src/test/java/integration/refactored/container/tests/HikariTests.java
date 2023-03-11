@@ -29,6 +29,7 @@ import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
+import integration.refactored.TestProxyDatabaseInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriverProvider;
@@ -226,8 +227,9 @@ public class HikariTests {
 
   private HikariConfig getConfig(final Properties customProps) {
     HikariConfig config = new HikariConfig();
-    config.setUsername(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername());
-    config.setPassword(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
+    TestProxyDatabaseInfo proxyDatabaseInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    config.setUsername(proxyDatabaseInfo.getUsername());
+    config.setPassword(proxyDatabaseInfo.getPassword());
     config.setMaximumPoolSize(3);
     config.setReadOnly(true);
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
@@ -257,10 +259,6 @@ public class HikariTests {
 
     targetDataSourceProps.setProperty("portNumber",
         Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort()));
-    DriverHelper.setSocketTimeout(targetDataSourceProps, SOCKET_TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(targetDataSourceProps, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setMonitoringSocketTimeout(targetDataSourceProps, MONITORING_SOCKET_TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setMonitoringConnectTimeout(targetDataSourceProps, MONITORING_CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(
         "clusterInstanceHostPattern",
