@@ -782,7 +782,7 @@ public class AuroraTestUtility {
     return matchedMemberList.get(0).dbInstanceIdentifier();
   }
 
-  protected static String getInstanceIdSql(DatabaseEngine databaseEngine) {
+  protected String getInstanceIdSql(DatabaseEngine databaseEngine) {
     switch (databaseEngine) {
       case MYSQL:
         return "SELECT @@aurora_server_id as id";
@@ -805,7 +805,7 @@ public class AuroraTestUtility {
     }
   }
 
-  public static String executeInstanceIdQuery(DatabaseEngine databaseEngine, Statement stmt)
+  public String executeInstanceIdQuery(DatabaseEngine databaseEngine, Statement stmt)
       throws SQLException {
     try (final ResultSet rs = stmt.executeQuery(getInstanceIdSql(databaseEngine))) {
       if (rs.next()) {
