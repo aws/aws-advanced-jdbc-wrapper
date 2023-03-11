@@ -152,7 +152,7 @@ public class ReadWriteSplittingTests {
         + DriverHelper.getDriverRequiredParameters();
   }
   @TestTemplate
-// Tests use Aurora specific SQL to identify instance name
+  // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void test_connectToWriter_switchSetReadOnly() throws SQLException {
     final AuroraTestUtility auroraUtil =
@@ -384,7 +384,7 @@ public class ReadWriteSplittingTests {
 
       // Kill all reader instances
       final List<String> instanceIDs =
-          TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().stream()
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().stream()
               .map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
       for (int i = 1; i < instanceIDs.size(); i++) {
         ProxyHelper.disableConnectivity(instanceIDs.get(i));
@@ -485,12 +485,12 @@ public class ReadWriteSplittingTests {
 
       // Kill all reader instances
       final int numOfInstances =
-          TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().size();
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
       for (int i = 1; i < numOfInstances; i++) {
         ProxyHelper.disableConnectivity(
             TestEnvironment.getCurrent()
                 .getInfo()
-                .getProxyDatabaseInfo()
+                .getDatabaseInfo()
                 .getInstances()
                 .get(i)
                 .getInstanceId());
@@ -541,7 +541,7 @@ public class ReadWriteSplittingTests {
       assertNotEquals(writerConnectionId, readerConnectionId);
 
       String otherReaderId = "";
-      final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+      final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
 
       for (int i = 1; i < instances.size(); i++) {
         if (!instances.get(i).getInstanceId().equals(readerConnectionId)) {
@@ -596,7 +596,8 @@ public class ReadWriteSplittingTests {
       final String readerConnectionId = auroraUtil.queryInstanceId(conn);
       assertNotEquals(writerConnectionId, readerConnectionId);
 
-      final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+      final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo()
+          .getInstances();
 
       // Kill all instances except the writer
       for (final TestInstanceInfo instance : instances) {

@@ -66,10 +66,6 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @MakeSureFirstInstanceWriter
 public class HikariTests {
 
-  private static final int SOCKET_TIMEOUT_SEC = 3;
-  private static final int CONNECT_TIMEOUT_SEC = 3;
-  private static final int MONITORING_SOCKET_TIMEOUT_SEC = 1;
-  private static final int MONITORING_CONNECT_TIMEOUT_SEC = 1;
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
 
   @TestTemplate

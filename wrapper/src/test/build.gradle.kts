@@ -80,15 +80,17 @@ tasks.withType<Test> {
     reports.html.required.set(false)
 }
 
-//tasks.register<Test>("in-container") {
-//    filter.excludeTestsMatching("software.*") // exclude unit tests
-//    filter.excludeTestsMatching("integration.container.*") // exclude old integration tests
-//
-//    // modify below filter to select specific integration tests
-//    // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
-//    filter.includeTestsMatching("integration.refactored.container.tests.*")
-//}
-
 tasks.register<Test>("in-container") {
+    filter.excludeTestsMatching("software.*") // exclude unit tests
+    filter.excludeTestsMatching("integration.container.*") // exclude old integration tests
+
+    // modify below filter to select specific integration tests
+    // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
+   // filter.includeTestsMatching("integration.refactored.container.tests.*")
     filter.includeTestsMatching("integration.refactored.container.tests.ReadWriteSplittingTests")
+
 }
+//
+//tasks.register<Test>("in-container") {
+//    filter.includeTestsMatching("integration.refactored.container.tests.ReadWriteSplittingTests")
+//}
