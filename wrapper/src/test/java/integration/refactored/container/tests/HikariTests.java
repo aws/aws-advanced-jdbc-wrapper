@@ -73,19 +73,19 @@ public class HikariTests {
 
   @TestTemplate
   public void testOpenConnectionWithUrl() throws SQLException {
-    HikariDataSource dataSource = new HikariDataSource();
+    final HikariDataSource dataSource = new HikariDataSource();
     dataSource.setJdbcUrl(ConnectionStringHelper.getWrapperUrl() + "?wrapperPlugins=\"\"");
     dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     dataSource.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "");
 
-    Connection conn = dataSource.getConnection();
+    final Connection conn = dataSource.getConnection();
 
     assertTrue(conn instanceof HikariProxyConnection);
-    HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
+    final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
 
     assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
-    ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
+    final ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
     assertTrue(connWrapper.isWrapperFor(DriverHelper.getConnectionClass()));
 
     assertTrue(conn.isValid(10));
@@ -95,7 +95,7 @@ public class HikariTests {
   @TestTemplate
   public void testOpenConnectionWithDataSourceClassName() throws SQLException {
 
-    HikariDataSource dataSource = new HikariDataSource();
+    final HikariDataSource dataSource = new HikariDataSource();
     dataSource.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
     // Configure the connection pool:
@@ -113,7 +113,7 @@ public class HikariTests {
     dataSource.addDataSourceProperty("targetDataSourceClassName", DriverHelper.getDataSourceClassname());
 
     // Configuring driver-specific DataSource:
-    Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         "serverName",
         TestEnvironment.getCurrent()
@@ -130,13 +130,13 @@ public class HikariTests {
     targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl());
     dataSource.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
-    Connection conn = dataSource.getConnection();
+    final Connection conn = dataSource.getConnection();
 
     assertTrue(conn instanceof HikariProxyConnection);
-    HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
+    final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
 
     assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
-    ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
+    final ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
     assertTrue(connWrapper.isWrapperFor(DriverHelper.getConnectionClass()));
 
     assertTrue(conn.isValid(10));
@@ -150,14 +150,14 @@ public class HikariTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void testFailoverLostConnection() throws SQLException {
-    final Properties customProps = new Properties();
+    Properties customProps = new Properties();
     customProps.setProperty(PropertyDefinition.PLUGINS.name, "failover");
     customProps.setProperty("failoverTimeoutMs", Integer.toString(1));
     DriverHelper.setSocketTimeout(customProps, 1, TimeUnit.SECONDS);
 
-   HikariDataSource dataSource = createDataSource(customProps);
+   final HikariDataSource dataSource = createDataSource(customProps);
 
-    try (Connection conn = dataSource.getConnection()) {
+    try (final Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
       ProxyHelper.disableAllConnectivity();
@@ -179,18 +179,18 @@ public class HikariTests {
   public void testEFMFailover() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 
-    List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+    final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
 
-    String writerIdentifier = instances.get(0).getInstanceId();
-    String readerIdentifier = instances.get(1).getInstanceId();
+    final String writerIdentifier = instances.get(0).getInstanceId();
+    final String readerIdentifier = instances.get(1).getInstanceId();
     LOGGER.fine("Instance to connect to: " + writerIdentifier);
     LOGGER.fine("Instance to fail over to: " + readerIdentifier);
 
     ProxyHelper.enableConnectivity(writerIdentifier);
-    HikariDataSource dataSource = createDataSource(null);
+    final HikariDataSource dataSource = createDataSource(null);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = dataSource.getConnection()) {
+    try (final Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertTrue(currentConnectionId.equalsIgnoreCase(writerIdentifier));
@@ -212,11 +212,11 @@ public class HikariTests {
     }
   }
 
-  private HikariDataSource createDataSource(final Properties customProps) {
-    final HikariConfig config = getConfig(customProps);
-    HikariDataSource dataSource = new HikariDataSource(config);
+  private HikariDataSource createDataSource(Properties customProps) {
+    HikariConfig config = getConfig(customProps);
+    final HikariDataSource dataSource = new HikariDataSource(config);
 
-    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
+    HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
 
     LOGGER.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
     LOGGER.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
@@ -224,8 +224,8 @@ public class HikariTests {
     return dataSource;
   }
 
-  private HikariConfig getConfig(Properties customProps) {
-    final HikariConfig config = new HikariConfig();
+  private HikariConfig getConfig(final Properties customProps) {
+    HikariConfig config = new HikariConfig();
     config.setUsername(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername());
     config.setPassword(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
     config.setMaximumPoolSize(3);
@@ -241,7 +241,7 @@ public class HikariTests {
     config.addDataSourceProperty("serverPropertyName", "serverName");
     config.addDataSourceProperty("databasePropertyName", "databaseName");
 
-    Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = new Properties();
 
     targetDataSourceProps.setProperty(
         "serverName",
@@ -274,11 +274,11 @@ public class HikariTests {
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
 
     if (customProps != null) {
-      final Enumeration<?> propertyNames = customProps.propertyNames();
+      Enumeration<?> propertyNames = customProps.propertyNames();
       while (propertyNames.hasMoreElements()) {
-        String propertyName = propertyNames.nextElement().toString();
+        final String propertyName = propertyNames.nextElement().toString();
         if (!StringUtils.isNullOrEmpty(propertyName)) {
-          final String propertyValue = customProps.getProperty(propertyName);
+          String propertyValue = customProps.getProperty(propertyName);
           targetDataSourceProps.setProperty(propertyName, propertyValue);
         }
       }
