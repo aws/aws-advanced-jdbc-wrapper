@@ -55,7 +55,7 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 public class BasicConnectivityTests {
 
   private static final Logger LOGGER = Logger.getLogger(BasicConnectivityTests.class.getName());

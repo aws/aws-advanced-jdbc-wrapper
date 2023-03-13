@@ -62,7 +62,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.HIKARI)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 public class HikariTests {
 
@@ -152,7 +152,7 @@ public class HikariTests {
     customProps.setProperty("failoverTimeoutMs", Integer.toString(1));
     DriverHelper.setSocketTimeout(customProps, 1, TimeUnit.SECONDS);
 
-   final HikariDataSource dataSource = createDataSource(customProps);
+    final HikariDataSource dataSource = createDataSource(customProps);
 
     try (final Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
@@ -163,7 +163,7 @@ public class HikariTests {
       assertFalse(conn.isValid(5));
     }
 
-    assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
+    assertThrows(SQLTransientConnectionException.class, dataSource::getConnection);
   }
 
   /**
@@ -176,7 +176,10 @@ public class HikariTests {
   public void testEFMFailover() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 
-    final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+    final List<TestInstanceInfo> instances = TestEnvironment.getCurrent()
+        .getInfo()
+        .getProxyDatabaseInfo()
+        .getInstances();
 
     final String writerIdentifier = instances.get(0).getInstanceId();
     final String readerIdentifier = instances.get(1).getInstanceId();

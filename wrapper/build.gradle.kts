@@ -291,13 +291,6 @@ tasks.register<Test>("test-all-aurora") {
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
-        // testing only - will remove
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
     }
 }
 
@@ -307,22 +300,6 @@ tasks.register<Test>("test-all-pg-aurora") {
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-    }
-}
-
-tasks.register<Test>("debug-all-pg-aurora") {
-    group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
-    doFirst {
-        systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-secrets-manager", "true")
-        systemProperty("test-no-graalvm", "true")
         systemProperty("test-no-mysql-driver", "true")
         systemProperty("test-no-mysql-engine", "true")
         systemProperty("test-no-mariadb-driver", "true")

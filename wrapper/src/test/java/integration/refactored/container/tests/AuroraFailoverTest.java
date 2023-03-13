@@ -63,7 +63,7 @@ import software.amazon.jdbc.util.SqlState;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 public class AuroraFailoverTest {
