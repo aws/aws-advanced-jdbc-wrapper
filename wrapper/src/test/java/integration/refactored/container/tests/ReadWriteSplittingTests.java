@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
@@ -33,7 +32,6 @@ import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
 import integration.refactored.container.condition.DisableOnTestFeature;
-import integration.refactored.container.condition.EnableOnDatabaseEngine;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
@@ -187,7 +185,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   public void test_connectToReader_setReadOnlyTrueFalse() throws SQLException {
     final String url = getUrl();
 
@@ -209,7 +206,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   public void test_connectToReaderCluster_setReadOnlyTrueFalse() throws SQLException {
     final String url = getUrl();
     LOGGER.finest("Connecting to url " + url);
@@ -288,7 +284,6 @@ public class ReadWriteSplittingTests {
 
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL})
   public void test_setReadOnlyTrueInTransaction() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
       final AuroraTestUtility auroraUtil =
@@ -415,7 +410,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   public void test_executeWithOldConnection() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
 
@@ -441,7 +435,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   @EnableOnNumOfInstances(min = 3)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
   public void test_failoverToNewWriter_setReadOnlyTrueFalse()
@@ -492,7 +485,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   @EnableOnNumOfInstances(min = 3)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
   public void test_failoverToNewReader_setReadOnlyFalseTrue() throws SQLException {
@@ -547,7 +539,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnDatabaseEngine({DatabaseEngine.MYSQL, DatabaseEngine.PG})
   @EnableOnNumOfInstances(min = 3)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
   public void test_failoverReaderToWriter_setReadOnlyTrueFalse() throws SQLException {
