@@ -16,6 +16,8 @@
 
 package software.amazon;
 
+import java.time.Duration;
+import java.time.Instant;
 import org.hibernate.Hibernate;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -28,9 +30,13 @@ public class JpaExample {
   private static final EntityManagerFactory entityManagerFactory = Persistence.createEntityManagerFactory("Atlas");
 
   public static void main(String[] args) {
+    final Instant start = Instant.now();
+    final Duration threshold = Duration.ofMinutes(5);
+
     int i = 0;
     try {
-      while (true) {
+      // Keep inserting data for 5 minutes.
+      while (Duration.between(start, Instant.now()).toMinutes() > threshold.toMinutes()) {
         Address address = new Address();
         address.setTown("Orangeville");
         address.setStreet("Faulkner");
