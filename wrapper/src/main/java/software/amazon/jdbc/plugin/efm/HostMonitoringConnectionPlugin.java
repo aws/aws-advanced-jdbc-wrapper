@@ -40,6 +40,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -82,78 +83,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       "SELECT CONCAT(@@hostname, ':', @@port)";
   private static final String PG_RETRIEVE_HOST_PORT_SQL =
       "SELECT CONCAT(inet_server_addr(), ':', inet_server_port())";
-
-  private static final Set<String> SKIP_MONITORING_METHODS = new HashSet<>(Arrays.asList(
-      ".close",
-      ".next",
-      ".abort",
-      ".closeOnCompletion",
-      ".getName",
-      ".getVendor",
-      ".getVendorTypeNumber",
-      ".getBaseTypeName",
-      ".getBaseType",
-      ".getBinaryStream",
-      ".getBytes",
-      ".getArray",
-      ".getBigDecimal",
-      ".getSubString",
-      ".getCharacterStream",
-      ".getAsciiStream",
-      ".getURL",
-      ".getUserName",
-      ".getDatabaseProductName",
-      ".getParameterCount",
-      ".getPrecision",
-      ".getScale",
-      ".getParameterType",
-      ".getParameterTypeName",
-      ".getParameterClassName",
-      ".getConnection",
-      ".getFetchDirection",
-      ".getFetchSize",
-      ".getColumnCount",
-      ".getColumnDisplaySize",
-      ".getColumnLabel",
-      ".getColumnName",
-      ".getSchemaName",
-      ".getSQLTypeName",
-      ".getSavepointId",
-      ".getSavepointName",
-      ".getMaxFieldSize",
-      ".getMaxRows",
-      ".getQueryTimeout",
-      ".getAttributes",
-      ".getString",
-      ".getTime",
-      ".getTimestamp",
-      ".getType",
-      ".getUnicodeStream",
-      ".getWarnings",
-      ".getBinaryStream",
-      ".getBlob",
-      ".getBoolean",
-      ".getByte",
-      ".getBytes",
-      ".getClob",
-      ".getConcurrency",
-      ".getDate",
-      ".getDouble",
-      ".getFloat",
-      ".getHoldability",
-      ".getInt",
-      ".getLong",
-      ".getMetaData",
-      ".getNCharacterStream",
-      ".getNClob",
-      ".getNString",
-      ".getObject",
-      ".getRef",
-      ".getRow",
-      ".getRowId",
-      ".getSQLXML",
-      ".getShort",
-      ".getStatement"));
 
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
@@ -204,7 +133,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     // update config settings since they may change
     final boolean isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
 
-    if (!isEnabled || !SKIP_MONITORING_METHODS.contains(methodName)) {
+    if (!isEnabled || !SubscribedMethodHelper.NETWORK_BOUND_METHODS.contains(methodName)) {
       return jdbcMethodFunc.call();
     }
 

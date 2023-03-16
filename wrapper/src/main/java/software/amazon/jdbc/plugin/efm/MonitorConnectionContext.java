@@ -46,6 +46,7 @@ public class MonitorConnectionContext {
   /**
    * Constructor.
    *
+   * @param monitor                        A reference to a monitor object.
    * @param connectionToAbort              A reference to the connection associated with this context that will
    *                                       be aborted in case of server failure.
    * @param failureDetectionTimeMillis     Grace period after which node monitoring starts.
@@ -148,6 +149,7 @@ public class MonitorConnectionContext {
    * Update whether the connection is still valid if the total elapsed time has passed the grace
    * period.
    *
+   * @param hostName                 A node name for logging purposes.
    * @param statusCheckStartTimeNano The time when connection status check started in nanos.
    * @param statusCheckEndTimeNano   The time when connection status check ended in nanos.
    * @param isValid                  Whether the connection is valid.
@@ -181,6 +183,7 @@ public class MonitorConnectionContext {
    *   <li>{@code failureDetectionCount}
    * </ul>
    *
+   * @param hostName             A node name for logging purposes.
    * @param connectionValid      Boolean indicating whether the server is still responsive.
    * @param statusCheckStartNano The time when connection status check started in nanos.
    * @param statusCheckEndNano   The time when connection status check ended in nanos.
