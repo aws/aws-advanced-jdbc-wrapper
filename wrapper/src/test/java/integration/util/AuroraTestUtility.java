@@ -604,7 +604,7 @@ public class AuroraTestUtility {
                           TestEnvironment.getCurrent()
                               .getInfo()
                               .getDatabaseInfo()
-                              .getDefaultDbName()),
+                              .getDefaultDbName(), ""),
                       props)) {
                 remainingInstances.remove(id);
                 break;

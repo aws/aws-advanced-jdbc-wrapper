@@ -322,7 +322,7 @@ public class AdvancedPerformanceTest {
                         TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
-                            .getDefaultDbName()),
+                            .getDefaultDbName(), ""),
                     props);
             LOGGER.finest("DirectDriver connection is open.");
 

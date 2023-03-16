@@ -84,7 +84,7 @@ public class BasicConnectivityTests {
                 .getInstances()
                 .get(0)
                 .getEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -170,7 +170,7 @@ public class BasicConnectivityTests {
             testDriver,
             instanceInfo.getEndpoint(),
             instanceInfo.getEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
