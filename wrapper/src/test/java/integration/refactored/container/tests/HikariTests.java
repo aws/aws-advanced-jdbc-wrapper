@@ -32,10 +32,13 @@ import integration.refactored.TestInstanceInfo;
 import integration.refactored.TestProxyDatabaseInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.ProxyHelper;
+import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
 import integration.refactored.container.condition.DisableOnTestFeature;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
+import integration.refactored.container.condition.EnableOnNumOfInstances;
+import integration.refactored.container.condition.EnableOnTestDriver;
 import integration.refactored.container.condition.EnableOnTestFeature;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
@@ -172,7 +175,9 @@ public class HikariTests {
    */
   @TestTemplate
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
+  @EnableOnTestDriver({TestDriver.PG, TestDriver.MYSQL})
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
+  @EnableOnNumOfInstances(min = 3)
   public void testEFMFailover() throws SQLException {
     ProxyHelper.disableAllConnectivity();
 
@@ -210,6 +215,8 @@ public class HikariTests {
       // Try to get a new connection to the failed instance, which times out
       assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
     }
+
+    ProxyHelper.enableAllConnectivity();
   }
 
   private HikariDataSource createDataSource(Properties customProps) {
@@ -267,10 +274,14 @@ public class HikariTests {
             .getProxyDatabaseInfo()
             .getInstanceEndpointSuffix());
     // For MariaDB tests, MariaDbDataSource only accepts the url parameter.
-    targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl("failover,efm"));
+    // targetDataSourceProps.setProperty("url", ConnectionStringHelper.getProxyUrl("failover,efm"));
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
+    DriverHelper.setMonitoringConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
+    DriverHelper.setMonitoringSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
+    DriverHelper.setConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
 
     if (customProps != null) {
       Enumeration<?> propertyNames = customProps.propertyNames();

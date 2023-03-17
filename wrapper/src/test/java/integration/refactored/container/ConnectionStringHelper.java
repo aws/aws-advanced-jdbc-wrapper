@@ -51,7 +51,12 @@ public class ConnectionStringHelper {
     return getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName, wrapperPlugins);
   }
 
-  public static String getUrl(TestDriver testDriver, String host, int port, String databaseName, String wrapperPlugins) {
+  public static String getUrl(
+      TestDriver testDriver,
+      String host,
+      int port,
+      String databaseName,
+      String wrapperPlugins) {
     final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     final String requiredParameters = DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
     final String url = DriverHelper.getDriverProtocol(databaseEngine, testDriver)
@@ -117,6 +122,24 @@ public class ConnectionStringHelper {
             .get(0)
             .getEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+  }
+
+  public static String getProxyUrl(final String wrapperPlugins) {
+    return getUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getProxyDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getProxyDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), wrapperPlugins);
   }
 
   public static String getWrapperClusterEndpointUrl() {
