@@ -86,7 +86,7 @@ class MonitorConnectionContextTest {
     context.resetInvalidNodeStartTime();
 
     long currentTimeNano = System.nanoTime();
-    context.setConnectionValid(eq("test-node"), false, currentTimeNano, currentTimeNano);
+    context.setConnectionValid("test-node", false, currentTimeNano, currentTimeNano);
 
     Assertions.assertFalse(context.isNodeUnhealthy());
     Assertions.assertEquals(expectedFailureCount, context.getFailureCount());

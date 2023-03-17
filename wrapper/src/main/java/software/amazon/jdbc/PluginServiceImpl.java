@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -40,7 +41,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     HostListProviderService, PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
-  protected static final int DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
+  protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ConnectionPluginManager pluginManager;
@@ -257,7 +258,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     for (final HostSpec host : hostsToChange) {
       final HostAvailability currentAvailability = host.getAvailability();
       host.setAvailability(availability);
-      hostAvailabilityExpiringCache.put(host.getUrl(), availability, DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+      hostAvailabilityExpiringCache.put(host.getUrl(), availability,
+          DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
       if (currentAvailability != availability) {
         final EnumSet<NodeChangeOptions> hostChanges;
         if (availability == HostAvailability.AVAILABLE) {

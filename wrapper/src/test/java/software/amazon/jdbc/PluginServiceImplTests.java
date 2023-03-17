@@ -501,9 +501,9 @@ public class PluginServiceImplTests {
         new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
 
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostA/", HostAvailability.NOT_AVAILABLE,
-        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.NOT_AVAILABLE,
-        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     when(hostListProvider.refresh()).thenReturn(newHostSpecs);
     when(hostListProvider.refresh(newConnection)).thenReturn(newHostSpecs);
 
@@ -516,7 +516,7 @@ public class PluginServiceImplTests {
     assertEquals(expectedHostSpecs, newHostSpecs);
 
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.AVAILABLE,
-        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     target.refreshHostList(newConnection);
     assertEquals(expectedHostSpecs2, newHostSpecs);
   }
@@ -538,9 +538,9 @@ public class PluginServiceImplTests {
         new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
 
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostA/", HostAvailability.NOT_AVAILABLE,
-        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.NOT_AVAILABLE,
-        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     when(hostListProvider.forceRefresh()).thenReturn(newHostSpecs);
     when(hostListProvider.forceRefresh(newConnection)).thenReturn(newHostSpecs);
 
@@ -553,7 +553,7 @@ public class PluginServiceImplTests {
     assertEquals(expectedHostSpecs, newHostSpecs);
 
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.AVAILABLE,
-        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+        PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     target.forceRefreshHostList(newConnection);
     assertEquals(expectedHostSpecs2, newHostSpecs);
   }

@@ -65,7 +65,7 @@ import software.amazon.jdbc.util.Messages;
 class HostMonitoringConnectionPluginTest {
 
   static final Class<Connection> MONITOR_METHOD_INVOKE_ON = Connection.class;
-  static final String MONITOR_METHOD_NAME = "Connection.executeQuery";
+  static final String MONITOR_METHOD_NAME = "Statement.executeQuery";
   static final String NO_MONITOR_METHOD_NAME = "Connection.abort";
   static final int FAILURE_DETECTION_TIME = 10;
   static final int FAILURE_DETECTION_INTERVAL = 100;
@@ -222,6 +222,7 @@ class HostMonitoringConnectionPluginTest {
     initializePlugin();
 
     final SQLException expectedException = new SQLException("exception thrown during isClosed");
+    when(context.isNodeUnhealthy()).thenReturn(true);
     doThrow(expectedException).when(connection).isClosed();
     final SQLException actualException = assertThrows(SQLException.class, () -> plugin.execute(
         ResultSet.class,

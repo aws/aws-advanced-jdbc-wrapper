@@ -206,6 +206,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
                 ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
                 : clusterRdsHostUrl;
             this.isPrimaryClusterId = true;
+            primaryClusterIdCache.put(this.clusterId, true, this.suggestedClusterIdRefreshRateNano);
           }
         }
       }
@@ -258,28 +259,23 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       }
 
       // fetch topology from the DB
-      final ClusterTopologyInfo latestTopologyInfo = queryForTopology(conn);
+      final List<HostSpec> hosts = queryForTopology(conn);
 
-      if (latestTopologyInfo != null) {
-        if (latestTopologyInfo.hosts != null && !latestTopologyInfo.hosts.isEmpty()) {
-          topologyCache.put(this.clusterId, latestTopologyInfo.hosts, this.refreshRateNano);
-          if (needToSuggest) {
-            this.suggestPrimaryCluster(latestTopologyInfo);
-          }
-          return new FetchTopologyResult(false, latestTopologyInfo.hosts);
+      if (!Utils.isNullOrEmpty(hosts)) {
+        topologyCache.put(this.clusterId, hosts, this.refreshRateNano);
+        if (needToSuggest) {
+          this.suggestPrimaryCluster(hosts);
         }
-      } else {
-        if (cachedHosts == null) {
-          return new FetchTopologyResult(false, this.initialHostList);
-        } else {
-          // use cached data
-          return new FetchTopologyResult(true, cachedHosts);
-        }
+        return new FetchTopologyResult(false, hosts);
       }
     }
 
-    // return cached hosts
-    return new FetchTopologyResult(true, cachedHosts);
+    if (cachedHosts == null) {
+      return new FetchTopologyResult(false, this.initialHostList);
+    } else {
+      // use cached data
+      return new FetchTopologyResult(true, cachedHosts);
+    }
   }
 
   private ClusterSuggestedResult getSuggestedClusterId(final String url) {
@@ -305,13 +301,13 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     return null;
   }
 
-  protected void suggestPrimaryCluster(final @NonNull ClusterTopologyInfo primaryClusterTopologyInfo) {
-    if (Utils.isNullOrEmpty(primaryClusterTopologyInfo.hosts)) {
+  protected void suggestPrimaryCluster(final @NonNull List<HostSpec> primaryClusterHosts) {
+    if (Utils.isNullOrEmpty(primaryClusterHosts)) {
       return;
     }
 
     final Set<String> primaryClusterHostUrls = new HashSet<>();
-    for (final HostSpec hostSpec : primaryClusterTopologyInfo.hosts) {
+    for (final HostSpec hostSpec : primaryClusterHosts) {
       primaryClusterHostUrls.add(hostSpec.getUrl());
     }
 
@@ -332,7 +328,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         if (primaryClusterHostUrls.contains(host.getUrl())) {
           // Instance on this cluster matches with one of the instance on primary cluster
           // Suggest the primary clusterId to this entry
-          suggestedPrimaryClusterIdCache.put(clusterId, primaryClusterTopologyInfo.clusterId,
+          suggestedPrimaryClusterIdCache.put(clusterId, this.clusterId,
               this.suggestedClusterIdRefreshRateNano);
           break;
         }
@@ -344,10 +340,10 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
    * Obtain a cluster topology from database.
    *
    * @param conn A connection to database to fetch the latest topology.
-   * @return a {@link ClusterTopologyInfo} instance which contains details of the fetched topology
+   * @return a list of {@link HostSpec} objects representing the topology
    * @throws SQLException if errors occurred while retrieving the topology.
    */
-  protected ClusterTopologyInfo queryForTopology(final Connection conn) throws SQLException {
+  protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
     init();
     try (final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery(retrieveTopologyQuery)) {
@@ -361,12 +357,12 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
    * Form a list of hosts from the results of the topology query.
    *
    * @param resultSet The results of the topology query
-   * @return topology details {@link ClusterTopologyInfo} with a list of {@link HostSpec} objects representing
+   * @return a list of {@link HostSpec} objects representing
    *     the topology that was returned by the
    *     topology query. The list will be empty if the topology query returned an invalid topology
    *     (no writer instance).
    */
-  private ClusterTopologyInfo processQueryResults(final ResultSet resultSet) throws SQLException {
+  private List<HostSpec> processQueryResults(final ResultSet resultSet) throws SQLException {
 
     final HashMap<String, HostSpec> hostMap = new HashMap<>();
 
@@ -393,7 +389,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               "AuroraHostListProvider.invalidTopology"));
       hosts.clear();
     }
-    return new ClusterTopologyInfo(this.clusterId, hosts, this.isPrimaryClusterId);
+    return hosts;
   }
 
   /**
@@ -454,7 +450,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   /**
    * Clear topology cache for all clusters.
    */
-  public void clearAll() {
+  public static void clearAll() {
     topologyCache.clear();
     primaryClusterIdCache.clear();
     suggestedPrimaryClusterIdCache.clear();
@@ -589,32 +585,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     public FetchTopologyResult(boolean isCachedData, List<HostSpec> hosts) {
       this.isCachedData = isCachedData;
       this.hosts = hosts;
-    }
-  }
-
-  /**
-   * Class that holds the topology and additional information about the topology.
-   */
-  static class ClusterTopologyInfo {
-
-    public String clusterId;
-    public List<HostSpec> hosts;
-    public boolean isPrimaryCluster;
-
-    /**
-     * Constructor for ClusterTopologyInfo.
-     *
-     * @param clusterId Associated ClusterId
-     * @param hosts List of available instance hosts
-     * @param isPrimaryCluster true if ClusterId is a cluster endpoint url
-     */
-    ClusterTopologyInfo(
-        final String clusterId,
-        final List<HostSpec> hosts,
-        final boolean isPrimaryCluster) {
-      this.clusterId = clusterId;
-      this.hosts = hosts;
-      this.isPrimaryCluster = isPrimaryCluster;
     }
   }
 
