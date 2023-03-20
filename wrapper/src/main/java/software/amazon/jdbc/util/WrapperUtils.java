@@ -40,7 +40,6 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -183,9 +182,6 @@ public class WrapperUtils {
     pluginManager.lock();
 
     try {
-      final Object[] argsCopy =
-          jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
-
       final T result =
           pluginManager.execute(
               resultClass,
@@ -193,7 +189,7 @@ public class WrapperUtils {
               methodInvokeOn,
               methodName,
               jdbcMethodFunc,
-              argsCopy);
+              jdbcMethodArgs);
 
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
@@ -219,12 +215,13 @@ public class WrapperUtils {
     pluginManager.lock();
 
     try {
-      final Object[] argsCopy =
-          jdbcMethodArgs == null ? null : Arrays.copyOf(jdbcMethodArgs, jdbcMethodArgs.length);
-
       final T result =
-          pluginManager.execute(
-              resultClass, exceptionClass, methodInvokeOn, methodName, jdbcMethodFunc, argsCopy);
+          pluginManager.execute(resultClass,
+              exceptionClass,
+              methodInvokeOn,
+              methodName,
+              jdbcMethodFunc,
+              jdbcMethodArgs);
 
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);

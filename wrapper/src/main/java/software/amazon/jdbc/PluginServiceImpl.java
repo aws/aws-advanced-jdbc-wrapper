@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -33,17 +34,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
-import software.amazon.jdbc.util.ExpiringCache;
+import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
     HostListProviderService, PluginManagerService {
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
-  private static final int DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS = 5 * 60 * 1000; // 5 min
+  protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
-  protected static final ExpiringCache<String, HostAvailability> hostAvailabilityExpiringCache = new ExpiringCache<>(
-      DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_MS);
+  protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
@@ -258,7 +258,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     for (final HostSpec host : hostsToChange) {
       final HostAvailability currentAvailability = host.getAvailability();
       host.setAvailability(availability);
-      hostAvailabilityExpiringCache.put(host.getUrl(), availability);
+      hostAvailabilityExpiringCache.put(host.getUrl(), availability,
+          DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
       if (currentAvailability != availability) {
         final EnumSet<NodeChangeOptions> hostChanges;
         if (availability == HostAvailability.AVAILABLE) {

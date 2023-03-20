@@ -33,6 +33,6 @@ public class TestAuroraHostListProvider extends AuroraHostListProvider {
   }
 
   public static void clearCache() {
-    AuroraHostListProvider.topologyCache.clear();
+    AuroraHostListProvider.clearAll();
   }
 }

@@ -17,10 +17,10 @@
 package software.amazon.jdbc.plugin.efm;
 
 import java.sql.Connection;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -45,6 +45,8 @@ public class MonitorServiceImpl implements MonitorService {
   private MonitorThreadContainer threadContainer;
 
   final MonitorInitializer monitorInitializer;
+  private Set<String> cachedMonitorNodeKeys = null;
+  private Monitor cachedMonitor = null;
 
   public MonitorServiceImpl(final @NonNull PluginService pluginService) {
     this(
@@ -90,12 +92,22 @@ public class MonitorServiceImpl implements MonitorService {
       hostSpec.addAlias(hostSpec.asAlias());
     }
 
-    final Monitor monitor = getMonitor(nodeKeys, hostSpec, properties);
+    Monitor monitor;
+    if (this.cachedMonitor == null
+        || this.cachedMonitorNodeKeys == null
+        || !this.cachedMonitorNodeKeys.equals(nodeKeys)) {
+
+      monitor = getMonitor(nodeKeys, hostSpec, properties);
+      this.cachedMonitor = monitor;
+      this.cachedMonitorNodeKeys = Collections.unmodifiableSet(nodeKeys);
+    } else {
+      monitor = this.cachedMonitor;
+    }
 
     final MonitorConnectionContext context =
         new MonitorConnectionContext(
+            monitor,
             connectionToAbort,
-            nodeKeys,
             failureDetectionTimeMillis,
             failureDetectionIntervalMillis,
             failureDetectionCount);
@@ -107,22 +119,8 @@ public class MonitorServiceImpl implements MonitorService {
 
   @Override
   public void stopMonitoring(@NonNull MonitorConnectionContext context) {
-
-    context.invalidate();
-
-    // Any 1 node is enough to find the monitor containing the context
-    // All nodes will map to the same monitor
-
-    Monitor monitor;
-    for (String nodeKey : context.getHostAliases()) {
-      monitor = this.threadContainer.getMonitor(nodeKey);
-      if (monitor != null) {
-        monitor.stopMonitoring(context);
-        return;
-      }
-    }
-
-    LOGGER.finest(() -> Messages.get("MonitorServiceImpl.monitorNotFoundForContext"));
+    Monitor monitor = context.getMonitor();
+    monitor.stopMonitoring(context);
   }
 
   @Override
