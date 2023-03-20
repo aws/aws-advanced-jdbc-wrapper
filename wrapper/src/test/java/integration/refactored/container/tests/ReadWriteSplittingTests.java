@@ -54,8 +54,8 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.MariaDBHikariPooledConnectionProvider;
 import software.amazon.jdbc.MysqlHikariPooledConnectionProvider;
@@ -68,7 +68,7 @@ import software.amazon.jdbc.util.SqlState;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 public class ReadWriteSplittingTests {
 
@@ -405,7 +405,7 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnectionFailover() throws SQLException, InterruptedException {
     AuroraTestUtility auroraUtil =
         new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
@@ -415,37 +415,59 @@ public class ReadWriteSplittingTests {
     props.setProperty("portPropertyName", "portNumber");
     props.setProperty("serverPropertyName", "serverName");
 
-    ConnectionProvider provider = null;
-    TestDriver driver = TestEnvironment.getCurrent().getCurrentDriver();
-    switch (driver) {
-      case MYSQL:
-        provider =
-            new MysqlHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-        break;
-      case MARIADB:
-        provider =
-            new MariaDBHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-        break;
-      case PG:
-        provider =
-            new PostgresHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-        break;
-      default:
-        fail(
-            "The provided test driver does not have an equivalent HikariPooledConnectionProvider "
-                + "class: "
-                + driver);
-    }
+    final HikariPooledConnectionProvider provider = getTestConnectionProvider();
 
     ConnectionProviderManager.setConnectionProvider(provider);
+
+    String initialWriterId;
+    String nextWriterId;
+    try (Connection conn = DriverManager.getConnection(getUrl(), props)) {
+      initialWriterId = queryInstanceId(conn);
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      assertThrows(SQLException.class, () -> queryInstanceId(conn));
+      nextWriterId = queryInstanceId(conn);
+      assertNotEquals(initialWriterId, nextWriterId);
+    }
+
     try (final Connection conn = DriverManager.getConnection(getUrl(), props)) {
+      // The initial connection should be invalid and evicted by the connection pool.
+      // This should be a new connection to the initial writer ID.
+      // If the dead connection was not evicted, this query would result in an exception.
+      final String writerConnectionId = queryInstanceId(conn);
+      assertEquals(initialWriterId, writerConnectionId);
+    }
+
+    ConnectionProviderManager.releaseResources();
+  }
+
+  @TestTemplate
+  // Tests use Aurora specific SQL to identify instance name
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
+  public void test_pooledConnectionFailoverWithClusterURL() throws SQLException, InterruptedException {
+    AuroraTestUtility auroraUtil =
+        new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+    Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
+    props.setProperty("databasePropertyName", "databaseName");
+    props.setProperty("portPropertyName", "portNumber");
+    props.setProperty("serverPropertyName", "serverName");
+
+    final HikariPooledConnectionProvider provider = getTestConnectionProvider();
+
+    ConnectionProviderManager.setConnectionProvider(provider);
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperClusterEndpointUrl(),
+        props)) {
+      // The internal connection pool should not be used if the connection is established via a cluster URL.
+      assertEquals(0, provider.getHostCount(), "Internal connection pool should be empty.");
       final String writerConnectionId = queryInstanceId(conn);
       auroraUtil.failoverClusterAndWaitUntilWriterChanged();
       assertThrows(SQLException.class, () -> queryInstanceId(conn));
       final String nextWriterId = queryInstanceId(conn);
       assertNotEquals(writerConnectionId, nextWriterId);
+      assertEquals(0, provider.getHostCount(), "Internal connection pool should be empty.");
     }
-
     ConnectionProviderManager.releaseResources();
   }
 
@@ -456,5 +478,23 @@ public class ReadWriteSplittingTests {
     config.setConnectionTimeout(1000);
 
     return config;
+  }
+
+  private HikariPooledConnectionProvider getTestConnectionProvider() {
+    TestDriver driver = TestEnvironment.getCurrent().getCurrentDriver();
+    switch (driver) {
+      case MYSQL:
+        return new MysqlHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+      case MARIADB:
+        return new MariaDBHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+      case PG:
+        return new PostgresHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+      default:
+        fail(
+            "The provided test driver does not have an equivalent HikariPooledConnectionProvider "
+                + "class: "
+                + driver);
+        return null;
+    }
   }
 }

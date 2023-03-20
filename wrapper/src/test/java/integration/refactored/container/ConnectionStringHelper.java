@@ -60,6 +60,11 @@ public class ConnectionStringHelper {
         + "wrapperPlugins=\"\"";
   }
 
+  /**
+   * Creates a JDBC url with the writer instance endpoint.
+   *
+   * @return a JDBC URL.
+   */
   public static String getWrapperUrl() {
     return getWrapperUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),

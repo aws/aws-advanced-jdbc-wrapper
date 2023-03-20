@@ -23,7 +23,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
- * Implement this interface in order to handle physical connection creation process.
+ * Implement this interface in order to handle the physical connection creation process.
  */
 public interface ConnectionProvider {
   /**

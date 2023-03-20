@@ -20,10 +20,13 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.util.HikariCPSQLException;
@@ -34,9 +37,12 @@ import software.amazon.jdbc.util.StringUtils;
 public abstract class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {
 
+  private static final Logger LOGGER = Logger.getLogger(HikariPooledConnectionProvider.class.getName());
+
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
   private final HikariPoolConfigurator poolConfigurator;
+  protected int retries = 10;
 
   public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
     poolConfigurator = hikariPoolConfigurator;
@@ -72,7 +78,14 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
           setConnectionProperties(config, hostSpec, props);
           return new HikariDataSource(config);
         });
-    return ds.getConnection();
+
+    Connection conn = ds.getConnection();
+    int count = 0;
+    while (conn != null && count++ < retries && !conn.isValid(3)) {
+      ds.evictConnection(conn);
+      conn = ds.getConnection();
+    }
+    return conn;
   }
 
   @Override
@@ -123,5 +136,28 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
     if (!StringUtils.isNullOrEmpty(dbPropertyName) && !StringUtils.isNullOrEmpty(db)) {
       config.addDataSourceProperty(dbPropertyName, db);
     }
+  }
+
+  public int getHostCount() {
+    return databasePools.size();
+  }
+
+  public Set<String> getHosts() {
+    return Collections.unmodifiableSet(databasePools.keySet());
+  }
+
+  public void logConnections() {
+    LOGGER.finest(() -> {
+      final StringBuilder builder = new StringBuilder();
+      databasePools.forEach((key, dataSource) -> {
+        builder.append("\t[ ");
+        builder.append(key).append(":");
+        builder.append("\n\t {");
+        builder.append("\n\t\t").append(dataSource);
+        builder.append("\n\t }\n");
+        builder.append("\t");
+      });
+      return String.format("Hikari Pooled Connection: \n[\n%s\n]", builder);
+    });
   }
 }
