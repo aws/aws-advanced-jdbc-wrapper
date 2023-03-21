@@ -378,6 +378,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
     }
   }
 
+  public boolean acceptsStrategy(HostRole role, String strategy) {
+    return this.defaultConnProvider.acceptsStrategy(role, strategy);
+  }
+
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
     try {
       return executeWithSubscribedPlugins(

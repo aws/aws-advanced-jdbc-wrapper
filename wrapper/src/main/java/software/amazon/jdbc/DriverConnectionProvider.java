@@ -76,7 +76,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
       @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
       throws SQLException {
     if (!acceptedStrategies.containsKey(strategy)) {
-      throw new SQLException(
+      throw new UnsupportedOperationException(
           Messages.get("ConnectionProvider.unsupportedHostSpecSelectorStrategy",
               new Object[] { strategy }));
     }
