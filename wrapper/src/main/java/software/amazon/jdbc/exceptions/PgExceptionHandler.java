@@ -38,7 +38,7 @@ public class PgExceptionHandler implements ExceptionHandler {
   public static final String ACCESS_ERROR = "28P01";
 
   @Override
-  public boolean isNetworkException(Throwable throwable) {
+  public boolean isNetworkException(final Throwable throwable) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -53,7 +53,7 @@ public class PgExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isNetworkException(String sqlState) {
+  public boolean isNetworkException(final String sqlState) {
     if (sqlState == null) {
       return false;
     }
@@ -68,7 +68,7 @@ public class PgExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(Throwable throwable) {
+  public boolean isLoginException(final Throwable throwable) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -83,7 +83,7 @@ public class PgExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(String sqlState) {
+  public boolean isLoginException(final String sqlState) {
     if (sqlState == null) {
       return false;
     }

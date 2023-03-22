@@ -46,7 +46,7 @@ public class Driver implements java.sql.Driver {
   static {
     try {
       register();
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       throw new ExceptionInInitializerError(e);
     }
   }
@@ -56,7 +56,7 @@ public class Driver implements java.sql.Driver {
       throw new IllegalStateException(
           Messages.get("Driver.alreadyRegistered"));
     }
-    Driver driver = new Driver();
+    final Driver driver = new Driver();
     DriverManager.registerDriver(driver);
     registeredDriver = driver;
   }
@@ -72,8 +72,8 @@ public class Driver implements java.sql.Driver {
 
   public static boolean isRegistered() {
     if (registeredDriver != null) {
-      List<java.sql.Driver> registeredDrivers = Collections.list(DriverManager.getDrivers());
-      for (java.sql.Driver d : registeredDrivers) {
+      final List<java.sql.Driver> registeredDrivers = Collections.list(DriverManager.getDrivers());
+      for (final java.sql.Driver d : registeredDrivers) {
         if (d == registeredDriver) {
           return true;
         }
@@ -86,13 +86,13 @@ public class Driver implements java.sql.Driver {
   }
 
   @Override
-  public Connection connect(String url, Properties info) throws SQLException {
+  public Connection connect(final String url, final Properties info) throws SQLException {
     if (!acceptsURL(url)) {
       return null;
     }
 
-    String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
-    java.sql.Driver driver = DriverManager.getDriver(driverUrl);
+    final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
+    final java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 
     if (driver == null) {
       LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl}));
@@ -104,11 +104,11 @@ public class Driver implements java.sql.Driver {
     }
     ConnectionUrlParser.parsePropertiesFromUrl(url, info);
 
-    String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
+    final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
     if (!StringUtils.isNullOrEmpty(logLevelStr)) {
-      Level logLevel = Level.parse(logLevelStr);
-      Logger rootLogger = Logger.getLogger("");
-      for (Handler handler : rootLogger.getHandlers()) {
+      final Level logLevel = Level.parse(logLevelStr);
+      final Logger rootLogger = Logger.getLogger("");
+      for (final Handler handler : rootLogger.getHandlers()) {
         if (handler instanceof ConsoleHandler) {
           if (handler.getLevel().intValue() > logLevel.intValue()) {
             // Set higher (more detailed) level as requested
@@ -119,39 +119,35 @@ public class Driver implements java.sql.Driver {
       PARENT_LOGGER.setLevel(logLevel);
     }
 
-    ConnectionProvider connectionProvider = new DriverConnectionProvider(driver);
+    final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver);
 
     return new ConnectionWrapper(info, driverUrl, connectionProvider);
   }
 
   @Override
-  public boolean acceptsURL(String url) throws SQLException {
+  public boolean acceptsURL(final String url) throws SQLException {
     if (url == null) {
       throw new SQLException(Messages.get("Driver.nullUrl"));
     }
     // get defaults
     Properties defaults;
 
-    if (!url.startsWith(PROTOCOL_PREFIX)) {
-      return false;
-    }
-
-    return true;
+    return url.startsWith(PROTOCOL_PREFIX);
   }
 
   @Override
-  public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
-    Properties copy = new Properties(info);
+  public DriverPropertyInfo[] getPropertyInfo(final String url, final Properties info) throws SQLException {
+    final Properties copy = new Properties(info);
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
     if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(copy, databaseName);
     }
     ConnectionUrlParser.parsePropertiesFromUrl(url, copy);
 
-    Collection<AwsWrapperProperty> knownProperties = PropertyDefinition.allProperties();
-    DriverPropertyInfo[] props = new DriverPropertyInfo[knownProperties.size()];
+    final Collection<AwsWrapperProperty> knownProperties = PropertyDefinition.allProperties();
+    final DriverPropertyInfo[] props = new DriverPropertyInfo[knownProperties.size()];
     int i = 0;
-    for (AwsWrapperProperty prop : knownProperties) {
+    for (final AwsWrapperProperty prop : knownProperties) {
       props[i++] = prop.toDriverPropertyInfo(copy);
     }
 

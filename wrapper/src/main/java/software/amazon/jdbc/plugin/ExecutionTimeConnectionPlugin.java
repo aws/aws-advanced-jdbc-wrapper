@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.Messages;
@@ -39,17 +38,17 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public <T, E extends Exception> T execute(
-      Class<T> resultClass,
-      Class<E> exceptionClass,
-      Object methodInvokeOn,
-      String methodName,
-      JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs)
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final Object methodInvokeOn,
+      final String methodName,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs)
       throws E {
 
     final long startTime = System.nanoTime();
 
-    T result = jdbcMethodFunc.call();
+    final T result = jdbcMethodFunc.call();
 
     final long elapsedTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
     LOGGER.fine(

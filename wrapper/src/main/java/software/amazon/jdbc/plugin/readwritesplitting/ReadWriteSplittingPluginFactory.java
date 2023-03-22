@@ -20,11 +20,10 @@ import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
 public class ReadWriteSplittingPluginFactory implements ConnectionPluginFactory {
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
     return new ReadWriteSplittingPlugin(pluginService, props);
   }
 }

@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -40,7 +41,9 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.Dialect;
 
 class IamAuthConnectionPluginTest {
 
@@ -49,9 +52,9 @@ class IamAuthConnectionPluginTest {
   private static final int DEFAULT_PG_PORT = 5432;
   private static final int DEFAULT_MYSQL_PORT = 3306;
   private static final String PG_CACHE_KEY = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
-      + String.valueOf(DEFAULT_PG_PORT) + ":postgresqlUser";
+      + DEFAULT_PG_PORT + ":postgresqlUser";
   private static final String MYSQL_CACHE_KEY = "us-east-2:mysql.testdb.us-east-2.rds.amazonaws.com:"
-      + String.valueOf(DEFAULT_MYSQL_PORT) + ":mysqlUser";
+      + DEFAULT_MYSQL_PORT + ":mysqlUser";
   private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
   private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
   private static final HostSpec PG_HOST_SPEC = new HostSpec("pg.testdb.us-east-2.rds.amazonaws.com");
@@ -61,6 +64,8 @@ class IamAuthConnectionPluginTest {
   private Properties props;
 
   @Mock JdbcCallable<Connection, SQLException> mockLambda;
+  @Mock PluginService mockPluginService;
+  @Mock Dialect mockDialect;
 
   @BeforeEach
   public void init() {
@@ -70,6 +75,8 @@ class IamAuthConnectionPluginTest {
     props.setProperty(PropertyDefinition.PASSWORD.name, "postgresqlPassword");
     props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     IamAuthConnectionPlugin.clearCache();
+
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
   }
 
   @BeforeAll
@@ -88,6 +95,8 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
   }
 
@@ -98,17 +107,19 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(MYSQL_CACHE_KEY,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_MYSQL_PORT);
+
     testTokenSetInProps(MYSQL_DRIVER_PROTOCOL, MYSQL_HOST_SPEC);
   }
 
   @Test
   public void testPostgresConnectWithInvalidPort() {
     props.setProperty("iamDefaultPort", "0");
-    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
+    PluginService mockPluginService = Mockito.mock(PluginService.class);
+    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService);
 
-    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-      targetPlugin.connect(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, props, true, mockLambda);
-    });
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        () -> targetPlugin.connect(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, props, true, mockLambda));
 
     assertEquals("Port number: 0 is not valid. Port number should be greater than zero.", exception.getMessage());
   }
@@ -118,11 +129,15 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().minusMillis(300000)));
 
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+
     testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
   }
 
   @Test
   public void testConnectEmptyCache() throws SQLException {
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+
     testGenerateToken(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
   }
 
@@ -143,6 +158,8 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewRegion,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_REGION);
   }
 
@@ -150,6 +167,8 @@ class IamAuthConnectionPluginTest {
   public void testConnectWithSpecifiedHost() throws SQLException {
     props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-east-2");
     props.setProperty(IamAuthConnectionPlugin.IAM_HOST.name, "pg.testdb.us-east-2.rds.amazonaws.com");
+
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
     testGenerateToken(
         PG_DRIVER_PROTOCOL,
@@ -169,7 +188,7 @@ class IamAuthConnectionPluginTest {
 
   public void testTokenSetInProps(final String protocol, final HostSpec hostSpec) throws SQLException {
 
-    IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
+    IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService);
     doThrow(new SQLException()).when(mockLambda).call();
 
     assertThrows(SQLException.class, () -> targetPlugin.connect(protocol, hostSpec, props, true, mockLambda));
@@ -186,7 +205,7 @@ class IamAuthConnectionPluginTest {
       final String protocol,
       final HostSpec hostSpec,
       final String expectedHost) throws SQLException {
-    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin();
+    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService);
     final IamAuthConnectionPlugin spyPlugin = Mockito.spy(targetPlugin);
 
     doReturn(GENERATED_TOKEN).when(spyPlugin)
@@ -198,9 +217,8 @@ class IamAuthConnectionPluginTest {
             Region.US_EAST_2);
     doThrow(new SQLException()).when(mockLambda).call();
 
-    assertThrows(SQLException.class, () -> {
-      spyPlugin.connect(protocol, hostSpec, props, true, mockLambda);
-    });
+    assertThrows(SQLException.class,
+        () -> spyPlugin.connect(protocol, hostSpec, props, true, mockLambda));
     verify(mockLambda, times(1)).call();
 
     assertEquals(GENERATED_TOKEN, PropertyDefinition.PASSWORD.getString(props));

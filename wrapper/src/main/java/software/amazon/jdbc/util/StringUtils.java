@@ -32,19 +32,19 @@ public class StringUtils {
   private static final String ENCODING_FOR_URL =
       System.getProperty("software.amazon.jdbc.Driver.url.encoding", "UTF-8");
 
-  public static String decode(String encoded) {
+  public static String decode(final String encoded) {
     try {
       return URLDecoder.decode(encoded, ENCODING_FOR_URL);
-    } catch (UnsupportedEncodingException e) {
+    } catch (final UnsupportedEncodingException e) {
       throw new IllegalStateException(
           "Unable to decode URL entry via " + ENCODING_FOR_URL + ". This should not happen", e);
     }
   }
 
-  public static String encode(String plain) {
+  public static String encode(final String plain) {
     try {
       return URLEncoder.encode(plain, "UTF-8");
-    } catch (UnsupportedEncodingException e) {
+    } catch (final UnsupportedEncodingException e) {
       throw new IllegalStateException(
           "Unable to encode URL entry via " + ENCODING_FOR_URL + ". This should not happen", e);
     }
@@ -57,7 +57,7 @@ public class StringUtils {
    * @return true if the supplied string is null or empty
    */
   @EnsuresNonNullIf(expression = "#1", result = false)
-  public static boolean isNullOrEmpty(@Nullable String s) {
+  public static boolean isNullOrEmpty(@Nullable final String s) {
     return s == null || s.equals("");
   }
 
@@ -70,7 +70,7 @@ public class StringUtils {
    * @return the list of strings, split by delimiter
    * @throws IllegalArgumentException if an error occurs
    */
-  public static List<String> split(String stringToSplit, String delimiter, boolean trim) {
+  public static List<String> split(final String stringToSplit, final String delimiter, final boolean trim) {
     if (stringToSplit == null || "".equals(stringToSplit)) {
       return new ArrayList<>();
     }
@@ -79,7 +79,7 @@ public class StringUtils {
       throw new IllegalArgumentException();
     }
 
-    String[] tokens = stringToSplit.split(delimiter, -1);
+    final String[] tokens = stringToSplit.split(delimiter, -1);
     Stream<String> tokensStream = Arrays.stream(tokens);
     if (trim) {
       tokensStream = tokensStream.map(String::trim);

@@ -61,12 +61,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         }
       });
   static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
-  static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
-  static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
-  static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
-  static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
-  static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
-  static final String MYSQL_INSTANCE_NAME_COL = "@@aurora_server_id";
 
   private final PluginService pluginService;
   private final Properties properties;
@@ -190,26 +184,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   private String getCurrentInstanceId(final Connection conn, final String driverProtocol) {
-    final String retrieveInstanceQuery;
-    final String instanceNameCol;
-    if (driverProtocol.startsWith(PG_DRIVER_PROTOCOL)) {
-      retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = PG_INSTANCE_NAME_COL;
-    } else if (driverProtocol.startsWith(MYSQL_DRIVER_PROTOCOL)) {
-      retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = MYSQL_INSTANCE_NAME_COL;
-    } else {
-      throw new UnsupportedOperationException(
-          Messages.get(
-              "ReadWriteSplittingPlugin.unsupportedDriverProtocol",
-              new Object[] {driverProtocol}));
-    }
-
     String instanceName = null;
     try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(retrieveInstanceQuery)) {
+         final ResultSet resultSet = stmt.executeQuery(this.pluginService.getDialect().getHostAliasQuery())) {
       if (resultSet.next()) {
-        instanceName = resultSet.getString(instanceNameCol);
+        instanceName = resultSet.getString(1);
       }
     } catch (final SQLException e) {
       return null;
@@ -523,7 +502,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    HostSpec finalReaderHost = readerHost;
+    final HostSpec finalReaderHost = readerHost;
     LOGGER.finest(
         () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
             new Object[] {finalReaderHost.getUrl()}));

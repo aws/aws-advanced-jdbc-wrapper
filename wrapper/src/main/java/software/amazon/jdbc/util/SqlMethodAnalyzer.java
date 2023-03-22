@@ -117,17 +117,17 @@ public class SqlMethodAnalyzer {
 
   public boolean doesSwitchAutoCommitFalseTrue(final Connection conn, final String methodName,
       final Object[] jdbcMethodArgs) {
-    boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
+    final boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
         methodName, jdbcMethodArgs);
     if (!methodName.contains("setAutoCommit") && !isStatementSettingAutoCommit) {
       return false;
     }
 
-    boolean oldAutoCommitVal;
+    final boolean oldAutoCommitVal;
     Boolean newAutoCommitVal = null;
     try {
       oldAutoCommitVal = conn.getAutoCommit();
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       return false;
     }
 
@@ -176,7 +176,7 @@ public class SqlMethodAnalyzer {
     }
   }
 
-  public boolean isMethodClosingSqlObject(String methodName) {
+  public boolean isMethodClosingSqlObject(final String methodName) {
     return methodName.endsWith(".close") || methodName.endsWith(".abort");
   }
 }

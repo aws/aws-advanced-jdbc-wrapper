@@ -49,6 +49,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -90,7 +91,7 @@ public class PluginBenchmarks {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(HostSpec.class), any(Properties.class)))
+    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class), any(Properties.class)))
         .thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);

@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
@@ -100,7 +99,7 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
 
   protected final boolean enhancedLogQueryEnabled;
 
-  public LogQueryConnectionPlugin(Properties props) {
+  public LogQueryConnectionPlugin(final Properties props) {
     this.enhancedLogQueryEnabled = ENHANCED_LOG_QUERY_ENABLED.getBoolean(props);
   }
 
@@ -111,15 +110,15 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public <T, E extends Exception> T execute(
-      Class<T> resultClass,
-      Class<E> exceptionClass,
-      Object methodInvokeOn,
-      String methodName,
-      JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs)
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final Object methodInvokeOn,
+      final String methodName,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs)
       throws E {
 
-    String sql = getQuery(methodInvokeOn, methodName, jdbcMethodArgs);
+    final String sql = getQuery(methodInvokeOn, methodName, jdbcMethodArgs);
 
     if (!StringUtils.isNullOrEmpty(sql)) {
       LOGGER.fine(
@@ -131,7 +130,7 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
     return jdbcMethodFunc.call();
   }
 
-  protected <T> String getQuery(Object methodInvokeOn, String methodName, Object[] jdbcMethodArgs) {
+  protected <T> String getQuery(final Object methodInvokeOn, final String methodName, final Object[] jdbcMethodArgs) {
 
     // Get query from method argument
     if (methodWithQueryArg.contains(methodName)
@@ -144,15 +143,15 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
       return null;
     }
 
-    String targetClassName = methodInvokeOn.getClass().getName();
+    final String targetClassName = methodInvokeOn.getClass().getName();
 
     // Get query from object internal variable
     if (methodWithNoArg.contains(methodName)
         && (jdbcMethodArgs == null || jdbcMethodArgs.length == 0)) {
 
-      String accessor = queryAccessorByClassName.get(targetClassName);
+      final String accessor = queryAccessorByClassName.get(targetClassName);
       if (accessor != null) {
-        Object query = WrapperUtils.getFieldValue(methodInvokeOn, accessor);
+        final Object query = WrapperUtils.getFieldValue(methodInvokeOn, accessor);
         return query == null ? null : query.toString();
       }
     }

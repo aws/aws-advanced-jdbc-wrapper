@@ -87,7 +87,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public List<HostSpec> refresh(Connection connection) throws SQLException {
+  public List<HostSpec> refresh(final Connection connection) throws SQLException {
     init();
     return this.refresh();
   }
@@ -99,7 +99,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   }
 
   @Override
-  public List<HostSpec> forceRefresh(Connection connection) throws SQLException {
+  public List<HostSpec> forceRefresh(final Connection connection) throws SQLException {
     init();
     return this.forceRefresh();
   }

@@ -21,13 +21,13 @@ import org.osgi.framework.BundleContext;
 
 public class WrapperBundleActivator implements BundleActivator {
 
-  public void start(BundleContext context) throws Exception {
+  public void start(final BundleContext context) throws Exception {
     if (!software.amazon.jdbc.Driver.isRegistered()) {
       software.amazon.jdbc.Driver.register();
     }
   }
 
-  public void stop(BundleContext context) throws Exception {
+  public void stop(final BundleContext context) throws Exception {
     if (software.amazon.jdbc.Driver.isRegistered()) {
       software.amazon.jdbc.Driver.deregister();
     }

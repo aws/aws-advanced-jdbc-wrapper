@@ -46,6 +46,9 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.dialect.DialectProvider;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
@@ -698,9 +701,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setAutoCommit",
-        () -> {
-          this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
-        },
+        () -> this.pluginService.getCurrentConnection().setAutoCommit(autoCommit),
         autoCommit);
   }
 

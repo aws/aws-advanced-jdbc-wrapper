@@ -20,15 +20,15 @@ import java.sql.SQLException;
 
 public class ReadWriteSplittingSQLException extends SQLException {
 
-  public ReadWriteSplittingSQLException(String reason, String sqlState, Throwable cause) {
+  public ReadWriteSplittingSQLException(final String reason, final String sqlState, final Throwable cause) {
     super(reason, sqlState, cause);
   }
 
-  public ReadWriteSplittingSQLException(String reason, String sqlState) {
+  public ReadWriteSplittingSQLException(final String reason, final String sqlState) {
     super(reason, sqlState);
   }
 
-  public ReadWriteSplittingSQLException(String reason) {
+  public ReadWriteSplittingSQLException(final String reason) {
     super(reason);
   }
 }

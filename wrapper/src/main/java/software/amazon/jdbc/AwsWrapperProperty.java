@@ -18,27 +18,34 @@ package software.amazon.jdbc;
 
 import java.sql.DriverPropertyInfo;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class AwsWrapperProperty extends DriverPropertyInfo {
 
   public final @Nullable String defaultValue;
 
-  public AwsWrapperProperty(String name, @Nullable String defaultValue, String description) {
+  public AwsWrapperProperty(
+      @NonNull final String name,
+      @Nullable final String defaultValue,
+      final String description) {
     this(name, defaultValue, description, false);
   }
 
   public AwsWrapperProperty(
-      String name, @Nullable String defaultValue, String description, boolean required) {
-    this(name, defaultValue, description, required, (String[]) null);
+      @NonNull final String name,
+      @Nullable final String defaultValue,
+      final String description,
+      final boolean required) {
+    this(name, defaultValue, description, required, null);
   }
 
   public AwsWrapperProperty(
-      String name,
-      @Nullable String defaultValue,
-      String description,
-      boolean required,
-      String @Nullable [] choices) {
+      @NonNull final String name,
+      @Nullable final String defaultValue,
+      final String description,
+      final boolean required,
+      @Nullable final String [] choices) {
     super(name, null);
     this.defaultValue = defaultValue;
     this.required = required;
@@ -46,35 +53,35 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     this.choices = choices;
   }
 
-  public @Nullable String getString(Properties properties) {
+  public @Nullable String getString(final Properties properties) {
     return properties.getProperty(name, defaultValue);
   }
 
-  public boolean getBoolean(Properties properties) {
-    Object value = properties.get(name);
+  public boolean getBoolean(final Properties properties) {
+    final Object value = properties.get(name);
     if (value instanceof Boolean) {
       return (Boolean) value;
     }
     return Boolean.parseBoolean(properties.getProperty(name, defaultValue));
   }
 
-  public int getInteger(Properties properties) {
-    Object value = properties.get(name);
+  public int getInteger(final Properties properties) {
+    final Object value = properties.get(name);
     if (value instanceof Integer) {
       return (Integer) value;
     }
     return Integer.parseInt(properties.getProperty(name, defaultValue));
   }
 
-  public long getLong(Properties properties) {
-    Object value = properties.get(name);
+  public long getLong(final Properties properties) {
+    final Object value = properties.get(name);
     if (value instanceof Long) {
       return (Long) value;
     }
     return Long.parseLong(properties.getProperty(name, defaultValue));
   }
 
-  public void set(Properties properties, @Nullable String value) {
+  public void set(final Properties properties, @Nullable final String value) {
     if (value == null) {
       properties.remove(name);
     } else {
@@ -82,8 +89,8 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     }
   }
 
-  public DriverPropertyInfo toDriverPropertyInfo(Properties properties) {
-    DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, getString(properties));
+  public DriverPropertyInfo toDriverPropertyInfo(final Properties properties) {
+    final DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, getString(properties));
     propertyInfo.required = required;
     propertyInfo.description = description;
     propertyInfo.choices = choices;

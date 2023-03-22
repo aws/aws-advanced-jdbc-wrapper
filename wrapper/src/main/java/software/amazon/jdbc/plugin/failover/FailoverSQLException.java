@@ -20,11 +20,11 @@ import java.sql.SQLException;
 
 public class FailoverSQLException extends SQLException {
 
-  public FailoverSQLException(String reason, String sqlState, Throwable cause) {
+  public FailoverSQLException(final String reason, final String sqlState, final Throwable cause) {
     super(reason, sqlState, cause);
   }
 
-  public FailoverSQLException(String reason, String sqlState) {
+  public FailoverSQLException(final String reason, final String sqlState) {
     super(reason, sqlState);
   }
 }

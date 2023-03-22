@@ -25,7 +25,7 @@ import software.amazon.jdbc.util.Messages;
 public class AwsCredentialsManager {
   private static AwsCredentialsProviderHandler handler = null;
 
-  public static synchronized void setCustomHandler(AwsCredentialsProviderHandler customHandler) {
+  public static synchronized void setCustomHandler(final AwsCredentialsProviderHandler customHandler) {
     handler = customHandler;
   }
 
@@ -34,9 +34,9 @@ public class AwsCredentialsManager {
   }
 
   public static synchronized AwsCredentialsProvider getProvider(
-      HostSpec hostSpec,
-      Properties props) {
-    AwsCredentialsProvider provider =  handler != null
+      final HostSpec hostSpec,
+      final Properties props) {
+    final AwsCredentialsProvider provider =  handler != null
         ? handler.getAwsCredentialsProvider(hostSpec, props)
         : getDefaultProvider();
     if (provider == null) {
