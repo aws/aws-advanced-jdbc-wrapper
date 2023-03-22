@@ -42,10 +42,26 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
   private final HikariPoolConfigurator poolConfigurator;
+  private final HikariPoolMapping poolMapping;
   protected int retries = 10;
 
   public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
-    poolConfigurator = hikariPoolConfigurator;
+    this(hikariPoolConfigurator, (hostSpec, properties) -> hostSpec.getUrl());
+  }
+
+  /**
+   * {@link HikariPooledConnectionProvider} constructor.
+   *
+   * @param hikariPoolConfigurator A lambda that returns a {@link HikariConfig}
+   *                               object with specific Hikari configurations.
+   * @param mapping A lambda that returns a String that maps to a specific {@link HikariDataSource}
+   *                for the internal connection pool.
+   */
+  public HikariPooledConnectionProvider(
+      HikariPoolConfigurator hikariPoolConfigurator,
+      HikariPoolMapping mapping) {
+    this.poolConfigurator = hikariPoolConfigurator;
+    this.poolMapping = mapping;
   }
 
   @Override
@@ -72,12 +88,10 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
   public Connection connect(
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props)
       throws SQLException {
-    HikariDataSource ds = databasePools.computeIfAbsent(
-        hostSpec.getUrl(), url -> {
-          HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
-          setConnectionProperties(config, hostSpec, props);
-          return new HikariDataSource(config);
-        });
+    final HikariDataSource ds = databasePools.computeIfAbsent(
+        poolMapping.getKey(hostSpec, props),
+        url -> createHikariDataSource(hostSpec, props)
+    );
 
     Connection conn = ds.getConnection();
     int count = 0;
@@ -159,5 +173,11 @@ public abstract class HikariPooledConnectionProvider implements PooledConnection
       });
       return String.format("Hikari Pooled Connection: \n[\n%s\n]", builder);
     });
+  }
+
+  HikariDataSource createHikariDataSource(HostSpec hostSpec, Properties props) {
+    HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
+    setConnectionProperties(config, hostSpec, props);
+    return new HikariDataSource(config);
   }
 }
