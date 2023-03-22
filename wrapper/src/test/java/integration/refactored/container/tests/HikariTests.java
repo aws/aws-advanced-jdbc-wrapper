@@ -35,10 +35,10 @@ import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
+import integration.refactored.container.condition.DisableOnTestDriver;
 import integration.refactored.container.condition.DisableOnTestFeature;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
-import integration.refactored.container.condition.EnableOnTestDriver;
 import integration.refactored.container.condition.EnableOnTestFeature;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import java.sql.Connection;
@@ -65,11 +65,12 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.HIKARI)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 public class HikariTests {
 
-  private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(HikariTests.class.getName());
 
   @TestTemplate
   public void testOpenConnectionWithUrl() throws SQLException {
@@ -110,7 +111,8 @@ public class HikariTests {
     dataSource.addDataSourceProperty("serverPropertyName", "serverName");
 
     // Specify the driver-specific DataSource for AwsWrapperDataSource:
-    dataSource.addDataSourceProperty("targetDataSourceClassName", DriverHelper.getDataSourceClassname());
+    dataSource.addDataSourceProperty("targetDataSourceClassName",
+        DriverHelper.getDataSourceClassname());
 
     // Configuring driver-specific DataSource:
     final Properties targetDataSourceProps = new Properties();
@@ -147,17 +149,19 @@ public class HikariTests {
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @TestTemplate
+  @DisableOnTestDriver(TestDriver.MARIADB)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
+  @EnableOnNumOfInstances(min = 3)
   public void testFailoverLostConnection() throws SQLException {
-    Properties customProps = new Properties();
+    final Properties customProps = new Properties();
     customProps.setProperty(PropertyDefinition.PLUGINS.name, "failover");
     customProps.setProperty("failoverTimeoutMs", Integer.toString(1));
     DriverHelper.setSocketTimeout(customProps, 1, TimeUnit.SECONDS);
 
     final HikariDataSource dataSource = createDataSource(customProps);
 
-    try (final Connection conn = dataSource.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
 
       ProxyHelper.disableAllConnectivity();
@@ -167,15 +171,17 @@ public class HikariTests {
     }
 
     assertThrows(SQLTransientConnectionException.class, dataSource::getConnection);
+    ProxyHelper.enableAllConnectivity();
   }
 
   /**
-   * After getting a successful connection from the pool, the connected instance becomes unavailable and the
+   * After getting a successful connection from the pool, the connected instance becomes
+   * unavailable and the
    * connection fails over to another instance through the Enhanced Failure Monitor.
    */
   @TestTemplate
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  @EnableOnTestDriver({TestDriver.PG, TestDriver.MYSQL})
+  @DisableOnTestDriver(TestDriver.MARIADB)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testEFMFailover() throws SQLException {
@@ -195,7 +201,7 @@ public class HikariTests {
     final HikariDataSource dataSource = createDataSource(null);
 
     // Get a valid connection, then make it fail over to a different instance
-    try (final Connection conn = dataSource.getConnection()) {
+    try (Connection conn = dataSource.getConnection()) {
       assertTrue(conn.isValid(5));
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertTrue(currentConnectionId.equalsIgnoreCase(writerIdentifier));
@@ -219,11 +225,11 @@ public class HikariTests {
     ProxyHelper.enableAllConnectivity();
   }
 
-  private HikariDataSource createDataSource(Properties customProps) {
-    HikariConfig config = getConfig(customProps);
+  private HikariDataSource createDataSource(final Properties customProps) {
+    final HikariConfig config = getConfig(customProps);
     final HikariDataSource dataSource = new HikariDataSource(config);
 
-    HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
+    final HikariPoolMXBean hikariPoolMXBean = dataSource.getHikariPoolMXBean();
 
     LOGGER.fine("Starting idle connections: " + hikariPoolMXBean.getIdleConnections());
     LOGGER.fine("Starting active connections: " + hikariPoolMXBean.getActiveConnections());
@@ -232,8 +238,9 @@ public class HikariTests {
   }
 
   private HikariConfig getConfig(final Properties customProps) {
-    HikariConfig config = new HikariConfig();
-    TestProxyDatabaseInfo proxyDatabaseInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final HikariConfig config = new HikariConfig();
+    final TestProxyDatabaseInfo proxyDatabaseInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     config.setUsername(proxyDatabaseInfo.getUsername());
     config.setPassword(proxyDatabaseInfo.getPassword());
     config.setMaximumPoolSize(3);
@@ -243,7 +250,8 @@ public class HikariTests {
     config.setConnectionTimeout(1000);
 
     config.setDataSourceClassName(AwsWrapperDataSource.class.getName());
-    config.addDataSourceProperty("targetDataSourceClassName", DriverHelper.getDataSourceClassname());
+    config.addDataSourceProperty("targetDataSourceClassName",
+        DriverHelper.getDataSourceClassname());
     config.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
     config.addDataSourceProperty("portPropertyName", "portNumber");
     config.addDataSourceProperty("serverPropertyName", "serverName");
@@ -264,7 +272,8 @@ public class HikariTests {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
 
     targetDataSourceProps.setProperty("portNumber",
-        Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort()));
+        Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+            .getClusterEndpointPort()));
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(
         "clusterInstanceHostPattern",
@@ -273,22 +282,24 @@ public class HikariTests {
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstanceEndpointSuffix());
-    // For MariaDB tests, MariaDbDataSource only accepts the url parameter.
-    // targetDataSourceProps.setProperty("url", ConnectionStringHelper.getProxyUrl("failover,efm"));
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
+
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
+        "2000");
+    targetDataSourceProps.setProperty(
+        HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
+    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
+        "1");
     DriverHelper.setMonitoringConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setMonitoringSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
 
     if (customProps != null) {
-      Enumeration<?> propertyNames = customProps.propertyNames();
+      final Enumeration<?> propertyNames = customProps.propertyNames();
       while (propertyNames.hasMoreElements()) {
         final String propertyName = propertyNames.nextElement().toString();
         if (!StringUtils.isNullOrEmpty(propertyName)) {
-          String propertyValue = customProps.getProperty(propertyName);
+          final String propertyValue = customProps.getProperty(propertyName);
           targetDataSourceProps.setProperty(propertyName, propertyValue);
         }
       }

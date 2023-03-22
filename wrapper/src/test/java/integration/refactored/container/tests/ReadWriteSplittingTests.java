@@ -16,6 +16,7 @@
 
 package integration.refactored.container.tests;
 
+import static integration.refactored.container.tests.AuroraFailoverTest.auroraUtil;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -38,7 +39,6 @@ import integration.refactored.container.condition.EnableOnDatabaseEngineDeployme
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -56,6 +56,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -67,8 +68,6 @@ import software.amazon.jdbc.util.SqlState;
 public class ReadWriteSplittingTests {
 
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
-  private static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
 
   protected static Properties getProps() {
     return TestEnvironment.isAwsDatabase() ? getAuroraProps() : getNonAuroraProps();
@@ -289,8 +288,6 @@ public class ReadWriteSplittingTests {
   @EnableOnDatabaseEngine({DatabaseEngine.MYSQL})
   public void test_setReadOnlyTrueInTransaction() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(getUrl(), getProps())) {
-      final AuroraTestUtility auroraUtil =
-          new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
 
@@ -324,7 +321,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnlyTrue_oneHost() throws SQLException {
 
 
@@ -382,7 +378,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnly_closedConnection() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(getProxiedUrl(), getProxiedProps())) {
       conn.close();
@@ -472,7 +467,7 @@ public class ReadWriteSplittingTests {
       auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Connection invocation
-      auroraUtil.assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that we are connected to the new writer after failover happens.
       currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -523,7 +518,7 @@ public class ReadWriteSplittingTests {
         ProxyHelper.disableConnectivity(instanceId);
       }
 
-      auroraUtil.assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
       assertFalse(conn.isClosed());
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertEquals(otherReaderId, currentConnectionId);
@@ -566,7 +561,7 @@ public class ReadWriteSplittingTests {
         ProxyHelper.disableConnectivity(instanceId);
       }
 
-      auroraUtil.assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
       assertFalse(conn.isClosed());
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertEquals(writerConnectionId, currentConnectionId);

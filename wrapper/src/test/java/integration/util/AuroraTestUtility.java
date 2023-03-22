@@ -16,7 +16,6 @@
 
 package integration.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -25,7 +24,6 @@ import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
-import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -73,7 +71,7 @@ import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
-import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
@@ -604,7 +602,8 @@ public class AuroraTestUtility {
                           TestEnvironment.getCurrent()
                               .getInfo()
                               .getDatabaseInfo()
-                              .getDefaultDbName(), ""),
+                              .getDefaultDbName(),
+                          ""),
                       props)) {
                 remainingInstances.remove(id);
                 break;
@@ -633,28 +632,21 @@ public class AuroraTestUtility {
   // Attempt to run a query after the instance is down.
   // This should initiate the driver failover, first query after a failover
   // should always throw with the expected error message.
-  public void assertFirstQueryThrows(Connection connection, String expectedSQLErrorCode) {
-    final SQLException exception =
-        assertThrows(
-            SQLException.class,
-            () ->
-                queryInstanceId(
-                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-                    connection));
-    assertEquals(expectedSQLErrorCode, exception.getSQLState());
+  public void assertFirstQueryThrows(Connection connection, Class expectedSQLExceptionClass) {
+    assertThrows(
+        expectedSQLExceptionClass,
+        () ->
+            queryInstanceId(
+                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+                connection));
   }
 
-  protected void assertFirstQueryThrows(Statement stmt, String expectedSQLErrorCode) {
-    final SQLException exception =
-        assertThrows(
-            SQLException.class,
-            () ->
-                executeInstanceIdQuery(
-                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), stmt));
-    assertEquals(
-        expectedSQLErrorCode,
-        exception.getSQLState(),
-        "Unexpected SQL Exception: " + exception.getMessage());
+  protected void assertFirstQueryThrows(Statement stmt, Class expectedSQLExceptionClass) {
+    assertThrows(
+        expectedSQLExceptionClass,
+        () ->
+            executeInstanceIdQuery(
+                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), stmt));
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
