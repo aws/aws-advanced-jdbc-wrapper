@@ -167,7 +167,7 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
         this.pluginManager,
         this.databaseMetaData,
         "DatabaseMetaData.getDriverName",
-        () -> this.databaseMetaData.getDriverName());
+        () -> DriverInfo.DRIVER_NAME);
   }
 
   @Override
