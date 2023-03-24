@@ -38,7 +38,7 @@ import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
-import software.amazon.jdbc.plugin.TargetDriverMetaDataConnectionPluginFactory;
+import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
@@ -73,7 +73,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
           put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
           put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
-          put("targetDriverMetaData", TargetDriverMetaDataConnectionPluginFactory.class);
+          put("driverMetaData", DriverMetaDataConnectionPluginFactory.class);
         }
       };
 

@@ -21,10 +21,10 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 
-public class TargetDriverMetaDataConnectionPluginFactory implements ConnectionPluginFactory {
+public class DriverMetaDataConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
   public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new TargetDriverMetaDataConnectionPlugin(props);
+    return new DriverMetaDataConnectionPlugin(props);
   }
 }

@@ -23,7 +23,7 @@ import java.util.Set;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
 
-public class TargetDriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
+public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
 
   public static final AwsWrapperProperty WRAPPER_DRIVER_NAME = new AwsWrapperProperty(
       "wrapperDriverName", "Amazon Web Services (AWS) Advanced JDBC Wrapper",
@@ -32,7 +32,7 @@ public class TargetDriverMetaDataConnectionPlugin extends AbstractConnectionPlug
   private static final String GET_DRIVER_NAME = "DatabaseMetaData.getDriverName";
   private final Properties properties;
 
-  public TargetDriverMetaDataConnectionPlugin(Properties properties) {
+  public DriverMetaDataConnectionPlugin(Properties properties) {
     this.properties = properties;
   }
 
