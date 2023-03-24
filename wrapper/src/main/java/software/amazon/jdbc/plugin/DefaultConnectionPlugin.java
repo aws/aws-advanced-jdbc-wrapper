@@ -39,6 +39,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -51,6 +52,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   private static final Logger LOGGER =
       Logger.getLogger(DefaultConnectionPlugin.class.getName());
+  private static final String GET_DRIVER_NAME = "DatabaseMetaData.getDriverName";
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Collections.singletonList("*")));
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
@@ -95,6 +97,11 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     LOGGER.finest(
         () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
+
+    if (GET_DRIVER_NAME.equals(methodName)) {
+      return (T) DriverInfo.DRIVER_NAME;
+    }
+
     final T result = jdbcMethodFunc.call();
 
     Connection currentConn = this.pluginService.getCurrentConnection();
