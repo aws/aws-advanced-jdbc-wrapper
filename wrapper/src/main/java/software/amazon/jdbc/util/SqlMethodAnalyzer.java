@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -140,7 +141,7 @@ public class SqlMethodAnalyzer {
     return !oldAutoCommitVal && Boolean.TRUE.equals(newAutoCommitVal);
   }
 
-  public Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {
+  public @Nullable Boolean getAutoCommitValueFromSqlStatement(final Object[] args) {
     if (args == null || args.length < 1) {
       return null;
     }

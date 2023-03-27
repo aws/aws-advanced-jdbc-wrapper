@@ -38,13 +38,15 @@ public class PropertyUtils {
     Enumeration<?> propertyNames = properties.propertyNames();
     while (propertyNames.hasMoreElements()) {
       Object key = propertyNames.nextElement();
-      String propName = key.toString();
-      Object propValue = properties.getProperty(propName);
-      if (propValue == null) {
-        propValue = properties.get(key);
-      }
+      if (key != null) {
+        String propName = key.toString();
+        Object propValue = properties.getProperty(propName);
+        if (propValue == null) {
+          propValue = properties.get(key);
+        }
 
-      setPropertyOnTarget(target, propName, propValue, methods);
+        setPropertyOnTarget(target, propName, propValue, methods);
+      }
     }
   }
 
@@ -100,7 +102,7 @@ public class PropertyUtils {
           () ->
               Messages.get(
                   "PropertyUtils.failedToSetPropertyWithReason",
-                  new Object[] {propName, target.getClass(), ex.getCause().getMessage()}));
+                  new Object[] {propName, target.getClass(), ex.getCause() == null ? null: ex.getCause().getMessage()}));
       throw new RuntimeException(ex.getCause());
     } catch (Exception e) {
       LOGGER.warning(

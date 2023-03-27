@@ -25,14 +25,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.regex.qual.Regex;
 
 public class StringUtils {
 
   private static final String ENCODING_FOR_URL =
       System.getProperty("software.amazon.jdbc.Driver.url.encoding", "UTF-8");
 
-  public static String decode(String encoded) {
+  public static @NonNull String decode(@NonNull String encoded) {
     try {
       return URLDecoder.decode(encoded, ENCODING_FOR_URL);
     } catch (UnsupportedEncodingException e) {
@@ -41,7 +43,7 @@ public class StringUtils {
     }
   }
 
-  public static String encode(String plain) {
+  public static @NonNull String encode(@NonNull String plain) {
     try {
       return URLEncoder.encode(plain, "UTF-8");
     } catch (UnsupportedEncodingException e) {
@@ -70,7 +72,7 @@ public class StringUtils {
    * @return the list of strings, split by delimiter
    * @throws IllegalArgumentException if an error occurs
    */
-  public static List<String> split(String stringToSplit, String delimiter, boolean trim) {
+  public static List<String> split(String stringToSplit, @Regex String delimiter, boolean trim) {
     if (stringToSplit == null || "".equals(stringToSplit)) {
       return new ArrayList<>();
     }

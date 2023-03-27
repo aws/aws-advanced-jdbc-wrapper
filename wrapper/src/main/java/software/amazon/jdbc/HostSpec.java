@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
@@ -26,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * An object representing connection info for a given host. Modifiable fields are thread-safe to support sharing this
  * object with the EFM monitor thread.
  */
-public class HostSpec {
+public final class HostSpec {
 
   public static final int NO_PORT = -1;
 
@@ -144,7 +145,10 @@ public class HostSpec {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
+    if (obj == null) {
+      return false;
+    }
     if (obj == this) {
       return true;
     }
