@@ -23,3 +23,4 @@
     - [Read-Write Splitting Plugin Performance Results](./development-guide/ReadWriteSplittingPluginPerformanceResults.md)
     - [Plugin Service](./development-guide/PluginService.md)
     - [Pipelines](./development-guide/Pipelines.md)
+- [Known Limitations](./KnownLimitations.md)
