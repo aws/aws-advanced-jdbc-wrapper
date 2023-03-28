@@ -58,12 +58,13 @@ import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 public class AuroraFailoverTest {
@@ -112,7 +113,7 @@ public class AuroraFailoverTest {
       auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Connection invocation
-      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that we are connected to the new writer after failover happens.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -152,7 +153,7 @@ public class AuroraFailoverTest {
       auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
       // Failure occurs on Statement invocation
-      assertFirstQueryThrows(stmt, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that the driver is connected to the new writer after failover happens.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -205,7 +206,7 @@ public class AuroraFailoverTest {
       // Crash Instance2
       ProxyHelper.disableConnectivity(instanceId);
 
-      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that we are currently connected to the writer Instance1.
       final String writerId = this.currentWriter;
@@ -235,7 +236,7 @@ public class AuroraFailoverTest {
       // Crash writer Instance1.
       auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(writerId, readerBId);
 
-      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that we are connected to one of the available instances.
       currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -506,7 +507,7 @@ public class AuroraFailoverTest {
       auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
           initialWriterInstanceInfo.getInstanceId(), nominatedWriterId);
 
-      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Execute Query again to get the current connection id;
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -562,7 +563,7 @@ public class AuroraFailoverTest {
       // Crash Instance1 and nominate a new writer
       auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
-      assertFirstQueryThrows(conn, SqlState.COMMUNICATION_LINK_CHANGED.getState());
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       // Assert that the connection property is maintained.
       final Statement testStmt2 = conn.createStatement();
@@ -628,33 +629,6 @@ public class AuroraFailoverTest {
                 .getProxyDatabaseInfo()
                 .getInstanceEndpointSuffix());
     return props;
-  }
-
-  // Attempt to run a query after the instance is down.
-  // This should initiate the driver failover, first query after a failover
-  // should always throw with the expected error message.
-  protected void assertFirstQueryThrows(Connection connection, String expectedSQLErrorCode) {
-    final SQLException exception =
-        assertThrows(
-            SQLException.class,
-            () ->
-                auroraUtil.queryInstanceId(
-                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-                    connection));
-    assertEquals(expectedSQLErrorCode, exception.getSQLState());
-  }
-
-  protected void assertFirstQueryThrows(Statement stmt, String expectedSQLErrorCode) {
-    final SQLException exception =
-        assertThrows(
-            SQLException.class,
-            () ->
-                auroraUtil.executeInstanceIdQuery(
-                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), stmt));
-    assertEquals(
-        expectedSQLErrorCode,
-        exception.getSQLState(),
-        "Unexpected SQL Exception: " + exception.getMessage());
   }
 
   protected Connection createDataSourceConnectionWithFailoverUsingInstanceId(

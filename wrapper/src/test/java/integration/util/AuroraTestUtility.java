@@ -16,6 +16,7 @@
 
 package integration.util;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -70,6 +71,7 @@ import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
+import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
@@ -600,7 +602,8 @@ public class AuroraTestUtility {
                           TestEnvironment.getCurrent()
                               .getInfo()
                               .getDatabaseInfo()
-                              .getDefaultDbName()),
+                              .getDefaultDbName(),
+                          ""),
                       props)) {
                 remainingInstances.remove(id);
                 break;
@@ -624,6 +627,26 @@ public class AuroraTestUtility {
           "The following instances are still down: \n"
               + String.join("\n", remainingInstances.keySet()));
     }
+  }
+
+  // Attempt to run a query after the instance is down.
+  // This should initiate the driver failover, first query after a failover
+  // should always throw with the expected error message.
+  public void assertFirstQueryThrows(Connection connection, Class expectedSQLExceptionClass) {
+    assertThrows(
+        expectedSQLExceptionClass,
+        () ->
+            queryInstanceId(
+                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+                connection));
+  }
+
+  protected void assertFirstQueryThrows(Statement stmt, Class expectedSQLExceptionClass) {
+    assertThrows(
+        expectedSQLExceptionClass,
+        () ->
+            executeInstanceIdQuery(
+                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), stmt));
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {

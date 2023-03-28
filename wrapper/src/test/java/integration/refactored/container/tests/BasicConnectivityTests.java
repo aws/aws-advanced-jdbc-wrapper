@@ -55,7 +55,7 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 public class BasicConnectivityTests {
 
   private static final Logger LOGGER = Logger.getLogger(BasicConnectivityTests.class.getName());
@@ -84,7 +84,7 @@ public class BasicConnectivityTests {
                 .getInstances()
                 .get(0)
                 .getEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -170,7 +170,7 @@ public class BasicConnectivityTests {
             testDriver,
             instanceInfo.getEndpoint(),
             instanceInfo.getEndpointPort(),
-            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
