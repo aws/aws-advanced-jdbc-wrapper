@@ -12,6 +12,7 @@
     - [IAM Authentication Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
     - [AWS Secrets Manager Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
     - [Aurora Connection Tracker Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraConnectionTrackerPlugin.md)
+    - [Driver Metadata Connection Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheDriverMetadataConnectionPlugin.md)
 - [Development Guide](./development-guide/DevelopmentGuide.md)
   - [Setup](./development-guide/DevelopmentGuide.md#setup)
   - [Building the AWS Advanced JDBC Driver](./development-guide/DevelopmentGuide.md#building-the-aws-advanced-jdbc-driver)
