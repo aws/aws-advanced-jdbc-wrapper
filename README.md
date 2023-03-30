@@ -64,7 +64,7 @@ This driver is being tested against the following versions in the current test s
 |-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | MySQL             | 8.0.32                                                                                                                                                                                                           |
 | PostgreSQL        | 15.2                                                                                                                                                                                                             |
-| Aurora MySQL      | 8.0.mysql_aurora.3.02.2 (Wire-compatible with MySQL 8.0.23 onwards. For more details see https://docs.aws.amazon.com/AmazonRDS/latest/AuroraMySQLReleaseNotes/AuroraMySQL.Updates.3022.html)                     |
+| Aurora MySQL      | MySQL	8.0.mysql_aurora.3.02.2 (Wire-compatible with MySQL 8.0.23 onwards. For more details see [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraMySQLReleaseNotes/AuroraMySQL.Updates.3022.html))                     |
 | Aurora PostgreSQL | 14.5 (Compatible with PostgreSQL 14.5, see release notes [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraPostgreSQLReleaseNotes/AuroraPostgreSQL.Updates.html#AuroraPostgreSQL.Updates.20180305.145X)) |
 
 ## License
