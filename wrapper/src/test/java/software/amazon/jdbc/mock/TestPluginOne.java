@@ -111,11 +111,14 @@ public class TestPluginOne implements ConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy,
-      JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
-      throws SQLException {
+  public boolean acceptsStrategy(HostRole role, String strategy) {
+    return false;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
     this.calls.add(this.getClass().getSimpleName() + ":before getHostSpecByStrategy");
-    HostSpec result = getHostSpecByStrategyFunc.call();
+    HostSpec result = new HostSpec("host", 1234, role);
     this.calls.add(this.getClass().getSimpleName() + ":after getHostSpecByStrategy");
     return result;
   }

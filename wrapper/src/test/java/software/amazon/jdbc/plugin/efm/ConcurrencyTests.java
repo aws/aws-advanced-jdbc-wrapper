@@ -286,6 +286,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public boolean acceptsStrategy(HostRole role, String strategy) {
+      return false;
+    }
+
+    @Override
     public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
       return null;
     }

@@ -90,8 +90,10 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
       throws SQLException {
     if (!acceptedStrategies.containsKey(strategy)) {
-      throw new SQLException(
-          Messages.get("ConnectionProvider.unsupportedHostSpecSelectorStrategy", new Object[] { strategy }));
+      throw new UnsupportedOperationException(
+          Messages.get(
+              "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
+              new Object[] {strategy, DataSourceConnectionProvider.class}));
     }
 
     return acceptedStrategies.get(strategy).getHost(hosts, role);

@@ -130,6 +130,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+
+    if (!pluginService.acceptsStrategy(hostSpec.getRole(), this.readerSelectorStrategy)) {
+      throw new UnsupportedOperationException(
+          Messages.get("ReadWriteSplittingPlugin.unsupportedHostSpecSelectorStrategy",
+              new Object[] { this.readerSelectorStrategy }));
+    }
     return connectInternal(driverProtocol, hostSpec, isInitialConnection, connectFunc);
   }
 

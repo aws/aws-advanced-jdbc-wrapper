@@ -56,11 +56,9 @@ public interface ConnectionPlugin {
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException;
 
-  HostSpec getHostSpecByStrategy(
-      final HostRole role,
-      final String strategy,
-      final JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
-      throws SQLException;
+  boolean acceptsStrategy(final HostRole role, final String strategy);
+
+  HostSpec getHostSpecByStrategy(final HostRole role, final String strategy) throws SQLException;
 
   void initHostProvider(
       final String driverProtocol,

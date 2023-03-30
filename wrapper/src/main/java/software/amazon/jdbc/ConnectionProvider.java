@@ -40,8 +40,27 @@ public interface ConnectionProvider {
   boolean acceptsUrl(
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props);
 
+  /**
+   * Indicates whether the selection strategy is supported by the connection provider.
+   *
+   * @param role Determines if the connection provider should return a reader host or a writer host.
+   * @param strategy The selection strategy to use.
+   * @return whether the strategy is supported.
+   */
   boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy);
 
+  /**
+   * Return a reader or a writer node using the specified strategy.
+   * This method should return an {@link UnsupportedOperationException} if the specified strategy is unsupported.
+   *
+   * @param hosts The list of {@link HostSpec} to select from.
+   * @param role Determines if the connection provider should return a writer or a reader.
+   * @param strategy The strategy determining how the {@link HostSpec} should be selected, e.g., random or round-robin.
+   * @return The {@link HostSpec} selected using the specified strategy.
+   *
+   * @throws SQLException if an error occurred while returning the hosts.
+   * @throws UnsupportedOperationException if the strategy is unsupported by the provider.
+   */
   HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role,
       @NonNull String strategy) throws SQLException;
 

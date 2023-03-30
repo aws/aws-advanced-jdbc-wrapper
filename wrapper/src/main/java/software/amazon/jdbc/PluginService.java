@@ -48,6 +48,8 @@ public interface PluginService extends ExceptionHandler {
 
   HostSpec getInitialConnectionHostSpec();
 
+  boolean acceptsStrategy(HostRole role, String strategy) throws SQLException;
+
   HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException;
 
   void setAvailability(Set<String> hostAliases, HostAvailability availability);

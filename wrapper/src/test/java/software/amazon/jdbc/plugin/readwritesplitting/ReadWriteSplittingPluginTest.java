@@ -126,6 +126,7 @@ public class ReadWriteSplittingPluginTest {
         .thenReturn(mockReaderConn2);
     when(this.mockPluginService.connect(eq(readerHostSpec3), any(Properties.class)))
         .thenReturn(mockReaderConn3);
+    when(this.mockPluginService.acceptsStrategy(any(), eq("random"))).thenReturn(true);
     when(this.mockConnectFunc.call()).thenReturn(mockWriterConn);
     when(mockWriterConn.createStatement()).thenReturn(mockStatement);
     when(mockReaderConn1.createStatement()).thenReturn(mockStatement);

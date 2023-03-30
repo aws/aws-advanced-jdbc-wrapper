@@ -438,6 +438,7 @@ public class ReadWriteSplittingTests {
     }
 
     ConnectionProviderManager.releaseResources();
+    ConnectionProviderManager.resetProvider();
   }
 
   @TestTemplate
@@ -469,6 +470,7 @@ public class ReadWriteSplittingTests {
       assertEquals(0, provider.getHostCount(), "Internal connection pool should be empty.");
     }
     ConnectionProviderManager.releaseResources();
+    ConnectionProviderManager.resetProvider();
   }
 
   private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {

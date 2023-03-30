@@ -74,12 +74,15 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(HostRole role, String strategy,
-      JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
-      throws SQLException {
+  public boolean acceptsStrategy(HostRole role, String strategy) {
+    return false;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
     LOGGER.finer(() -> String.format("getHostSpecByStrategy=''%s''", strategy));
     resources.add("getHostSpecByStrategy");
-    return getHostSpecByStrategyFunc.call();
+    return new HostSpec("host", 1234, role);
   }
 
   @Override

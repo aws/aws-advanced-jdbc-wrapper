@@ -70,12 +70,13 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public HostSpec getHostSpecByStrategy(
-      final HostRole role,
-      final String strategy,
-      final JdbcCallable<HostSpec, SQLException> getHostSpecByStrategyFunc)
-      throws SQLException {
-    return getHostSpecByStrategyFunc.call();
+  public boolean acceptsStrategy(HostRole role, String strategy) {
+    return false;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(final HostRole role, final String strategy) {
+    return null;
   }
 
   @Override
