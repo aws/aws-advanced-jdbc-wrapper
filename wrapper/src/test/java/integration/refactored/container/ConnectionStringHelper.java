@@ -25,6 +25,10 @@ import software.amazon.jdbc.util.StringUtils;
 public class ConnectionStringHelper {
 
   public static String getUrl() {
+    return getUrl(null);
+  }
+
+  public static String getUrl(final String wrapperPlugins) {
     return getUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
         TestEnvironment.getCurrent()
@@ -39,17 +43,23 @@ public class ConnectionStringHelper {
             .getInstances()
             .get(0)
             .getEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
+        wrapperPlugins);
   }
 
-  public static String getUrl(String host, int port, String databaseName) {
-    return getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
+  public static String getUrl(String host, int port, String databaseName, String wrapperPlugins) {
+    return getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName, wrapperPlugins);
   }
 
-  public static String getUrl(TestDriver testDriver, String host, int port, String databaseName) {
+  public static String getUrl(
+      TestDriver testDriver,
+      String host,
+      int port,
+      String databaseName,
+      String wrapperPlugins) {
     final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     final String requiredParameters = DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
-    return DriverHelper.getDriverProtocol(databaseEngine, testDriver)
+    final String url = DriverHelper.getDriverProtocol(databaseEngine, testDriver)
         + host
         + ":"
         + port
@@ -57,7 +67,8 @@ public class ConnectionStringHelper {
         + databaseName
         + requiredParameters
         + (requiredParameters.startsWith("?") ? "&" : "?")
-        + "wrapperPlugins=\"\"";
+        + "wrapperPlugins=";
+    return wrapperPlugins != null ? url + wrapperPlugins : url;
   }
 
   /**
@@ -116,6 +127,24 @@ public class ConnectionStringHelper {
             .get(0)
             .getEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+  }
+
+  public static String getProxyUrl(final String wrapperPlugins) {
+    return getUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getProxyDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getProxyDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), wrapperPlugins);
   }
 
   public static String getWrapperClusterEndpointUrl() {

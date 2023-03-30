@@ -13,9 +13,9 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.24'
     implementation 'org.hibernate:hibernate-core:6.1.3.Final'
     implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
-    runtimeOnly 'org.postgresql:postgresql:42.5.1'
-    runtimeOnly 'mysql:mysql-connector-java:8.0.30'
-    runtimeOnly project(':aws-advanced-jdbc-wrapper')
+    runtimeOnly 'org.postgresql:postgresql:42.5.4'
+    runtimeOnly 'mysql:mysql-connector-java:8.0.32'
+    implementation project(':aws-advanced-jdbc-wrapper')
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
 }

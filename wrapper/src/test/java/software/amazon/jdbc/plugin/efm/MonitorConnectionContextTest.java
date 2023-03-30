@@ -24,9 +24,6 @@ import static org.mockito.Mockito.verify;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -38,9 +35,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 class MonitorConnectionContextTest {
-
-  private static final Set<String> NODE_KEYS =
-      new HashSet<>(Collections.singletonList("any.node.domain"));
   private static final long FAILURE_DETECTION_TIME_MILLIS = 10;
   private static final long FAILURE_DETECTION_INTERVAL_MILLIS = 100;
   private static final long FAILURE_DETECTION_COUNT = 3;
@@ -50,14 +44,15 @@ class MonitorConnectionContextTest {
   private AutoCloseable closeable;
 
   @Mock Connection connectionToAbort;
+  @Mock Monitor monitor;
 
   @BeforeEach
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
     context =
         new MonitorConnectionContext(
+            monitor,
             null,
-            NODE_KEYS,
             FAILURE_DETECTION_TIME_MILLIS,
             FAILURE_DETECTION_INTERVAL_MILLIS,
             FAILURE_DETECTION_COUNT);
@@ -71,7 +66,7 @@ class MonitorConnectionContextTest {
   @Test
   public void test_isNodeUnhealthyWithConnection_returnFalse() {
     long currentTimeNano = System.nanoTime();
-    context.setConnectionValid(true, currentTimeNano, currentTimeNano);
+    context.setConnectionValid("test-node", true, currentTimeNano, currentTimeNano);
     Assertions.assertFalse(context.isNodeUnhealthy());
     Assertions.assertEquals(0, this.context.getFailureCount());
   }
@@ -79,7 +74,7 @@ class MonitorConnectionContextTest {
   @Test
   public void test_isNodeUnhealthyWithInvalidConnection_returnFalse() {
     long currentTimeNano = System.nanoTime();
-    context.setConnectionValid(false, currentTimeNano, currentTimeNano);
+    context.setConnectionValid("test-node", false, currentTimeNano, currentTimeNano);
     Assertions.assertFalse(context.isNodeUnhealthy());
     Assertions.assertEquals(1, this.context.getFailureCount());
   }
@@ -91,7 +86,7 @@ class MonitorConnectionContextTest {
     context.resetInvalidNodeStartTime();
 
     long currentTimeNano = System.nanoTime();
-    context.setConnectionValid(false, currentTimeNano, currentTimeNano);
+    context.setConnectionValid("test-node", false, currentTimeNano, currentTimeNano);
 
     Assertions.assertFalse(context.isNodeUnhealthy());
     Assertions.assertEquals(expectedFailureCount, context.getFailureCount());
@@ -108,9 +103,10 @@ class MonitorConnectionContextTest {
     // wait 250 msec in total
     for (int i = 0; i < 5; i++) {
       long statusCheckStartTime = currentTimeNano;
-      long statusCheckEndTime = currentTimeNano + TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
+      long statusCheckEndTime =
+          currentTimeNano + TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
 
-      context.setConnectionValid(false, statusCheckStartTime, statusCheckEndTime);
+      context.setConnectionValid("test-node", false, statusCheckStartTime, statusCheckEndTime);
       Assertions.assertFalse(context.isNodeUnhealthy());
 
       currentTimeNano += TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
@@ -122,9 +118,10 @@ class MonitorConnectionContextTest {
     // waiting time.
 
     long statusCheckStartTime = currentTimeNano;
-    long statusCheckEndTime = currentTimeNano + TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
+    long statusCheckEndTime =
+        currentTimeNano + TimeUnit.MILLISECONDS.toNanos(VALIDATION_INTERVAL_MILLIS);
 
-    context.setConnectionValid(false, statusCheckStartTime, statusCheckEndTime);
+    context.setConnectionValid("test-node", false, statusCheckStartTime, statusCheckEndTime);
     Assertions.assertTrue(context.isNodeUnhealthy());
   }
 
@@ -136,35 +133,38 @@ class MonitorConnectionContextTest {
 
     final MonitorConnectionContext spyContext = spy(context);
 
-    spyContext.updateConnectionStatus(statusCheckStartTime, currentTime, isValid);
+    spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, isValid);
 
-    verify(spyContext).setConnectionValid(eq(isValid), eq(statusCheckStartTime), eq(currentTime));
+    verify(spyContext).setConnectionValid(eq("test-node"), eq(isValid), eq(statusCheckStartTime),
+        eq(currentTime));
   }
 
   @Test
   void test_updateConnectionStatus() {
     final long currentTime = System.nanoTime();
     final long statusCheckStartTime = System.nanoTime() - 1000;
-    context.invalidate();
+    context.setInactive();
 
     final MonitorConnectionContext spyContext = spy(context);
 
-    spyContext.updateConnectionStatus(statusCheckStartTime, currentTime, true);
+    spyContext.updateConnectionStatus("test-node", statusCheckStartTime, currentTime, true);
 
-    verify(spyContext, never()).setConnectionValid(eq(true), eq(statusCheckStartTime), eq(currentTime));
+    verify(spyContext, never()).setConnectionValid(eq("test-node"), eq(true),
+        eq(statusCheckStartTime), eq(currentTime));
   }
 
   @Test
   void test_abortConnection_ignoresSqlException() throws SQLException {
     context =
         new MonitorConnectionContext(
+            monitor,
             connectionToAbort,
-            NODE_KEYS,
             FAILURE_DETECTION_TIME_MILLIS,
             FAILURE_DETECTION_INTERVAL_MILLIS,
             FAILURE_DETECTION_COUNT);
 
-    doThrow(new SQLException("unexpected SQLException during abort")).when(connectionToAbort).close();
+    doThrow(new SQLException("unexpected SQLException during abort")).when(connectionToAbort)
+        .close();
 
     // An exception will be thrown inside this call, but it should not be propagated.
     context.abortConnection();

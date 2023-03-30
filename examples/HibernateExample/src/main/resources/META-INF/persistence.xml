@@ -9,13 +9,12 @@
 
     <properties>
 
-        <property name="hibernate.dialect" value="software.amazon.utility.AuroraPostgreSQLDialect"/>
+        <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQLDialect"/>
         <property name="hibernate.connection.driver_class" value="software.amazon.jdbc.Driver"/>
-        <property name="hibernate.connection.url" value="jdbc:aws-wrapper:postgresql://hostname.amazonaws.com/hibernate_orm_test"/>
+        <property name="hibernate.connection.url" value="jdbc:aws-wrapper:postgresql://db.cluster-xyz.region.rds.amazonaws.com/hibernate_orm_test"/>
         <property name="hibernate.connection.username" value="hibernate_orm_test"/>
         <property name="hibernate.connection.password" value="hibernate_orm_test"/>
         <property name="hibernate.connection.jdbcProtocol" value="jdbc:postgresql://"/>
-        <property name="hibernate.connection.wrapperPlugins" value="failover"/>
 
         <property name="hibernate.connection.pool_size" value="5"/>
 

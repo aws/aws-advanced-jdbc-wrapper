@@ -47,7 +47,7 @@ import software.amazon.jdbc.wrapper.StatementWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@DisableOnTestFeature(TestEnvironmentFeatures.PERFORMANCE)
+@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
 public class DriverConfigurationProfileTests {
 
   @TestTemplate

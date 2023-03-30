@@ -161,7 +161,13 @@ public class DatabaseMetaDataWrapper implements DatabaseMetaData {
 
   @Override
   public String getDriverName() throws SQLException {
-    return DriverInfo.DRIVER_NAME;
+    return WrapperUtils.executeWithPlugins(
+        String.class,
+        SQLException.class,
+        this.pluginManager,
+        this.databaseMetaData,
+        "DatabaseMetaData.getDriverName",
+        () -> DriverInfo.DRIVER_NAME);
   }
 
   @Override

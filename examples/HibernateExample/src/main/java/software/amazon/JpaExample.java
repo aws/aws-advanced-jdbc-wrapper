@@ -16,68 +16,77 @@
 
 package software.amazon;
 
+import java.time.Duration;
+import java.time.Instant;
+import org.hibernate.Hibernate;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
-import org.hibernate.Hibernate;
 import software.amazon.entity.Address;
 import software.amazon.entity.User;
 
-import java.sql.SQLException;
-
 public class JpaExample {
-    private static EntityManagerFactory entityManagerFactory = null;
 
-    public static void main(String[] args) {
-        try {
-            Address address = new Address();
-            address.setTown("Orangeville");
-            address.setStreet("Faulkner");
-            address.setCountry("Canada");
-            address.setPostal("L1L2M2");
-            insertAddress(address);
-            User user = new User();
-            user.setFirst("Dave");
-            user.setLast("Cramer");
-            user.setAddress(address);
-            insertUser(user);
+  private static final EntityManagerFactory entityManagerFactory = Persistence.createEntityManagerFactory("Atlas");
 
-            while (true) {
-                User user1 = getUser(user.getId());
-            }
-        } catch (Exception ex ){
-            // exception should be a TransactionStateUnknownException on failover
-            ex.printStackTrace();
-        }
-    }
-    private static void insertUser(User user) throws Exception {
-        try (EntityManager entityManager = openEntityManager()) {
-            entityManager.getTransaction().begin();
-            entityManager.persist(user);
-            entityManager.getTransaction().commit();
-        }
-    }
-    private static void insertAddress(Address address) throws Exception {
-        try (EntityManager entityManager = openEntityManager()) {
-            entityManager.getTransaction().begin();
-            entityManager.persist(address);
-            entityManager.getTransaction().commit();
-        }
-    }
-    private static User getUser(int id) throws SQLException {
-        try (EntityManager entityManager = openEntityManager()) {
+  public static void main(String[] args) {
+    final Instant start = Instant.now();
+    final Duration threshold = Duration.ofMinutes(5);
 
-            User user = entityManager.find(User.class, id);
-            Hibernate.initialize(user);
+    int i = 0;
+    try {
+      // Keep inserting data for 5 minutes.
+      while (Duration.between(start, Instant.now()).toMinutes() > threshold.toMinutes()) {
+        Address address = new Address();
+        address.setTown("Orangeville");
+        address.setStreet("Faulkner");
+        address.setCountry("Canada");
+        address.setPostal("L1L2M2");
 
-            return user;
-        }
-    }
+        insertAddress(address);
 
-    private static EntityManager openEntityManager() {
-        if (entityManagerFactory == null) {
-            entityManagerFactory = Persistence.createEntityManagerFactory( "Atlas" );
-        }
-        return entityManagerFactory.createEntityManager();
+        User user = new User();
+        user.setFirst("First" + i);
+        user.setLast("Last" + i);
+        user.setAddress(address);
+        insertUser(user);
+
+        i++;
+      }
+    } catch (Exception ex) {
+      // Exception should be a FailoverSuccessSQLException if failover occurred.
+      // For more information regarding FailoverSuccessSQLException please visit the driver's documentation.
+      ex.printStackTrace();
     }
+  }
+
+  private static void insertUser(User user) {
+    try (EntityManager entityManager = openEntityManager()) {
+      entityManager.getTransaction().begin();
+      entityManager.persist(user);
+      entityManager.getTransaction().commit();
+    }
+  }
+
+  private static void insertAddress(Address address) {
+    try (EntityManager entityManager = openEntityManager()) {
+      entityManager.getTransaction().begin();
+      entityManager.persist(address);
+      entityManager.getTransaction().commit();
+    }
+  }
+
+  private static User getUser(int id) {
+    try (EntityManager entityManager = openEntityManager()) {
+
+      User user = entityManager.find(User.class, id);
+      Hibernate.initialize(user);
+
+      return user;
+    }
+  }
+
+  private static EntityManager openEntityManager() {
+    return entityManagerFactory.createEntityManager();
+  }
 }

@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package software.amazon.utility;
 
-import org.hibernate.JDBCException;
+package software.amazon.jdbc.plugin;
 
-import java.sql.SQLException;
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginService;
 
-/**
- * Connection failed but we are unable to recover
- */
-public class FailoverFailedException extends JDBCException {
-    public FailoverFailedException(String message, SQLException cause, String sql) {
-        super(message, cause, sql);
-    }
+public class DriverMetaDataConnectionPluginFactory implements ConnectionPluginFactory {
+
+  @Override
+  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+    return new DriverMetaDataConnectionPlugin(props);
+  }
 }
