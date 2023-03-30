@@ -61,7 +61,7 @@ dependencies {
         transitive = true
     }
     testImplementation "joda-time:joda-time:2.3"
-    testImplementation files('/app/libs/aws-advanced-jdbc-wrapper-1.0.1.jar')
+    testImplementation files('/app/libs/aws-advanced-jdbc-wrapper-1.0.2.jar')
     testImplementation dbLibs.postgresql
     testImplementation dbLibs.mysql
     testImplementation dbLibs.h2
