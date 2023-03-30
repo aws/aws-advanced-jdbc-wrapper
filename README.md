@@ -55,5 +55,8 @@ For all other questions, please use [GitHub discussions](https://github.com/awsl
 We enforce a style using [Google checkstyle](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml).
 This can be verified in the tests; tests will not pass with checkstyle errors.
 
+## Releases
+The `aws-advanced-wrapper-driver` has a regular monthly release cadence. A new release will occur during the last week of each month. However, if there are no changes since the latest release, then a release will not occur.
+
 ## License
 This software is released under the Apache 2.0 license.
