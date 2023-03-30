@@ -12,7 +12,7 @@ If you are using the AWS JDBC Driver as part of a Gradle project, include the wr
 
 ```gradle
 dependencies {
-    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.1'
+    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.2'
     implementation group: 'org.postgresql', name: 'postgresql', version: '42.5.0'
 }
 ```
@@ -26,13 +26,13 @@ You can use pre-compiled packages that can be downloaded directly from [GitHub R
 For example, the following command uses wget to download the wrapper:
 
 ```bash
-wget https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/download/1.0.1/aws-advanced-jdbc-wrapper-1.0.1.jar
+wget https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/download/1.0.2/aws-advanced-jdbc-wrapper-1.0.2.jar
 ```
 
 Then, the following command adds the AWS JDBC Driver to the CLASSPATH:
 
 ```bash
-export CLASSPATH=$CLASSPATH:/home/userx/libs/aws-advanced-jdbc-wrapper-1.0.1.jar
+export CLASSPATH=$CLASSPATH:/home/userx/libs/aws-advanced-jdbc-wrapper-1.0.2.jar
 ```
 
 ### As a Maven Dependency
@@ -44,7 +44,7 @@ You can use [Maven's dependency management](https://search.maven.org/search?q=g:
     <dependency>
         <groupId>software.amazon.jdbc</groupId>
         <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-        <version>1.0.1</version>
+        <version>1.0.2</version>
     </dependency>
 </dependencies>
 ```
@@ -55,7 +55,7 @@ You can use [Gradle's dependency management](https://search.maven.org/search?q=g
 
 ```gradle
 dependencies {
-    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.1'
+    implementation group: 'software.amazon.jdbc', name: 'aws-advanced-jdbc-wrapper', version: '1.0.2'
 }
 ```
 
@@ -63,7 +63,7 @@ To add a Gradle dependency in a Kotlin syntax, use the following configuration:
 
 ```kotlin
 dependencies {
-    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:1.0.1")
+    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:1.0.2")
 }
 ```
 

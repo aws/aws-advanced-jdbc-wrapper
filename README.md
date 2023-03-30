@@ -51,6 +51,7 @@ For all other questions, please use [GitHub discussions](https://github.com/awsl
 5. Pull requests need to be approved and merged by maintainers into the main branch. <br />
 **Note:** Before making a pull request, [run all tests](./docs/development-guide/DevelopmentGuide.md#running-the-tests) and verify everything is passing.
 
+
 ### Code Style
 We enforce a style using [Google checkstyle](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml).
 This can be verified in the tests; tests will not pass with checkstyle errors.
