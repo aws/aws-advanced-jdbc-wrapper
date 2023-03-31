@@ -56,7 +56,7 @@ We enforce a style using [Google checkstyle](https://github.com/google/styleguid
 This can be verified in the tests; tests will not pass with checkstyle errors.
 
 ## Releases
-The `aws-advanced-wrapper-driver` has a regular monthly release cadence. A new release will occur during the last week of each month. However, if there are no changes since the latest release, then a release will not occur.
+The `aws-advanced-jdbc-wrapper` has a regular monthly release cadence. A new release will occur during the last week of each month. However, if there are no changes since the latest release, then a release will not occur.
 
 ## Aurora Engine Version Testing
 This driver is being tested against the following versions in the current test suite
