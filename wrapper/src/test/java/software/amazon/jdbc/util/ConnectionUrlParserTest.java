@@ -86,7 +86,7 @@ class ConnectionUrlParserTest {
   void testParsingUrlsWithQuestionMarks(final String url, final String expected) {
     Properties props = new Properties();
     ConnectionUrlParser.parsePropertiesFromUrl(url, props);
-    assertEquals(props.getProperty("param"), expected);
+    assertEquals(expected, props.getProperty("param"));
   }
 
   private static Stream<Arguments> testGetHostsFromConnectionUrlArguments() {
