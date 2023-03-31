@@ -7,5 +7,5 @@ The benchmarks do not measure the performance of target JDBC drivers nor the per
 ## Usage
 1. Build the benchmarks with the following command `../gradlew jmhJar`.
     1. the JAR file will be outputted to `build/libs`
-2. Run the benchmarks with the following command `java -jar build/libs/benchmarks-1.0.1-jmh.jar`.
+2. Run the benchmarks with the following command `java -jar build/libs/benchmarks-1.0.2-jmh.jar`.
     1. you may have to update the command based on the exact version of the produced JAR file
