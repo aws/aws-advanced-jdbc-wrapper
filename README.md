@@ -67,7 +67,7 @@ This `aws-advanced-jdbc-wrapper` is being tested against the following Community
 | Aurora MySQL      | MySQL	8.0.mysql_aurora.3.02.2 (Wire-compatible with MySQL 8.0.23 onwards. For more details see [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraMySQLReleaseNotes/AuroraMySQL.Updates.3022.html))                     |
 | Aurora PostgreSQL | 14.5 (Compatible with PostgreSQL 14.5, see release notes [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraPostgreSQLReleaseNotes/AuroraPostgreSQL.Updates.html#AuroraPostgreSQL.Updates.20180305.145X)) |
 
-The driver is compatible with MySQL 5 and MySQL 8 as per the Community MySQL JDBC Driver.
+While MySQL support is experimental at the moment, the `aws-advanced-jdbc-wrapper` is compatible with MySQL 5.7 and MySQL 8.0 as per the Community MySQL Connector/J 8.0 Driver.
 
 ## License
 This software is released under the Apache 2.0 license.
