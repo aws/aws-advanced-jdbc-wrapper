@@ -33,11 +33,6 @@ public class ConsoleConsumer
     this.separateOutputStreams = separateOutputStreams;
   }
 
-  public ConsoleConsumer withSeparateOutputStreams() {
-    this.separateOutputStreams = true;
-    return this;
-  }
-
   @Override
   public void accept(OutputFrame outputFrame) {
     final OutputFrame.OutputType outputType = outputFrame.getType();
