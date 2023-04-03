@@ -1,24 +1,25 @@
 # RDS Proxy FAQ
 
 ## What is Amazon RDS Proxy
-Amazon RDS Proxy is a fully managed, highly available database proxy for Amazon Relational Database Service (RDS). Similar to the AWS Advanced JDBC Driver, Amazon RDS Proxy also supports failover and is able to route requests to new database instances to reduce downtime.
+
+Amazon RDS Proxy is a fully managed, highly available database proxy for Amazon Relational Database Service (RDS).
+Similar to the AWS Advanced JDBC Driver, Amazon RDS Proxy also supports failover and is able to route requests to new
+database instances to reduce downtime.
 
 For more information, see the [[Amazon RDS Proxy FAQs](https://aws.amazon.com/rds/proxy/faqs/)].
 
 ## What is the difference between Amazon RDS Proxy and AWS Advanced JDBC Driver
-* The RDS Proxy handles the infrastructure to perform connection pooling for the writer instance of the associated RDS or Aurora database. The AWS Advanced JDBC Driver does not implement connection pooling, therefore, user application needs to use a third party connection pool, such as HikariCP.
-* The AWS Advanced JDBC Wrapper only supports failover for Aurora database engines, whereas the Amazon RDS Proxy supports failover for all RDS database engines as well as the Aurora database engines.
-* The Amazon RDS Proxy detects transaction boundaries differently. The AWS Advanced JDBC Wrapper uses keywords such as COMMIT or ROLLBACK in the SQL statements, while Amazon RDS Proxy uses the network protocol to determine the transaction boundaries.
 
-## When to use an Amazon RDS Proxy vs AWS Advanced JDBC Driver
-Below are some scenarios where the AWS Advanced JDBC Driver would be more preferable:
-- If you already have a community JDBC driver fully integrated in your workflow, such as the PostgreSQL JDBC driver or the MySQL Connector/J. The AWS Advanced JDBC Driver allows customers to continue using their existing community drivers in addition to having the AWS JDBC Driver fully exploit failover behavior by maintaining a cache of the Aurora cluster topology and each DB instance's role.
-- Using RDS Proxy requires a common VPC between the Aurora DB cluster or RDS DB instance and RDS proxy. The RDS Proxy also requires AWS Secrets Manager to manage the database credentials. While the AWS Advanced JDBC Driver and the Amazon RDS Proxy both support the same sets of authentication methods, the AWS Advanced JDBC Driver does not require AWS Secrets Manager for managing database credentials.
-
-Below are some scenarios where the RDS Proxy would be more preferable:
-- The AWS Advanced JDBC Driver currently only supports the PostgreSQL JDBC driver and provides experimental support for MySQL Connector/J and MariaDB Connector/J, whereas the Amazon RDS Proxy enables failover for other RDS engines.
-- The Amazon RDS Proxy also maintains a connection pool offering faster connection rates and more open connections, so your application does not need to maintain a connection pool.
-- The Amazon RDS Proxy also serves as an extra point of failure to your servers.
+| Feature                        | AWS Advanced JDBC Driver                                                                                | RDS Proxy                                                                                                                                                                                                                                                                                                                                              |
+|--------------------------------|---------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Authentication                 | Supports native authentication, IAM authentication, and AWS Secrets Manager                             | Supports native authentication, IAM authentication, and AWS Secrets Manager.                                                                                                                                                                                                                                                                           |
+| Connection Pooling             | Requires third-party connection pools, such as HikariCP                                                 | Supports third-party connection pooling but is also capable of handling the infrastructure to perform connection pooling for the writer instance of the associated RDS or Aurora database.                                                                                                                                                             |
+| Failover Support               | Supports Aurora MySQL and PostgreSQL database engines                                                   | Supports all Aurora database engines as well as the RDS database engines, for more information see the supported list of engines [here](https://aws.amazon.com/rds/proxy/faqs/#:~:text=Q%3A%20Which%20database%20engines%20does%20RDS%20Proxy%20support%3F).                                                                                           |
+| Transaction Boundary Detection | The AWS Advanced JDBC Wrapper uses keywords such as COMMIT or ROLLBACK in the SQL statements            | RDS Proxy detects when a transaction ends through the network protocol used by the database client application. For more information, see RDS Proxy's [Transactions page](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.howitworks.html#rds-proxy-transactions).                                                                    |
+| Security                       | The AWS Advanced JDBC Wrapper follows the same security mechanisms supported by the underlying drivers. | RDS Proxy supports TLS protocol version 1.0, 1.1, and 1.2 for sessions between your client and the RDS Proxy endpoint. To use SSL connections from the RDS Proxy to the database, [you need to set the SSL session variables on the client side](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.howitworks.html#rds-proxy-security). |
 
 ## Can the AWS RDS Proxy be used with Host Monitoring Connection Plugin
-We recommend you either disable the Host Monitoring Connection Plugin or avoid using RDS Proxy endpoints when the Host Monitoring Connection Plugin is active. For more information, see the [Host Monitoring Connection Plugin documentation](https://github.com/awslabs/aws-advanced-jdbc-wrapper/wiki/UsingTheHostMonitoringPlugin#warning-warnings-about-usage-of-the-aws-advanced-jdbc-driver-with-rds-proxy).
+
+We recommend you either disable the Host Monitoring Connection Plugin or avoid using RDS Proxy endpoints when the Host
+Monitoring Connection Plugin is active. For more information, see
+the [Host Monitoring Connection Plugin documentation](https://github.com/awslabs/aws-advanced-jdbc-wrapper/wiki/UsingTheHostMonitoringPlugin#warning-warnings-about-usage-of-the-aws-advanced-jdbc-driver-with-rds-proxy).
