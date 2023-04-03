@@ -157,10 +157,6 @@ public class AuroraTestUtility {
         Ec2Client.builder().region(dbRegion).credentialsProvider(credentialsProvider).build();
   }
 
-  public Region getRegion(String rdsRegion) {
-    return getRegionInternal(rdsRegion);
-  }
-
   protected static Region getRegionInternal(String rdsRegion) {
     Optional<Region> regionOptional =
         Region.regions().stream().filter(r -> r.id().equalsIgnoreCase(rdsRegion)).findFirst();
@@ -169,19 +165,6 @@ public class AuroraTestUtility {
       return regionOptional.get();
     }
     throw new IllegalArgumentException(String.format("Unknown AWS region '%s'.", rdsRegion));
-  }
-
-  public String createCluster(
-      String username,
-      String password,
-      String name,
-      String identifier,
-      String engine,
-      String instanceClass,
-      String version)
-      throws InterruptedException {
-    return createCluster(
-        username, password, name, identifier, engine, instanceClass, version, 5, new ArrayList<>());
   }
 
   /**
@@ -219,33 +202,6 @@ public class AuroraTestUtility {
     dbEngineVersion = version;
     this.numOfInstances = numOfInstances;
     this.instances = instances;
-    return createCluster();
-  }
-
-  public String createCluster(String username, String password, String name, String identifier)
-      throws InterruptedException {
-    return createCluster(username, password, name, identifier, 5);
-  }
-
-  /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
-   *
-   * @param username   Master username for access to database
-   * @param password   Master password for access to database
-   * @param name       Database name
-   * @param identifier Database identifier
-   * @return An endpoint for one of the instances
-   * @throws InterruptedException when clusters have not started after 30 minutes
-   */
-  public String createCluster(
-      String username, String password, String name, String identifier, int numOfInstances)
-      throws InterruptedException {
-    dbUsername = username;
-    dbPassword = password;
-    dbName = name;
-    dbIdentifier = identifier;
-    this.numOfInstances = numOfInstances;
-    this.instances = new ArrayList<>();
     return createCluster();
   }
 
@@ -315,7 +271,6 @@ public class AuroraTestUtility {
     final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
 
     for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      String zone = instance.availabilityZone();
       this.instances.add(
           new TestInstanceInfo(
               instance.dbInstanceIdentifier(),
@@ -553,10 +508,6 @@ public class AuroraTestUtility {
     return getMatchedDBClusterMember(clusterId, instanceId).isClusterWriter();
   }
 
-  public Boolean isDBInstanceReader(String clusterId, String instanceId) {
-    return !getMatchedDBClusterMember(clusterId, instanceId).isClusterWriter();
-  }
-
   public DBClusterMember getMatchedDBClusterMember(String clusterId, String instanceId) {
     final List<DBClusterMember> matchedMemberList =
         getDBClusterMemberList(clusterId).stream()
@@ -639,14 +590,6 @@ public class AuroraTestUtility {
             queryInstanceId(
                 TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
                 connection));
-  }
-
-  protected void assertFirstQueryThrows(Statement stmt, Class expectedSQLExceptionClass) {
-    assertThrows(
-        expectedSQLExceptionClass,
-        () ->
-            executeInstanceIdQuery(
-                TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), stmt));
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
