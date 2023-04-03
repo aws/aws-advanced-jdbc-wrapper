@@ -97,7 +97,7 @@ dependencies {
     // Since both the DB2 driver and HANA have a package "net.jpountz" we have to add dependencies conditionally
     // This is due to the "no split-packages" requirement of Java 9+
 
-    testRuntimeOnly files('/app/libs/aws-advanced-jdbc-wrapper-1.0.1.jar')
+    testRuntimeOnly files('/app/libs/aws-advanced-jdbc-wrapper-1.0.2.jar')
     testRuntimeOnly dbLibs.mysql
 
     if ( db.startsWith( 'db2' ) ) {

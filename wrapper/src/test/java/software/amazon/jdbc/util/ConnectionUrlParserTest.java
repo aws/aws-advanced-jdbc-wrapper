@@ -81,6 +81,14 @@ class ConnectionUrlParserTest {
     assertEquals(props.getProperty("param"), expected);
   }
 
+  @ParameterizedTest
+  @MethodSource("urlWithQuestionMarksParams")
+  void testParsingUrlsWithQuestionMarks(final String url, final String expected) {
+    Properties props = new Properties();
+    ConnectionUrlParser.parsePropertiesFromUrl(url, props);
+    assertEquals(expected, props.getProperty("param"));
+  }
+
   private static Stream<Arguments> testGetHostsFromConnectionUrlArguments() {
     return Stream.of(
         Arguments.of("protocol//", new ArrayList<HostSpec>()),
@@ -125,6 +133,14 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value&"), "value&"),
         Arguments.of("protocol//host/db?param=" + StringUtils.encode("value"
             + new String(Character.toChars(0x007E))), "value~")
+    );
+  }
+
+  private static Stream<Arguments> urlWithQuestionMarksParams() {
+    return Stream.of(
+        Arguments.of("protocol//host/db?param=foo", "foo"),
+        Arguments.of("protocol//host:1234/db?param=?.foo", "?.foo"),
+        Arguments.of("protocol//host?param=?", "?")
     );
   }
 }

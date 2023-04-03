@@ -55,5 +55,19 @@ For all other questions, please use [GitHub discussions](https://github.com/awsl
 We enforce a style using [Google checkstyle](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml).
 This can be verified in the tests; tests will not pass with checkstyle errors.
 
+## Releases
+The `aws-advanced-jdbc-wrapper` has a regular monthly release cadence. A new release will occur during the last week of each month. However, if there are no changes since the latest release, then a release will not occur.
+
+## Aurora Engine Version Testing
+This `aws-advanced-jdbc-wrapper` is being tested against the following Community and Aurora database versions in our test suite:
+| Database          | Versions                                                                                                                                                                                                         |
+|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| MySQL             | 8.0.32                                                                                                                                                                                                           |
+| PostgreSQL        | 15.2                                                                                                                                                                                                             |
+| Aurora MySQL      | MySQL	8.0.mysql_aurora.3.02.2 (Wire-compatible with MySQL 8.0.23 onwards. For more details see [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraMySQLReleaseNotes/AuroraMySQL.Updates.3022.html))                     |
+| Aurora PostgreSQL | 14.5 (Compatible with PostgreSQL 14.5, see release notes [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraPostgreSQLReleaseNotes/AuroraPostgreSQL.Updates.html#AuroraPostgreSQL.Updates.20180305.145X)) |
+
+While MySQL support is experimental at the moment, the `aws-advanced-jdbc-wrapper` is compatible with MySQL 5.7 and MySQL 8.0 as per the Community MySQL Connector/J 8.0 Driver.
+
 ## License
 This software is released under the Apache 2.0 license.

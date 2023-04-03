@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :bug: Fixed
 - Unwrapped Savepoint objects when passing them in as parameters ([Issue #328](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/328)).
 - Added null checks to `WrapperUtils#getConnectionFromSqlObject()` ([Issue #348](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/348)).
+- Extra question mark in `clusterInstanceHostPattern` parameters is no longer filtered out when setting the connection string ([PR #383](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/383)).
 
 ### :crab: Changed
 - Lock initialization of `AuroraHostListProvider` ([PR #347](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/347)).

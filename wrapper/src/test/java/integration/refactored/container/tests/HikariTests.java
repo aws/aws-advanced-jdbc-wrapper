@@ -75,7 +75,8 @@ public class HikariTests {
   @TestTemplate
   public void testOpenConnectionWithUrl() throws SQLException {
     final HikariDataSource dataSource = new HikariDataSource();
-    dataSource.setJdbcUrl(ConnectionStringHelper.getWrapperUrl() + "?wrapperPlugins=\"\"");
+    final String url = ConnectionStringHelper.getWrapperUrl();
+    dataSource.setJdbcUrl(url + (url.contains("?") ? "&" : "?") + "wrapperPlugins=\"\"");
     dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     dataSource.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "");
