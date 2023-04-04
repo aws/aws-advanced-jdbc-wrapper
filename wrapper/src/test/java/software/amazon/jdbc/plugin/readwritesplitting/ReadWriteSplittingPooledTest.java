@@ -38,8 +38,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PostgresHikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 
 @Disabled("Replace connection details to run")
@@ -56,15 +56,12 @@ public class ReadWriteSplittingPooledTest {
     PropertyDefinition.USER.set(props, USERNAME);
     PropertyDefinition.PASSWORD.set(props, PASSWORD);
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
-    props.setProperty("databasePropertyName", "databaseName");
-    props.setProperty("portPropertyName", "portNumber");
-    props.setProperty("serverPropertyName", "serverName");
 
     DriverManager.registerDriver(new software.amazon.jdbc.Driver());
     DriverManager.registerDriver(new org.postgresql.Driver());
 
     ConnectionProviderManager.setConnectionProvider(
-        new PostgresHikariPooledConnectionProvider(ReadWriteSplittingPooledTest::getHikariConfig));
+        new HikariPooledConnectionProvider(ReadWriteSplittingPooledTest::getHikariConfig));
   }
 
   @AfterEach
@@ -78,7 +75,8 @@ public class ReadWriteSplittingPooledTest {
       Statement stmt = conn.createStatement();
 
       // Test write statements
-      stmt.execute("CREATE TABLE IF NOT EXISTS poolTest (id int, employee varchar(255))");
+      stmt.execute("DROP TABLE IF EXISTS poolTest");
+      stmt.execute("CREATE TABLE poolTest (id int, employee varchar(255))");
       stmt.execute("DELETE FROM poolTest WHERE id=1");
       stmt.execute("INSERT INTO poolTest VALUES (1, 'George')");
 
@@ -197,7 +195,6 @@ public class ReadWriteSplittingPooledTest {
     config.setMaximumPoolSize(10);
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
-
     return config;
   }
 }

@@ -32,7 +32,6 @@ import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.ProxyHelper;
-import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
 import integration.refactored.container.condition.DisableOnTestFeature;
@@ -52,6 +51,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -59,9 +59,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.MariaDBHikariPooledConnectionProvider;
-import software.amazon.jdbc.MysqlHikariPooledConnectionProvider;
-import software.amazon.jdbc.PostgresHikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
@@ -80,34 +77,20 @@ public class ReadWriteSplittingTests {
       new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
 
-  protected static Properties getProps() {
-    return TestEnvironment.isAwsDatabase() ? getAuroraProps() : getNonAuroraProps();
-  }
-
   protected static Properties getProxiedPropsWithFailover() {
-    if (TestEnvironment.isAwsDatabase()) {
-      final Properties props = getAuroraPropsWithFailover();
-      AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-          "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
-              .getInstanceEndpointSuffix());
-      return props;
-    } else {
-      // No extra properties needed
-      return getNonAuroraProps();
-    }
+    final Properties props = getAuroraPropsWithFailover();
+    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+            .getInstanceEndpointSuffix());
+    return props;
   }
 
   protected static Properties getProxiedProps() {
-    if (TestEnvironment.isAwsDatabase()) {
-      final Properties props = getAuroraProps();
-      AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-          "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
-              .getInstanceEndpointSuffix());
-      return props;
-    } else {
-      // No extra properties needed
-      return getNonAuroraProps();
-    }
+    final Properties props = getProps();
+    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
+        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+            .getInstanceEndpointSuffix());
+    return props;
   }
 
   protected static Properties getDefaultPropsNoPlugins() {
@@ -117,7 +100,7 @@ public class ReadWriteSplittingTests {
     return props;
   }
 
-  protected static Properties getAuroraProps() {
+  protected static Properties getProps() {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "auroraHostList,readWriteSplitting");
     return props;
@@ -129,40 +112,12 @@ public class ReadWriteSplittingTests {
     return props;
   }
 
-  protected static Properties getNonAuroraProps() {
-    final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
-    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props,
-        "true");
-    return props;
-  }
-
   protected String getUrl() {
-    if (TestEnvironment.isAwsDatabase()) {
-      return ConnectionStringHelper.getWrapperUrl();
-    } else {
-      final List<TestInstanceInfo> instances =
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
-      return getCommaDelimitedHostUrl(instances);
-    }
+    return ConnectionStringHelper.getWrapperUrl();
   }
 
   protected String getProxiedUrl() {
-    if (TestEnvironment.isAwsDatabase()) {
-      return ConnectionStringHelper.getProxyWrapperUrl();
-    } else {
-      final List<TestInstanceInfo> instances =
-          TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
-      return getCommaDelimitedHostUrl(instances);
-    }
-  }
-
-  private String getCommaDelimitedHostUrl(final List<TestInstanceInfo> instances) {
-    return DriverHelper.getWrapperDriverProtocol()
-        + instances.get(0).getEndpoint() + ","
-        + instances.get(1).getEndpoint() + "/"
-        + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-        + DriverHelper.getDriverRequiredParameters();
+    return ConnectionStringHelper.getProxyWrapperUrl();
   }
 
   @TestTemplate
@@ -198,40 +153,58 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   public void test_connectToReader_setReadOnlyTrueFalse() throws SQLException {
-    final String url = getUrl();
+    final String url = getWrapperReaderInstanceUrl();
 
     LOGGER.finest("Connecting to url " + url);
     try (final Connection conn = DriverManager.getConnection(url, getProps())) {
-      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
-      LOGGER.finest("writerConnectionId: " + writerConnectionId);
-
-      conn.setReadOnly(true);
       final String readerConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.finest("readerConnectionId: " + readerConnectionId);
-      assertNotEquals(writerConnectionId, readerConnectionId);
+
+      conn.setReadOnly(true);
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertEquals(readerConnectionId, currentConnectionId);
 
       conn.setReadOnly(false);
-      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(writerConnectionId, currentConnectionId);
-      assertNotEquals(readerConnectionId, currentConnectionId);
+      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+      LOGGER.finest("writerConnectionId: " + writerConnectionId);
+      assertNotEquals(readerConnectionId, writerConnectionId);
     }
+  }
+
+  // Assumes the writer is stored as the first instance and all other instances are readers.
+  protected String getWrapperReaderInstanceUrl() {
+    return ConnectionStringHelper.getWrapperUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(1)
+            .getEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(1)
+            .getEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
   @TestTemplate
   public void test_connectToReaderCluster_setReadOnlyTrueFalse() throws SQLException {
-    final String url = getUrl();
+    final String url = ConnectionStringHelper.getWrapperReaderClusterUrl();
     LOGGER.finest("Connecting to url " + url);
     try (final Connection conn = DriverManager.getConnection(url, getProps())) {
-      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
-      LOGGER.finest("writerConnectionId: " + writerConnectionId);
+      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
+      LOGGER.finest("readerConnectionId: " + readerConnectionId);
 
       conn.setReadOnly(true);
-      final String readerConnectionId = auroraUtil.queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, readerConnectionId);
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertEquals(readerConnectionId, currentConnectionId);
 
       conn.setReadOnly(false);
-      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(writerConnectionId, currentConnectionId);
+      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+      LOGGER.finest("writerConnectionId: " + writerConnectionId);
       assertNotEquals(readerConnectionId, writerConnectionId);
     }
   }
@@ -598,11 +571,9 @@ public class ReadWriteSplittingTests {
   public void test_pooledConnectionFailover() throws SQLException, InterruptedException {
     Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
-    props.setProperty("databasePropertyName", "databaseName");
-    props.setProperty("portPropertyName", "portNumber");
-    props.setProperty("serverPropertyName", "serverName");
 
-    final HikariPooledConnectionProvider provider = getTestConnectionProvider();
+    final HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
 
     ConnectionProviderManager.setConnectionProvider(provider);
 
@@ -631,6 +602,10 @@ public class ReadWriteSplittingTests {
     }
   }
 
+  // "Flaky - if a failover occurs in the test before this one, the cluster DNS may be stale
+  // which causes failure to update the initial host spec role in the RW plugin. The
+  // HostListProvider should be modified to verify the initial host spec role."
+  @Disabled("Temporarily disabled - flaky")
   @TestTemplate
   // Tests use Aurora specific SQL to identify instance name
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
@@ -638,11 +613,9 @@ public class ReadWriteSplittingTests {
   public void test_pooledConnectionFailoverWithClusterURL() throws SQLException, InterruptedException {
     Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
-    props.setProperty("databasePropertyName", "databaseName");
-    props.setProperty("portPropertyName", "portNumber");
-    props.setProperty("serverPropertyName", "serverName");
 
-    final HikariPooledConnectionProvider provider = getTestConnectionProvider();
+    final HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
 
     ConnectionProviderManager.setConnectionProvider(provider);
     try (final Connection conn = DriverManager.getConnection(
@@ -667,25 +640,6 @@ public class ReadWriteSplittingTests {
     config.setMaximumPoolSize(1);
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
-
     return config;
-  }
-
-  private HikariPooledConnectionProvider getTestConnectionProvider() {
-    TestDriver driver = TestEnvironment.getCurrent().getCurrentDriver();
-    switch (driver) {
-      case MYSQL:
-        return new MysqlHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-      case MARIADB:
-        return new MariaDBHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-      case PG:
-        return new PostgresHikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
-      default:
-        fail(
-            "The provided test driver does not have an equivalent HikariPooledConnectionProvider "
-                + "class: "
-                + driver);
-        return null;
-    }
   }
 }

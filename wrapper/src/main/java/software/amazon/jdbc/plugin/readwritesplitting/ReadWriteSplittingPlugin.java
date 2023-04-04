@@ -158,15 +158,19 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.pluginService.refreshHostList(currentConnection);
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     final HostSpec updatedCurrentHost;
+    final String hostToMatch;
     if (RdsUrlType.RDS_INSTANCE.equals(urlType)) {
-      updatedCurrentHost = getHostSpecFromUrl(currentHost.getUrl());
+      hostToMatch = currentHost.getUrl();
+      updatedCurrentHost = getHostSpecFromUrl(hostToMatch);
     } else {
-      updatedCurrentHost =
-          getHostSpecFromInstanceId(getCurrentInstanceId(currentConnection, driverProtocol));
+      hostToMatch = getCurrentInstanceId(currentConnection, driverProtocol);
+      updatedCurrentHost = getHostSpecFromInstanceId(hostToMatch);
     }
 
     if (updatedCurrentHost == null) {
-      logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorUpdatingHostSpecRole"));
+      logAndThrowException(
+          Messages.get("ReadWriteSplittingPlugin.errorVerifyingInitialHostSpecRole",
+              new Object[] {hostToMatch}));
       return null;
     }
 

@@ -39,8 +39,8 @@ import org.mockito.MockitoAnnotations;
 class HikariPooledConnectionProviderTest {
   @Mock Connection mockConnection;
   @Mock HikariDataSource mockDataSource;
-  @Mock HikariConfig mockConfig;
   @Mock HostSpec mockHostSpec;
+  @Mock HikariConfig mockConfig;
 
   private AutoCloseable closeable;
   private static final Properties emptyProperties = new Properties();
@@ -62,9 +62,10 @@ class HikariPooledConnectionProviderTest {
     when(mockHostSpec.getUrl()).thenReturn("url");
     final Set<String> expected = new HashSet<>(Collections.singletonList("url"));
 
-    final HikariPooledConnectionProvider provider = spy(new TestHikariPooledConnectionProvider());
+    final HikariPooledConnectionProvider provider =
+        spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
 
-    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any());
+    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
 
     try (Connection conn = provider.connect("protocol", mockHostSpec, emptyProperties)) {
       assertEquals(mockConnection, conn);
@@ -81,10 +82,11 @@ class HikariPooledConnectionProviderTest {
     when(mockHostSpec.getUrl()).thenReturn("url");
     final Set<String> expected = new HashSet<>(Collections.singletonList("url+someUniqueKey"));
 
-    final HikariPooledConnectionProvider provider = spy(new TestHikariPooledConnectionProvider(
+    final HikariPooledConnectionProvider provider = spy(new HikariPooledConnectionProvider(
+        (hostSpec, properties) -> mockConfig,
         (hostSpec, properties) -> hostSpec.getUrl() + "+someUniqueKey"));
 
-    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any());
+    doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
 
     try (Connection conn = provider.connect("protocol", mockHostSpec, emptyProperties)) {
       assertEquals(mockConnection, conn);
@@ -94,21 +96,5 @@ class HikariPooledConnectionProviderTest {
     }
 
     provider.releaseResources();
-  }
-
-  class TestHikariPooledConnectionProvider extends HikariPooledConnectionProvider {
-
-    public TestHikariPooledConnectionProvider() {
-      super((hostSpec, properties) -> mockConfig);
-    }
-
-    public TestHikariPooledConnectionProvider(HikariPoolMapping mapping) {
-      super((hostSpec, properties) -> mockConfig, mapping);
-    }
-
-    @Override
-    String getDataSourceClassName() {
-      return "testHikariPooledConnectionProvider";
-    }
   }
 }

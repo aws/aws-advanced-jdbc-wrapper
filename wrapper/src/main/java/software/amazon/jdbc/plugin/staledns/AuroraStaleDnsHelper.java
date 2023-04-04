@@ -34,7 +34,6 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraStaleDnsHelper {
@@ -45,7 +44,7 @@ public class AuroraStaleDnsHelper {
   private final RdsUtils rdsUtils = new RdsUtils();
 
   private HostSpec writerHostSpec = null;
-  private InetAddress writerHostAddress = null;
+  private String writerHostAddress = null;
 
   private static final int RETRIES = 3;
   private static final String POSTGRESQL_READONLY_QUERY = "SELECT pg_is_in_recovery() AS is_reader";
@@ -72,14 +71,14 @@ public class AuroraStaleDnsHelper {
 
     final Connection conn = connectFunc.call();
 
-    InetAddress clusterInetAddress = null;
+    String clusterInetAddress = null;
     try {
-      clusterInetAddress = InetAddress.getByName(hostSpec.getHost());
+      clusterInetAddress = InetAddress.getByName(hostSpec.getHost()).getHostAddress();
     } catch (UnknownHostException e) {
       // ignore
     }
 
-    final InetAddress hostInetAddress = clusterInetAddress;
+    final String hostInetAddress = clusterInetAddress;
     LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.clusterEndpointDns",
         new Object[]{hostInetAddress}));
 
@@ -115,7 +114,7 @@ public class AuroraStaleDnsHelper {
 
     if (this.writerHostAddress == null) {
       try {
-        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost());
+        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost()).getHostAddress();
       } catch (UnknownHostException e) {
         // ignore
       }
