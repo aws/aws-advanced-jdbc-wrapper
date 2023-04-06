@@ -17,10 +17,12 @@
 package software.amazon.jdbc.benchmarks;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.zaxxer.hikari.HikariConfig;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -46,9 +48,15 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
+import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -62,13 +70,16 @@ public class PluginBenchmarks {
   private static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   private static final String FIELD_SERVER_ID = "SERVER_ID";
   private static final String FIELD_SESSION_ID = "SESSION_ID";
-  private static final String CONNECTION_STRING = "driverProtocol://my.domain.com";
+  private static final String CONNECTION_STRING = "jdbc:postgresql://my.domain.com";
   private static final String PG_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://instance-0.XYZ.us-east-2.rds.amazonaws.com";
   private static final int TEST_PORT = 5432;
   private final HostSpec writerHostSpec = new HostSpec("instance-0", TEST_PORT);
 
   @Mock private PluginService mockPluginService;
+  @Mock private ConnectionPluginManager mockConnectionPluginManager;
+  @Mock private HostListProviderService mockHostListProviderService;
+  @Mock private PluginManagerService mockPluginManagerService;
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock Connection mockConnection;
   @Mock Statement mockStatement;
@@ -88,6 +99,11 @@ public class PluginBenchmarks {
   @Setup(Level.Iteration)
   public void setUpIteration() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
+    when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean()))
+        .thenReturn(mockConnection);
+    when(mockConnectionPluginManager.execute(
+        any(), any(), any(), eq("Connection.createStatement"), any(), any()))
+        .thenReturn(mockStatement);
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
     when(mockConnectionProvider.connect(anyString(), any(HostSpec.class), any(Properties.class)))
@@ -100,6 +116,7 @@ public class PluginBenchmarks {
         .thenReturn("instance-0", "instance-1");
     when(mockResultSet.getStatement()).thenReturn(mockStatement);
     when(mockStatement.getConnection()).thenReturn(mockConnection);
+    when(this.mockPluginService.acceptsStrategy(any(), eq("random"))).thenReturn(true);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
   }
 
@@ -109,15 +126,18 @@ public class PluginBenchmarks {
   }
 
   @Benchmark
-  public void initAndReleaseBaseLine() throws SQLException {
+  public void initAndReleaseBaseLine() {
   }
 
   @Benchmark
   public ConnectionWrapper initAndReleaseWithExecutionTimePlugin() throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
         useExecutionTimePlugin(),
         CONNECTION_STRING,
-        mockConnectionProvider)) {
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -125,10 +145,13 @@ public class PluginBenchmarks {
 
   @Benchmark
   public ConnectionWrapper initAndReleaseWithAuroraHostListPlugin() throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
         useAuroraHostListPlugin(),
         CONNECTION_STRING,
-        mockConnectionProvider)) {
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -136,10 +159,13 @@ public class PluginBenchmarks {
 
   @Benchmark
   public ConnectionWrapper initAndReleaseWithExecutionTimeAndAuroraHostListPlugins() throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
         useExecutionTimeAndAuroraHostListPlugins(),
         CONNECTION_STRING,
-        mockConnectionProvider)) {
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -147,10 +173,13 @@ public class PluginBenchmarks {
 
   @Benchmark
   public ConnectionWrapper initAndReleaseWithReadWriteSplittingPlugin() throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
         useReadWriteSplittingPlugin(),
         CONNECTION_STRING,
-        mockConnectionProvider)) {
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService)) {
       wrapper.releaseResources();
       return wrapper;
     }
@@ -159,46 +188,66 @@ public class PluginBenchmarks {
   @Benchmark
   public ConnectionWrapper initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin()
       throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
         useAuroraHostListAndReadWriteSplittingPlugin(),
         PG_CONNECTION_STRING,
-        mockConnectionProvider)) {
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService)) {
       wrapper.releaseResources();
       return wrapper;
     }
   }
 
   @Benchmark
-  public ConnectionWrapper initAndReleaseWithReadWriteSplittingPluginWithReaderLoadBalancing()
-      throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useReadWriteSplittingPluginWithReaderLoadBalancing(),
+  public ConnectionWrapper initAndReleaseWithReadWriteSplittingPlugin_internalConnectionPools() throws SQLException {
+    HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
+    ConnectionProviderManager.setConnectionProvider(provider);
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
+        useReadWriteSplittingPlugin(),
         CONNECTION_STRING,
-        mockConnectionProvider)) {
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService)) {
       wrapper.releaseResources();
+      ConnectionProviderManager.releaseResources();
+      ConnectionProviderManager.resetProvider();
       return wrapper;
     }
   }
 
   @Benchmark
-  public ConnectionWrapper
-  initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing()
+  public ConnectionWrapper initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin_internalConnectionPools()
       throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        useAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing(),
+    HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
+    ConnectionProviderManager.setConnectionProvider(provider);
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
+        useAuroraHostListAndReadWriteSplittingPlugin(),
         PG_CONNECTION_STRING,
-        mockConnectionProvider)) {
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService)) {
       wrapper.releaseResources();
+      ConnectionProviderManager.releaseResources();
+      ConnectionProviderManager.resetProvider();
       return wrapper;
     }
   }
 
   @Benchmark
   public Statement executeStatementBaseline() throws SQLException {
-    try (ConnectionWrapper wrapper = new ConnectionWrapper(
+    try (ConnectionWrapper wrapper = new TestConnectionWrapper(
         useExecutionTimePlugin(),
         CONNECTION_STRING,
-        mockConnectionProvider);
+        mockConnectionPluginManager,
+        mockPluginService,
+        mockHostListProviderService,
+        mockPluginManagerService);
          Statement statement = wrapper.createStatement()) {
       return statement;
     }
@@ -207,10 +256,13 @@ public class PluginBenchmarks {
   @Benchmark
   public ResultSet executeStatementWithExecutionTimePlugin() throws SQLException {
     try (
-        ConnectionWrapper wrapper = new ConnectionWrapper(
+        ConnectionWrapper wrapper = new TestConnectionWrapper(
             useExecutionTimePlugin(),
             CONNECTION_STRING,
-            mockConnectionProvider);
+            mockConnectionPluginManager,
+            mockPluginService,
+            mockHostListProviderService,
+            mockPluginManagerService);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;
@@ -244,20 +296,6 @@ public class PluginBenchmarks {
   Properties useAuroraHostListAndReadWriteSplittingPlugin() {
     final Properties properties = new Properties();
     properties.setProperty("wrapperPlugins", "auroraHostList,readWriteSplitting");
-    return properties;
-  }
-
-  Properties useReadWriteSplittingPluginWithReaderLoadBalancing() {
-    final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "readWriteSplitting");
-    properties.setProperty("loadBalanceReadOnlyTraffic", "true");
-    return properties;
-  }
-
-  Properties useAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing() {
-    final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "auroraHostList,readWriteSplitting");
-    properties.setProperty("loadBalanceReadOnlyTraffic", "true");
     return properties;
   }
 }
