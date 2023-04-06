@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -356,10 +357,36 @@ public class AwsSecretsManagerConnectionPluginTest {
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
   }
 
+  @ParameterizedTest
+  @MethodSource("arnArguments")
+  public void testConnectViaARN(final String arn, final Region region) throws SQLException {
+    final Properties props = new Properties();
+    props.setProperty("secretsManagerSecretId", arn);
+
+    this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
+        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
+        props,
+        (host, r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest));
+
+    final Pair<String, Region> secret = this.plugin.secretKey;
+    assertEquals(region, secret.right());
+  }
+
   private static Stream<Arguments> provideExceptionCodeForDifferentDrivers() {
     return Stream.of(
         Arguments.of("28000", TEST_MYSQL_PROTOCOL),
         Arguments.of("28P01", TEST_PG_PROTOCOL)
+    );
+  }
+
+  private static Stream<Arguments> arnArguments() {
+    return Stream.of(
+        Arguments.of("arn:aws:secretsmanager:us-east-2:123456789012:secret:foo", Region.US_EAST_2),
+        Arguments.of("arn:aws:secretsmanager:us-west-1:123456789012:secret:boo", Region.US_WEST_1),
+        Arguments.of(
+            "arn:aws:secretsmanager:us-east-2:123456789012:secret:rds!cluster-bar-foo",
+            Region.US_EAST_2)
     );
   }
 }
