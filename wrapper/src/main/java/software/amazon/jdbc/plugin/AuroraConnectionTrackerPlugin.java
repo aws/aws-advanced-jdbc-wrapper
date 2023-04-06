@@ -59,7 +59,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   private final RdsUtils rdsHelper;
   private String retrieveInstanceQuery;
   private String instanceNameCol;
-  private String clusterInstanceTemplate;
+  private String clusterInstanceTemplate = "";
   private final OpenedConnectionTracker tracker;
 
   AuroraConnectionTrackerPlugin(PluginService pluginService, Properties props) {
@@ -99,7 +99,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         : hostSpec;
 
     if (conn != null) {
-      if (rdsHelper.isRdsClusterDns(currentHostSpec.getHost())) {
+      if (!rdsHelper.isRdsInstance(currentHostSpec.getHost())) {
         currentHostSpec.addAlias(getInstanceEndpoint(conn, currentHostSpec));
       }
     }

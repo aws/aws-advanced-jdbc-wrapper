@@ -560,7 +560,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         }
         sb.append("[").append(entry.getKey()).append("]:\n")
             .append("\tisPrimaryCluster: ")
-            .append(isPrimaryCluster == null ? false : isPrimaryCluster).append("\n")
+            .append(isPrimaryCluster != null && isPrimaryCluster).append("\n")
             .append("\tsuggestedPrimaryCluster: ")
             .append(suggestedPrimaryClusterId).append("\n")
             .append("\tHosts: ");
