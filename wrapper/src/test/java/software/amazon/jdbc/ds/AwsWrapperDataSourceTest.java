@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 
+import integration.refactored.container.TestDriver;
+import integration.refactored.container.condition.DisableOnTestDriver;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -33,8 +35,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import integration.refactored.container.TestDriver;
-import integration.refactored.container.condition.DisableOnTestDriver;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 class AwsWrapperDataSourceTest {

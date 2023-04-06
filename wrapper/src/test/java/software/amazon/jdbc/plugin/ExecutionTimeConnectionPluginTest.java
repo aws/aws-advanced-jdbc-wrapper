@@ -54,7 +54,7 @@ class ExecutionTimeConnectionPluginTest {
 
   @Test
   void test_executeTime() throws SQLException, UnsupportedEncodingException {
-    when(mockCallable.call()).thenAnswer(I -> {
+    when(mockCallable.call()).thenAnswer(i -> {
       TimeUnit.MILLISECONDS.sleep(10);
       return null;
     });
@@ -66,7 +66,13 @@ class ExecutionTimeConnectionPluginTest {
 
     final ExecutionTimeConnectionPlugin plugin = new ExecutionTimeConnectionPlugin();
 
-    plugin.execute(ResultSet.class, SQLException.class, mockStatement, "Statement.executeQuery", mockCallable, new Object[]{});
+    plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        mockStatement,
+        "Statement.executeQuery",
+        mockCallable,
+        new Object[] {});
 
     handler.flush();
     String logMessages = os.toString("UTF-8");
