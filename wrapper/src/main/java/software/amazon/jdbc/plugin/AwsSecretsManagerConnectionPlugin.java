@@ -114,18 +114,19 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
               new Object[] {SECRET_ID_PROPERTY.name}));
     }
 
-    final Matcher matcher = SECRETS_ARN_PATTERN.matcher(secretId);
     String regionString;
-    if (matcher.matches()) {
-      regionString = matcher.group("region");
-    } else {
-      regionString = REGION_PROPERTY.getString(props);
-      if (StringUtils.isNullOrEmpty(regionString)) {
+    if (StringUtils.isNullOrEmpty(props.getProperty(REGION_PROPERTY.name))) {
+      final Matcher matcher = SECRETS_ARN_PATTERN.matcher(secretId);
+      if (matcher.matches()) {
+        regionString = matcher.group("region");
+      } else {
         throw new RuntimeException(
             Messages.get(
                 "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
                 new Object[] {REGION_PROPERTY.name}));
       }
+    } else {
+      regionString = REGION_PROPERTY.getString(props);
     }
 
     final Region region = Region.of(regionString);

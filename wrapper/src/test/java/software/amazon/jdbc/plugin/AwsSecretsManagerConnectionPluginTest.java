@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -142,6 +143,16 @@ public class AwsSecretsManagerConnectionPluginTest {
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
+  }
+
+  @ParameterizedTest
+  @MethodSource("missingArguments")
+  public void testMissingRequiredParameters(final Properties properties) {
+    assertThrows(RuntimeException.class, () -> new AwsSecretsManagerConnectionPlugin(
+        mockService,
+        properties,
+        (host, r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest));
   }
 
   /**
@@ -359,7 +370,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   @ParameterizedTest
   @MethodSource("arnArguments")
-  public void testConnectViaARN(final String arn, final Region region) throws SQLException {
+  public void testConnectViaARN(final String arn, final Region expectedRegionParsedFromARN) {
     final Properties props = new Properties();
     props.setProperty("secretsManagerSecretId", arn);
 
@@ -370,7 +381,28 @@ public class AwsSecretsManagerConnectionPluginTest {
         (id) -> mockGetValueRequest));
 
     final Pair<String, Region> secret = this.plugin.secretKey;
-    assertEquals(region, secret.right());
+    assertEquals(expectedRegionParsedFromARN, secret.right());
+  }
+
+  @ParameterizedTest
+  @MethodSource("arnArguments")
+  public void testConnectionWithRegionParameterAndARN(final String arn, final Region regionParsedFromARN) {
+    final Region expectedRegion = Region.US_ISO_EAST_1;
+
+    final Properties props = new Properties();
+    props.setProperty("secretsManagerSecretId", arn);
+    props.setProperty("secretsManagerRegion", expectedRegion.toString());
+
+    this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
+        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
+        props,
+        (host, r) -> mockSecretsManagerClient,
+        (id) -> mockGetValueRequest));
+
+    final Pair<String, Region> secret = this.plugin.secretKey;
+    // The region specified in `secretsManagerRegion` should override the region parsed from ARN.
+    assertNotEquals(regionParsedFromARN, secret.right());
+    assertEquals(expectedRegion, secret.right());
   }
 
   private static Stream<Arguments> provideExceptionCodeForDifferentDrivers() {
@@ -387,6 +419,19 @@ public class AwsSecretsManagerConnectionPluginTest {
         Arguments.of(
             "arn:aws:secretsmanager:us-east-2:123456789012:secret:rds!cluster-bar-foo",
             Region.US_EAST_2)
+    );
+  }
+
+  private static Stream<Arguments> missingArguments() {
+    final Properties missingId = new Properties();
+    missingId.setProperty("secretsManagerRegion", TEST_REGION);
+
+    final Properties missingRegion = new Properties();
+    missingRegion.setProperty("secretsManagerSecretId", TEST_SECRET_ID);
+
+    return Stream.of(
+        Arguments.of(missingId),
+        Arguments.of(missingRegion)
     );
   }
 }

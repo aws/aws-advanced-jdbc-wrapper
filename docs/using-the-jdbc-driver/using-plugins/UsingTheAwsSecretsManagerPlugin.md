@@ -12,10 +12,10 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 
 > **Note:** To use this plugin, you will need to set the following AWS Secrets Manager specific parameters.
 
-| Parameter                | Value  |                        Required                         | Description                                             | Example     | Default Value |
-|--------------------------|:------:|:-------------------------------------------------------:|:--------------------------------------------------------|:------------|---------------|
-| `secretsManagerSecretId` | String |                           Yes                           | Set this value to be the secret name or the secret ARN. | `secretId`  | `null`        |
-| `secretsManagerRegion`   | String | Yes unless the `secretsManagerSecretId` is a Secret ARN | Set this value to be the region your secret is in.      | `us-east-2` | `us-east-1`   |
+| Parameter                | Value  |                                                                                     Required                                                                                      | Description                                             | Example     | Default Value |
+|--------------------------|:------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------|:------------|---------------|
+| `secretsManagerSecretId` | String |                                                                                        Yes                                                                                        | Set this value to be the secret name or the secret ARN. | `secretId`  | `null`        |
+| `secretsManagerRegion`   | String | Yes unless the `secretsManagerSecretId` is a Secret ARN. A Secret ARN has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters` | Set this value to be the region your secret is in.      | `us-east-2` | `us-east-1`   |
 
 ### Example
 [AwsSecretsManagerConnectionPluginPostgresqlExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsSecretsManagerConnectionPluginPostgresqlExample.java)
