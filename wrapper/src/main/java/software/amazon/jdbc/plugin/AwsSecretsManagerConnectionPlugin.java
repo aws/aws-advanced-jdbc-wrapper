@@ -32,6 +32,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
@@ -66,7 +68,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
-  private final Pair<String, Region> secretKey;
+  private static final Pattern SECRETS_ARN_PATTERN =
+      Pattern.compile("^arn:aws:secretsmanager:(?<region>[^:\\n]*):[^:\\n]*:([^:/\\n]*[:/])?(.*)$");
+
+  final Pair<String, Region> secretKey;
   private final BiFunction<HostSpec, Region, SecretsManagerClient>
       secretsManagerClientFunc;
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
@@ -116,12 +121,19 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
               new Object[] {SECRET_ID_PROPERTY.name}));
     }
 
-    final String regionString = REGION_PROPERTY.getString(props);
-    if (StringUtils.isNullOrEmpty(regionString)) {
-      throw new RuntimeException(
-          Messages.get(
-              "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
-              new Object[] {REGION_PROPERTY.name}));
+    String regionString;
+    if (StringUtils.isNullOrEmpty(props.getProperty(REGION_PROPERTY.name))) {
+      final Matcher matcher = SECRETS_ARN_PATTERN.matcher(secretId);
+      if (matcher.matches()) {
+        regionString = matcher.group("region");
+      } else {
+        throw new RuntimeException(
+            Messages.get(
+                "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
+                new Object[] {REGION_PROPERTY.name}));
+      }
+    } else {
+      regionString = REGION_PROPERTY.getString(props);
     }
 
     final Region region = Region.of(regionString);

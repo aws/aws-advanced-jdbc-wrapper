@@ -23,23 +23,8 @@ import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
-import eu.rekawek.toxiproxy.Proxy;
-import eu.rekawek.toxiproxy.model.ToxicDirection;
 import integration.refactored.TestInstanceInfo;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.testcontainers.DockerClientFactory;
@@ -62,11 +47,6 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class ContainerHelper {
 
-  private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK = "openjdk:8-jdk-alpine";
-  private static final String TEST_CONTAINER_IMAGE_NAME_OPENJDK_11 =
-      "adoptopenjdk/openjdk11:alpine";
-  private static final String TEST_CONTAINER_IMAGE_NAME_GRAALVM =
-      "ghcr.io/graalvm/jdk:java8-21.2.0";
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:latest";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:latest";
@@ -122,25 +102,6 @@ public class ContainerHelper {
             container, consumer, "./gradlew", task, "--debug-jvm", "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
-  }
-
-  public String getContainerImageName(String containerType) {
-    if (containerType == null) {
-      containerType = "";
-    }
-    switch (containerType.toLowerCase()) {
-      case "openjdk11":
-        return TEST_CONTAINER_IMAGE_NAME_OPENJDK_11;
-      case "graalvm":
-        return TEST_CONTAINER_IMAGE_NAME_GRAALVM;
-      case "openjdk":
-      default:
-        return TEST_CONTAINER_IMAGE_NAME_OPENJDK;
-    }
-  }
-
-  public GenericContainer<?> createTestContainerByType(String containerType, String dockerImageName) {
-    return createTestContainer(dockerImageName, getContainerImageName(containerType));
   }
 
   public GenericContainer<?> createTestContainer(String dockerImageName, String testContainerImageName) {
@@ -274,11 +235,6 @@ public class ContainerHelper {
   }
 
   public MySQLContainer<?> createMysqlContainer(
-      Network network, String networkAlias, String testDbName) {
-    return createMysqlContainer(network, networkAlias, testDbName, "test", "root");
-  }
-
-  public MySQLContainer<?> createMysqlContainer(
       Network network, String networkAlias, String testDbName, String username, String password) {
 
     return new MySQLContainer<>(MYSQL_CONTAINER_IMAGE_NAME)
@@ -303,11 +259,6 @@ public class ContainerHelper {
   }
 
   public PostgreSQLContainer<?> createPostgresContainer(
-      Network network, String networkAlias, String testDbName) {
-    return createPostgresContainer(network, networkAlias, testDbName, "test", "root");
-  }
-
-  public PostgreSQLContainer<?> createPostgresContainer(
       Network network, String networkAlias, String testDbName, String username, String password) {
 
     return new PostgreSQLContainer<>(POSTGRES_CONTAINER_IMAGE_NAME)
@@ -316,11 +267,6 @@ public class ContainerHelper {
         .withDatabaseName(testDbName)
         .withUsername(username)
         .withPassword(password);
-  }
-
-  public MariaDBContainer<?> createMariadbContainer(
-      Network network, String networkAlias, String testDbName) {
-    return createMariadbContainer(network, networkAlias, testDbName, "test", "root");
   }
 
   public MariaDBContainer<?> createMariadbContainer(
@@ -354,107 +300,6 @@ public class ContainerHelper {
     return container;
   }
 
-  public List<String> getAuroraInstanceEndpoints(
-      String connectionUrl, String userName, String password, String hostBase) throws SQLException {
-
-    String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
-    if (connectionUrl.contains("mysql")) {
-      retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_MYSQL;
-    }
-    ArrayList<String> auroraInstances = new ArrayList<>();
-
-    int attemptCount = 10;
-    while (attemptCount-- > 0) {
-      try {
-        auroraInstances.clear();
-        try (final Connection conn =
-            DriverManager.getConnection(connectionUrl, userName, password);
-            final Statement stmt = conn.createStatement()) {
-          // Get instances
-          try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
-            while (resultSet.next()) {
-              // Get Instance endpoints
-              final String hostEndpoint = resultSet.getString(SERVER_ID) + "." + hostBase;
-              auroraInstances.add(hostEndpoint);
-            }
-          }
-        }
-        return auroraInstances;
-
-      } catch (SQLException ex) {
-        System.err.println(
-            "Error getting cluster endpoints for " + connectionUrl + ". " + ex.getMessage());
-        if (attemptCount <= 0) {
-          throw ex;
-        }
-        try {
-          TimeUnit.SECONDS.sleep(10);
-        } catch (InterruptedException e) {
-          // ignore
-        }
-      }
-    }
-    return auroraInstances;
-  }
-
-  public List<String> getAuroraInstanceIds(
-      String connectionUrl, String userName, String password, String database) throws SQLException {
-
-    String retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_POSTGRES;
-    if (database.equals("mysql")) {
-      retrieveTopologySql = RETRIEVE_TOPOLOGY_SQL_MYSQL;
-    }
-    ArrayList<String> auroraInstances = new ArrayList<>();
-
-    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-        final Statement stmt = conn.createStatement()) {
-      // Get instances
-      try (final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
-        while (resultSet.next()) {
-          // Get Instance endpoints
-          final String hostEndpoint = resultSet.getString(SERVER_ID);
-          auroraInstances.add(hostEndpoint);
-        }
-      }
-    }
-    return auroraInstances;
-  }
-
-  public void addAuroraAwsIamUser(
-      String connectionUrl, String userName, String password, String dbUser) throws SQLException {
-
-    final String dropAwsIamUserSQL = "DROP USER IF EXISTS " + dbUser + ";";
-    final String createAwsIamUserSQL =
-        "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';";
-    try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-        final Statement stmt = conn.createStatement()) {
-      stmt.execute(dropAwsIamUserSQL);
-      stmt.execute(createAwsIamUserSQL);
-    }
-  }
-
-  public List<ToxiproxyContainer> createProxyContainers(
-      final Network network, List<String> clusterInstances, String proxyDomainNameSuffix) {
-    ArrayList<ToxiproxyContainer> containers = new ArrayList<>();
-    int instanceCount = 0;
-    for (String hostEndpoint : clusterInstances) {
-      containers.add(
-          new ToxiproxyContainer(TOXIPROXY_IMAGE)
-              .withNetwork(network)
-              .withNetworkAliases(
-                  "toxiproxy-instance-" + (++instanceCount),
-                  hostEndpoint + proxyDomainNameSuffix));
-    }
-    return containers;
-  }
-
-  public ToxiproxyContainer createProxyContainer(
-      final Network network, String hostEndpoint, String proxyDomainNameSuffix) {
-    return new ToxiproxyContainer(TOXIPROXY_IMAGE)
-        .withNetwork(network)
-        .withNetworkAliases("toxiproxy-instance", hostEndpoint + proxyDomainNameSuffix);
-  }
-
   public ToxiproxyContainer createProxyContainer(
       final Network network, TestInstanceInfo instance, String proxyDomainNameSuffix) {
     return new ToxiproxyContainer(TOXIPROXY_IMAGE)
@@ -464,94 +309,4 @@ public class ContainerHelper {
             instance.getEndpoint() + proxyDomainNameSuffix);
   }
 
-  public int getProxyPort(
-      List<String> clusterInstances, List<ToxiproxyContainer> containers, int port) {
-    Set<Integer> proxyPorts = new HashSet<>();
-
-    for (int i = 0; i < clusterInstances.size(); i++) {
-      String instanceEndpoint = clusterInstances.get(i);
-      ToxiproxyContainer container = containers.get(i);
-      ToxiproxyContainer.ContainerProxy proxy = container.getProxy(instanceEndpoint, port);
-      proxyPorts.add(proxy.getOriginalProxyPort());
-    }
-    assertEquals(1, proxyPorts.size(), "DB cluster proxies should be on the same port.");
-    return proxyPorts.stream().findFirst().orElse(0);
-  }
-
-  public int getProxyPort(
-      List<TestInstanceInfo> instances, HashMap<String, ToxiproxyContainer> containers) {
-    Set<Integer> proxyPorts = new HashSet<>();
-
-    for (TestInstanceInfo instance : instances) {
-      ToxiproxyContainer container = containers.get(instance.getInstanceId());
-      ToxiproxyContainer.ContainerProxy proxy =
-          container.getProxy(instance.getEndpoint(), instance.getEndpointPort());
-      proxyPorts.add(proxy.getOriginalProxyPort());
-    }
-    assertEquals(1, proxyPorts.size(), "DB cluster proxies should be on the same port.");
-    return proxyPorts.stream().findFirst().orElse(0);
-  }
-
-  public int createInstanceProxy(String hostEndpoint, ToxiproxyContainer container, int port) {
-    ToxiproxyContainer.ContainerProxy proxy = container.getProxy(hostEndpoint, port);
-    return proxy.getOriginalProxyPort();
-  }
-
-  // It works for Linux containers only!
-  public int runInContainer(String cmd) {
-    ProcessBuilder processBuilder = new ProcessBuilder();
-    processBuilder.command("sh", "-c", cmd);
-
-    try {
-
-      Process process = processBuilder.start();
-      StringBuilder output = new StringBuilder();
-      BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-      String line;
-      while ((line = reader.readLine()) != null) {
-        output.append(line).append("\n");
-      }
-
-      int exitVal = process.waitFor();
-      if (exitVal == 0) {
-        // System.out.println(output);
-      } else {
-        // abnormal...
-        System.err.println(output);
-        System.err.println("Failed to execute: " + cmd);
-      }
-      return exitVal;
-
-    } catch (IOException | InterruptedException e) {
-      e.printStackTrace();
-    }
-    return 1;
-  }
-
-  /** Stops all traffic to and from server. */
-  public void disableConnectivity(Proxy proxy) throws IOException {
-    proxy
-        .toxics()
-        .bandwidth(
-            "DOWN-STREAM", ToxicDirection.DOWNSTREAM, 0); // from database server towards driver
-    proxy
-        .toxics()
-        .bandwidth("UP-STREAM", ToxicDirection.UPSTREAM, 0); // from driver towards database server
-  }
-
-  /** Allow traffic to and from server. */
-  public void enableConnectivity(Proxy proxy) {
-    try {
-      proxy.toxics().get("DOWN-STREAM").remove();
-    } catch (IOException ex) {
-      // ignore
-    }
-
-    try {
-      proxy.toxics().get("UP-STREAM").remove();
-    } catch (IOException ex) {
-      // ignore
-    }
-  }
 }

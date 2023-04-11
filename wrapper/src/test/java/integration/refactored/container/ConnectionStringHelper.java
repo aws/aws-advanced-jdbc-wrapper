@@ -143,24 +143,6 @@ public class ConnectionStringHelper {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
   }
 
-  public static String getProxyUrl(final String wrapperPlugins) {
-    return getUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getProxyDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getEndpoint(),
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getProxyDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), wrapperPlugins);
-  }
-
   public static String getWrapperClusterEndpointUrl() {
     if (StringUtils.isNullOrEmpty(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())) {
       throw new RuntimeException("Cluster Endpoint is not available in this test environment.");

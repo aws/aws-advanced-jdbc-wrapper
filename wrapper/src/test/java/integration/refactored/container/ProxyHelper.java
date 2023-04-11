@@ -35,13 +35,6 @@ public class ProxyHelper {
   }
 
   /** Stops all traffic to and from server. */
-  public static void disableConnectivity(List<TestInstanceInfo> instances) {
-    for (TestInstanceInfo instanceInfo : instances) {
-      disableConnectivity(instanceInfo.getInstanceId());
-    }
-  }
-
-  /** Stops all traffic to and from server. */
   public static void disableConnectivity(String instanceName) {
     Proxy proxy = TestEnvironment.getCurrent().getProxy(instanceName);
     if (proxy == null) {
@@ -76,13 +69,6 @@ public class ProxyHelper {
   public static void enableAllConnectivity() {
     for (Proxy proxy : TestEnvironment.getCurrent().getProxies()) {
       enableConnectivity(proxy);
-    }
-  }
-
-  /** Allow traffic to and from server. */
-  public static void enableConnectivity(List<TestInstanceInfo> instances) {
-    for (TestInstanceInfo instanceInfo : instances) {
-      enableConnectivity(instanceInfo.getInstanceId());
     }
   }
 
