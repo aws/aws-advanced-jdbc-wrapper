@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
@@ -81,6 +82,7 @@ public class WrapperUtils {
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
 
+  @SuppressWarnings("method.invocation")
   private static final Map<Class<?>, Class<?>> availableWrappers =
       new HashMap<Class<?>, Class<?>>() {
         {
@@ -105,6 +107,7 @@ public class WrapperUtils {
         }
       };
 
+  @SuppressWarnings("method.invocation")
   private static final Set<Class<?>> allWrapperClasses = new HashSet<Class<?>>() {
     {
       add(ArrayWrapper.class);
@@ -171,7 +174,7 @@ public class WrapperUtils {
         jdbcMethodArgs);
   }
 
-  public static <T> T executeWithPlugins(
+  public static @Nullable <T> T executeWithPlugins(
       final Class<T> resultClass,
       final ConnectionPluginManager pluginManager,
       final Object methodInvokeOn,
@@ -202,7 +205,7 @@ public class WrapperUtils {
     }
   }
 
-  public static <T, E extends Exception> T executeWithPlugins(
+  public static @Nullable<T, E extends Exception> T executeWithPlugins(
       final Class<T> resultClass,
       final Class<E> exceptionClass,
       final ConnectionPluginManager pluginManager,
@@ -235,7 +238,7 @@ public class WrapperUtils {
   }
 
   protected static @Nullable <T> T wrapWithProxyIfNeeded(
-      final Class<T> resultClass, @Nullable final T toProxy, final ConnectionPluginManager pluginManager)
+      final Class<T> resultClass, final @Nullable T toProxy, final ConnectionPluginManager pluginManager)
       throws InstantiationException {
 
     if (toProxy == null) {
@@ -292,7 +295,7 @@ public class WrapperUtils {
    * @param packageName the name of the package to analyze
    * @return true if the given package is a JDBC package
    */
-  public static boolean isJdbcPackage(@Nullable final String packageName) {
+  public static boolean isJdbcPackage(final @Nullable String packageName) {
     return packageName != null
         && (packageName.startsWith("java.sql")
         || packageName.startsWith("javax.sql")
@@ -407,16 +410,16 @@ public class WrapperUtils {
       }
 
     } catch (final Throwable t) {
-      throw new InstantiationException(Messages.get(errorMessageResourceKey, new Object[] {lastClass.getName()}));
+      throw new InstantiationException(Messages.get(errorMessageResourceKey, lastClass == null ? Messages.emptyArgs : new Object[] {lastClass.getName()}));
     }
 
     return instances;
   }
 
-  public static <T> T createInstance(
-      final Class<?> classToInstantiate,
-      final Class<T> resultClass,
-      final Class<?>[] constructorArgClasses,
+  public static @NonNull <T> T createInstance(
+      final @Nullable Class<?> classToInstantiate,
+      final @Nullable Class<T> resultClass,
+      final Class<?> @Nullable[] constructorArgClasses,
       final Object... constructorArgs)
       throws InstantiationException {
 
@@ -450,7 +453,7 @@ public class WrapperUtils {
     }
   }
 
-  public static <T> T createInstance(
+  public static @NonNull <T> T createInstance(
       final String className, final Class<T> resultClass, final Object... constructorArgs)
       throws InstantiationException {
 
@@ -475,7 +478,7 @@ public class WrapperUtils {
     return createInstance(loaded, resultClass, null, constructorArgs);
   }
 
-  public static Object getFieldValue(Object target, final String accessor) {
+  public static @Nullable Object getFieldValue(Object target, final String accessor) {
     if (target == null) {
       return null;
     }
@@ -520,7 +523,7 @@ public class WrapperUtils {
     return target;
   }
 
-  public static Connection getConnectionFromSqlObject(final Object obj) {
+  public static @Nullable Connection getConnectionFromSqlObject(final Object obj) {
     if (obj == null) {
       return null;
     }
@@ -532,7 +535,13 @@ public class WrapperUtils {
         return stmt.getConnection();
       } else if (obj instanceof ResultSet) {
         final ResultSet rs = (ResultSet) obj;
-        return rs.getStatement() != null ? rs.getStatement().getConnection() : null;
+        if (rs != null) {
+          Statement statement = rs.getStatement();
+          if (statement != null) {
+            return statement.getConnection();
+          }
+        }
+        return null;
       }
     } catch (final SQLException | UnsupportedOperationException e) {
       // Do nothing. The UnsupportedOperationException comes from ResultSets returned by

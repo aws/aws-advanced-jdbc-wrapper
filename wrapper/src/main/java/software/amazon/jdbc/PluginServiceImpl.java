@@ -29,6 +29,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
@@ -44,7 +46,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
-  protected final ConnectionPluginManager pluginManager;
+  protected final @NonNull @NotOnlyInitialized ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
   private final String driverProtocol;
@@ -58,9 +60,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private final ExceptionManager exceptionManager;
 
   public PluginServiceImpl(
-      @NonNull final ConnectionPluginManager pluginManager,
-      @NonNull final Properties props,
-      @NonNull final String originalUrl,
+      final @NonNull @UnderInitialization ConnectionPluginManager pluginManager,
+      final @NonNull Properties props,
+      final @NonNull String originalUrl,
       final String targetDriverProtocol) {
     this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol);
   }
@@ -133,7 +135,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public synchronized EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec,
-      @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
+      final @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
 
     if (this.currentConnection == null) {

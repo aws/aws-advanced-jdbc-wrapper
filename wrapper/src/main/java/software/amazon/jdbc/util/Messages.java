@@ -24,7 +24,7 @@ import java.util.ResourceBundle;
 public class Messages {
 
   private static final ResourceBundle MESSAGES = ResourceBundle.getBundle("messages");
-  private static final Object[] emptyArgs = {};
+  public static final Object[] emptyArgs = {};
 
   /**
    * Retrieve the localized error message associated with the provided key.
@@ -36,7 +36,7 @@ public class Messages {
     return get(key, emptyArgs);
   }
 
-  public static @NonNull String get(@NonNull String key, @Nullable Object[] args) {
+  public static @NonNull String get(@NonNull String key, @Nullable Object @NonNull[] args) {
     final String message = MESSAGES.getString(key);
     return MessageFormat.format(message, args);
   }

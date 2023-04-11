@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
@@ -51,11 +52,11 @@ public class PropertyUtils {
   }
 
   public static void setPropertyOnTarget(
-      final Object target,
-      final String propName,
-      final Object propValue,
-      final List<Method> methods) {
-    Method writeMethod = null;
+      final @NonNull Object target,
+      final @NonNull String propName,
+      final @NonNull Object propValue,
+      final @NonNull List<Method> methods) {
+    @Nullable Method writeMethod = null;
     String methodName = "set" + propName.substring(0, 1).toUpperCase() + propName.substring(1);
 
     for (Method method : methods) {
@@ -102,7 +103,7 @@ public class PropertyUtils {
           () ->
               Messages.get(
                   "PropertyUtils.failedToSetPropertyWithReason",
-                  new Object[] {propName, target.getClass(), ex.getCause() == null ? null: ex.getCause().getMessage()}));
+                  new Object[] {propName, target.getClass() == null ? Messages.emptyArgs : target.getClass(), ex.getCause() == null ? Messages.emptyArgs : ex.getCause().getMessage()}));
       throw new RuntimeException(ex.getCause());
     } catch (Exception e) {
       LOGGER.warning(

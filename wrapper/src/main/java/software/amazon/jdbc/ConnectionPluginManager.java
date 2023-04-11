@@ -23,10 +23,14 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
+import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
@@ -58,6 +62,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
  */
 public class ConnectionPluginManager implements CanReleaseResources {
 
+  @SuppressWarnings("method.invocation")
   protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
       new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
         {
@@ -88,21 +93,23 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
-  protected final ConnectionProvider connectionProvider;
-  protected final ConnectionWrapper connectionWrapper;
-  protected PluginService pluginService;
+  protected final @NotOnlyInitialized @NonNull ConnectionProvider connectionProvider;
+  protected final @NotOnlyInitialized @NonNull ConnectionWrapper connectionWrapper;
+  @SuppressWarnings ("initialization.fields.uninitialized")
+  protected @NotOnlyInitialized PluginService pluginService;
 
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
-  public ConnectionPluginManager(ConnectionProvider connectionProvider, ConnectionWrapper connectionWrapper) {
+  @SuppressWarnings("initialization.fields.uninitialized")
+  public ConnectionPluginManager(ConnectionProvider connectionProvider, @UnderInitialization ConnectionWrapper connectionWrapper) {
     this.connectionProvider = connectionProvider;
     this.connectionWrapper = connectionWrapper;
   }
 
   /**
    * This constructor is for testing purposes only.
-   */
+  */
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -116,6 +123,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
   /**
    * This constructor is for testing purposes only.
    */
+  @SuppressWarnings("initialization.fields.uninitialized")
   ConnectionPluginManager(
       ConnectionProvider connectionProvider,
       Properties props,
@@ -149,7 +157,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * @throws SQLException if errors occurred during the execution.
    */
   public void init(
-      PluginService pluginService, Properties props, PluginManagerService pluginManagerService)
+      @UnderInitialization @NonNull PluginService pluginService,
+      @NonNull Properties props,
+      @NonNull PluginManagerService pluginManagerService)
       throws SQLException {
 
     this.props = props;
@@ -222,10 +232,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
     this.plugins.add(defaultPlugin);
   }
 
-  protected <T, E extends Exception> T executeWithSubscribedPlugins(
+  protected @Nullable <T, E extends Exception> T executeWithSubscribedPlugins(
       final String methodName,
-      final PluginPipeline<T, E> pluginPipeline,
-      final JdbcCallable<T, E> jdbcMethodFunc)
+      final @NonNull PluginPipeline<T, E> pluginPipeline,
+      final @NonNull JdbcCallable<T, E> jdbcMethodFunc)
       throws E {
 
     if (pluginPipeline == null) {
@@ -241,7 +251,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     if (pluginChainFunc == null) {
       pluginChainFunc = this.makePluginChainFunc(methodName);
-      this.pluginChainFuncMap.put(methodName, pluginChainFunc);
+      if (pluginChainFunc != null) {
+        this.pluginChainFuncMap.put(methodName, pluginChainFunc);
+      }
     }
 
     if (pluginChainFunc == null) {
@@ -251,8 +263,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc);
   }
 
-  @Nullable
-  protected <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
+  protected @Nullable <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
       final @NonNull String methodName) {
 
     PluginChainJdbcCallable<T, E> pluginChainFunc = null;
@@ -266,11 +277,12 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
       if (isSubscribed) {
         if (pluginChainFunc == null) {
-          pluginChainFunc = (pipelineFunc, jdbcFunc) -> pipelineFunc.call(plugin, jdbcFunc);
+          pluginChainFunc = (pipelineFunc, jdbcFunc) -> Objects.requireNonNull(pipelineFunc.call(plugin, jdbcFunc));
         } else {
           final PluginChainJdbcCallable<T, E> finalPluginChainFunc = pluginChainFunc;
           pluginChainFunc = (pipelineFunc, jdbcFunc) ->
-              pipelineFunc.call(plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc));
+              Objects.requireNonNull(pipelineFunc.call(plugin,
+                  () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc)));
         }
       }
     }
@@ -278,9 +290,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   protected <E extends Exception> void notifySubscribedPlugins(
-      final String methodName,
-      final PluginPipeline<Void, E> pluginPipeline,
-      final ConnectionPlugin skipNotificationForThisPlugin)
+      final @NonNull String methodName,
+      final @Nullable PluginPipeline<Void, E> pluginPipeline,
+      final @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws E {
 
     if (pluginPipeline == null) {
@@ -302,16 +314,16 @@ public class ConnectionPluginManager implements CanReleaseResources {
     }
   }
 
-  public ConnectionWrapper getConnectionWrapper() {
+  public @NonNull @UnknownInitialization ConnectionWrapper getConnectionWrapper() {
     return this.connectionWrapper;
   }
 
-  public <T, E extends Exception> T execute(
-      final Class<T> resultType,
-      final Class<E> exceptionClass,
-      final Object methodInvokeOn,
-      final String methodName,
-      final JdbcCallable<T, E> jdbcMethodFunc,
+  public @Nullable <T, E extends Exception> T execute(
+      final @Nullable Class<T> resultType,
+      final @NonNull Class<E> exceptionClass,
+      final @NonNull Object methodInvokeOn,
+      final @NonNull String methodName,
+      final @NonNull JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs)
       throws E {
 
@@ -328,25 +340,25 @@ public class ConnectionPluginManager implements CanReleaseResources {
         methodName,
         (plugin, func) ->
             plugin.execute(
-                resultType, exceptionClass, methodInvokeOn, methodName, func, jdbcMethodArgs),
+                resultType, exceptionClass, methodInvokeOn, methodName, Objects.requireNonNull(func), jdbcMethodArgs),
         jdbcMethodFunc);
   }
 
-  public Connection connect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
+  public @NonNull Connection connect(
+      final @NonNull String driverProtocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props,
       final boolean isInitialConnection)
       throws SQLException {
 
     try {
-      return executeWithSubscribedPlugins(
+      return Objects.requireNonNull(executeWithSubscribedPlugins(
           CONNECT_METHOD,
           (plugin, func) ->
-              plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
+              plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, Objects.requireNonNull(func)),
           () -> {
             throw new SQLException("Shouldn't be called.");
-          });
+          }));
     } catch (SQLException | RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -355,10 +367,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   public void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
-      final HostListProviderService hostListProviderService)
+      final @NonNull String driverProtocol,
+      final @NonNull String initialUrl,
+      final @NonNull Properties props,
+      final @NonNull HostListProviderService hostListProviderService)
       throws SQLException {
 
     executeWithSubscribedPlugins(
@@ -425,11 +437,11 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   private interface PluginPipeline<T, E extends Exception> {
 
-    T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;
+    @Nullable T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;
   }
 
   private interface PluginChainJdbcCallable<T, E extends Exception> {
 
-    T call(final @NonNull PluginPipeline<T, E> pipelineFunc, final @NonNull JdbcCallable<T, E> jdbcMethodFunc) throws E;
+    @NonNull  T call(final @NonNull PluginPipeline<T, E> pipelineFunc, final @NonNull JdbcCallable<T, E> jdbcMethodFunc) throws E;
   }
 }

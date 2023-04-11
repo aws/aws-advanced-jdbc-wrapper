@@ -16,7 +16,9 @@
 
 package software.amazon.jdbc;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public interface JdbcCallable<T, E extends Exception> {
 
-  T call() throws E;
+  @Nullable T call() throws E;
 }

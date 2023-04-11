@@ -29,6 +29,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostAvailability;
@@ -55,14 +57,14 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       Collections.singletonList("*")));
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
-  private final ConnectionProvider connectionProvider;
+  private final @UnknownInitialization ConnectionProvider connectionProvider;
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
 
   public DefaultConnectionPlugin(
-      final PluginService pluginService,
-      final ConnectionProvider connectionProvider,
-      final PluginManagerService pluginManagerService) {
+      final @NonNull PluginService pluginService,
+      final @NonNull @UnknownInitialization ConnectionProvider connectionProvider,
+      final @NonNull PluginManagerService pluginManagerService) {
     if (pluginService == null) {
       throw new IllegalArgumentException("pluginService");
     }
