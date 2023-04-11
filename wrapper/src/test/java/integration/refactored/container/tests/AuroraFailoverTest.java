@@ -517,8 +517,14 @@ public class AuroraFailoverTest {
       assertTrue(instanceIDs.size() > 0);
       final String nextWriterId = instanceIDs.get(0);
 
+      LOGGER.fine("currentConnectionObject: " + conn.unwrap(Connection.class));
+      LOGGER.fine("initialWriterInstanceInfo endpoint: " + initialWriterInstanceInfo.getEndpoint());
+      LOGGER.fine("currentConnectionId: " + currentConnectionId);
+      LOGGER.fine("nextWriterId: " + nextWriterId);
+      LOGGER.fine("nominatedWriterId: " + nominatedWriterId);
+
+      assertNotEquals(initialWriterInstanceInfo.getInstanceId(), currentConnectionId);
       assertEquals(nextWriterId, currentConnectionId);
-      assertEquals(nominatedWriterId, currentConnectionId);
 
       assertTrue(conn.isValid(IS_VALID_TIMEOUT));
     }

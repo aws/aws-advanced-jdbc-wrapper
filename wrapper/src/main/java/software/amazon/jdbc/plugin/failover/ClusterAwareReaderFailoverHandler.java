@@ -402,6 +402,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
             () -> Messages.get(
                 "ClusterAwareReaderFailoverHandler.successfulReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
+        LOGGER.fine("New reader connection object: " + conn);
         return new ReaderFailoverResult(conn, this.newHost, true);
       } catch (SQLException e) {
         pluginService.setAvailability(newHost.asAliases(), HostAvailability.NOT_AVAILABLE);
