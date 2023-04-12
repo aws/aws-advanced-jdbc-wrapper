@@ -1,4 +1,4 @@
-# Is Amazon RDS Proxy or Amazon Web Services JDBC Driver a better choice for me?
+# When should Amazon RDS Proxy or the Amazon Web Services JDBC Driver be selected over the other?
 
 ## Overview
 
@@ -6,12 +6,18 @@ The Amazon Web Services JDBC Driver is complementary to and extends the function
 an application take advantage of the features of clustered databases such as Amazon Aurora.
 The AWS JDBC Driver does not implement connectivity on its own to any database, but will enable support of AWS and
 Aurora functionalities on top of an underlying JDBC driver of the user's choice.
+
 The Amazon RDS Proxy is a fully managed, highly available database proxy for Amazon Relational Database Service (RDS).
 Similar to the AWS Advanced JDBC Driver, Amazon RDS Proxy also supports failover and is able to route requests to new
 database instances to reduce downtime.
 
-In this documentation we discuss how to determine which option would better suit your workflows
-by analyzing the major differences in cost, scalability, flexibility, configuration, and features.
+In this documentation, we discuss how to determine which option would better suit your workflows
+by analyzing the major differences in: 
+- Cost
+- Scalability
+- Flexibility
+- Configuration
+- Features
 
 ## Comparison
 
@@ -19,7 +25,7 @@ by analyzing the major differences in cost, scalability, flexibility, configurat
 |---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Costs         | Free and open-sourced on [Github](https://github.com/awslabs/aws-advanced-jdbc-wrapper)                                                                                                                                                                                                                                                                                                                   | RDS Proxy is priced per vCPU or ACU per hour. RDS Proxy also requires using AWS Secrets Manager to                                                                                                                                                                                                                                                                 |
 | Scalability   | The AWS JDBC Driver connects through user provided hostnames and does not have a limit on the number of opened connections.                                                                                                                                                                                                                                                                               | The RDS Proxy has a default quota of 20 proxies per region per AWS account. Users may request an increase in the quota.                                                                                                                                                                                                                                            |
-| Flexibility   | If you already have a community JDBC driver fully integrated in your workflow, such as the PostgreSQL JDBC driver or the MySQL Connector/J. The AWS Advanced JDBC Driver allows customers to continue using their existing community drivers in addition to having the AWS JDBC Driver fully exploit failover behavior by maintaining a cache of the Aurora cluster topology and each DB instance's role. | The RDS Proxy provides an additional point of failure to the databases and can act as an additional layer of security between client applications and the underlying database. However the proxies require network connection and may introduce extra complexity during local or offline development.                                                              |
+| Flexibility   | If you already have a community JDBC driver fully integrated in your workflow, such as the PostgreSQL JDBC driver or the MySQL Connector/J. The AWS Advanced JDBC Driver allows customers to continue using their existing community drivers in addition to having the AWS JDBC Driver fully leverage failover behavior by being aware of the Aurora cluster topology and each DB instance's role. | The RDS Proxy provides an additional point of failure to the databases and can act as an additional layer of security between client applications and the underlying database. However, the proxies require network connection and may introduce extra complexity during local or offline development.                                                              |
 | Custom DNS    | The AWS JDBC Driver supports custom DNS.                                                                                                                                                                                                                                                                                                                                                                  | The RDS Proxy does not support custom DNS.                                                                                                                                                                                                                                                                                                                         |
 | Configuration | The AWS JDBC Driver allows you to fine tune the failover process with parameters like `failoverTimeoutMs` and `failoverReaderConnectTimeoutMs`. For more information on failover parameters, see the [FailoverConfigurationGuide](./FailoverConfigurationGuide.md).                                                                                                                                       | Each RDS Proxy handles connections to an RDS instance or an Aurora cluster. To enable failover for multiple clusters you would have to configure RDS Proxy for each cluster. While the RDS Proxy provides some configurations, such as the database authentication method, it does not offer the same level of failover configuration as the AWS JDBC Driver does. |
 
