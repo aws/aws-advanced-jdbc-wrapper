@@ -53,7 +53,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -646,10 +645,6 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  // "Flaky - if a failover occurs in the test before this one, the cluster DNS may be stale
-  // which causes failure to update the initial host spec role in the RW plugin. The
-  // HostListProvider should be modified to verify the initial host spec role."
-  @Disabled("Temporarily disabled - flaky")
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnectionFailoverWithClusterURL() throws SQLException, InterruptedException {

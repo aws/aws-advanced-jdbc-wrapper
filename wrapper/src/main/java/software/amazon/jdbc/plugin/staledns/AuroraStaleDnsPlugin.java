@@ -64,6 +64,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
   private final PluginService pluginService;
   private final AuroraStaleDnsHelper helper;
+  private HostListProviderService hostListProviderService;
 
   public AuroraStaleDnsPlugin(PluginService pluginService, Properties properties) {
     this.pluginService = pluginService;
@@ -83,7 +84,8 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return this.helper.getVerifiedConnection(driverProtocol, hostSpec, props, connectFunc);
+    return this.helper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
+        driverProtocol, hostSpec, props, connectFunc);
   }
 
   @Override
@@ -94,7 +96,8 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return this.helper.getVerifiedConnection(driverProtocol, hostSpec, props, forceConnectFunc);
+    return this.helper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
+        driverProtocol, hostSpec, props, forceConnectFunc);
   }
 
   @Override
@@ -104,7 +107,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       Properties props,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
-
+    this.hostListProviderService = hostListProviderService;
     if (hostListProviderService.isStaticHostListProvider()) {
       throw new SQLException(Messages.get("AuroraStaleDnsPlugin.requireDynamicProvider"));
     }

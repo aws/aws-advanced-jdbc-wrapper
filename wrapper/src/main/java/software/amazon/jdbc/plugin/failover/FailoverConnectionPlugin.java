@@ -98,6 +98,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private PluginManagerService pluginManagerService;
   private boolean isInTransaction = false;
   private RdsUrlType rdsUrlType;
+  private HostListProviderService hostListProviderService;
   private final AuroraStaleDnsHelper staleDnsHelper;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
@@ -243,7 +244,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final Supplier<ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
       final Supplier<ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
       throws SQLException {
-
+    this.hostListProviderService = hostListProviderService;
     if (!this.enableFailoverSetting) {
       return;
     }
@@ -795,8 +796,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    final Connection conn = this.staleDnsHelper.getVerifiedConnection(driverProtocol, hostSpec,
-        props, connectFunc);
+    final Connection conn =
+        this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
+            driverProtocol, hostSpec, props, connectFunc);
 
     if (isInitialConnection) {
       this.pluginService.refreshHostList(conn);

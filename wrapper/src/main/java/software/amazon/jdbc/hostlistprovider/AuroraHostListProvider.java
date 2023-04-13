@@ -21,8 +21,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -86,6 +84,9 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
           // filter out nodes that haven't been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
           + "ORDER BY LAST_UPDATE_TIMESTAMP";
+  private static final String PG_IS_READER_QUERY = "SELECT pg_is_in_recovery() AS is_reader";
+  private static final String MYSQL_IS_READER_QUERY = "SELECT @@innodb_read_only AS is_reader";
+  private static final String IS_READER_COLUMN = "is_reader";
   static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   static final String FIELD_SERVER_ID = "SERVER_ID";
   static final String FIELD_SESSION_ID = "SESSION_ID";
@@ -109,6 +110,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
   private static final String PG_DRIVER_PROTOCOL = "postgresql";
   private final String retrieveTopologyQuery;
+  private final String isReaderQuery;
   private final ReentrantLock lock = new ReentrantLock();
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
@@ -146,8 +148,10 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
     if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
       retrieveTopologyQuery = PG_RETRIEVE_TOPOLOGY_SQL;
+      isReaderQuery = PG_IS_READER_QUERY;
     } else {
       retrieveTopologyQuery = MYSQL_RETRIEVE_TOPOLOGY_SQL;
+      isReaderQuery = MYSQL_IS_READER_QUERY;
     }
   }
 
@@ -596,5 +600,20 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       this.clusterId = clusterId;
       this.isPrimaryClusterId = isPrimaryClusterId;
     }
+  }
+
+  @Override
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    try (final Statement stmt = conn.createStatement();
+         final ResultSet rs = stmt.executeQuery(isReaderQuery)) {
+      if (rs.next()) {
+        boolean isReader = rs.getBoolean(IS_READER_COLUMN);
+        return isReader ? HostRole.READER : HostRole.WRITER;
+      }
+    } catch (SQLException e) {
+      throw new SQLException(Messages.get("AuroraHostListProvider.errorGettingHostRole"), e);
+    }
+
+    throw new SQLException(Messages.get("AuroraHostListProvider.errorGettingHostRole"));
   }
 }

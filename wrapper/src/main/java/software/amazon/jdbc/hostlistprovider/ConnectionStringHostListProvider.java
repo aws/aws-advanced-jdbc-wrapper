@@ -25,6 +25,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -102,5 +103,10 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   public List<HostSpec> forceRefresh(Connection connection) throws SQLException {
     init();
     return this.forceRefresh();
+  }
+
+  @Override
+  public HostRole getHostRole(Connection connection) {
+    throw new UnsupportedOperationException("ConnectionStringHostListProvider does not support getHostRole");
   }
 }

@@ -19,31 +19,31 @@
 
 | Benchmark                                    | Score   | Error  | Units |
 |----------------------------------------------|---------|--------|-------|
-| connectWithNoPlugins                         | 133.329 | 19.982 | us/op |
-| connectWithTenGenericPlugins                 | 198.782 | 37.724 | us/op |
-| executeWithNoPlugins                         | 125.491 | 30.625 | us/op |
-| executeTenGenericPlugins                     | 195.051 | 57.536 | us/op |
-| initConnectionPluginManagerWithNoPlugins     | 4.703   | 1.993  | us/op |
-| initConnectionPluginManagerTenGenericPlugins | 19.432  | 8.678  | us/op |
-| initHostProvidersWithNoPlugins               | 12.158  | 4.820  | us/op |
-| initHostProvidersTenGenericPlugins           | 29.134  | 6.694  | us/op |
-| notifyConnectionChangedWithNoPlugins         | 15.977  | 6.057  | us/op |
-| notifyConnectionChangedTenGenericPlugins     | 52.069  | 39.199 | us/op |
-| releaseResourcesWithNoPlugins                | 8.030   | 3.776  | us/op |
-| releaseResourcesTenGenericPlugins            | 15.243  | 4.906  | us/op |
+| connectWithNoPlugins                         | 86.697  | 14.275 | us/op |
+| connectWithTenGenericPlugins                 | 133.620 | 36.312 | us/op |
+| executeWithNoPlugins                         | 256.443 | 35.168 | us/op |
+| executeTenGenericPlugins                     | 318.443 | 53.184 | us/op |
+| initConnectionPluginManagerWithNoPlugins     | 3.460   | 1.483  | us/op |
+| initConnectionPluginManagerTenGenericPlugins | 10.553  | 4.089  | us/op |
+| initHostProvidersWithNoPlugins               | 7.783   | 2.568  | us/op |
+| initHostProvidersTenGenericPlugins           | 24.627  | 14.669 | us/op |
+| notifyConnectionChangedWithNoPlugins         | 8.430   | 2.016  | us/op |
+| notifyConnectionChangedTenGenericPlugins     | 20.343  | 4.517  | us/op |
+| releaseResourcesWithNoPlugins                | 3.833   | 1.058  | us/op |
+| releaseResourcesTenGenericPlugins            | 7.460   | 2.046  | us/op |
 
-| Benchmark                                                                          | Score    | Error   | Units |
-|------------------------------------------------------------------------------------|----------|---------|-------|
-| executeStatementBaseline                                                           | 912.928  | 137.285 | us/op |
-| executeStatementWithExecutionTimePlugin                                            | 1739.314 | 286.132 | us/op |
-| initAndReleaseBaseLine                                                             | 1.132    | 1.123   | us/op |
-| initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin                        | 1562.297 | 245.078 | us/op |
-| initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing | 1519.943 | 243.188 | us/op |
-| initAndReleaseWithAuroraHostListPlugin                                             | 964.033  | 149.767 | us/op |
-| initAndReleaseWithExecutionTimeAndAuroraHostListPlugins                            | 1005.531 | 165.567 | us/op |
-| initAndReleaseWithExecutionTimePlugin                                              | 804.334  | 150.357 | us/op |
-| initAndReleaseWithReadWriteSplittingPlugin                                         | 870.167  | 158.707 | us/op |
-| initAndReleaseWithReadWriteSplittingPluginWithReaderLoadBalancing                  | 867.317  | 149.344 | us/op |
+| Benchmark                                                                              | Score   | Error   | Units |
+|----------------------------------------------------------------------------------------|---------|---------|-------|
+| executeStatementBaseline                                                               | 682.607 | 133.777 | us/op |
+| executeStatementWithExecutionTimePlugin                                                | 741.764 | 165.556 | us/op |
+| initAndReleaseBaseLine                                                                 | 0.440   | 0.123   | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPlugin                            | 402.027 | 60.012  | us/op |
+| initAndReleaseWithAuroraHostListAndReadWriteSplittingPluginWithInternalConnectionPools | 445.430 | 144.121 | us/op |
+| initAndReleaseWithAuroraHostListPlugin                                                 | 406.563 | 73.480  | us/op |
+| initAndReleaseWithExecutionTimeAndAuroraHostListPlugins                                | 412.493 | 71.445  | us/op |
+| initAndReleaseWithExecutionTimePlugin                                                  | 457.957 | 75.872  | us/op |
+| initAndReleaseWithReadWriteSplittingPlugin                                             | 525.933 | 129.156 | us/op |
+| initAndReleaseWithReadWriteSplittingPluginWithInternalConnectionPools                  | 485.773 | 101.451 | us/op |
 
 ## Performance Tests
 

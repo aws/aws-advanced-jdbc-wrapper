@@ -52,6 +52,8 @@ public interface PluginService extends ExceptionHandler {
 
   HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException;
 
+  HostRole getHostRole(Connection conn) throws SQLException;
+
   void setAvailability(Set<String> hostAliases, HostAvailability availability);
 
   boolean isExplicitReadOnly();

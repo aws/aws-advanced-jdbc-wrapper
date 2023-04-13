@@ -89,7 +89,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
-  ConnectionWrapper(
+  // For testing purposes only
+  protected ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final ConnectionPluginManager connectionPluginManager,
