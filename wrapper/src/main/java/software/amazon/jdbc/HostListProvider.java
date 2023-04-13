@@ -29,4 +29,6 @@ public interface HostListProvider {
   List<HostSpec> forceRefresh() throws SQLException;
 
   List<HostSpec> forceRefresh(Connection connection) throws SQLException;
+
+  HostRole getHostRole(Connection connection) throws SQLException;
 }

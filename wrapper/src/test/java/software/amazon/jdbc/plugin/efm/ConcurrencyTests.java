@@ -291,7 +291,12 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
+    public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
+      return null;
+    }
+
+    @Override
+    public HostRole getHostRole(Connection conn) {
       return null;
     }
 

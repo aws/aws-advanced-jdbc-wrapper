@@ -17,16 +17,13 @@
 package software.amazon.jdbc.plugin.readwritesplitting;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -41,8 +38,6 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.RdsUrlType;
-import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
 
@@ -60,18 +55,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         }
       });
   static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
-  static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
-  static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
-  static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
-  static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
-  static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
-  static final String MYSQL_INSTANCE_NAME_COL = "@@aurora_server_id";
 
   private final PluginService pluginService;
   private final Properties properties;
-  private final RdsUtils rdsUtils = new RdsUtils();
-  private final AtomicBoolean inReadWriteSplit = new AtomicBoolean(false);
   private final String readerSelectorStrategy;
+  private volatile boolean inReadWriteSplit = false;
   private HostListProviderService hostListProviderService;
   private Connection writerConnection;
   private Connection readerConnection;
@@ -136,48 +124,29 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           Messages.get("ReadWriteSplittingPlugin.unsupportedHostSpecSelectorStrategy",
               new Object[] { this.readerSelectorStrategy }));
     }
-    return connectInternal(driverProtocol, hostSpec, isInitialConnection, connectFunc);
+    return connectInternal(isInitialConnection, connectFunc);
   }
 
-  private Connection connectInternal(String driverProtocol, HostSpec hostSpec,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
+  private Connection connectInternal(boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final Connection currentConnection = connectFunc.call();
     if (!isInitialConnection || this.hostListProviderService.isStaticHostListProvider()) {
       return currentConnection;
     }
 
-    final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
-    if (RdsUrlType.RDS_WRITER_CLUSTER.equals(urlType)
-        || RdsUrlType.RDS_READER_CLUSTER.equals(urlType)) {
-      return currentConnection;
-    }
-
-    // By default, the initial HostSpec role is assumed to be a writer, which may not be true.
-    // The rest of the logic in this method updates it if necessary.
-    this.pluginService.refreshHostList(currentConnection);
-    final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
-    final HostSpec updatedCurrentHost;
-    final String hostToMatch;
-    if (RdsUrlType.RDS_INSTANCE.equals(urlType)) {
-      hostToMatch = currentHost.getUrl();
-      updatedCurrentHost = getHostSpecFromUrl(hostToMatch);
-    } else {
-      hostToMatch = getCurrentInstanceId(currentConnection, driverProtocol);
-      updatedCurrentHost = getHostSpecFromInstanceId(hostToMatch);
-    }
-
-    if (updatedCurrentHost == null) {
+    final HostRole currentRole = this.pluginService.getHostRole(currentConnection);
+    if (currentRole == null || HostRole.UNKNOWN.equals(currentRole)) {
       logAndThrowException(
-          Messages.get("ReadWriteSplittingPlugin.errorVerifyingInitialHostSpecRole",
-              new Object[] {hostToMatch}));
+          Messages.get("ReadWriteSplittingPlugin.errorVerifyingInitialHostSpecRole"));
       return null;
     }
 
-    final HostSpec updatedRoleHostSpec =
-        new HostSpec(currentHost.getHost(), currentHost.getPort(), updatedCurrentHost.getRole(),
-            currentHost.getAvailability());
+    final HostSpec currentHost = this.pluginService.getInitialConnectionHostSpec();
+    if (currentRole.equals(currentHost.getRole())) {
+      return currentConnection;
+    }
 
+    final HostSpec updatedRoleHostSpec = new HostSpec(currentHost, currentRole);
     this.hostListProviderService.setInitialConnectionHostSpec(updatedRoleHostSpec);
     return currentConnection;
   }
@@ -190,66 +159,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, isInitialConnection, forceConnectFunc);
-  }
-
-  private HostSpec getHostSpecFromUrl(final String url) {
-    if (url == null) {
-      return null;
-    }
-
-    final List<HostSpec> hosts = this.pluginService.getHosts();
-    for (final HostSpec host : hosts) {
-      if (host.getUrl().equals(url)) {
-        return host;
-      }
-    }
-
-    return null;
-  }
-
-  private HostSpec getHostSpecFromInstanceId(final String instanceId) {
-    if (instanceId == null) {
-      return null;
-    }
-
-    final List<HostSpec> hosts = this.pluginService.getHosts();
-    for (final HostSpec host : hosts) {
-      if (host.getUrl().startsWith(instanceId)) {
-        return host;
-      }
-    }
-
-    return null;
-  }
-
-  private String getCurrentInstanceId(final Connection conn, final String driverProtocol) {
-    final String retrieveInstanceQuery;
-    final String instanceNameCol;
-    if (driverProtocol.startsWith(PG_DRIVER_PROTOCOL)) {
-      retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = PG_INSTANCE_NAME_COL;
-    } else if (driverProtocol.startsWith(MYSQL_DRIVER_PROTOCOL)) {
-      retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
-      instanceNameCol = MYSQL_INSTANCE_NAME_COL;
-    } else {
-      throw new UnsupportedOperationException(
-          Messages.get(
-              "ReadWriteSplittingPlugin.unsupportedDriverProtocol",
-              new Object[] {driverProtocol}));
-    }
-
-    String instanceName = null;
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(retrieveInstanceQuery)) {
-      if (resultSet.next()) {
-        instanceName = resultSet.getString(instanceNameCol);
-      }
-    } catch (final SQLException e) {
-      return null;
-    }
-
-    return instanceName;
+    return connectInternal(isInitialConnection, forceConnectFunc);
   }
 
   @Override
@@ -261,7 +171,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       // ignore
     }
 
-    if (this.inReadWriteSplit.get()) {
+    if (this.inReadWriteSplit) {
       return OldConnectionSuggestedAction.PRESERVE;
     }
     return OldConnectionSuggestedAction.NO_OPINION;
@@ -434,7 +344,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    this.inReadWriteSplit.set(true);
+    this.inReadWriteSplit = true;
     final HostSpec writerHost = getWriter(hosts);
     if (!isConnectionUsable(this.writerConnection)) {
       getNewWriterConnection(writerHost);
@@ -491,7 +401,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    this.inReadWriteSplit.set(true);
+    this.inReadWriteSplit = true;
     if (!isConnectionUsable(this.readerConnection)) {
       initializeReaderConnection(hosts);
     } else {

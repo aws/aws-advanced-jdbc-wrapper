@@ -149,10 +149,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     return connectInternal(driverProtocol, hostSpec, props, connProvider);
   }
 
-  private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
-      ConnectionProvider connProvider) throws SQLException {
+  private Connection connectInternal(
+      String driverProtocol, HostSpec hostSpec, Properties props, ConnectionProvider connProvider)
+      throws SQLException {
     final Connection conn = connProvider.connect(driverProtocol, hostSpec, props);
-
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     return conn;
   }
