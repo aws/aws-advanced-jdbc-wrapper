@@ -41,7 +41,7 @@ by analyzing the major differences in:
 
 ## Additional FAQ
 
-### Can the AWS RDS Proxy be used with Host Monitoring Connection Plugin
+### Can the AWS RDS Proxy be used with Host Monitoring Connection Plugin?
 
 We recommend you either disable the Host Monitoring Connection Plugin or avoid using RDS Proxy endpoints when the Host
 Monitoring Connection Plugin is active. For more information, see
