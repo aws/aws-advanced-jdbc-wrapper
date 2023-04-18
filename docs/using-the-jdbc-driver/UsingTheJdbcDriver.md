@@ -45,13 +45,13 @@ The AWS JDBC Driver also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-j
 ## AWS Advanced JDBC Driver Parameters
 These parameters are applicable to any instance of the AWS JDBC Driver.
 
-| Parameter                       | Value     | Required | Description                                                  | Default Value |
-| ------------------------------- | --------- | -------- | ------------------------------------------------------------ | ------------- |
-| `wrapperLogUnclosedConnections` | `Boolean` | No       | Allows the AWS JDBC Driver to track a point in the code where connection has been opened but not closed. | `false`       |
+| Parameter                       | Value     | Required | Description                                                                                                                                                                          | Default Value |
+|---------------------------------|-----------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `wrapperLogUnclosedConnections` | `Boolean` | No       | Allows the AWS JDBC Driver to track a point in the code where connection has been opened but not closed.                                                                             | `false`       |
 | `wrapperLoggerLevel`            | `String`  | No       | Logger level of the AWS JDBC Driver. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. | `null`        |
-| `database`                      | `String`  | No       | Database name.                                               | `null`        |
-| `user`                          | `String`  | No       | Database username.                                           | `null`        |
-| `password`                      | `String`  | No       | Database password.                                           | `null`        |
+| `database`                      | `String`  | No       | Database name.                                                                                                                                                                       | `null`        |
+| `user`                          | `String`  | No       | Database username.                                                                                                                                                                   | `null`        |
+| `password`                      | `String`  | No       | Database password.                                                                                                                                                                   | `null`        |
 
 ## Plugins
 The AWS JDBC Driver uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The AWS JDBC Driver has a number of [built-in plugins](#list-of-available-plugins) available for use. 
@@ -60,10 +60,10 @@ Plugins are loaded and managed through the Connection Plugin Manager and may be 
 
 ### Connection Plugin Manager Parameters
 
-| Parameter            | Value    | Required | Description                                                                                                                                                                                          | Default Value |
-|----------------------|----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `wrapperPlugins`     | `String` | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm`                                                                                                                     | `null`        | 
-| `wrapperProfileName` | `String` | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`        |
+| Parameter            | Value    | Required | Description                                                                                                                                                                                          | Default Value                          |
+|----------------------|----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
+| `wrapperPlugins`     | `String` | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm`                                                                                                                     | `auroraConnectionTracker,failover,efm` | 
+| `wrapperProfileName` | `String` | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`                                 |
 
 To use a built-in plugin, specify its relevant plugin code for the `wrapperPlugins`.
 The default value for `wrapperPlugins` is `auroraConnectionTracker,failover,efm`. These 3 plugins are enabled by default. To read more about these plugins, see the [List of Available Plugins](#list-of-available-plugins) section.
