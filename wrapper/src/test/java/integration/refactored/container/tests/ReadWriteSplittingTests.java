@@ -682,7 +682,7 @@ public class ReadWriteSplittingTests {
   public void test_pooledConnection_failoverFailed() throws SQLException {
     Properties props = getProxiedPropsWithFailover();
     FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, "1000");
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
+    DriverHelper.setMonitoringSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
