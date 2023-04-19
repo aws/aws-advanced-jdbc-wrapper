@@ -1,7 +1,7 @@
 # Documentation
 
 - [Getting Started](./GettingStarted.md)
-- [Using the AWS Advanced JDBC Wrapper](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md)
+- [Using the AWS JDBC Driver](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md)
   - [Data Sources](/docs/using-the-jdbc-driver/DataSource.md)
   - [Logging](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging)
   - [JDBC Wrapper Parameters](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters)
@@ -13,9 +13,10 @@
     - [AWS Secrets Manager Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
     - [Aurora Connection Tracker Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraConnectionTrackerPlugin.md)
     - [Driver Metadata Connection Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheDriverMetadataConnectionPlugin.md)
+    - [Read Write Splitting Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md)
 - [Development Guide](./development-guide/DevelopmentGuide.md)
   - [Setup](./development-guide/DevelopmentGuide.md#setup)
-  - [Building the AWS Advanced JDBC Driver](./development-guide/DevelopmentGuide.md#building-the-aws-advanced-jdbc-driver)
+  - [Building the AWS JDBC Driver](./development-guide/DevelopmentGuide.md#building-the-aws-advanced-jdbc-driver)
   - [Running the Tests](./development-guide/DevelopmentGuide.md#running-the-tests)
   - [Architecture](./development-guide/Architecture.md)
     - [Plugin Manager](./development-guide/PluginManager.md)

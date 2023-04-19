@@ -150,13 +150,10 @@ Windows:
 ./gradlew test
 ```
 
-For more information about running driver-specific integration tests, visit: <br />
+#### Integration Tests
+For more information on how to run the integration tests, please visit [Integration Tests](/docs/development-guide/IntegrationTests.md).
 
-[PostgreSQL](/docs/driver-specific/postgresql/postgresql.md)
-
-[MySQL](/docs/driver-specific/mysql/mysql.md)
-
-###### Sample Code
+#### Sample Code
 [Connection Test Sample Code](/docs/driver-specific/postgresql/ConnectionSample.java)
 
 ## Architecture
