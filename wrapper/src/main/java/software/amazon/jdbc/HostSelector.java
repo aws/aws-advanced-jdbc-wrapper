@@ -20,5 +20,15 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface HostSelector {
+
+  /**
+   * Selects a host with the requested role from the given host list.
+   *
+   * @param hosts a list of available hosts to pick from
+   * @param role  the desired host role - either a writer or a reader
+   * @return a host matching the requested role
+   * @throws SQLException if the host list does not contain any hosts matching the requested role or
+   *                      an error occurs while selecting a host
+   */
   HostSpec getHost(List<HostSpec> hosts, HostRole role) throws SQLException;
 }

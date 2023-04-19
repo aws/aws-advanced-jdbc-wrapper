@@ -37,7 +37,8 @@ import software.amazon.jdbc.util.StringUtils;
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {
 
-  private static final Logger LOGGER = Logger.getLogger(HikariPooledConnectionProvider.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(HikariPooledConnectionProvider.class.getName());
 
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static final Map<String, HikariDataSource> databasePools = new ConcurrentHashMap<>();
@@ -45,17 +46,42 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private final HikariPoolMapping poolMapping;
   protected int retries = 10;
 
+  /**
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * each database instance in a cluster. By maintaining internal connection pools, the driver can
+   * improve performance by reusing old {@link Connection} objects.
+   *
+   * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
+   */
   public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
     this(hikariPoolConfigurator, (hostSpec, properties) -> hostSpec.getUrl());
   }
 
   /**
-   * {@link HikariPooledConnectionProvider} constructor.
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * each database instance in a cluster. By maintaining internal connection pools, the driver can
+   * improve performance by reusing old {@link Connection} objects.
    *
-   * @param hikariPoolConfigurator A lambda that returns a {@link HikariConfig}
-   *                               object with specific Hikari configurations.
-   * @param mapping A lambda that returns a String that maps to a specific {@link HikariDataSource}
-   *                for the internal connection pool.
+   * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
+   * @param mapping                a function that returns a String key used for the internal
+   *                               connection pool keys. An internal connection pool will be
+   *                               generated for each unique key returned by this function.
    */
   public HikariPooledConnectionProvider(
       HikariPoolConfigurator hikariPoolConfigurator,
@@ -115,6 +141,18 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     databasePools.clear();
   }
 
+  /**
+   * Configures the default required settings for the internal connection pool.
+   *
+   * @param config          the {@link HikariConfig} to configure. By default, this method sets the
+   *                        jdbcUrl, exceptionOverrideClassName, username, and password. The
+   *                        HikariConfig passed to this method should be created via a
+   *                        {@link HikariPoolConfigurator}, which allows the user to specify any
+   *                        additional configuration properties.
+   * @param protocol        the driver protocol that should be used to form connections
+   * @param hostSpec        the host details used to form the connection
+   * @param connectionProps the connection properties
+   */
   protected void configurePool(
       HikariConfig config, String protocol, HostSpec hostSpec, Properties connectionProps) {
     StringBuilder urlBuilder = new StringBuilder().append(protocol).append(hostSpec.getUrl());
@@ -141,14 +179,27 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     }
   }
 
+  /**
+   * Returns the number of active connection pools.
+   *
+   * @return the number of active connection pools
+   */
   public int getHostCount() {
     return databasePools.size();
   }
 
+  /**
+   * Returns a set containing every key associated with an active connection pool.
+   *
+   * @return a set containing every key associated with an active connection pool
+   */
   public Set<String> getHosts() {
     return Collections.unmodifiableSet(databasePools.keySet());
   }
 
+  /**
+   * Logs information for every active connection pool.
+   */
   public void logConnections() {
     LOGGER.finest(() -> {
       final StringBuilder builder = new StringBuilder();

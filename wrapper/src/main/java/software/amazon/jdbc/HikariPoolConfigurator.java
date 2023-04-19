@@ -21,5 +21,20 @@ import java.util.Properties;
 
 @FunctionalInterface
 public interface HikariPoolConfigurator {
+
+  /**
+   * A function that should be passed to the {@link HikariPooledConnectionProvider} constructor to
+   * specify any extra configuration options for an internal Hikari connection pool to the given
+   * {@link HostSpec}. By default, the HikariPooledConnectionProvider will set the jdbcUrl,
+   * exceptionOverrideClassName, username, and password of the {@link HikariConfig} returned by this
+   * method. If no extra configuration options are required, this method should simply return an
+   * empty HikariConfig.
+   *
+   * @param hostSpec      the details of the host for the internal connection pool
+   * @param originalProps the properties specified for the original connection through
+   *                      {@link java.sql.DriverManager#getConnection(String, Properties)}
+   * @return a {@link HikariConfig} specifying any extra configuration options for an internal
+   *     Hikari connection pool maintained by a {@link HikariPooledConnectionProvider}
+   */
   HikariConfig configurePool(HostSpec hostSpec, Properties originalProps);
 }

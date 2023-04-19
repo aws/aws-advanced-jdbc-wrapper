@@ -31,9 +31,9 @@ public interface ConnectionProvider {
    * properties. Some ConnectionProvider implementations may not be able to handle certain URL
    * types or properties.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
-   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props    The Properties to use for the connection
+   * @param protocol the connection protocol (example "jdbc:mysql://")
+   * @param hostSpec the HostSpec containing the host-port information for the host to connect to
+   * @param props    the Properties to use for the connection
    * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
    *         return false
    */
@@ -43,33 +43,34 @@ public interface ConnectionProvider {
   /**
    * Indicates whether the selection strategy is supported by the connection provider.
    *
-   * @param role Determines if the connection provider should return a reader host or a writer host.
-   * @param strategy The selection strategy to use.
-   * @return whether the strategy is supported.
+   * @param role     determines if the connection provider should return a reader host or a writer
+   *                 host
+   * @param strategy the selection strategy to use
+   * @return whether the strategy is supported
    */
   boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy);
 
   /**
-   * Return a reader or a writer node using the specified strategy.
-   * This method should return an {@link UnsupportedOperationException} if the specified strategy is unsupported.
+   * Return a reader or a writer node using the specified strategy. This method should raise an
+   * {@link UnsupportedOperationException} if the specified strategy is unsupported.
    *
-   * @param hosts The list of {@link HostSpec} to select from.
-   * @param role Determines if the connection provider should return a writer or a reader.
-   * @param strategy The strategy determining how the {@link HostSpec} should be selected, e.g., random or round-robin.
-   * @return The {@link HostSpec} selected using the specified strategy.
-   *
-   * @throws SQLException if an error occurred while returning the hosts.
-   * @throws UnsupportedOperationException if the strategy is unsupported by the provider.
+   * @param hosts    the list of {@link HostSpec} to select from
+   * @param role     determines if the connection provider should return a writer or a reader
+   * @param strategy the strategy determining how the {@link HostSpec} should be selected, e.g.,
+   *                 random or round-robin
+   * @return the {@link HostSpec} selected using the specified strategy
+   * @throws SQLException                  if an error occurred while returning the hosts
+   * @throws UnsupportedOperationException if the strategy is unsupported by the provider
    */
   HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role,
-      @NonNull String strategy) throws SQLException;
+      @NonNull String strategy) throws SQLException, UnsupportedOperationException;
 
   /**
    * Called once per connection that needs to be created.
    *
-   * @param protocol The connection protocol (example "jdbc:mysql://")
-   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
-   * @param props    The Properties to use for the connection
+   * @param protocol the connection protocol (example "jdbc:mysql://")
+   * @param hostSpec the HostSpec containing the host-port information for the host to connect to
+   * @param props    the Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
@@ -80,8 +81,8 @@ public interface ConnectionProvider {
   /**
    * Called once per connection that needs to be created.
    *
-   * @param url The connection URL
-   * @param props The Properties to use for the connection
+   * @param url   the connection URL
+   * @param props the Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */

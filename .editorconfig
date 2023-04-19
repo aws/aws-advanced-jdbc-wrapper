@@ -42,6 +42,7 @@ ij_any_spaces_around_relational_operators = true
 ij_any_spaces_around_shift_operators = true
 ij_continuation_indent_size = 4
 ij_java_align_multiline_parameters = false
+ij_java_doc_indent_on_continuation = true
 ij_java_if_brace_force = always
 ij_java_indent_case_from_switch = true
 ij_java_line_comment_add_space = true
