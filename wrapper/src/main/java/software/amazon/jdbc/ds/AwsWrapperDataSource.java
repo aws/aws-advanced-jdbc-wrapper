@@ -68,8 +68,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   protected @Nullable String jdbcUrl;
   protected @Nullable String targetDataSourceClassName;
   protected @Nullable Properties targetDataSourceProperties;
-  protected @Nullable String jdbcProtocol;
-  protected @Nullable String serverPropertyName;
+  protected @NonNull String jdbcProtocol;
+  protected @NonNull String serverPropertyName;
   protected @Nullable String portPropertyName;
   protected @Nullable String urlPropertyName;
   protected @Nullable String databasePropertyName;

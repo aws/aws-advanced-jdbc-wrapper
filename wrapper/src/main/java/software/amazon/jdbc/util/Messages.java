@@ -16,13 +16,15 @@
 
 package software.amazon.jdbc.util;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 public class Messages {
 
   private static final ResourceBundle MESSAGES = ResourceBundle.getBundle("messages");
-  private static final Object[] emptyArgs = {};
+  public static final Object[] emptyArgs = {};
 
   /**
    * Retrieve the localized error message associated with the provided key.
@@ -30,11 +32,11 @@ public class Messages {
    * @param key The key mapped to an error message.
    * @return The associated localized error message.
    */
-  public static String get(String key) {
+  public static @NonNull String get(String key) {
     return get(key, emptyArgs);
   }
 
-  public static String get(String key, Object[] args) {
+  public static @NonNull String get(@NonNull String key, @Nullable Object @NonNull[] args) {
     final String message = MESSAGES.getString(key);
     return MessageFormat.format(message, args);
   }

@@ -33,6 +33,7 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     this(name, defaultValue, description, required, (String[]) null);
   }
 
+  @SuppressWarnings({"nullness:argument","nullness:assignment"})
   public AwsWrapperProperty(
       String name,
       @Nullable String defaultValue,
@@ -46,10 +47,12 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     this.choices = choices;
   }
 
+  @SuppressWarnings("nullness:argument")
   public @Nullable String getString(Properties properties) {
     return properties.getProperty(name, defaultValue);
   }
 
+  @SuppressWarnings("nullness:argument")
   public boolean getBoolean(Properties properties) {
     Object value = properties.get(name);
     if (value instanceof Boolean) {
@@ -58,6 +61,7 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     return Boolean.parseBoolean(properties.getProperty(name, defaultValue));
   }
 
+  @SuppressWarnings("nullness:argument")
   public int getInteger(Properties properties) {
     Object value = properties.get(name);
     if (value instanceof Integer) {
@@ -66,6 +70,7 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     return Integer.parseInt(properties.getProperty(name, defaultValue));
   }
 
+  @SuppressWarnings("nullness:argument")
   public long getLong(Properties properties) {
     Object value = properties.get(name);
     if (value instanceof Long) {
@@ -74,6 +79,7 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     return Long.parseLong(properties.getProperty(name, defaultValue));
   }
 
+  @SuppressWarnings("nullness:argument")
   public void set(Properties properties, @Nullable String value) {
     if (value == null) {
       properties.remove(name);
@@ -82,6 +88,7 @@ public class AwsWrapperProperty extends DriverPropertyInfo {
     }
   }
 
+  @SuppressWarnings("nullness:argument")
   public DriverPropertyInfo toDriverPropertyInfo(Properties properties) {
     DriverPropertyInfo propertyInfo = new DriverPropertyInfo(name, getString(properties));
     propertyInfo.required = required;

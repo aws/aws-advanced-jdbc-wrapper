@@ -36,6 +36,9 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
@@ -56,20 +59,21 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionWrapper.class.getName());
 
-  protected ConnectionPluginManager pluginManager;
-  protected PluginService pluginService;
-  protected HostListProviderService hostListProviderService;
+  protected @NotOnlyInitialized @NonNull ConnectionPluginManager pluginManager;
+  protected @NotOnlyInitialized @NonNull PluginService pluginService;
+  protected @NotOnlyInitialized @NonNull HostListProviderService hostListProviderService;
 
-  protected PluginManagerService pluginManagerService;
+  protected @NotOnlyInitialized @NonNull PluginManagerService pluginManagerService;
   protected String targetDriverProtocol; // TODO: consider moving to PluginService
   protected String originalUrl; // TODO: consider moving to PluginService
 
   protected @Nullable Throwable openConnectionStacktrace;
 
+
   public ConnectionWrapper(
-      @NonNull final Properties props,
-      @NonNull final String url,
-      @NonNull final ConnectionProvider connectionProvider)
+      final @NonNull Properties props,
+      final @NonNull String url,
+      final @NonNull ConnectionProvider connectionProvider)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -77,7 +81,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
 
     this.originalUrl = url;
-    this.targetDriverProtocol = getProtocol(url);
+    this.targetDriverProtocol = this.getProtocol(url);
 
     final ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider, this);
     final PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
@@ -89,28 +93,33 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
+
   ConnectionWrapper(
-      @NonNull final Properties props,
-      @NonNull final String url,
-      @NonNull final ConnectionPluginManager connectionPluginManager,
-      @NonNull final PluginService pluginService,
-      @NonNull final HostListProviderService hostListProviderService,
-      @NonNull final PluginManagerService pluginManagerService)
+      final @NonNull Properties props,
+      final @NonNull String url,
+      final @UnderInitialization @NonNull ConnectionPluginManager connectionPluginManager,
+      final @UnderInitialization @NonNull PluginService pluginService,
+      final @UnderInitialization @NonNull HostListProviderService hostListProviderService,
+      final @UnderInitialization @NonNull PluginManagerService pluginManagerService)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
       throw new IllegalArgumentException("url");
     }
 
+    this.originalUrl = url;
+    this.targetDriverProtocol = this.getProtocol(url);
+
     init(props, connectionPluginManager, pluginService, hostListProviderService, pluginManagerService);
   }
 
-  protected void init(
-      final Properties props,
-      final ConnectionPluginManager connectionPluginManager,
-      final PluginService pluginService,
-      final HostListProviderService hostListProviderService,
-      final PluginManagerService pluginManagerService) throws SQLException {
+  @EnsuresNonNull({"pluginManager", "this.pluginService", "this.hostListProviderService", "this.pluginManagerService"})
+  protected void init(@UnderInitialization(Object.class) ConnectionWrapper this,
+      final @NonNull Properties props,
+      final @UnderInitialization @NonNull ConnectionPluginManager connectionPluginManager,
+      final @UnderInitialization @NonNull PluginService pluginService,
+      final @UnderInitialization @NonNull HostListProviderService hostListProviderService,
+      final @UnderInitialization @NonNull PluginManagerService pluginManagerService) throws SQLException {
     this.pluginManager = connectionPluginManager;
     this.pluginService = pluginService;
     this.hostListProviderService = hostListProviderService;
@@ -139,7 +148,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
   }
 
-  protected String getProtocol(final String url) {
+  protected String getProtocol(@UnderInitialization(Object.class) ConnectionWrapper this,  final @NonNull String url) {
     final int index = url.indexOf("//");
     if (index < 0) {
       throw new IllegalArgumentException(
@@ -158,7 +167,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public void abort(final Executor executor) throws SQLException {
+  public void abort(final @NonNull Executor executor) throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -210,7 +219,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public Array createArrayOf(final String typeName, final Object[] elements) throws SQLException {
+  public Array createArrayOf(final @NonNull String typeName, final Object[] elements) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         Array.class,
         SQLException.class,

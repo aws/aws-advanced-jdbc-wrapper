@@ -22,25 +22,20 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Enumeration;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class ConnectionUrlBuilder {
 
   // Builds a connection URL of the generic format: "protocol//[hosts][/database][?properties]"
-  public static String buildUrl(String jdbcProtocol,
-      HostSpec hostSpec,
-      String serverPropertyName,
-      String portPropertyName,
-      String databasePropertyName,
+  public static String buildUrl(@NonNull String jdbcProtocol,
+      @NonNull HostSpec hostSpec,
+      @NonNull String serverPropertyName,
+      @Nullable String portPropertyName,
+      @Nullable String databasePropertyName,
       Properties props) throws SQLException {
-    if (StringUtils.isNullOrEmpty(jdbcProtocol)
-        || ((StringUtils.isNullOrEmpty(serverPropertyName)
-        || StringUtils.isNullOrEmpty(
-        props.getProperty(serverPropertyName)))
-        && hostSpec == null)) {
-      throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
-    }
 
     final Properties copy = PropertyUtils.copyProperties(props);
     final StringBuilder urlBuilder = new StringBuilder();
@@ -75,22 +70,24 @@ public class ConnectionUrlBuilder {
     final StringBuilder queryBuilder = new StringBuilder();
     final Enumeration<?> propertyNames = copy.propertyNames();
     while (propertyNames.hasMoreElements()) {
-      String propertyName = propertyNames.nextElement().toString();
+      String propertyName = (String)propertyNames.nextElement();
       if (queryBuilder.length() != 0) {
         queryBuilder.append("&");
       }
 
       if (!StringUtils.isNullOrEmpty(propertyName)) {
         final String propertyValue = copy.getProperty(propertyName);
-        try {
-          queryBuilder
-              .append(propertyName)
-              .append("=")
-              .append(URLEncoder.encode(propertyValue, StandardCharsets.UTF_8.toString()));
-        } catch (UnsupportedEncodingException e) {
-          throw new SQLException(
-              Messages.get("ConnectionUrlBuilder.failureEncodingConnectionUrl"),
-              e);
+        if (!StringUtils.isNullOrEmpty(propertyValue)) {
+          try {
+            queryBuilder
+                .append(propertyName)
+                .append("=")
+                .append(URLEncoder.encode(propertyValue, StandardCharsets.UTF_8.toString()));
+          } catch (UnsupportedEncodingException e) {
+            throw new SQLException(
+                Messages.get("ConnectionUrlBuilder.failureEncodingConnectionUrl"),
+                e);
+          }
         }
       }
     }
@@ -102,7 +99,7 @@ public class ConnectionUrlBuilder {
     return urlBuilder.toString();
   }
 
-  private static void removeProperty(String propertyKey, Properties props) {
+  private static void removeProperty(@Nullable String propertyKey, Properties props) {
     if (!StringUtils.isNullOrEmpty(propertyKey)
         && !StringUtils.isNullOrEmpty(props.getProperty(propertyKey))) {
       props.remove(propertyKey);

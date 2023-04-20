@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -183,7 +184,7 @@ public class RdsUtils {
     return "?";
   }
 
-  public String getRdsRegion(String host) {
+  public @Nullable String getRdsRegion(@Nullable String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
     }
@@ -199,7 +200,7 @@ public class RdsUtils {
     return null;
   }
 
-  public boolean isWriterClusterDns(String host) {
+  public boolean isWriterClusterDns(@Nullable String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return false;
     }
@@ -215,7 +216,7 @@ public class RdsUtils {
     return false;
   }
 
-  public boolean isReaderClusterDns(String host) {
+  public boolean isReaderClusterDns(@Nullable String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return false;
     }
@@ -231,7 +232,8 @@ public class RdsUtils {
     return false;
   }
 
-  public String getRdsClusterHostUrl(String host) {
+  @SuppressWarnings("regex:argument")
+  public @Nullable String getRdsClusterHostUrl(@Nullable String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
     }

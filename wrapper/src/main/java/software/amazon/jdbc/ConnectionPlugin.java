@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
@@ -32,28 +34,28 @@ public interface ConnectionPlugin {
   Set<String> getSubscribedMethods();
 
   <T, E extends Exception> T execute(
-      final Class<T> resultClass,
-      final Class<E> exceptionClass,
-      final Object methodInvokeOn,
-      final String methodName,
-      final JdbcCallable<T, E> jdbcMethodFunc,
-      final Object[] jdbcMethodArgs)
+      final @Nullable Class<T> resultClass,
+      final @NonNull Class<E> exceptionClass,
+      final @NonNull Object methodInvokeOn,
+      final @NonNull String methodName,
+      final @NonNull JdbcCallable<T, E> jdbcMethodFunc,
+      final @Nullable Object @NonNull[] jdbcMethodArgs)
       throws E;
 
   Connection connect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
+      final @NonNull String driverProtocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
+      final @NonNull JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException;
 
   void initHostProvider(
-      final String driverProtocol,
-      final String initialUrl,
-      final Properties props,
-      final HostListProviderService hostListProviderService,
-      final JdbcCallable<Void, SQLException> initHostProviderFunc)
+      final @NonNull String driverProtocol,
+      final @NonNull String initialUrl,
+      final @NonNull Properties props,
+      final @NonNull HostListProviderService hostListProviderService,
+      final @Nullable JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException;
 
   OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes);

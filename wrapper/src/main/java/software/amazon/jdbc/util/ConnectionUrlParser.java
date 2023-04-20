@@ -22,16 +22,18 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.regex.qual.Regex;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 
 public class ConnectionUrlParser {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionUrlParser.class.getName());
-  private static final String HOSTS_SEPARATOR = ",";
-  static final String HOST_PORT_SEPARATOR = ":";
-  static final Pattern CONNECTION_STRING_PATTERN =
+  private static final @Regex String HOSTS_SEPARATOR = ",";
+  private static final @Regex String HOST_PORT_SEPARATOR = ":";
+  private static final Pattern CONNECTION_STRING_PATTERN =
       Pattern.compile(
           "(?<protocol>[\\w(\\-)?+:%]+)\\s*" // Driver protocol. "word1:word2:..." or "word1-word2:word3:..."
               + "(?://(?<hosts>[^/?#]*))?\\s*" // Optional list of host(s) starting with // and
@@ -41,6 +43,7 @@ public class ConnectionUrlParser {
   static final Pattern EMPTY_STRING_IN_QUOTATIONS = Pattern.compile("\"(\\s*)\"");
   private static final RdsUtils rdsUtils = new RdsUtils();
 
+  @SuppressWarnings("dereference.of.nullable")
   public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection,
                                                   boolean singleWriterConnectionString) {
     final List<HostSpec> hostsList = new ArrayList<>();
@@ -105,7 +108,7 @@ public class ConnectionUrlParser {
 
   // Get the database name from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parseDatabaseFromUrl(String url) {
+  public static @Nullable String parseDatabaseFromUrl(String url) {
     String[] dbName = url.split("//")[1].split("\\?")[0].split("/");
 
     if (dbName.length == 1) {
@@ -117,7 +120,7 @@ public class ConnectionUrlParser {
 
   // Get the user name from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parseUserFromUrl(String url) {
+  public static @Nullable String parseUserFromUrl(String url) {
     final Pattern userPattern = Pattern.compile("user=(?<username>[^&]*)");
     final Matcher matcher = userPattern.matcher(url);
     if (matcher.find()) {
@@ -129,7 +132,7 @@ public class ConnectionUrlParser {
 
   // Get the password from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parsePasswordFromUrl(String url) {
+  public static @Nullable String parsePasswordFromUrl(String url) {
     final Pattern passwordPattern = Pattern.compile("password=(?<pass>[^&]*)");
     final Matcher matcher = passwordPattern.matcher(url);
     if (matcher.find()) {
@@ -170,7 +173,8 @@ public class ConnectionUrlParser {
     }
   }
 
-  private static @Nullable String urlDecode(String url) {
+  @SuppressWarnings("nullness:argument")
+  private static @Nullable String urlDecode(@NonNull String url) {
     try {
       return StringUtils.decode(url);
     } catch (IllegalArgumentException e) {

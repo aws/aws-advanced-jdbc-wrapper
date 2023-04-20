@@ -18,6 +18,7 @@ import com.github.vlsi.gradle.dsl.configureEach
 import com.github.vlsi.gradle.properties.dsl.props
 import software.amazon.jdbc.buildtools.JavaCommentPreprocessorTask
 import com.github.vlsi.gradle.publishing.dsl.simplifyXml
+import org.checkerframework.gradle.plugin.CheckerFrameworkExtension
 
 plugins {
     java
@@ -26,6 +27,8 @@ plugins {
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.stage-vote-release")
     id("com.github.vlsi.ide")
+    id("org.checkerframework")
+
 }
 
 val versionMajor = project.property("aws-advanced-jdbc-wrapper.version.major")
@@ -45,6 +48,7 @@ allprojects {
     apply(plugin = "signing")
     apply(plugin = "maven-publish")
     apply(plugin = "com.github.vlsi.ide")
+    apply(plugin = "org.checkerframework")
 
     tasks {
         configureEach<JavaCommentPreprocessorTask> {
@@ -81,6 +85,16 @@ allprojects {
         )
     }
 
+    configure<CheckerFrameworkExtension> {
+        checkers = listOf(
+            "org.checkerframework.checker.nullness.NullnessChecker",
+            "org.checkerframework.checker.optional.OptionalChecker",
+            "org.checkerframework.checker.regex.RegexChecker"
+        )
+    }
+    checkerFramework {
+        excludeTests = true
+    }
     publishing {
         publications {
             if (project.props.bool("nexus.publish", default = true)) {

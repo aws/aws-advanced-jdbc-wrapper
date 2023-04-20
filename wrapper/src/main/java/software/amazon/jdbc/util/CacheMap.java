@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.util;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +33,8 @@ public class CacheMap<K, V> {
   public CacheMap() {
   }
 
-  public V get(final K key) {
+  @SuppressWarnings("return")
+  public @Nullable V get(final @NonNull K key) {
     CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
     return cacheItem == null ? null : cacheItem.item;
   }
@@ -44,7 +47,7 @@ public class CacheMap<K, V> {
     return cacheItem.item;
   }
 
-  public void put(final K key, final V item, long itemExpirationNano) {
+  public void put(final @NonNull K key, final V item, long itemExpirationNano) {
     cache.put(key, new CacheItem<>(item, System.nanoTime() + itemExpirationNano));
     cleanUp();
   }
@@ -54,7 +57,7 @@ public class CacheMap<K, V> {
     cleanUp();
   }
 
-  public void remove(final K key) {
+  public void remove(final @NonNull K key) {
     cache.remove(key);
     cleanUp();
   }
@@ -79,7 +82,8 @@ public class CacheMap<K, V> {
     if (this.cleanupTimeNanos.get() < System.nanoTime()) {
       this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
       cache.forEach((key, value) -> {
-        if (value == null || value.isExpired()) {
+        //TODO why are we doing this ?
+        if (key != null && (value == null || value.isExpired())) {
           cache.remove(key);
         }
       });
@@ -108,7 +112,7 @@ public class CacheMap<K, V> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (this == obj) {
         return true;
       }

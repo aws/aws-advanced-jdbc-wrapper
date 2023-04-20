@@ -34,14 +34,14 @@ import software.amazon.jdbc.util.PropertyUtils;
 public class DataSourceConnectionProvider implements ConnectionProvider {
 
   private final @NonNull DataSource dataSource;
-  private final @Nullable String serverPropertyName;
+  private final @NonNull String serverPropertyName;
   private final @Nullable String portPropertyName;
   private final @Nullable String urlPropertyName;
   private final @Nullable String databasePropertyName;
 
   public DataSourceConnectionProvider(
       final @NonNull DataSource dataSource,
-      final @Nullable String serverPropertyName,
+      final @NonNull String serverPropertyName,
       final @Nullable String portPropertyName,
       final @Nullable String urlPropertyName,
       final @Nullable String databasePropertyName) {
