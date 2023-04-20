@@ -25,6 +25,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import com.zaxxer.hikari.pool.HikariProxyConnection;
+import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
@@ -37,6 +38,7 @@ import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
 import integration.refactored.container.condition.DisableOnTestDriver;
 import integration.refactored.container.condition.DisableOnTestFeature;
+import integration.refactored.container.condition.EnableOnDatabaseEngine;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
@@ -150,7 +152,6 @@ public class HikariTests {
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @TestTemplate
-  @DisableOnTestDriver(TestDriver.MARIADB)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
@@ -182,7 +183,6 @@ public class HikariTests {
    */
   @TestTemplate
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  @DisableOnTestDriver(TestDriver.MARIADB)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testEFMFailover() throws SQLException {
@@ -257,6 +257,7 @@ public class HikariTests {
     config.addDataSourceProperty("portPropertyName", "portNumber");
     config.addDataSourceProperty("serverPropertyName", "serverName");
     config.addDataSourceProperty("databasePropertyName", "databaseName");
+    config.addDataSourceProperty("urlPropertyName", "url");
 
     final Properties targetDataSourceProps = new Properties();
 
@@ -290,6 +291,12 @@ public class HikariTests {
         HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
     targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
         "1");
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+      // Connecting to Mysql database with MariaDb driver requires a configuration parameter
+      // "permitMysqlScheme"
+      targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+    }
     DriverHelper.setMonitoringConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setMonitoringSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
