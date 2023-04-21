@@ -22,7 +22,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 public class Utils {
-  public static boolean isNullOrEmpty(List<?> list) {
+  public static boolean isNullOrEmpty(final List<?> list) {
     return list == null || list.isEmpty();
   }
 
@@ -34,11 +34,11 @@ public class Utils {
       final @Nullable List<HostSpec> hosts,
       final @Nullable String messagePrefix) {
 
-    StringBuilder msg = new StringBuilder();
+    final StringBuilder msg = new StringBuilder();
     if (hosts == null) {
       msg.append("<null>");
     } else {
-      for (HostSpec host : hosts) {
+      for (final HostSpec host : hosts) {
         if (msg.length() > 0) {
           msg.append("\n");
         }

@@ -28,12 +28,12 @@ import software.amazon.jdbc.PropertyDefinition;
 public class ConnectionUrlBuilder {
 
   // Builds a connection URL of the generic format: "protocol//[hosts][/database][?properties]"
-  public static String buildUrl(String jdbcProtocol,
-      HostSpec hostSpec,
-      String serverPropertyName,
-      String portPropertyName,
-      String databasePropertyName,
-      Properties props) throws SQLException {
+  public static String buildUrl(final String jdbcProtocol,
+      final HostSpec hostSpec,
+      final String serverPropertyName,
+      final String portPropertyName,
+      final String databasePropertyName,
+      final Properties props) throws SQLException {
     if (StringUtils.isNullOrEmpty(jdbcProtocol)
         || ((StringUtils.isNullOrEmpty(serverPropertyName)
         || StringUtils.isNullOrEmpty(
@@ -75,7 +75,7 @@ public class ConnectionUrlBuilder {
     final StringBuilder queryBuilder = new StringBuilder();
     final Enumeration<?> propertyNames = copy.propertyNames();
     while (propertyNames.hasMoreElements()) {
-      String propertyName = propertyNames.nextElement().toString();
+      final String propertyName = propertyNames.nextElement().toString();
       if (queryBuilder.length() != 0) {
         queryBuilder.append("&");
       }
@@ -87,7 +87,7 @@ public class ConnectionUrlBuilder {
               .append(propertyName)
               .append("=")
               .append(URLEncoder.encode(propertyValue, StandardCharsets.UTF_8.toString()));
-        } catch (UnsupportedEncodingException e) {
+        } catch (final UnsupportedEncodingException e) {
           throw new SQLException(
               Messages.get("ConnectionUrlBuilder.failureEncodingConnectionUrl"),
               e);
@@ -102,7 +102,7 @@ public class ConnectionUrlBuilder {
     return urlBuilder.toString();
   }
 
-  private static void removeProperty(String propertyKey, Properties props) {
+  private static void removeProperty(final String propertyKey, final Properties props) {
     if (!StringUtils.isNullOrEmpty(propertyKey)
         && !StringUtils.isNullOrEmpty(props.getProperty(propertyKey))) {
       props.remove(propertyKey);

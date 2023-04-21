@@ -66,7 +66,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
   private final AuroraStaleDnsHelper helper;
   private HostListProviderService hostListProviderService;
 
-  public AuroraStaleDnsPlugin(PluginService pluginService, Properties properties) {
+  public AuroraStaleDnsPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
     this.helper = new AuroraStaleDnsHelper(this.pluginService);
   }
@@ -102,11 +102,11 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      String driverProtocol,
-      String initialUrl,
-      Properties props,
-      HostListProviderService hostListProviderService,
-      JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+      final String driverProtocol,
+      final String initialUrl,
+      final Properties props,
+      final HostListProviderService hostListProviderService,
+      final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
     this.hostListProviderService = hostListProviderService;
     if (hostListProviderService.isStaticHostListProvider()) {
       throw new SQLException(Messages.get("AuroraStaleDnsPlugin.requireDynamicProvider"));
@@ -126,7 +126,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
     try {
       this.pluginService.refreshHostList();
-    } catch (SQLException ex) {
+    } catch (final SQLException ex) {
       if (exceptionClass.isAssignableFrom(ex.getClass())) {
         throw exceptionClass.cast(ex);
       }
@@ -137,7 +137,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
     this.helper.notifyNodeListChanged(changes);
   }
 }

@@ -100,7 +100,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
-  public ConnectionPluginManager(ConnectionProvider defaultConnProvider, ConnectionWrapper connectionWrapper) {
+  public ConnectionPluginManager(
+      final ConnectionProvider defaultConnProvider, final ConnectionWrapper connectionWrapper) {
     this.defaultConnProvider = defaultConnProvider;
     this.connectionWrapper = connectionWrapper;
   }
@@ -109,11 +110,11 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      ConnectionProvider defaultConnProvider,
-      Properties props,
-      ArrayList<ConnectionPlugin> plugins,
-      ConnectionWrapper connectionWrapper,
-      PluginService pluginService) {
+      final ConnectionProvider defaultConnProvider,
+      final Properties props,
+      final ArrayList<ConnectionPlugin> plugins,
+      final ConnectionWrapper connectionWrapper,
+      final PluginService pluginService) {
     this(defaultConnProvider, props, plugins, connectionWrapper);
     this.pluginService = pluginService;
   }
@@ -122,10 +123,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      ConnectionProvider defaultConnProvider,
-      Properties props,
-      ArrayList<ConnectionPlugin> plugins,
-      ConnectionWrapper connectionWrapper) {
+      final ConnectionProvider defaultConnProvider,
+      final Properties props,
+      final ArrayList<ConnectionPlugin> plugins,
+      final ConnectionWrapper connectionWrapper) {
     this.defaultConnProvider = defaultConnProvider;
     this.props = props;
     this.plugins = plugins;
@@ -154,15 +155,15 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * @throws SQLException if errors occurred during the execution
    */
   public void init(
-      PluginService pluginService, Properties props, PluginManagerService pluginManagerService)
+      final PluginService pluginService, final Properties props, final PluginManagerService pluginManagerService)
       throws SQLException {
 
     this.props = props;
     this.pluginService = pluginService;
 
-    String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
+    final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
 
-    List<Class<? extends ConnectionPluginFactory>> pluginFactories;
+    final List<Class<? extends ConnectionPluginFactory>> pluginFactories;
 
     if (profileName != null) {
 
@@ -182,10 +183,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
         pluginCodes = DEFAULT_PLUGINS;
       }
 
-      List<String> pluginCodeList = StringUtils.split(pluginCodes, ",", true);
+      final List<String> pluginCodeList = StringUtils.split(pluginCodes, ",", true);
       pluginFactories = new ArrayList<>(pluginCodeList.size());
 
-      for (String pluginCode : pluginCodeList) {
+      for (final String pluginCode : pluginCodeList) {
         if (!pluginFactoriesByCode.containsKey(pluginCode)) {
           throw new SQLException(
               Messages.get(
@@ -198,7 +199,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     if (!pluginFactories.isEmpty()) {
       try {
-        ConnectionPluginFactory[] factories =
+        final ConnectionPluginFactory[] factories =
             WrapperUtils.loadClasses(
                     pluginFactories,
                     ConnectionPluginFactory.class,
@@ -209,11 +210,11 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
         this.plugins = new ArrayList<>(factories.length + 1);
 
-        for (ConnectionPluginFactory factory : factories) {
+        for (final ConnectionPluginFactory factory : factories) {
           this.plugins.add(factory.getInstance(this.pluginService, this.props));
         }
 
-      } catch (InstantiationException instEx) {
+      } catch (final InstantiationException instEx) {
         throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
       }
     } else {
@@ -221,8 +222,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     }
 
     // add default connection plugin to the tail
-
-    ConnectionPlugin defaultPlugin =
+    final ConnectionPlugin defaultPlugin =
         new DefaultConnectionPlugin(this.pluginService, this.defaultConnProvider, pluginManagerService);
     this.plugins.add(defaultPlugin);
   }
@@ -264,8 +264,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
     for (int i = this.plugins.size() - 1; i >= 0; i--) {
       final ConnectionPlugin plugin = this.plugins.get(i);
-      Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-      boolean isSubscribed =
+      final Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+      final boolean isSubscribed =
           pluginSubscribedMethods.contains(ALL_METHODS)
               || pluginSubscribedMethods.contains(methodName);
 
@@ -292,12 +292,12 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("pluginPipeline");
     }
 
-    for (ConnectionPlugin plugin : this.plugins) {
+    for (final ConnectionPlugin plugin : this.plugins) {
       if (plugin == skipNotificationForThisPlugin) {
         continue;
       }
-      Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-      boolean isSubscribed =
+      final Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+      final boolean isSubscribed =
           pluginSubscribedMethods.contains(ALL_METHODS)
               || pluginSubscribedMethods.contains(methodName);
 
@@ -374,9 +374,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
           () -> {
             throw new SQLException("Shouldn't be called.");
           });
-    } catch (SQLException | RuntimeException e) {
+    } catch (final SQLException | RuntimeException e) {
       throw e;
-    } catch (Exception e) {
+    } catch (final Exception e) {
       throw new SQLException(e);
     }
   }
@@ -524,8 +524,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
   }
 
   public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
-      @NonNull EnumSet<NodeChangeOptions> changes,
-      @Nullable ConnectionPlugin skipNotificationForThisPlugin) {
+      @NonNull final EnumSet<NodeChangeOptions> changes,
+      @Nullable final ConnectionPlugin skipNotificationForThisPlugin) {
 
     final EnumSet<OldConnectionSuggestedAction> result =
         EnumSet.noneOf(OldConnectionSuggestedAction.class);
@@ -533,7 +533,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     notifySubscribedPlugins(
         NOTIFY_CONNECTION_CHANGED_METHOD,
         (plugin, func) -> {
-          OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
+          final OldConnectionSuggestedAction pluginOpinion = plugin.notifyConnectionChanged(changes);
           result.add(pluginOpinion);
           return null;
         },
@@ -542,7 +542,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
     return result;
   }
 
-  public void notifyNodeListChanged(@NonNull Map<String, EnumSet<NodeChangeOptions>> changes) {
+  public void notifyNodeListChanged(@NonNull final Map<String, EnumSet<NodeChangeOptions>> changes) {
 
     notifySubscribedPlugins(
         NOTIFY_NODE_LIST_CHANGED_METHOD,

@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -44,6 +45,8 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUtils;
@@ -55,12 +58,12 @@ public class AuroraConnectionTrackerPluginTest {
   @Mock Statement mockStatement;
   @Mock ResultSet mockResultSet;
   @Mock PluginService mockPluginService;
+  @Mock(extraInterfaces = TopologyAwareDatabaseCluster.class) private Dialect mockTopologyAwareDialect;
   @Mock RdsUtils mockRdsUtils;
   @Mock OpenedConnectionTracker mockTracker;
   @Mock JdbcCallable<Connection, SQLException> mockConnectionFunction;
   @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock JdbcCallable<Void, SQLException> mockCloseOrAbortFunction;
-  private static final Object[] EMPTY_ARGS = {};
   private static final Object[] SQL_ARGS = {"sql"};
 
   private AutoCloseable closeable;
@@ -75,6 +78,8 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockStatement.executeQuery(any(String.class))).thenReturn(mockResultSet);
     when(mockRdsUtils.getRdsInstanceHostPattern(any(String.class))).thenReturn("?");
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    when(((TopologyAwareDatabaseCluster) mockTopologyAwareDialect).getNodeIdQuery()).thenReturn("any");
   }
 
   @AfterEach
@@ -119,7 +124,7 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(mockRdsUtils.isRdsInstance("writerCluster")).thenReturn(false);
     when(mockResultSet.next()).thenReturn(true, false); // ResultSet should only have 1 row.
-    when(mockResultSet.getString(any(String.class))).thenReturn("writerInstance");
+    when(mockResultSet.getString(anyInt())).thenReturn("writerInstance");
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
         mockPluginService,
@@ -153,7 +158,7 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(mockRdsUtils.isRdsInstance(endpoint)).thenReturn(false);
     when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getString(any())).thenReturn(endpoint);
+    when(mockResultSet.getString(anyInt())).thenReturn(endpoint);
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
         mockPluginService,
@@ -185,7 +190,7 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(mockRdsUtils.isRdsInstance(endpoint)).thenReturn(false);
     when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getString(any())).thenReturn("instance-1");
+    when(mockResultSet.getString(anyInt())).thenReturn("instance-1");
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
         mockPluginService,

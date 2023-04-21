@@ -30,6 +30,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUtils;
@@ -38,13 +39,8 @@ import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
-  static final String MYSQL_GET_INSTANCE_NAME_SQL = "SELECT @@aurora_server_id";
-  static final String MYSQL_GET_INSTANCE_NAME_COL = "@@aurora_server_id";
-  static final String PG_GET_INSTANCE_NAME_SQL = "SELECT aurora_db_instance_identifier()";
-  static final String PG_INSTANCE_NAME_COL = "aurora_db_instance_identifier";
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
-  private static final String PG_DRIVER_PROTOCOL = "postgresql";
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -58,12 +54,10 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   private final PluginService pluginService;
   private final Properties props;
   private final RdsUtils rdsHelper;
-  private String retrieveInstanceQuery;
-  private String instanceNameCol;
-  private String clusterInstanceTemplate = "";
+  private String clusterInstanceTemplate;
   private final OpenedConnectionTracker tracker;
 
-  AuroraConnectionTrackerPlugin(PluginService pluginService, Properties props) {
+  AuroraConnectionTrackerPlugin(final PluginService pluginService, final Properties props) {
     this(pluginService, props, new RdsUtils(), new OpenedConnectionTracker());
   }
 
@@ -84,20 +78,14 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, connectFunc);
+  public Connection connect(final String driverProtocol, final HostSpec hostSpec, final Properties props,
+      final boolean isInitialConnection, final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    return connectInternal(hostSpec, connectFunc);
   }
 
-  private Connection connectInternal(String driverProtocol, HostSpec hostSpec,
-      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    if (driverProtocol.contains(PG_DRIVER_PROTOCOL)) {
-      this.retrieveInstanceQuery = PG_GET_INSTANCE_NAME_SQL;
-      this.instanceNameCol = PG_INSTANCE_NAME_COL;
-    } else {
-      this.retrieveInstanceQuery = MYSQL_GET_INSTANCE_NAME_SQL;
-      this.instanceNameCol = MYSQL_GET_INSTANCE_NAME_COL;
-    }
+  public Connection connectInternal(
+      final HostSpec hostSpec, final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
 
     final Connection conn = connectFunc.call();
     final HostSpec currentHostSpec = (this.pluginService.getCurrentHostSpec() == null)
@@ -119,7 +107,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   @Override
   public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, forceConnectFunc);
+    return connectInternal(hostSpec, forceConnectFunc);
   }
 
   private String getInstanceEndpointPattern(final String url) {
@@ -133,17 +121,17 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public <T, E extends Exception> T execute(Class<T> resultClass, Class<E> exceptionClass,
-      Object methodInvokeOn, String methodName, JdbcCallable<T, E> jdbcMethodFunc,
-      Object[] jdbcMethodArgs) throws E {
+  public <T, E extends Exception> T execute(final Class<T> resultClass, final Class<E> exceptionClass,
+      final Object methodInvokeOn, final String methodName, final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs) throws E {
     final HostSpec originalHost = this.pluginService.getCurrentHostSpec();
     try {
-      T result = jdbcMethodFunc.call();
+      final T result = jdbcMethodFunc.call();
       if ((methodName.equals(METHOD_CLOSE) || methodName.equals(METHOD_ABORT))) {
         tracker.invalidateCurrentConnection(originalHost, this.pluginService.getCurrentConnection());
       }
       return result;
-    } catch (Exception e) {
+    } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
         tracker.invalidateAllConnections(originalHost);
         tracker.logOpenedConnections();
@@ -153,8 +141,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
-    for (String node : changes.keySet()) {
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
+    for (final String node : changes.keySet()) {
       if (isRoleChanged(changes.get(node))) {
         tracker.invalidateAllConnections(node);
       }
@@ -168,15 +156,22 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
   public String getInstanceEndpoint(final Connection conn, final HostSpec host) {
     String instanceName = "?";
-    try (Statement stmt = conn.createStatement();
-        ResultSet resultSet = stmt.executeQuery(retrieveInstanceQuery)) {
+
+    if (!(this.pluginService.getDialect() instanceof TopologyAwareDatabaseCluster)) {
+      return instanceName;
+    }
+    final TopologyAwareDatabaseCluster topologyAwareDialect =
+        (TopologyAwareDatabaseCluster) this.pluginService.getDialect();
+
+    try (final Statement stmt = conn.createStatement();
+        final ResultSet resultSet = stmt.executeQuery(topologyAwareDialect.getNodeIdQuery())) {
       if (resultSet.next()) {
-        instanceName = resultSet.getString(instanceNameCol);
+        instanceName = resultSet.getString(1);
       }
       String instanceEndpoint = getInstanceEndpointPattern(host.getHost());
       instanceEndpoint = host.isPortSpecified() ? instanceEndpoint + ":" + host.getPort() : instanceEndpoint;
       return instanceEndpoint.replace("?", instanceName);
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       return instanceName;
     }
   }

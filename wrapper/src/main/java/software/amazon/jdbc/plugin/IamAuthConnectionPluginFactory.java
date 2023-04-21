@@ -23,7 +23,7 @@ import software.amazon.jdbc.PluginService;
 
 public class IamAuthConnectionPluginFactory implements ConnectionPluginFactory {
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new IamAuthConnectionPlugin();
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+    return new IamAuthConnectionPlugin(pluginService);
   }
 }

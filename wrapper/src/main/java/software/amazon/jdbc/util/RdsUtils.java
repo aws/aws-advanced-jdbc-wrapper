@@ -139,67 +139,67 @@ public class RdsUtils {
   private static final String DOMAIN_GROUP = "domain";
   private static final String REGION_GROUP = "region";
 
-  public boolean isRdsClusterDns(String host) {
+  public boolean isRdsClusterDns(final String host) {
     return !StringUtils.isNullOrEmpty(host)
         && (AURORA_CLUSTER_PATTERN.matcher(host).find() || AURORA_CHINA_CLUSTER_PATTERN.matcher(host).find());
   }
 
-  public boolean isRdsCustomClusterDns(String host) {
+  public boolean isRdsCustomClusterDns(final String host) {
     return !StringUtils.isNullOrEmpty(host)
         && (AURORA_CUSTOM_CLUSTER_PATTERN.matcher(host).find()
         || AURORA_CHINA_CUSTOM_CLUSTER_PATTERN.matcher(host).find());
   }
 
-  public boolean isRdsDns(String host) {
+  public boolean isRdsDns(final String host) {
     return !StringUtils.isNullOrEmpty(host)
         && (AURORA_DNS_PATTERN.matcher(host).find() || AURORA_CHINA_DNS_PATTERN.matcher(host).find());
   }
 
-  public boolean isRdsInstance(String host) {
+  public boolean isRdsInstance(final String host) {
     return !StringUtils.isNullOrEmpty(host)
         && (AURORA_INSTANCE_PATTERN.matcher(host).find() || AURORA_CHINA_INSTANCE_PATTERN.matcher(host).find());
   }
 
-  public boolean isRdsProxyDns(String host) {
+  public boolean isRdsProxyDns(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return false;
     }
     return AURORA_PROXY_DNS_PATTERN.matcher(host).find() || AURORA_CHINA_PROXY_DNS_PATTERN.matcher(host).find();
   }
 
-  public String getRdsInstanceHostPattern(String host) {
+  public String getRdsInstanceHostPattern(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return "?";
     }
 
-    Matcher matcher = AURORA_DNS_PATTERN.matcher(host);
+    final Matcher matcher = AURORA_DNS_PATTERN.matcher(host);
     if (matcher.find()) {
       return "?." + matcher.group(DOMAIN_GROUP);
     }
-    Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
+    final Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
     if (chinaMatcher.find()) {
       return "?." + chinaMatcher.group(DOMAIN_GROUP);
     }
     return "?";
   }
 
-  public String getRdsRegion(String host) {
+  public String getRdsRegion(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
     }
 
-    Matcher matcher = AURORA_DNS_PATTERN.matcher(host);
+    final Matcher matcher = AURORA_DNS_PATTERN.matcher(host);
     if (matcher.find()) {
       return matcher.group(REGION_GROUP);
     }
-    Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
+    final Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
     if (chinaMatcher.find()) {
       return chinaMatcher.group(REGION_GROUP);
     }
     return null;
   }
 
-  public boolean isWriterClusterDns(String host) {
+  public boolean isWriterClusterDns(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return false;
     }
@@ -215,7 +215,7 @@ public class RdsUtils {
     return false;
   }
 
-  public boolean isReaderClusterDns(String host) {
+  public boolean isReaderClusterDns(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return false;
     }
@@ -231,16 +231,16 @@ public class RdsUtils {
     return false;
   }
 
-  public String getRdsClusterHostUrl(String host) {
+  public String getRdsClusterHostUrl(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
     }
 
-    Matcher matcher = AURORA_CLUSTER_PATTERN.matcher(host);
+    final Matcher matcher = AURORA_CLUSTER_PATTERN.matcher(host);
     if (matcher.find()) {
       return host.replaceAll(AURORA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
     }
-    Matcher chinaMatcher = AURORA_CHINA_CLUSTER_PATTERN.matcher(host);
+    final Matcher chinaMatcher = AURORA_CHINA_CLUSTER_PATTERN.matcher(host);
     if (chinaMatcher.find()) {
       return host.replaceAll(AURORA_CHINA_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
     }
@@ -255,11 +255,11 @@ public class RdsUtils {
     return !StringUtils.isNullOrEmpty(ip) && IP_V6.matcher(ip).matches() || IP_V6_COMPRESSED.matcher(ip).matches();
   }
 
-  public boolean isDnsPatternValid(String pattern) {
+  public boolean isDnsPatternValid(final String pattern) {
     return pattern.contains("?");
   }
 
-  public RdsUrlType identifyRdsType(String host) {
+  public RdsUrlType identifyRdsType(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return RdsUrlType.OTHER;
     }

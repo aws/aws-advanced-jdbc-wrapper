@@ -468,7 +468,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    HostSpec finalReaderHost = readerHost;
+    final HostSpec finalReaderHost = readerHost;
     LOGGER.finest(
         () -> Messages.get("ReadWriteSplittingPlugin.successfullyConnectedToReader",
             new Object[] {finalReaderHost.getUrl()}));

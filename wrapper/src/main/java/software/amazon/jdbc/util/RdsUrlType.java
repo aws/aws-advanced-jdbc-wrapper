@@ -28,7 +28,7 @@ public enum RdsUrlType {
   private final boolean isRds;
   private final boolean isRdsCluster;
 
-  RdsUrlType(boolean isRds, boolean isRdsCluster) {
+  RdsUrlType(final boolean isRds, final boolean isRdsCluster) {
     this.isRds = isRds;
     this.isRdsCluster = isRdsCluster;
   }

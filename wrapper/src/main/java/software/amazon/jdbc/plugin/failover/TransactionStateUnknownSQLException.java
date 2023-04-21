@@ -16,18 +16,17 @@
 
 package software.amazon.jdbc.plugin.failover;
 
-import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 
 public class TransactionStateUnknownSQLException extends FailoverSQLException {
 
-  public TransactionStateUnknownSQLException(Throwable cause) {
+  public TransactionStateUnknownSQLException(final Throwable cause) {
     super(Messages.get("Failover.transactionResolutionUnknownError"),
         SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), cause);
   }
 
-  public TransactionStateUnknownSQLException(String message) {
+  public TransactionStateUnknownSQLException(final String message) {
     super(message, SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState());
   }
 

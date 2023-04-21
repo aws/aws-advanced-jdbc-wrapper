@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -47,6 +48,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
@@ -84,6 +86,7 @@ public class ReadWriteSplittingPluginTest {
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock private PluginService mockPluginService;
+  @Mock private Dialect mockDialect;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockWriterConn;
   @Mock private Connection mockNewWriterConn;

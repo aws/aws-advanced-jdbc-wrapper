@@ -40,7 +40,7 @@ public class MonitorImpl implements Monitor {
     boolean isValid;
     long elapsedTimeNano;
 
-    ConnectionStatus(boolean isValid, long elapsedTimeNano) {
+    ConnectionStatus(final boolean isValid, final long elapsedTimeNano) {
       this.isValid = isValid;
       this.elapsedTimeNano = elapsedTimeNano;
     }
@@ -79,10 +79,10 @@ public class MonitorImpl implements Monitor {
    */
   public MonitorImpl(
       final @NonNull PluginService pluginService,
-      @NonNull HostSpec hostSpec,
-      @NonNull Properties properties,
-      long monitorDisposalTimeMillis,
-      @NonNull MonitorService monitorService) {
+      @NonNull final HostSpec hostSpec,
+      @NonNull final Properties properties,
+      final long monitorDisposalTimeMillis,
+      @NonNull final MonitorService monitorService) {
     this.pluginService = pluginService;
     this.hostSpec = hostSpec;
     this.properties = properties;
@@ -93,7 +93,7 @@ public class MonitorImpl implements Monitor {
   }
 
   @Override
-  public void startMonitoring(MonitorConnectionContext context) {
+  public void startMonitoring(final MonitorConnectionContext context) {
     final long currentTimeNano = this.getCurrentTimeNano();
     context.setStartMonitorTimeNano(currentTimeNano);
     this.contextLastUsedTimestampNano = currentTimeNano;
@@ -101,7 +101,7 @@ public class MonitorImpl implements Monitor {
   }
 
   @Override
-  public void stopMonitoring(MonitorConnectionContext context) {
+  public void stopMonitoring(final MonitorConnectionContext context) {
     if (context == null) {
       LOGGER.warning(() -> Messages.get("MonitorImpl.contextNullWarning"));
       return;
@@ -220,13 +220,13 @@ public class MonitorImpl implements Monitor {
           TimeUnit.MILLISECONDS.sleep(THREAD_SLEEP_WHEN_INACTIVE_MILLIS);
         }
       }
-    } catch (InterruptedException intEx) {
+    } catch (final InterruptedException intEx) {
       // do nothing; exit thread
     } finally {
       if (this.monitoringConn != null) {
         try {
           this.monitoringConn.close();
-        } catch (SQLException ex) {
+        } catch (final SQLException ex) {
           // ignore
         }
       }
@@ -248,7 +248,7 @@ public class MonitorImpl implements Monitor {
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
         // open a new connection
-        Properties monitoringConnProperties = PropertyUtils.copyProperties(this.properties);
+        final Properties monitoringConnProperties = PropertyUtils.copyProperties(this.properties);
 
         this.properties.stringPropertyNames().stream()
             .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
@@ -266,10 +266,10 @@ public class MonitorImpl implements Monitor {
       }
 
       startNano = this.getCurrentTimeNano();
-      boolean isValid = this.monitoringConn.isValid(
+      final boolean isValid = this.monitoringConn.isValid(
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis));
       return new ConnectionStatus(isValid, this.getCurrentTimeNano() - startNano);
-    } catch (SQLException sqlEx) {
+    } catch (final SQLException sqlEx) {
       return new ConnectionStatus(false, this.getCurrentTimeNano() - startNano);
     }
   }

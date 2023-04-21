@@ -59,6 +59,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.UnknownDialect;
 
 @Disabled
 @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
@@ -371,6 +373,13 @@ public class ConcurrencyTests {
     public boolean isLoginException(Throwable throwable) {
       return false;
     }
+
+    @Override
+    public Dialect getDialect() {
+      return new UnknownDialect();
+    }
+
+    public void updateDialect(final @NonNull Connection connection) throws SQLException { }
   }
 
   public static class TestConnection implements Connection {

@@ -32,21 +32,21 @@ public class DriverConfigurationProfiles {
   }
 
   public static void addOrReplaceProfile(
-      @NonNull String profileName,
-      @NonNull List<Class<? extends ConnectionPluginFactory>> pluginFactories) {
+      @NonNull final String profileName,
+      @NonNull final List<Class<? extends ConnectionPluginFactory>> pluginFactories) {
     profiles.put(profileName, pluginFactories);
   }
 
-  public static void remove(@NonNull String profileName) {
+  public static void remove(@NonNull final String profileName) {
     profiles.remove(profileName);
   }
 
-  public static boolean contains(@NonNull String profileName) {
+  public static boolean contains(@NonNull final String profileName) {
     return profiles.containsKey(profileName);
   }
 
   public static List<Class<? extends ConnectionPluginFactory>> getPluginFactories(
-      @NonNull String profileName) {
+      @NonNull final String profileName) {
     return profiles.get(profileName);
   }
 }

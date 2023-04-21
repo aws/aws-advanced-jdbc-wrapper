@@ -29,6 +29,7 @@ import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
@@ -111,11 +112,12 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   @Override
   public Connection connect(
       final @NonNull String protocol,
+      final @NonNull Dialect dialect,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
 
-    Properties copy = PropertyUtils.copyProperties(props);
+    final Properties copy = PropertyUtils.copyProperties(props);
 
     if (!isNullOrEmpty(this.serverPropertyName)) {
       copy.setProperty(this.serverPropertyName, hostSpec.getHost());
@@ -131,7 +133,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     }
 
     if (!isNullOrEmpty(this.urlPropertyName)) {
-      Properties urlProperties = PropertyUtils.copyProperties(copy);
+      final Properties urlProperties = PropertyUtils.copyProperties(copy);
 
       if (!isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
         // Remove the current url property to replace with a new url built from updated HostSpec and properties
@@ -163,7 +165,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
    * @throws SQLException if an error occurs
    */
   public Connection connect(final @NonNull String url, final @NonNull Properties props) throws SQLException {
-    Properties copy = PropertyUtils.copyProperties(props);
+    final Properties copy = PropertyUtils.copyProperties(props);
 
     if (!isNullOrEmpty(this.urlPropertyName)) {
       copy.setProperty(this.urlPropertyName, url);

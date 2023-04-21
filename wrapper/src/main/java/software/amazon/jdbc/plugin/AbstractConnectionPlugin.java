@@ -93,10 +93,10 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(EnumSet<NodeChangeOptions> changes) {
+  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
     return OldConnectionSuggestedAction.NO_OPINION;
   }
 
   @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {}
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {}
 }

@@ -57,6 +57,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -106,7 +107,7 @@ public class PluginBenchmarks {
         .thenReturn(mockStatement);
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(HostSpec.class), any(Properties.class)))
+    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class), any(Properties.class)))
         .thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);

@@ -96,9 +96,9 @@ public class OpenedConnectionTracker {
   }
 
   public void invalidateCurrentConnection(final HostSpec hostSpec, final Connection connection) {
-    String host = rdsUtils.isRdsInstance(hostSpec.getHost())
+    final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
         ? hostSpec.getHost()
-        : hostSpec.getAliases().stream().filter(rdsUtils::isRdsInstance).findFirst().get();
+        : hostSpec.getAliases().stream().filter(rdsUtils::isRdsInstance).findFirst().orElse(null);
 
     if (StringUtils.isNullOrEmpty(host)) {
       return;
@@ -118,7 +118,7 @@ public class OpenedConnectionTracker {
     logOpenedConnections();
   }
 
-  private void invalidateConnections(Queue<WeakReference<Connection>> connectionQueue) {
+  private void invalidateConnections(final Queue<WeakReference<Connection>> connectionQueue) {
     invalidateConnectionsExecutorService.submit(() -> {
       WeakReference<Connection> connReference;
       while ((connReference = connectionQueue.poll()) != null) {
@@ -144,7 +144,7 @@ public class OpenedConnectionTracker {
           builder.append("\t[ ");
           builder.append(key).append(":");
           builder.append("\n\t {");
-          for (WeakReference<Connection> connection : queue) {
+          for (final WeakReference<Connection> connection : queue) {
             builder.append("\n\t\t").append(connection.get());
           }
           builder.append("\n\t }\n");
@@ -155,14 +155,14 @@ public class OpenedConnectionTracker {
     });
   }
 
-  private void logConnectionQueue(final String host, Queue<WeakReference<Connection>> queue) {
+  private void logConnectionQueue(final String host, final Queue<WeakReference<Connection>> queue) {
     if (queue == null || queue.isEmpty()) {
       return;
     }
 
     final StringBuilder builder = new StringBuilder();
     builder.append(host).append("[");
-    for (WeakReference<Connection> connection : queue) {
+    for (final WeakReference<Connection> connection : queue) {
       builder.append("\n\t").append(connection.get());
     }
     builder.append("\n]");

@@ -50,6 +50,7 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
@@ -107,7 +108,7 @@ public class ConnectionPluginManagerBenchmarks {
 
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(HostSpec.class), any(Properties.class)))
+    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class), any(Properties.class)))
         .thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);

@@ -23,9 +23,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.util.PropertyUtils;
 
 /**
@@ -97,6 +99,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
   @Override
   public Connection connect(
       final @NonNull String protocol,
+      final @NonNull Dialect dialect,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
@@ -109,9 +112,20 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     // In the case where we are connecting to MySQL using MariaDB driver,
     // we need to append "?permitMysqlScheme" to the connection URL
-    if (protocol.startsWith("jdbc:mysql:")
-        && props.stringPropertyNames().contains("permitMysqlScheme")) {
-      urlBuilder.append("?permitMysqlScheme");
+    // Such logic is controlled by dialect.
+    final Set<String> propertiesToUrl = dialect.appendPropertiesToUrl();
+    if (propertiesToUrl != null) {
+      boolean isFirstParameter = true;
+      for (final String propertyName : propertiesToUrl) {
+        if (props.stringPropertyNames().contains(propertyName)) {
+          if (isFirstParameter) {
+            urlBuilder.append("?").append(propertyName);
+            isFirstParameter = false;
+          } else {
+            urlBuilder.append("&").append(propertyName);
+          }
+        }
+      }
     }
 
     LOGGER.finest(() -> "Connecting to " + urlBuilder);
@@ -128,7 +142,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
-  public Connection connect(@NonNull String url, @NonNull Properties props) throws SQLException {
+  public Connection connect(@NonNull final String url, @NonNull final Properties props) throws SQLException {
 
     LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);

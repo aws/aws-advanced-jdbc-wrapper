@@ -34,7 +34,7 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
       Collections.singletonList("initHostProvider")));
   private final PluginService pluginService;
 
-  public AuroraHostListConnectionPlugin(PluginService pluginService, Properties properties) {
+  public AuroraHostListConnectionPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
   }
 
@@ -45,11 +45,11 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void initHostProvider(
-      String driverProtocol,
-      String initialUrl,
-      Properties props,
-      HostListProviderService hostListProviderService,
-      JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
+      final String driverProtocol,
+      final String initialUrl,
+      final Properties props,
+      final HostListProviderService hostListProviderService,
+      final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
     final HostListProvider provider = hostListProviderService.getHostListProvider();
     if (provider == null) {
       initHostProviderFunc.call();

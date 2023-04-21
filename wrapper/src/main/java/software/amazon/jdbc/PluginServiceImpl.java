@@ -32,6 +32,9 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.dialect.DialectProvider;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
@@ -56,13 +59,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private boolean isInTransaction;
   private boolean explicitReadOnly;
   private final ExceptionManager exceptionManager;
+  protected final DialectProvider dialectProvider;
+  protected Dialect dialect;
 
   public PluginServiceImpl(
       @NonNull final ConnectionPluginManager pluginManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol) {
-    this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol);
+      final String targetDriverProtocol) throws SQLException {
+    this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol,
+        new DialectManager());
   }
 
   public PluginServiceImpl(
@@ -70,12 +76,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol) {
+      final String targetDriverProtocol,
+      @NonNull final DialectProvider dialectProvider) throws SQLException {
     this.pluginManager = pluginManager;
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
     this.exceptionManager = exceptionManager;
+    this.dialectProvider = dialectProvider;
+    this.dialect = this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
   }
 
   @Override
@@ -421,7 +430,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {
-    for (HostSpec host : hosts) {
+    for (final HostSpec host : hosts) {
       final HostAvailability availability = hostAvailabilityExpiringCache.get(host.getUrl());
       if (availability != null) {
         host.setAvailability(availability);
@@ -448,23 +457,36 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isNetworkException(Throwable throwable) {
-    return this.exceptionManager.isNetworkException(this.driverProtocol, throwable);
+  public boolean isNetworkException(final Throwable throwable) {
+    return this.exceptionManager.isNetworkException(this.dialect, throwable);
   }
 
   @Override
-  public boolean isNetworkException(String sqlState) {
-    return this.exceptionManager.isNetworkException(this.driverProtocol, sqlState);
+  public boolean isNetworkException(final String sqlState) {
+    return this.exceptionManager.isNetworkException(this.dialect, sqlState);
   }
 
   @Override
-  public boolean isLoginException(Throwable throwable) {
-    return this.exceptionManager.isLoginException(this.driverProtocol, throwable);
+  public boolean isLoginException(final Throwable throwable) {
+    return this.exceptionManager.isLoginException(this.dialect, throwable);
 
   }
 
   @Override
-  public boolean isLoginException(String sqlState) {
-    return this.exceptionManager.isLoginException(this.driverProtocol, sqlState);
+  public boolean isLoginException(final String sqlState) {
+    return this.exceptionManager.isLoginException(this.dialect, sqlState);
   }
+
+  @Override
+  public Dialect getDialect() {
+    return this.dialect;
+  }
+
+  public void updateDialect(final @NonNull Connection connection) throws SQLException {
+    this.dialect = this.dialectProvider.getDialect(
+        this.originalUrl,
+        this.initialConnectionHostSpec,
+        connection);
+  }
+
 }

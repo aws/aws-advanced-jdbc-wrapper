@@ -53,7 +53,7 @@ public class MonitorThreadContainer {
     return getInstance(Executors::newCachedThreadPool);
   }
 
-  static MonitorThreadContainer getInstance(ExecutorServiceInitializer executorServiceInitializer) {
+  static MonitorThreadContainer getInstance(final ExecutorServiceInitializer executorServiceInitializer) {
     if (singleton == null) {
       LOCK_OBJECT.lock();
       try {
@@ -92,7 +92,7 @@ public class MonitorThreadContainer {
     }
   }
 
-  private MonitorThreadContainer(ExecutorServiceInitializer executorServiceInitializer) {
+  private MonitorThreadContainer(final ExecutorServiceInitializer executorServiceInitializer) {
     this.threadPool = executorServiceInitializer.createExecutorService();
   }
 
@@ -108,18 +108,18 @@ public class MonitorThreadContainer {
     return threadPool;
   }
 
-  Monitor getMonitor(String node) {
+  Monitor getMonitor(final String node) {
     return monitorMap.get(node);
   }
 
-  Monitor getOrCreateMonitor(Set<String> nodeKeys, Supplier<Monitor> monitorSupplier) {
+  Monitor getOrCreateMonitor(final Set<String> nodeKeys, final Supplier<Monitor> monitorSupplier) {
     if (nodeKeys.isEmpty()) {
       throw new IllegalArgumentException(Messages.get("MonitorThreadContainer.emptyNodeKeys"));
     }
 
     Monitor monitor = null;
     String anyNodeKey = null;
-    for (String nodeKey : nodeKeys) {
+    for (final String nodeKey : nodeKeys) {
       monitor = monitorMap.get(nodeKey);
       anyNodeKey = nodeKey;
       if (monitor != null) {
@@ -144,7 +144,7 @@ public class MonitorThreadContainer {
                   });
             }
 
-            Monitor newMonitor = monitorSupplier.get();
+            final Monitor newMonitor = monitorSupplier.get();
             addTask(newMonitor);
 
             return newMonitor;
@@ -155,13 +155,13 @@ public class MonitorThreadContainer {
     return monitor;
   }
 
-  private void populateMonitorMap(Set<String> nodeKeys, Monitor monitor) {
-    for (String nodeKey : nodeKeys) {
+  private void populateMonitorMap(final Set<String> nodeKeys, final Monitor monitor) {
+    for (final String nodeKey : nodeKeys) {
       monitorMap.putIfAbsent(nodeKey, monitor);
     }
   }
 
-  void addTask(Monitor monitor) {
+  void addTask(final Monitor monitor) {
     tasksMap.computeIfAbsent(monitor, k -> threadPool.submit(monitor));
   }
 
@@ -171,7 +171,7 @@ public class MonitorThreadContainer {
    *
    * @param monitor The monitor to reset.
    */
-  public void resetResource(Monitor monitor) {
+  public void resetResource(final Monitor monitor) {
     if (monitor == null) {
       return;
     }
@@ -186,7 +186,7 @@ public class MonitorThreadContainer {
    *
    * @param monitor The {@link MonitorImpl} representing a monitoring thread.
    */
-  public void releaseResource(Monitor monitor) {
+  public void releaseResource(final Monitor monitor) {
     if (monitor == null) {
       return;
     }

@@ -42,7 +42,7 @@ public class ConnectionUrlParser {
   private static final RdsUtils rdsUtils = new RdsUtils();
 
   public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection,
-                                                  boolean singleWriterConnectionString) {
+                                                  final boolean singleWriterConnectionString) {
     final List<HostSpec> hostsList = new ArrayList<>();
     final Matcher matcher = CONNECTION_STRING_PATTERN.matcher(initialConnection);
     if (!matcher.matches()) {
@@ -72,18 +72,18 @@ public class ConnectionUrlParser {
 
   public static HostSpec parseHostPortPair(final String url) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
-    RdsUrlType urlType = rdsUtils.identifyRdsType(hostPortPair[0]);
+    final RdsUrlType urlType = rdsUtils.identifyRdsType(hostPortPair[0]);
     // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of WRITER
-    HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
+    final HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
     return getHostSpec(hostPortPair, hostRole);
   }
 
-  public static HostSpec parseHostPortPair(final String url, HostRole role) {
+  public static HostSpec parseHostPortPair(final String url, final HostRole role) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
     return getHostSpec(hostPortPair, role);
   }
 
-  private static HostSpec getHostSpec(String[] hostPortPair, HostRole hostRole) {
+  private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole) {
     if (hostPortPair.length > 1) {
       final String[] port = hostPortPair[1].split("/");
       int portValue = parsePortAsInt(hostPortPair[1]);
@@ -95,18 +95,18 @@ public class ConnectionUrlParser {
     return new HostSpec(hostPortPair[0], HostSpec.NO_PORT, hostRole);
   }
 
-  private static int parsePortAsInt(String port) {
+  private static int parsePortAsInt(final String port) {
     try {
       return Integer.parseInt(port);
-    } catch (NumberFormatException e) {
+    } catch (final NumberFormatException e) {
       return HostSpec.NO_PORT;
     }
   }
 
   // Get the database name from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parseDatabaseFromUrl(String url) {
-    String[] dbName = url.split("//")[1].split("\\?")[0].split("/");
+  public static String parseDatabaseFromUrl(final String url) {
+    final String[] dbName = url.split("//")[1].split("\\?")[0].split("/");
 
     if (dbName.length == 1) {
       return null;
@@ -117,7 +117,7 @@ public class ConnectionUrlParser {
 
   // Get the user name from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parseUserFromUrl(String url) {
+  public static String parseUserFromUrl(final String url) {
     final Pattern userPattern = Pattern.compile("user=(?<username>[^&]*)");
     final Matcher matcher = userPattern.matcher(url);
     if (matcher.find()) {
@@ -129,7 +129,7 @@ public class ConnectionUrlParser {
 
   // Get the password from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static String parsePasswordFromUrl(String url) {
+  public static String parsePasswordFromUrl(final String url) {
     final Pattern passwordPattern = Pattern.compile("password=(?<pass>[^&]*)");
     final Matcher matcher = passwordPattern.matcher(url);
     if (matcher.find()) {
@@ -141,14 +141,14 @@ public class ConnectionUrlParser {
 
   // Get the properties from a given url of the generic format:
   // "protocol//[hosts][/database][?properties]"
-  public static void parsePropertiesFromUrl(String url, Properties props) {
+  public static void parsePropertiesFromUrl(final String url, final Properties props) {
     String[] urlParameters = url.split("\\?", 2);
     if (urlParameters.length == 1) {
       return;
     }
 
-    String[] listOfParameters = urlParameters[1].split("&");
-    for (String param : listOfParameters) {
+    final String[] listOfParameters = urlParameters[1].split("&");
+    for (final String param : listOfParameters) {
       final String[] currentParameter = param.split("=");
       String currentParameterValue = "";
 
@@ -170,10 +170,10 @@ public class ConnectionUrlParser {
     }
   }
 
-  private static @Nullable String urlDecode(String url) {
+  private static @Nullable String urlDecode(final String url) {
     try {
       return StringUtils.decode(url);
-    } catch (IllegalArgumentException e) {
+    } catch (final IllegalArgumentException e) {
       LOGGER.fine(
           () -> Messages.get(
               "Driver.urlParsingFailed",

@@ -16,6 +16,7 @@
 
 package integration.container.aurora;
 
+import java.sql.SQLException;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.ConnectionPluginManager;
@@ -26,7 +27,7 @@ public class TestPluginServiceImpl extends PluginServiceImpl {
   public TestPluginServiceImpl(
       @NonNull ConnectionPluginManager pluginManager,
       @NonNull Properties props,
-      @NonNull String originalUrl, String targetDriverProtocol) {
+      @NonNull String originalUrl, String targetDriverProtocol) throws SQLException {
     super(pluginManager, props, originalUrl, targetDriverProtocol);
   }
 
