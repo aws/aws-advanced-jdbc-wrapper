@@ -68,6 +68,7 @@ import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
+import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
@@ -617,8 +618,8 @@ public class AuroraTestUtility {
 
     failoverClusterToTarget(clusterId, targetWriterId);
 
-    int remainingAttempts = 3;
-    while (!hasWriterChanged(initialWriterId, TimeUnit.MINUTES.toNanos(3))) {
+    int remainingAttempts = 5;
+    while (!hasWriterChanged(initialWriterId, TimeUnit.MINUTES.toNanos(5))) {
       // if writer is not changed, try triggering failover again
       remainingAttempts--;
       if (remainingAttempts == 0) {
@@ -662,19 +663,27 @@ public class AuroraTestUtility {
       throws InterruptedException {
     waitUntilClusterHasRightState(clusterId);
 
-    while (true) {
+    int remainingAttempts = 10;
+    while (--remainingAttempts > 0) {
       try {
-        rdsClient.failoverDBCluster(
+        FailoverDbClusterResponse response = rdsClient.failoverDBCluster(
             (builder) ->
                 builder
                     .dbClusterIdentifier(clusterId)
                     .targetDBInstanceIdentifier(targetInstanceId));
-        break;
+        if (!response.sdkHttpResponse().isSuccessful()) {
+          LOGGER.finest(String.format("failoverDBCluster response: %d, %s",
+              response.sdkHttpResponse().statusCode(),
+              response.sdkHttpResponse().statusText()));
+        } else {
+          return;
+        }
       } catch (final Exception e) {
         LOGGER.finest(String.format("failoverDBCluster request to %s failed: %s", targetInstanceId, e.getMessage()));
         TimeUnit.MILLISECONDS.sleep(1000);
       }
     }
+    throw new RuntimeException("Failed to request a cluster failover.");
   }
 
   protected String hostToIP(String hostname) {

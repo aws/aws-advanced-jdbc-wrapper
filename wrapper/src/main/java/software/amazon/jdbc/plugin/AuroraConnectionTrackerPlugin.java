@@ -81,7 +81,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection, final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     final Connection conn = connectFunc.call();
-    final HostSpec currentHostSpec = (this.pluginService.getCurrentHostSpec() == null)
+    final HostSpec currentHostSpec = (this.pluginService.getCurrentHostSpec() != null)
         ? this.pluginService.getCurrentHostSpec()
         : hostSpec;
 
