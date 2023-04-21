@@ -24,7 +24,7 @@ import software.amazon.jdbc.PluginService;
 public class DataCacheConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
     return new DataCacheConnectionPlugin(props);
   }
 }

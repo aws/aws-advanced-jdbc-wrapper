@@ -16,14 +16,11 @@
 
 package software.amazon.jdbc.exceptions;
 
+import software.amazon.jdbc.dialect.Dialect;
+
 public class ExceptionManager {
 
   protected static ExceptionHandler customHandler;
-
-  private static GenericExceptionHandler genericExceptionHandler;
-  private static MySQLExceptionHandler mySQLExceptionHandler;
-  private static PgExceptionHandler pgExceptionHandler;
-  private static MariaDBExceptionHandler mariaDBExceptionHandler;
 
   public static void setCustomHandler(final ExceptionHandler exceptionHandler) {
     customHandler = exceptionHandler;
@@ -33,72 +30,27 @@ public class ExceptionManager {
     customHandler = null;
   }
 
-  public boolean isLoginException(final String driverProtocol, final Throwable throwable) {
-    final ExceptionHandler handler = getHandler(driverProtocol);
+  public boolean isLoginException(final Dialect dialect, final Throwable throwable) {
+    final ExceptionHandler handler = getHandler(dialect);
     return handler.isLoginException(throwable);
   }
 
-  public boolean isLoginException(final String driverProtocol, final String sqlState) {
-    final ExceptionHandler handler = getHandler(driverProtocol);
+  public boolean isLoginException(final Dialect dialect, final String sqlState) {
+    final ExceptionHandler handler = getHandler(dialect);
     return handler.isLoginException(sqlState);
   }
 
-  public boolean isNetworkException(final String driverProtocol, final Throwable throwable) {
-    final ExceptionHandler handler = getHandler(driverProtocol);
+  public boolean isNetworkException(final Dialect dialect, final Throwable throwable) {
+    final ExceptionHandler handler = getHandler(dialect);
     return handler.isNetworkException(throwable);
   }
 
-  public boolean isNetworkException(final String driverProtocol, final String sqlState) {
-    final ExceptionHandler handler = getHandler(driverProtocol);
+  public boolean isNetworkException(final Dialect dialect, final String sqlState) {
+    final ExceptionHandler handler = getHandler(dialect);
     return handler.isNetworkException(sqlState);
   }
 
-  private ExceptionHandler getHandler(final String driverProtocol) {
-    if (customHandler != null) {
-      return customHandler;
-    }
-
-    if (driverProtocol == null) {
-      return getGenericExceptionHandler();
-    }
-
-    if (driverProtocol.contains(":mysql:")) {
-      return getMySQLExceptionHandler();
-    }
-
-    if (driverProtocol.contains(":mariadb:")) {
-      return getMariaDBExceptionHandler();
-    }
-
-    if (driverProtocol.contains(":postgresql:")) {
-      return getPgExceptionHandler();
-    }
-
-    return getGenericExceptionHandler();
-  }
-
-  private GenericExceptionHandler getGenericExceptionHandler() {
-    if (genericExceptionHandler == null) {
-      genericExceptionHandler = new GenericExceptionHandler();
-    }
-    return genericExceptionHandler;
-  }
-
-  private MySQLExceptionHandler getMySQLExceptionHandler() {
-    if (mySQLExceptionHandler == null) {
-      mySQLExceptionHandler = new MySQLExceptionHandler();
-    }
-    return mySQLExceptionHandler;
-  }
-
-  private PgExceptionHandler getPgExceptionHandler() {
-    if (pgExceptionHandler == null) {
-      pgExceptionHandler = new PgExceptionHandler();
-    }
-    return pgExceptionHandler;
-  }
-
-  private MariaDBExceptionHandler getMariaDBExceptionHandler() {
-    return mariaDBExceptionHandler;
+  private ExceptionHandler getHandler(final Dialect dialect) {
+    return customHandler != null ? customHandler : dialect.getExceptionHandler();
   }
 }

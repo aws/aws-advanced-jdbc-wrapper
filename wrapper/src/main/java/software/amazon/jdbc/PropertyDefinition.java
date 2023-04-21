@@ -77,7 +77,7 @@ public class PropertyDefinition {
               AwsWrapperProperty prop = null;
               try {
                 prop = (AwsWrapperProperty) f.get(AwsWrapperProperty.class);
-              } catch (IllegalArgumentException | IllegalAccessException ex) {
+              } catch (final IllegalArgumentException | IllegalAccessException ex) {
                 // ignore exception
               }
 
@@ -87,7 +87,7 @@ public class PropertyDefinition {
             });
   }
 
-  public static @Nullable AwsWrapperProperty byName(String name) {
+  public static @Nullable AwsWrapperProperty byName(final String name) {
     return PROPS_BY_NAME.get(name);
   }
 
@@ -95,13 +95,13 @@ public class PropertyDefinition {
     return PROPS_BY_NAME.values();
   }
 
-  public static void removeAll(Properties props) {
+  public static void removeAll(final Properties props) {
     PROPS_BY_NAME.keySet().forEach(props::remove);
   }
 
-  public static void removeAllExceptCredentials(Properties props) {
-    String user = props.getProperty(PropertyDefinition.USER.name, null);
-    String password = props.getProperty(PropertyDefinition.PASSWORD.name, null);
+  public static void removeAllExceptCredentials(final Properties props) {
+    final String user = props.getProperty(PropertyDefinition.USER.name, null);
+    final String password = props.getProperty(PropertyDefinition.PASSWORD.name, null);
 
     PROPS_BY_NAME.keySet().forEach(props::remove);
 

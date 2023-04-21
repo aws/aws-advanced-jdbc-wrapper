@@ -55,11 +55,11 @@ public class MonitorConnectionContext {
    *                                       node as unhealthy.
    */
   public MonitorConnectionContext(
-      Monitor monitor,
-      Connection connectionToAbort,
-      long failureDetectionTimeMillis,
-      long failureDetectionIntervalMillis,
-      long failureDetectionCount) {
+      final Monitor monitor,
+      final Connection connectionToAbort,
+      final long failureDetectionTimeMillis,
+      final long failureDetectionIntervalMillis,
+      final long failureDetectionCount) {
     this.monitor = monitor;
     this.connectionToAbort = connectionToAbort;
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
@@ -67,7 +67,7 @@ public class MonitorConnectionContext {
     this.failureDetectionCount = failureDetectionCount;
   }
 
-  void setStartMonitorTimeNano(long startMonitorTimeNano) {
+  void setStartMonitorTimeNano(final long startMonitorTimeNano) {
     this.startMonitorTimeNano = startMonitorTimeNano;
     this.expectedActiveMonitoringStartTimeNano = startMonitorTimeNano
         + TimeUnit.MILLISECONDS.toNanos(this.failureDetectionTimeMillis);
@@ -93,11 +93,11 @@ public class MonitorConnectionContext {
     return this.monitor;
   }
 
-  void setFailureCount(long failureCount) {
+  void setFailureCount(final long failureCount) {
     this.failureCount = failureCount;
   }
 
-  void setInvalidNodeStartTimeNano(long invalidNodeStartTimeNano) {
+  void setInvalidNodeStartTimeNano(final long invalidNodeStartTimeNano) {
     this.invalidNodeStartTimeNano = invalidNodeStartTimeNano;
   }
 
@@ -117,7 +117,7 @@ public class MonitorConnectionContext {
     return this.nodeUnhealthy;
   }
 
-  void setNodeUnhealthy(boolean nodeUnhealthy) {
+  void setNodeUnhealthy(final boolean nodeUnhealthy) {
     this.nodeUnhealthy = nodeUnhealthy;
   }
 
@@ -136,7 +136,7 @@ public class MonitorConnectionContext {
 
     try {
       this.connectionToAbort.close();
-    } catch (SQLException sqlEx) {
+    } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(
           () -> Messages.get(
@@ -155,10 +155,10 @@ public class MonitorConnectionContext {
    * @param isValid                  Whether the connection is valid.
    */
   public void updateConnectionStatus(
-      String hostName,
-      long statusCheckStartTimeNano,
-      long statusCheckEndTimeNano,
-      boolean isValid) {
+      final String hostName,
+      final long statusCheckStartTimeNano,
+      final long statusCheckEndTimeNano,
+      final boolean isValid) {
 
     if (!this.activeContext) {
       return;
@@ -189,10 +189,10 @@ public class MonitorConnectionContext {
    * @param statusCheckEndNano   The time when connection status check ended in nanos.
    */
   void setConnectionValid(
-      String hostName,
-      boolean connectionValid,
-      long statusCheckStartNano,
-      long statusCheckEndNano) {
+      final String hostName,
+      final boolean connectionValid,
+      final long statusCheckStartNano,
+      final long statusCheckEndNano) {
 
     if (!connectionValid) {
       this.failureCount++;

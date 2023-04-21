@@ -34,21 +34,21 @@ public class WriterFailoverResult {
   private final SQLException exception;
 
   public WriterFailoverResult(
-      boolean isConnected,
-      boolean isNewHost,
-      List<HostSpec> topology,
-      Connection newConnection,
-      String taskName) {
+      final boolean isConnected,
+      final boolean isNewHost,
+      final List<HostSpec> topology,
+      final Connection newConnection,
+      final String taskName) {
     this(isConnected, isNewHost, topology, newConnection, taskName, null);
   }
 
   public WriterFailoverResult(
-      boolean isConnected,
-      boolean isNewHost,
-      List<HostSpec> topology,
-      Connection newConnection,
-      String taskName,
-      SQLException exception) {
+      final boolean isConnected,
+      final boolean isNewHost,
+      final List<HostSpec> topology,
+      final Connection newConnection,
+      final String taskName,
+      final SQLException exception) {
     this.isConnected = isConnected;
     this.isNewHost = isNewHost;
     this.topology = topology;

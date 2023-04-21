@@ -34,11 +34,11 @@ public class PropertyUtils {
       return;
     }
 
-    List<Method> methods = Arrays.asList(target.getClass().getMethods());
-    Enumeration<?> propertyNames = properties.propertyNames();
+    final List<Method> methods = Arrays.asList(target.getClass().getMethods());
+    final Enumeration<?> propertyNames = properties.propertyNames();
     while (propertyNames.hasMoreElements()) {
-      Object key = propertyNames.nextElement();
-      String propName = key.toString();
+      final Object key = propertyNames.nextElement();
+      final String propName = key.toString();
       Object propValue = properties.getProperty(propName);
       if (propValue == null) {
         propValue = properties.get(key);
@@ -56,7 +56,7 @@ public class PropertyUtils {
     Method writeMethod = null;
     String methodName = "set" + propName.substring(0, 1).toUpperCase() + propName.substring(1);
 
-    for (Method method : methods) {
+    for (final Method method : methods) {
       if (method.getName().equals(methodName) && method.getParameterTypes().length == 1) {
         writeMethod = method;
         break;
@@ -65,7 +65,7 @@ public class PropertyUtils {
 
     if (writeMethod == null) {
       methodName = "set" + propName.toUpperCase();
-      for (Method method : methods) {
+      for (final Method method : methods) {
         if (method.getName().equals(methodName) && method.getParameterTypes().length == 1) {
           writeMethod = method;
           break;
@@ -83,7 +83,7 @@ public class PropertyUtils {
     }
 
     try {
-      Class<?> paramClass = writeMethod.getParameterTypes()[0];
+      final Class<?> paramClass = writeMethod.getParameterTypes()[0];
       if (paramClass == String.class) {
         writeMethod.invoke(target, propValue.toString());
       } else if (paramClass == int.class) {
@@ -95,14 +95,14 @@ public class PropertyUtils {
       } else {
         writeMethod.invoke(target, propValue);
       }
-    } catch (InvocationTargetException ex) {
+    } catch (final InvocationTargetException ex) {
       LOGGER.warning(
           () ->
               Messages.get(
                   "PropertyUtils.failedToSetPropertyWithReason",
                   new Object[] {propName, target.getClass(), ex.getCause().getMessage()}));
       throw new RuntimeException(ex.getCause());
-    } catch (Exception e) {
+    } catch (final Exception e) {
       LOGGER.warning(
           () ->
               Messages.get(
@@ -112,21 +112,21 @@ public class PropertyUtils {
   }
 
   public static @NonNull Properties copyProperties(final Properties props) {
-    Properties copy = new Properties();
+    final Properties copy = new Properties();
 
     if (props == null) {
       return copy;
     }
 
-    for (Map.Entry<Object, Object> entry : props.entrySet()) {
+    for (final Map.Entry<Object, Object> entry : props.entrySet()) {
       copy.setProperty(entry.getKey().toString(), entry.getValue().toString());
     }
     return copy;
   }
 
   public static String logProperties(final Properties props, final String caption) {
-    StringBuilder sb = new StringBuilder();
-    for (Object key : props.keySet()) {
+    final StringBuilder sb = new StringBuilder();
+    for (final Object key : props.keySet()) {
       if (sb.length() > 0) {
         sb.append("\n");
       }

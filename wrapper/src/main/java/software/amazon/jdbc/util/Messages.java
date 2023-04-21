@@ -30,11 +30,11 @@ public class Messages {
    * @param key The key mapped to an error message.
    * @return The associated localized error message.
    */
-  public static String get(String key) {
+  public static String get(final String key) {
     return get(key, emptyArgs);
   }
 
-  public static String get(String key, Object[] args) {
+  public static String get(final String key, final Object[] args) {
     final String message = MESSAGES.getString(key);
     return MessageFormat.format(message, args);
   }

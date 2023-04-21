@@ -20,11 +20,11 @@ import software.amazon.jdbc.util.SqlState;
 
 public class FailoverFailedSQLException extends FailoverSQLException {
 
-  public FailoverFailedSQLException(String message, Throwable cause) {
+  public FailoverFailedSQLException(final String message, final Throwable cause) {
     super(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), cause);
   }
 
-  public FailoverFailedSQLException(String message) {
+  public FailoverFailedSQLException(final String message) {
     super(message, SqlState.CONNECTION_UNABLE_TO_CONNECT.getState());
   }
 }

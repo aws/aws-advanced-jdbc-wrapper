@@ -34,10 +34,10 @@ import software.amazon.jdbc.util.PropertyUtils;
 public class AwsWrapperDataSourceFactory implements ObjectFactory {
   @Override
   public Object getObjectInstance(
-      Object obj,
-      Name name,
-      Context nameCtx,
-      Hashtable<?, ?> environment)
+      final Object obj,
+      final Name name,
+      final Context nameCtx,
+      final Hashtable<?, ?> environment)
       throws Exception {
     final List<String> dataSourcePropertyNames = Arrays.asList(
         "user",
@@ -50,20 +50,20 @@ public class AwsWrapperDataSourceFactory implements ObjectFactory {
         "urlPropertyName",
         "databasePropertyName");
 
-    Reference reference = (Reference) obj;
+    final Reference reference = (Reference) obj;
 
-    AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    List<Method> dsMethods = Arrays.asList(AwsWrapperDataSource.class.getMethods());
-    for (String dataSourceProperty : dataSourcePropertyNames) {
-      String referencePropertyContent = (String) reference.get(dataSourceProperty).getContent();
+    final AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    final List<Method> dsMethods = Arrays.asList(AwsWrapperDataSource.class.getMethods());
+    for (final String dataSourceProperty : dataSourcePropertyNames) {
+      final String referencePropertyContent = (String) reference.get(dataSourceProperty).getContent();
       if (!isNullOrEmpty(referencePropertyContent)) {
         PropertyUtils.setPropertyOnTarget(ds, dataSourceProperty, referencePropertyContent, dsMethods);
       }
     }
 
-    List<RefAddr> refAddrList = Collections.list(reference.getAll());
-    Properties props = new Properties();
-    for (RefAddr refAddr : refAddrList) {
+    final List<RefAddr> refAddrList = Collections.list(reference.getAll());
+    final Properties props = new Properties();
+    for (final RefAddr refAddr : refAddrList) {
       if (!dataSourcePropertyNames.contains(refAddr.getType())) {
         props.setProperty(refAddr.getType(), (String) refAddr.getContent());
       }

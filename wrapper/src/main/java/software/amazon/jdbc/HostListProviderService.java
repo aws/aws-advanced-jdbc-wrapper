@@ -17,6 +17,7 @@
 package software.amazon.jdbc;
 
 import java.sql.Connection;
+import software.amazon.jdbc.dialect.Dialect;
 
 public interface HostListProviderService {
 
@@ -33,4 +34,6 @@ public interface HostListProviderService {
   Connection getCurrentConnection();
 
   HostSpec getCurrentHostSpec();
+
+  Dialect getDialect();
 }

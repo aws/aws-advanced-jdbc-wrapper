@@ -192,11 +192,10 @@ public class DriverHelper {
   public static String getHostnameSql(DatabaseEngine databaseEngine) {
     switch (databaseEngine) {
       case MYSQL:
+      case MARIADB:
         return "SELECT @@hostname";
       case PG:
         return "SELECT inet_server_addr()";
-      case MARIADB:
-        return "SELECT @@hostname"; // TODO: verify
       default:
         throw new NotImplementedException(databaseEngine.toString());
     }

@@ -32,24 +32,24 @@ public class CacheMap<K, V> {
   }
 
   public V get(final K key) {
-    CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
+    final CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
     return cacheItem == null ? null : cacheItem.item;
   }
 
-  public V get(final K key, final V defaultItemValue, long itemExpirationNano) {
-    CacheItem<V> cacheItem = cache.compute(key,
+  public V get(final K key, final V defaultItemValue, final long itemExpirationNano) {
+    final CacheItem<V> cacheItem = cache.compute(key,
         (kk, vv) -> (vv == null || vv.isExpired())
             ? new CacheItem<>(defaultItemValue, System.nanoTime() + itemExpirationNano)
             : vv);
     return cacheItem.item;
   }
 
-  public void put(final K key, final V item, long itemExpirationNano) {
+  public void put(final K key, final V item, final long itemExpirationNano) {
     cache.put(key, new CacheItem<>(item, System.nanoTime() + itemExpirationNano));
     cleanUp();
   }
 
-  public void putIfAbsent(final K key, final V item, long itemExpirationNano) {
+  public void putIfAbsent(final K key, final V item, final long itemExpirationNano) {
     cache.putIfAbsent(key, new CacheItem<>(item, System.nanoTime() + itemExpirationNano));
     cleanUp();
   }
@@ -64,8 +64,8 @@ public class CacheMap<K, V> {
   }
 
   public Map<K, V> getEntries() {
-    Map<K, V> entries = new HashMap<>();
-    for (Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
+    final Map<K, V> entries = new HashMap<>();
+    for (final Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
     return entries;
@@ -90,7 +90,7 @@ public class CacheMap<K, V> {
     final V item;
     final long expirationTime;
 
-    public CacheItem(V item, long expirationTime) {
+    public CacheItem(final V item, final long expirationTime) {
       this.item = item;
       this.expirationTime = expirationTime;
     }
@@ -108,7 +108,7 @@ public class CacheMap<K, V> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
       if (this == obj) {
         return true;
       }
@@ -118,7 +118,7 @@ public class CacheMap<K, V> {
       if (getClass() != obj.getClass()) {
         return false;
       }
-      CacheItem<?> other = (CacheItem<?>) obj;
+      final CacheItem<?> other = (CacheItem<?>) obj;
       if (item == null) {
         return other.item == null;
       } else {

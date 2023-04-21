@@ -32,9 +32,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraStaleDnsHelper {
@@ -48,23 +48,16 @@ public class AuroraStaleDnsHelper {
   private InetAddress writerHostAddress = null;
 
   private static final int RETRIES = 3;
-  private static final String POSTGRESQL_READONLY_QUERY = "SELECT pg_is_in_recovery() AS is_reader";
-  private static final String MYSQL_READONLY_QUERY = "SELECT @@innodb_read_only AS is_reader";
-  private static final String IS_READER_COLUMN = "is_reader";
 
-  public AuroraStaleDnsHelper(PluginService pluginService) {
+  public AuroraStaleDnsHelper(final PluginService pluginService) {
     this.pluginService = pluginService;
   }
 
   public Connection getVerifiedConnection(
       final String driverProtocol,
-      HostSpec hostSpec,
-      Properties props,
-      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-
-    final String query = driverProtocol.contains("postgresql")
-        ? POSTGRESQL_READONLY_QUERY
-        : MYSQL_READONLY_QUERY;
+      final HostSpec hostSpec,
+      final Properties props,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     if (!this.rdsUtils.isWriterClusterDns(hostSpec.getHost())) {
       return connectFunc.call();
@@ -75,7 +68,7 @@ public class AuroraStaleDnsHelper {
     InetAddress clusterInetAddress = null;
     try {
       clusterInetAddress = InetAddress.getByName(hostSpec.getHost());
-    } catch (UnknownHostException e) {
+    } catch (final UnknownHostException e) {
       // ignore
     }
 
@@ -87,7 +80,11 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    if (isReadOnly(conn, query)) {
+    String query = null;
+    if (this.pluginService.getDialect() instanceof TopologyAwareDatabaseCluster) {
+      query = ((TopologyAwareDatabaseCluster) this.pluginService.getDialect()).getIsReaderQuery();
+    }
+    if (query == null || isReadOnly(conn, query)) {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
@@ -116,7 +113,7 @@ public class AuroraStaleDnsHelper {
     if (this.writerHostAddress == null) {
       try {
         this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost());
-      } catch (UnknownHostException e) {
+      } catch (final UnknownHostException e) {
         // ignore
       }
     }
@@ -135,12 +132,12 @@ public class AuroraStaleDnsHelper {
       LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
           new Object[]{this.writerHostSpec}));
 
-      Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
+      final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
 
       if (conn != null) {
         try {
           conn.close();
-        } catch (SQLException ex) {
+        } catch (final SQLException ex) {
           // ignore
         }
         return writerConn;
@@ -150,12 +147,12 @@ public class AuroraStaleDnsHelper {
     return conn;
   }
 
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
     if (this.writerHostSpec == null) {
       return;
     }
 
-    for (Map.Entry<String, EnumSet<NodeChangeOptions>> entry : changes.entrySet()) {
+    for (final Map.Entry<String, EnumSet<NodeChangeOptions>> entry : changes.entrySet()) {
       LOGGER.finest(() -> String.format("[%s]: %s", entry.getKey(), entry.getValue()));
       if (entry.getKey().equals(this.writerHostSpec.getUrl())
           && entry.getValue().contains(NodeChangeOptions.PROMOTED_TO_READER)) {
@@ -167,7 +164,7 @@ public class AuroraStaleDnsHelper {
   }
 
   private HostSpec getWriter() {
-    for (HostSpec host : this.pluginService.getHosts()) {
+    for (final HostSpec host : this.pluginService.getHosts()) {
       if (host.getRole() == HostRole.WRITER) {
         return host;
       }
@@ -175,17 +172,17 @@ public class AuroraStaleDnsHelper {
     return null;
   }
 
-  private boolean isReadOnly(Connection connection, final String query)
+  private boolean isReadOnly(final Connection connection, final String query)
       throws SQLSyntaxErrorException {
     for (int i = 0; i < RETRIES; i++) {
       try (final Statement statement = connection.createStatement();
-          ResultSet rs = statement.executeQuery(query)) {
+          final ResultSet rs = statement.executeQuery(query)) {
         if (rs.next()) {
-          return rs.getBoolean(IS_READER_COLUMN);
+          return rs.getBoolean(1);
         }
-      } catch (SQLSyntaxErrorException e) {
+      } catch (final SQLSyntaxErrorException e) {
         throw e;
-      } catch (SQLException e) {
+      } catch (final SQLException e) {
 
         // Return false if the SQLException is not a network error. Otherwise, retry.
         if (!pluginService.isNetworkException(e)) {

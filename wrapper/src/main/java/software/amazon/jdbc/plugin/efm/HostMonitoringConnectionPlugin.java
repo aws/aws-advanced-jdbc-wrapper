@@ -20,7 +20,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -78,11 +77,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
-
-  private static final String MYSQL_RETRIEVE_HOST_PORT_SQL =
-      "SELECT CONCAT(@@hostname, ':', @@port)";
-  private static final String PG_RETRIEVE_HOST_PORT_SQL =
-      "SELECT CONCAT(inet_server_addr(), ':', inet_server_port())";
 
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
@@ -262,7 +256,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     hostSpec.addAlias(hostSpec.asAlias());
 
     try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet rs = stmt.executeQuery(getHostPortSql(driverProtocol))) {
+      try (final ResultSet rs = stmt.executeQuery(this.pluginService.getDialect().getHostAliasQuery())) {
         while (rs.next()) {
           hostSpec.addAlias(rs.getString(1));
         }
@@ -270,19 +264,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     } catch (final SQLException sqlException) {
       // log and ignore
       LOGGER.finest(() -> Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
-    }
-  }
-
-  private String getHostPortSql(final @NonNull String driverProtocol) {
-    if (driverProtocol.startsWith("jdbc:postgresql:")) {
-      return PG_RETRIEVE_HOST_PORT_SQL;
-    } else if (driverProtocol.startsWith("jdbc:mysql:")) {
-      return MYSQL_RETRIEVE_HOST_PORT_SQL;
-    } else {
-      throw new UnsupportedOperationException(
-          Messages.get(
-              "HostMonitoringConnectionPlugin.unsupportedDriverProtocol",
-              new Object[] {driverProtocol}));
     }
   }
 

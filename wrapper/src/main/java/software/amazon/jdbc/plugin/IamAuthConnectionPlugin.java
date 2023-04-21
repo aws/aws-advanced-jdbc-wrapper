@@ -27,11 +27,13 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsUtilities;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
@@ -43,8 +45,6 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(IamAuthConnectionPlugin.class.getName());
   static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60;
-  public static final int PG_PORT = 5432;
-  public static final int MYSQL_PORT = 3306;
 
   public static final AwsWrapperProperty IAM_HOST = new AwsWrapperProperty(
       "iamHost", null,
@@ -62,7 +62,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       "iamExpiration", String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC),
       "IAM token cache expiration in seconds");
 
+  protected final PluginService pluginService;
   protected final RdsUtils rdsUtils = new RdsUtils();
+
+  public IamAuthConnectionPlugin(final @NonNull PluginService pluginService) {
+    this.pluginService = pluginService;
+  }
 
   @Override
   public Set<String> getSubscribedMethods() {
@@ -90,14 +95,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     int port = hostSpec.getPort();
     if (!hostSpec.isPortSpecified()) {
       if (StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props))) {
-        if (!driverProtocol.startsWith("jdbc:postgresql:") && !driverProtocol.startsWith(
-            "jdbc:mysql:")) {
-          throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.missingPort"));
-        } else if (driverProtocol.startsWith("jdbc:mysql:")) {
-          port = MYSQL_PORT;
-        } else {
-          port = PG_PORT;
-        }
+        port = this.pluginService.getDialect().getDefaultPort();
       } else {
         port = IAM_DEFAULT_PORT.getInteger(props);
         if (port <= 0) {

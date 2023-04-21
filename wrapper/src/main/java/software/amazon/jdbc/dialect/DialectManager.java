@@ -1,0 +1,206 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package software.amazon.jdbc.dialect;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.util.CacheMap;
+import software.amazon.jdbc.util.ConnectionUrlParser;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.Utils;
+
+public class DialectManager implements DialectProvider {
+
+  protected static Dialect customDialect;
+
+  public static final AwsWrapperProperty DIALECT = new AwsWrapperProperty(
+      "wrapperDialect", "",
+      "A unique identifier for the supported database dialect.");
+
+  /**
+   * Every Dialect implementation SHOULD BE stateless!!!
+   * Dialect objects are shared between different connections.
+   */
+  protected static final Map<String, Dialect> knownDialectsByCode =
+      new HashMap<String, Dialect>() {
+        {
+          put(DialectCodes.MYSQL, new MysqlDialect());
+          put(DialectCodes.PG, new PgDialect());
+          put(DialectCodes.MARIADB, new MariaDbDialect());
+          put(DialectCodes.RDS_MYSQL, new RdsMysqlDialect());
+          put(DialectCodes.RDS_PG, new RdsPgDialect());
+          put(DialectCodes.AURORA_MYSQL, new AuroraMysqlDialect());
+          put(DialectCodes.AURORA_PG, new AuroraPgDialect());
+          put(DialectCodes.UNKNOWN, new UnknownDialect());
+        }
+      };
+
+  protected static final long ENDPOINT_CACHE_EXPIRATION = TimeUnit.MINUTES.toNanos(30);
+
+  // Map of host name, or url, by dialect code.
+  protected static final CacheMap<String, String> knownEndpointDialects = new CacheMap<>();
+
+  private final RdsUtils rdsHelper = new RdsUtils();
+  private final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
+  private boolean canUpdate = false;
+  private Dialect dialect = null;
+  private String dialectCode;
+
+  public static void setCustomDialect(final @NonNull Dialect dialect) {
+    customDialect = dialect;
+  }
+
+  public static void resetCustomDialect() {
+    customDialect = null;
+  }
+
+  public static void resetEndpointCache() {
+    knownEndpointDialects.clear();
+  }
+
+  public Dialect getDialect(
+      final @NonNull String driverProtocol,
+      final @NonNull String url,
+      final @NonNull Properties props)
+      throws SQLException {
+
+    this.canUpdate = false;
+    this.dialect = null;
+
+    if (customDialect != null) {
+      this.dialectCode = DialectCodes.CUSTOM;
+      this.dialect = customDialect;
+      return this.dialect;
+    }
+
+    final String userDialectSetting = DIALECT.getString(props);
+    final String dialectCode = !StringUtils.isNullOrEmpty(userDialectSetting)
+        ? userDialectSetting
+        : knownEndpointDialects.get(url);
+
+    if (!StringUtils.isNullOrEmpty(dialectCode)) {
+      final Dialect userDialect = knownDialectsByCode.get(dialectCode);
+      if (userDialect != null) {
+        this.dialectCode = dialectCode;
+        this.dialect = userDialect;
+        return userDialect;
+      } else {
+        throw new SQLException(
+            Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCode}));
+      }
+    }
+
+    if (StringUtils.isNullOrEmpty(driverProtocol)) {
+      throw new IllegalArgumentException("protocol");
+    }
+
+    String host = url;
+    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(url, true);
+    if (!Utils.isNullOrEmpty(hosts)) {
+      host = hosts.get(0).getHost();
+    }
+
+    if (driverProtocol.contains("mysql")) {
+      this.canUpdate = true;
+      if (this.rdsHelper.isRdsDns(host)) {
+        this.dialectCode = DialectCodes.RDS_MYSQL;
+        this.dialect = knownDialectsByCode.get(DialectCodes.RDS_MYSQL);
+        return this.dialect;
+      }
+      this.dialectCode = DialectCodes.MYSQL;
+      this.dialect = knownDialectsByCode.get(DialectCodes.MYSQL);
+      return this.dialect;
+    }
+
+    if (driverProtocol.contains("postgresql")) {
+      this.canUpdate = true;
+      if (this.rdsHelper.isRdsDns(host)) {
+        this.dialectCode = DialectCodes.RDS_PG;
+        this.dialect = knownDialectsByCode.get(DialectCodes.RDS_PG);
+        return this.dialect;
+      }
+      this.dialectCode = DialectCodes.PG;
+      this.dialect = knownDialectsByCode.get(DialectCodes.PG);
+      return this.dialect;
+    }
+
+    if (driverProtocol.contains("mariadb")) {
+      this.canUpdate = true;
+      this.dialectCode = DialectCodes.MARIADB;
+      this.dialect = knownDialectsByCode.get(DialectCodes.MARIADB);
+      return this.dialect;
+    }
+
+    this.canUpdate = true;
+    this.dialectCode = DialectCodes.UNKNOWN;
+    this.dialect = knownDialectsByCode.get(DialectCodes.UNKNOWN);
+    return this.dialect;
+  }
+
+  public Dialect getDialect(
+      final @NonNull String originalUrl,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Connection connection) throws SQLException {
+
+    if (!this.canUpdate) {
+      return this.dialect;
+    }
+
+    final List<String> dialectCandidates = this.dialect.getDialectUpdateCandidates();
+    if (dialectCandidates != null) {
+      for (String dialectCandidateCode : dialectCandidates) {
+        Dialect dialectCandidate = knownDialectsByCode.get(dialectCandidateCode);
+        if (dialectCandidate == null) {
+          throw new SQLException(
+              Messages.get("DialectManager.unknownDialectCode", new Object[] {dialectCandidateCode}));
+        }
+        boolean isDialect = dialectCandidate.isDialect(connection);
+        if (isDialect) {
+          this.canUpdate = false;
+          this.dialectCode = dialectCandidateCode;
+          this.dialect = dialectCandidate;
+
+          knownEndpointDialects.put(originalUrl, dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
+          knownEndpointDialects.put(hostSpec.getUrl(), dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
+
+          return this.dialect;
+        }
+      }
+    }
+
+    if (DialectCodes.UNKNOWN.equals(this.dialectCode)) {
+      throw new SQLException(Messages.get("DialectManager.unknownDialect"));
+    }
+
+    this.canUpdate = false;
+
+    knownEndpointDialects.put(originalUrl, this.dialectCode, ENDPOINT_CACHE_EXPIRATION);
+    knownEndpointDialects.put(hostSpec.getUrl(), this.dialectCode, ENDPOINT_CACHE_EXPIRATION);
+
+    return this.dialect;
+  }
+}

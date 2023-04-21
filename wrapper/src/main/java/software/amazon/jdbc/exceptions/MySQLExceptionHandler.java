@@ -23,7 +23,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   public static final String SQLSTATE_ACCESS_ERROR = "28000";
 
   @Override
-  public boolean isNetworkException(Throwable throwable) {
+  public boolean isNetworkException(final Throwable throwable) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -40,7 +40,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isNetworkException(String sqlState) {
+  public boolean isNetworkException(final String sqlState) {
     if (sqlState == null) {
       return false;
     }
@@ -49,7 +49,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(Throwable throwable) {
+  public boolean isLoginException(final Throwable throwable) {
     Throwable exception = throwable;
 
     while (exception != null) {
@@ -66,7 +66,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   @Override
-  public boolean isLoginException(String sqlState) {
+  public boolean isLoginException(final String sqlState) {
     if (sqlState == null) {
       return false;
     }

@@ -67,8 +67,8 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   MonitorServiceImpl(
-      MonitorInitializer monitorInitializer,
-      ExecutorServiceInitializer executorServiceInitializer) {
+      final MonitorInitializer monitorInitializer,
+      final ExecutorServiceInitializer executorServiceInitializer) {
 
     this.monitorInitializer = monitorInitializer;
     this.threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
@@ -76,13 +76,13 @@ public class MonitorServiceImpl implements MonitorService {
 
   @Override
   public MonitorConnectionContext startMonitoring(
-      Connection connectionToAbort,
-      Set<String> nodeKeys,
-      HostSpec hostSpec,
-      Properties properties,
-      int failureDetectionTimeMillis,
-      int failureDetectionIntervalMillis,
-      int failureDetectionCount) {
+      final Connection connectionToAbort,
+      final Set<String> nodeKeys,
+      final HostSpec hostSpec,
+      final Properties properties,
+      final int failureDetectionTimeMillis,
+      final int failureDetectionIntervalMillis,
+      final int failureDetectionCount) {
 
     if (nodeKeys.isEmpty()) {
       LOGGER.warning(
@@ -92,7 +92,7 @@ public class MonitorServiceImpl implements MonitorService {
       hostSpec.addAlias(hostSpec.asAlias());
     }
 
-    Monitor monitor;
+    final Monitor monitor;
     if (this.cachedMonitor == null
         || this.cachedMonitorNodeKeys == null
         || !this.cachedMonitorNodeKeys.equals(nodeKeys)) {
@@ -118,15 +118,15 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
-  public void stopMonitoring(@NonNull MonitorConnectionContext context) {
-    Monitor monitor = context.getMonitor();
+  public void stopMonitoring(@NonNull final MonitorConnectionContext context) {
+    final Monitor monitor = context.getMonitor();
     monitor.stopMonitoring(context);
   }
 
   @Override
-  public void stopMonitoringForAllConnections(@NonNull Set<String> nodeKeys) {
+  public void stopMonitoringForAllConnections(@NonNull final Set<String> nodeKeys) {
     Monitor monitor;
-    for (String nodeKey : nodeKeys) {
+    for (final String nodeKey : nodeKeys) {
       monitor = this.threadContainer.getMonitor(nodeKey);
       if (monitor != null) {
         monitor.clearContexts();
@@ -143,7 +143,7 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   @Override
-  public void notifyUnused(Monitor monitor) {
+  public void notifyUnused(final Monitor monitor) {
     if (monitor == null) {
       LOGGER.warning(() -> Messages.get("MonitorServiceImpl.nullMonitorParam"));
       return;
@@ -161,7 +161,7 @@ public class MonitorServiceImpl implements MonitorService {
    * @param properties The user configuration for the current connection.
    * @return A {@link MonitorImpl} object associated with a specific server.
    */
-  protected Monitor getMonitor(Set<String> nodeKeys, HostSpec hostSpec, Properties properties) {
+  protected Monitor getMonitor(final Set<String> nodeKeys, final HostSpec hostSpec, final Properties properties) {
     return this.threadContainer.getOrCreateMonitor(
         nodeKeys, () -> monitorInitializer.createMonitor(hostSpec, properties, this));
   }

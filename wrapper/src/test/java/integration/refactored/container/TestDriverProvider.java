@@ -84,7 +84,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       @Override
       public List<Extension> getAdditionalExtensions() {
         return asList(
-            new GenericTypedParameterResolver(testDriver),
+            new GenericTypedParameterResolver<>(testDriver),
             new EnableBasedOnTestDriverExtension(testDriver),
             new EnableBasedOnEnvironmentFeatureExtension(testDriver),
             new BeforeEachCallback() {

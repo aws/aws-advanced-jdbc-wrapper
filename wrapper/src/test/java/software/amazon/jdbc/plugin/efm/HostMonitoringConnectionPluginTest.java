@@ -36,6 +36,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -49,7 +50,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -60,6 +60,9 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.MysqlDialect;
+import software.amazon.jdbc.dialect.PgDialect;
 import software.amazon.jdbc.util.Messages;
 
 class HostMonitoringConnectionPluginTest {
@@ -72,6 +75,7 @@ class HostMonitoringConnectionPluginTest {
   static final int FAILURE_DETECTION_COUNT = 5;
   private static final Object[] EMPTY_ARGS = {};
   @Mock PluginService pluginService;
+  @Mock Dialect mockDialect;
   @Mock Connection connection;
   @Mock Statement statement;
   @Mock ResultSet resultSet;
@@ -128,9 +132,11 @@ class HostMonitoringConnectionPluginTest {
 
     when(pluginService.getCurrentConnection()).thenReturn(connection);
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
+    when(pluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getHostAliasQuery()).thenReturn("any");
     when(hostSpec.getHost()).thenReturn("host");
     when(hostSpec.getHost()).thenReturn("port");
-    when(hostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("host:port")));
+    when(hostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
     when(connection.createStatement()).thenReturn(statement);
     when(statement.executeQuery(any())).thenReturn(resultSet);
 
@@ -269,6 +275,7 @@ class HostMonitoringConnectionPluginTest {
     initializePlugin();
 
     when(hostSpec.asAlias()).thenReturn("hostSpec alias");
+    when(mockDialect.getHostAliasQuery()).thenReturn(expectedSql);
 
     plugin.connect(protocol, hostSpec, properties, true, () -> connection);
     verify(hostSpec).addAlias("hostSpec alias");
@@ -281,6 +288,7 @@ class HostMonitoringConnectionPluginTest {
     initializePlugin();
 
     when(hostSpec.asAlias()).thenReturn("hostSpec alias");
+    when(mockDialect.getHostAliasQuery()).thenReturn(expectedSql);
 
     // ResultSet contains one row.
     when(resultSet.next()).thenReturn(true, false);
@@ -304,14 +312,6 @@ class HostMonitoringConnectionPluginTest {
     // Ensure SQLException raised in `generateHostAliases` are ignored.
     final Connection conn = plugin.connect("protocol", hostSpec, properties, true, () -> connection);
     assertNotNull(conn);
-  }
-
-  @Test
-  void test_connect_unsupportedDriverProtocol() {
-    initializePlugin();
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> plugin.connect("badProtocol", hostSpec, properties, true, () -> connection));
   }
 
   @ParameterizedTest
@@ -359,8 +359,8 @@ class HostMonitoringConnectionPluginTest {
   }
 
   static Stream<Arguments> getHostPortSQLParameters() {
-    final String MYSQL_RETRIEVE_HOST_PORT_SQL = "SELECT CONCAT(@@hostname, ':', @@port)";
-    final String PG_RETRIEVE_HOST_PORT_SQL = "SELECT CONCAT(inet_server_addr(), ':', inet_server_port())";
+    final String MYSQL_RETRIEVE_HOST_PORT_SQL = new MysqlDialect().getHostAliasQuery();
+    final String PG_RETRIEVE_HOST_PORT_SQL = new PgDialect().getHostAliasQuery();
 
     return Stream.of(
         Arguments.of("jdbc:mysql:", MYSQL_RETRIEVE_HOST_PORT_SQL),

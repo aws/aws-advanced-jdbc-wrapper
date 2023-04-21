@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HostSpec {
 
   public static final int NO_PORT = -1;
+  private static final long DEFAULT_WEIGHT = 100;
 
   protected final String host;
   protected final int port;
@@ -36,6 +37,7 @@ public class HostSpec {
   protected HostRole role;
   protected Set<String> aliases = ConcurrentHashMap.newKeySet();
   protected Set<String> allAliases = ConcurrentHashMap.newKeySet();
+  protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
 
   public HostSpec(final String host) {
     this.host = host;
@@ -43,30 +45,44 @@ public class HostSpec {
     this.availability = HostAvailability.AVAILABLE;
     this.role = HostRole.WRITER;
     this.allAliases.add(this.asAlias());
+    this.weight = DEFAULT_WEIGHT;
   }
 
-  public HostSpec(final String host, int port) {
+  public HostSpec(final String host, final int port) {
     this.host = host;
     this.port = port;
     this.availability = HostAvailability.AVAILABLE;
     this.role = HostRole.WRITER;
     this.allAliases.add(this.asAlias());
+    this.weight = DEFAULT_WEIGHT;
   }
 
-  public HostSpec(final String host, int port, final HostRole role) {
+  public HostSpec(final String host, final int port, final HostRole role) {
     this.host = host;
     this.port = port;
     this.availability = HostAvailability.AVAILABLE;
     this.role = role;
     this.allAliases.add(this.asAlias());
+    this.weight = DEFAULT_WEIGHT;
   }
 
-  public HostSpec(final String host, int port, final HostRole role, final HostAvailability availability) {
+  public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability) {
     this.host = host;
     this.port = port;
     this.availability = availability;
     this.role = role;
     this.allAliases.add(this.asAlias());
+    this.weight = DEFAULT_WEIGHT;
+  }
+
+  public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
+      final long weight) {
+    this.host = host;
+    this.port = port;
+    this.availability = availability;
+    this.role = role;
+    this.allAliases.add(this.asAlias());
+    this.weight = weight;
   }
 
   public String getHost() {
@@ -89,7 +105,7 @@ public class HostSpec {
     return this.availability;
   }
 
-  public void setAvailability(HostAvailability availability) {
+  public void setAvailability(final HostAvailability availability) {
     this.availability = availability;
   }
 
@@ -97,7 +113,11 @@ public class HostSpec {
     return Collections.unmodifiableSet(this.aliases);
   }
 
-  public void addAlias(String... alias) {
+  public long getWeight() {
+    return this.weight;
+  }
+
+  public void addAlias(final String... alias) {
     if (alias == null || alias.length < 1) {
       return;
     }
@@ -108,7 +128,7 @@ public class HostSpec {
     });
   }
 
-  public void removeAlias(String... alias) {
+  public void removeAlias(final String... alias) {
     if (alias == null || alias.length < 1) {
       return;
     }
@@ -135,16 +155,17 @@ public class HostSpec {
   }
 
   public String toString() {
-    return String.format("HostSpec[host=%s, port=%d, %s, %s]", this.host, this.port, this.role, this.availability);
+    return String.format("HostSpec[host=%s, port=%d, %s, %s, weight=%d]",
+        this.host, this.port, this.role, this.availability, this.weight);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.host, this.port, this.availability, this.role);
+    return Objects.hash(this.host, this.port, this.availability, this.role, this.weight);
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(final Object obj) {
     if (obj == this) {
       return true;
     }
@@ -156,6 +177,7 @@ public class HostSpec {
     return Objects.equals(this.host, spec.host)
         && this.port == spec.port
         && this.availability == spec.availability
-        && this.role == spec.role;
+        && this.role == spec.role
+        && this.weight == spec.weight;
   }
 }

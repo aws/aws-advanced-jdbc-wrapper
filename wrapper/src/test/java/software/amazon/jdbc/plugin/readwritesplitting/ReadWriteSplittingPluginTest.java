@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -39,7 +40,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -51,6 +51,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
@@ -88,6 +89,7 @@ public class ReadWriteSplittingPluginTest {
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock private PluginService mockPluginService;
+  @Mock private Dialect mockDialect;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private Connection mockWriterConn;
   @Mock private Connection mockNewWriterConn;
@@ -123,6 +125,8 @@ public class ReadWriteSplittingPluginTest {
         .thenReturn(mockReaderConn2);
     when(this.mockPluginService.connect(eq(readerHostSpec3), any(Properties.class)))
         .thenReturn(mockReaderConn3);
+    when(this.mockPluginService.getDialect()).thenReturn(this.mockDialect);
+    when(this.mockDialect.getHostAliasQuery()).thenReturn("any");
     when(this.mockConnectFunc.call()).thenReturn(mockWriterConn);
     when(mockWriterConn.createStatement()).thenReturn(mockStatement);
     when(mockReaderConn1.createStatement()).thenReturn(mockStatement);
@@ -417,7 +421,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getCurrentConnection()).thenReturn(null);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpecWithIncorrectRole);
     when(this.mockConnectFunc.call()).thenReturn(mockReaderConn1);
-    when(mockResultSet.getString(any(String.class))).thenReturn("instance-1");
+    when(mockResultSet.getString(anyInt())).thenReturn("instance-1");
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,

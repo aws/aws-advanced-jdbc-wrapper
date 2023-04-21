@@ -21,12 +21,12 @@ import software.amazon.jdbc.util.SqlState;
 
 public class FailoverSuccessSQLException extends FailoverSQLException {
 
-  public FailoverSuccessSQLException(Throwable cause) {
+  public FailoverSuccessSQLException(final Throwable cause) {
     super(Messages.get("Failover.connectionChangedError"),
         SqlState.COMMUNICATION_LINK_CHANGED.getState(), cause);
   }
 
-  public FailoverSuccessSQLException(String message) {
+  public FailoverSuccessSQLException(final String message) {
     super(message, SqlState.COMMUNICATION_LINK_CHANGED.getState());
   }
 

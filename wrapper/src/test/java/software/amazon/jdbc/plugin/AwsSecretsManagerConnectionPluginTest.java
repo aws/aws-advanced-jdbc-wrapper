@@ -19,6 +19,8 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -53,6 +55,13 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
+import software.amazon.jdbc.exceptions.ExceptionHandler;
+import software.amazon.jdbc.exceptions.ExceptionManager;
+import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
+import software.amazon.jdbc.exceptions.PgExceptionHandler;
 import software.amazon.jdbc.util.Messages;
 
 public class AwsSecretsManagerConnectionPluginTest {
@@ -88,6 +97,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock JdbcCallable<Connection, SQLException> connectFunc;
   @Mock PluginServiceImpl mockService;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
+  @Mock(extraInterfaces = TopologyAwareDatabaseCluster.class) private Dialect mockTopologyAwareDialect;
+  @Mock DialectManager mockDialectManager;
 
   @BeforeEach
   public void init() throws SQLException {
@@ -101,6 +112,9 @@ public class AwsSecretsManagerConnectionPluginTest {
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
+
+    when(mockDialectManager.getDialect(anyString(), anyString(), any(Properties.class)))
+        .thenReturn(mockTopologyAwareDialect);
   }
 
   @AfterEach
@@ -189,9 +203,16 @@ public class AwsSecretsManagerConnectionPluginTest {
   @MethodSource("provideExceptionCodeForDifferentDrivers")
   public void testConnectWithNewSecretsAfterTryingWithCachedSecrets(
       String accessError,
-      String protocol) throws SQLException {
+      String protocol,
+      ExceptionHandler exceptionHandler) throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", protocol),
+        new PluginServiceImpl(
+            mockConnectionPluginManager,
+            new ExceptionManager(),
+            TEST_PROPS,
+            "url",
+            protocol,
+            mockDialectManager),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -204,6 +225,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     doThrow(failedFirstConnectionAccessException).when(connectFunc).call();
     when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
         .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(exceptionHandler);
 
     assertThrows(
         SQLException.class,
@@ -280,7 +303,13 @@ public class AwsSecretsManagerConnectionPluginTest {
   @ValueSource(strings = {"28000", "28P01"})
   public void testFailedInitialConnectionWithWrappedGenericError(final String accessError) throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
+        new PluginServiceImpl(
+            mockConnectionPluginManager,
+            new ExceptionManager(),
+            TEST_PROPS,
+            "url",
+            TEST_PG_PROTOCOL,
+            mockDialectManager),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -292,6 +321,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     doThrow(wrappedException).when(connectFunc).call();
     when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
         .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
 
     assertThrows(
         SQLException.class,
@@ -311,7 +342,13 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithWrappedMySQLException() throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_MYSQL_PROTOCOL),
+        new PluginServiceImpl(
+            mockConnectionPluginManager,
+            new ExceptionManager(),
+            TEST_PROPS,
+            "url",
+            TEST_MYSQL_PROTOCOL,
+            mockDialectManager),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -322,6 +359,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     doThrow(wrappedException).when(connectFunc).call();
     when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
         .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
 
     assertThrows(
         SQLException.class,
@@ -341,7 +380,13 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithWrappedPostgreSQLException() throws SQLException {
     this.plugin = new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, TEST_PROPS, "url", TEST_PG_PROTOCOL),
+        new PluginServiceImpl(
+            mockConnectionPluginManager,
+            new ExceptionManager(),
+            TEST_PROPS,
+            "url",
+            TEST_PG_PROTOCOL,
+            mockDialectManager),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -352,6 +397,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     doThrow(wrappedException).when(connectFunc).call();
     when(this.mockSecretsManagerClient.getSecretValue(this.mockGetValueRequest))
         .thenReturn(VALID_GET_SECRET_VALUE_RESPONSE);
+
+    when(mockTopologyAwareDialect.getExceptionHandler()).thenReturn(new PgExceptionHandler());
 
     assertThrows(
         SQLException.class,
@@ -370,7 +417,8 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   @ParameterizedTest
   @MethodSource("arnArguments")
-  public void testConnectViaARN(final String arn, final Region expectedRegionParsedFromARN) {
+  public void testConnectViaARN(final String arn, final Region expectedRegionParsedFromARN)
+      throws SQLException {
     final Properties props = new Properties();
     props.setProperty("secretsManagerSecretId", arn);
 
@@ -386,7 +434,8 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   @ParameterizedTest
   @MethodSource("arnArguments")
-  public void testConnectionWithRegionParameterAndARN(final String arn, final Region regionParsedFromARN) {
+  public void testConnectionWithRegionParameterAndARN(final String arn, final Region regionParsedFromARN)
+      throws SQLException {
     final Region expectedRegion = Region.US_ISO_EAST_1;
 
     final Properties props = new Properties();
@@ -407,8 +456,8 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   private static Stream<Arguments> provideExceptionCodeForDifferentDrivers() {
     return Stream.of(
-        Arguments.of("28000", TEST_MYSQL_PROTOCOL),
-        Arguments.of("28P01", TEST_PG_PROTOCOL)
+        Arguments.of("28000", TEST_MYSQL_PROTOCOL, new MySQLExceptionHandler()),
+        Arguments.of("28P01", TEST_PG_PROTOCOL, new PgExceptionHandler())
     );
   }
 

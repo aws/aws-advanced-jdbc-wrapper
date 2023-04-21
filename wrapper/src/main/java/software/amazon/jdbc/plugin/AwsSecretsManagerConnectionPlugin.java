@@ -71,7 +71,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private Secret secret;
   protected PluginService pluginService;
 
-  public AwsSecretsManagerConnectionPlugin(PluginService pluginService, Properties props) {
+  public AwsSecretsManagerConnectionPlugin(final PluginService pluginService, final Properties props) {
 
     this(
         pluginService,
@@ -87,21 +87,21 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   }
 
   AwsSecretsManagerConnectionPlugin(
-      PluginService pluginService,
-      Properties props,
-      BiFunction<HostSpec, Region, SecretsManagerClient> secretsManagerClientFunc,
-      Function<String, GetSecretValueRequest> getSecretValueRequestFunc) {
+      final PluginService pluginService,
+      final Properties props,
+      final BiFunction<HostSpec, Region, SecretsManagerClient> secretsManagerClientFunc,
+      final Function<String, GetSecretValueRequest> getSecretValueRequestFunc) {
     this.pluginService = pluginService;
 
     try {
       Class.forName("software.amazon.awssdk.services.secretsmanager.SecretsManagerClient");
-    } catch (ClassNotFoundException e) {
+    } catch (final ClassNotFoundException e) {
       throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.javaSdkNotInClasspath"));
     }
 
     try {
       Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
-    } catch (ClassNotFoundException e) {
+    } catch (final ClassNotFoundException e) {
       throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.jacksonDatabindNotInClasspath"));
     }
 
@@ -161,7 +161,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       applySecretToProperties(props);
       return connectFunc.call();
 
-    } catch (SQLException exception) {
+    } catch (final SQLException exception) {
       if (this.pluginService.isLoginException(exception) && !secretWasFetched) {
         // Login unsuccessful with cached credentials
         // Try to re-fetch credentials and try again
@@ -174,7 +174,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       }
 
       throw exception;
-    } catch (Exception exception) {
+    } catch (final Exception exception) {
       LOGGER.warning(
           () -> Messages.get(
               "AwsSecretsManagerConnectionPlugin.unhandledException",
@@ -189,7 +189,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    * @param forceReFetch Allows ignoring cached credentials and force fetches the latest credentials from the service.
    * @return true, if credentials were fetched from the service.
    */
-  private boolean updateSecret(final HostSpec hostSpec, boolean forceReFetch) throws SQLException {
+  private boolean updateSecret(final HostSpec hostSpec, final boolean forceReFetch) throws SQLException {
 
     boolean fetched = false;
     this.secret = secretsCache.get(this.secretKey);
@@ -201,7 +201,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
           fetched = true;
           secretsCache.put(this.secretKey, this.secret);
         }
-      } catch (SecretsManagerException | JsonProcessingException exception) {
+      } catch (final SecretsManagerException | JsonProcessingException exception) {
         LOGGER.log(
             Level.WARNING,
             exception,
@@ -245,7 +245,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    *
    * @param properties Properties to store credentials.
    */
-  private void applySecretToProperties(Properties properties) {
+  private void applySecretToProperties(final Properties properties) {
     if (this.secret != null) {
       PropertyDefinition.USER.set(properties, secret.getUsername());
       PropertyDefinition.PASSWORD.set(properties, secret.getPassword());
@@ -262,7 +262,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
     Secret() {
     }
 
-    Secret(String username, String password) {
+    Secret(final String username, final String password) {
       this.username = username;
       this.password = password;
     }

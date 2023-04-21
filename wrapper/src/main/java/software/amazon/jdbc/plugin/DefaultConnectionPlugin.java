@@ -99,7 +99,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     final T result = jdbcMethodFunc.call();
 
-    Connection currentConn = this.pluginService.getCurrentConnection();
+    final Connection currentConn = this.pluginService.getCurrentConnection();
     final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
     if (boundConnection != null && boundConnection != currentConn) {
       // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
@@ -140,12 +140,15 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    final Connection conn = this.connectionProvider.connect(driverProtocol, hostSpec, props);
+    final Connection conn = this.connectionProvider.connect(
+        driverProtocol, this.pluginService.getDialect(), hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // omitted.
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
+    this.pluginService.updateDialect(conn);
+
     return conn;
   }
 

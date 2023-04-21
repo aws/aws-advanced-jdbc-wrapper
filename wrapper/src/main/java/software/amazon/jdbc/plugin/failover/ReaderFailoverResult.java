@@ -32,15 +32,15 @@ public class ReaderFailoverResult {
   private final HostSpec newHost;
 
   public ReaderFailoverResult(
-      Connection newConnection, HostSpec newHost, boolean isConnected) {
+      final Connection newConnection, final HostSpec newHost, final boolean isConnected) {
     this(newConnection, newHost, isConnected, null);
   }
 
   public ReaderFailoverResult(
-      Connection newConnection,
-      HostSpec newHost,
-      boolean isConnected,
-      SQLException exception) {
+      final Connection newConnection,
+      final HostSpec newHost,
+      final boolean isConnected,
+      final SQLException exception) {
     this.newConnection = newConnection;
     this.newHost = newHost;
     this.isConnected = isConnected;
