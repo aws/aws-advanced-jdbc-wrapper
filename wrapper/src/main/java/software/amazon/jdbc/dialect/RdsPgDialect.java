@@ -34,7 +34,7 @@ public class RdsPgDialect extends PgDialect {
   private static final List<String> dialectUpdateCandidates = Collections.singletonList(
       DialectCodes.AURORA_PG);
 
-  private final static String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
+  private static final String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
       + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
       + "FROM pg_settings "
       + "WHERE name='rds.extensions'";
