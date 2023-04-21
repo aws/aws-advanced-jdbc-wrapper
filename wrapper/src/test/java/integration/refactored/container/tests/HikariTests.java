@@ -36,9 +36,7 @@ import integration.refactored.container.ProxyHelper;
 import integration.refactored.container.TestDriver;
 import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
-import integration.refactored.container.condition.DisableOnTestDriver;
 import integration.refactored.container.condition.DisableOnTestFeature;
-import integration.refactored.container.condition.EnableOnDatabaseEngine;
 import integration.refactored.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.refactored.container.condition.EnableOnNumOfInstances;
 import integration.refactored.container.condition.EnableOnTestFeature;
@@ -297,6 +295,7 @@ public class HikariTests {
       // "permitMysqlScheme"
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
+
     DriverHelper.setMonitoringConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setMonitoringSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
