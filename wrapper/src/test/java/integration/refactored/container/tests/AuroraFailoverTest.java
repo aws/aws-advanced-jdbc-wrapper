@@ -509,6 +509,9 @@ public class AuroraFailoverTest {
 
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
+      // Add some delay before querying for the current connection ID
+      TimeUnit.SECONDS.sleep(5);
+
       // Execute Query again to get the current connection id;
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
 
