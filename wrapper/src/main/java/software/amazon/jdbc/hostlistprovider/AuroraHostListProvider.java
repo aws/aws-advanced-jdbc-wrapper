@@ -592,7 +592,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
     try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(isReaderQuery)) {
+         final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
       if (rs.next()) {
         boolean isReader = rs.getBoolean(IS_READER_COLUMN);
         return isReader ? HostRole.READER : HostRole.WRITER;

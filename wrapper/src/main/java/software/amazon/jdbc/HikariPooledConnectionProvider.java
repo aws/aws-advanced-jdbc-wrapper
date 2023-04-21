@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -113,7 +114,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   @Override
   public Connection connect(
-      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props)
+      @NonNull String protocol,
+      @NonNull Dialect dialect,
+      @NonNull HostSpec hostSpec,
+      @NonNull Properties props)
       throws SQLException {
     final HikariDataSource ds = databasePools.computeIfAbsent(
         poolMapping.getKey(hostSpec, props),

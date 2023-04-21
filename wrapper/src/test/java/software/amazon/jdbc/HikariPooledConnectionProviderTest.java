@@ -35,12 +35,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.dialect.Dialect;
 
 class HikariPooledConnectionProviderTest {
   @Mock Connection mockConnection;
   @Mock HikariDataSource mockDataSource;
   @Mock HostSpec mockHostSpec;
   @Mock HikariConfig mockConfig;
+  @Mock Dialect mockDialect;
 
   private AutoCloseable closeable;
   private static final Properties emptyProperties = new Properties();
@@ -67,7 +69,8 @@ class HikariPooledConnectionProviderTest {
 
     doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
 
-    try (Connection conn = provider.connect("protocol", mockHostSpec, emptyProperties)) {
+    try (Connection conn = provider.connect(
+        "protocol", mockDialect, mockHostSpec, emptyProperties)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
@@ -88,7 +91,8 @@ class HikariPooledConnectionProviderTest {
 
     doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
 
-    try (Connection conn = provider.connect("protocol", mockHostSpec, emptyProperties)) {
+    try (Connection conn = provider.connect(
+        "protocol", mockDialect, mockHostSpec, emptyProperties)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
