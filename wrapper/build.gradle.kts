@@ -58,7 +58,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.17.4")
     testImplementation("org.testcontainers:mysql:1.18.0")
     testImplementation("org.testcontainers:postgresql:1.17.5")
-    testImplementation("org.testcontainers:mariadb:1.17.3")
+    testImplementation("org.testcontainers:mariadb:1.18.0")
     testImplementation("org.testcontainers:junit-jupiter:1.17.4")
     testImplementation("org.testcontainers:toxiproxy:1.17.5")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
