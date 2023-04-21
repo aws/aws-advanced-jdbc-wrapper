@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -162,9 +163,9 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       urlBuilder.append(db);
     }
 
-    if (connectionProps.containsKey("permitMysqlScheme")) {
-      urlBuilder.append("?permitMysqlScheme");
-    }
+    final StringJoiner propsJoiner = new StringJoiner("&");
+    connectionProps.forEach((k, v) -> propsJoiner.add(k + "=" + v));
+    urlBuilder.append("?").append(propsJoiner);
 
     config.setJdbcUrl(urlBuilder.toString());
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());

@@ -261,7 +261,7 @@ public class MonitorImpl implements Monitor {
                 });
 
         startNano = this.getCurrentTimeNano();
-        this.monitoringConn = this.pluginService.connect(this.hostSpec, monitoringConnProperties);
+        this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
         return new ConnectionStatus(true, this.getCurrentTimeNano() - startNano);
       }
 

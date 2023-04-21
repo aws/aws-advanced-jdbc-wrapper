@@ -80,7 +80,7 @@ class MonitorImplTest {
         .thenReturn(LONG_INTERVAL_MILLIS);
     when(booleanProperty.getStringValue()).thenReturn(Boolean.TRUE.toString());
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
-    when(pluginService.connect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
+    when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
     MonitorThreadContainer.getInstance(executorServiceInitializer);
 
@@ -99,7 +99,7 @@ class MonitorImplTest {
     final MonitorImpl.ConnectionStatus status =
         monitor.checkConnectionStatus(SHORT_INTERVAL_MILLIS);
 
-    verify(pluginService).connect(any(HostSpec.class), any(Properties.class));
+    verify(pluginService).forceConnect(any(HostSpec.class), any(Properties.class));
     assertTrue(status.isValid);
     assertTrue(status.elapsedTimeNano >= 0);
   }
