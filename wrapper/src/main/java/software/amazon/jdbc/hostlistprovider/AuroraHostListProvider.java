@@ -73,10 +73,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               + "A \"?\" character in this pattern should be used as a placeholder for cluster instance names. "
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
-  // TODO: move to dialect
-  private static final String PG_IS_READER_QUERY = "SELECT pg_is_in_recovery() AS is_reader";
-  private static final String MYSQL_IS_READER_QUERY = "SELECT @@innodb_read_only AS is_reader";
-  private static final String IS_READER_COLUMN = "is_reader";
 
   private final HostListProviderService hostListProviderService;
   private final String originalUrl;
@@ -594,7 +590,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     try (final Statement stmt = conn.createStatement();
          final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
       if (rs.next()) {
-        boolean isReader = rs.getBoolean(IS_READER_COLUMN);
+        boolean isReader = rs.getBoolean(1);
         return isReader ? HostRole.READER : HostRole.WRITER;
       }
     } catch (SQLException e) {
