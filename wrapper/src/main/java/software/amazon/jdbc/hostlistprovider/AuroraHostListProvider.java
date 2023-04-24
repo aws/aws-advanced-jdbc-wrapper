@@ -587,6 +587,14 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
+    if (this.topologyAwareDialect == null) {
+      if (!(this.hostListProviderService.getDialect() instanceof TopologyAwareDatabaseCluster)) {
+        LOGGER.warning(() -> Messages.get("AuroraHostListProvider.invalidDialect"));
+        return null;
+      }
+      this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
+    }
+
     try (final Statement stmt = conn.createStatement();
          final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
       if (rs.next()) {
