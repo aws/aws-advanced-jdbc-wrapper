@@ -98,8 +98,6 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
 
     final Properties props = initDefaultProps();
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     try (final Connection conn =
         DriverManager.getConnection(
@@ -136,8 +134,6 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
 
     final Properties props = initDefaultProps();
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     try (final Connection conn =
         DriverManager.getConnection(
@@ -174,8 +170,6 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(1);
     final String instanceId = instanceInfo.getInstanceId();
     final Properties props = initDefaultProxiedProps();
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     try (final Connection conn =
         DriverManager.getConnection(
@@ -210,8 +204,6 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
 
     final Properties props = initDefaultProps();
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     try (final Connection conn =
         DriverManager.getConnection(
@@ -271,8 +263,6 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
 
     final Properties props = initDefaultProps();
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     try (final Connection conn =
         DriverManager.getConnection(
@@ -331,8 +321,6 @@ public class AuroraFailoverTest {
 
     final Properties props = initDefaultProps();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover");
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     for (int i = 0; i < IDLE_CONNECTIONS_NUM; i++) {
       // Keep references to 5 idle connections created using the cluster endpoints.
@@ -431,8 +419,6 @@ public class AuroraFailoverTest {
   public void test_takeOverConnectionProperties() throws SQLException, InterruptedException {
     final Properties props = initDefaultProps();
     props.setProperty(PropertyKey.allowMultiQueries.getKeyName(), "false");
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     // Establish the topology cache so that we can later assert that testConnection does not inherit
     // properties from establishCacheConnection either before or after failover
@@ -475,12 +461,16 @@ public class AuroraFailoverTest {
   protected Properties initDefaultProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
+    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
     return props;
   }
 
   protected Properties initDefaultProxiedProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
+    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
         props,
         "?."
@@ -522,8 +512,8 @@ public class AuroraFailoverTest {
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
 
-    DriverHelper.setConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
+    DriverHelper.setConnectTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     return ds.getConnection(

@@ -27,8 +27,8 @@ import java.sql.Statement;
  */
 public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseCluster {
 
-  private static final String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "
-      + "(setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
+  private static final String extensionsSql =
+      "SELECT (setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
       + "FROM pg_settings "
       + "WHERE name='rds.extensions'";
 
@@ -64,12 +64,10 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
     try {
       try (final Statement stmt = connection.createStatement();
           final ResultSet rs = stmt.executeQuery(extensionsSql)) {
-        while (rs.next()) {
-          final boolean rdsTools = rs.getBoolean("rds_tools");
+        if (rs.next()) {
           final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-          if (!rdsTools && auroraUtils) {
+          if (auroraUtils) {
             hasExtensions = true;
-            break;
           }
         }
       }
