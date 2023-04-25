@@ -6,12 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.0.0] - 2023-04-28
 ### :magic_wand: Added
 - [Read / Write Splitting and Load Balancing (Official Release)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md).
+- Database dialects ([PR #372](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/372) addresses [Issue #341](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/341)), which removed internally hardcoded SQL values and driver protocols.
 
 ### :bug: Fixed
 - Fetched the instance endpoint and added it to the host aliases for connections established using custom domains ([Issue #386](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/386)).
 
 ### :crab: Changed
-- Database dialects ([PR #372](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/372) addresses [Issue #341](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/341)), which removed internally hardcoded SQL values and driver protocols.
 - Parsed region from ARN ([PR #392](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/392) addresses [Issue #391](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/391)).
 - Updated documentation on:
   1. how to run integration tests ([PR #396](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/396)).
