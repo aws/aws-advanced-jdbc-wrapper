@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -30,6 +31,8 @@ import java.util.List;
  * - Single DB Instance
  */
 public class RdsPgDialect extends PgDialect {
+
+  private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
 
   private static final List<String> dialectUpdateCandidates = Collections.singletonList(
       DialectCodes.AURORA_PG);
@@ -51,6 +54,7 @@ public class RdsPgDialect extends PgDialect {
         while (rs.next()) {
           final boolean rdsTools = rs.getBoolean("rds_tools");
           final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
+          LOGGER.finest(() -> String.format("rdsTools: %b, auroraUtils: %b", rdsTools, auroraUtils));
           if (rdsTools && !auroraUtils) {
             return true;
           }

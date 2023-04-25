@@ -57,7 +57,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
@@ -391,9 +390,6 @@ public class AuroraFailoverTest {
           initialWriterInstanceInfo.getInstanceId(), nominatedWriterId);
 
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
-
-      // Add some delay before querying for the current connection ID
-      TimeUnit.SECONDS.sleep(5);
 
       // Execute Query again to get the current connection id;
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
