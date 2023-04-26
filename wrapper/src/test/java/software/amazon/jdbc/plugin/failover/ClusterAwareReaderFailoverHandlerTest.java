@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -145,12 +146,18 @@ class ClusterAwareReaderFailoverHandlerTest {
             5000,
             30000,
             false);
+
+    final long startTimeNano = System.nanoTime();
     final ReaderFailoverResult result =
         target.failover(hosts, hosts.get(currentHostIndex));
+    final long durationNano = System.nanoTime() - startTimeNano;
 
     assertFalse(result.isConnected());
     assertNull(result.getConnection());
     assertNull(result.getHost());
+
+    // 5s is a max allowed failover timeout; add 1s for inaccurate measurements
+    assertTrue(TimeUnit.NANOSECONDS.toMillis(durationNano) < 6000);
   }
 
   @Test

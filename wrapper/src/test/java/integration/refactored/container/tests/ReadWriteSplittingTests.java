@@ -99,8 +99,8 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setSocketTimeout(props, 3, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(props, 3, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
+    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
     return props;
   }
 

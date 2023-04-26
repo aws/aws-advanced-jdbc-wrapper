@@ -18,8 +18,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
     implementation("org.postgresql:postgresql:42.5.4")
     implementation("mysql:mysql-connector-java:8.0.31")
-    implementation("software.amazon.awssdk:rds:2.17.289")
-    implementation("software.amazon.awssdk:secretsmanager:2.17.285")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
+    implementation("software.amazon.awssdk:rds:2.20.49")
+    implementation("software.amazon.awssdk:secretsmanager:2.20.49")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.14.2")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }

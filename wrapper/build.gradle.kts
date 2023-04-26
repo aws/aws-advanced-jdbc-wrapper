@@ -28,10 +28,10 @@ plugins {
 
 dependencies {
     implementation("org.checkerframework:checker-qual:3.26.0")
-    compileOnly("software.amazon.awssdk:rds:2.17.285")
+    compileOnly("software.amazon.awssdk:rds:2.20.49")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.17.285")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.13.4")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.20.49")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.14.2")
     compileOnly("mysql:mysql-connector-java:8.0.31")
     compileOnly("org.postgresql:postgresql:42.5.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.0")
@@ -52,18 +52,18 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.4")
     testImplementation("org.mockito:mockito-inline:4.8.0")
-    testImplementation("software.amazon.awssdk:rds:2.17.285")
-    testImplementation("software.amazon.awssdk:ec2:2.18.1")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.17.285")
+    testImplementation("software.amazon.awssdk:rds:2.20.49")
+    testImplementation("software.amazon.awssdk:ec2:2.20.49")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.20.49")
     testImplementation("org.testcontainers:testcontainers:1.17.4")
-    testImplementation("org.testcontainers:mysql:1.17.4")
+    testImplementation("org.testcontainers:mysql:1.18.0")
     testImplementation("org.testcontainers:postgresql:1.17.5")
     testImplementation("org.testcontainers:mariadb:1.17.3")
     testImplementation("org.testcontainers:junit-jupiter:1.17.4")
     testImplementation("org.testcontainers:toxiproxy:1.17.5")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
     testImplementation("org.slf4j:slf4j-simple:2.0.3")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.14.2")
 }
 
 repositories {

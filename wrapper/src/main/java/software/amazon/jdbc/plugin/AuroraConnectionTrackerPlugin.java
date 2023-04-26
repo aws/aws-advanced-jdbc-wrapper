@@ -88,7 +88,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       throws SQLException {
 
     final Connection conn = connectFunc.call();
-    final HostSpec currentHostSpec = (this.pluginService.getCurrentHostSpec() == null)
+    final HostSpec currentHostSpec = (this.pluginService.getCurrentHostSpec() != null)
         ? this.pluginService.getCurrentHostSpec()
         : hostSpec;
 

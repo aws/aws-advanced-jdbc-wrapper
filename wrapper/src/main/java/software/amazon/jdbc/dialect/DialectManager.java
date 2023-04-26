@@ -29,6 +29,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
@@ -125,24 +126,38 @@ public class DialectManager implements DialectProvider {
     }
 
     if (driverProtocol.contains("mysql")) {
-      this.canUpdate = true;
-      if (this.rdsHelper.isRdsDns(host)) {
+      RdsUrlType type = this.rdsHelper.identifyRdsType(host);
+      if (type.isRdsCluster()) {
+        this.dialectCode = DialectCodes.AURORA_MYSQL;
+        this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_MYSQL);
+        return this.dialect;
+      }
+      if (type.isRds()) {
+        this.canUpdate = true;
         this.dialectCode = DialectCodes.RDS_MYSQL;
         this.dialect = knownDialectsByCode.get(DialectCodes.RDS_MYSQL);
         return this.dialect;
       }
+      this.canUpdate = true;
       this.dialectCode = DialectCodes.MYSQL;
       this.dialect = knownDialectsByCode.get(DialectCodes.MYSQL);
       return this.dialect;
     }
 
     if (driverProtocol.contains("postgresql")) {
-      this.canUpdate = true;
-      if (this.rdsHelper.isRdsDns(host)) {
+      RdsUrlType type = this.rdsHelper.identifyRdsType(host);
+      if (type.isRdsCluster()) {
+        this.dialectCode = DialectCodes.AURORA_PG;
+        this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_PG);
+        return this.dialect;
+      }
+      if (type.isRds()) {
+        this.canUpdate = true;
         this.dialectCode = DialectCodes.RDS_PG;
         this.dialect = knownDialectsByCode.get(DialectCodes.RDS_PG);
         return this.dialect;
       }
+      this.canUpdate = true;
       this.dialectCode = DialectCodes.PG;
       this.dialect = knownDialectsByCode.get(DialectCodes.PG);
       return this.dialect;
