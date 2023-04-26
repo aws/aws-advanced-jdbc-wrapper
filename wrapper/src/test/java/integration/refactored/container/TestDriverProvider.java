@@ -117,6 +117,9 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                       || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
                   List<String> instanceIDs;
                   if (makeSureFirstInstanceWriter) {
+                    // TODO: This logic occasionally fails to verify the writer without the 30s
+                    //  wait, it should be fixed and the 30s wait workaround should be removed
+                    Thread.sleep(30000);
                     instanceIDs = new ArrayList<>();
 
                     // Need to ensure that cluster details through API matches topology fetched through SQL

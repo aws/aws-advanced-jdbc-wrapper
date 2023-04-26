@@ -350,8 +350,7 @@ public class ReadWriteSplittingTests {
       currentConnectionId = assertDoesNotThrow(() -> auroraUtil.queryInstanceId(conn));
       assertEquals(writerConnectionId, currentConnectionId);
 
-      // Bring up one reader
-      ProxyHelper.enableConnectivity(instanceIDs.get(instanceIDs.size() - 1));
+      ProxyHelper.enableAllConnectivity();
       assertDoesNotThrow(() -> conn.setReadOnly(true));
       currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertNotEquals(writerConnectionId, currentConnectionId);
