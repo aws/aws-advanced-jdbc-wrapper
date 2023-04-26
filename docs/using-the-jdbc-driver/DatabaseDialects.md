@@ -30,7 +30,7 @@ Dialect codes specify what kind of database any connections will be made to.
 ## Custom Dialects
 If you are interested in using the AWS JDBC Driver but your desired database type is not currently supported, it is possible to create a custom dialect.
 
-To create a custom dialect, implement the [`Dialect`]() interface. For databases clusters that are aware of their topology, the [`TopologyAwareDatabaseCluster`]() interface should also be implemented. See the following classes for examples:
+To create a custom dialect, implement the [`Dialect`](/wrapper/src/main/java/software/amazon/jdbc/dialect/Dialect.java) interface. For databases clusters that are aware of their topology, the [`TopologyAwareDatabaseCluster`](/wrapper/src/main/java/software/amazon/jdbc/dialect/TopologyAwareDatabaseCluster.java) interface should also be implemented. See the following classes for examples:
 
 - [PgDialect](/wrapper/src/main/java/software/amazon/jdbc/dialect/PgDialect.java)
   - This is a generic dialect that should work with any PostgreSQL database.
