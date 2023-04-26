@@ -1,11 +1,11 @@
 # Database Dialects
 
 ## What are database dialects?
-The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Database dialects help the AWS JDBC Driver determine what kind of underlying driver is being used. To function correctly, the AWS JDBC Driver requires details unique to specific databases such as the default port number or the method to get the current host from the database. These details can be defined and provided to the AWS JDBC Driver by using database dialects. 
+The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, and it is meant to be compatible with any JDBC driver. Database dialects help the AWS JDBC Driver determine what kind of underlying database is being used. To function correctly, the AWS JDBC Driver requires details unique to specific databases such as the default port number or the method to get the current host from the database. These details can be defined and provided to the AWS JDBC Driver by using database dialects. 
 
 ## Configuration Parameters
-| Name             | Required             | Description                                                                        | Example                                             |
-|------------------|----------------------|------------------------------------------------------------------------------------|-----------------------------------------------------|
+| Name             | Required             | Description                                                                        | Example                                       |
+|------------------|----------------------|------------------------------------------------------------------------------------|-----------------------------------------------|
 | `wrapperDialect` | No (see notes below) | The [dialect code](#list-of-available-dialect-codes) of the desired database type. | `DialectCodes.AURORA_MYSQL` or `aurora-mysql` |
 
 > **NOTES:** 
