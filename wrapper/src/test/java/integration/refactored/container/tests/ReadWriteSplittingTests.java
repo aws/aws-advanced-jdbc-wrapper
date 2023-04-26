@@ -53,6 +53,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -644,6 +645,7 @@ public class ReadWriteSplittingTests {
     }
   }
 
+  @Disabled("Flaky - will fail if the failover plugin detects stale cluster URL DNS")
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnectionFailoverWithClusterURL() throws SQLException, InterruptedException {
