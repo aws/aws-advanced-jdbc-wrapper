@@ -33,6 +33,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -327,13 +328,19 @@ class ClusterAwareWriterFailoverHandlerTest {
             5000,
             2000,
             2000);
+
+    final long startTimeNano = System.nanoTime();
     final WriterFailoverResult result = target.failover(topology);
+    final long durationNano = System.nanoTime() - startTimeNano;
 
     assertFalse(result.isConnected());
     assertFalse(result.isNewHost());
 
     verify(mockPluginService, atLeastOnce()).forceRefreshHostList(any(Connection.class));
     verify(mockPluginService, times(1)).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
+
+    // 5s is a max allowed failover timeout; add 1s for inaccurate measurements
+    assertTrue(TimeUnit.NANOSECONDS.toMillis(durationNano) < 6000);
   }
 
   /**

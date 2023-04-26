@@ -22,6 +22,7 @@ import static software.amazon.jdbc.util.StringUtils.isNullOrEmpty;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -33,6 +34,8 @@ import software.amazon.jdbc.util.PropertyUtils;
  * returns an instance of PgConnection.
  */
 public class DataSourceConnectionProvider implements ConnectionProvider {
+
+  private static final Logger LOGGER = Logger.getLogger(DataSourceConnectionProvider.class.getName());
 
   private final @NonNull DataSource dataSource;
   private final @Nullable String serverPropertyName;
@@ -93,19 +96,22 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
         urlProperties.remove(this.urlPropertyName);
       }
 
-      copy.setProperty(
-          this.urlPropertyName,
-          buildUrl(
-              protocol,
-              hostSpec,
-              this.serverPropertyName,
-              this.portPropertyName,
-              this.databasePropertyName,
-              urlProperties));
+      String finalUrl = buildUrl(
+          protocol,
+          hostSpec,
+          this.serverPropertyName,
+          this.portPropertyName,
+          this.databasePropertyName,
+          urlProperties);
+      LOGGER.finest(() -> "Connecting to " + finalUrl);
+      copy.setProperty(this.urlPropertyName, finalUrl);
     }
 
     PropertyDefinition.removeAllExceptCredentials(copy);
     PropertyUtils.applyProperties(this.dataSource, copy);
+
+    LOGGER.finest(() -> PropertyUtils.logProperties(copy, "Connecting with properties: \n"));
+
     return this.dataSource.getConnection();
   }
 

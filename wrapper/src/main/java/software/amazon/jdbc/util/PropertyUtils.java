@@ -95,6 +95,9 @@ public class PropertyUtils {
       } else {
         writeMethod.invoke(target, propValue);
       }
+      LOGGER.finest(() -> String.format(
+          "Set method for property '%s' with value '%s'.", propName, propValue));
+
     } catch (final InvocationTargetException ex) {
       LOGGER.warning(
           () ->
