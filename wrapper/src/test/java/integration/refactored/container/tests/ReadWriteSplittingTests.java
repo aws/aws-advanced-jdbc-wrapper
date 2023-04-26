@@ -599,7 +599,6 @@ public class ReadWriteSplittingTests {
     final HikariConfig config = new HikariConfig();
     config.setMaximumPoolSize(1);
     config.setInitializationFailTimeout(75000);
-    config.setConnectionTimeout(1000);
     return config;
   }
 
