@@ -5,6 +5,7 @@
   - [Data Sources](/docs/using-the-jdbc-driver/DataSource.md)
   - [Logging](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging)
   - [JDBC Wrapper Parameters](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters)
+  - [Database Dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md)
   - [Plugins](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#plugins)
     - [Failover Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
       - [Failover Configuration Guide](/docs/using-the-jdbc-driver/FailoverConfigurationGuide.md)
