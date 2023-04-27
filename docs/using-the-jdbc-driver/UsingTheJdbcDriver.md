@@ -52,6 +52,7 @@ These parameters are applicable to any instance of the AWS JDBC Driver.
 | `database`                      | `String`  | No       | Database name.                                                                                                                                                                       | `null`        |
 | `user`                          | `String`  | No       | Database username.                                                                                                                                                                   | `null`        |
 | `password`                      | `String`  | No       | Database password.                                                                                                                                                                   | `null`        |
+| `wrapperDialect`                | `String`  | No       | Please see [this page on database dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md), and whether you should include it.                                                     | `null`        |
 
 ## Plugins
 The AWS JDBC Driver uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The AWS JDBC Driver has a number of [built-in plugins](#list-of-available-plugins) available for use. 

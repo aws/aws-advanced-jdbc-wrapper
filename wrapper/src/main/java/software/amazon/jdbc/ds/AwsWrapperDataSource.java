@@ -129,7 +129,6 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       if (StringUtils.isNullOrEmpty(this.jdbcUrl)) {
         throw new SQLException(Messages.get("AwsWrapperDataSource.missingUrl"));
       }
-      PropertyUtils.applyProperties(targetDataSource, props);
 
       return createConnectionWrapper(
           props,

@@ -19,11 +19,8 @@ package integration.refactored.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import integration.refactored.DatabaseEngine;
-import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
@@ -32,7 +29,6 @@ import integration.refactored.container.TestDriverProvider;
 import integration.refactored.container.TestEnvironment;
 import integration.refactored.container.condition.DisableOnTestDriver;
 import integration.refactored.container.condition.DisableOnTestFeature;
-import integration.refactored.container.condition.EnableOnTestDriver;
 import integration.util.SimpleJndiContextFactory;
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -49,7 +45,6 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)

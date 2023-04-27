@@ -25,12 +25,16 @@ import integration.container.aurora.TestPluginServiceImpl;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.GenericTypedParameterResolver;
+import integration.refactored.TestDatabaseInfo;
 import integration.refactored.TestEnvironmentFeatures;
+import integration.refactored.TestEnvironmentInfo;
+import integration.refactored.TestEnvironmentRequest;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.condition.EnableBasedOnEnvironmentFeatureExtension;
 import integration.refactored.container.condition.EnableBasedOnTestDriverExtension;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -95,35 +99,31 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 TestEnvironment.getCurrent().setCurrentDriver(testDriver);
                 LOGGER.finest("Registered " + testDriver + " driver.");
 
-                if (TestEnvironment.getCurrent()
-                    .getInfo()
-                    .getRequest()
-                    .getFeatures()
+                TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
+                TestEnvironmentRequest testRequest = testInfo.getRequest();
+                if (testRequest.getFeatures()
                     .contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
                   // Enable all proxies
                   ProxyHelper.enableAllConnectivity();
                 }
 
-                if (TestEnvironment.getCurrent().getInfo().getRequest()
-                    .getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
-                  AuroraTestUtility auroraUtil =
-                      new AuroraTestUtility(
-                          TestEnvironment.getCurrent().getInfo().getAuroraRegion());
-                  auroraUtil.waitUntilClusterHasRightState(
-                      TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
+                if (testRequest.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
+                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getAuroraRegion());
+                  auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
                   boolean makeSureFirstInstanceWriter =
                       isAnnotated(context.getElement(), MakeSureFirstInstanceWriter.class)
                       || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
                   List<String> instanceIDs;
                   if (makeSureFirstInstanceWriter) {
+
                     instanceIDs = new ArrayList<>();
 
                     // Need to ensure that cluster details through API matches topology fetched through SQL
                     // Wait up to 5min
                     long startTimeNano = System.nanoTime();
                     while ((instanceIDs.size()
-                        != TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()
+                        != testRequest.getNumOfInstances()
                         || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
                         && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
 
@@ -137,16 +137,29 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     }
                     assertTrue(
                         auroraUtil.isDBInstanceWriter(
-                            TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
+                            testInfo.getAuroraClusterName(),
                             instanceIDs.get(0)));
                     String currentWriter = instanceIDs.get(0);
 
                     // Adjust database info to reflect a current writer and to move corresponding
                     // instance to position 0.
-                    TestEnvironment.getCurrent().getInfo().getDatabaseInfo()
-                        .moveInstanceFirst(currentWriter);
-                    TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
-                        .moveInstanceFirst(currentWriter);
+                    TestDatabaseInfo dbInfo = testInfo.getDatabaseInfo();
+                    dbInfo.moveInstanceFirst(currentWriter);
+                    testInfo.getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
+
+                    // Wait for cluster URL to resolve to the writer
+                    startTimeNano = System.nanoTime();
+                    String clusterInetAddress = auroraUtil.hostToIP(dbInfo.getClusterEndpoint());
+                    String writerInetAddress =
+                        auroraUtil.hostToIP(dbInfo.getInstances().get(0).getEndpoint());
+                    while (!writerInetAddress.equals(clusterInetAddress)
+                        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
+                      clusterInetAddress = auroraUtil.hostToIP(dbInfo.getClusterEndpoint());
+                      writerInetAddress =
+                          auroraUtil.hostToIP(dbInfo.getInstances().get(0).getEndpoint());
+                      Thread.sleep(5000);
+                    }
+                    assertTrue(writerInetAddress.equals(clusterInetAddress));
                   } else {
                     instanceIDs =
                         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()

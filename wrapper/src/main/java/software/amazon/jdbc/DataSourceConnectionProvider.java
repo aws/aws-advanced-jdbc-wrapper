@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -33,6 +34,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.WrapperUtils;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -53,6 +56,8 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private final @Nullable String portPropertyName;
   private final @Nullable String urlPropertyName;
   private final @Nullable String databasePropertyName;
+
+  private final ReentrantLock lock = new ReentrantLock();
 
   public DataSourceConnectionProvider(
       final @NonNull DataSource dataSource,
@@ -155,11 +160,33 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     }
 
     PropertyDefinition.removeAllExceptCredentials(copy);
-    PropertyUtils.applyProperties(this.dataSource, copy);
-
     LOGGER.finest(() -> PropertyUtils.logProperties(copy, "Connecting with properties: \n"));
 
-    return this.dataSource.getConnection();
+    Connection conn;
+
+    if (this.lock.isLocked()) {
+
+      LOGGER.finest(() -> "Use a separate DataSource object to create a connection.");
+      // use a new data source instance to instantiate a connection
+      final DataSource ds = createDataSource();
+      PropertyUtils.applyProperties(ds, copy);
+      conn = ds.getConnection();
+
+    } else {
+
+      // Data Source object could be shared between different threads while failover in progress.
+      // That's why it's important to configure Data Source object and get connection atomically.
+      this.lock.lock();
+      LOGGER.finest(() -> "Use main DataSource object to create a connection.");
+      try {
+        PropertyUtils.applyProperties(this.dataSource, copy);
+        conn = this.dataSource.getConnection();
+      } finally {
+        this.lock.unlock();
+      }
+    }
+
+    return conn;
   }
 
   /**
@@ -170,6 +197,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
+  @Override
   public Connection connect(final @NonNull String url, final @NonNull Properties props) throws SQLException {
     final Properties copy = PropertyUtils.copyProperties(props);
 
@@ -185,5 +213,13 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     PropertyDefinition.removeAllExceptCredentials(copy);
     PropertyUtils.applyProperties(this.dataSource, copy);
     return this.dataSource.getConnection();
+  }
+
+  private DataSource createDataSource() throws SQLException {
+    try {
+      return WrapperUtils.createInstance(this.dataSource.getClass(), DataSource.class, null);
+    } catch (final InstantiationException instEx) {
+      throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
+    }
   }
 }
