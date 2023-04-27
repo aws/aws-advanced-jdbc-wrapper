@@ -136,6 +136,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                         instanceIDs = new ArrayList<>();
                       }
                     }
+                    assertTrue(instanceIDs.size() > 0);
                     assertTrue(
                         auroraUtil.isDBInstanceWriter(
                             testInfo.getAuroraClusterName(),

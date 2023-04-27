@@ -25,6 +25,9 @@ import java.util.Set;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TestEnvironmentRequest {
 
+  @JsonIgnore
+  private int envPreCreateIndex;
+
   @JsonProperty("engine")
   private DatabaseEngine engine;
 
@@ -104,5 +107,15 @@ public class TestEnvironmentRequest {
     return String.format(
         "Test environment [%s, %s, %s, %s, %d, %s]",
         deployment, engine, targetJvm, instances, numOfInstances, features);
+  }
+
+  @JsonIgnore
+  public int getEnvPreCreateIndex() {
+    return this.envPreCreateIndex;
+  }
+
+  @JsonIgnore
+  public void setEnvPreCreateIndex(int index) {
+    this.envPreCreateIndex = index;
   }
 }

@@ -29,6 +29,7 @@ import integration.refactored.TestEnvironmentInfo;
 import integration.refactored.TestEnvironmentRequest;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.TestProxyDatabaseInfo;
+import integration.refactored.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;
@@ -37,6 +38,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -49,6 +54,9 @@ import software.amazon.jdbc.util.StringUtils;
 public class TestEnvironment implements AutoCloseable {
 
   private static final Logger LOGGER = Logger.getLogger(TestEnvironment.class.getName());
+  private static final int NUM_OR_ENV_PRE_CREATE = 1; // create this number of environments in advance
+
+  private static final ExecutorService envPreCreateExecutor = Executors.newCachedThreadPool();
 
   private static final String DATABASE_CONTAINER_NAME_PREFIX = "database-container-";
   private static final String TEST_CONTAINER_NAME = "test-container";
@@ -86,10 +94,14 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   public static TestEnvironment build(TestEnvironmentRequest request) {
-    TestEnvironment env = new TestEnvironment(request);
+    LOGGER.finest("Building test env: " + request.getEnvPreCreateIndex());
+    preCreateEnvironment(request.getEnvPreCreateIndex());
+
+    TestEnvironment env;
 
     switch (request.getDatabaseEngineDeployment()) {
       case DOCKER:
+        env = new TestEnvironment(request);
         initDatabaseParams(env);
         createDatabaseContainers(env);
 
@@ -104,14 +116,11 @@ public class TestEnvironment implements AutoCloseable {
 
         break;
       case AURORA:
-        initDatabaseParams(env);
-        createAuroraDbCluster(env);
-
-        if (request.getFeatures().contains(TestEnvironmentFeatures.IAM)) {
-          configureIamAccess(env);
-        }
+        env = createAuroraEnvironment(request);
+        authorizeIP(env);
 
         break;
+
       default:
         throw new NotImplementedException(request.getDatabaseEngineDeployment().toString());
     }
@@ -123,6 +132,61 @@ public class TestEnvironment implements AutoCloseable {
     createTestContainer(env);
 
     return env;
+  }
+
+  private static TestEnvironment createAuroraEnvironment(TestEnvironmentRequest request) {
+
+    EnvPreCreateInfo preCreateInfo =
+        TestEnvironmentProvider.preCreateInfos.get(request.getEnvPreCreateIndex());
+
+    if (preCreateInfo.envPreCreateFuture != null) {
+      /*
+       This environment has being created in advance.
+       We need to wait for results and apply details of newly created environment to the current
+       environment.
+      */
+      Object result;
+      try {
+        // Effectively waits till the future completes and returns results.
+        final long startTime = System.nanoTime();
+        result = preCreateInfo.envPreCreateFuture.get();
+        final long duration = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime);
+        LOGGER.finest(() ->
+            String.format("Additional wait time for test environment to be ready (pre-create): %d sec", duration));
+      } catch (ExecutionException | InterruptedException ex) {
+        throw new RuntimeException("Test environment create error.", ex);
+      }
+
+      preCreateInfo.envPreCreateFuture = null;
+
+      if (result == null) {
+        throw new RuntimeException("Test environment create error. Results are empty.");
+      }
+      if (result instanceof Exception) {
+        throw new RuntimeException((Exception) result);
+      }
+      if (result instanceof TestEnvironment) {
+        TestEnvironment resultTestEnvironment = (TestEnvironment) result;
+        LOGGER.finer(() -> String.format("Use pre-created DB cluster: %s.cluster-%s",
+            resultTestEnvironment.auroraClusterName, resultTestEnvironment.auroraClusterDomain));
+
+        return resultTestEnvironment;
+      }
+      throw new RuntimeException(
+          "Test environment create error. Unrecognized result type: " + result.getClass().getName());
+
+    } else {
+      TestEnvironment env = new TestEnvironment(request);
+      initDatabaseParams(env);
+      createAuroraDbCluster(env);
+
+      if (request.getFeatures().contains(TestEnvironmentFeatures.IAM)) {
+        configureIamAccess(env);
+      }
+
+      return env;
+    }
+
   }
 
   private static void createDatabaseContainers(TestEnvironment env) {
@@ -352,6 +416,10 @@ public class TestEnvironment implements AutoCloseable {
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
 
+    authorizeIP(env);
+  }
+
+  private static void authorizeIP(TestEnvironment env) {
     try {
       env.runnerIP = env.auroraUtil.getPublicIPAddress();
     } catch (UnknownHostException e) {
@@ -760,6 +828,53 @@ public class TestEnvironment implements AutoCloseable {
       LOGGER.finest("Deleting cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
       auroraUtil.deleteCluster(this.auroraClusterName);
       LOGGER.finest("Deleted cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
+    }
+  }
+
+  private static void preCreateEnvironment(int currentEnvIndex) {
+    int index = currentEnvIndex + 1; // inclusive
+    int endIndex = index + NUM_OR_ENV_PRE_CREATE; //  exclusive
+    if (endIndex > TestEnvironmentProvider.preCreateInfos.size()) {
+      endIndex = TestEnvironmentProvider.preCreateInfos.size();
+    }
+
+    while (index < endIndex) {
+      EnvPreCreateInfo preCreateInfo = TestEnvironmentProvider.preCreateInfos.get(index);
+
+      if (preCreateInfo.envPreCreateFuture == null
+          && (preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA
+            || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS)) {
+
+        // run environment creation in advance
+        int finalIndex = index;
+        LOGGER.finest(() -> String.format("Pre-create environment for [%d] - %s",
+            finalIndex, preCreateInfo.request.getDisplayName()));
+
+        final TestEnvironment env = new TestEnvironment(preCreateInfo.request);
+
+        preCreateInfo.envPreCreateFuture = envPreCreateExecutor.submit(() -> {
+          final long startTime = System.nanoTime();
+          try {
+            initDatabaseParams(env);
+            createAuroraDbCluster(env);
+            if (env.info.getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
+              configureIamAccess(env);
+            }
+            return env;
+
+          } catch (Exception ex) {
+            return ex;
+          } finally {
+            final long duration = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime);
+            LOGGER.finest(() -> String.format(
+                "Pre-create environment task [%d] run in background for %d sec.",
+                finalIndex,
+                duration));
+          }
+        });
+
+      }
+      index++;
     }
   }
 }

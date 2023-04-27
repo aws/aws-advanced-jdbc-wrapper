@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.extension.Extension;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
 public class TestEnvironmentProvider implements TestTemplateInvocationContextProvider {
 
+  static final ArrayList<EnvPreCreateInfo> preCreateInfos = new ArrayList<>();
   private static final Logger LOGGER = Logger.getLogger(TestEnvironmentProvider.class.getName());
 
   @Override
@@ -46,6 +48,8 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
   @Override
   public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(
       ExtensionContext context) {
+
+    preCreateInfos.clear();
     ArrayList<TestTemplateInvocationContext> resultContextList = new ArrayList<>();
 
     final boolean noDocker = Boolean.parseBoolean(System.getProperty("test-no-docker", "false"));
@@ -362,7 +366,8 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
   }
 
   private TestTemplateInvocationContext getEnvironment(TestEnvironmentRequest info) {
-    return new TestTemplateInvocationContext() {
+    return new AwsWrapperTestTemplateInvocationContext(info) {
+
       @Override
       public String getDisplayName(int invocationIndex) {
         return String.format("[%d] - %s", invocationIndex, info.getDisplayName());
@@ -373,5 +378,26 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
         return Collections.singletonList(new GenericTypedParameterResolver(info));
       }
     };
+  }
+
+  public abstract static class AwsWrapperTestTemplateInvocationContext
+      implements TestTemplateInvocationContext {
+    AwsWrapperTestTemplateInvocationContext(final TestEnvironmentRequest info) {
+      int index = preCreateInfos.size();
+      info.setEnvPreCreateIndex(index);
+
+      EnvPreCreateInfo envPreCreateInfo = new EnvPreCreateInfo();
+      envPreCreateInfo.request = info;
+      preCreateInfos.add(envPreCreateInfo);
+    }
+
+    public abstract String getDisplayName(int invocationIndex);
+
+    public abstract List<Extension> getAdditionalExtensions();
+  }
+
+  public static class EnvPreCreateInfo {
+    public TestEnvironmentRequest request;
+    public Future envPreCreateFuture;
   }
 }

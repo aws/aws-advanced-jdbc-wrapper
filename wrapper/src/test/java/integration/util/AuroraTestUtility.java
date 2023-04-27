@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -66,6 +67,7 @@ import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
+import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
@@ -115,7 +117,7 @@ public class AuroraTestUtility {
    * Initializes an AmazonRDS & AmazonEC2 client.
    *
    * @param region define AWS Regions, refer to
-   *               https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
+   *               <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions, Availability Zones, and Local Zones</a>
    */
   public AuroraTestUtility(Region region) {
     this(region, DefaultCredentialsProvider.create());
@@ -125,7 +127,7 @@ public class AuroraTestUtility {
    * Initializes an AmazonRDS & AmazonEC2 client.
    *
    * @param region define AWS Regions, refer to
-   *               https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
+   *               <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions, Availability Zones, and Local Zones</a>
    */
   public AuroraTestUtility(String region) {
     this(getRegionInternal(region), DefaultCredentialsProvider.create());
@@ -146,7 +148,7 @@ public class AuroraTestUtility {
    * Initializes an AmazonRDS & AmazonEC2 client.
    *
    * @param region              define AWS Regions, refer to
-   *                            https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html
+   *                            <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions, Availability Zones, and Local Zones</a>
    * @param credentialsProvider Specific AWS credential provider
    */
   public AuroraTestUtility(Region region, AwsCredentialsProvider credentialsProvider) {
@@ -480,8 +482,22 @@ public class AuroraTestUtility {
     }
 
     // Tear down cluster
-    rdsClient.deleteDBCluster(
-        (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
+    int remainingAttempts = 5;
+    while (--remainingAttempts > 0) {
+      try {
+        DeleteDbClusterResponse response = rdsClient.deleteDBCluster(
+            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
+        if (response.sdkHttpResponse().isSuccessful()) {
+          break;
+        }
+        TimeUnit.SECONDS.sleep(30);
+
+      } catch (DbClusterNotFoundException ex) {
+        // ignore
+      } catch (Exception ex) {
+        LOGGER.warning("Error deleting db cluster " + dbIdentifier + ": " + ex);
+      }
+    }
   }
 
   public boolean doesClusterExist(final String clusterId) {
@@ -652,17 +668,23 @@ public class AuroraTestUtility {
                 break;
               } catch (final SQLException ex) {
                 // Continue waiting until instance is up.
+                LOGGER.log(Level.FINEST, "Exception while trying to connect to instance " + id, ex);
               } catch (final Exception ex) {
-                System.out.println("Exception: " + ex);
+                LOGGER.log(Level.SEVERE, "Exception:", ex);
                 break;
               }
-              TimeUnit.MILLISECONDS.sleep(1000);
+              TimeUnit.MILLISECONDS.sleep(5000);
             }
             return null;
           });
     }
     executorService.shutdown();
-    executorService.awaitTermination(5, TimeUnit.MINUTES);
+    boolean isDone = executorService.awaitTermination(7, TimeUnit.MINUTES);
+
+    if (!isDone) {
+      LOGGER.finest("Some task are not completed. Shutting down them now.");
+      executorService.shutdownNow();
+    }
 
     if (finalCheck) {
       assertTrue(

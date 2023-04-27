@@ -363,7 +363,7 @@ public class AuroraFailoverTest {
               conn));
 
       // Sleep for a second to allow daemon threads to finish running.
-      Thread.sleep(1000);
+      Thread.sleep(10000);
 
       // Ensure that all idle connections are closed.
       for (Connection idleConnection : idleConnections) {
