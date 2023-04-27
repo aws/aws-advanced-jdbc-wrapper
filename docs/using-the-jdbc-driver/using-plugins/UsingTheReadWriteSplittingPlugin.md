@@ -11,7 +11,7 @@ final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
 ```
 
-If you would like to use the read-write splitting plugin without the failover plugin, the Aurora host list plugin must be listed before the read-write splitting plugin. This informs the driver that it should query for Aurora's topology.
+If you would like to use the read-write splitting plugin without the failover plugin, the Aurora host list plugin must be included before the read-write splitting plugin. This informs the driver that it should query for Aurora's topology.
 
 ```
 final Properties properties = new Properties();
