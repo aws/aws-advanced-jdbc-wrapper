@@ -5,7 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.0.0] - 2023-04-28
 ### :magic_wand: Added
-- [Read / Write Splitting and Load Balancing (Official Release)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md).
+- [Read / Write Splitting (Official Release)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md).
+- [Internal connection pools for the R/W splitting plugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) ([PR #359](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/359))
 - [Database dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md) ([PR #372](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/372) addresses [Issue #341](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/341)), which allow users to specify the database type to connect to.
 
 ### :bug: Fixed
@@ -16,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Updated documentation on:
   1. how to run integration tests ([PR #396](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/396)).
   2. required DataSource properties ([PR #398](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/398))
+- :warning: Breaking changes were introduced with the internal connection pool changes ([PR #359](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/359)):
+  - The ConnectionPlugin interface has introduced three new methods: forceConnect, acceptsStrategy, and getHostSpecByStrategy. Although the AbstractConnectionPlugin implements default behavior for these methods, you should consider adding your own implementations if you have implemented a custom ConnectionPlugin. More details on these methods can be found in the ConnectionPlugin Javadocs and the [pipelines documentation](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/development-guide/Pipelines.md).
+  - The HostListProvider interface has introduced a new method: getHostRole. If you have implemented your own HostListProvider, you will need to implement this method. More details on this method can be found in the HostListProvider Javadocs.
 
 ## [1.0.2] - 2023-03-31
 ### :magic_wand: Added
