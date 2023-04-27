@@ -52,32 +52,6 @@ You can optionally pass in a `HikariPoolMapping` function as a second parameter 
 ### Example
 [ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure read-write splitting with the Aws Advanced JDBC Driver.
 
-### Internal connection pooling
-
-Whenever `setReadOnly(true)` is first called on a `Connection` object, the read-write plugin will internally open a new physical connection to a reader. After this first call, the physical reader connection will be cached for the given `Connection`. Future calls to `setReadOnly `on the same `Connection` object will not require opening a new physical connection. However, calling `setReadOnly(true)` for the first time on a new `Connection` object will require the plugin to establish another new physical connection to a reader. If your application frequently establishes new read-only connections, you can enable internal connection pooling to improve performance. When enabled, the wrapper driver will maintain an internal connection pool for each instance in the cluster. This allows the read-write plugin to reuse reader connections that were established by previous `Connection` objects.
-
-The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/HikariCP) to create and maintain its internal connection pools. The sample code [here](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) provides a useful example of how to enable this feature. The steps are as follows:
-
-1.  Create an instance of `HikariPooledConnectionProvider`. The `HikariPooledConnectionProvider` constructor requires you to pass in a `HikariPoolConfigurator` function. Inside this function, you should create a `HikariConfig`, configure any desired properties on it, and return it. Note that the Hikari properties below will be set by default and will override any values you set in your function. This is done to follow desired behavior and ensure that the read-write plugin can internally establish connections to new instances.
-
-- jdbcUrl (including the host, port, and database)
-- exception override class name
-- username
-- password
-
-You can optionally pass in a `HikariPoolMapping` function as a second parameter to the `HikariPooledConnectionProvider`. Internally, the connection pools used by the plugin are maintained as a map from instance URLs to connection pools. If you would like to define a different key system, you should pass in a `HikariPoolMapping` function defining this logic. This is helpful, for example, when you would like to create multiple Connection objects to the same instance with different users. In this scenario, you should pass in a `HikariPoolMapping` that incorporates the instance URL and the username from the `Properties` object into the map key.
-
-2. Call `ConnectionProviderManager.setConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
-
-3. Continue as normal: create connections and use them as needed.
-
-4. When you are finished using all connections, call `ConnectionProviderManager.releaseResources`.
-
-> :warning: **Note:** You must call `ConnectionProviderManager.releaseResources` to close the internal connection pools when you are finished using all connections. Unless `ConnectionProviderManager.releaseResources` is called, the wrapper driver will keep the pools open so that they can be shared between connections.
-
-### Example
-[ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure read-write splitting with the Aws Advanced JDBC Driver.
-
 ### Limitations
 
 #### General plugin limitations
