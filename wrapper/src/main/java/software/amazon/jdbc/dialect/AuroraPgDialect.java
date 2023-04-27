@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.logging.Logger;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -27,10 +28,12 @@ import java.sql.Statement;
  */
 public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseCluster {
 
+  private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
+
   private static final String extensionsSql =
       "SELECT (setting LIKE '%aurora_stat_utils%') AS aurora_stat_utils "
-      + "FROM pg_settings "
-      + "WHERE name='rds.extensions'";
+          + "FROM pg_settings "
+          + "WHERE name='rds.extensions'";
 
   private static final String topologySql = "SELECT 1 FROM aurora_replica_status() LIMIT 1";
 
@@ -66,6 +69,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
           final ResultSet rs = stmt.executeQuery(extensionsSql)) {
         if (rs.next()) {
           final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
+          LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
           if (auroraUtils) {
             hasExtensions = true;
           }
@@ -75,6 +79,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
       try (final Statement stmt = connection.createStatement();
           final ResultSet rs = stmt.executeQuery(topologySql)) {
         if (rs.next()) {
+          LOGGER.finest(() -> "hasTopology: true");
           hasTopology = true;
         }
       }

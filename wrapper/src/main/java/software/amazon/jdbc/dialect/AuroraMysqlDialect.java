@@ -47,7 +47,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyAwareDat
   public boolean isDialect(final Connection connection) {
     try (final Statement stmt = connection.createStatement();
         final ResultSet rs = stmt.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")) {
-      while (rs.next()) {
+      if (rs.next()) {
         // If variable with such name is presented then it means it's an Aurora cluster
         return true;
       }

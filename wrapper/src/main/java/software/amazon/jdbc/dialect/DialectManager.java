@@ -23,9 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -35,6 +37,8 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.Utils;
 
 public class DialectManager implements DialectProvider {
+
+  private static final Logger LOGGER = Logger.getLogger(DialectManager.class.getName());
 
   protected static Dialect customDialect;
 
@@ -83,6 +87,7 @@ public class DialectManager implements DialectProvider {
     knownEndpointDialects.clear();
   }
 
+  @Override
   public Dialect getDialect(
       final @NonNull String driverProtocol,
       final @NonNull String url,
@@ -95,6 +100,7 @@ public class DialectManager implements DialectProvider {
     if (customDialect != null) {
       this.dialectCode = DialectCodes.CUSTOM;
       this.dialect = customDialect;
+      this.logCurrentDialect();
       return this.dialect;
     }
 
@@ -108,6 +114,7 @@ public class DialectManager implements DialectProvider {
       if (userDialect != null) {
         this.dialectCode = dialectCode;
         this.dialect = userDialect;
+        this.logCurrentDialect();
         return userDialect;
       } else {
         throw new SQLException(
@@ -136,11 +143,13 @@ public class DialectManager implements DialectProvider {
         this.canUpdate = true;
         this.dialectCode = DialectCodes.RDS_MYSQL;
         this.dialect = knownDialectsByCode.get(DialectCodes.RDS_MYSQL);
+        this.logCurrentDialect();
         return this.dialect;
       }
       this.canUpdate = true;
       this.dialectCode = DialectCodes.MYSQL;
       this.dialect = knownDialectsByCode.get(DialectCodes.MYSQL);
+      this.logCurrentDialect();
       return this.dialect;
     }
 
@@ -155,11 +164,13 @@ public class DialectManager implements DialectProvider {
         this.canUpdate = true;
         this.dialectCode = DialectCodes.RDS_PG;
         this.dialect = knownDialectsByCode.get(DialectCodes.RDS_PG);
+        this.logCurrentDialect();
         return this.dialect;
       }
       this.canUpdate = true;
       this.dialectCode = DialectCodes.PG;
       this.dialect = knownDialectsByCode.get(DialectCodes.PG);
+      this.logCurrentDialect();
       return this.dialect;
     }
 
@@ -167,21 +178,25 @@ public class DialectManager implements DialectProvider {
       this.canUpdate = true;
       this.dialectCode = DialectCodes.MARIADB;
       this.dialect = knownDialectsByCode.get(DialectCodes.MARIADB);
+      this.logCurrentDialect();
       return this.dialect;
     }
 
     this.canUpdate = true;
     this.dialectCode = DialectCodes.UNKNOWN;
     this.dialect = knownDialectsByCode.get(DialectCodes.UNKNOWN);
+    this.logCurrentDialect();
     return this.dialect;
   }
 
+  @Override
   public Dialect getDialect(
       final @NonNull String originalUrl,
       final @NonNull HostSpec hostSpec,
       final @NonNull Connection connection) throws SQLException {
 
     if (!this.canUpdate) {
+      this.logCurrentDialect();
       return this.dialect;
     }
 
@@ -202,6 +217,7 @@ public class DialectManager implements DialectProvider {
           knownEndpointDialects.put(originalUrl, dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
           knownEndpointDialects.put(hostSpec.getUrl(), dialectCandidateCode, ENDPOINT_CACHE_EXPIRATION);
 
+          this.logCurrentDialect();
           return this.dialect;
         }
       }
@@ -216,6 +232,14 @@ public class DialectManager implements DialectProvider {
     knownEndpointDialects.put(originalUrl, this.dialectCode, ENDPOINT_CACHE_EXPIRATION);
     knownEndpointDialects.put(hostSpec.getUrl(), this.dialectCode, ENDPOINT_CACHE_EXPIRATION);
 
+    this.logCurrentDialect();
     return this.dialect;
+  }
+
+  private void logCurrentDialect() {
+    LOGGER.finest(() -> String.format("Current dialect: %s, %s, canUpdate: %b",
+        this.dialectCode,
+        this.dialect == null ? "<null>" : this.dialect.getClass().getName(),
+        this.canUpdate));
   }
 }
