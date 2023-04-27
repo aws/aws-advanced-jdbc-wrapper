@@ -3,6 +3,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.0.0] - 2023-04-28
+### :magic_wand: Added
+- [Read / Write Splitting and Load Balancing (Official Release)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md).
+- [Database dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md) ([PR #372](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/372) addresses [Issue #341](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/341)), which allow users to specify the database type to connect to.
+
+### :bug: Fixed
+- Fetched the instance endpoint and added it to the host aliases for connections established using custom domains ([Issue #386](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/386)).
+
+### :crab: Changed
+- Parsed region from ARN ([PR #392](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/392) addresses [Issue #391](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/391)).
+- Updated documentation on:
+  1. how to run integration tests ([PR #396](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/396)).
+  2. required DataSource properties ([PR #398](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/398))
+
 ## [1.0.2] - 2023-03-31
 ### :magic_wand: Added
 - Default list of plugins added to the parameter `wrapperPlugins` ([PR #332](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/332)).
@@ -57,6 +71,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 * The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 * The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.0.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/1.0.2...2.0.0
 [1.0.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/1.0.0
