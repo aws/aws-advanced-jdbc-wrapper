@@ -54,6 +54,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProvider;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -287,6 +288,21 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public boolean acceptsStrategy(HostRole role, String strategy) {
+      return false;
+    }
+
+    @Override
+    public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
+      return null;
+    }
+
+    @Override
+    public HostRole getHostRole(Connection conn) {
+      return null;
+    }
+
+    @Override
     public void setAvailability(Set<String> hostAliases, HostAvailability availability) {
 
     }
@@ -331,6 +347,12 @@ public class ConcurrencyTests {
     public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
       return new TestConnection();
     }
+
+    @Override
+    public Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException {
+      return new TestConnection();
+    }
+
 
     @Override
     public boolean isNetworkException(Throwable throwable) {

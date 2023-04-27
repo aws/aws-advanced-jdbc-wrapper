@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
+import integration.refactored.TestDatabaseInfo;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.TestEnvironment;
@@ -613,8 +614,8 @@ public class AuroraTestUtility {
       String clusterId, String initialWriterId, String targetWriterId)
       throws InterruptedException {
     LOGGER.finest(String.format("failover from %s to target: %s", initialWriterId, targetWriterId));
-    final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
-    final String initialWriterIP = hostToIP(clusterEndpoint);
+    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
+    final String clusterEndpoint = dbInfo.getClusterEndpoint();
 
     failoverClusterToTarget(clusterId, targetWriterId);
 
@@ -629,10 +630,12 @@ public class AuroraTestUtility {
     }
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
-    String currentWriterIP = hostToIP(clusterEndpoint);
-    while (initialWriterIP.equals(currentWriterIP)) {
+    String clusterIp = hostToIP(clusterEndpoint);
+    String targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getEndpoint());
+    while (!clusterIp.equals(targetWriterIp)) {
       TimeUnit.SECONDS.sleep(1);
-      currentWriterIP = hostToIP(clusterEndpoint);
+      clusterIp = hostToIP(clusterEndpoint);
+      targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getEndpoint());
     }
 
     // Wait for target instance to be verified as a writer
@@ -686,7 +689,7 @@ public class AuroraTestUtility {
     throw new RuntimeException("Failed to request a cluster failover.");
   }
 
-  protected String hostToIP(String hostname) {
+  public String hostToIP(String hostname) {
     try {
       final InetAddress inet = InetAddress.getByName(hostname);
       return inet.getHostAddress();

@@ -26,11 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -60,9 +59,30 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   public Connection connect(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    LOGGER.finer(() -> String.format("connect=''%s''", driverProtocol));
+    LOGGER.finer(() -> String.format("connect=''%s''", hostSpec.getHost()));
     resources.add("connect");
     return connectFunc.call();
+  }
+
+  @Override
+  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
+      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+    LOGGER.finer(() -> String.format("forceConnect=''%s''", hostSpec.getHost()));
+    resources.add("forceConnect");
+    return forceConnectFunc.call();
+  }
+
+  @Override
+  public boolean acceptsStrategy(HostRole role, String strategy) {
+    return false;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
+    LOGGER.finer(() -> String.format("getHostSpecByStrategy=''%s''", strategy));
+    resources.add("getHostSpecByStrategy");
+    return new HostSpec("host", 1234, role);
   }
 
   @Override

@@ -85,6 +85,16 @@ public class HostSpec {
     this.weight = weight;
   }
 
+  /**
+   * Creates a copy of the passed in {@link HostSpec} but with the specified role.
+   *
+   * @param copyHost the host whose details to copy.
+   * @param role     the role of this host (writer or reader).
+   */
+  public HostSpec(final HostSpec copyHost, final HostRole role) {
+    this(copyHost.getHost(), copyHost.getPort(), role, copyHost.getAvailability());
+  }
+
   public String getHost() {
     return host;
   }

@@ -40,6 +40,7 @@ import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
@@ -583,5 +584,30 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       this.clusterId = clusterId;
       this.isPrimaryClusterId = isPrimaryClusterId;
     }
+  }
+
+  @Override
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    if (this.topologyAwareDialect == null) {
+      Dialect dialect = this.hostListProviderService.getDialect();
+      if (!(dialect instanceof TopologyAwareDatabaseCluster)) {
+        throw new SQLException(
+            Messages.get("AuroraHostListProvider.invalidDialectForGetHostRole",
+                new Object[]{dialect}));
+      }
+      this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
+    }
+
+    try (final Statement stmt = conn.createStatement();
+         final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
+      if (rs.next()) {
+        boolean isReader = rs.getBoolean(1);
+        return isReader ? HostRole.READER : HostRole.WRITER;
+      }
+    } catch (SQLException e) {
+      throw new SQLException(Messages.get("AuroraHostListProvider.errorGettingHostRole"), e);
+    }
+
+    throw new SQLException(Messages.get("AuroraHostListProvider.errorGettingHostRole"));
   }
 }

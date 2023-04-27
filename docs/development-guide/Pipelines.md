@@ -4,24 +4,31 @@
 
 A plugin pipeline is an execution workflow achieving a specific goal.
 
-The plugins have 5 main pipelines:
-1. The connect pipeline.
-2. The execute pipeline.
-3. The host list provider pipeline.
-4. The connection changed notification pipeline.
-5. The node list changed notification pipeline.
+The plugin pipelines available in the driver are:
+- The connect pipeline.
+- The forceConnect pipeline
+- The execute pipeline.
+- The host list provider pipeline.
+- The connection changed notification pipeline.
+- The node list changed notification pipeline.
+- The accepts strategy pipeline.
+- The getHostSpecByStrategy pipeline.
 
-A plugin does not need to implement all five pipelines. A plugin can implement one or more pipelines depending on its functionality.
+A plugin does not need to implement all pipelines. A plugin can implement one or more pipelines depending on its functionality.
 
 For information on how to subscribe to these pipelines, please see the documentation on [subscribed methods](./LoadablePlugins.md#subscribed-methods).
 
 ## Connect Pipeline
 
-The connect pipeline performs any additional setup or post connection steps required to establish a JDBC connection.
+The connect pipeline performs any additional setup or post connection steps required to establish a JDBC connection. By default, the connect pipeline will establish connections using the `DriverConnectionProvider` class for Connections requested through the `DriverManager` and `DataSourceConnectionProvider` class for Connections requested through an `AwsWrapperDataSource`. If you would like to use a non-default `ConnectionProvider` to create connections, you can do so by calling `ConnectionProviderManager.setConnectionProvider(ConnectionProvider)`.
 
 The most common usage of the connect pipeline is to fetch extra credentials from external locations.
 
 An example would be the IAM connection plugin. The IAM connection plugin generates an IAM authentication token to be used when establishing a connection. Since authentication is only required when establishing a JDBC connection and not required for any subsequent execution, the IAM authentication plugin only needs to implement the connect pipeline.
+
+## Force Connect Pipeline
+
+The force connect pipeline is similar to the connect pipeline except that it will use the default `DriverConnectionProvider` or `DataSourceConnectionProvider` classes to establish connections regardless of whether a non-default `ConnectionProvider` has been requested via `ConnectionProviderManager.setConnectionProvider(ConnectionProvider)`. For most plugins, the connect and force connect implementation will be equivalent.
 
 ## Execute Pipeline
 
@@ -75,3 +82,12 @@ connection by returning a
 Plugins can subscribe to this pipeline to perform special handling when the current node list of databases has changed. 
 Once subscribed, plugins should override the `notifyNodeListChanged` method to implement any desired logic. This method
 will be called whenever changes in the current node list are detected.
+
+## Accepts Strategy Pipeline
+
+Plugins should subscribe to this pipeline and the getHostSpecByStrategy pipeline if they implement a host selection strategy via the `getHostSpecByStrategy` method. In this case, plugins should override the `acceptsStrategy` and `getHostSpecByStrategy` methods to implement any desired logic. The `acceptsStrategy` method should return true for each selection strategy that the plugin supports.
+
+## getHostSpecByStrategy pipeline
+
+Plugins should subscribe to this pipeline and the acceptsStrategy pipeline if they implement a host selection strategy. In this case, plugins should override both the `acceptsStrategy` method and the `getHostSpecByStrategy` method. The `acceptsStrategy` method should return true for each strategy that can be processed by the plugin in `getHostSpecByStrategy`. The `getHostSpecByStrategy` method should implement the desired logic for selecting a host using any plugin-accepted strategies. Host selection via a "random" strategy is supported by default.
+

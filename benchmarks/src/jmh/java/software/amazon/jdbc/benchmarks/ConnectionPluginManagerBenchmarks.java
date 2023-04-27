@@ -77,7 +77,7 @@ public class ConnectionPluginManagerBenchmarks {
   private static final String WRITER_SESSION_ID = "MASTER_SESSION_ID";
   private static final String FIELD_SERVER_ID = "SERVER_ID";
   private static final String FIELD_SESSION_ID = "SESSION_ID";
-  private final Properties emptyProperties = new Properties();
+  private Properties propertiesWithoutPlugins;
   private Properties propertiesWithPlugins;
   private ConnectionPluginManager pluginManager;
   private ConnectionPluginManager pluginManagerWithNoPlugins;
@@ -125,6 +125,9 @@ public class ConnectionPluginManagerBenchmarks {
     DriverConfigurationProfiles.addOrReplaceProfile(
         "benchmark",
         pluginFactories);
+    propertiesWithoutPlugins = new Properties();
+    propertiesWithoutPlugins.setProperty(PropertyDefinition.PLUGINS.name, "");
+
     propertiesWithPlugins = new Properties();
     propertiesWithPlugins.setProperty(PropertyDefinition.PROFILE_NAME.name, "benchmark");
 
@@ -132,7 +135,7 @@ public class ConnectionPluginManagerBenchmarks {
     pluginManager.init(mockPluginService, propertiesWithPlugins, mockPluginManagerService);
 
     pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
-    pluginManagerWithNoPlugins.init(mockPluginService, emptyProperties, mockPluginManagerService);
+    pluginManagerWithNoPlugins.init(mockPluginService, propertiesWithoutPlugins, mockPluginManagerService);
   }
 
   @TearDown(Level.Iteration)
@@ -143,7 +146,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
     final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
-    manager.init(mockPluginService, emptyProperties, mockPluginManagerService);
+    manager.init(mockPluginService, propertiesWithoutPlugins, mockPluginManagerService);
     return manager;
   }
 
@@ -168,7 +171,7 @@ public class ConnectionPluginManagerBenchmarks {
     return pluginManagerWithNoPlugins.connect(
         "driverProtocol",
         new HostSpec("host"),
-        emptyProperties,
+        propertiesWithoutPlugins,
         true);
   }
 
@@ -211,7 +214,7 @@ public class ConnectionPluginManagerBenchmarks {
     pluginManagerWithNoPlugins.initHostProvider(
         "protocol",
         "url",
-        emptyProperties,
+        propertiesWithoutPlugins,
         mockHostListProvider);
     return pluginManager;
   }

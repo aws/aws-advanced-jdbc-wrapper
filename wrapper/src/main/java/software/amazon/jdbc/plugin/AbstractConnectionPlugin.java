@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -54,8 +55,29 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
     return connectFunc.call();
+  }
+
+  @Override
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+    return forceConnectFunc.call();
+  }
+
+  @Override
+  public boolean acceptsStrategy(HostRole role, String strategy) {
+    return false;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(final HostRole role, final String strategy)
+      throws UnsupportedOperationException {
+    throw new UnsupportedOperationException("getHostSpecByStrategy is not supported by this plugin.");
   }
 
   @Override

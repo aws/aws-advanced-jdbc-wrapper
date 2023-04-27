@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -45,7 +46,7 @@ public class AuroraStaleDnsHelper {
   private final RdsUtils rdsUtils = new RdsUtils();
 
   private HostSpec writerHostSpec = null;
-  private InetAddress writerHostAddress = null;
+  private String writerHostAddress = null;
 
   private static final int RETRIES = 3;
 
@@ -54,6 +55,8 @@ public class AuroraStaleDnsHelper {
   }
 
   public Connection getVerifiedConnection(
+      final boolean isInitialConnection,
+      final HostListProviderService hostListProviderService,
       final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
@@ -65,14 +68,14 @@ public class AuroraStaleDnsHelper {
 
     final Connection conn = connectFunc.call();
 
-    InetAddress clusterInetAddress = null;
+    String clusterInetAddress = null;
     try {
-      clusterInetAddress = InetAddress.getByName(hostSpec.getHost());
-    } catch (final UnknownHostException e) {
+      clusterInetAddress = InetAddress.getByName(hostSpec.getHost()).getHostAddress();
+    } catch (UnknownHostException e) {
       // ignore
     }
 
-    final InetAddress hostInetAddress = clusterInetAddress;
+    final String hostInetAddress = clusterInetAddress;
     LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.clusterEndpointDns",
         new Object[]{hostInetAddress}));
 
@@ -112,8 +115,8 @@ public class AuroraStaleDnsHelper {
 
     if (this.writerHostAddress == null) {
       try {
-        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost());
-      } catch (final UnknownHostException e) {
+        this.writerHostAddress = InetAddress.getByName(this.writerHostSpec.getHost()).getHostAddress();
+      } catch (UnknownHostException e) {
         // ignore
       }
     }
@@ -133,6 +136,9 @@ public class AuroraStaleDnsHelper {
           new Object[]{this.writerHostSpec}));
 
       final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
+      if (isInitialConnection) {
+        hostListProviderService.setInitialConnectionHostSpec(this.writerHostSpec);
+      }
 
       if (conn != null) {
         try {

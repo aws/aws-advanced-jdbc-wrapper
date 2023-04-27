@@ -50,7 +50,7 @@ public class TestPluginThree extends TestPluginOne {
       JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    this.calls.add(this.getClass().getSimpleName() + ":before");
+    this.calls.add(this.getClass().getSimpleName() + ":before connect");
 
     if (this.connection != null) {
       this.calls.add(this.getClass().getSimpleName() + ":connection");
@@ -58,7 +58,28 @@ public class TestPluginThree extends TestPluginOne {
     }
 
     Connection result = connectFunc.call();
-    this.calls.add(this.getClass().getSimpleName() + ":after");
+    this.calls.add(this.getClass().getSimpleName() + ":after connect");
+
+    return result;
+  }
+
+  public Connection forceConnect(
+      String driverProtocol,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+
+    this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
+
+    if (this.connection != null) {
+      this.calls.add(this.getClass().getSimpleName() + ":forced connection");
+      return this.connection;
+    }
+
+    Connection result = forceConnectFunc.call();
+    this.calls.add(this.getClass().getSimpleName() + ":after forceConnect");
 
     return result;
   }

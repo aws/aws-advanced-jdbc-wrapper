@@ -51,6 +51,13 @@ import software.amazon.jdbc.util.StringUtils;
 
 public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add("connect");
+          add("forceConnect");
+        }
+      });
 
   protected static final AwsWrapperProperty SECRET_ID_PROPERTY = new AwsWrapperProperty(
       "secretsManagerSecretId", null,
@@ -143,7 +150,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
   @Override
   public Set<String> getSubscribedMethods() {
-    return new HashSet<>(Collections.singletonList("connect"));
+    return subscribedMethods;
   }
 
   @Override
@@ -154,7 +161,11 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+    return connectInternal(hostSpec, props, connectFunc);
+  }
 
+  private Connection connectInternal(HostSpec hostSpec, Properties props,
+      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     boolean secretWasFetched = updateSecret(hostSpec, false);
 
     try {
@@ -181,6 +192,17 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
               new Object[] {exception}));
       throw new SQLException(exception);
     }
+  }
+
+  @Override
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+    return connectInternal(hostSpec, props, forceConnectFunc);
   }
 
   /**

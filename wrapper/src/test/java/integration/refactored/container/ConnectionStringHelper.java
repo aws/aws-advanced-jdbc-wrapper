@@ -71,6 +71,11 @@ public class ConnectionStringHelper {
     return wrapperPlugins != null ? url + wrapperPlugins : url;
   }
 
+  /**
+   * Creates a JDBC url with the writer instance endpoint.
+   *
+   * @return a JDBC URL.
+   */
   public static String getWrapperUrl() {
     return getWrapperUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
@@ -106,6 +111,20 @@ public class ConnectionStringHelper {
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
   }
 
+  public static String getWrapperReaderClusterUrl() {
+    return ConnectionStringHelper.getWrapperUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterReadOnlyEndpoint(),
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getClusterReadOnlyEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+  }
+
   public static String getProxyWrapperUrl() {
     return getWrapperUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
@@ -138,7 +157,7 @@ public class ConnectionStringHelper {
             .getInfo()
             .getDatabaseInfo()
             .getClusterEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
   public static Properties getDefaultProperties() {

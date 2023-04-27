@@ -18,17 +18,20 @@
 
 package software.amazon;
 
-import java.sql.ResultSet;
-import software.amazon.jdbc.PropertyDefinition;
+import com.zaxxer.hikari.HikariConfig;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
+import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 
 
 public class ReadWriteSplittingPostgresExample {
@@ -48,7 +51,18 @@ public class ReadWriteSplittingPostgresExample {
     props.setProperty(PropertyDefinition.USER.name, USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 
-    // Setup Step: Open connection and create tables - uncomment this section to create table and test values
+    /**
+     * Optional: configure read-write splitting to use internal connection pools (the getPoolKey
+     * parameter is optional, see UsingTheReadWriteSplittingPlugin.md for more info).
+     */
+    // final HikariPooledConnectionProvider connProvider =
+    //     new HikariPooledConnectionProvider(
+    //         ReadWriteSplittingPostgresExample::getHikariConfig,
+    //         ReadWriteSplittingPostgresExample::getPoolKey
+    //     );
+    // ConnectionProviderManager.setConnectionProvider(connProvider);
+
+    /* Setup Step: Open connection and create tables - uncomment this section to create table and test values */
     // try (final Connection connection = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
     // setInitialSessionSettings(connection);
     // executeWithFailoverHandling(connection,
@@ -77,8 +91,7 @@ public class ReadWriteSplittingPostgresExample {
       conn.setReadOnly(true);
 
       for (int i = 0; i < 4; i++) {
-        ResultSet rs = executeWithFailoverHandling(conn, "SELECT * FROM bank_test WHERE id = " + i);
-        processResults(rs);
+        executeWithFailoverHandling(conn, "SELECT * FROM bank_test WHERE id = " + i);
       }
 
     } catch (FailoverFailedSQLException e) {
@@ -94,6 +107,9 @@ public class ReadWriteSplittingPostgresExample {
       // Unexpected exception unrelated to failover. This should be handled by the user application.
       throw e;
     }
+
+    /* Optional: if configured to use internal connection pools, close them here. */
+    // ConnectionProviderManager.releaseResources();
   }
 
   public static void processResults(ResultSet results) {
@@ -107,10 +123,12 @@ public class ReadWriteSplittingPostgresExample {
     }
   }
 
-  public static ResultSet executeWithFailoverHandling(Connection conn, String query) throws SQLException {
+  public static void executeWithFailoverHandling(Connection conn, String query) throws SQLException {
     try (Statement stmt = conn.createStatement()) {
       boolean hasResults = stmt.execute(query);
-      return hasResults ? stmt.getResultSet() : null;
+      if (hasResults) {
+        processResults(stmt.getResultSet());
+      }
     } catch (FailoverFailedSQLException e) {
       // Connection failed, and JDBC wrapper failed to reconnect to a new instance.
       throw e;
@@ -121,12 +139,33 @@ public class ReadWriteSplittingPostgresExample {
       // Re-run query
       try (Statement stmt = conn.createStatement()) {
         boolean hasResults = stmt.execute(query);
-        return hasResults ? stmt.getResultSet() : null;
+        if (hasResults) {
+          processResults(stmt.getResultSet());
+        }
       }
     } catch (TransactionStateUnknownSQLException e) {
       // Connection failed while executing a business transaction.
       // Transaction status is unknown. The driver has successfully reconnected to a new writer.
       throw e;
     }
+  }
+
+  // Optional methods: only required if configured to use internal connection pools.
+  // The configuration in these methods are only examples - you can configure as you needed in your own code.
+  private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
+    final HikariConfig config = new HikariConfig();
+    config.setMaximumPoolSize(10);
+    config.setInitializationFailTimeout(75000);
+    config.setConnectionTimeout(10000);
+    return config;
+  }
+
+  // This method is an optional parameter to `ConnectionProviderManager.setConnectionProvider`.
+  // It can be omitted if you do not require it.
+  private static String getPoolKey(HostSpec hostSpec, Properties props) {
+    // Include the user in the connection pool key so that a new connection pool will be opened for
+    // each instance-user combination.
+    final String user = props.getProperty(PropertyDefinition.USER.name);
+    return hostSpec.getUrl() + user;
   }
 }

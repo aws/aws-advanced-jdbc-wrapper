@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -88,9 +89,37 @@ public class TestPluginOne implements ConnectionPlugin {
       JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    this.calls.add(this.getClass().getSimpleName() + ":before");
+    this.calls.add(this.getClass().getSimpleName() + ":before connect");
     Connection result = connectFunc.call();
-    this.calls.add(this.getClass().getSimpleName() + ":after");
+    this.calls.add(this.getClass().getSimpleName() + ":after connect");
+    return result;
+  }
+
+  @Override
+  public Connection forceConnect(
+      String driverProtocol,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+
+    this.calls.add(this.getClass().getSimpleName() + ":before forceConnect");
+    Connection result = forceConnectFunc.call();
+    this.calls.add(this.getClass().getSimpleName() + ":after forceConnect");
+    return result;
+  }
+
+  @Override
+  public boolean acceptsStrategy(HostRole role, String strategy) {
+    return false;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
+    this.calls.add(this.getClass().getSimpleName() + ":before getHostSpecByStrategy");
+    HostSpec result = new HostSpec("host", 1234, role);
+    this.calls.add(this.getClass().getSimpleName() + ":after getHostSpecByStrategy");
     return result;
   }
 

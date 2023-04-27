@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-plugins {
-    id("me.champeau.jmh")
-}
+package software.amazon.jdbc;
 
-dependencies {
-    jmhImplementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("org.postgresql:postgresql:42.5.0")
-    implementation("mysql:mysql-connector-java:8.0.31")
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.1.0")
-    implementation("com.zaxxer:HikariCP:4.0.3")
+import java.sql.SQLException;
+import java.util.List;
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
-    testImplementation("org.mockito:mockito-inline:4.8.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
-}
+public interface HostSelector {
 
-tasks.named<Test>("test") {
-    useJUnitPlatform()
+  /**
+   * Selects a host with the requested role from the given host list.
+   *
+   * @param hosts a list of available hosts to pick from
+   * @param role  the desired host role - either a writer or a reader
+   * @return a host matching the requested role
+   * @throws SQLException if the host list does not contain any hosts matching the requested role or
+   *                      an error occurs while selecting a host
+   */
+  HostSpec getHost(List<HostSpec> hosts, HostRole role) throws SQLException;
 }

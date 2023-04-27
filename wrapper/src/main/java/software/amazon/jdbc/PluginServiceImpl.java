@@ -118,8 +118,24 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.initialConnectionHostSpec = initialConnectionHostSpec;
   }
 
+  @Override
   public HostSpec getInitialConnectionHostSpec() {
     return this.initialConnectionHostSpec;
+  }
+
+  @Override
+  public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
+    return this.pluginManager.acceptsStrategy(role, strategy);
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy) throws SQLException {
+    return this.pluginManager.getHostSpecByStrategy(role, strategy);
+  }
+
+  @Override
+  public HostRole getHostRole(Connection conn) throws SQLException {
+    return this.hostListProvider.getHostRole(conn);
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
@@ -404,10 +420,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
     return this.pluginManager.connect(
-        this.driverProtocol,
-        hostSpec,
-        props,
-        this.currentConnection == null);
+        this.driverProtocol, hostSpec, props, this.currentConnection == null);
+  }
+
+  @Override
+  public Connection forceConnect(final HostSpec hostSpec, final Properties props) throws SQLException {
+    return this.pluginManager.forceConnect(
+        this.driverProtocol, hostSpec, props, this.currentConnection == null);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {

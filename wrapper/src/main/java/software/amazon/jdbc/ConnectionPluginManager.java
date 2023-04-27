@@ -82,6 +82,9 @@ public class ConnectionPluginManager implements CanReleaseResources {
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
   private static final String ALL_METHODS = "*";
   private static final String CONNECT_METHOD = "connect";
+  private static final String FORCE_CONNECT_METHOD = "forceConnect";
+  private static final String ACCEPTS_STRATEGY_METHOD = "acceptsStrategy";
+  private static final String GET_HOST_SPEC_BY_STRATEGY_METHOD = "getHostSpecByStrategy";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
@@ -90,7 +93,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
 
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
-  protected final ConnectionProvider connectionProvider;
+  protected final ConnectionProvider defaultConnProvider;
   protected final ConnectionWrapper connectionWrapper;
   protected PluginService pluginService;
 
@@ -98,8 +101,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
   public ConnectionPluginManager(
-      final ConnectionProvider connectionProvider, final ConnectionWrapper connectionWrapper) {
-    this.connectionProvider = connectionProvider;
+      final ConnectionProvider defaultConnProvider, final ConnectionWrapper connectionWrapper) {
+    this.defaultConnProvider = defaultConnProvider;
     this.connectionWrapper = connectionWrapper;
   }
 
@@ -107,12 +110,12 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      final ConnectionProvider connectionProvider,
+      final ConnectionProvider defaultConnProvider,
       final Properties props,
       final ArrayList<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
       final PluginService pluginService) {
-    this(connectionProvider, props, plugins, connectionWrapper);
+    this(defaultConnProvider, props, plugins, connectionWrapper);
     this.pluginService = pluginService;
   }
 
@@ -120,11 +123,11 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      final ConnectionProvider connectionProvider,
+      final ConnectionProvider defaultConnProvider,
       final Properties props,
       final ArrayList<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper) {
-    this.connectionProvider = connectionProvider;
+    this.defaultConnProvider = defaultConnProvider;
     this.props = props;
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
@@ -146,10 +149,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
    * <p>The {@link DefaultConnectionPlugin} will always be initialized and attached as the last
    * connection plugin in the chain.
    *
-   * @param pluginService        A reference to a plugin service that plugin can use.
-   * @param props                The configuration of the connection.
-   * @param pluginManagerService A reference to a plugin manager service.
-   * @throws SQLException if errors occurred during the execution.
+   * @param pluginService        a reference to a plugin service that plugin can use
+   * @param props                the configuration of the connection
+   * @param pluginManagerService a reference to a plugin manager service
+   * @throws SQLException if errors occurred during the execution
    */
   public void init(
       final PluginService pluginService, final Properties props, final PluginManagerService pluginManagerService)
@@ -219,9 +222,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
     }
 
     // add default connection plugin to the tail
-
     final ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(this.pluginService, this.connectionProvider, pluginManagerService);
+        new DefaultConnectionPlugin(this.pluginService, this.defaultConnProvider, pluginManagerService);
     this.plugins.add(defaultPlugin);
   }
 
@@ -239,7 +241,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
       throw new IllegalArgumentException("jdbcMethodFunc");
     }
 
-    //noinspection unchecked
+    // noinspection unchecked
     PluginChainJdbcCallable<T, E> pluginChainFunc = this.pluginChainFuncMap.get(methodName);
 
     if (pluginChainFunc == null) {
@@ -335,6 +337,28 @@ public class ConnectionPluginManager implements CanReleaseResources {
         jdbcMethodFunc);
   }
 
+  /**
+   * Establishes a connection to the given host using the given driver protocol and properties. If a
+   * non-default {@link ConnectionProvider} has been set with
+   * {@link ConnectionProviderManager#setConnectionProvider} and
+   * {@link ConnectionProvider#acceptsUrl(String, HostSpec, Properties)} returns true for the given
+   * protocol, host, and properties, the connection will be created by the non-default
+   * ConnectionProvider. Otherwise, the connection will be created by the default
+   * ConnectionProvider. The default ConnectionProvider will be {@link DriverConnectionProvider} for
+   * connections requested via the {@link java.sql.DriverManager} and
+   * {@link DataSourceConnectionProvider} for connections requested via an
+   * {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
+   *
+   * @param driverProtocol      the driver protocol that should be used to establish the connection
+   * @param hostSpec            the host details for the desired connection
+   * @param props               the connection properties
+   * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
+   *                            establishing an initial physical connection to the database or has
+   *                            already established a physical connection in the past
+   * @return a {@link Connection} to the requested host
+   * @throws SQLException if there was an error establishing a {@link Connection} to the requested
+   *                      host
+   */
   public Connection connect(
       final String driverProtocol,
       final HostSpec hostSpec,
@@ -353,6 +377,128 @@ public class ConnectionPluginManager implements CanReleaseResources {
     } catch (final SQLException | RuntimeException e) {
       throw e;
     } catch (final Exception e) {
+      throw new SQLException(e);
+    }
+  }
+
+  /**
+   * Establishes a connection to the given host using the given driver protocol and properties. This
+   * call differs from {@link ConnectionPlugin#connect} in that the default
+   * {@link ConnectionProvider} will be used to establish the connection even if a non-default
+   * ConnectionProvider has been set via {@link ConnectionProviderManager#setConnectionProvider}.
+   * The default ConnectionProvider will be {@link DriverConnectionProvider} for connections
+   * requested via the {@link java.sql.DriverManager} and {@link DataSourceConnectionProvider} for
+   * connections requested via an {@link software.amazon.jdbc.ds.AwsWrapperDataSource}.
+   *
+   * @param driverProtocol      the driver protocol that should be used to establish the connection
+   * @param hostSpec            the host details for the desired connection
+   * @param props               the connection properties
+   * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
+   *                            establishing an initial physical connection to the database or has
+   *                            already established a physical connection in the past
+   * @return a {@link Connection} to the requested host
+   * @throws SQLException if there was an error establishing a {@link Connection} to the requested
+   *                      host
+   */
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection)
+      throws SQLException {
+
+    try {
+      return executeWithSubscribedPlugins(
+          FORCE_CONNECT_METHOD,
+          (plugin, func) ->
+              plugin.forceConnect(driverProtocol, hostSpec, props, isInitialConnection, func),
+          () -> {
+            throw new SQLException("Shouldn't be called.");
+          });
+    } catch (SQLException | RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new SQLException(e);
+    }
+  }
+
+  /**
+   * Returns a boolean indicating if the available {@link ConnectionProvider} or
+   * {@link ConnectionPlugin} instances implement the selection of a host with the requested role
+   * and strategy via {@link #getHostSpecByStrategy}.
+   *
+   * @param role     the desired host role
+   * @param strategy the strategy that should be used to pick a host (eg "random")
+   * @return true if the available {@link ConnectionProvider} or {@link ConnectionPlugin} instances
+   *     support the selection of a host with the requested role and strategy via
+   *     {@link #getHostSpecByStrategy}. Otherwise, return false.
+   */
+  public boolean acceptsStrategy(HostRole role, String strategy) throws SQLException {
+    try {
+      for (ConnectionPlugin plugin : this.plugins) {
+        Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+        boolean isSubscribed =
+            pluginSubscribedMethods.contains(ALL_METHODS)
+                || pluginSubscribedMethods.contains(ACCEPTS_STRATEGY_METHOD);
+
+        if (isSubscribed) {
+          if (plugin.acceptsStrategy(role, strategy)) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new SQLException(e);
+    }
+  }
+
+  /**
+   * Selects a {@link HostSpec} with the requested role from available hosts using the requested
+   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available
+   * {@link ConnectionProvider} or {@link ConnectionPlugin} instances support the selection of a
+   * host with the requested role and strategy.
+   *
+   * @param role     the desired role of the host - either a writer or a reader
+   * @param strategy the strategy that should be used to select a {@link HostSpec} from the
+   *                 available hosts (eg "random")
+   * @return a {@link HostSpec} with the requested role
+   * @throws SQLException                  if the available hosts do not contain any hosts matching
+   *                                       the requested role or an error occurs while selecting a
+   *                                       host
+   * @throws UnsupportedOperationException if the available {@link ConnectionProvider} or
+   *                                       {@link ConnectionPlugin} instances do not support the
+   *                                       requested strategy
+   */
+  public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
+      throws SQLException, UnsupportedOperationException {
+    try {
+      for (ConnectionPlugin plugin : this.plugins) {
+        Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+        boolean isSubscribed =
+            pluginSubscribedMethods.contains(ALL_METHODS)
+                || pluginSubscribedMethods.contains(GET_HOST_SPEC_BY_STRATEGY_METHOD);
+
+        if (isSubscribed) {
+          try {
+            final HostSpec host = plugin.getHostSpecByStrategy(role, strategy);
+            if (host != null) {
+              return host;
+            }
+          } catch (UnsupportedOperationException e) {
+            // This plugin does not support the provided strategy, ignore the exception and move on
+          }
+        }
+      }
+
+      throw new UnsupportedOperationException(
+          "The driver does not support the requested host selection strategy: " + strategy);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
       throw new SQLException(e);
     }
   }

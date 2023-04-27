@@ -21,6 +21,10 @@ import static software.amazon.jdbc.util.StringUtils.isNullOrEmpty;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
@@ -28,6 +32,7 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -38,8 +43,14 @@ import software.amazon.jdbc.util.WrapperUtils;
  */
 public class DataSourceConnectionProvider implements ConnectionProvider {
 
-  private static final Logger LOGGER = Logger.getLogger(DataSourceConnectionProvider.class.getName());
-
+  private static final Logger LOGGER =
+      Logger.getLogger(DataSourceConnectionProvider.class.getName());
+  private static final Map<String, HostSelector> acceptedStrategies =
+      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
+        {
+          put("random", new RandomHostSelector());
+        }
+      });
   private final @NonNull DataSource dataSource;
   private final @Nullable String serverPropertyName;
   private final @Nullable String portPropertyName;
@@ -59,6 +70,42 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     this.portPropertyName = portPropertyName;
     this.urlPropertyName = urlPropertyName;
     this.databasePropertyName = databasePropertyName;
+  }
+
+  /**
+   * Indicates whether this ConnectionProvider can provide connections for the given host and
+   * properties. Some ConnectionProvider implementations may not be able to handle certain URL
+   * types or properties.
+   *
+   * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param hostSpec The HostSpec containing the host-port information for the host to connect to
+   * @param props    The Properties to use for the connection
+   * @return true if this ConnectionProvider can provide connections for the given URL, otherwise
+   *         return false
+   */
+  @Override
+  public boolean acceptsUrl(
+      @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+    return true;
+  }
+
+  @Override
+  public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
+    return acceptedStrategies.containsKey(strategy);
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
+      throws SQLException {
+    if (!acceptedStrategies.containsKey(strategy)) {
+      throw new UnsupportedOperationException(
+          Messages.get(
+              "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
+              new Object[] {strategy, DataSourceConnectionProvider.class}));
+    }
+
+    return acceptedStrategies.get(strategy).getHost(hosts, role);
   }
 
   /**

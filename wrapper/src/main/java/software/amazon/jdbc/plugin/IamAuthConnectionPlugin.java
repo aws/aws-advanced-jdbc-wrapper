@@ -43,6 +43,13 @@ import software.amazon.jdbc.util.StringUtils;
 public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthConnectionPlugin.class.getName());
+  private static final Set<String> subscribedMethods =
+      Collections.unmodifiableSet(new HashSet<String>() {
+        {
+          add("connect");
+          add("forceConnect");
+        }
+      });
   static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60;
 
@@ -71,7 +78,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Set<String> getSubscribedMethods() {
-    return new HashSet<>(Collections.singletonList("connect"));
+    return subscribedMethods;
   }
 
   @Override
@@ -82,7 +89,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+    return connectInternal(driverProtocol, hostSpec, props, connectFunc);
+  }
 
+  private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
+      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
@@ -144,6 +155,17 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
     }
     return connectFunc.call();
+  }
+
+  @Override
+  public Connection forceConnect(
+      final @NonNull String driverProtocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props,
+      final boolean isInitialConnection,
+      final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+    return connectInternal(driverProtocol, hostSpec, props, forceConnectFunc);
   }
 
   String generateAuthenticationToken(

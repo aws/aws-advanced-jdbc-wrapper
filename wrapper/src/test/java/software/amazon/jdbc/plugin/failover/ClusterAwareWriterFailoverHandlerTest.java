@@ -82,9 +82,9 @@ class ClusterAwareWriterFailoverHandlerTest {
 
   @Test
   public void testReconnectToWriter_taskBReaderException() throws SQLException {
-    when(mockPluginService.connect(refEq(writer), eq(properties))).thenReturn(mockConnection);
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenThrow(SQLException.class);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
+    when(mockPluginService.forceConnect(refEq(writer), eq(properties))).thenReturn(mockConnection);
+    when(mockPluginService.forceConnect(refEq(readerA), eq(properties))).thenThrow(SQLException.class);
+    when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
 
     when(mockPluginService.getHosts()).thenReturn(topology);
 
@@ -119,9 +119,9 @@ class ClusterAwareWriterFailoverHandlerTest {
    */
   @Test
   public void testReconnectToWriter_SlowReaderA() throws SQLException {
-    when(mockPluginService.connect(refEq(writer), eq(properties))).thenReturn(mockWriterConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenReturn(mockNewWriterConnection);
+    when(mockPluginService.forceConnect(refEq(writer), eq(properties))).thenReturn(mockWriterConnection);
+    when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
+    when(mockPluginService.forceConnect(refEq(newWriterHost), eq(properties))).thenReturn(mockNewWriterConnection);
     when(mockPluginService.getHosts()).thenReturn(topology).thenReturn(newTopology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
@@ -161,14 +161,14 @@ class ClusterAwareWriterFailoverHandlerTest {
    */
   @Test
   public void testReconnectToWriter_taskBDefers() throws SQLException {
-    when(mockPluginService.connect(refEq(writer), eq(properties)))
+    when(mockPluginService.forceConnect(refEq(writer), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
                   Thread.sleep(5000);
                   return mockWriterConnection;
                 });
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
+    when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenThrow(SQLException.class);
 
     when(mockPluginService.getHosts()).thenReturn(topology);
 
@@ -205,16 +205,16 @@ class ClusterAwareWriterFailoverHandlerTest {
    */
   @Test
   public void testConnectToReaderA_SlowWriter() throws SQLException {
-    when(mockPluginService.connect(refEq(writer), eq(properties)))
+    when(mockPluginService.forceConnect(refEq(writer), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
                   Thread.sleep(5000);
                   return mockWriterConnection;
                 });
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenReturn(mockNewWriterConnection);
+    when(mockPluginService.forceConnect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
+    when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
+    when(mockPluginService.forceConnect(refEq(newWriterHost), eq(properties))).thenReturn(mockNewWriterConnection);
 
     when(mockPluginService.getHosts()).thenReturn(newTopology);
 
@@ -251,10 +251,10 @@ class ClusterAwareWriterFailoverHandlerTest {
    */
   @Test
   public void testConnectToReaderA_taskADefers() throws SQLException {
-    when(mockPluginService.connect(writer, properties)).thenReturn(mockConnection);
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties)))
+    when(mockPluginService.forceConnect(writer, properties)).thenReturn(mockConnection);
+    when(mockPluginService.forceConnect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
+    when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
+    when(mockPluginService.forceConnect(refEq(newWriterHost), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
@@ -299,16 +299,16 @@ class ClusterAwareWriterFailoverHandlerTest {
    */
   @Test
   public void testFailedToConnect_failoverTimeout() throws SQLException {
-    when(mockPluginService.connect(refEq(writer), eq(properties)))
+    when(mockPluginService.forceConnect(refEq(writer), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
                   Thread.sleep(30000);
                   return mockWriterConnection;
                 });
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties)))
+    when(mockPluginService.forceConnect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
+    when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
+    when(mockPluginService.forceConnect(refEq(newWriterHost), eq(properties)))
         .thenAnswer(
             (Answer<Connection>)
                 invocation -> {
@@ -354,10 +354,10 @@ class ClusterAwareWriterFailoverHandlerTest {
   @Test
   public void testFailedToConnect_taskAException_taskBWriterException() throws SQLException {
     final SQLException exception = new SQLException("exception", "08S01", null);
-    when(mockPluginService.connect(refEq(writer), eq(properties))).thenThrow(exception);
-    when(mockPluginService.connect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
-    when(mockPluginService.connect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
-    when(mockPluginService.connect(refEq(newWriterHost), eq(properties))).thenThrow(exception);
+    when(mockPluginService.forceConnect(refEq(writer), eq(properties))).thenThrow(exception);
+    when(mockPluginService.forceConnect(refEq(readerA), eq(properties))).thenReturn(mockReaderAConnection);
+    when(mockPluginService.forceConnect(refEq(readerB), eq(properties))).thenReturn(mockReaderBConnection);
+    when(mockPluginService.forceConnect(refEq(newWriterHost), eq(properties))).thenThrow(exception);
     when(mockPluginService.isNetworkException(exception)).thenReturn(true);
 
     when(mockPluginService.getHosts()).thenReturn(newTopology);
