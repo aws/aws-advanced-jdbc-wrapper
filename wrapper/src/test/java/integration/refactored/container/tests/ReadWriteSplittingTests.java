@@ -644,7 +644,6 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  @Disabled("Flaky - will fail if the failover plugin detects stale cluster URL DNS")
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnectionFailoverWithClusterURL() throws SQLException, InterruptedException {
