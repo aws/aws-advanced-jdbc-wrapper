@@ -35,6 +35,9 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.Messages;
@@ -105,8 +108,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
-
     this.hostListProviderService = hostListProviderService;
+    if (hostListProviderService.isStaticHostListProvider()) {
+      hostListProviderService.setHostListProvider(
+          new AuroraHostListProvider(driverProtocol, hostListProviderService, props, initialUrl));
+    }
+
     initHostProviderFunc.call();
   }
 
@@ -130,6 +137,18 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private Connection connectInternal(boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final Connection currentConnection = connectFunc.call();
+
+    final Dialect dialect = this.pluginService.getDialect();
+    if (dialect instanceof TopologyAwareDatabaseCluster) {
+      try {
+        this.pluginService.refreshHostList(currentConnection);
+      } catch (SQLException e) {
+        throw new ReadWriteSplittingSQLException(Messages.get("ReadWriteSplittingPlugin.errorRefreshingHostList"), e);
+      }
+    } else {
+      throw new ReadWriteSplittingSQLException(Messages.get("ReadWriteSplittingPlugin.unsupportedCluster"));
+    }
+
     if (!isInitialConnection || this.hostListProviderService.isStaticHostListProvider()) {
       return currentConnection;
     }
@@ -294,8 +313,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           switchToReaderConnection(hosts);
         } catch (final SQLException e) {
           if (!isConnectionUsable(currentConnection)) {
-            logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"),
-                SqlState.CONNECTION_UNABLE_TO_CONNECT);
+            logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"), e);
             return;
           }
 
@@ -317,8 +335,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         try {
           switchToWriterConnection(hosts);
         } catch (final SQLException e) {
-          logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"),
-              SqlState.CONNECTION_UNABLE_TO_CONNECT);
+          logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"), e);
         }
       }
     }
@@ -327,6 +344,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private void logAndThrowException(final String logMessage) throws SQLException {
     LOGGER.severe(logMessage);
     throw new ReadWriteSplittingSQLException(logMessage);
+  }
+
+  private void logAndThrowException(final String logMessage, final Throwable cause)
+      throws SQLException {
+    LOGGER.severe(logMessage);
+    throw new ReadWriteSplittingSQLException(logMessage, cause);
   }
 
   private void logAndThrowException(final String logMessage, final SqlState sqlState)
