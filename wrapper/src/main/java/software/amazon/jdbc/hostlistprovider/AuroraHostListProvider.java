@@ -30,6 +30,8 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
@@ -75,6 +77,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
+  private static final Executor NETWORK_TIMEOUT_EXECUTOR = Executors.newSingleThreadExecutor();
   private final HostListProviderService hostListProviderService;
   private final String originalUrl;
   private RdsUrlType rdsUrlType;
@@ -94,6 +97,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   public static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
   private final ReentrantLock lock = new ReentrantLock();
+  private final int topologyQueryTimeoutMs = 5000;
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
   protected ConnectionUrlParser connectionUrlParser;
@@ -333,11 +337,27 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
     }
 
+    int networkTimeout = -1;
+    try {
+      networkTimeout = conn.getNetworkTimeout();
+      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
+      if (networkTimeout == 0) {
+        conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, topologyQueryTimeoutMs);
+      }
+    } catch (SQLException e) {
+      LOGGER.warning(() -> Messages.get("AuroraHostListProvider.errorGettingNetworkTimeout",
+          new Object[] {e.getMessage()}));
+    }
+
     try (final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery(this.topologyAwareDialect.getTopologyQuery())) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery"), e);
+    } finally {
+      if (networkTimeout == 0 && !conn.isClosed()) {
+        conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, networkTimeout);
+      }
     }
   }
 
