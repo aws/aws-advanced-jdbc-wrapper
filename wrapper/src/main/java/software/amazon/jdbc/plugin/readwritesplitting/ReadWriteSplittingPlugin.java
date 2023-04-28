@@ -295,7 +295,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         } catch (final SQLException e) {
           if (!isConnectionUsable(currentConnection)) {
             logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"),
-                SqlState.CONNECTION_UNABLE_TO_CONNECT);
+                SqlState.CONNECTION_UNABLE_TO_CONNECT, e);
             return;
           }
 
@@ -318,7 +318,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           switchToWriterConnection(hosts);
         } catch (final SQLException e) {
           logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToWriter"),
-              SqlState.CONNECTION_UNABLE_TO_CONNECT);
+              SqlState.CONNECTION_UNABLE_TO_CONNECT, e);
         }
       }
     }
@@ -333,6 +333,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       throws SQLException {
     LOGGER.severe(logMessage);
     throw new ReadWriteSplittingSQLException(logMessage, sqlState.getState());
+  }
+
+  private void logAndThrowException(
+      final String logMessage, final SqlState sqlState, final Throwable cause)
+      throws SQLException {
+    LOGGER.severe(logMessage);
+    throw new ReadWriteSplittingSQLException(logMessage, sqlState.getState(), cause);
   }
 
   private synchronized void switchToWriterConnection(
