@@ -96,8 +96,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   public static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
   public static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
+  private static final int defaultTopologyQueryTimeoutMs = 5000;
   private final ReentrantLock lock = new ReentrantLock();
-  private final int topologyQueryTimeoutMs = 5000;
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
   protected ConnectionUrlParser connectionUrlParser;
@@ -342,7 +342,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       networkTimeout = conn.getNetworkTimeout();
       // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
       if (networkTimeout == 0) {
-        conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, topologyQueryTimeoutMs);
+        conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, defaultTopologyQueryTimeoutMs);
       }
     } catch (SQLException e) {
       LOGGER.warning(() -> Messages.get("AuroraHostListProvider.errorGettingNetworkTimeout",
