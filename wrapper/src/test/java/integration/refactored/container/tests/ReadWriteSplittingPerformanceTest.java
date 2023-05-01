@@ -16,6 +16,7 @@
 
 package integration.refactored.container.tests;
 
+import com.zaxxer.hikari.HikariConfig;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
@@ -39,10 +40,13 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -73,6 +77,12 @@ public class ReadWriteSplittingPerformanceTest {
     Result resultsWithoutPlugin = getSetReadOnlyResults(propsWithoutPlugin);
     Properties propsWithPlugin = initReadWritePluginProps();
     Result resultsWithPlugin = getSetReadOnlyResults(propsWithPlugin);
+
+    HikariPooledConnectionProvider connProvider = new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
+    ConnectionProviderManager.setConnectionProvider(connProvider);
+    Result resultsWithPools = getSetReadOnlyResults(propsWithPlugin);
+    ConnectionProviderManager.releaseResources();
+    ConnectionProviderManager.resetProvider();
 
     final long switchToReaderMinOverhead =
         resultsWithPlugin.switchToReaderMin - resultsWithoutPlugin.switchToReaderMin;
@@ -106,6 +116,45 @@ public class ReadWriteSplittingPerformanceTest {
         String.format(
             "./build/reports/tests/"
             + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_SwitchReaderWriterConnection.xlsx",
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            TestEnvironment.getCurrent().getCurrentDriver())
+    );
+
+    setReadOnlyPerfDataList.clear();
+
+    // internal connection pool results
+    final long connPoolSwitchToReaderMinOverhead =
+        resultsWithPools.switchToReaderMin - resultsWithoutPlugin.switchToReaderMin;
+    final long connPoolSwitchToReaderMaxOverhead =
+        resultsWithPools.switchToReaderMax - resultsWithoutPlugin.switchToReaderMax;
+    final long connPoolSwitchToReaderAvgOverhead =
+        resultsWithPools.switchToReaderAvg - resultsWithoutPlugin.switchToReaderAvg;
+
+    final long connPoolSwitchToWriterMinOverhead =
+        resultsWithPools.switchToWriterMin - resultsWithoutPlugin.switchToWriterMin;
+    final long connPoolSwitchToWriterMaxOverhead =
+        resultsWithPools.switchToWriterMax - resultsWithoutPlugin.switchToWriterMax;
+    final long connPoolSwitchToWriterAvgOverhead =
+        resultsWithPools.switchToWriterAvg - resultsWithoutPlugin.switchToWriterAvg;
+
+    final PerfStatSwitchConnection connPoolsConnectReaderData = new PerfStatSwitchConnection();
+    connPoolsConnectReaderData.connectionSwitch = "Switch to reader (open new connection)";
+    connPoolsConnectReaderData.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(connPoolSwitchToReaderMinOverhead);
+    connPoolsConnectReaderData.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(connPoolSwitchToReaderMaxOverhead);
+    connPoolsConnectReaderData.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(connPoolSwitchToReaderAvgOverhead);
+    setReadOnlyPerfDataList.add(connPoolsConnectReaderData);
+
+    final PerfStatSwitchConnection connPoolsConnectWriterData = new PerfStatSwitchConnection();
+    connPoolsConnectWriterData.connectionSwitch = "Switch back to writer (use cached connection)";
+    connPoolsConnectWriterData.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(connPoolSwitchToWriterMinOverhead);
+    connPoolsConnectWriterData.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(connPoolSwitchToWriterMaxOverhead);
+    connPoolsConnectWriterData.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(connPoolSwitchToWriterAvgOverhead);
+    setReadOnlyPerfDataList.add(connPoolsConnectWriterData);
+
+    doWritePerfDataToFile(
+        String.format(
+            "./build/reports/tests/"
+                + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_InternalConnectionPools_SwitchReaderWriterConnection.xlsx",
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
             TestEnvironment.getCurrent().getCurrentDriver())
     );
