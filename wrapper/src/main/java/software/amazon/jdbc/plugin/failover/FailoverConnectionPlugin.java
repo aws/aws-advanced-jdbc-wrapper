@@ -502,10 +502,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @throws SQLException if an error occurs
    */
   private void switchCurrentConnectionTo(final HostSpec host, final Connection connection) throws SQLException {
-    final Connection currentConnection = this.pluginService.getCurrentConnection();
-    if (currentConnection != connection) {
-      invalidateCurrentConnection();
-    }
+    Connection currentConnection = this.pluginService.getCurrentConnection();
 
     final boolean readOnly;
     if (isWriter(host)) {
@@ -517,7 +514,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } else {
       readOnly = false;
     }
-    transferSessionState(currentConnection, connection, readOnly);
+
+    if (currentConnection != connection) {
+      transferSessionState(currentConnection, connection, readOnly);
+      invalidateCurrentConnection();
+    }
+
     this.pluginService.setCurrentConnection(connection, host);
 
     if (this.pluginManagerService != null) {
@@ -563,6 +565,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
+        this.pluginService.setAvailability(
+            this.pluginService.getCurrentHostSpec().getAliases(), HostAvailability.NOT_AVAILABLE);
         try {
           pickNewConnection();
         } catch (final SQLException e) {
@@ -702,7 +706,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    final HostSpec originalHost = this.pluginService.getCurrentHostSpec();
     if (this.pluginService.isInTransaction()) {
       isInTransaction = this.pluginService.isInTransaction();
       try {
@@ -718,19 +721,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
     } catch (final SQLException e) {
       // swallow this exception, current connection should be useless anyway.
-    }
-
-    try {
-      this.pluginService.setCurrentConnection(
-          conn,
-          new HostSpec(
-              originalHost.getHost(),
-              originalHost.getPort(),
-              originalHost.getRole(),
-              HostAvailability.NOT_AVAILABLE));
-      this.pluginService.setAvailability(originalHost.getAliases(), HostAvailability.NOT_AVAILABLE);
-    } catch (final SQLException e) {
-      LOGGER.fine(() -> Messages.get("Failover.failedToUpdateCurrentHostspecAvailability"));
     }
   }
 
