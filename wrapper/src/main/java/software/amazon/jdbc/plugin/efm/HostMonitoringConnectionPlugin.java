@@ -258,7 +258,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     try (final Statement stmt = connection.createStatement()) {
       try (final ResultSet rs = stmt.executeQuery(this.pluginService.getDialect().getHostAliasQuery())) {
         while (rs.next()) {
-          hostSpec.addAlias(rs.getString(1));
+          hostSpec.setIpAddress(rs.getString(1));
         }
       }
     } catch (final SQLException sqlException) {

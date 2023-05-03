@@ -38,6 +38,7 @@ public class HostSpec {
   protected Set<String> aliases = ConcurrentHashMap.newKeySet();
   protected Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
+  protected String ipAddress;
 
   public HostSpec(final String host) {
     this.host = host;
@@ -167,6 +168,15 @@ public class HostSpec {
   public String toString() {
     return String.format("HostSpec[host=%s, port=%d, %s, %s, weight=%d]",
         this.host, this.port, this.role, this.availability, this.weight);
+  }
+
+  public String getIpAddress() {
+    return ipAddress;
+  }
+
+  public void setIpAddress(String ipAddress) {
+    this.ipAddress = ipAddress;
+    this.addAlias(ipAddress);
   }
 
   @Override

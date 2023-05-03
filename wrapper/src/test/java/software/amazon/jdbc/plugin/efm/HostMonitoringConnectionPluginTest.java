@@ -295,7 +295,8 @@ class HostMonitoringConnectionPluginTest {
     when(resultSet.getString(eq(1))).thenReturn("second alias");
 
     plugin.connect(protocol, hostSpec, properties, true, () -> connection);
-    verify(hostSpec, times(2)).addAlias(stringArgumentCaptor.capture());
+    verify(hostSpec, times(1)).addAlias(stringArgumentCaptor.capture());
+    verify(hostSpec, times(1)).setIpAddress(stringArgumentCaptor.capture());
     final List<String> captures = stringArgumentCaptor.getAllValues();
     assertEquals(2, captures.size());
     assertEquals("hostSpec alias", captures.get(0));

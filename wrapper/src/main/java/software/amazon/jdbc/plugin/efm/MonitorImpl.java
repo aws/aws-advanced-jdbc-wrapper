@@ -28,6 +28,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.RdsUtils;
 
 /**
  * This class uses a background thread to monitor a particular server with one or more active {@link
@@ -50,6 +52,7 @@ public class MonitorImpl implements Monitor {
   private static final long THREAD_SLEEP_WHEN_INACTIVE_MILLIS = 100;
   private static final long MIN_CONNECTION_CHECK_TIMEOUT_MILLIS = 3000;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
+  private static final RdsUtils rdsHelper = new RdsUtils();
 
   private final Queue<MonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
   private final Queue<MonitorConnectionContext> newContexts = new ConcurrentLinkedQueue<>();
@@ -62,6 +65,7 @@ public class MonitorImpl implements Monitor {
   private volatile boolean stopped = false;
   private Connection monitoringConn = null;
   private long nodeCheckTimeoutMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
+  private String monitoringEndpoint;
 
   /**
    * Store the monitoring configuration for a connection.
@@ -90,6 +94,7 @@ public class MonitorImpl implements Monitor {
     this.monitorService = monitorService;
 
     this.contextLastUsedTimestampNano = this.getCurrentTimeNano();
+    this.monitoringEndpoint = getMonitoringEndpoint();
   }
 
   @Override
@@ -177,7 +182,7 @@ public class MonitorImpl implements Monitor {
 
               // otherwise, process this context
               monitorContext.updateConnectionStatus(
-                  this.hostSpec.getUrl(),
+                  this.monitoringEndpoint,
                   statusCheckStartTimeNano,
                   statusCheckStartTimeNano + status.elapsedTimeNano,
                   status.isValid);
@@ -277,6 +282,21 @@ public class MonitorImpl implements Monitor {
   // This method helps to organize unit tests.
   long getCurrentTimeNano() {
     return System.nanoTime();
+  }
+
+  private String getMonitoringEndpoint() {
+    final RdsUrlType rdsUrlType = rdsHelper.identifyRdsType(this.hostSpec.getUrl());
+    String endpoint = this.hostSpec.getUrl();
+    if (rdsUrlType.isRdsCluster() && !this.hostSpec.getAliases().isEmpty()) {
+      // Set monitoring endpoint to an instance endpoint
+      endpoint = this.monitoringEndpoint = hostSpec.getAliases()
+          .stream()
+          .filter(alias -> rdsHelper.identifyRdsType(alias) == RdsUrlType.RDS_INSTANCE)
+          .findFirst()
+          .orElseGet(hostSpec::getIpAddress);
+    }
+
+    return endpoint;
   }
 
   @Override
