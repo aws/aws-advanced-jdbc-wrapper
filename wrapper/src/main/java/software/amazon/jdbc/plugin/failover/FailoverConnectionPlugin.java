@@ -433,16 +433,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private void connectToWriterIfRequired(final Boolean readOnly) throws SQLException {
-    if (shouldReconnectToWriter(readOnly) && !Utils.isNullOrEmpty(this.pluginService.getHosts())) {
-      try {
-        connectTo(getCurrentWriter());
-      } catch (final SQLException e) {
-        failover(getCurrentWriter());
-      }
-    }
-  }
-
   /**
    * Checks if the given host index points to the primary host.
    *
@@ -462,7 +452,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           () -> Messages.get(
               "Failover.parameterValue",
               new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
-      connectToWriterIfRequired(this.explicitlyReadOnly);
     }
   }
 
@@ -487,10 +476,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   boolean shouldPerformWriterFailover() {
     return this.explicitlyReadOnly == null || !this.explicitlyReadOnly;
-  }
-
-  private boolean shouldReconnectToWriter(final Boolean readOnly) {
-    return readOnly != null && !readOnly && !isWriter(this.pluginService.getCurrentHostSpec());
   }
 
   /**
