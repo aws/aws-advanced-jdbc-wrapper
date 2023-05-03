@@ -65,6 +65,7 @@ public class AuroraConnectionTrackerPluginTest {
   @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock JdbcCallable<Void, SQLException> mockCloseOrAbortFunction;
   private static final Object[] SQL_ARGS = {"sql"};
+  @Mock HostSpec mockHostSpec;
 
   private AutoCloseable closeable;
 
@@ -79,6 +80,7 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockRdsUtils.getRdsInstanceHostPattern(any(String.class))).thenReturn("?");
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    when(mockPluginService.getCurrentHostSpec()).thenReturn(mockHostSpec);
     when(((TopologyAwareDatabaseCluster) mockTopologyAwareDialect).getNodeIdQuery()).thenReturn("any");
   }
 
@@ -215,8 +217,9 @@ public class AuroraConnectionTrackerPluginTest {
   @Test
   public void testInvalidateOpenedConnections() throws SQLException {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
-    final HostSpec originalHost = new HostSpec("host");
-    when(mockPluginService.getCurrentHostSpec()).thenReturn(originalHost);
+    final String originalHost = "host";
+    when(mockRdsUtils.isRdsInstance(eq(originalHost))).thenReturn(true);
+    when(mockHostSpec.getUrl()).thenReturn(originalHost);
     doThrow(expectedException).when(mockSqlFunction).call();
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
@@ -242,8 +245,9 @@ public class AuroraConnectionTrackerPluginTest {
   @ParameterizedTest
   @ValueSource(strings = {AuroraConnectionTrackerPlugin.METHOD_ABORT, AuroraConnectionTrackerPlugin.METHOD_CLOSE})
   public void testInvalidateConnectionsOnCloseOrAbort(final String method) throws SQLException {
-    final HostSpec originalHost = new HostSpec("host");
-    when(mockPluginService.getCurrentHostSpec()).thenReturn(originalHost);
+    final String originalHost = "host";
+    when(mockRdsUtils.isRdsInstance(eq(originalHost))).thenReturn(true);
+    when(mockHostSpec.getUrl()).thenReturn(originalHost);
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
         mockPluginService,

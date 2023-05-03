@@ -77,29 +77,22 @@ public class OpenedConnectionTracker {
   }
 
   /**
-   * Invalidates all opened connections pointing to the same node in a daemon thread. 1
+   * Invalidates all opened connections pointing to the nodes specified.
    *
-   * @param hostSpec The {@link HostSpec} object containing the url of the node.
+   * @param node A list of endpoints.
    */
-  public void invalidateAllConnections(final HostSpec hostSpec) {
-    invalidateAllConnections(hostSpec.getAliases().toArray(new String[] {}));
-  }
-
   public void invalidateAllConnections(final String... node) {
     final Optional<String> instanceEndpoint = Arrays.stream(node).filter(rdsUtils::isRdsInstance).findFirst();
     if (!instanceEndpoint.isPresent()) {
       return;
     }
     final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(instanceEndpoint.get());
+    LOGGER.finest("invalidateAllConnections");
     logConnectionQueue(instanceEndpoint.get(), connectionQueue);
     invalidateConnections(openedConnections.get(instanceEndpoint.get()));
   }
 
-  public void invalidateCurrentConnection(final HostSpec hostSpec, final Connection connection) {
-    final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
-        ? hostSpec.getHost()
-        : hostSpec.getAliases().stream().filter(rdsUtils::isRdsInstance).findFirst().orElse(null);
-
+  public void invalidateCurrentConnection(final String host, final Connection connection) {
     if (StringUtils.isNullOrEmpty(host)) {
       return;
     }

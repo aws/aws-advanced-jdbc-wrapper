@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -38,6 +39,8 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
+
+  private static final Logger LOGGER = Logger.getLogger(AuroraConnectionTrackerPlugin.class.getName());
 
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
@@ -94,6 +97,11 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
     if (conn != null) {
       if (!rdsHelper.isRdsInstance(currentHostSpec.getHost())) {
+        // Remove pre-existing instance endpoint.
+        currentHostSpec.getAliases().stream()
+            .filter(this.rdsHelper::isRdsInstance)
+            .findAny()
+            .ifPresent(currentHostSpec::removeAlias);
         currentHostSpec.addAlias(getInstanceEndpoint(conn, currentHostSpec));
       }
     }
@@ -124,7 +132,13 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   public <T, E extends Exception> T execute(final Class<T> resultClass, final Class<E> exceptionClass,
       final Object methodInvokeOn, final String methodName, final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs) throws E {
-    final HostSpec originalHost = this.pluginService.getCurrentHostSpec();
+    String originalHost = this.pluginService.getCurrentHostSpec().getUrl();
+    if (!this.rdsHelper.isRdsInstance(originalHost)) {
+      originalHost = this.pluginService.getCurrentHostSpec().getAliases().stream()
+          .filter(this.rdsHelper::isRdsInstance).findAny()
+          .orElse(null);
+    }
+
     try {
       final T result = jdbcMethodFunc.call();
       if ((methodName.equals(METHOD_CLOSE) || methodName.equals(METHOD_ABORT))) {
@@ -142,6 +156,15 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
+    final StringBuilder sb = new StringBuilder("Tracker Changes:");
+    for (final Map.Entry<String, EnumSet<NodeChangeOptions>> change : changes.entrySet()) {
+      if (sb.length() > 0) {
+        sb.append("\n");
+      }
+      sb.append(String.format("\tHost '%s': %s", change.getKey(), change.getValue()));
+    }
+    LOGGER.finest(sb.toString());
+
     for (final String node : changes.keySet()) {
       if (isRoleChanged(changes.get(node))) {
         tracker.invalidateAllConnections(node);
@@ -150,8 +173,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   private boolean isRoleChanged(final EnumSet<NodeChangeOptions> changes) {
-    return changes.contains(NodeChangeOptions.PROMOTED_TO_WRITER)
-        || changes.contains(NodeChangeOptions.PROMOTED_TO_READER);
+    return changes.contains(NodeChangeOptions.PROMOTED_TO_READER);
   }
 
   public String getInstanceEndpoint(final Connection conn, final HostSpec host) {
