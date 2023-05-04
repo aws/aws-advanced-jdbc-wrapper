@@ -97,12 +97,19 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
 
     if (conn != null) {
       if (!rdsHelper.isRdsInstance(currentHostSpec.getHost())) {
-        // Remove pre-existing instance endpoint.
-        currentHostSpec.getAliases().stream()
-            .filter(this.rdsHelper::isRdsInstance)
-            .findAny()
-            .ifPresent(currentHostSpec::removeAlias);
-        currentHostSpec.addAlias(getInstanceEndpoint(conn, currentHostSpec));
+        // Remove pre-existing instance endpoints.
+        // If the host url is a cluster endpoint, the driver may be adding multiple instance endpoints to different
+        // instances if we don't remove pre-existing ones.
+        currentHostSpec.getAliases().forEach(alias -> {
+          if (this.rdsHelper.isRdsInstance(alias)) {
+            currentHostSpec.removeAlias(alias);
+          }
+        });
+
+        final String instanceEndpoint = getInstanceEndpoint(conn, currentHostSpec);
+        if (!StringUtils.isNullOrEmpty(instanceEndpoint)) {
+          currentHostSpec.addAlias(instanceEndpoint);
+        }
       }
     }
 
@@ -180,7 +187,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     String instanceName = "?";
 
     if (!(this.pluginService.getDialect() instanceof TopologyAwareDatabaseCluster)) {
-      return instanceName;
+      return null;
     }
     final TopologyAwareDatabaseCluster topologyAwareDialect =
         (TopologyAwareDatabaseCluster) this.pluginService.getDialect();
