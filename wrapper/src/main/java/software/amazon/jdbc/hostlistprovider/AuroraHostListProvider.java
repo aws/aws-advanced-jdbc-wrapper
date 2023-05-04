@@ -82,9 +82,9 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
-  private final Executor NETWORK_TIMEOUT_EXECUTOR = Executors.newSingleThreadExecutor();
-  private final CompletionService NETWORK_TIMEOUT_COMPLETION_SERVICE =
-      new ExecutorCompletionService(NETWORK_TIMEOUT_EXECUTOR);
+  private final Executor networkTimeoutExecutor = Executors.newSingleThreadExecutor();
+  private final CompletionService networkTimeoutCompletionService =
+      new ExecutorCompletionService(networkTimeoutExecutor);
   private final HostListProviderService hostListProviderService;
   private final String originalUrl;
   private RdsUrlType rdsUrlType;
@@ -370,8 +370,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   }
 
   private void setNetworkTimeout(final Connection conn, final int timeoutMs) throws SQLException {
-    Future<Boolean> future = NETWORK_TIMEOUT_COMPLETION_SERVICE.submit(() -> {
-      conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, timeoutMs);
+    Future<Boolean> future = networkTimeoutCompletionService.submit(() -> {
+      conn.setNetworkTimeout(networkTimeoutExecutor, timeoutMs);
       return true;
     });
 
@@ -380,7 +380,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       throw new SQLException(
           Messages.get("AuroraHostListProvider.errorSettingNetworkTimeout",
-          new Object[]{e.getMessage()}));
+              new Object[] {e.getMessage()}));
     }
   }
 
