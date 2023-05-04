@@ -64,6 +64,8 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.dialect.PgDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.RdsUtils;
 
 class HostMonitoringConnectionPluginTest {
 
@@ -86,6 +88,7 @@ class HostMonitoringConnectionPluginTest {
   @Mock MonitorConnectionContext context;
   @Mock MonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
+  @Mock RdsUtils rdsHelper;
   private HostMonitoringConnectionPlugin plugin;
   private AutoCloseable closeable;
 
@@ -147,7 +150,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   private void initializePlugin() {
-    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier);
+    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier, rdsHelper);
   }
 
   @ParameterizedTest
@@ -288,6 +291,7 @@ class HostMonitoringConnectionPluginTest {
     initializePlugin();
 
     when(hostSpec.asAlias()).thenReturn("hostSpec alias");
+    when(rdsHelper.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockDialect.getHostAliasQuery()).thenReturn(expectedSql);
 
     // ResultSet contains one row.
@@ -295,8 +299,7 @@ class HostMonitoringConnectionPluginTest {
     when(resultSet.getString(eq(1))).thenReturn("second alias");
 
     plugin.connect(protocol, hostSpec, properties, true, () -> connection);
-    verify(hostSpec, times(1)).addAlias(stringArgumentCaptor.capture());
-    verify(hostSpec, times(1)).setIpAddress(stringArgumentCaptor.capture());
+    verify(hostSpec, times(2)).addAlias(stringArgumentCaptor.capture());
     final List<String> captures = stringArgumentCaptor.getAllValues();
     assertEquals(2, captures.size());
     assertEquals("hostSpec alias", captures.get(0));

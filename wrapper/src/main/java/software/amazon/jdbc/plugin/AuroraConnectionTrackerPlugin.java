@@ -110,16 +110,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
     return connectInternal(hostSpec, forceConnectFunc);
   }
 
-  private String getInstanceEndpointPattern(final String url) {
-    if (StringUtils.isNullOrEmpty(this.clusterInstanceTemplate)) {
-      this.clusterInstanceTemplate = AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.props) == null
-          ? rdsHelper.getRdsInstanceHostPattern(url)
-          : AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.props);
-    }
-
-    return this.clusterInstanceTemplate;
-  }
-
   @Override
   public <T, E extends Exception> T execute(final Class<T> resultClass, final Class<E> exceptionClass,
       final Object methodInvokeOn, final String methodName, final JdbcCallable<T, E> jdbcMethodFunc,
@@ -168,7 +158,9 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       if (resultSet.next()) {
         instanceName = resultSet.getString(1);
       }
-      String instanceEndpoint = getInstanceEndpointPattern(host.getHost());
+      String instanceEndpoint = rdsHelper.getInstanceEndpointPattern(
+          host.getHost(),
+          AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.props));
       instanceEndpoint = host.isPortSpecified() ? instanceEndpoint + ":" + host.getPort() : instanceEndpoint;
       return instanceEndpoint.replace("?", instanceName);
     } catch (final SQLException e) {

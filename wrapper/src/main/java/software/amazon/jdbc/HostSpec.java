@@ -93,7 +93,12 @@ public class HostSpec {
    * @param role     the role of this host (writer or reader).
    */
   public HostSpec(final HostSpec copyHost, final HostRole role) {
-    this(copyHost.getHost(), copyHost.getPort(), role, copyHost.getAvailability());
+    this(copyHost, copyHost.getHost(), role);
+  }
+
+  public HostSpec(final HostSpec copyHost, final String newHostUrl, final HostRole role) {
+    this(newHostUrl, copyHost.getPort(), role, copyHost.getAvailability());
+    this.addAlias(copyHost.asAliases().toArray(new String[] {}));
   }
 
   public String getHost() {
@@ -168,15 +173,6 @@ public class HostSpec {
   public String toString() {
     return String.format("HostSpec[host=%s, port=%d, %s, %s, weight=%d]",
         this.host, this.port, this.role, this.availability, this.weight);
-  }
-
-  public String getIpAddress() {
-    return ipAddress;
-  }
-
-  public void setIpAddress(String ipAddress) {
-    this.ipAddress = ipAddress;
-    this.addAlias(ipAddress);
   }
 
   @Override

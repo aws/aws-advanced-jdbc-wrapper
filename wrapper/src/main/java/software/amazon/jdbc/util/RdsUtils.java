@@ -16,8 +16,10 @@
 
 package software.amazon.jdbc.util;
 
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 public class RdsUtils {
 
@@ -279,5 +281,11 @@ public class RdsUtils {
     } else {
       return RdsUrlType.OTHER;
     }
+  }
+
+  public String getInstanceEndpointPattern(final String url, String instanceHostPattern) {
+    return instanceHostPattern == null
+        ? this.getRdsInstanceHostPattern(url)
+        : instanceHostPattern;
   }
 }

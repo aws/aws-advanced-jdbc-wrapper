@@ -37,8 +37,13 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
@@ -83,6 +88,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   private final @NonNull PluginService pluginService;
   private final @NonNull Set<String> nodeKeys = ConcurrentHashMap.newKeySet(); // Shared with monitor thread
   private MonitorService monitorService;
+  private RdsUtils rdsHelper;
+  private String clusterInstanceTemplate;
 
   /**
    * Initialize the node monitoring plugin.
@@ -93,13 +100,14 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    */
   public HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService, final @NonNull Properties properties) {
-    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService));
+    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService), new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
-      final @NonNull Supplier<MonitorService> monitorServiceSupplier) {
+      final @NonNull Supplier<MonitorService> monitorServiceSupplier,
+      final @NonNull RdsUtils rdsUtils) {
     if (pluginService == null) {
       throw new IllegalArgumentException("pluginService");
     }
@@ -112,6 +120,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this.pluginService = pluginService;
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
+    this.rdsHelper = rdsUtils;
   }
 
   @Override
@@ -151,6 +160,29 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     MonitorConnectionContext monitorContext = null;
 
     try {
+      final HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
+      String monitoringEndpoint = null;
+      final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(monitoringEndpoint);
+
+      if (rdsUrlType.isRdsCluster()) {
+        if (!currentHostSpec.getAliases().isEmpty()) {
+          // Check if the aliases already contain an instance endpoint.
+          monitoringEndpoint = currentHostSpec.getAliases()
+              .stream()
+              .filter(alias -> rdsHelper.identifyRdsType(alias) == RdsUrlType.RDS_INSTANCE)
+              .findAny()
+              .orElse(null);
+        }
+
+        if (StringUtils.isNullOrEmpty(monitoringEndpoint)) {
+          // Try to query the instance endpoint.
+          monitoringEndpoint = getInstanceEndpoint(this.pluginService.getCurrentConnection(), currentHostSpec);
+        }
+      }
+
+      HostSpec monitoringHost = new HostSpec(monitoringEndpoint, currentHostSpec.getPort(), currentHostSpec.getRole());
+      monitoringHost.addAlias(currentHostSpec.asAliases().toArray(new String[] {}));
+
       LOGGER.finest(
           () -> Messages.get(
               "HostMonitoringConnectionPlugin.activatedMonitoring",
@@ -163,7 +195,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           this.monitorService.startMonitoring(
               this.pluginService.getCurrentConnection(), // abort this connection if needed
               this.nodeKeys,
-              this.pluginService.getCurrentHostSpec(),
+              monitoringHost,
               this.properties,
               failureDetectionTimeMillis,
               failureDetectionIntervalMillis,
@@ -258,7 +290,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     try (final Statement stmt = connection.createStatement()) {
       try (final ResultSet rs = stmt.executeQuery(this.pluginService.getDialect().getHostAliasQuery())) {
         while (rs.next()) {
-          hostSpec.setIpAddress(rs.getString(1));
+          hostSpec.addAlias(rs.getString(1));
         }
       }
     } catch (final SQLException sqlException) {
@@ -313,5 +345,30 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
     return connectInternal(driverProtocol, hostSpec, forceConnectFunc);
+  }
+
+  public String getInstanceEndpoint(final Connection conn, final HostSpec host) {
+    String instanceName = "?";
+
+    if (!(this.pluginService.getDialect() instanceof TopologyAwareDatabaseCluster)) {
+      return null;
+    }
+
+    final TopologyAwareDatabaseCluster topologyAwareDialect =
+        (TopologyAwareDatabaseCluster) this.pluginService.getDialect();
+
+    try (final Statement stmt = conn.createStatement();
+        final ResultSet resultSet = stmt.executeQuery(topologyAwareDialect.getNodeIdQuery())) {
+      if (resultSet.next()) {
+        instanceName = resultSet.getString(1);
+      }
+      String instanceEndpoint = rdsHelper.getInstanceEndpointPattern(
+          host.getHost(),
+          AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
+      instanceEndpoint = host.isPortSpecified() ? instanceEndpoint + ":" + host.getPort() : instanceEndpoint;
+      return instanceEndpoint.replace("?", instanceName);
+    } catch (final SQLException e) {
+      return null;
+    }
   }
 }
