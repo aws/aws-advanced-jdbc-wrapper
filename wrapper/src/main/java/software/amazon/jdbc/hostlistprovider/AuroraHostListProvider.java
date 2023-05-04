@@ -30,9 +30,14 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -77,7 +82,9 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
-  private static final Executor NETWORK_TIMEOUT_EXECUTOR = Executors.newSingleThreadExecutor();
+  private final Executor NETWORK_TIMEOUT_EXECUTOR = Executors.newSingleThreadExecutor();
+  private final CompletionService NETWORK_TIMEOUT_COMPLETION_SERVICE =
+      new ExecutorCompletionService(NETWORK_TIMEOUT_EXECUTOR);
   private final HostListProviderService hostListProviderService;
   private final String originalUrl;
   private RdsUrlType rdsUrlType;
@@ -97,6 +104,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   public static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
   private static final int defaultTopologyQueryTimeoutMs = 5000;
+  private static final int setNetworkTimeoutMs = 10000;
   private final ReentrantLock lock = new ReentrantLock();
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
@@ -342,7 +350,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       networkTimeout = conn.getNetworkTimeout();
       // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
       if (networkTimeout == 0) {
-        conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, defaultTopologyQueryTimeoutMs);
+        setNetworkTimeout(conn, defaultTopologyQueryTimeoutMs);
       }
     } catch (SQLException e) {
       LOGGER.warning(() -> Messages.get("AuroraHostListProvider.errorGettingNetworkTimeout",
@@ -356,8 +364,23 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery"), e);
     } finally {
       if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, networkTimeout);
+        setNetworkTimeout(conn, networkTimeout);
       }
+    }
+  }
+
+  private void setNetworkTimeout(final Connection conn, final int timeoutMs) throws SQLException {
+    Future<Boolean> future = NETWORK_TIMEOUT_COMPLETION_SERVICE.submit(() -> {
+      conn.setNetworkTimeout(NETWORK_TIMEOUT_EXECUTOR, timeoutMs);
+      return true;
+    });
+
+    try {
+      future.get(setNetworkTimeoutMs, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      throw new SQLException(
+          Messages.get("AuroraHostListProvider.errorSettingNetworkTimeout",
+          new Object[]{e.getMessage()}));
     }
   }
 
