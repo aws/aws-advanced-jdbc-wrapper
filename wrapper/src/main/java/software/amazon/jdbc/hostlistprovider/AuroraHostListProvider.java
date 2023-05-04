@@ -348,7 +348,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       networkTimeout = conn.getNetworkTimeout();
       // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
       if (networkTimeout == 0) {
-        // conn.setNetworkTimeout(networkTimeoutExecutor, defaultTopologyQueryTimeoutMs);
+        conn.setNetworkTimeout(networkTimeoutExecutor, defaultTopologyQueryTimeoutMs);
       }
     } catch (SQLException e) {
       LOGGER.warning(() -> Messages.get("AuroraHostListProvider.errorGettingNetworkTimeout",
@@ -362,7 +362,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery"), e);
     } finally {
       if (networkTimeout == 0 && !conn.isClosed()) {
-        // conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
+        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
       }
     }
   }
