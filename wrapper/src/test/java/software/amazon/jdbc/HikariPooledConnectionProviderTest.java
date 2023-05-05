@@ -62,15 +62,18 @@ class HikariPooledConnectionProviderTest {
   @Test
   void testConnectWithDefaultMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
-    final Set<String> expected = new HashSet<>(Collections.singletonList("url"));
+    final Set<String> expected = new HashSet<>(Collections.singletonList("urlusernamepassword"));
 
     final HikariPooledConnectionProvider provider =
         spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
 
     doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
 
+    Properties props = new Properties();
+    props.setProperty(PropertyDefinition.USER.name, "username");
+    props.setProperty(PropertyDefinition.PASSWORD.name, "password");
     try (Connection conn = provider.connect(
-        "protocol", mockDialect, mockHostSpec, emptyProperties)) {
+        "protocol", mockDialect, mockHostSpec, props)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
@@ -83,7 +86,7 @@ class HikariPooledConnectionProviderTest {
   @Test
   void testConnectWithCustomMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
-    final Set<String> expected = new HashSet<>(Collections.singletonList("url+someUniqueKey"));
+    final Set<String> expected = new HashSet<>(Collections.singletonList("url+someUniqueKeyusernamepassword"));
 
     final HikariPooledConnectionProvider provider = spy(new HikariPooledConnectionProvider(
         (hostSpec, properties) -> mockConfig,
@@ -91,8 +94,11 @@ class HikariPooledConnectionProviderTest {
 
     doReturn(mockDataSource).when(provider).createHikariDataSource(any(), any(), any());
 
+    Properties props = new Properties();
+    props.setProperty(PropertyDefinition.USER.name, "username");
+    props.setProperty(PropertyDefinition.PASSWORD.name, "password");
     try (Connection conn = provider.connect(
-        "protocol", mockDialect, mockHostSpec, emptyProperties)) {
+        "protocol", mockDialect, mockHostSpec, props)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
