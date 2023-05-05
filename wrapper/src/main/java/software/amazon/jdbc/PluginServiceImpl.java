@@ -17,7 +17,9 @@
 package software.amazon.jdbc;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -35,6 +37,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
@@ -489,4 +492,38 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         connection);
   }
 
+  @Override
+  public HostSpec identifyConnection(Connection connection) throws SQLException {
+    if (!(this.getDialect() instanceof TopologyAwareDatabaseCluster)) {
+      return this.getCurrentHostSpec();
+    }
+
+    return this.hostListProvider.identifyConnection(connection);
+  }
+
+  @Override
+  public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
+    if (!hostSpec.getAliases().isEmpty()) {
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
+      return;
+    }
+
+    hostSpec.addAlias(hostSpec.asAlias());
+
+    try (final Statement stmt = connection.createStatement()) {
+      try (final ResultSet rs = stmt.executeQuery(this.getDialect().getHostAliasQuery())) {
+        while (rs.next()) {
+          hostSpec.addAlias(rs.getString(1));
+        }
+      }
+    } catch (final SQLException sqlException) {
+      // log and ignore
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
+    }
+
+    final HostSpec host = this.identifyConnection(connection);
+    if (host != this.currentHostSpec) {
+      hostSpec.addAlias(host.asAlias());
+    }
+  }
 }

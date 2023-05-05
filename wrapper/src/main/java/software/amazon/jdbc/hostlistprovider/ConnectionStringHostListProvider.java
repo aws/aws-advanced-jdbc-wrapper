@@ -109,4 +109,9 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   public HostRole getHostRole(Connection connection) {
     throw new UnsupportedOperationException("ConnectionStringHostListProvider does not support getHostRole");
   }
+
+  @Override
+  public HostSpec identifyConnection(Connection connection) throws SQLException {
+    return this.hostList.get(0);
+  }
 }

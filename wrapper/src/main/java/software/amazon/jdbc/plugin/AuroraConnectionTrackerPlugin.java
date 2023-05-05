@@ -93,9 +93,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         : hostSpec;
 
     if (conn != null) {
-      if (!rdsHelper.isRdsInstance(currentHostSpec.getHost())) {
-        currentHostSpec.addAlias(getInstanceEndpoint(conn, currentHostSpec));
-      }
+      this.pluginService.fillAliases(conn, hostSpec);
     }
 
     tracker.populateOpenedConnectionQueue(currentHostSpec, conn);

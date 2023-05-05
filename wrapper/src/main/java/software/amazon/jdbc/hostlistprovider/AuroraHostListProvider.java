@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -42,6 +43,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -273,7 +275,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       for (final HostSpec host : hosts) {
         if (host.getUrl().equals(url)) {
           LOGGER.finest(() -> Messages.get("AuroraHostListProvider.suggestedClusterId",
-              new Object[]{key, url}));
+              new Object[] {key, url}));
           return new ClusterSuggestedResult(key, isPrimaryCluster);
         }
       }
@@ -398,8 +400,12 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    hostName = hostName == null ? "?" : hostName;
-    final String endpoint = getHostEndpoint(hostName);
+    return createHost(hostName, isWriter, weight);
+  }
+
+  private HostSpec createHost(String host, final boolean isWriter, final long weight) {
+    host = host == null ? "?" : host;
+    final String endpoint = getHostEndpoint(host);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
         ? this.clusterInstanceTemplate.getPort()
         : this.initialHostSpec.getPort();
@@ -410,7 +416,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         isWriter ? HostRole.WRITER : HostRole.READER,
         HostAvailability.AVAILABLE,
         weight);
-    hostSpec.addAlias(hostName);
+    hostSpec.addAlias(host);
+    hostSpec.setHostId(host);
     return hostSpec;
   }
 
@@ -577,6 +584,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   }
 
   static class ClusterSuggestedResult {
+
     public String clusterId;
     public boolean isPrimaryClusterId;
 
@@ -593,13 +601,13 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       if (!(dialect instanceof TopologyAwareDatabaseCluster)) {
         throw new SQLException(
             Messages.get("AuroraHostListProvider.invalidDialectForGetHostRole",
-                new Object[]{dialect}));
+                new Object[] {dialect}));
       }
       this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
     }
 
     try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
+        final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
       if (rs.next()) {
         boolean isReader = rs.getBoolean(1);
         return isReader ? HostRole.READER : HostRole.WRITER;
@@ -609,5 +617,34 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     }
 
     throw new SQLException(Messages.get("AuroraHostListProvider.errorGettingHostRole"));
+  }
+
+  @Override
+  public HostSpec identifyConnection(Connection connection) throws SQLException {
+    try (final Statement stmt = connection.createStatement();
+        final ResultSet resultSet = stmt.executeQuery(topologyAwareDialect.getNodeIdQuery())) {
+      if (resultSet.next()) {
+        final String instanceName = resultSet.getString(1);
+        if (this.getCachedTopology() == null) {
+          final HostSpec host = new HostSpec(getHostEndpoint(instanceName));
+          host.setHostId(instanceName);
+          return host;
+        }
+
+        return this.getCachedTopology()
+            .stream()
+            .filter(host -> Objects.equals(instanceName, host.getHostId()))
+            .findAny()
+            .orElseGet(() -> {
+              final HostSpec host = new HostSpec(getHostEndpoint(instanceName));
+              host.setHostId(instanceName);
+              return host;
+            });
+      }
+    } catch (final SQLException e) {
+      throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyingConnection"), e);
+    }
+
+    throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyingConnection"));
   }
 }

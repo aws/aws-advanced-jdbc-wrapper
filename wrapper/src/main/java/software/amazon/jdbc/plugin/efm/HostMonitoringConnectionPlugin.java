@@ -241,32 +241,6 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this.monitorService = null;
   }
 
-  /**
-   * Generate a set of node keys representing the node to monitor.
-   *
-   * @param driverProtocol Driver protocol for provided connection
-   * @param connection the connection to a specific node.
-   * @param hostSpec host details to add node keys to
-   */
-  private void generateHostAliases(
-      final @NonNull String driverProtocol,
-      final @NonNull Connection connection,
-      final @NonNull HostSpec hostSpec) {
-
-    hostSpec.addAlias(hostSpec.asAlias());
-
-    try (final Statement stmt = connection.createStatement()) {
-      try (final ResultSet rs = stmt.executeQuery(this.pluginService.getDialect().getHostAliasQuery())) {
-        while (rs.next()) {
-          hostSpec.addAlias(rs.getString(1));
-        }
-      }
-    } catch (final SQLException sqlException) {
-      // log and ignore
-      LOGGER.finest(() -> Messages.get("HostMonitoringConnectionPlugin.failedToRetrieveHostPort"));
-    }
-  }
-
   @Override
   public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
 
@@ -298,7 +272,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     final Connection conn = connectFunc.call();
 
     if (conn != null) {
-      generateHostAliases(driverProtocol, conn, hostSpec);
+      hostSpec.resetAliases();
+      this.pluginService.fillAliases(conn, hostSpec);
     }
 
     return conn;
