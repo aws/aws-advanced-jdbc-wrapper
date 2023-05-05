@@ -39,7 +39,7 @@ The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/Hi
 - username
 - password
 
-You can optionally pass in a `HikariPoolMapping` function as a second parameter to the `HikariPooledConnectionProvider`. Internally, the connection pools used by the plugin are maintained as a map from instance URLs to connection pools. If you would like to define a different key system, you should pass in a `HikariPoolMapping` function defining this logic. This is helpful, for example, when you would like to create multiple Connection objects to the same instance with different users. In this scenario, you should pass in a `HikariPoolMapping` that incorporates the instance URL and the username from the `Properties` object into the map key.
+You can optionally pass in a `HikariPoolMapping` function as a second parameter to the `HikariPooledConnectionProvider`. This allows you to decide when new connection pools should be created by defining what is included in the pool map key. A new pool will be created each time a new connection is requested with a unique key. By default, a new pool will be created for each unique instance-user combination. If you would like to define a different key system, you should pass in a `HikariPoolMapping` function defining this logic. Note that the user and password will always be included in the key for security reasons.
 
 2. Call `ConnectionProviderManager.setConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
 

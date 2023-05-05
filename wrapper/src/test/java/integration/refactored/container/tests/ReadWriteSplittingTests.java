@@ -27,10 +27,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.pool.HikariPool;
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
+import integration.refactored.TestEnvironmentInfo;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.ProxyHelper;
@@ -597,7 +599,7 @@ public class ReadWriteSplittingTests {
   protected static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
     final HikariConfig config = new HikariConfig();
     config.setMaximumPoolSize(1);
-    config.setInitializationFailTimeout(75000);
+    config.setInitializationFailTimeout(20000);
     return config;
   }
 
@@ -754,6 +756,75 @@ public class ReadWriteSplittingTests {
         assertNotSame(initialWriterConn1, initialWriterConn2);
       }
     } finally {
+      ConnectionProviderManager.releaseResources();
+      ConnectionProviderManager.resetProvider();
+    }
+  }
+
+  @TestTemplate
+  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
+  public void test_pooledConnection_differentUsers() throws SQLException {
+    Properties privilegedUserProps = getProps();
+
+    Properties privilegedUserWithWrongPasswordProps = getProps();
+    privilegedUserWithWrongPasswordProps.setProperty(PropertyDefinition.PASSWORD.name, "bogus_password");
+
+    Properties limitedUserProps = getProps();
+    String limitedUserName = "limited_user";
+    String limitedUserPassword = "limited_user";
+    String limitedUserNewDb = "limited_user_db";
+    limitedUserProps.setProperty(PropertyDefinition.USER.name, limitedUserName);
+    limitedUserProps.setProperty(PropertyDefinition.PASSWORD.name, limitedUserPassword);
+
+    Properties wrongUserRightPasswordProps = getProps();
+    wrongUserRightPasswordProps.setProperty(PropertyDefinition.USER.name, "bogus_user");
+
+    final HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+    ConnectionProviderManager.setConnectionProvider(provider);
+
+    try {
+      try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(),
+          privilegedUserProps); Statement stmt = conn.createStatement()) {
+        stmt.execute("DROP USER IF EXISTS " + limitedUserName);
+        auroraUtil.createUser(conn, limitedUserName, limitedUserPassword);
+        TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
+        DatabaseEngine engine = info.getRequest().getDatabaseEngine();
+        if (DatabaseEngine.MYSQL.equals(engine)) {
+          String db = info.getDatabaseInfo().getDefaultDbName();
+          // MySQL needs this extra command to allow the limited user access to the database
+          stmt.execute("GRANT ALL PRIVILEGES ON " + db + ".* to " + limitedUserName);
+        }
+      }
+
+      try (final Connection conn = DriverManager.getConnection(
+          ConnectionStringHelper.getWrapperUrl(), limitedUserProps);
+           Statement stmt = conn.createStatement()) {
+        assertThrows(SQLException.class,
+            () -> stmt.execute("CREATE DATABASE " + limitedUserNewDb));
+      }
+
+      assertThrows(
+          HikariPool.PoolInitializationException.class, () -> {
+            try (final Connection conn = DriverManager.getConnection(
+                ConnectionStringHelper.getWrapperUrl(), privilegedUserWithWrongPasswordProps)) {
+            }
+          });
+
+      assertThrows(
+          HikariPool.PoolInitializationException.class, () -> {
+            try (final Connection conn = DriverManager.getConnection(
+                ConnectionStringHelper.getWrapperUrl(), wrongUserRightPasswordProps)) {
+            }
+          });
+    } finally {
+      try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(),
+          privilegedUserProps);
+           Statement stmt = conn.createStatement()) {
+        stmt.execute("DROP DATABASE IF EXISTS " + limitedUserNewDb);
+        stmt.execute("DROP USER IF EXISTS " + limitedUserName);
+      }
+
       ConnectionProviderManager.releaseResources();
       ConnectionProviderManager.resetProvider();
     }

@@ -120,7 +120,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       @NonNull Properties props)
       throws SQLException {
     final HikariDataSource ds = databasePools.computeIfAbsent(
-        poolMapping.getKey(hostSpec, props),
+        getPoolKey(hostSpec, props),
         url -> createHikariDataSource(protocol, hostSpec, props)
     );
 
@@ -131,6 +131,14 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       conn = ds.getConnection();
     }
     return conn;
+  }
+
+  // The pool key should always be retrieved using this method, because the username/password
+  // must always be included to avoid sharing privileged connections with other users.
+  private String getPoolKey(HostSpec hostSpec, Properties props) {
+    return poolMapping.getKey(hostSpec, props)
+        + props.getProperty(PropertyDefinition.USER.name)
+        + props.getProperty(PropertyDefinition.PASSWORD.name);
   }
 
   @Override
