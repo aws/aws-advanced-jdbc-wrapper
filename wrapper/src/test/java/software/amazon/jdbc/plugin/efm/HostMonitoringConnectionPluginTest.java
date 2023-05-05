@@ -81,6 +81,7 @@ class HostMonitoringConnectionPluginTest {
   @Captor ArgumentCaptor<String> stringArgumentCaptor;
   Properties properties = new Properties();
   @Mock HostSpec hostSpec;
+  @Mock HostSpec hostSpec2;
   @Mock Supplier<MonitorService> supplier;
   @Mock RdsUtils rdsUtils;
   @Mock MonitorConnectionContext context;
@@ -137,6 +138,9 @@ class HostMonitoringConnectionPluginTest {
     when(hostSpec.getHost()).thenReturn("host");
     when(hostSpec.getHost()).thenReturn("port");
     when(hostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
+    when(hostSpec2.getHost()).thenReturn("host");
+    when(hostSpec2.getHost()).thenReturn("port");
+    when(hostSpec2.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
     when(connection.createStatement()).thenReturn(statement);
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(rdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
@@ -293,16 +297,21 @@ class HostMonitoringConnectionPluginTest {
         sqlFunction,
         EMPTY_ARGS);
 
-    final Set<String> aliases = new HashSet<>(Arrays.asList("alias1", "alias2"));
-    when(hostSpec.getAliases()).thenReturn(aliases);
-    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
-
-    // NodeKeys should be empty at first
-    verify(monitorService, never()).stopMonitoringForAllConnections(any());
+    final Set<String> aliases1 = new HashSet<>(Arrays.asList("alias1", "alias2"));
+    final Set<String> aliases2 = new HashSet<>(Arrays.asList("alias3", "alias4"));
+    when(hostSpec.asAliases()).thenReturn(aliases1);
+    when(hostSpec2.asAliases()).thenReturn(aliases2);
+    when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
 
     assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
     // NodeKeys should contain {"alias1", "alias2"}
-    verify(monitorService).stopMonitoringForAllConnections(aliases);
+    verify(monitorService).stopMonitoringForAllConnections(aliases1);
+
+    when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec2);
+    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
+    // NotifyConnectionChanged should reset the monitoringHostSpec.
+    // NodeKeys should contain {"alias3", "alias4"}
+    verify(monitorService).stopMonitoringForAllConnections(aliases2);
   }
 
   @Test
