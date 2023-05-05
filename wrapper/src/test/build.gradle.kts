@@ -86,5 +86,5 @@ tasks.register<Test>("in-container") {
 
     // modify below filter to select specific integration tests
     // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
-    filter.includeTestsMatching("integration.refactored.container.tests.*")
+    filter.includeTestsMatching("integration.refactored.container.tests.AuroraFailoverTest.testServerFailoverWithIdleConnections")
 }

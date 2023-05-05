@@ -495,7 +495,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public HostSpec identifyConnection(Connection connection) throws SQLException {
     if (!(this.getDialect() instanceof TopologyAwareDatabaseCluster)) {
-      return this.getCurrentHostSpec();
+      return null;
     }
 
     return this.hostListProvider.identifyConnection(connection);

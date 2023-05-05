@@ -19,7 +19,6 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -47,8 +46,8 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 
 public class AuroraConnectionTrackerPluginTest {
@@ -77,6 +76,7 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(any(String.class))).thenReturn(mockResultSet);
     when(mockRdsUtils.getRdsInstanceHostPattern(any(String.class))).thenReturn("?");
+    when(mockRdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
     when(((TopologyAwareDatabaseCluster) mockTopologyAwareDialect).getNodeIdQuery()).thenReturn("any");
@@ -113,103 +113,6 @@ public class AuroraConnectionTrackerPluginTest {
     verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection));
     final Set<String> aliases = hostSpec.getAliases();
     assertEquals(0, aliases.size());
-  }
-
-  @ParameterizedTest
-  @MethodSource("trackNewConnectionsParameters")
-  public void testTrackNewClusterConnections(
-      final String protocol,
-      final boolean isInitialConnection) throws SQLException {
-    final HostSpec hostSpec = new HostSpec("writerCluster");
-    when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
-    when(mockRdsUtils.isRdsInstance("writerCluster")).thenReturn(false);
-    when(mockResultSet.next()).thenReturn(true, false); // ResultSet should only have 1 row.
-    when(mockResultSet.getString(anyInt())).thenReturn("writerInstance");
-
-    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
-        mockPluginService,
-        EMPTY_PROPERTIES,
-        mockRdsUtils,
-        mockTracker);
-
-    final Connection actualConnection = plugin.connect(
-        protocol,
-        hostSpec,
-        EMPTY_PROPERTIES,
-        isInitialConnection,
-        mockConnectionFunction);
-
-    assertEquals(mockConnection, actualConnection);
-    verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection));
-    final Set<String> aliases = hostSpec.getAliases();
-    assertEquals(1, aliases.size());
-    assertEquals("writerInstance", aliases.toArray()[0]);
-  }
-
-  @ParameterizedTest
-  @MethodSource("trackNonRdsInstanceUrlParameters")
-  public void testTrackNewConnections_nonRdsInstanceUrl(
-      final String endpoint,
-      final boolean isInitialConnection,
-      final String expected) throws SQLException {
-    final Properties properties = new Properties();
-    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(properties, "?.pattern");
-    final HostSpec hostSpec = new HostSpec(endpoint);
-    when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
-    when(mockRdsUtils.isRdsInstance(endpoint)).thenReturn(false);
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getString(anyInt())).thenReturn(endpoint);
-
-    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
-        mockPluginService,
-        properties,
-        mockRdsUtils,
-        mockTracker);
-
-    final Connection actualConnection = plugin.connect(
-        "protocol",
-        hostSpec,
-        properties,
-        isInitialConnection,
-        mockConnectionFunction);
-
-    assertEquals(mockConnection, actualConnection);
-    verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection));
-    final Set<String> aliases = hostSpec.getAliases();
-    assertEquals(1, aliases.size());
-    assertEquals(expected, aliases.toArray()[0]);
-  }
-
-  @ParameterizedTest
-  @MethodSource("trackNonRdsInstanceUrlWithoutClusterHostInstancePatternParameters")
-  public void testTrackNewConnections_nonRdsInstanceUrl_withoutClusterInstanceHostPattern(
-      final String endpoint,
-      final boolean isInitialConnection,
-      final String expected) throws SQLException {
-    final HostSpec hostSpec = new HostSpec(endpoint);
-    when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
-    when(mockRdsUtils.isRdsInstance(endpoint)).thenReturn(false);
-    when(mockResultSet.next()).thenReturn(true);
-    when(mockResultSet.getString(anyInt())).thenReturn("instance-1");
-
-    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
-        mockPluginService,
-        EMPTY_PROPERTIES,
-        mockRdsUtils,
-        mockTracker);
-
-    final Connection actualConnection = plugin.connect(
-        "protocol",
-        hostSpec,
-        EMPTY_PROPERTIES,
-        isInitialConnection,
-        mockConnectionFunction);
-
-    assertEquals(mockConnection, actualConnection);
-    verify(mockTracker).populateOpenedConnectionQueue(eq(hostSpec), eq(mockConnection));
-    final Set<String> aliases = hostSpec.getAliases();
-    assertEquals(1, aliases.size());
-    assertEquals(expected, aliases.toArray()[0]);
   }
 
   @Test
@@ -269,22 +172,6 @@ public class AuroraConnectionTrackerPluginTest {
         Arguments.of("postgresql", false),
         Arguments.of("otherProtocol", true),
         Arguments.of("otherProtocol", false)
-    );
-  }
-
-  private static Stream<Arguments> trackNonRdsInstanceUrlParameters() {
-    return Stream.of(
-        Arguments.of("custom.domain", true, "custom.domain.pattern"),
-        Arguments.of("instanceName", false, "instanceName.pattern"),
-        Arguments.of("8.8.8.8", true, "8.8.8.8.pattern")
-    );
-  }
-
-  private static Stream<Arguments> trackNonRdsInstanceUrlWithoutClusterHostInstancePatternParameters() {
-    return Stream.of(
-        Arguments.of("custom.domain", true, "instance-1"),
-        Arguments.of("instanceName", false, "instance-1"),
-        Arguments.of("8.8.8.8", true, "instance-1")
     );
   }
 }

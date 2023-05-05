@@ -61,6 +61,7 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 
 class HostMonitoringConnectionPluginTest {
@@ -138,6 +139,7 @@ class HostMonitoringConnectionPluginTest {
     when(hostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
     when(connection.createStatement()).thenReturn(statement);
     when(statement.executeQuery(any())).thenReturn(resultSet);
+    when(rdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
 
     properties.put("failureDetectionEnabled", Boolean.TRUE.toString());
     properties.put("failureDetectionTime", String.valueOf(FAILURE_DETECTION_TIME));

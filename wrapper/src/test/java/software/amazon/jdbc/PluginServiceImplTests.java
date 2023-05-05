@@ -16,12 +16,14 @@
 
 package software.amazon.jdbc;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -30,7 +32,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,15 +44,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.dialect.AuroraPgDialect;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 
 public class PluginServiceImplTests {
@@ -63,6 +73,8 @@ public class PluginServiceImplTests {
   @Mock Connection oldConnection;
   @Mock HostListProvider hostListProvider;
   @Mock DialectManager dialectManager;
+  @Mock Statement statement;
+  @Mock ResultSet resultSet;
 
   @Captor ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges;
   @Captor ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChangesMap;
@@ -72,6 +84,8 @@ public class PluginServiceImplTests {
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     when(oldConnection.isClosed()).thenReturn(false);
+    when(newConnection.createStatement()).thenReturn(statement);
+    when(statement.executeQuery(any())).thenReturn(resultSet);
     PluginServiceImpl.hostAvailabilityExpiringCache.clear();
   }
 
@@ -579,5 +593,74 @@ public class PluginServiceImplTests {
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     target.forceRefreshHostList(newConnection);
     assertEquals(expectedHostSpecs2, newHostSpecs);
+  }
+
+  @Test
+  void testIdentifyConnectionWithNoAliases() throws SQLException {
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+    when(target.getHostListProvider()).thenReturn(hostListProvider);
+
+    when(target.getDialect()).thenReturn(new MysqlDialect());
+    assertNull(target.identifyConnection(newConnection));
+  }
+
+  @Test
+  void testIdentifyConnectionWithAliases() throws SQLException {
+    final HostSpec expected = new HostSpec("test");
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+    target.hostListProvider = hostListProvider;
+    when(target.getHostListProvider()).thenReturn(hostListProvider);
+    when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(expected);
+
+    when(target.getDialect()).thenReturn(new AuroraPgDialect());
+    final HostSpec actual = target.identifyConnection(newConnection);
+    verify(target, never()).getCurrentHostSpec();
+    verify(hostListProvider).identifyConnection(newConnection);
+    assertEquals(expected, actual);
+  }
+
+  @Test
+  void testFillAliasesNonEmptyAliases() throws SQLException {
+    final HostSpec oneAlias = new HostSpec("foo");
+    oneAlias.addAlias(oneAlias.asAlias());
+
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+
+    assertEquals(1, oneAlias.getAliases().size());
+    target.fillAliases(newConnection, oneAlias);
+    // Fill aliases should return directly and no additional aliases should be added.
+    assertEquals(1, oneAlias.getAliases().size());
+  }
+
+  @ParameterizedTest
+  @MethodSource("fillAliasesDialects")
+  void testFillAliasesWithInstanceEndpoint(Dialect dialect, String[] expectedInstanceAliases) throws SQLException {
+    final HostSpec empty = new HostSpec("foo");
+    PluginServiceImpl target = spy(
+        new PluginServiceImpl(
+            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+    target.hostListProvider = hostListProvider;
+    when(target.getDialect()).thenReturn(dialect);
+    when(resultSet.next()).thenReturn(true, false); // Result set contains 1 row.
+    when(resultSet.getString(eq(1))).thenReturn("ip");
+    when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(new HostSpec("instance"));
+
+    target.fillAliases(newConnection, empty);
+
+    final String[] aliases = empty.getAliases().toArray(new String[] {});
+    assertArrayEquals(expectedInstanceAliases, aliases);
+  }
+
+  private static Stream<Arguments> fillAliasesDialects() {
+    return Stream.of(
+        Arguments.of(new AuroraPgDialect(), new String[]{"instance", "foo", "ip"}),
+        Arguments.of(new MysqlDialect(), new String[]{"foo", "ip"})
+    );
   }
 }

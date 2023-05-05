@@ -30,11 +30,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
@@ -93,7 +91,11 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         : hostSpec;
 
     if (conn != null) {
-      this.pluginService.fillAliases(conn, hostSpec);
+      final RdsUrlType type = this.rdsHelper.identifyRdsType(hostSpec.getHost());
+      if (type.isRdsCluster()) {
+        hostSpec.resetAliases();
+        this.pluginService.fillAliases(conn, hostSpec);
+      }
     }
 
     tracker.populateOpenedConnectionQueue(currentHostSpec, conn);
@@ -106,16 +108,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
     return connectInternal(hostSpec, forceConnectFunc);
-  }
-
-  private String getInstanceEndpointPattern(final String url) {
-    if (StringUtils.isNullOrEmpty(this.clusterInstanceTemplate)) {
-      this.clusterInstanceTemplate = AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.props) == null
-          ? rdsHelper.getRdsInstanceHostPattern(url)
-          : AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.getString(this.props);
-    }
-
-    return this.clusterInstanceTemplate;
   }
 
   @Override
@@ -148,29 +140,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   }
 
   private boolean isRoleChanged(final EnumSet<NodeChangeOptions> changes) {
-    return changes.contains(NodeChangeOptions.PROMOTED_TO_WRITER)
-        || changes.contains(NodeChangeOptions.PROMOTED_TO_READER);
-  }
-
-  public String getInstanceEndpoint(final Connection conn, final HostSpec host) {
-    String instanceName = "?";
-
-    if (!(this.pluginService.getDialect() instanceof TopologyAwareDatabaseCluster)) {
-      return instanceName;
-    }
-    final TopologyAwareDatabaseCluster topologyAwareDialect =
-        (TopologyAwareDatabaseCluster) this.pluginService.getDialect();
-
-    try (final Statement stmt = conn.createStatement();
-        final ResultSet resultSet = stmt.executeQuery(topologyAwareDialect.getNodeIdQuery())) {
-      if (resultSet.next()) {
-        instanceName = resultSet.getString(1);
-      }
-      String instanceEndpoint = getInstanceEndpointPattern(host.getHost());
-      instanceEndpoint = host.isPortSpecified() ? instanceEndpoint + ":" + host.getPort() : instanceEndpoint;
-      return instanceEndpoint.replace("?", instanceName);
-    } catch (final SQLException e) {
-      return instanceName;
-    }
+    return changes.contains(NodeChangeOptions.PROMOTED_TO_READER);
   }
 }
