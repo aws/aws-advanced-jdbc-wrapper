@@ -39,6 +39,8 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
@@ -83,6 +85,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
   private final @NonNull PluginService pluginService;
   private final @NonNull Set<String> nodeKeys = ConcurrentHashMap.newKeySet(); // Shared with monitor thread
   private MonitorService monitorService;
+  private RdsUtils rdsHelper;
 
   /**
    * Initialize the node monitoring plugin.
@@ -93,13 +96,14 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
    */
   public HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService, final @NonNull Properties properties) {
-    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService));
+    this(pluginService, properties, () -> new MonitorServiceImpl(pluginService), new RdsUtils());
   }
 
   HostMonitoringConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties properties,
-      final @NonNull Supplier<MonitorService> monitorServiceSupplier) {
+      final @NonNull Supplier<MonitorService> monitorServiceSupplier,
+      final RdsUtils rdsHelper) {
     if (pluginService == null) {
       throw new IllegalArgumentException("pluginService");
     }
@@ -112,6 +116,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this.pluginService = pluginService;
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
+    this.rdsHelper = rdsHelper;
   }
 
   @Override
@@ -150,6 +155,20 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     T result;
     MonitorConnectionContext monitorContext = null;
 
+    HostSpec monitoringHostSpec = this.pluginService.getCurrentHostSpec();
+    final RdsUrlType rdsUrlType = this.rdsHelper.identifyRdsType(monitoringHostSpec.getUrl());
+
+    try {
+      if (rdsUrlType.isRdsCluster()) {
+        monitoringHostSpec = this.pluginService.identifyConnection(this.pluginService.getCurrentConnection());
+        monitoringHostSpec.resetAliases();
+        this.pluginService.fillAliases(this.pluginService.getCurrentConnection(), monitoringHostSpec);
+      }
+    } catch (SQLException e) {
+      // Log and ignore
+      LOGGER.finest(Messages.get("HostMonitoringConnectionPlugin.errorIdentifyingConnection", new Object[] {e}));
+    }
+
     try {
       LOGGER.finest(
           () -> Messages.get(
@@ -163,7 +182,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           this.monitorService.startMonitoring(
               this.pluginService.getCurrentConnection(), // abort this connection if needed
               this.nodeKeys,
-              this.pluginService.getCurrentHostSpec(),
+              monitoringHostSpec,
               this.properties,
               failureDetectionTimeMillis,
               failureDetectionIntervalMillis,

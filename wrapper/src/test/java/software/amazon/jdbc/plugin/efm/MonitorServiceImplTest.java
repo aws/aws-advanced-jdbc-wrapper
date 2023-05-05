@@ -42,6 +42,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 
 class MonitorServiceImplTest {
 
@@ -59,6 +60,7 @@ class MonitorServiceImplTest {
   @Mock private Future<?> task;
   @Mock private HostSpec hostSpec;
   @Mock private JdbcConnection connection;
+  @Mock private PluginService pluginService;
 
   private Properties properties;
   private AutoCloseable closeable;
@@ -79,7 +81,7 @@ class MonitorServiceImplTest {
 
     doReturn(task).when(executorService).submit(any(Monitor.class));
 
-    monitorService = new MonitorServiceImpl(monitorInitializer, executorServiceInitializer);
+    monitorService = new MonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer);
   }
 
   @AfterEach

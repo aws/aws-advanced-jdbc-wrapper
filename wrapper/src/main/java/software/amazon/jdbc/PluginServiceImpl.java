@@ -510,6 +510,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     hostSpec.addAlias(hostSpec.asAlias());
 
+    // Add the host name and port, this host name is usually the internal IP address.
     try (final Statement stmt = connection.createStatement()) {
       try (final ResultSet rs = stmt.executeQuery(this.getDialect().getHostAliasQuery())) {
         while (rs.next()) {
@@ -521,6 +522,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       LOGGER.finest(() -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
     }
 
+    // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
     final HostSpec host = this.identifyConnection(connection);
     if (host != this.currentHostSpec) {
       hostSpec.addAlias(host.asAlias());

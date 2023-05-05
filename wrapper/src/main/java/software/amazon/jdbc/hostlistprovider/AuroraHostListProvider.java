@@ -43,7 +43,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -596,18 +595,10 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
-    if (this.topologyAwareDialect == null) {
-      Dialect dialect = this.hostListProviderService.getDialect();
-      if (!(dialect instanceof TopologyAwareDatabaseCluster)) {
-        throw new SQLException(
-            Messages.get("AuroraHostListProvider.invalidDialectForGetHostRole",
-                new Object[] {dialect}));
-      }
-      this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
-    }
-
     try (final Statement stmt = conn.createStatement();
-        final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
+        final ResultSet rs = stmt.executeQuery(
+            getTopologyAwareDialect("AuroraHostListProvider.invalidDialectForGetHostRole")
+                .getIsReaderQuery())) {
       if (rs.next()) {
         boolean isReader = rs.getBoolean(1);
         return isReader ? HostRole.READER : HostRole.WRITER;
@@ -622,29 +613,42 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   @Override
   public HostSpec identifyConnection(Connection connection) throws SQLException {
     try (final Statement stmt = connection.createStatement();
-        final ResultSet resultSet = stmt.executeQuery(topologyAwareDialect.getNodeIdQuery())) {
+        final ResultSet resultSet = stmt.executeQuery(
+            getTopologyAwareDialect("AuroraHostListProvider.invalidDialectForIdentifyConnection")
+                .getNodeIdQuery())) {
       if (resultSet.next()) {
         final String instanceName = resultSet.getString(1);
-        if (this.getCachedTopology() == null) {
+
+        final List<HostSpec> topology = this.refresh(connection);
+
+        if (topology == null) {
           final HostSpec host = new HostSpec(getHostEndpoint(instanceName));
           host.setHostId(instanceName);
           return host;
         }
-
-        return this.getCachedTopology()
+        return topology
             .stream()
             .filter(host -> Objects.equals(instanceName, host.getHostId()))
             .findAny()
-            .orElseGet(() -> {
-              final HostSpec host = new HostSpec(getHostEndpoint(instanceName));
-              host.setHostId(instanceName);
-              return host;
-            });
+            .orElse(null);
       }
     } catch (final SQLException e) {
-      throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyingConnection"), e);
+      throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyConnection"), e);
     }
 
-    throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyingConnection"));
+    throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyConnection"));
+  }
+
+  private TopologyAwareDatabaseCluster getTopologyAwareDialect(String exceptionMessageIdentifier) throws SQLException {
+    if (this.topologyAwareDialect == null) {
+      Dialect dialect = this.hostListProviderService.getDialect();
+      if (!(dialect instanceof TopologyAwareDatabaseCluster)) {
+        throw new SQLException(
+            Messages.get(exceptionMessageIdentifier,
+                new Object[] {dialect}));
+      }
+      this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
+    }
+    return this.topologyAwareDialect;
   }
 }

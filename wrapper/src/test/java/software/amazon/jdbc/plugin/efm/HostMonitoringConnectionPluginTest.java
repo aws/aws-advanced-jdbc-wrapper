@@ -39,7 +39,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -61,9 +60,8 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.MysqlDialect;
-import software.amazon.jdbc.dialect.PgDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUtils;
 
 class HostMonitoringConnectionPluginTest {
 
@@ -83,6 +81,7 @@ class HostMonitoringConnectionPluginTest {
   Properties properties = new Properties();
   @Mock HostSpec hostSpec;
   @Mock Supplier<MonitorService> supplier;
+  @Mock RdsUtils rdsUtils;
   @Mock MonitorConnectionContext context;
   @Mock MonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
@@ -147,7 +146,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   private void initializePlugin() {
-    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier);
+    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier, rdsUtils);
   }
 
   @ParameterizedTest
@@ -269,40 +268,6 @@ class HostMonitoringConnectionPluginTest {
     verify(connection).close();
   }
 
-  @ParameterizedTest
-  @MethodSource("getHostPortSQLParameters")
-  void test_connect_withNoAdditionalHostAlias(final String protocol, final String expectedSql) throws SQLException {
-    initializePlugin();
-
-    when(hostSpec.asAlias()).thenReturn("hostSpec alias");
-    when(mockDialect.getHostAliasQuery()).thenReturn(expectedSql);
-
-    plugin.connect(protocol, hostSpec, properties, true, () -> connection);
-    verify(hostSpec).addAlias("hostSpec alias");
-    verify(statement).executeQuery(eq(expectedSql));
-  }
-
-  @ParameterizedTest
-  @MethodSource("getHostPortSQLParameters")
-  void test_connect_withHostAliases(final String protocol, final String expectedSql) throws SQLException {
-    initializePlugin();
-
-    when(hostSpec.asAlias()).thenReturn("hostSpec alias");
-    when(mockDialect.getHostAliasQuery()).thenReturn(expectedSql);
-
-    // ResultSet contains one row.
-    when(resultSet.next()).thenReturn(true, false);
-    when(resultSet.getString(eq(1))).thenReturn("second alias");
-
-    plugin.connect(protocol, hostSpec, properties, true, () -> connection);
-    verify(hostSpec, times(2)).addAlias(stringArgumentCaptor.capture());
-    final List<String> captures = stringArgumentCaptor.getAllValues();
-    assertEquals(2, captures.size());
-    assertEquals("hostSpec alias", captures.get(0));
-    assertEquals("second alias", captures.get(1));
-    verify(statement).executeQuery(eq(expectedSql));
-  }
-
   @Test
   void test_connect_exceptionRaisedDuringGenerateHostAliases() throws SQLException {
     initializePlugin();
@@ -356,18 +321,6 @@ class HostMonitoringConnectionPluginTest {
         EMPTY_ARGS);
     plugin.releaseResources();
     verify(monitorService).releaseResources();
-  }
-
-  static Stream<Arguments> getHostPortSQLParameters() {
-    final String MYSQL_RETRIEVE_HOST_PORT_SQL = new MysqlDialect().getHostAliasQuery();
-    final String PG_RETRIEVE_HOST_PORT_SQL = new PgDialect().getHostAliasQuery();
-
-    return Stream.of(
-        Arguments.of("jdbc:mysql:", MYSQL_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:mysql:someUrl", MYSQL_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:postgresql:", PG_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:postgresql:someUrl", PG_RETRIEVE_HOST_PORT_SQL)
-    );
   }
 
   static Stream<Arguments> nodeChangeOptions() {
