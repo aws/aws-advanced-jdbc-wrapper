@@ -808,6 +808,7 @@ public class ReadWriteSplittingTests {
           HikariPool.PoolInitializationException.class, () -> {
             try (final Connection conn = DriverManager.getConnection(
                 ConnectionStringHelper.getWrapperUrl(), privilegedUserWithWrongPasswordProps)) {
+              // Do nothing (close connection automatically)
             }
           });
 
@@ -815,6 +816,7 @@ public class ReadWriteSplittingTests {
           HikariPool.PoolInitializationException.class, () -> {
             try (final Connection conn = DriverManager.getConnection(
                 ConnectionStringHelper.getWrapperUrl(), wrongUserRightPasswordProps)) {
+              // Do nothing (close connection automatically)
             }
           });
     } finally {

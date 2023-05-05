@@ -133,19 +133,19 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     return conn;
   }
 
+  @Override
+  public Connection connect(
+      @NonNull String url, @NonNull Properties props) throws SQLException {
+    // This method is only called by tests/benchmarks
+    return null;
+  }
+
   // The pool key should always be retrieved using this method, because the username/password
   // must always be included to avoid sharing privileged connections with other users.
   private String getPoolKey(HostSpec hostSpec, Properties props) {
     return poolMapping.getKey(hostSpec, props)
         + props.getProperty(PropertyDefinition.USER.name)
         + props.getProperty(PropertyDefinition.PASSWORD.name);
-  }
-
-  @Override
-  public Connection connect(
-      @NonNull String url, @NonNull Properties props) throws SQLException {
-    // This method is only called by tests/benchmarks
-    return null;
   }
 
   @Override
