@@ -503,7 +503,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
-    if (hostSpec == null || !hostSpec.getAliases().isEmpty()) {
+    if (hostSpec == null) {
+      return;
+    }
+
+    if (!hostSpec.getAliases().isEmpty()) {
       LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
       return;
     }

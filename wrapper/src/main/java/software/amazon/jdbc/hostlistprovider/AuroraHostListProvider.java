@@ -619,7 +619,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       if (resultSet.next()) {
         final String instanceName = resultSet.getString(1);
 
-        final List<HostSpec> topology = this.refresh(connection);
+        final List<HostSpec> topology = this.getCachedTopology();
 
         if (topology == null) {
           return null;
