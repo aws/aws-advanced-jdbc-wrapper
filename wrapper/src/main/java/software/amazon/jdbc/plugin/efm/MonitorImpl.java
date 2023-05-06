@@ -260,8 +260,10 @@ public class MonitorImpl implements Monitor {
                   monitoringConnProperties.remove(p);
                 });
 
+        LOGGER.finest(() -> "Opening a monitoring connection to " + this.hostSpec.getUrl());
         startNano = this.getCurrentTimeNano();
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, monitoringConnProperties);
+        LOGGER.finest(() -> "Opened monitoring connection: " + this.monitoringConn);
         return new ConnectionStatus(true, this.getCurrentTimeNano() - startNano);
       }
 

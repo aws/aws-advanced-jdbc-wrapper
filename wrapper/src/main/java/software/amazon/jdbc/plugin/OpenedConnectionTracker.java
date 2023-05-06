@@ -82,6 +82,7 @@ public class OpenedConnectionTracker {
    * @param hostSpec The {@link HostSpec} object containing the url of the node.
    */
   public void invalidateAllConnections(final HostSpec hostSpec) {
+    invalidateAllConnections(hostSpec.getHost());
     invalidateAllConnections(hostSpec.getAliases().toArray(new String[] {}));
   }
 

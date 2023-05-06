@@ -17,15 +17,16 @@
 package software.amazon.jdbc.plugin;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
@@ -50,10 +51,10 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       });
 
   private final PluginService pluginService;
-  private final Properties props;
   private final RdsUtils rdsHelper;
-  private String clusterInstanceTemplate;
   private final OpenedConnectionTracker tracker;
+  private HostSpec currentWriter = null;
+  private boolean needUpdateCurrentWriter = false;
 
   AuroraConnectionTrackerPlugin(final PluginService pluginService, final Properties props) {
     this(pluginService, props, new RdsUtils(), new OpenedConnectionTracker());
@@ -65,7 +66,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       final RdsUtils rdsUtils,
       final OpenedConnectionTracker tracker) {
     this.pluginService = pluginService;
-    this.props = props;
     this.rdsHelper = rdsUtils;
     this.tracker = tracker;
   }
@@ -86,9 +86,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
       throws SQLException {
 
     final Connection conn = connectFunc.call();
-    final HostSpec currentHostSpec = (this.pluginService.getCurrentHostSpec() != null)
-        ? this.pluginService.getCurrentHostSpec()
-        : hostSpec;
 
     if (conn != null) {
       final RdsUrlType type = this.rdsHelper.identifyRdsType(hostSpec.getHost());
@@ -96,10 +93,9 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         hostSpec.resetAliases();
         this.pluginService.fillAliases(conn, hostSpec);
       }
+      tracker.populateOpenedConnectionQueue(hostSpec, conn);
+      tracker.logOpenedConnections();
     }
-
-    tracker.populateOpenedConnectionQueue(currentHostSpec, conn);
-    tracker.logOpenedConnections();
 
     return conn;
   }
@@ -114,17 +110,25 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   public <T, E extends Exception> T execute(final Class<T> resultClass, final Class<E> exceptionClass,
       final Object methodInvokeOn, final String methodName, final JdbcCallable<T, E> jdbcMethodFunc,
       final Object[] jdbcMethodArgs) throws E {
-    final HostSpec originalHost = this.pluginService.getCurrentHostSpec();
+
+    final HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
+    if (this.currentWriter == null || this.needUpdateCurrentWriter) {
+      this.currentWriter = this.getWriter(this.pluginService.getHosts());
+      this.needUpdateCurrentWriter = false;
+    }
+
     try {
       final T result = jdbcMethodFunc.call();
       if ((methodName.equals(METHOD_CLOSE) || methodName.equals(METHOD_ABORT))) {
-        tracker.invalidateCurrentConnection(originalHost, this.pluginService.getCurrentConnection());
+        tracker.invalidateCurrentConnection(currentHostSpec, this.pluginService.getCurrentConnection());
       }
       return result;
+
     } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
-        tracker.invalidateAllConnections(originalHost);
+        tracker.invalidateAllConnections(this.currentWriter);
         tracker.logOpenedConnections();
+        this.needUpdateCurrentWriter = true;
       }
       throw e;
     }
@@ -133,13 +137,22 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
     for (final String node : changes.keySet()) {
-      if (isRoleChanged(changes.get(node))) {
+      final EnumSet<NodeChangeOptions> nodeChanges = changes.get(node);
+      if (nodeChanges.contains(NodeChangeOptions.PROMOTED_TO_READER)) {
         tracker.invalidateAllConnections(node);
+      }
+      if (nodeChanges.contains(NodeChangeOptions.PROMOTED_TO_WRITER)) {
+        this.needUpdateCurrentWriter = true;
       }
     }
   }
 
-  private boolean isRoleChanged(final EnumSet<NodeChangeOptions> changes) {
-    return changes.contains(NodeChangeOptions.PROMOTED_TO_READER);
+  private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
+    for (final HostSpec hostSpec : hosts) {
+      if (hostSpec.getRole() == HostRole.WRITER) {
+        return hostSpec;
+      }
+    }
+    return null;
   }
 }
