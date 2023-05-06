@@ -435,10 +435,7 @@ class AuroraHostListProviderTest {
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
     when(auroraHostListProvider.refresh(eq(mockConnection))).thenReturn(null);
 
-    final HostSpec actual = auroraHostListProvider.identifyConnection(mockConnection);
-
-    assertEquals("instance-1.pattern", actual.getHost());
-    assertEquals("instance-1", actual.getHostId());
+    assertNull(auroraHostListProvider.identifyConnection(mockConnection));
   }
 
   @Test

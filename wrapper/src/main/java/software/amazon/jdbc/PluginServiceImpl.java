@@ -503,7 +503,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
-    if (!hostSpec.getAliases().isEmpty()) {
+    if (hostSpec == null || !hostSpec.getAliases().isEmpty()) {
       LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
       return;
     }
@@ -524,8 +524,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
     final HostSpec host = this.identifyConnection(connection);
-    if (host != this.currentHostSpec) {
-      hostSpec.addAlias(host.asAlias());
+    if (host != null) {
+      hostSpec.addAlias(host.asAliases().toArray(new String[] {}));
     }
   }
 }

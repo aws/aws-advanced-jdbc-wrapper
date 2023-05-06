@@ -152,6 +152,7 @@ public class HostSpec {
   public void resetAliases() {
     this.aliases.clear();
     this.allAliases.clear();
+    this.allAliases.add(this.asAlias());
   }
 
   public String getUrl() {

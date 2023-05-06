@@ -315,11 +315,6 @@ tasks.register<Test>("test-all-mysql-aurora") {
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-pg-driver", "true")
         systemProperty("test-no-pg-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-iam", "true")
-        systemProperty("test-no-hikari", "true")
-        systemProperty("test-no-secrets-manager", "true")
     }
 }
 

@@ -622,9 +622,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         final List<HostSpec> topology = this.refresh(connection);
 
         if (topology == null) {
-          final HostSpec host = new HostSpec(getHostEndpoint(instanceName));
-          host.setHostId(instanceName);
-          return host;
+          return null;
         }
         return topology
             .stream()

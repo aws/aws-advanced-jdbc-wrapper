@@ -90,16 +90,9 @@ public class MonitorServiceImpl implements MonitorService {
       final int failureDetectionCount) {
 
     if (nodeKeys.isEmpty()) {
-      LOGGER.warning(
-          () -> Messages.get(
-              "MonitorServiceImpl.emptyAliasSet",
-              new Object[] {hostSpec}));
-      try {
-        this.pluginService.fillAliases(connectionToAbort, hostSpec);
-      } catch (SQLException e) {
-        // Log and ignore the error.
-        LOGGER.finest(Messages.get("MonitorServiceImpl.errorPopulatingAliases", new Object[] {e}));
-      }
+      throw new IllegalArgumentException(Messages.get(
+          "MonitorServiceImpl.emptyAliasSet",
+          new Object[] {hostSpec}));
     }
 
     final Monitor monitor;
