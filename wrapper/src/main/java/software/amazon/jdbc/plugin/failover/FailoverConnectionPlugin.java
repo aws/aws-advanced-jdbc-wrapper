@@ -71,7 +71,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       });
 
-  static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
   private static final String METHOD_GET_AUTO_COMMIT = "Connection.getAutoCommit";
   private static final String METHOD_GET_CATALOG = "Connection.getCatalog";
   private static final String METHOD_GET_SCHEMA = "Connection.getSchema";
@@ -86,8 +85,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
-  protected boolean enableFailoverStrictReaderSetting;
-  Boolean explicitlyReadOnly = false;
+  protected FailoverMode failoverMode;
   private boolean closedExplicitly = false;
   protected boolean isClosed = false;
   protected String closedReason = null;
@@ -134,10 +132,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "enableClusterAwareFailover", "true",
           "Enable/disable cluster-aware failover logic");
 
-  public static final AwsWrapperProperty ENABLE_FAILOVER_STRICT_READER =
+  public static final AwsWrapperProperty FAILOVER_MODE =
       new AwsWrapperProperty(
-          "enableFailoverStrictReader", "false",
-          "Enable to enforce reader-only connection during reader failover.");
+          "failoverMode", null,
+          "Set node role to follow during failover.");
 
   public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
     this(pluginService, properties, new RdsUtils());
@@ -197,12 +195,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.dealWithOriginalException(e, null, exceptionClass);
     }
 
-    try {
-      performSpecialMethodHandlingIfRequired(jdbcMethodArgs, methodName);
-    } catch (final SQLException e) {
-      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
-    }
-
     return result;
   }
 
@@ -225,7 +217,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                 this.properties,
                 this.failoverTimeoutMsSetting,
                 this.failoverReaderConnectTimeoutMsSetting,
-                this.enableFailoverStrictReaderSetting),
+                this.failoverMode == FailoverMode.STRICT_READER),
         () ->
             new ClusterAwareWriterFailoverHandler(
                 this.pluginService,
@@ -258,14 +250,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     initHostProviderFunc.call();
 
+    this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
     this.rdsUrlType = this.rdsHelper.identifyRdsType(initialUrl);
-    if (this.rdsUrlType.isRdsCluster()) {
-      this.explicitlyReadOnly = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER);
-      LOGGER.finer(
-          () -> Messages.get(
-              "Failover.parameterValue",
-              new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
+
+    if (this.failoverMode == null) {
+      if (this.rdsUrlType.isRdsCluster()) {
+        this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
+            ? FailoverMode.READER_OR_WRITER
+            : FailoverMode.STRICT_WRITER;
+      } else {
+        this.failoverMode = FailoverMode.STRICT_WRITER;
+      }
     }
+
+    LOGGER.finer(
+        () -> Messages.get(
+            "Failover.parameterValue",
+            new Object[] {"failoverMode", this.failoverMode}));
   }
 
   @Override
@@ -339,7 +340,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         FAILOVER_WRITER_RECONNECT_INTERVAL_MS.getInteger(this.properties);
     this.failoverReaderConnectTimeoutMsSetting =
         FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
-    this.enableFailoverStrictReaderSetting = ENABLE_FAILOVER_STRICT_READER.getBoolean(this.properties);
   }
 
   private void invalidInvocationOnClosedConnection() throws SQLException {
@@ -359,10 +359,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       throw new SQLException(reason, SqlState.CONNECTION_NOT_OPEN.getState());
     }
-  }
-
-  private boolean isExplicitlyReadOnly() {
-    return this.explicitlyReadOnly != null && this.explicitlyReadOnly;
   }
 
   private HostSpec getCurrentWriter() throws SQLException {
@@ -443,18 +439,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return hostSpec.getRole() == HostRole.WRITER;
   }
 
-  private void performSpecialMethodHandlingIfRequired(final Object[] args, final String methodName)
-      throws SQLException {
-
-    if (methodName.equals(METHOD_SET_READ_ONLY)) {
-      this.explicitlyReadOnly = (Boolean) args[0];
-      LOGGER.finer(
-          () -> Messages.get(
-              "Failover.parameterValue",
-              new Object[] {"explicitlyReadOnly", this.explicitlyReadOnly}));
-    }
-  }
-
   private void processFailoverFailure(final String message) throws SQLException {
     LOGGER.severe(message);
     throw new FailoverFailedSQLException(message);
@@ -462,7 +446,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private boolean shouldAttemptReaderConnection() {
     final List<HostSpec> topology = this.pluginService.getHosts();
-    if (topology == null || !isExplicitlyReadOnly()) {
+    if (topology == null || this.failoverMode == FailoverMode.STRICT_WRITER) {
       return false;
     }
 
@@ -472,10 +456,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
     }
     return false;
-  }
-
-  boolean shouldPerformWriterFailover() {
-    return this.explicitlyReadOnly == null || !this.explicitlyReadOnly;
   }
 
   /**
@@ -489,19 +469,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private void switchCurrentConnectionTo(final HostSpec host, final Connection connection) throws SQLException {
     Connection currentConnection = this.pluginService.getCurrentConnection();
 
-    final boolean readOnly;
-    if (isWriter(host)) {
-      readOnly = isExplicitlyReadOnly();
-    } else if (this.explicitlyReadOnly != null) {
-      readOnly = this.explicitlyReadOnly;
-    } else if (currentConnection != null) {
-      readOnly = currentConnection.isReadOnly();
-    } else {
-      readOnly = false;
-    }
-
     if (currentConnection != connection) {
-      transferSessionState(currentConnection, connection, readOnly);
+      transferSessionState(currentConnection, connection);
       invalidateCurrentConnection();
     }
 
@@ -517,25 +486,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    *
    * @param from     The connection to transfer state from
    * @param to       The connection to transfer state to
-   * @param readOnly The desired read-only state
    * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
    *                      method is called during a distributed transaction, or this method is called during a
    *                      transaction
    */
   protected void transferSessionState(
       final Connection from,
-      final Connection to,
-      final boolean readOnly) throws SQLException {
-    if (to != null) {
-      to.setReadOnly(readOnly);
-    }
+      final Connection to) throws SQLException {
 
     if (from == null || to == null) {
       return;
     }
 
-    // TODO: verify if there are other states to sync
-
+    to.setReadOnly(from.isReadOnly());
     to.setAutoCommit(from.getAutoCommit());
     to.setTransactionIsolation(from.getTransactionIsolation());
   }
@@ -598,7 +561,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @throws SQLException if an error occurs
    */
   protected synchronized void failover(final HostSpec failedHost) throws SQLException {
-    if (shouldPerformWriterFailover()) {
+    if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {
       failoverReader(failedHost);
