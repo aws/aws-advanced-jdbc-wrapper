@@ -762,7 +762,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnection_differentUsers() throws SQLException {
     Properties privilegedUserProps = getProps();
 
