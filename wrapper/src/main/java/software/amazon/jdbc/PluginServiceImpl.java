@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -337,7 +338,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void refreshHostList() throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
-    if (updatedHostList != null) {
+    if (!Objects.equals(updatedHostList, this.hosts)) {
       updateHostAvailability(updatedHostList);
       setNodeList(this.hosts, updatedHostList);
     }
@@ -346,7 +347,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void refreshHostList(final Connection connection) throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
-    if (updatedHostList != null) {
+    if (!Objects.equals(updatedHostList, this.hosts)) {
       updateHostAvailability(updatedHostList);
       setNodeList(this.hosts, updatedHostList);
     }

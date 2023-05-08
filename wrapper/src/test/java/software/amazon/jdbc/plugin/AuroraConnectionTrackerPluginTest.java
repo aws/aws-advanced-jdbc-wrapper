@@ -29,6 +29,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -119,7 +120,7 @@ public class AuroraConnectionTrackerPluginTest {
   public void testInvalidateOpenedConnections() throws SQLException {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
     final HostSpec originalHost = new HostSpec("host");
-    when(mockPluginService.getCurrentHostSpec()).thenReturn(originalHost);
+    when(mockPluginService.getHosts()).thenReturn(Collections.singletonList(originalHost));
     doThrow(expectedException).when(mockSqlFunction).call();
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(

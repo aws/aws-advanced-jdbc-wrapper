@@ -526,13 +526,18 @@ public class PluginServiceImplTests {
         new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
         new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE)
     );
+    final List<HostSpec> newHostSpecs2 = Arrays.asList(
+        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
+        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE)
+    );
     final List<HostSpec> expectedHostSpecs = Arrays.asList(
         new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
         new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
         new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
     final List<HostSpec> expectedHostSpecs2 = Arrays.asList(
         new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
+        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
         new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
 
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostA/", HostAvailability.NOT_AVAILABLE,
@@ -540,7 +545,7 @@ public class PluginServiceImplTests {
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostB/", HostAvailability.NOT_AVAILABLE,
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
     when(hostListProvider.refresh()).thenReturn(newHostSpecs);
-    when(hostListProvider.refresh(newConnection)).thenReturn(newHostSpecs);
+    when(hostListProvider.refresh(newConnection)).thenReturn(newHostSpecs2);
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(

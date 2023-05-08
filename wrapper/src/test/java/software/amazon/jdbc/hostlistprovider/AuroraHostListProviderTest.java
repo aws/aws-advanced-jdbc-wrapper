@@ -469,7 +469,7 @@ class AuroraHostListProviderTest {
         "jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-a-1");
-    when(auroraHostListProvider.refresh(eq(mockConnection))).thenReturn(cachedTopology);
+    when(auroraHostListProvider.refresh()).thenReturn(cachedTopology);
 
     final HostSpec actual = auroraHostListProvider.identifyConnection(mockConnection);
     assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", actual.getHost());
