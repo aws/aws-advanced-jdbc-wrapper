@@ -124,6 +124,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
         url -> createHikariDataSource(protocol, hostSpec, props)
     );
 
+    ds.setPassword(props.getProperty(PropertyDefinition.PASSWORD.name));
     Connection conn = ds.getConnection();
     int count = 0;
     while (conn != null && count++ < retries && !conn.isValid(3)) {
@@ -140,12 +141,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     return null;
   }
 
-  // The pool key should always be retrieved using this method, because the username/password
+  // The pool key should always be retrieved using this method, because the username
   // must always be included to avoid sharing privileged connections with other users.
   private String getPoolKey(HostSpec hostSpec, Properties props) {
     return poolMapping.getKey(hostSpec, props)
-        + props.getProperty(PropertyDefinition.USER.name)
-        + props.getProperty(PropertyDefinition.PASSWORD.name);
+        + props.getProperty(PropertyDefinition.USER.name);
   }
 
   @Override
@@ -176,7 +176,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     }
 
     final StringJoiner propsJoiner = new StringJoiner("&");
-    connectionProps.forEach((k, v) -> propsJoiner.add(k + "=" + v));
+    connectionProps.forEach((k, v) -> {
+      if (!PropertyDefinition.PASSWORD.name.equals(k) && !PropertyDefinition.USER.name.equals(k)) {
+        propsJoiner.add(k + "=" + v);
+      }
+    });
     urlBuilder.append("?").append(propsJoiner);
 
     config.setJdbcUrl(urlBuilder.toString());
