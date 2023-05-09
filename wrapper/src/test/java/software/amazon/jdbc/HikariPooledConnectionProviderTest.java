@@ -62,7 +62,7 @@ class HikariPooledConnectionProviderTest {
   @Test
   void testConnectWithDefaultMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
-    final Set<String> expected = new HashSet<>(Collections.singletonList("urlusernamepassword"));
+    final Set<String> expected = new HashSet<>(Collections.singletonList("urlusername"));
 
     final HikariPooledConnectionProvider provider =
         spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
@@ -86,7 +86,7 @@ class HikariPooledConnectionProviderTest {
   @Test
   void testConnectWithCustomMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
-    final Set<String> expected = new HashSet<>(Collections.singletonList("url+someUniqueKeyusernamepassword"));
+    final Set<String> expected = new HashSet<>(Collections.singletonList("url+someUniqueKeyusername"));
 
     final HikariPooledConnectionProvider provider = spy(new HikariPooledConnectionProvider(
         (hostSpec, properties) -> mockConfig,
