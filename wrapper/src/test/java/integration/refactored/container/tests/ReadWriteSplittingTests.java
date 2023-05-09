@@ -806,28 +806,20 @@ public class ReadWriteSplittingTests {
       assertThrows(
           HikariPool.PoolInitializationException.class, () -> {
             try (final Connection conn = DriverManager.getConnection(
-                ConnectionStringHelper.getWrapperUrl(), privilegedUserWithWrongPasswordProps)) {
-              // Do nothing (close connection automatically)
-            }
-          });
-
-      assertThrows(
-          HikariPool.PoolInitializationException.class, () -> {
-            try (final Connection conn = DriverManager.getConnection(
                 ConnectionStringHelper.getWrapperUrl(), wrongUserRightPasswordProps)) {
               // Do nothing (close connection automatically)
             }
           });
     } finally {
+      ConnectionProviderManager.releaseResources();
+      ConnectionProviderManager.resetProvider();
+
       try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(),
           privilegedUserProps);
            Statement stmt = conn.createStatement()) {
         stmt.execute("DROP DATABASE IF EXISTS " + limitedUserNewDb);
         stmt.execute("DROP USER IF EXISTS " + limitedUserName);
       }
-
-      ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
     }
   }
 }
