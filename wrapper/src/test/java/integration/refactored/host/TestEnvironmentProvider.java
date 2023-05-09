@@ -178,12 +178,13 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.MULTI_INSTANCE,
                     2,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK8,
+                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
                     noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
+                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null)));
       }
       if (!noPgEngine && !noOpenJdk) {
         resultContextList.add(
@@ -193,12 +194,13 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                     DatabaseInstances.MULTI_INSTANCE,
                     2,
                     DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK8,
+                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
                     TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
                     noHikari ? null : TestEnvironmentFeatures.HIKARI,
                     noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
                     noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null)));
+                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
+                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null)));
       }
       if (!noMariadbEngine && !noOpenJdk) {
         resultContextList.add(
