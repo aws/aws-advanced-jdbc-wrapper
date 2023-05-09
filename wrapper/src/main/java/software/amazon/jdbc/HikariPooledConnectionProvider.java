@@ -144,8 +144,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   // The pool key should always be retrieved using this method, because the username
   // must always be included to avoid sharing privileged connections with other users.
   private String getPoolKey(HostSpec hostSpec, Properties props) {
-    return poolMapping.getKey(hostSpec, props)
-        + props.getProperty(PropertyDefinition.USER.name);
+    final StringBuilder sb = new StringBuilder();
+    sb.append(poolMapping.getKey(hostSpec, props))
+        .append(props.getProperty(PropertyDefinition.USER.name));
+    return sb.toString();
   }
 
   @Override

@@ -55,6 +55,7 @@ public class ReadWriteSplittingPostgresExample {
      * Optional: configure read-write splitting to use internal connection pools (the getPoolKey
      * parameter is optional, see UsingTheReadWriteSplittingPlugin.md for more info).
      */
+    // props.setProperty("somePropertyValue", "1"); // used in getPoolKey
     // final HikariPooledConnectionProvider connProvider =
     //     new HikariPooledConnectionProvider(
     //         ReadWriteSplittingPostgresExample::getHikariConfig,
@@ -163,9 +164,9 @@ public class ReadWriteSplittingPostgresExample {
   // This method is an optional parameter to `ConnectionProviderManager.setConnectionProvider`.
   // It can be omitted if you do not require it.
   private static String getPoolKey(HostSpec hostSpec, Properties props) {
-    // Include the user in the connection pool key so that a new connection pool will be opened for
-    // each instance-user combination.
-    final String user = props.getProperty(PropertyDefinition.USER.name);
-    return hostSpec.getUrl() + user;
+    // Include somePropertyValue in the connection pool key so that a new connection pool will be
+    // opened for each different instance-user-somePropertyValue combination
+    final String somePropertyValue = props.getProperty("somePropertyValue");
+    return hostSpec.getUrl() + somePropertyValue;
   }
 }
