@@ -380,6 +380,16 @@ public class ConcurrencyTests {
     }
 
     public void updateDialect(final @NonNull Connection connection) throws SQLException { }
+
+    @Override
+    public HostSpec identifyConnection(Connection connection) throws SQLException {
+      return null;
+    }
+
+    @Override
+    public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
+
+    }
   }
 
   public static class TestConnection implements Connection {

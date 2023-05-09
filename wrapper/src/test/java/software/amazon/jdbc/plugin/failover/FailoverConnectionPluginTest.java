@@ -523,5 +523,10 @@ class FailoverConnectionPluginTest {
     public HostRole getHostRole(Connection conn) {
       return HostRole.WRITER;
     }
+
+    @Override
+    public HostSpec identifyConnection(Connection connection) throws SQLException {
+      return new HostSpec("foo");
+    }
   }
 }

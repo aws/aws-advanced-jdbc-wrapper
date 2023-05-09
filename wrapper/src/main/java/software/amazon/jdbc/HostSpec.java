@@ -38,6 +38,7 @@ public class HostSpec {
   protected Set<String> aliases = ConcurrentHashMap.newKeySet();
   protected Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
+  protected String hostId;
 
   public HostSpec(final String host) {
     this.host = host;
@@ -148,12 +149,26 @@ public class HostSpec {
     });
   }
 
+  public void resetAliases() {
+    this.aliases.clear();
+    this.allAliases.clear();
+    this.allAliases.add(this.asAlias());
+  }
+
   public String getUrl() {
     String url = isPortSpecified() ? host + ":" + port : host;
     if (!url.endsWith("/")) {
       url += "/";
     }
     return url;
+  }
+
+  public String getHostId() {
+    return hostId;
+  }
+
+  public void setHostId(String hostId) {
+    this.hostId = hostId;
   }
 
   public String asAlias() {

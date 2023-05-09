@@ -17,13 +17,16 @@
 package software.amazon.jdbc;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +38,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
+import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
@@ -334,7 +338,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void refreshHostList() throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
-    if (updatedHostList != null) {
+    if (!Objects.equals(updatedHostList, this.hosts)) {
       updateHostAvailability(updatedHostList);
       setNodeList(this.hosts, updatedHostList);
     }
@@ -343,7 +347,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void refreshHostList(final Connection connection) throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
-    if (updatedHostList != null) {
+    if (!Objects.equals(updatedHostList, this.hosts)) {
       updateHostAvailability(updatedHostList);
       setNodeList(this.hosts, updatedHostList);
     }
@@ -489,4 +493,44 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         connection);
   }
 
+  @Override
+  public HostSpec identifyConnection(Connection connection) throws SQLException {
+    if (!(this.getDialect() instanceof TopologyAwareDatabaseCluster)) {
+      return null;
+    }
+
+    return this.hostListProvider.identifyConnection(connection);
+  }
+
+  @Override
+  public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
+    if (hostSpec == null) {
+      return;
+    }
+
+    if (!hostSpec.getAliases().isEmpty()) {
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
+      return;
+    }
+
+    hostSpec.addAlias(hostSpec.asAlias());
+
+    // Add the host name and port, this host name is usually the internal IP address.
+    try (final Statement stmt = connection.createStatement()) {
+      try (final ResultSet rs = stmt.executeQuery(this.getDialect().getHostAliasQuery())) {
+        while (rs.next()) {
+          hostSpec.addAlias(rs.getString(1));
+        }
+      }
+    } catch (final SQLException sqlException) {
+      // log and ignore
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.failedToRetrieveHostPort"));
+    }
+
+    // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
+    final HostSpec host = this.identifyConnection(connection);
+    if (host != null) {
+      hostSpec.addAlias(host.asAliases().toArray(new String[] {}));
+    }
+  }
 }

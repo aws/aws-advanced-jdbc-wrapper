@@ -91,6 +91,8 @@ public class Driver implements java.sql.Driver {
       return null;
     }
 
+    LOGGER.finest("Opening connection to " + url);
+
     final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
     final java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 

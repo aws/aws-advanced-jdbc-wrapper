@@ -92,6 +92,7 @@ class AuroraHostListProviderTest {
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(queryCaptor.capture())).thenReturn(mockResultSet);
     when(mockHostListProviderService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    when(((TopologyAwareDatabaseCluster) mockTopologyAwareDialect).getNodeIdQuery()).thenReturn("nodeIdQuery");
   }
 
   @AfterEach
@@ -105,7 +106,7 @@ class AuroraHostListProviderTest {
     AuroraHostListProvider provider = new AuroraHostListProvider(
         protocol, mockHostListProviderService, new Properties(), originalUrl);
     provider.init();
-    //provider.clusterId = "cluster-id";
+    // provider.clusterId = "cluster-id";
     return provider;
   }
 
@@ -378,7 +379,7 @@ class AuroraHostListProviderTest {
     List<HostSpec> topologyProvider1 = provider1.refresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
 
-    //AuroraHostListProvider.logCache();
+    // AuroraHostListProvider.logCache();
 
     AuroraHostListProvider provider2 = Mockito.spy(
         getAuroraHostListProvider("jdbc:something://", mockHostListProviderService,
@@ -397,7 +398,7 @@ class AuroraHostListProviderTest {
     assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/",
         AuroraHostListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
 
-    //AuroraHostListProvider.logCache();
+    // AuroraHostListProvider.logCache();
 
     topologyProvider1 = provider1.forceRefresh(Mockito.mock(Connection.class));
     assertEquals(topologyClusterA, topologyProvider1);
@@ -405,6 +406,73 @@ class AuroraHostListProviderTest {
     assertTrue(provider1.isPrimaryClusterId);
     assertTrue(provider2.isPrimaryClusterId);
 
-    //AuroraHostListProvider.logCache();
+    // AuroraHostListProvider.logCache();
+  }
+
+  @Test
+  void testIdentifyConnectionWithInvalidNodeIdQuery() throws SQLException {
+    auroraHostListProvider = Mockito.spy(getAuroraHostListProvider(
+        "jdbc:someprotocol://",
+        mockHostListProviderService,
+        "jdbc:someprotocol://url"));
+
+    when(mockResultSet.next()).thenReturn(false);
+    assertThrows(SQLException.class, () -> auroraHostListProvider.identifyConnection(mockConnection));
+
+    when(mockConnection.createStatement()).thenThrow(new SQLException("exception"));
+    assertThrows(SQLException.class, () -> auroraHostListProvider.identifyConnection(mockConnection));
+  }
+
+  @Test
+  void testIdentifyConnectionNullTopology() throws SQLException {
+    auroraHostListProvider = Mockito.spy(getAuroraHostListProvider(
+        "jdbc:someprotocol://",
+        mockHostListProviderService,
+        "jdbc:someprotocol://url"));
+    auroraHostListProvider.clusterInstanceTemplate = new HostSpec("?.pattern");
+
+    when(mockResultSet.next()).thenReturn(true);
+    when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
+    when(auroraHostListProvider.refresh(eq(mockConnection))).thenReturn(null);
+
+    assertNull(auroraHostListProvider.identifyConnection(mockConnection));
+  }
+
+  @Test
+  void testIdentifyConnectionHostNotInTopology() throws SQLException {
+    final List<HostSpec> cachedTopology = Collections.singletonList(
+        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER));
+
+    auroraHostListProvider = Mockito.spy(getAuroraHostListProvider(
+        "jdbc:someprotocol://",
+        mockHostListProviderService,
+        "jdbc:someprotocol://url"));
+    when(mockResultSet.next()).thenReturn(true);
+    when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
+    when(auroraHostListProvider.refresh(eq(mockConnection))).thenReturn(cachedTopology);
+
+    assertNull(auroraHostListProvider.identifyConnection(mockConnection));
+  }
+
+  @Test
+  void testIdentifyConnectionHostInTopology() throws SQLException {
+    final HostSpec expectedHost = new HostSpec(
+        "instance-a-1.xyz.us-east-2.rds.amazonaws.com",
+        HostSpec.NO_PORT,
+        HostRole.WRITER);
+    expectedHost.setHostId("instance-a-1");
+    final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
+
+    auroraHostListProvider = Mockito.spy(getAuroraHostListProvider(
+        "jdbc:someprotocol://",
+        mockHostListProviderService,
+        "jdbc:someprotocol://url"));
+    when(mockResultSet.next()).thenReturn(true);
+    when(mockResultSet.getString(eq(1))).thenReturn("instance-a-1");
+    when(auroraHostListProvider.refresh()).thenReturn(cachedTopology);
+
+    final HostSpec actual = auroraHostListProvider.identifyConnection(mockConnection);
+    assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", actual.getHost());
+    assertEquals("instance-a-1", actual.getHostId());
   }
 }

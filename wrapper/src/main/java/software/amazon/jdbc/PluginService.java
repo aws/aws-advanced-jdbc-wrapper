@@ -151,4 +151,8 @@ public interface PluginService extends ExceptionHandler {
   Dialect getDialect();
 
   void updateDialect(final @NonNull Connection connection) throws SQLException;
+
+  HostSpec identifyConnection(final Connection connection) throws SQLException;
+
+  void fillAliases(final Connection connection, final HostSpec hostSpec) throws SQLException;
 }

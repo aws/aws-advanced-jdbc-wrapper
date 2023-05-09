@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.efm;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.Set;
@@ -42,6 +43,7 @@ public class MonitorServiceImpl implements MonitorService {
           "60000",
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
 
+  private final PluginService pluginService;
   private MonitorThreadContainer threadContainer;
 
   final MonitorInitializer monitorInitializer;
@@ -50,6 +52,7 @@ public class MonitorServiceImpl implements MonitorService {
 
   public MonitorServiceImpl(final @NonNull PluginService pluginService) {
     this(
+        pluginService,
         (hostSpec, properties, monitorService) ->
             new MonitorImpl(
                 pluginService,
@@ -67,9 +70,11 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   MonitorServiceImpl(
+      final PluginService pluginService,
       final MonitorInitializer monitorInitializer,
       final ExecutorServiceInitializer executorServiceInitializer) {
 
+    this.pluginService = pluginService;
     this.monitorInitializer = monitorInitializer;
     this.threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
   }
@@ -85,11 +90,9 @@ public class MonitorServiceImpl implements MonitorService {
       final int failureDetectionCount) {
 
     if (nodeKeys.isEmpty()) {
-      LOGGER.warning(
-          () -> Messages.get(
-              "MonitorServiceImpl.emptyAliasSet",
-              new Object[] {hostSpec}));
-      hostSpec.addAlias(hostSpec.asAlias());
+      throw new IllegalArgumentException(Messages.get(
+          "MonitorServiceImpl.emptyAliasSet",
+          new Object[] {hostSpec}));
     }
 
     final Monitor monitor;

@@ -54,6 +54,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 
 /**
  * Multithreaded tests for {@link MultiThreadedDefaultMonitorServiceTest}. Repeats each testcase
@@ -69,6 +70,7 @@ class MultiThreadedDefaultMonitorServiceTest {
   @Mock Monitor monitor;
   @Mock Properties properties;
   @Mock JdbcConnection connection;
+  @Mock PluginService pluginService;
 
   private final AtomicInteger counter = new AtomicInteger(0);
   private final AtomicInteger concurrentCounter = new AtomicInteger(0);
@@ -399,7 +401,7 @@ class MultiThreadedDefaultMonitorServiceTest {
   private List<MonitorServiceImpl> generateServices(final int numServices) {
     final List<MonitorServiceImpl> services = new ArrayList<>();
     for (int i = 0; i < numServices; i++) {
-      services.add(new MonitorServiceImpl(monitorInitializer, executorServiceInitializer));
+      services.add(new MonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer));
     }
     return services;
   }

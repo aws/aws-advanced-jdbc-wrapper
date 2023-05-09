@@ -39,7 +39,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -61,9 +60,9 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.MysqlDialect;
-import software.amazon.jdbc.dialect.PgDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RdsUrlType;
+import software.amazon.jdbc.util.RdsUtils;
 
 class HostMonitoringConnectionPluginTest {
 
@@ -82,7 +81,9 @@ class HostMonitoringConnectionPluginTest {
   @Captor ArgumentCaptor<String> stringArgumentCaptor;
   Properties properties = new Properties();
   @Mock HostSpec hostSpec;
+  @Mock HostSpec hostSpec2;
   @Mock Supplier<MonitorService> supplier;
+  @Mock RdsUtils rdsUtils;
   @Mock MonitorConnectionContext context;
   @Mock MonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
@@ -137,8 +138,12 @@ class HostMonitoringConnectionPluginTest {
     when(hostSpec.getHost()).thenReturn("host");
     when(hostSpec.getHost()).thenReturn("port");
     when(hostSpec.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
+    when(hostSpec2.getHost()).thenReturn("host");
+    when(hostSpec2.getHost()).thenReturn("port");
+    when(hostSpec2.getAliases()).thenReturn(new HashSet<>(Collections.singletonList("host:port")));
     when(connection.createStatement()).thenReturn(statement);
     when(statement.executeQuery(any())).thenReturn(resultSet);
+    when(rdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
 
     properties.put("failureDetectionEnabled", Boolean.TRUE.toString());
     properties.put("failureDetectionTime", String.valueOf(FAILURE_DETECTION_TIME));
@@ -147,7 +152,7 @@ class HostMonitoringConnectionPluginTest {
   }
 
   private void initializePlugin() {
-    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier);
+    plugin = new HostMonitoringConnectionPlugin(pluginService, properties, supplier, rdsUtils);
   }
 
   @ParameterizedTest
@@ -269,40 +274,6 @@ class HostMonitoringConnectionPluginTest {
     verify(connection).close();
   }
 
-  @ParameterizedTest
-  @MethodSource("getHostPortSQLParameters")
-  void test_connect_withNoAdditionalHostAlias(final String protocol, final String expectedSql) throws SQLException {
-    initializePlugin();
-
-    when(hostSpec.asAlias()).thenReturn("hostSpec alias");
-    when(mockDialect.getHostAliasQuery()).thenReturn(expectedSql);
-
-    plugin.connect(protocol, hostSpec, properties, true, () -> connection);
-    verify(hostSpec).addAlias("hostSpec alias");
-    verify(statement).executeQuery(eq(expectedSql));
-  }
-
-  @ParameterizedTest
-  @MethodSource("getHostPortSQLParameters")
-  void test_connect_withHostAliases(final String protocol, final String expectedSql) throws SQLException {
-    initializePlugin();
-
-    when(hostSpec.asAlias()).thenReturn("hostSpec alias");
-    when(mockDialect.getHostAliasQuery()).thenReturn(expectedSql);
-
-    // ResultSet contains one row.
-    when(resultSet.next()).thenReturn(true, false);
-    when(resultSet.getString(eq(1))).thenReturn("second alias");
-
-    plugin.connect(protocol, hostSpec, properties, true, () -> connection);
-    verify(hostSpec, times(2)).addAlias(stringArgumentCaptor.capture());
-    final List<String> captures = stringArgumentCaptor.getAllValues();
-    assertEquals(2, captures.size());
-    assertEquals("hostSpec alias", captures.get(0));
-    assertEquals("second alias", captures.get(1));
-    verify(statement).executeQuery(eq(expectedSql));
-  }
-
   @Test
   void test_connect_exceptionRaisedDuringGenerateHostAliases() throws SQLException {
     initializePlugin();
@@ -326,16 +297,21 @@ class HostMonitoringConnectionPluginTest {
         sqlFunction,
         EMPTY_ARGS);
 
-    final Set<String> aliases = new HashSet<>(Arrays.asList("alias1", "alias2"));
-    when(hostSpec.getAliases()).thenReturn(aliases);
-    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
-
-    // NodeKeys should be empty at first
-    verify(monitorService, never()).stopMonitoringForAllConnections(any());
+    final Set<String> aliases1 = new HashSet<>(Arrays.asList("alias1", "alias2"));
+    final Set<String> aliases2 = new HashSet<>(Arrays.asList("alias3", "alias4"));
+    when(hostSpec.asAliases()).thenReturn(aliases1);
+    when(hostSpec2.asAliases()).thenReturn(aliases2);
+    when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);
 
     assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
     // NodeKeys should contain {"alias1", "alias2"}
-    verify(monitorService).stopMonitoringForAllConnections(aliases);
+    verify(monitorService).stopMonitoringForAllConnections(aliases1);
+
+    when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec2);
+    assertEquals(OldConnectionSuggestedAction.NO_OPINION, plugin.notifyConnectionChanged(EnumSet.of(option)));
+    // NotifyConnectionChanged should reset the monitoringHostSpec.
+    // NodeKeys should contain {"alias3", "alias4"}
+    verify(monitorService).stopMonitoringForAllConnections(aliases2);
   }
 
   @Test
@@ -356,18 +332,6 @@ class HostMonitoringConnectionPluginTest {
         EMPTY_ARGS);
     plugin.releaseResources();
     verify(monitorService).releaseResources();
-  }
-
-  static Stream<Arguments> getHostPortSQLParameters() {
-    final String MYSQL_RETRIEVE_HOST_PORT_SQL = new MysqlDialect().getHostAliasQuery();
-    final String PG_RETRIEVE_HOST_PORT_SQL = new PgDialect().getHostAliasQuery();
-
-    return Stream.of(
-        Arguments.of("jdbc:mysql:", MYSQL_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:mysql:someUrl", MYSQL_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:postgresql:", PG_RETRIEVE_HOST_PORT_SQL),
-        Arguments.of("jdbc:postgresql:someUrl", PG_RETRIEVE_HOST_PORT_SQL)
-    );
   }
 
   static Stream<Arguments> nodeChangeOptions() {
