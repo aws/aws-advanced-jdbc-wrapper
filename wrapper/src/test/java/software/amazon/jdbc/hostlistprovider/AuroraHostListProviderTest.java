@@ -24,23 +24,23 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atMostOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.mysql.cj.exceptions.WrongArgumentException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -474,5 +474,63 @@ class AuroraHostListProviderTest {
     final HostSpec actual = auroraHostListProvider.identifyConnection(mockConnection);
     assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", actual.getHost());
     assertEquals("instance-a-1", actual.getHostId());
+  }
+
+  @Test
+  void testGetTopology_StaleRecord() throws SQLException {
+    auroraHostListProvider = Mockito.spy(
+        getAuroraHostListProvider("jdbc:someprotocol://", mockHostListProviderService, "jdbc:someprotocol://url"));
+    auroraHostListProvider.isInitialized = true;
+
+    final String hostName = "hostName";
+    final Float cpuUtilization = 11.1F;
+    final Float nodeLag = 0.123F;
+    final Timestamp firstTimestamp = Timestamp.from(Instant.now());
+    final Timestamp secondTimestamp = new Timestamp(firstTimestamp.getTime() + 1);
+    when(mockResultSet.next()).thenReturn(true, true, false);
+    when(mockResultSet.getString(1)).thenReturn(hostName).thenReturn(hostName);
+    when(mockResultSet.getBoolean(2)).thenReturn(true).thenReturn(true);
+    when(mockResultSet.getFloat(3)).thenReturn(cpuUtilization).thenReturn(cpuUtilization);
+    when(mockResultSet.getFloat(4)).thenReturn(nodeLag).thenReturn(nodeLag);
+    when(mockResultSet.getTimestamp(5)).thenReturn(firstTimestamp).thenReturn(secondTimestamp);
+    long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
+    final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    final String secondTimestampString = formatter.format(secondTimestamp.toLocalDateTime());
+    final HostSpec expectedWriter =
+        new HostSpec(hostName, -1, HostRole.WRITER, HostAvailability.AVAILABLE, weight, secondTimestampString);
+
+    final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
+    verify(auroraHostListProvider, atMostOnce()).queryForTopology(mockConnection);
+    assertEquals(1, result.hosts.size());
+    assertEquals(expectedWriter, result.hosts.get(0));
+  }
+
+  @Test
+  void testGetTopology_InvalidLastUpdatedTimestamp() throws SQLException {
+    auroraHostListProvider = Mockito.spy(
+        getAuroraHostListProvider("jdbc:someprotocol://", mockHostListProviderService, "jdbc:someprotocol://url"));
+    auroraHostListProvider.isInitialized = true;
+
+    final String hostName = "hostName";
+    final Float cpuUtilization = 11.1F;
+    final Float nodeLag = 0.123F;
+    final Timestamp firstTimestamp = Timestamp.from(Instant.now());
+    when(mockResultSet.next()).thenReturn(true, false);
+    when(mockResultSet.getString(1)).thenReturn(hostName);
+    when(mockResultSet.getBoolean(2)).thenReturn(true);
+    when(mockResultSet.getFloat(3)).thenReturn(cpuUtilization);
+    when(mockResultSet.getFloat(4)).thenReturn(nodeLag);
+    when(mockResultSet.getTimestamp(5)).thenThrow(WrongArgumentException.class);
+
+    final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
+    verify(auroraHostListProvider, atMostOnce()).queryForTopology(mockConnection);
+
+    final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    final String expectedLastUpdatedTimeStampRounded =
+        formatter.format(Timestamp.from(Instant.now()).toLocalDateTime()).substring(0, 16);
+    assertEquals(1, result.hosts.size());
+    assertEquals(
+        expectedLastUpdatedTimeStampRounded,
+        result.hosts.get(0).getLastUpdateTime().substring(0, 16));
   }
 }

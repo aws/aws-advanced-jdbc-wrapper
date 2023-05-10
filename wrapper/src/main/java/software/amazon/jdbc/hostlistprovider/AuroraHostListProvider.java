@@ -16,13 +16,18 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import com.mysql.cj.exceptions.WrongArgumentException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,6 +39,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -361,22 +367,34 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       hostMap.put(host.getHost(), host);
     }
 
-    int writerCount = 0;
     final List<HostSpec> hosts = new ArrayList<>();
+    final List<HostSpec> writers = new ArrayList<>();
 
     for (final HostSpec host : hostMap.values()) {
-      if (host.getRole() == HostRole.WRITER) {
-        writerCount++;
+      if (host.getRole() != HostRole.WRITER) {
+        hosts.add(host);
+      } else {
+        writers.add(host);
       }
-      hosts.add(host);
     }
+
+    int writerCount = writers.size();
 
     if (writerCount == 0) {
       LOGGER.severe(
           () -> Messages.get(
               "AuroraHostListProvider.invalidTopology"));
       hosts.clear();
+    } else if (writerCount == 1) {
+      hosts.add(writers.get(0));
+    } else {
+      // Take the latest updated writer node as the current writer. All others will be ignored.
+      List<HostSpec> sortedWriters = writers.stream()
+          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime).reversed())
+          .collect(Collectors.toList());
+      hosts.add(sortedWriters.get(0));
     }
+
     return hosts;
   }
 
@@ -394,14 +412,20 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     final boolean isWriter = resultSet.getBoolean(2);
     final float cpuUtilization = resultSet.getFloat(3);
     final float nodeLag = resultSet.getFloat(4);
+    String lastUpdateTime;
+    try {
+      lastUpdateTime = convertTimestampToString(resultSet.getTimestamp(5));
+    } catch (WrongArgumentException e) {
+      lastUpdateTime = convertTimestampToString(Timestamp.from(Instant.now()));
+    }
 
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, isWriter, weight);
+    return createHost(hostName, isWriter, weight, lastUpdateTime);
   }
 
-  private HostSpec createHost(String host, final boolean isWriter, final long weight) {
+  private HostSpec createHost(String host, final boolean isWriter, final long weight, final String lastUpdateTime) {
     host = host == null ? "?" : host;
     final String endpoint = getHostEndpoint(host);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
@@ -413,10 +437,16 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         port,
         isWriter ? HostRole.WRITER : HostRole.READER,
         HostAvailability.AVAILABLE,
-        weight);
+        weight,
+        lastUpdateTime);
     hostSpec.addAlias(host);
     hostSpec.setHostId(host);
     return hostSpec;
+  }
+
+  private String convertTimestampToString(Timestamp timestamp) {
+    DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    return timestamp == null ? null : formatter.format(timestamp.toLocalDateTime());
   }
 
   /**

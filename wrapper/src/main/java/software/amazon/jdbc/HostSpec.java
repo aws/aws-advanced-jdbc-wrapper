@@ -16,6 +16,9 @@
 
 package software.amazon.jdbc;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
@@ -39,6 +42,8 @@ public class HostSpec {
   protected Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
   protected String hostId;
+  protected String lastUpdateTime;
+  private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
   public HostSpec(final String host) {
     this.host = host;
@@ -47,6 +52,7 @@ public class HostSpec {
     this.role = HostRole.WRITER;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
+    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
   }
 
   public HostSpec(final String host, final int port) {
@@ -56,6 +62,7 @@ public class HostSpec {
     this.role = HostRole.WRITER;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
+    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
   }
 
   public HostSpec(final String host, final int port, final HostRole role) {
@@ -65,6 +72,7 @@ public class HostSpec {
     this.role = role;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
+    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
   }
 
   public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability) {
@@ -74,6 +82,7 @@ public class HostSpec {
     this.role = role;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
+    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
   }
 
   public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
@@ -84,6 +93,18 @@ public class HostSpec {
     this.role = role;
     this.allAliases.add(this.asAlias());
     this.weight = weight;
+    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
+  }
+
+  public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
+      final long weight, final String lastUpdateTime) {
+    this.host = host;
+    this.port = port;
+    this.availability = availability;
+    this.role = role;
+    this.allAliases.add(this.asAlias());
+    this.weight = weight;
+    this.lastUpdateTime = lastUpdateTime;
   }
 
   /**
@@ -118,6 +139,10 @@ public class HostSpec {
 
   public void setAvailability(final HostAvailability availability) {
     this.availability = availability;
+  }
+
+  public String getLastUpdateTime() {
+    return this.lastUpdateTime;
   }
 
   public Set<String> getAliases() {
@@ -180,13 +205,13 @@ public class HostSpec {
   }
 
   public String toString() {
-    return String.format("HostSpec[host=%s, port=%d, %s, %s, weight=%d]",
-        this.host, this.port, this.role, this.availability, this.weight);
+    return String.format("HostSpec[host=%s, port=%d, %s, %s, weight=%d, %s]",
+        this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.host, this.port, this.availability, this.role, this.weight);
+    return Objects.hash(this.host, this.port, this.availability, this.role, this.weight, this.lastUpdateTime);
   }
 
   @Override
