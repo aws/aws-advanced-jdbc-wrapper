@@ -128,8 +128,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
       }
     }
 
-    LOGGER.finest(() -> "Connecting to " + urlBuilder +
-        PropertyUtils.logProperties(props, "\nwith properties: \n"));
+    LOGGER.finest(() -> "Connecting to " + urlBuilder
+        + PropertyUtils.logProperties(props, "\nwith properties: \n"));
     return this.driver.connect(urlBuilder.toString(), props);
   }
 
