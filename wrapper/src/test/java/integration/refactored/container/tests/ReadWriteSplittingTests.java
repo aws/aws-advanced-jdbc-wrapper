@@ -470,8 +470,12 @@ public class ReadWriteSplittingTests {
   @EnableOnNumOfInstances(min = 3)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   public void test_failoverToNewReader_setReadOnlyFalseTrue() throws SQLException {
+
+    final Properties props = getProxiedPropsWithFailover();
+    props.put(FailoverConnectionPlugin.FAILOVER_MODE.name, "reader-or-writer");
+
     try (final Connection conn =
-             DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), getProxiedPropsWithFailover())) {
+             DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), props)) {
 
       final String writerConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.info("writerConnectionId: " + writerConnectionId);

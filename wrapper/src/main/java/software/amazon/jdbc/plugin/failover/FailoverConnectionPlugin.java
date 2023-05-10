@@ -620,7 +620,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void failoverWriter() throws SQLException {
     LOGGER.fine(() -> Messages.get("Failover.startWriterFailover"));
-    final HostSpec currentHost = this.pluginService.getCurrentHostSpec();
     final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
     if (failoverResult != null) {
       final SQLException exception = failoverResult.getException();
@@ -635,9 +634,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     // successfully re-connected to a writer node
-    final HostSpec writerHostSpec = failoverResult.isNewHost()
-        ? getWriter(failoverResult.getTopology())
-        : currentHost;
+    final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
     this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
 
     LOGGER.fine(
