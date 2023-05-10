@@ -73,7 +73,6 @@ import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
-import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
@@ -760,6 +759,25 @@ public class AuroraTestUtility {
       }
     }
     return null;
+  }
+
+  public void createUser(Connection conn, String username, String password) throws SQLException {
+    DatabaseEngine engine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    String dropUserSql = getCreateUserSql(engine, username, password);
+    try (Statement stmt = conn.createStatement()) {
+      stmt.execute(dropUserSql);
+    }
+  }
+
+  protected String getCreateUserSql(DatabaseEngine engine, String username, String password) {
+    switch (engine) {
+      case MYSQL:
+        return "CREATE USER " + username + " identified by '" + password + "'";
+      case PG:
+        return "CREATE USER " + username + " with password '" + password + "'";
+      default:
+        throw new UnsupportedOperationException(engine.toString());
+    }
   }
 
   public void addAuroraAwsIamUser(

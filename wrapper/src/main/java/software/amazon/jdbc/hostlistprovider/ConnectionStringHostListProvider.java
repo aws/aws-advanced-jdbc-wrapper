@@ -17,10 +17,13 @@
 package software.amazon.jdbc.hostlistprovider;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -108,5 +111,31 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
   @Override
   public HostRole getHostRole(Connection connection) {
     throw new UnsupportedOperationException("ConnectionStringHostListProvider does not support getHostRole");
+  }
+
+  @Override
+  public HostSpec identifyConnection(Connection connection) throws SQLException {
+    try (final Statement stmt = connection.createStatement();
+        final ResultSet resultSet = stmt.executeQuery(this.hostListProviderService.getDialect().getHostAliasQuery())) {
+      if (resultSet.next()) {
+        final String instance = resultSet.getString(1);
+
+        final List<HostSpec> topology = this.refresh(connection);
+
+        if (topology == null) {
+          return null;
+        }
+
+        return topology
+            .stream()
+            .filter(host -> Objects.equals(instance, host.getHostId()))
+            .findAny()
+            .orElse(null);
+      }
+    } catch (final SQLException e) {
+      throw new SQLException(Messages.get("ConnectionStringHostListProvider.errorIdentifyConnection"), e);
+    }
+
+    throw new SQLException(Messages.get("ConnectionStringHostListProvider.errorIdentifyConnection"));
   }
 }

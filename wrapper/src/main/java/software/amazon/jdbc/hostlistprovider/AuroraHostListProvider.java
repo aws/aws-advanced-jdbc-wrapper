@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -88,7 +89,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       : TimeUnit.MILLISECONDS.toNanos(30000);
   private final long suggestedClusterIdRefreshRateNano = TimeUnit.MINUTES.toNanos(10);
   private List<HostSpec> hostList = new ArrayList<>();
-  private List<HostSpec> lastReturnedHostList;
   private List<HostSpec> initialHostList = new ArrayList<>();
   private HostSpec initialHostSpec;
 
@@ -277,7 +277,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       for (final HostSpec host : hosts) {
         if (host.getUrl().equals(url)) {
           LOGGER.finest(() -> Messages.get("AuroraHostListProvider.suggestedClusterId",
-              new Object[]{key, url}));
+              new Object[] {key, url}));
           return new ClusterSuggestedResult(key, isPrimaryCluster);
         }
       }
@@ -418,8 +418,12 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    hostName = hostName == null ? "?" : hostName;
-    final String endpoint = getHostEndpoint(hostName);
+    return createHost(hostName, isWriter, weight);
+  }
+
+  private HostSpec createHost(String host, final boolean isWriter, final long weight) {
+    host = host == null ? "?" : host;
+    final String endpoint = getHostEndpoint(host);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
         ? this.clusterInstanceTemplate.getPort()
         : this.initialHostSpec.getPort();
@@ -430,7 +434,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         isWriter ? HostRole.WRITER : HostRole.READER,
         HostAvailability.AVAILABLE,
         weight);
-    hostSpec.addAlias(hostName);
+    hostSpec.addAlias(host);
+    hostSpec.setHostId(host);
     return hostSpec;
   }
 
@@ -486,12 +491,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     final FetchTopologyResult results = getTopology(currentConnection, false);
     LOGGER.finest(() -> Utils.logTopology(results.hosts));
 
-    if (results.isCachedData && this.lastReturnedHostList == results.hosts) {
-      return null; // no topology update
-    }
-
     this.hostList = results.hosts;
-    this.lastReturnedHostList = this.hostList;
     return Collections.unmodifiableList(hostList);
   }
 
@@ -510,7 +510,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     final FetchTopologyResult results = getTopology(currentConnection, true);
     LOGGER.finest(() -> Utils.logTopology(results.hosts));
     this.hostList = results.hosts;
-    this.lastReturnedHostList = this.hostList;
     return Collections.unmodifiableList(this.hostList);
   }
 
@@ -597,6 +596,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   }
 
   static class ClusterSuggestedResult {
+
     public String clusterId;
     public boolean isPrimaryClusterId;
 
@@ -608,18 +608,10 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
   @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
-    if (this.topologyAwareDialect == null) {
-      Dialect dialect = this.hostListProviderService.getDialect();
-      if (!(dialect instanceof TopologyAwareDatabaseCluster)) {
-        throw new SQLException(
-            Messages.get("AuroraHostListProvider.invalidDialectForGetHostRole",
-                new Object[]{dialect}));
-      }
-      this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
-    }
-
     try (final Statement stmt = conn.createStatement();
-         final ResultSet rs = stmt.executeQuery(this.topologyAwareDialect.getIsReaderQuery())) {
+        final ResultSet rs = stmt.executeQuery(
+            getTopologyAwareDialect("AuroraHostListProvider.invalidDialectForGetHostRole")
+                .getIsReaderQuery())) {
       if (rs.next()) {
         boolean isReader = rs.getBoolean(1);
         return isReader ? HostRole.READER : HostRole.WRITER;
@@ -629,5 +621,46 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     }
 
     throw new SQLException(Messages.get("AuroraHostListProvider.errorGettingHostRole"));
+  }
+
+  @Override
+  public HostSpec identifyConnection(Connection connection) throws SQLException {
+    try (final Statement stmt = connection.createStatement();
+        final ResultSet resultSet = stmt.executeQuery(
+            getTopologyAwareDialect("AuroraHostListProvider.invalidDialectForIdentifyConnection")
+                .getNodeIdQuery())) {
+      if (resultSet.next()) {
+        final String instanceName = resultSet.getString(1);
+
+        final List<HostSpec> topology = this.refresh();
+
+        if (topology == null) {
+          return null;
+        }
+
+        return topology
+            .stream()
+            .filter(host -> Objects.equals(instanceName, host.getHostId()))
+            .findAny()
+            .orElse(null);
+      }
+    } catch (final SQLException e) {
+      throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyConnection"), e);
+    }
+
+    throw new SQLException(Messages.get("AuroraHostListProvider.errorIdentifyConnection"));
+  }
+
+  private TopologyAwareDatabaseCluster getTopologyAwareDialect(String exceptionMessageIdentifier) throws SQLException {
+    if (this.topologyAwareDialect == null) {
+      Dialect dialect = this.hostListProviderService.getDialect();
+      if (!(dialect instanceof TopologyAwareDatabaseCluster)) {
+        throw new SQLException(
+            Messages.get(exceptionMessageIdentifier,
+                new Object[] {dialect}));
+      }
+      this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
+    }
+    return this.topologyAwareDialect;
   }
 }

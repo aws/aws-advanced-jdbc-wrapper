@@ -39,4 +39,6 @@ public interface HostListProvider {
    *                      determine the host role
    */
   HostRole getHostRole(Connection connection) throws SQLException;
+
+  HostSpec identifyConnection(Connection connection) throws SQLException;
 }

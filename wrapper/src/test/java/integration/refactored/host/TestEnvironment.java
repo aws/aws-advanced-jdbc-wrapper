@@ -585,7 +585,7 @@ public class TestEnvironment implements AutoCloseable {
       case OPENJDK8:
         return "openjdk:8-jdk-alpine";
       case OPENJDK11:
-        return "adoptopenjdk/openjdk11:alpine";
+        return "amazoncorretto:11.0.19-alpine3.17";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
       default:

@@ -47,8 +47,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostAvailability;
@@ -80,10 +78,9 @@ class FailoverConnectionPluginTest {
   @Mock ClusterAwareWriterFailoverHandler mockWriterFailoverHandler;
   @Mock ReaderFailoverResult mockReaderResult;
   @Mock WriterFailoverResult mockWriterResult;
-  @Captor ArgumentCaptor<HostSpec> hostSpecArgumentCaptor;
   @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
 
-  private Properties properties = new Properties();
+  private final Properties properties = new Properties();
   private FailoverConnectionPlugin plugin;
   private AutoCloseable closeable;
 
@@ -231,10 +228,10 @@ class FailoverConnectionPluginTest {
   void test_syncSessionState_withNullConnections() throws SQLException {
     initializePlugin();
 
-    plugin.transferSessionState(null, mockConnection, false);
+    plugin.transferSessionState(null, mockConnection);
     verify(mockConnection, never()).getAutoCommit();
 
-    plugin.transferSessionState(mockConnection, null, false);
+    plugin.transferSessionState(mockConnection, null);
     verify(mockConnection, never()).getAutoCommit();
   }
 
@@ -248,7 +245,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
 
-    plugin.transferSessionState(mockConnection, mockConnection, false);
+    plugin.transferSessionState(mockConnection, mockConnection);
     verify(target).setReadOnly(eq(false));
     verify(target).getAutoCommit();
     verify(target).getTransactionIsolation();
@@ -263,7 +260,7 @@ class FailoverConnectionPluginTest {
     initializePlugin();
     final FailoverConnectionPlugin spyPlugin = spy(plugin);
     doNothing().when(spyPlugin).failoverWriter();
-    when(spyPlugin.shouldPerformWriterFailover()).thenReturn(true);
+    spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
 
     SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
     assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
@@ -277,7 +274,7 @@ class FailoverConnectionPluginTest {
     initializePlugin();
     final FailoverConnectionPlugin spyPlugin = spy(plugin);
     doNothing().when(spyPlugin).failoverReader(eq(mockHostSpec));
-    when(spyPlugin.shouldPerformWriterFailover()).thenReturn(false);
+    spyPlugin.failoverMode = FailoverMode.READER_OR_WRITER;
 
     SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
     assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
@@ -425,8 +422,6 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getPort()).thenReturn(123);
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
 
-    final HostSpec expectedHostSpec = new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
-
     initializePlugin();
     plugin.invalidateCurrentConnection();
     verify(mockConnection).rollback();
@@ -434,25 +429,19 @@ class FailoverConnectionPluginTest {
     // Assert SQL exceptions thrown during rollback do not get propagated.
     doThrow(new SQLException()).when(mockConnection).rollback();
     assertDoesNotThrow(() -> plugin.invalidateCurrentConnection());
-
-    verify(mockPluginService, times(2)).setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
-    assertEquals(expectedHostSpec, hostSpecArgumentCaptor.getValue());
   }
 
   @Test
-  void test_invalidateCurrentConnection_notInTransaction() throws SQLException {
+  void test_invalidateCurrentConnection_notInTransaction() {
     when(mockPluginService.isInTransaction()).thenReturn(false);
     when(mockHostSpec.getHost()).thenReturn("host");
     when(mockHostSpec.getPort()).thenReturn(123);
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
-    final HostSpec expectedHostSpec = new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
 
     initializePlugin();
     plugin.invalidateCurrentConnection();
 
     verify(mockPluginService).isInTransaction();
-    verify(mockPluginService).setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
-    assertEquals(expectedHostSpec, hostSpecArgumentCaptor.getValue());
   }
 
   @Test
@@ -462,7 +451,6 @@ class FailoverConnectionPluginTest {
     when(mockHostSpec.getHost()).thenReturn("host");
     when(mockHostSpec.getPort()).thenReturn(123);
     when(mockHostSpec.getRole()).thenReturn(HostRole.READER);
-    final HostSpec expectedHostSpec = new HostSpec("host", 123, HostRole.READER, HostAvailability.NOT_AVAILABLE);
 
     initializePlugin();
     plugin.invalidateCurrentConnection();
@@ -472,8 +460,6 @@ class FailoverConnectionPluginTest {
 
     verify(mockConnection, times(2)).isClosed();
     verify(mockConnection, times(2)).close();
-    verify(mockPluginService, times(2)).setCurrentConnection(eq(mockConnection), hostSpecArgumentCaptor.capture());
-    assertEquals(expectedHostSpec, hostSpecArgumentCaptor.getValue());
   }
 
   @Test
@@ -536,6 +522,11 @@ class FailoverConnectionPluginTest {
     @Override
     public HostRole getHostRole(Connection conn) {
       return HostRole.WRITER;
+    }
+
+    @Override
+    public HostSpec identifyConnection(Connection connection) throws SQLException {
+      return new HostSpec("foo");
     }
   }
 }

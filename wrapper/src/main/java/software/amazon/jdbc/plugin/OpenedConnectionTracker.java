@@ -60,7 +60,7 @@ public class OpenedConnectionTracker {
     final Set<String> aliases = hostSpec.asAliases();
 
     // Check if the connection was established using a cluster endpoint
-    final String host = hostSpec.getHost();
+    final String host = hostSpec.asAlias();
     if (rdsUtils.isRdsInstance(host)) {
       trackConnection(host, conn);
       return;
@@ -82,6 +82,7 @@ public class OpenedConnectionTracker {
    * @param hostSpec The {@link HostSpec} object containing the url of the node.
    */
   public void invalidateAllConnections(final HostSpec hostSpec) {
+    invalidateAllConnections(hostSpec.asAlias());
     invalidateAllConnections(hostSpec.getAliases().toArray(new String[] {}));
   }
 
@@ -97,7 +98,7 @@ public class OpenedConnectionTracker {
 
   public void invalidateCurrentConnection(final HostSpec hostSpec, final Connection connection) {
     final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
-        ? hostSpec.getHost()
+        ? hostSpec.asAlias()
         : hostSpec.getAliases().stream().filter(rdsUtils::isRdsInstance).findFirst().orElse(null);
 
     if (StringUtils.isNullOrEmpty(host)) {

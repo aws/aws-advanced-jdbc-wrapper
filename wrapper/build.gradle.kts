@@ -281,6 +281,7 @@ tasks.register<Test>("test-hibernate-only") {
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-mariadb-driver", "true")
         systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
         systemProperty("test-hibernate-only", "true")
     }
 }
