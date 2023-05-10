@@ -164,8 +164,9 @@ public class ReadWriteSplittingPostgresExample {
   // This method is an optional parameter to `ConnectionProviderManager.setConnectionProvider`.
   // It can be omitted if you do not require it.
   private static String getPoolKey(HostSpec hostSpec, Properties props) {
-    // Include somePropertyValue in the connection pool key so that a new connection pool will be
-    // opened for each different instance-user-somePropertyValue combination
+    // Include the URL and somePropertyValue in the connection pool key so that a new connection
+    // pool will be opened for each different instance-user-somePropertyValue combination.
+    // (Note that the user will automatically be added to the key).
     final String somePropertyValue = props.getProperty("somePropertyValue");
     return hostSpec.getUrl() + somePropertyValue;
   }
