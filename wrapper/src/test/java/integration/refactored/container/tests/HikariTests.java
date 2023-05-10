@@ -56,6 +56,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.HikariCPSQLException;
@@ -243,7 +244,6 @@ public class HikariTests {
     config.setUsername(proxyDatabaseInfo.getUsername());
     config.setPassword(proxyDatabaseInfo.getPassword());
     config.setMaximumPoolSize(3);
-    config.setReadOnly(true);
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
@@ -283,12 +283,14 @@ public class HikariTests {
             .getProxyDatabaseInfo()
             .getInstanceEndpointSuffix());
 
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name,
-        "2000");
+    targetDataSourceProps.setProperty(
+        FailoverConnectionPlugin.FAILOVER_MODE.name, "reader-or-writer");
+    targetDataSourceProps.setProperty(
+        HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME.name, "2000");
     targetDataSourceProps.setProperty(
         HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
-    targetDataSourceProps.setProperty(HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name,
-        "1");
+    targetDataSourceProps.setProperty(
+        HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
       // Connecting to Mysql database with MariaDb driver requires a configuration parameter

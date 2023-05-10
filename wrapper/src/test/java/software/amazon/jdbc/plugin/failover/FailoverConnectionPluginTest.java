@@ -228,10 +228,10 @@ class FailoverConnectionPluginTest {
   void test_syncSessionState_withNullConnections() throws SQLException {
     initializePlugin();
 
-    plugin.transferSessionState(null, mockConnection, false);
+    plugin.transferSessionState(null, mockConnection);
     verify(mockConnection, never()).getAutoCommit();
 
-    plugin.transferSessionState(mockConnection, null, false);
+    plugin.transferSessionState(mockConnection, null);
     verify(mockConnection, never()).getAutoCommit();
   }
 
@@ -245,7 +245,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
 
-    plugin.transferSessionState(mockConnection, mockConnection, false);
+    plugin.transferSessionState(mockConnection, mockConnection);
     verify(target).setReadOnly(eq(false));
     verify(target).getAutoCommit();
     verify(target).getTransactionIsolation();
@@ -260,7 +260,7 @@ class FailoverConnectionPluginTest {
     initializePlugin();
     final FailoverConnectionPlugin spyPlugin = spy(plugin);
     doNothing().when(spyPlugin).failoverWriter();
-    when(spyPlugin.shouldPerformWriterFailover()).thenReturn(true);
+    spyPlugin.failoverMode = FailoverMode.STRICT_WRITER;
 
     SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
     assertEquals(SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
@@ -274,7 +274,7 @@ class FailoverConnectionPluginTest {
     initializePlugin();
     final FailoverConnectionPlugin spyPlugin = spy(plugin);
     doNothing().when(spyPlugin).failoverReader(eq(mockHostSpec));
-    when(spyPlugin.shouldPerformWriterFailover()).thenReturn(false);
+    spyPlugin.failoverMode = FailoverMode.READER_OR_WRITER;
 
     SQLException exception = assertThrows(SQLException.class, () -> spyPlugin.failover(mockHostSpec));
     assertEquals(SqlState.COMMUNICATION_LINK_CHANGED.getState(), exception.getSQLState());
