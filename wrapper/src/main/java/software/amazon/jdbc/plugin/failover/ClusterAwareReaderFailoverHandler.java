@@ -393,10 +393,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       LOGGER.fine(
           () -> Messages.get(
               "ClusterAwareReaderFailoverHandler.attemptingReaderConnection",
-              new Object[] {this.newHost.getUrl()}));
+              new Object[] {this.newHost.getUrl(), initialConnectionProps}));
 
       try {
-        final Connection conn = pluginService.forceConnect(this.newHost, initialConnectionProps);
+        final Properties copy = new Properties(initialConnectionProps);
+        final Connection conn = pluginService.forceConnect(this.newHost, copy);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
         LOGGER.fine(
             () -> Messages.get(
