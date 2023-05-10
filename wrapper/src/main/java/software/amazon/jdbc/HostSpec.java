@@ -18,7 +18,6 @@ package software.amazon.jdbc;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
@@ -42,8 +41,7 @@ public class HostSpec {
   protected Set<String> allAliases = ConcurrentHashMap.newKeySet();
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
   protected String hostId;
-  protected String lastUpdateTime;
-  private final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+  protected Timestamp lastUpdateTime;
 
   public HostSpec(final String host) {
     this.host = host;
@@ -52,7 +50,7 @@ public class HostSpec {
     this.role = HostRole.WRITER;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
+    this.lastUpdateTime = Timestamp.from(Instant.now());
   }
 
   public HostSpec(final String host, final int port) {
@@ -62,7 +60,7 @@ public class HostSpec {
     this.role = HostRole.WRITER;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
+    this.lastUpdateTime = Timestamp.from(Instant.now());
   }
 
   public HostSpec(final String host, final int port, final HostRole role) {
@@ -72,7 +70,7 @@ public class HostSpec {
     this.role = role;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
+    this.lastUpdateTime = Timestamp.from(Instant.now());
   }
 
   public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability) {
@@ -82,7 +80,7 @@ public class HostSpec {
     this.role = role;
     this.allAliases.add(this.asAlias());
     this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
+    this.lastUpdateTime = Timestamp.from(Instant.now());
   }
 
   public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
@@ -93,11 +91,11 @@ public class HostSpec {
     this.role = role;
     this.allAliases.add(this.asAlias());
     this.weight = weight;
-    this.lastUpdateTime = formatter.format(Timestamp.from(Instant.now()).toLocalDateTime());
+    this.lastUpdateTime = Timestamp.from(Instant.now());
   }
 
   public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
-      final long weight, final String lastUpdateTime) {
+      final long weight, final Timestamp lastUpdateTime) {
     this.host = host;
     this.port = port;
     this.availability = availability;
@@ -141,7 +139,7 @@ public class HostSpec {
     this.availability = availability;
   }
 
-  public String getLastUpdateTime() {
+  public Timestamp getLastUpdateTime() {
     return this.lastUpdateTime;
   }
 

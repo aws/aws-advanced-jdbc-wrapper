@@ -24,7 +24,6 @@ import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -412,11 +411,11 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     final boolean isWriter = resultSet.getBoolean(2);
     final float cpuUtilization = resultSet.getFloat(3);
     final float nodeLag = resultSet.getFloat(4);
-    String lastUpdateTime;
+    Timestamp lastUpdateTime;
     try {
-      lastUpdateTime = convertTimestampToString(resultSet.getTimestamp(5));
+      lastUpdateTime = resultSet.getTimestamp(5);
     } catch (WrongArgumentException e) {
-      lastUpdateTime = convertTimestampToString(Timestamp.from(Instant.now()));
+      lastUpdateTime = Timestamp.from(Instant.now());
     }
 
     // Calculate weight based on node lag in time and CPU utilization.
@@ -425,7 +424,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     return createHost(hostName, isWriter, weight, lastUpdateTime);
   }
 
-  private HostSpec createHost(String host, final boolean isWriter, final long weight, final String lastUpdateTime) {
+  private HostSpec createHost(String host, final boolean isWriter, final long weight, final Timestamp lastUpdateTime) {
     host = host == null ? "?" : host;
     final String endpoint = getHostEndpoint(host);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
@@ -442,11 +441,6 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     hostSpec.addAlias(host);
     hostSpec.setHostId(host);
     return hostSpec;
-  }
-
-  private String convertTimestampToString(Timestamp timestamp) {
-    DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-    return timestamp == null ? null : formatter.format(timestamp.toLocalDateTime());
   }
 
   /**

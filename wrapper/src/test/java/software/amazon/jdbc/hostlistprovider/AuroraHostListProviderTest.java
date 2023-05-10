@@ -40,7 +40,6 @@ import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -482,22 +481,21 @@ class AuroraHostListProviderTest {
         getAuroraHostListProvider("jdbc:someprotocol://", mockHostListProviderService, "jdbc:someprotocol://url"));
     auroraHostListProvider.isInitialized = true;
 
-    final String hostName = "hostName";
+    final String hostName1 = "hostName1";
+    final String hostName2 = "hostName2";
     final Float cpuUtilization = 11.1F;
     final Float nodeLag = 0.123F;
     final Timestamp firstTimestamp = Timestamp.from(Instant.now());
-    final Timestamp secondTimestamp = new Timestamp(firstTimestamp.getTime() + 1);
+    final Timestamp secondTimestamp = new Timestamp(firstTimestamp.getTime() + 100);
     when(mockResultSet.next()).thenReturn(true, true, false);
-    when(mockResultSet.getString(1)).thenReturn(hostName).thenReturn(hostName);
+    when(mockResultSet.getString(1)).thenReturn(hostName1).thenReturn(hostName2);
     when(mockResultSet.getBoolean(2)).thenReturn(true).thenReturn(true);
     when(mockResultSet.getFloat(3)).thenReturn(cpuUtilization).thenReturn(cpuUtilization);
     when(mockResultSet.getFloat(4)).thenReturn(nodeLag).thenReturn(nodeLag);
     when(mockResultSet.getTimestamp(5)).thenReturn(firstTimestamp).thenReturn(secondTimestamp);
     long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
-    final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-    final String secondTimestampString = formatter.format(secondTimestamp.toLocalDateTime());
     final HostSpec expectedWriter =
-        new HostSpec(hostName, -1, HostRole.WRITER, HostAvailability.AVAILABLE, weight, secondTimestampString);
+        new HostSpec(hostName2, -1, HostRole.WRITER, HostAvailability.AVAILABLE, weight, secondTimestamp);
 
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
     verify(auroraHostListProvider, atMostOnce()).queryForTopology(mockConnection);
@@ -514,7 +512,6 @@ class AuroraHostListProviderTest {
     final String hostName = "hostName";
     final Float cpuUtilization = 11.1F;
     final Float nodeLag = 0.123F;
-    final Timestamp firstTimestamp = Timestamp.from(Instant.now());
     when(mockResultSet.next()).thenReturn(true, false);
     when(mockResultSet.getString(1)).thenReturn(hostName);
     when(mockResultSet.getBoolean(2)).thenReturn(true);
@@ -525,12 +522,10 @@ class AuroraHostListProviderTest {
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
     verify(auroraHostListProvider, atMostOnce()).queryForTopology(mockConnection);
 
-    final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-    final String expectedLastUpdatedTimeStampRounded =
-        formatter.format(Timestamp.from(Instant.now()).toLocalDateTime()).substring(0, 16);
+    final String expectedLastUpdatedTimeStampRounded = Timestamp.from(Instant.now()).toString().substring(0, 16);
     assertEquals(1, result.hosts.size());
     assertEquals(
         expectedLastUpdatedTimeStampRounded,
-        result.hosts.get(0).getLastUpdateTime().substring(0, 16));
+        result.hosts.get(0).getLastUpdateTime().toString().substring(0, 16));
   }
 }
