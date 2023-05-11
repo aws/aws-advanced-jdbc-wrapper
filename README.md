@@ -10,7 +10,7 @@ The **Amazon Web Services JDBC Driver** has been redesigned as an advanced JDBC 
 
 The AWS JDBC Driver is meant to work with any JDBC driver. Currently, the AWS JDBC Driver has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc). Support for the [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and the [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j) is being evaluated.
 
-In conjunction with the PostgreSQL JDBC Driver, the AWS JDBC Driver enables fast failover for Amazon Aurora with PostgreSQL compatibility. It also supports integration with [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) and [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/). We are investigating Read/Write splitting for a future release.
+In conjunction with the PostgreSQL JDBC Driver, the AWS JDBC Driver enables fast failover for Amazon Aurora with PostgreSQL compatibility. It also supports integration with [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) and [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/).
 
 ## About the Driver
 
