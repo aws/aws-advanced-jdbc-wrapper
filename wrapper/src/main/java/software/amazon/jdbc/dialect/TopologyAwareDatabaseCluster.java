@@ -26,6 +26,7 @@ public interface TopologyAwareDatabaseCluster {
    * corresponds to less node load/utilization
    * 4 - A number (or null) that represent a node lag comparing to a writer node. Lesser number
    * corresponds to small lag in time.
+   * 5 - A timestamp that represents the last time a node was updated
    */
   String getTopologyQuery();
 
