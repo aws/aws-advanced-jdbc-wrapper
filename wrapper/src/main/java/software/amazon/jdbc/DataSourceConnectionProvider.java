@@ -224,9 +224,4 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
     }
   }
-
-  @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
-    // Do nothing
-  }
 }

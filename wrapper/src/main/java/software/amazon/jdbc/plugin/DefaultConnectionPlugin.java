@@ -226,7 +226,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
-    this.connProviderManager.notifyNodeListChanged(changes);
   }
 
   List<String> parseMultiStatementQueries(String query) {

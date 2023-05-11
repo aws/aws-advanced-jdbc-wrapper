@@ -148,9 +148,4 @@ public class DriverConnectionProvider implements ConnectionProvider {
     LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);
   }
-
-  @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
-    // Do nothing
-  }
 }

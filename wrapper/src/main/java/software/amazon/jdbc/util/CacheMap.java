@@ -18,21 +18,34 @@ package software.amazon.jdbc.util;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class CacheMap<K, V> {
 
   private final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
-  private final long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
+  private long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   private final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
 
   public CacheMap() {
   }
 
+  public CacheMap(final long cleanupIntervalNanos) {
+    this.cleanupIntervalNanos = cleanupIntervalNanos;
+  }
+
   public V get(final K key) {
     final CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
+    return cacheItem == null ? null : cacheItem.item;
+  }
+
+  public V getWithExtendExpiration(final K key, final long itemExpirationNano) {
+    final CacheItem<V> cacheItem = cache.computeIfPresent(key,
+        (kk, vv) -> vv.isExpired() ? null : vv.withExtendExpiration(itemExpirationNano));
     return cacheItem == null ? null : cacheItem.item;
   }
 
@@ -52,6 +65,29 @@ public class CacheMap<K, V> {
   public void putIfAbsent(final K key, final V item, final long itemExpirationNano) {
     cache.putIfAbsent(key, new CacheItem<>(item, System.nanoTime() + itemExpirationNano));
     cleanUp();
+  }
+
+  public V computeIfAbsent(
+      final K key,
+      Function<? super K, ? extends V> mappingFunction,
+      final long itemExpirationNano) {
+    return computeIfAbsent(key, mappingFunction, itemExpirationNano, null);
+  }
+
+  public V computeIfAbsent(
+    final K key,
+    Function<? super K, ? extends V> mappingFunction,
+    final long itemExpirationNano,
+    final ItemDisposeFunc<V> itemDisposeFunc) {
+
+    final CacheItem<V> cacheItem = cache.computeIfAbsent(
+        key,
+        k -> new CacheItem<>(
+            mappingFunction.apply(k),
+            System.nanoTime() + itemExpirationNano,
+            itemDisposeFunc));
+    cleanUp();
+    return cacheItem.withExtendExpiration(itemExpirationNano).item;
   }
 
   public void remove(final K key) {
@@ -81,22 +117,53 @@ public class CacheMap<K, V> {
       cache.forEach((key, value) -> {
         if (value == null || value.isExpired()) {
           cache.remove(key);
+          if (value != null) {
+            value.dispose();
+          }
         }
       });
     }
   }
 
+  public interface ItemDisposeFunc<V> {
+    void dispose(V item);
+  }
+
   private static class CacheItem<V> {
-    final V item;
-    final long expirationTime;
+    private final V item;
+    private long expirationTime;
+
+    final ItemDisposeFunc<V> disposeFunc;
 
     public CacheItem(final V item, final long expirationTime) {
+      this(item, expirationTime, null);
+    }
+
+    public CacheItem(final V item, final long expirationTime, final ItemDisposeFunc<V> disposeFunc) {
       this.item = item;
       this.expirationTime = expirationTime;
+      this.disposeFunc = disposeFunc;
     }
 
     boolean isExpired() {
       return System.nanoTime() > expirationTime;
+    }
+
+    public CacheItem<V> withExtendExpiration(final long itemExpirationNano) {
+      this.expirationTime = System.nanoTime() + itemExpirationNano;
+      return this;
+    }
+
+    public void dispose() {
+      if (this.disposeFunc == null) {
+        return;
+      }
+
+      try {
+        this.disposeFunc.dispose(this.item);
+      } catch (Exception ex) {
+        // ignore
+      }
     }
 
     @Override

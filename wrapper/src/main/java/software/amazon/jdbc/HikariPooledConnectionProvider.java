@@ -21,20 +21,18 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -47,12 +45,15 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final Logger LOGGER =
       Logger.getLogger(HikariPooledConnectionProvider.class.getName());
 
+  private static final String LEAST_CONNECTIONS_STRATEGY = "leastConnections";
+
   private static final RdsUtils rdsUtils = new RdsUtils();
 
   // 2-layer map that helps us keep track of how many pools are associated with each database
   // instance. The first layer maps from an instance URL to the 2nd map. The 2nd layer maps from
   // the key returned from the poolMapping function to the database pool.
-  private static final Map<String, Map<String, HikariDataSource>> databasePools = new ConcurrentHashMap<>();
+  private static final CacheMap<PoolKey, HikariDataSource> databasePools = new CacheMap<>();
+  private static final long poolExpirationNanos = TimeUnit.MINUTES.toNanos(30);
   private final HikariPoolConfigurator poolConfigurator;
   private final HikariPoolMapping poolMapping;
   protected int retries = 10;
@@ -73,7 +74,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *                               HikariConfig.
    */
   public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
-    this(hikariPoolConfigurator, (hostSpec, properties) -> hostSpec.getUrl());
+    this(hikariPoolConfigurator, null);
   }
 
   /**
@@ -110,14 +111,14 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   @Override
   public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
-    return "leastConnections".equals(strategy);
+    return LEAST_CONNECTIONS_STRATEGY.equals(strategy);
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
       throws SQLException {
-    if (!"leastConnections".equals(strategy)) {
+    if (!LEAST_CONNECTIONS_STRATEGY.equals(strategy)) {
       throw new UnsupportedOperationException(
           Messages.get(
               "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
@@ -127,29 +128,25 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     // Remove hosts with the wrong role
     List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec -> role.equals(hostSpec.getRole()))
+        .sorted((hostSpec1, hostSpec2) ->
+            getNumConnections(hostSpec1) - getNumConnections(hostSpec2))
         .collect(Collectors.toList());
+
     if (eligibleHosts.size() == 0) {
       throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
-    if (HostRole.WRITER.equals(role)) {
-      // Assuming there is only one writer, there are no other valid hosts to return, so we do
-      // not have to sort by least connections.
-      return eligibleHosts.get(0);
-    }
-
-    eligibleHosts.sort((hostSpec1, hostSpec2) ->
-        getNumConnections(hostSpec1) - getNumConnections(hostSpec2));
     return eligibleHosts.get(0);
   }
 
   private int getNumConnections(HostSpec hostSpec) {
-    Map<String, HikariDataSource> hostPools = databasePools.get(hostSpec.getUrl());
     int numConnections = 0;
-    if (hostPools != null) {
-      for (HikariDataSource ds : hostPools.values()) {
-        numConnections += ds.getHikariPoolMXBean().getActiveConnections();
+    final String url = hostSpec.getUrl();
+    for (Entry<PoolKey, HikariDataSource> entry : databasePools.getEntries().entrySet()) {
+      if (!url.equals(entry.getKey().url)) {
+        continue;
       }
+      numConnections += entry.getValue().getHikariPoolMXBean().getActiveConnections();
     }
     return numConnections;
   }
@@ -162,55 +159,17 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       @NonNull Properties props,
       boolean isInitialConnection)
       throws SQLException {
-    // TODO: do we need to lock databasePools when we are interacting with it? Even though it is
-    //  a ConcurrentHashMap, it contains another ConcurrentHashMap. Could threads interleave
-    //  between getting the inner hashmap and updating/creating it?
-    final Map<String, HikariDataSource> hostPools = databasePools.computeIfAbsent(
-        hostSpec.getUrl(),
-        url -> new HashMap<>()
+
+    final HikariDataSource ds = databasePools.computeIfAbsent(
+        new PoolKey(hostSpec.getUrl(), getPoolKey(hostSpec, props)),
+        (lambdaPoolKey) -> createHikariDataSource(protocol, hostSpec, props),
+        poolExpirationNanos,
+        (hikariDataSource) -> hikariDataSource.close()
     );
 
-    final String poolKey = getPoolKey(hostSpec, props);
-    final HikariDataSource ds = hostPools.computeIfAbsent(
-        poolKey,
-        lambdaPoolKey -> createHikariDataSource(protocol, hostSpec, props)
-    );
     ds.setPassword(props.getProperty(PropertyDefinition.PASSWORD.name));
 
-    Connection conn = null;
-    SQLException latestConnectException = null;
-    for (int i = 0; i < retries + 1; i++) {
-      try {
-        conn = ds.getConnection();
-        if (conn != null && !conn.isValid(3)) {
-          ds.evictConnection(conn);
-        }
-        break;
-      } catch (SQLException e) {
-        latestConnectException = e;
-        if (conn != null) {
-          ds.evictConnection(conn);
-        }
-      }
-    }
-
-    if (conn != null) {
-      return conn;
-    }
-
-    // Data source is not working
-    ds.close();
-    hostPools.remove(poolKey);
-    if (hostPools.size() == 0) {
-      databasePools.remove(hostSpec.getUrl());
-    }
-
-    String errorMessage = latestConnectException == null
-        ? Messages.get("HikariPooledConnectionProvider.errorConnectingWithDataSource",
-            new Object[]{hostSpec.getUrl()})
-        : Messages.get("HikariPooledConnectionProvider.errorConnectingWithDataSourceWithCause",
-            new Object[] {hostSpec.getUrl(), latestConnectException.getMessage()});
-    throw new SQLException(errorMessage);
+    return ds.getConnection();
   }
 
   @Override
@@ -222,41 +181,21 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   // The pool key should always be retrieved using this method, because the username
   // must always be included to avoid sharing privileged connections with other users.
   private String getPoolKey(HostSpec hostSpec, Properties props) {
-    final StringBuilder sb = new StringBuilder();
-    sb.append(poolMapping.getKey(hostSpec, props))
-        .append(props.getProperty(PropertyDefinition.USER.name));
-    return sb.toString();
-  }
-
-  @Override
-  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
-    for (Map.Entry<String, EnumSet<NodeChangeOptions>> hostChangesEntry : changes.entrySet()) {
-      final EnumSet<NodeChangeOptions> hostChanges = hostChangesEntry.getValue();
-      // TODO: do any other node changes need to be checked and processed?
-      if (!hostChanges.contains(NodeChangeOptions.NODE_DELETED)) {
-        continue;
-      }
-
-      final String hostUrl = hostChangesEntry.getKey();
-      final Map<String, HikariDataSource> hostPools = databasePools.get(hostUrl);
-      if (hostPools != null) {
-        for (Map.Entry<String, HikariDataSource> poolEntry : hostPools.entrySet()) {
-          final HikariDataSource ds = poolEntry.getValue();
-          if (ds != null) {
-            ds.close();
-          }
-        }
-        hostPools.clear();
-      }
-      databasePools.remove(hostUrl);
+    if (this.poolMapping != null) {
+      return this.poolMapping.getKey(hostSpec, props);
     }
+
+    // Otherwise use default map key
+    String user = props.getProperty(PropertyDefinition.USER.name);
+    return user == null ? "" : user;
   }
 
   @Override
   public void releaseResources() {
-    databasePools.forEach((url, hostPools) -> {
-      hostPools.forEach((poolKey, ds) -> ds.close());
-      hostPools.clear();
+    databasePools.getEntries().forEach((poolKey, pool) -> {
+      if (!pool.isClosed()) {
+        pool.close();
+      }
     });
     databasePools.clear();
   }
@@ -318,7 +257,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    * @return a set containing every host URL for which there are one or more connection pool(s).
    */
   public Set<String> getHosts() {
-    return Collections.unmodifiableSet(databasePools.keySet());
+    return Collections.unmodifiableSet(
+        databasePools.getEntries().keySet().stream()
+            .map(poolKey -> poolKey.url)
+            .collect(Collectors.toSet()));
   }
 
   /**
@@ -326,12 +268,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *
    * @return a set containing every key associated with an active connection pool
    */
-  public Set<String> getKeys() {
-    Set<String> keys = new HashSet<>();
-    for (Map<String, HikariDataSource> pool : databasePools.values()) {
-      keys.addAll(pool.keySet());
-    }
-    return keys;
+  public Set<PoolKey> getKeys() {
+    return databasePools.getEntries().keySet();
   }
 
   /**
@@ -340,7 +278,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   public void logConnections() {
     LOGGER.finest(() -> {
       final StringBuilder builder = new StringBuilder();
-      databasePools.forEach((key, dataSource) -> {
+      databasePools.getEntries().forEach((key, dataSource) -> {
         builder.append("\t[ ");
         builder.append(key).append(":");
         builder.append("\n\t {");
@@ -356,5 +294,44 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
     configurePool(config, protocol, hostSpec, props);
     return new HikariDataSource(config);
+  }
+
+  public static class PoolKey {
+    private final @NonNull String url;
+    private final @NonNull String extraKey;
+
+    public PoolKey(final @NonNull String url, final @NonNull String extraKey) {
+      this.url = url;
+      this.extraKey = extraKey;
+    }
+
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + ((url == null) ? 0 : url.hashCode()) + ((extraKey == null) ? 0 : extraKey.hashCode());
+      return result;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (obj == null) {
+        return false;
+      }
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+      final PoolKey other = (PoolKey) obj;
+      return this.url.equals(other.url) && this.extraKey.equals(other.extraKey);
+    }
+
+    @Override
+    public String toString() {
+      return "PoolKey [url=" + url + ", extraKey=" + extraKey + "]";
+    }
+
   }
 }

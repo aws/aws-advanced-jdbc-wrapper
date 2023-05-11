@@ -97,13 +97,4 @@ public interface ConnectionProvider {
    */
   Connection connect(@NonNull String url, @NonNull Properties props)
       throws SQLException; // TODO: this method is only called by tests/benchmarks and can likely be deprecated
-
-  /**
-   * Notify this {@link ConnectionProvider} of any changes detected with any of the database
-   * instances.
-   *
-   * @param changes a map from a given database instance's URL to the detected changes for that
-   *                instance
-   */
-  void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes);
 }

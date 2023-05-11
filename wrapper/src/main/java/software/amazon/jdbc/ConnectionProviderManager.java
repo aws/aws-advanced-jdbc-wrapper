@@ -166,22 +166,6 @@ public class ConnectionProviderManager {
     return host;
   }
 
-  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
-    if (connProvider != null) {
-      connProviderLock.writeLock().lock();
-      try {
-        if (connProvider != null) {
-          connProvider.notifyNodeListChanged(changes);
-        }
-      } catch (UnsupportedOperationException e) {
-        // The custom provider does not support the provided strategy, ignore it and try with the default provider.
-      } finally {
-        connProviderLock.writeLock().unlock();
-      }
-    }
-    defaultProvider.notifyNodeListChanged(changes);
-  }
-
   /**
    * Clears the non-default {@link ConnectionProvider} if it has been set. The default
    * ConnectionProvider will be used if the non-default ConnectionProvider has not been set or has
