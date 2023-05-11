@@ -205,17 +205,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       databasePools.remove(hostSpec.getUrl());
     }
 
-    if (isInitialConnection) {
-      String errorMessage = latestConnectException == null
-          ? Messages.get("HikariPooledConnectionProvider.errorConnectingWithDataSource",
-              new Object[]{hostSpec.getUrl()})
-          : Messages.get("HikariPooledConnectionProvider.errorConnectingWithDataSourceWithCause",
-              new Object[] {hostSpec.getUrl(), latestConnectException.getMessage()});
-      throw new SQLException(errorMessage);
-    } else {
-      // try to connect to another instance
-    }
-
     String errorMessage = latestConnectException == null
         ? Messages.get("HikariPooledConnectionProvider.errorConnectingWithDataSource",
             new Object[]{hostSpec.getUrl()})
