@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +102,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull String protocol,
       final @NonNull Dialect dialect,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
+      final @NonNull Properties props,
+      final boolean isInitialConnection)
       throws SQLException {
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null
@@ -145,5 +147,10 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);
+  }
+
+  @Override
+  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
+    // Do nothing
   }
 }

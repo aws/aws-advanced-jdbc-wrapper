@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestDatabaseInfo;
+import integration.refactored.TestEnvironmentInfo;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.container.ConnectionStringHelper;
 import integration.refactored.container.TestEnvironment;
@@ -239,7 +240,6 @@ public class AuroraTestUtility {
           CreateDbInstanceRequest.builder()
               .dbClusterIdentifier(dbIdentifier)
               .dbInstanceIdentifier(instanceName)
-              .dbClusterIdentifier(dbIdentifier)
               .dbInstanceClass(dbInstanceClass)
               .engine(dbEngine)
               .engineVersion(dbEngineVersion)
@@ -280,6 +280,94 @@ public class AuroraTestUtility {
     }
 
     return clusterDomainPrefix;
+  }
+
+  /**
+   * Creates an RDS instance under the current cluster and waits until it is up.
+   *
+   * @param instanceId the desired instance ID of the new instance
+   * @return the instance info of the new instance
+   * @throws InterruptedException if the new instance is not available within 5 minutes
+   */
+  public TestInstanceInfo createInstance(String instanceId) throws InterruptedException {
+    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
+    final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
+
+    rdsClient.createDBInstance(
+        CreateDbInstanceRequest.builder()
+            .dbClusterIdentifier(info.getAuroraClusterName())
+            .dbInstanceIdentifier(instanceId)
+            .dbInstanceClass(dbInstanceClass)
+            .engine(info.getDatabaseEngine())
+            .engineVersion(info.getDatabaseEngineVersion())
+            .publiclyAccessible(true)
+            .tags(testRunnerTag)
+            .build());
+
+    // Wait for the instance to become available
+    final RdsWaiter waiter = rdsClient.waiter();
+    WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
+        waiter.waitUntilDBInstanceAvailable(
+            (requestBuilder) ->
+                requestBuilder.filters(
+                    Filter.builder().name("db-instance-id").values(instanceId).build()),
+            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(10)));
+
+    if (waiterResponse.matched().exception().isPresent()) {
+      deleteCluster();
+      throw new InterruptedException(
+          "Instance creation timeout for " + instanceId
+              + ". The instance was not available within 5 minutes");
+    }
+
+    final DescribeDbInstancesResponse dbInstancesResult =
+        rdsClient.describeDBInstances(
+            (builder) ->
+                builder.filters(
+                    Filter.builder().name("db-instance-id").values(instanceId).build()));
+
+    if (dbInstancesResult.dbInstances().size() != 1) {
+      throw new RuntimeException(
+          "The describeDBInstances request for newly created instance " + instanceId
+              + " returned an unexpected number of instances: "
+              + dbInstancesResult.dbInstances().size());
+    }
+
+    DBInstance instance = dbInstancesResult.dbInstances().get(0);
+    TestInstanceInfo instanceInfo = new TestInstanceInfo(
+        instance.dbInstanceIdentifier(),
+        instance.endpoint().address(),
+        instance.endpoint().port());
+    this.instances.add(instanceInfo);
+    return instanceInfo;
+  }
+
+  /**
+   * Deletes an RDS instance.
+   *
+   * @param instanceToDelete the info for the instance to delete
+   * @throws InterruptedException if the instance has not been deleted within 5 minutes
+   */
+  public void deleteInstance(TestInstanceInfo instanceToDelete) throws InterruptedException {
+    rdsClient.deleteDBInstance(
+        DeleteDbInstanceRequest.builder()
+            .dbInstanceIdentifier(instanceToDelete.getInstanceId())
+            .skipFinalSnapshot(true)
+            .build());
+    this.instances.remove(instanceToDelete);
+
+    final RdsWaiter waiter = rdsClient.waiter();
+    WaiterResponse<DescribeDbInstancesResponse> waiterResponse = waiter.waitUntilDBInstanceDeleted(
+        (requestBuilder) -> requestBuilder.filters(
+            Filter.builder().name("db-instance-id").values(instanceToDelete.getInstanceId())
+                .build()),
+        (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(10)));
+
+    if (waiterResponse.matched().exception().isPresent()) {
+      throw new InterruptedException(
+          "Instance deletion timeout for " + instanceToDelete.getInstanceId()
+              + ". The instance was not deleted within 5 minutes");
+    }
   }
 
   /**
@@ -408,7 +496,7 @@ public class AuroraTestUtility {
     return true;
   }
 
-  public DatabaseEngine getClusterDatabaseEngine(final String clusterId) {
+  public DBCluster getClusterInfo(final String clusterId) {
     final DescribeDbClustersRequest request =
         DescribeDbClustersRequest.builder().dbClusterIdentifier(clusterId).build();
     final DescribeDbClustersResponse response = rdsClient.describeDBClusters(request);
@@ -416,13 +504,17 @@ public class AuroraTestUtility {
       throw new RuntimeException("Cluster " + clusterId + " not found.");
     }
 
-    switch (response.dbClusters().get(0).engine()) {
+    return response.dbClusters().get(0);
+  }
+
+  public DatabaseEngine getClusterEngine(final DBCluster cluster) {
+    switch (cluster.engine()) {
       case "aurora-postgresql":
         return DatabaseEngine.PG;
       case "aurora-mysql":
         return DatabaseEngine.MYSQL;
       default:
-        throw new UnsupportedOperationException(response.dbClusters().get(0).engine());
+        throw new UnsupportedOperationException(cluster.engine());
     }
   }
 
@@ -549,8 +641,8 @@ public class AuroraTestUtility {
               try (final Connection conn =
                   DriverManager.getConnection(
                       ConnectionStringHelper.getUrl(
-                          instanceInfo.getEndpoint(),
-                          instanceInfo.getEndpointPort(),
+                          instanceInfo.getHost(),
+                          instanceInfo.getPort(),
                           TestEnvironment.getCurrent()
                               .getInfo()
                               .getDatabaseInfo()
@@ -630,11 +722,11 @@ public class AuroraTestUtility {
 
     // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
     String clusterIp = hostToIP(clusterEndpoint);
-    String targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getEndpoint());
+    String targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
     while (!clusterIp.equals(targetWriterIp)) {
       TimeUnit.SECONDS.sleep(1);
       clusterIp = hostToIP(clusterEndpoint);
-      targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getEndpoint());
+      targetWriterIp = hostToIP(dbInfo.getInstance(targetWriterId).getHost());
     }
 
     // Wait for target instance to be verified as a writer

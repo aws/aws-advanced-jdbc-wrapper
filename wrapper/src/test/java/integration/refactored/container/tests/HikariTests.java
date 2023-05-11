@@ -66,8 +66,10 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.HIKARI)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE,
-    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 public class HikariTests {
 
@@ -125,7 +127,7 @@ public class HikariTests {
             .getDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpoint());
+            .getHost());
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
@@ -266,7 +268,7 @@ public class HikariTests {
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpoint());
+            .getHost());
     targetDataSourceProps.setProperty(
         "databaseName",
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());

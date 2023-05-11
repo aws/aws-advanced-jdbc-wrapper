@@ -151,12 +151,12 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     startTimeNano = System.nanoTime();
                     String clusterInetAddress = auroraUtil.hostToIP(dbInfo.getClusterEndpoint());
                     String writerInetAddress =
-                        auroraUtil.hostToIP(dbInfo.getInstances().get(0).getEndpoint());
+                        auroraUtil.hostToIP(dbInfo.getInstances().get(0).getHost());
                     while (!writerInetAddress.equals(clusterInetAddress)
                         && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
                       clusterInetAddress = auroraUtil.hostToIP(dbInfo.getClusterEndpoint());
                       writerInetAddress =
-                          auroraUtil.hostToIP(dbInfo.getInstances().get(0).getEndpoint());
+                          auroraUtil.hostToIP(dbInfo.getInstances().get(0).getHost());
                       Thread.sleep(5000);
                     }
                     assertTrue(writerInetAddress.equals(clusterInetAddress));

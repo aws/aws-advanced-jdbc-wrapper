@@ -17,6 +17,7 @@
 package software.amazon.jdbc.benchmarks;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -108,8 +109,8 @@ public class ConnectionPluginManagerBenchmarks {
 
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class), any(Properties.class)))
-        .thenReturn(mockConnection);
+    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
+        any(Properties.class), anyBoolean())).thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
     when(mockResultSet.next()).thenReturn(true, true, false);

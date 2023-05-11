@@ -374,7 +374,7 @@ public class PerformanceTest {
                   .getProxyDatabaseInfo()
                   .getInstances()
                   .get(0)
-                  .getEndpoint());
+                  .getHost());
     }
     return conn;
   }

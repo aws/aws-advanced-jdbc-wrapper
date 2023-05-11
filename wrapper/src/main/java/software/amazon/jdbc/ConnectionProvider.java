@@ -18,7 +18,9 @@ package software.amazon.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.dialect.Dialect;
@@ -63,8 +65,9 @@ public interface ConnectionProvider {
    * @throws SQLException                  if an error occurred while returning the hosts
    * @throws UnsupportedOperationException if the strategy is unsupported by the provider
    */
-  HostSpec getHostSpecByStrategy(@NonNull List<HostSpec> hosts, @NonNull HostRole role,
-      @NonNull String strategy) throws SQLException, UnsupportedOperationException;
+  HostSpec getHostSpecByStrategy(
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
+      throws SQLException;
 
   /**
    * Called once per connection that needs to be created.
@@ -80,7 +83,8 @@ public interface ConnectionProvider {
       @NonNull String protocol,
       @NonNull Dialect dialect,
       @NonNull HostSpec hostSpec,
-      @NonNull Properties props)
+      @NonNull Properties props,
+      boolean isInitialConnection)
       throws SQLException;
 
   /**
@@ -93,4 +97,13 @@ public interface ConnectionProvider {
    */
   Connection connect(@NonNull String url, @NonNull Properties props)
       throws SQLException; // TODO: this method is only called by tests/benchmarks and can likely be deprecated
+
+  /**
+   * Notify this {@link ConnectionProvider} of any changes detected with any of the database
+   * instances.
+   *
+   * @param changes a map from a given database instance's URL to the detected changes for that
+   *                instance
+   */
+  void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes);
 }

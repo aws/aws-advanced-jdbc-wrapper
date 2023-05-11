@@ -43,6 +43,7 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import org.testcontainers.utility.MountableFile;
+import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment implements AutoCloseable {
@@ -280,8 +281,9 @@ public class TestEnvironment implements AutoCloseable {
       LOGGER.finer(
           "Reuse existing cluster " + env.auroraClusterName + ".cluster-" + env.auroraClusterDomain);
 
-      DatabaseEngine existingClusterDatabaseEngine =
-          env.auroraUtil.getClusterDatabaseEngine(env.auroraClusterName);
+      DBCluster clusterInfo = env.auroraUtil.getClusterInfo(env.auroraClusterName);
+
+      DatabaseEngine existingClusterDatabaseEngine = env.auroraUtil.getClusterEngine(clusterInfo);
       if (existingClusterDatabaseEngine != env.info.getRequest().getDatabaseEngine()) {
         throw new RuntimeException(
             "Existing cluster is "
@@ -291,6 +293,8 @@ public class TestEnvironment implements AutoCloseable {
                 + " is expected.");
       }
 
+      env.info.setDatabaseEngine(clusterInfo.engine());
+      env.info.setDatabaseEngineVersion(clusterInfo.engineVersion());
       instances.addAll(env.auroraUtil.getClusterInstanceIds(env.auroraClusterName));
 
     } else {
@@ -300,20 +304,25 @@ public class TestEnvironment implements AutoCloseable {
       }
 
       try {
+        String engine = getAuroraDbEngine(env.info.getRequest());
+        String engineVersion = getAuroraDbEngineVersion(env.info.getRequest());
+        String instanceClass = getAuroraInstanceClass(env.info.getRequest());
+
         env.auroraClusterDomain =
             env.auroraUtil.createCluster(
                 env.info.getDatabaseInfo().getUsername(),
                 env.info.getDatabaseInfo().getPassword(),
                 env.info.getDatabaseInfo().getDefaultDbName(),
                 env.auroraClusterName,
-                getAuroraDbEngine(env.info.getRequest()),
-                getAuroraInstanceClass(env.info.getRequest()),
-                getAuroraDbEngineVersion(env.info.getRequest()),
+                engine,
+                instanceClass,
+                engineVersion,
                 numOfInstances,
                 instances);
+        env.info.setDatabaseEngine(engine);
+        env.info.setDatabaseEngineVersion(engineVersion);
         LOGGER.finer(
             "Created a new cluster " + env.auroraClusterName + ".cluster-" + env.auroraClusterDomain);
-
       } catch (Exception e) {
 
         LOGGER.finer("Error creating a cluster " + env.auroraClusterName + ". " + e.getMessage());
@@ -472,7 +481,7 @@ public class TestEnvironment implements AutoCloseable {
       env.proxyContainers.add(container);
 
       ToxiproxyContainer.ContainerProxy proxy =
-          container.getProxy(instance.getEndpoint(), instance.getEndpointPort());
+          container.getProxy(instance.getHost(), instance.getPort());
 
       if (proxyPort != 0 && proxyPort != proxy.getOriginalProxyPort()) {
         throw new RuntimeException("DB cluster proxies should be on the same port.");
@@ -526,7 +535,7 @@ public class TestEnvironment implements AutoCloseable {
       TestInstanceInfo proxyInstanceInfo =
           new TestInstanceInfo(
               instanceInfo.getInstanceId(),
-              instanceInfo.getEndpoint() + PROXIED_DOMAIN_NAME_SUFFIX,
+              instanceInfo.getHost() + PROXIED_DOMAIN_NAME_SUFFIX,
               proxyPort);
       env.info.getProxyDatabaseInfo().getInstances().add(proxyInstanceInfo);
     }

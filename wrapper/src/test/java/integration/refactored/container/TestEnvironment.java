@@ -83,7 +83,7 @@ public class TestEnvironment {
 
     int proxyControlPort = environment.info.getProxyDatabaseInfo().getControlPort();
     for (TestInstanceInfo instance : environment.info.getProxyDatabaseInfo().getInstances()) {
-      ToxiproxyClient client = new ToxiproxyClient(instance.getEndpoint(), proxyControlPort);
+      ToxiproxyClient client = new ToxiproxyClient(instance.getHost(), proxyControlPort);
       List<Proxy> proxies;
       try {
         proxies = client.getProxies();

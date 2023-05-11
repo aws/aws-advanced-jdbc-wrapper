@@ -22,6 +22,7 @@ import static software.amazon.jdbc.util.StringUtils.isNullOrEmpty;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,7 +123,8 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       final @NonNull String protocol,
       final @NonNull Dialect dialect,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props)
+      final @NonNull Properties props,
+      final boolean isInitialConnection)
       throws SQLException {
 
     final Properties copy = PropertyUtils.copyProperties(props);
@@ -221,5 +223,10 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     } catch (final InstantiationException instEx) {
       throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
     }
+  }
+
+  @Override
+  public void notifyNodeListChanged(Map<String, EnumSet<NodeChangeOptions>> changes) {
+    // Do nothing
   }
 }

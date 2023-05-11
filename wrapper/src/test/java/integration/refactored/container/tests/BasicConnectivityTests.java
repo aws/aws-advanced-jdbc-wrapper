@@ -55,7 +55,10 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 public class BasicConnectivityTests {
 
   private static final Logger LOGGER = Logger.getLogger(BasicConnectivityTests.class.getName());
@@ -77,13 +80,13 @@ public class BasicConnectivityTests {
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getEndpoint(),
+                .getHost(),
             TestEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getEndpointPort(),
+                .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
@@ -123,13 +126,13 @@ public class BasicConnectivityTests {
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getEndpoint(),
+                .getHost(),
             TestEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getEndpointPort(),
+                .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
@@ -168,8 +171,8 @@ public class BasicConnectivityTests {
     String url =
         ConnectionStringHelper.getUrl(
             testDriver,
-            instanceInfo.getEndpoint(),
-            instanceInfo.getEndpointPort(),
+            instanceInfo.getHost(),
+            instanceInfo.getPort(),
             TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
@@ -213,8 +216,8 @@ public class BasicConnectivityTests {
 
     String url =
         ConnectionStringHelper.getWrapperUrl(
-            instanceInfo.getEndpoint(),
-            instanceInfo.getEndpointPort(),
+            instanceInfo.getHost(),
+            instanceInfo.getPort(),
             TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
@@ -246,7 +249,7 @@ public class BasicConnectivityTests {
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getEndpoint()
+                .getHost()
             + "/"
             + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
             + DriverHelper.getDriverRequiredParameters();
@@ -340,14 +343,14 @@ public class BasicConnectivityTests {
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
-                      .getEndpoint(),
+                      .getHost(),
                   String.valueOf(
                       TestEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
                           .get(0)
-                          .getEndpointPort()),
+                          .getPort()),
                   TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
                   DriverHelper.getDriverRequiredParameters(testDriver))));
 
@@ -362,14 +365,14 @@ public class BasicConnectivityTests {
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
-                      .getEndpoint(),
+                      .getHost(),
                   String.valueOf(
                       TestEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
                           .get(0)
-                          .getEndpointPort()),
+                          .getPort()),
                   "failedDatabaseNameTest",
                   DriverHelper.getDriverRequiredParameters(testDriver))));
     }
@@ -391,14 +394,14 @@ public class BasicConnectivityTests {
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
-                      .getEndpoint(),
+                      .getHost(),
                   String.valueOf(
                       TestEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
                           .get(0)
-                          .getEndpointPort()),
+                          .getPort()),
                   TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
                   DriverHelper.getDriverRequiredParameters(testDriver)),
               "",
@@ -415,14 +418,14 @@ public class BasicConnectivityTests {
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
-                      .getEndpoint(),
+                      .getHost(),
                   String.valueOf(
                       TestEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
                           .get(0)
-                          .getEndpointPort()),
+                          .getPort()),
                   TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
                   DriverHelper.getDriverRequiredParameters(testDriver)),
               TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),

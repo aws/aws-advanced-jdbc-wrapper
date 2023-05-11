@@ -404,3 +404,27 @@ tasks.register<Test>("test-aurora-mysql-performance") {
         systemProperty("test-no-mariadb-engine", "true")
     }
 }
+
+// Autoscaling
+
+tasks.register<Test>("test-autoscaling-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-autoscaling-only", "true")
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-graalvm", "true")
+    }
+}
+
+tasks.register<Test>("debug-autoscaling-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-autoscaling-only", "true")
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-no-graalvm", "true")
+    }
+}

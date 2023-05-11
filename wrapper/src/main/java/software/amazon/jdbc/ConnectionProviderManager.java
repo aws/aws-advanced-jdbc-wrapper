@@ -17,7 +17,9 @@
 package software.amazon.jdbc;
 
 import java.sql.SQLException;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
@@ -162,6 +164,22 @@ public class ConnectionProviderManager {
     }
 
     return host;
+  }
+
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
+    if (connProvider != null) {
+      connProviderLock.writeLock().lock();
+      try {
+        if (connProvider != null) {
+          connProvider.notifyNodeListChanged(changes);
+        }
+      } catch (UnsupportedOperationException e) {
+        // The custom provider does not support the provided strategy, ignore it and try with the default provider.
+      } finally {
+        connProviderLock.writeLock().unlock();
+      }
+    }
+    defaultProvider.notifyNodeListChanged(changes);
   }
 
   /**

@@ -41,7 +41,6 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -146,13 +145,18 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, connProvider);
+    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connProvider);
   }
 
   private Connection connectInternal(
-      String driverProtocol, HostSpec hostSpec, Properties props, ConnectionProvider connProvider)
+      String driverProtocol,
+      HostSpec hostSpec,
+      Properties props,
+      boolean isInitialConnection,
+      ConnectionProvider connProvider)
       throws SQLException {
-    final Connection conn = connProvider.connect(driverProtocol, this.pluginService.getDialect(), hostSpec, props);
+    final Connection conn = connProvider.connect(
+        driverProtocol, this.pluginService.getDialect(), hostSpec, props, isInitialConnection);
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     this.pluginService.updateDialect(conn);
 
@@ -172,17 +176,26 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, connProvider);
+    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connProvider);
   }
 
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) {
+    if (HostRole.UNKNOWN.equals(role)) {
+      // Users must request either a writer or a reader role.
+      return false;
+    }
     return this.connProviderManager.acceptsStrategy(role, strategy);
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException {
+    if (HostRole.UNKNOWN.equals(role)) {
+      // Users must request either a writer or a reader role.
+      throw new SQLException("DefaultConnectionPlugin.unknownRoleRequested");
+    }
+
     List<HostSpec> hosts = this.pluginService.getHosts();
     if (hosts.size() < 1) {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
@@ -213,7 +226,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
-    // do nothing
+    this.connProviderManager.notifyNodeListChanged(changes);
   }
 
   List<String> parseMultiStatementQueries(String query) {

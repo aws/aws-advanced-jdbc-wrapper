@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -51,6 +52,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           add("initHostProvider");
           add("connect");
           add("notifyConnectionChanged");
+          add("notifyNodeListChanged");
           add("Connection.setReadOnly");
         }
       });
@@ -62,6 +64,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private volatile boolean inReadWriteSplit = false;
   private HostListProviderService hostListProviderService;
   private Connection writerConnection;
+  private HostSpec writerHostSpec;
   private Connection readerConnection;
   private HostSpec readerHostSpec;
 
@@ -178,6 +181,36 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   }
 
   @Override
+  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
+    for (Map.Entry<String, EnumSet<NodeChangeOptions>> entry : changes.entrySet()) {
+      EnumSet<NodeChangeOptions> hostChanges = entry.getValue();
+      if (!hostChanges.contains(NodeChangeOptions.NODE_DELETED)) {
+        continue;
+      }
+
+      if (writerHostSpec != null && writerHostSpec.getUrl().equals(entry.getKey())) {
+        try {
+          writerConnection.close();
+        } catch (SQLException e) {
+          // Do nothing
+        }
+        writerConnection = null;
+        writerHostSpec = null;
+      }
+
+      if (readerHostSpec != null && readerHostSpec.getUrl().equals(entry.getKey())) {
+        try {
+          readerConnection.close();
+        } catch (SQLException e) {
+          // Do nothing
+        }
+        readerConnection = null;
+        readerHostSpec = null;
+      }
+    }
+  }
+
+  @Override
   public <T, E extends Exception> T execute(
       final Class<T> resultClass,
       final Class<E> exceptionClass,
@@ -250,6 +283,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private void setWriterConnection(final Connection writerConnection,
       final HostSpec writerHostSpec) {
     this.writerConnection = writerConnection;
+    this.writerHostSpec = writerHostSpec;
     LOGGER.finest(
         () -> Messages.get(
             "ReadWriteSplittingPlugin.setWriterConnection",
@@ -507,10 +541,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         internalConnection.close();
         if (internalConnection == writerConnection) {
           writerConnection = null;
+          writerHostSpec = null;
         }
 
         if (internalConnection == readerConnection) {
           readerConnection = null;
+          readerHostSpec = null;
         }
       }
     } catch (final SQLException e) {
