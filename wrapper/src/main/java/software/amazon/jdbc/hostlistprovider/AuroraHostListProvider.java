@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
@@ -54,6 +55,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraHostListProvider implements DynamicHostListProvider {
@@ -81,6 +83,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
+  private final Executor networkTimeoutExecutor = new SynchronousExecutor();
   private final HostListProviderService hostListProviderService;
   private final String originalUrl;
   private RdsUrlType rdsUrlType;
@@ -98,6 +101,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   public static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
   public static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
+  private static final int defaultTopologyQueryTimeoutMs = 5000;
   private final ReentrantLock lock = new ReentrantLock();
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
@@ -338,11 +342,27 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
     }
 
+    int networkTimeout = -1;
+    try {
+      networkTimeout = conn.getNetworkTimeout();
+      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
+      if (networkTimeout == 0) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, defaultTopologyQueryTimeoutMs);
+      }
+    } catch (SQLException e) {
+      LOGGER.warning(() -> Messages.get("AuroraHostListProvider.errorGettingNetworkTimeout",
+          new Object[] {e.getMessage()}));
+    }
+
     try (final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery(this.topologyAwareDialect.getTopologyQuery())) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery"), e);
+    } finally {
+      if (networkTimeout == 0 && !conn.isClosed()) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
+      }
     }
   }
 
