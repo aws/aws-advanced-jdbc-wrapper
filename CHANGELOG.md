@@ -5,20 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.1.0] - 2023-5-11
 ### :magic_wand: Added
-- `AuroraHostListProvider` to check for stale writer records obtained after writer-failover so that they are not used ([PR #435](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/435)).
+- Checks for stale writer records in `AuroraHostListProvider` obtained after writer-failover so that they are not used ([PR #435](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/435)).
 
 ### :bug: Fixed
-- Potential security concern by ensuring that user specific connections in the connection pool are returned to the correct user ([PR #432](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/432)).
+- Potential security concern by ensuring that user-specific connections in the connection pool are returned to the correct user ([PR #432](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/432)).
 - Connection state transfer bug where switching from read-only connection to writer connection incorrectly triggers the failover process ([Issue #426](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/426)).
-- Incorrect invalidation of newly promoted writer and random readers after failover. EFM plugin to use instance endpoint as the monitoring endpoint in the case the initial connection is established using cluster endpoint ([PR #431](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/431)).
+- Incorrect invalidation of the newly promoted writer and random readers after failover. EFM plugin to use instance endpoint as the monitoring endpoint in case the initial connection is established using cluster endpoint ([PR #431](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/431)).
 - Running Hibernate tests no longer runs unrelated tests ([PR #417](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/417)).
-- Reader failover using shared Properties object resulting in race conditions ([PR #436](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/436) & [PR #438](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/438)).
-- Temporarily set socket timeout for the topology query if it is not set, to avoid topology query from executing indefinitely ([PR #416](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/416)).
+- Reader failover using a shared Properties object resulting in race conditions ([PR #436](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/436) & [PR #438](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/438)).
+- Temporarily setting the socket timeout for the topology query if it is not set, to avoid topology query from executing indefinitely ([PR #416](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/416)).
 
 ### :crab: Changed
-- Removed logic that changes connection to a writer instance when `setReadOnly(false)` is called on a reader connection ([Issue #426](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/426)).
+- Removed logic from the failover plugin that changes connection to a writer instance when `setReadOnly(false)` is called on a reader connection ([Issue #426](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/426)). This functionality already exists in the read write splitting plugin.
 - Removed Multi-writer cluster related code as they are no longer supported ([PR #435](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/435)).
-- Clarified documentation on failover process to account for Aurora PostgerSQL clusters being offline during failover ([PR #437](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/437)).
+- Clarified documentation on the failover process to account for Aurora PostgreSQL clusters being offline during failover ([PR #437](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/437)).
 - :warning: Breaking changes were introduced with the new `failoverMode` configuration parameter ([PR #434](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/434)):
     - The `failoverMode` parameter replaces the `enableFailoverStrictReader` configuration parameter.
     - If you were previously using `enableFailoverStrictReader=true`, please update it to `failoverMode=strict-reader`.
