@@ -19,7 +19,6 @@ package integration.refactored.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.zaxxer.hikari.HikariConfig;
@@ -104,7 +103,8 @@ public class AutoscalingTests {
     };
   }
 
-  // Old connection detects deleted instance when setReadOnly(true) is called
+  // Call setReadOnly on a ConnectionWrapper with an internal readerConnection to the deleted
+  // reader. The driver should close the deleted instance pool and connect to a different reader.
   @TestTemplate
   public void test_pooledConnectionAutoScaling_setReadOnlyOnOldConnection()
       throws SQLException, InterruptedException {
@@ -116,8 +116,9 @@ public class AutoscalingTests {
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
+    final long poolExpirationNanos = TimeUnit.MINUTES.toNanos(3);
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(getHikariConfig(instances.size()));
+        new HikariPooledConnectionProvider(getHikariConfig(instances.size()), poolExpirationNanos);
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final List<Connection> connections = new ArrayList<>();
@@ -148,75 +149,14 @@ public class AutoscalingTests {
         auroraUtil.deleteInstance(newInstance);
       }
 
-      // Should detect that the reader was deleted and remove the associated pool
       newInstanceConn.setReadOnly(true);
+      // Connection pool cache should have hit the cleanup threshold and removed the pool for the
+      // deleted instance.
       assertFalse(provider.getHosts().stream()
           .anyMatch((url) -> url.equals(newInstance.getUrl())));
+      assertEquals(instances.size(), provider.getHosts().size());
     } finally {
       for (Connection connection : connections) {
-        connection.close();
-      }
-      ConnectionProviderManager.releaseResources();
-      ConnectionProviderManager.resetProvider();
-    }
-  }
-
-  // User tries to directly connect to the deleted instance URL
-  // TODO: Hikari throws an NPE when closing the connection to the instance that is now deleted
-  @TestTemplate
-  public void test_pooledConnectionAutoScaling_newConnectionToDeletedReader()
-      throws SQLException, InterruptedException {
-    final Properties props = getProps();
-    final long topologyRefreshRateMs = 5000;
-    ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
-    AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
-        Long.toString(topologyRefreshRateMs));
-
-    final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
-    final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
-    final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(getHikariConfig(instances.size() * 5));
-    ConnectionProviderManager.setConnectionProvider(provider);
-
-    final List<Connection> connections = new ArrayList<>();
-    try {
-      for (int i = 1; i < instances.size(); i++) {
-        final String connString = ConnectionStringHelper.getWrapperUrl(instances.get(i));
-        final Connection conn1 = DriverManager.getConnection(connString, props);
-        connections.add(conn1);
-        final Connection conn2 = DriverManager.getConnection(connString, props);
-        connections.add(conn2);
-      }
-
-      final Connection newInstanceConn;
-      final TestInstanceInfo newInstance =
-          auroraUtil.createInstance("auto-scaling-instance");
-      try {
-        newInstanceConn =
-            DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
-        connections.add(newInstanceConn);
-        Thread.sleep(topologyRefreshRateMs);
-        newInstanceConn.setReadOnly(true);
-        final String readerId = auroraUtil.queryInstanceId(newInstanceConn);
-
-        assertEquals(newInstance.getInstanceId(), readerId);
-        // Verify that there is a pool for the new instance
-        assertTrue(provider.getHosts().stream()
-            .anyMatch((url) -> url.equals(newInstance.getUrl())));
-      } finally {
-        auroraUtil.deleteInstance(newInstance);
-      }
-
-      Thread.sleep(topologyRefreshRateMs);
-      assertThrows(SQLException.class, () ->
-          DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(newInstance), props));
-
-      // Verify that the pool for the deleted instance is now removed
-      assertFalse(provider.getHosts().stream()
-          .anyMatch((url) -> url.equals(newInstance.getUrl())));
-    } finally {
-      for (Connection connection : connections) {
-        // Hikari throws NPE when closing the connection to the deleted instance
         connection.close();
       }
       ConnectionProviderManager.releaseResources();

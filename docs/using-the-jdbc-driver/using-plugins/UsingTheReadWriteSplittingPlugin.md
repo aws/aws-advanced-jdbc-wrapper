@@ -41,6 +41,8 @@ The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/Hi
 
 You can optionally pass in a `HikariPoolMapping` function as a second parameter to the `HikariPooledConnectionProvider`. This allows you to decide when new connection pools should be created by defining what is included in the pool map key. A new pool will be created each time a new connection is requested with a unique key. By default, a new pool will be created for each unique instance-user combination. If you would like to define a different key system, you should pass in a `HikariPoolMapping` function defining this logic. Please see [ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) for an example of how to configure the pool map key.
 
+> :warning: If you do not include the username in your HikariPoolMapping function, connection pools may be shared between different users.
+
 2. Call `ConnectionProviderManager.setConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
 
 3. Continue as normal: create connections and use them as needed.
