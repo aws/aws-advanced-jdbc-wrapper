@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.1.1] - 2023-5-15
 ### :bug: Fixed
-- Extra MySQL dependency in code impacting workflows using other drivers ([PR #446](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/446)).
+- MySQL reference in code that could impact workflows with other drivers ([PR #446](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/446)).
 
 ## [2.1.0] - 2023-5-11
 ### :magic_wand: Added
