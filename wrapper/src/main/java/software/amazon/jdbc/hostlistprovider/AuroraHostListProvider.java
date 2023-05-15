@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
-import com.mysql.cj.exceptions.WrongArgumentException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -434,7 +433,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     Timestamp lastUpdateTime;
     try {
       lastUpdateTime = resultSet.getTimestamp(5);
-    } catch (WrongArgumentException e) {
+    } catch (Exception e) {
       lastUpdateTime = Timestamp.from(Instant.now());
     }
 
