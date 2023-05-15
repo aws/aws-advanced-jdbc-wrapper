@@ -17,15 +17,9 @@
 <component name="InspectionProjectProfileManager">
   <profile version="1.0">
     <option name="myName" value="Project Default"/>
-    <inspection_tool class="48ee5cb7-4a92-3f80-a16d-11b673821e29" enabled="true" level="WARNING"
-      enabled_by_default="true"/>
-    <inspection_tool class="AutoCloseableResource" enabled="true" level="WARNING" enabled_by_default="true">
-      <option name="METHOD_MATCHER_CONFIG"
-        value="java.util.Formatter,format,java.io.Writer,append,com.google.common.base.Preconditions,checkNotNull,org.hibernate.Session,close,java.io.PrintWriter,printf,java.io.PrintStream,printf,software.amazon.jdbc.plugin.IamAuthConnectionPlugin,connect,software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin,execute,com.amazonaws.xray.AWSXRay,beginSegment"/>
-    </inspection_tool>
     <inspection_tool class="SSBasedInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <searchConfiguration name="Driver-specific reference" uuid="48ee5cb7-4a92-3f80-a16d-11b673821e29"
-        description="Driver-specific reference detected in this file. Please ensure this is intentional. MySQL references in general wrapper classes may result in classpath expcetions when used in other driver workflows."
+        description="Driver-specific reference detected in this file. Please ensure this is intentional. MySQL references in general wrapper classes may result in classpath exceptions when used in other driver workflows."
         suppressId="driver_specific_reference" problemDescriptor="Driver-specific reference detected #ref"
         text="$Import$" recursive="true" caseInsensitive="true" type="JAVA" pattern_context="default">
         <constraint name="__context__" within="" contains=""/>

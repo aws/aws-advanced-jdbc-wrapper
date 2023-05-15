@@ -1,6 +1,0 @@
-name: "AWS Advanced JDBC Wrapper custom Qodana profile"
-
-baseProfile: qodana.recommended
-
-path:
-  - "./qodana_inspection_profile.xml"

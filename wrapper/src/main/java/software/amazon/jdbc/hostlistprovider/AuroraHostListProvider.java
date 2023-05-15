@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.hostlistprovider;
 
+import com.mysql.cj.exceptions.WrongArgumentException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
