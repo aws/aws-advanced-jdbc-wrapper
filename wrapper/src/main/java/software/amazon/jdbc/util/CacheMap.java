@@ -18,12 +18,10 @@ package software.amazon.jdbc.util;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 public class CacheMap<K, V> {
 
@@ -78,16 +76,16 @@ public class CacheMap<K, V> {
     final K key,
     Function<? super K, ? extends V> mappingFunction,
     final long itemExpirationNano,
-    final ItemDisposeFunc<V> itemDisposeFunc) {
+    final ItemExpiryFunc<V> itemExpiryFunc) {
 
     final CacheItem<V> cacheItem = cache.computeIfAbsent(
         key,
         k -> new CacheItem<>(
             mappingFunction.apply(k),
             System.nanoTime() + itemExpirationNano,
-            itemDisposeFunc));
+            itemExpiryFunc));
     cleanUp();
-    return cacheItem.withExtendExpiration(itemExpirationNano).item;
+    return cacheItem.isExpired() ? null : cacheItem.withExtendExpiration(itemExpirationNano).item;
   }
 
   public void remove(final K key) {
@@ -116,33 +114,36 @@ public class CacheMap<K, V> {
       this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
       cache.forEach((key, value) -> {
         if (value == null || value.isExpired()) {
-          cache.remove(key);
           if (value != null) {
-            value.dispose();
+            if (value.onExpiry()) {
+              cache.remove(key);
+            }
+          } else {
+            cache.remove(key);
           }
         }
       });
     }
   }
 
-  public interface ItemDisposeFunc<V> {
-    void dispose(V item);
+  public interface ItemExpiryFunc<V> {
+    boolean onExpiry(V item);
   }
 
   private static class CacheItem<V> {
     private final V item;
     private long expirationTime;
 
-    final ItemDisposeFunc<V> disposeFunc;
+    final ItemExpiryFunc<V> onExpiryFunc;
 
     public CacheItem(final V item, final long expirationTime) {
       this(item, expirationTime, null);
     }
 
-    public CacheItem(final V item, final long expirationTime, final ItemDisposeFunc<V> disposeFunc) {
+    public CacheItem(final V item, final long expirationTime, final ItemExpiryFunc<V> onExpiryFunc) {
       this.item = item;
       this.expirationTime = expirationTime;
-      this.disposeFunc = disposeFunc;
+      this.onExpiryFunc = onExpiryFunc;
     }
 
     boolean isExpired() {
@@ -154,15 +155,16 @@ public class CacheMap<K, V> {
       return this;
     }
 
-    public void dispose() {
-      if (this.disposeFunc == null) {
-        return;
+    public boolean onExpiry() {
+      if (this.onExpiryFunc == null) {
+        return true;
       }
 
       try {
-        this.disposeFunc.dispose(this.item);
+        return this.onExpiryFunc.onExpiry(this.item);
       } catch (Exception ex) {
         // ignore
+        return true;
       }
     }
 

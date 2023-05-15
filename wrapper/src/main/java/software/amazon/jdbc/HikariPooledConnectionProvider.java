@@ -48,12 +48,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final String LEAST_CONNECTIONS_STRATEGY = "leastConnections";
 
   private static final RdsUtils rdsUtils = new RdsUtils();
-
-  // 2-layer map that helps us keep track of how many pools are associated with each database
-  // instance. The first layer maps from an instance URL to the 2nd map. The 2nd layer maps from
-  // the key returned from the poolMapping function to the database pool.
   private static final CacheMap<PoolKey, HikariDataSource> databasePools = new CacheMap<>();
-  private static final long poolExpirationNanos = TimeUnit.MINUTES.toNanos(30);
+  private static long poolExpirationNanos = TimeUnit.MINUTES.toNanos(30);
   private final HikariPoolConfigurator poolConfigurator;
   private final HikariPoolMapping poolMapping;
   protected int retries = 10;
@@ -74,7 +70,15 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *                               HikariConfig.
    */
   public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator) {
-    this(hikariPoolConfigurator, null);
+    this(hikariPoolConfigurator, null, poolExpirationNanos);
+  }
+
+  public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator, HikariPoolMapping poolMapping) {
+    this(hikariPoolConfigurator, poolMapping, poolExpirationNanos);
+  }
+
+  public HikariPooledConnectionProvider(HikariPoolConfigurator hikariPoolConfigurator, long poolExpirationNanos) {
+    this(hikariPoolConfigurator, null, poolExpirationNanos);
   }
 
   /**
@@ -97,9 +101,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    */
   public HikariPooledConnectionProvider(
       HikariPoolConfigurator hikariPoolConfigurator,
-      HikariPoolMapping mapping) {
+      HikariPoolMapping mapping,
+      long poolExpirationNanos) {
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
+    this.poolExpirationNanos = poolExpirationNanos;
   }
 
   @Override
@@ -164,7 +170,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
         new PoolKey(hostSpec.getUrl(), getPoolKey(hostSpec, props)),
         (lambdaPoolKey) -> createHikariDataSource(protocol, hostSpec, props),
         poolExpirationNanos,
-        (hikariDataSource) -> hikariDataSource.close()
+        (hikariDataSource) -> {
+          int numConnections = hikariDataSource.getHikariPoolMXBean().getActiveConnections();
+          return numConnections == 0;
+        }
     );
 
     ds.setPassword(props.getProperty(PropertyDefinition.PASSWORD.name));

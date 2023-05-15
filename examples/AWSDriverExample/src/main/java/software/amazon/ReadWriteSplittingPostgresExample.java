@@ -167,7 +167,8 @@ public class ReadWriteSplittingPostgresExample {
     // Include the URL and somePropertyValue in the connection pool key so that a new connection
     // pool will be opened for each different instance-user-somePropertyValue combination.
     // (Note that the user will automatically be added to the key).
+    final String user = props.getProperty(PropertyDefinition.USER.name);
     final String somePropertyValue = props.getProperty("somePropertyValue");
-    return hostSpec.getUrl() + somePropertyValue;
+    return hostSpec.getUrl() + user + somePropertyValue;
   }
 }
