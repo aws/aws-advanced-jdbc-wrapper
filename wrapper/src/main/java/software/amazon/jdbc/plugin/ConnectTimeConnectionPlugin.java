@@ -69,7 +69,7 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
     LOGGER.fine(
         () -> Messages.get(
             "ConnectTimeConnectionPlugin.connectTime",
-            new Object[] {driverProtocol, elapsedTimeNanos}));
+            new Object[] {elapsedTimeNanos}));
     connectTime += elapsedTimeNanos;
 
     return result;
