@@ -205,6 +205,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   @Override
+  @Deprecated
   public Connection connect(@NonNull String url, @NonNull Properties props) throws SQLException {
     // This method is only called by tests/benchmarks
     return null;

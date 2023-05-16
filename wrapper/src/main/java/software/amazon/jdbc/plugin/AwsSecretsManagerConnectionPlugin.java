@@ -78,6 +78,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private Secret secret;
   protected PluginService pluginService;
 
+  static {
+    PropertyDefinition.registerPluginProperties(AwsSecretsManagerConnectionPlugin.class);
+  }
+
   public AwsSecretsManagerConnectionPlugin(final PluginService pluginService, final Properties props) {
 
     this(

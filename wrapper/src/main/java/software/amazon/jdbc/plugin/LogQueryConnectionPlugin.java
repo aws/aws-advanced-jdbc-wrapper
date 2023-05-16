@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -98,6 +99,10 @@ public class LogQueryConnectionPlugin extends AbstractConnectionPlugin {
           "Allows the 'logQuery' plugin to inspect object internals to get prepared SQL statements and batches.");
 
   protected final boolean enhancedLogQueryEnabled;
+
+  static {
+    PropertyDefinition.registerPluginProperties(LogQueryConnectionPlugin.class);
+  }
 
   public LogQueryConnectionPlugin(final Properties props) {
     this.enhancedLogQueryEnabled = ENHANCED_LOG_QUERY_ENABLED.getBoolean(props);

@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.dialect;
+package software.amazon.jdbc.exceptions;
 
-import java.sql.Connection;
-import java.util.List;
-import software.amazon.jdbc.exceptions.ExceptionHandler;
+import java.sql.SQLException;
 
-public interface Dialect {
-  int getDefaultPort();
+public class SQLLoginException extends SQLException {
 
-  ExceptionHandler getExceptionHandler();
-
-  String getHostAliasQuery();
-
-  String getServerVersionQuery();
-
-  boolean isDialect(Connection connection);
-
-  List</* dialect code */ String> getDialectUpdateCandidates();
+  public SQLLoginException(final String reason) {
+    super(reason);
+  }
 }

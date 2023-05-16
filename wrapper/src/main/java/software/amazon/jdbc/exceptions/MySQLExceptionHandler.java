@@ -53,6 +53,9 @@ public class MySQLExceptionHandler implements ExceptionHandler {
     Throwable exception = throwable;
 
     while (exception != null) {
+      if (exception instanceof SQLLoginException) {
+        return true;
+      }
       if (exception instanceof SQLException) {
         return isLoginException(((SQLException) exception).getSQLState());
       } else if (exception instanceof CJException) {

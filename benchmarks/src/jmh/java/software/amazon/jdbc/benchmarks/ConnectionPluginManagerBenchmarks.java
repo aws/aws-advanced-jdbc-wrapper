@@ -101,6 +101,7 @@ public class ConnectionPluginManagerBenchmarks {
     new Runner(opt).run();
   }
 
+  @SuppressWarnings("deprecation")
   @Setup(Level.Iteration)
   public void setUpIteration() throws Exception {
     closeable = openMocks(this);

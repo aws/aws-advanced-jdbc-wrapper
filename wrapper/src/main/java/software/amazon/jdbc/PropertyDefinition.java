@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
@@ -66,7 +67,48 @@ public class PropertyDefinition {
 
   static {
     PROPS_BY_NAME.clear();
-    Arrays.stream(PropertyDefinition.class.getDeclaredFields())
+    registerProperties(PropertyDefinition.class);
+  }
+
+  public static @Nullable AwsWrapperProperty byName(final String name) {
+    return PROPS_BY_NAME.get(name);
+  }
+
+  public static Collection<AwsWrapperProperty> allProperties() {
+    return PROPS_BY_NAME.values();
+  }
+
+  public static void registerPluginProperties(final Class<?> pluginClass) {
+    registerProperties(pluginClass);
+  }
+
+  public static void removeAll(final Properties props) {
+    PROPS_BY_NAME.keySet().forEach(props::remove);
+  }
+
+  public static void removeAllExcept(final Properties props, String... propNames) {
+    Set<String> propsToDelete = PROPS_BY_NAME.keySet();
+    propsToDelete.removeAll(Arrays.asList(propNames));
+    propsToDelete.forEach(props::remove);
+  }
+
+  public static void removeAllExceptCredentials(final Properties props) {
+    final String user = props.getProperty(PropertyDefinition.USER.name, null);
+    final String password = props.getProperty(PropertyDefinition.PASSWORD.name, null);
+
+    PROPS_BY_NAME.keySet().forEach(props::remove);
+
+    if (user != null) {
+      props.setProperty(PropertyDefinition.USER.name, user);
+    }
+
+    if (password != null) {
+      props.setProperty(PropertyDefinition.PASSWORD.name, password);
+    }
+  }
+
+  private static void registerProperties(final Class<?> ownerClass) {
+    Arrays.stream(ownerClass.getDeclaredFields())
         .filter(
             f ->
                 f.getType() == AwsWrapperProperty.class
@@ -85,32 +127,6 @@ public class PropertyDefinition {
                 PROPS_BY_NAME.put(prop.name, prop);
               }
             });
-  }
 
-  public static @Nullable AwsWrapperProperty byName(final String name) {
-    return PROPS_BY_NAME.get(name);
-  }
-
-  public static Collection<AwsWrapperProperty> allProperties() {
-    return PROPS_BY_NAME.values();
-  }
-
-  public static void removeAll(final Properties props) {
-    PROPS_BY_NAME.keySet().forEach(props::remove);
-  }
-
-  public static void removeAllExceptCredentials(final Properties props) {
-    final String user = props.getProperty(PropertyDefinition.USER.name, null);
-    final String password = props.getProperty(PropertyDefinition.PASSWORD.name, null);
-
-    PROPS_BY_NAME.keySet().forEach(props::remove);
-
-    if (user != null) {
-      props.setProperty(PropertyDefinition.USER.name, user);
-    }
-
-    if (password != null) {
-      props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    }
   }
 }

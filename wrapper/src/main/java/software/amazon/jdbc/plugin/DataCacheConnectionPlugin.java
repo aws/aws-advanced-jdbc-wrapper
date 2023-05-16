@@ -48,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -67,6 +68,10 @@ public class DataCacheConnectionPlugin extends AbstractConnectionPlugin {
   protected static final Map<String, ResultSet> dataCache = new ConcurrentHashMap<>();
 
   protected final String dataCacheTriggerCondition;
+
+  static {
+    PropertyDefinition.registerPluginProperties(DataCacheConnectionPlugin.class);
+  }
 
   public DataCacheConnectionPlugin(final Properties props) {
     this.dataCacheTriggerCondition = DATA_CACHE_TRIGGER_CONDITION.getString(props);

@@ -34,11 +34,8 @@ public class ConnectionUrlBuilder {
       final String portPropertyName,
       final String databasePropertyName,
       final Properties props) throws SQLException {
-    if (StringUtils.isNullOrEmpty(jdbcProtocol)
-        || ((StringUtils.isNullOrEmpty(serverPropertyName)
-        || StringUtils.isNullOrEmpty(
-        props.getProperty(serverPropertyName)))
-        && hostSpec == null)) {
+
+    if (StringUtils.isNullOrEmpty(jdbcProtocol)) {
       throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
     }
 
@@ -53,6 +50,11 @@ public class ConnectionUrlBuilder {
     if (hostSpec != null) {
       urlBuilder.append(hostSpec.getUrl());
     } else {
+      if (StringUtils.isNullOrEmpty(serverPropertyName)
+          || StringUtils.isNullOrEmpty(props.getProperty(serverPropertyName))) {
+        throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
+      }
+
       urlBuilder.append(copy.get(serverPropertyName));
 
       if (!StringUtils.isNullOrEmpty(portPropertyName) && !StringUtils.isNullOrEmpty(
@@ -68,9 +70,15 @@ public class ConnectionUrlBuilder {
       copy.remove(PropertyDefinition.DATABASE.name);
     }
 
-    removeProperty(serverPropertyName, copy);
-    removeProperty(portPropertyName, copy);
-    removeProperty(databasePropertyName, copy);
+    if (!StringUtils.isNullOrEmpty(serverPropertyName)) {
+      removeProperty(serverPropertyName, copy);
+    }
+    if (!StringUtils.isNullOrEmpty(portPropertyName)) {
+      removeProperty(portPropertyName, copy);
+    }
+    if (!StringUtils.isNullOrEmpty(databasePropertyName)) {
+      removeProperty(databasePropertyName, copy);
+    }
 
     final StringBuilder queryBuilder = new StringBuilder();
     final Enumeration<?> propertyNames = copy.propertyNames();

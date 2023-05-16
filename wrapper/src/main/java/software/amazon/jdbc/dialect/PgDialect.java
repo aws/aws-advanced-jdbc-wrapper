@@ -22,7 +22,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
 
@@ -72,11 +71,6 @@ public class PgDialect implements Dialect {
       // ignore
     }
     return false;
-  }
-
-  @Override
-  public Set<String> appendPropertiesToUrl() {
-    return null;
   }
 
   @Override

@@ -19,14 +19,13 @@ package software.amazon.jdbc.dialect;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
 
 public class UnknownDialect implements Dialect {
 
-  private static List<String> dialectUpdateCandidates = Arrays.asList(
+  private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.AURORA_PG,
       DialectCodes.AURORA_MYSQL,
       DialectCodes.RDS_PG,
@@ -64,11 +63,6 @@ public class UnknownDialect implements Dialect {
   @Override
   public boolean isDialect(final Connection connection) {
     return false;
-  }
-
-  @Override
-  public Set<String> appendPropertiesToUrl() {
-    return null;
   }
 
   @Override

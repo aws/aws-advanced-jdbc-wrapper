@@ -40,6 +40,8 @@ import software.amazon.jdbc.DataSourceConnectionProvider;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -130,11 +132,16 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         throw new SQLException(Messages.get("AwsWrapperDataSource.missingUrl"));
       }
 
+      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+      final TargetDriverDialect targetDriverDialect =
+          targetDriverDialectManager.getDialect(this.targetDataSourceClassName, props);
+
       return createConnectionWrapper(
           props,
           this.jdbcUrl,
           new DataSourceConnectionProvider(
               targetDataSource,
+              targetDriverDialect,
               this.serverPropertyName,
               this.portPropertyName,
               this.urlPropertyName,
@@ -152,7 +159,14 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       setCredentialProperties(props);
       setDatabasePropertyFromUrl(props);
 
-      return createConnectionWrapper(props, this.jdbcUrl, new DriverConnectionProvider(targetDriver));
+      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+      final TargetDriverDialect targetDriverDialect =
+          targetDriverDialectManager.getDialect(targetDriver, props);
+
+      return createConnectionWrapper(
+          props,
+          this.jdbcUrl,
+          new DriverConnectionProvider(targetDriver, targetDriverDialect));
     }
   }
 
