@@ -26,6 +26,8 @@ import software.amazon.jdbc.util.Messages;
 
 public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
+  private static long executionTime = 0L;
+
   private static final Logger LOGGER =
       Logger.getLogger(ExecutionTimeConnectionPlugin.class.getName());
   private static final Set<String> subscribedMethods =
@@ -50,12 +52,21 @@ public class ExecutionTimeConnectionPlugin extends AbstractConnectionPlugin {
 
     final T result = jdbcMethodFunc.call();
 
-    final long elapsedTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+    final long elapsedTimeNanos = System.nanoTime() - startTime;
     LOGGER.fine(
         () -> Messages.get(
             "ExecutionTimeConnectionPlugin.executionTime",
-            new Object[] {methodName, elapsedTimeMillis}));
+            new Object[] {methodName, elapsedTimeNanos}));
+    executionTime += elapsedTimeNanos;
 
     return result;
+  }
+
+  public static void resetExecutionTime() {
+    executionTime = 0L;
+  }
+
+  public static long getTotalExecutionTime() {
+    return executionTime;
   }
 }
