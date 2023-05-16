@@ -60,4 +60,4 @@ from the updated source after the PRs are merged.
 | Major Version | Latest Minor Version | Status      | Initial Release | Maintenance Window Start | Maintenance Window End |
 |---------------|----------------------|-------------|-----------------|--------------------------|------------------------|
 | 1             | 1.0.2                | Maintenance | Oct 5, 2022     | Apr 28, 2023             | Apr 28, 2024           | 
-| 2             | 2.1.0                | Current     | Apr 28, 2023    | N/A                      | N/A                    | 
+| 2             | 2.1.1                | Current     | Apr 28, 2023    | N/A                      | N/A                    | 
