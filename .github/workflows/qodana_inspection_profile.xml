@@ -16,7 +16,7 @@
 
 <component name="InspectionProjectProfileManager">
   <profile version="1.0">
-    <option name="myName" value="Project Default"/>
+    <option name="DriverReference" value="Project Default"/>
     <inspection_tool class="SSBasedInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <searchConfiguration name="Driver-specific reference" uuid="48ee5cb7-4a92-3f80-a16d-11b673821e29"
         description="Driver-specific reference detected in this file. Please ensure this is intentional. MySQL references in general wrapper classes may result in classpath exceptions when used in other driver workflows."
