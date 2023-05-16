@@ -23,4 +23,5 @@
 <suppressions>
   <suppress files="[\\/]MySQLExceptionHandler\.java" checks="IllegalImport"/>
   <suppress files="[\\/]MysqlDialect\.java" checks="IllegalImport"/>
+  <suppress files="[\\/]test[\\/]" checks="IllegalImport"/>
 </suppressions>
