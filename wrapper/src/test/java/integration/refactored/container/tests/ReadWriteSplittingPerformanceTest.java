@@ -57,10 +57,11 @@ import software.amazon.jdbc.util.StringUtils;
 @EnableOnNumOfInstances(min = 5)
 public class ReadWriteSplittingPerformanceTest {
 
-  private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPerformanceTest.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(ReadWriteSplittingPerformanceTest.class.getName());
 
   private static final int REPEAT_TIMES = StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
-      ? 5
+      ? 10
       : Integer.parseInt(System.getenv("REPEAT_TIMES"));
 
   private static final int TIMEOUT_SEC = 5;
@@ -102,7 +103,7 @@ public class ReadWriteSplittingPerformanceTest {
         resultsWithPlugin.switchToWriterAvg - resultsWithoutPlugin.switchToWriterAvg;
 
     final PerfStatSwitchConnection connectReaderData = new PerfStatSwitchConnection();
-    connectReaderData.connectionSwitch = "Switch to reader (open new connection)";
+    connectReaderData.connectionSwitch = "Switch to reader";
     connectReaderData.minOverheadTime = switchToReaderMinOverhead;
     connectReaderData.maxOverheadTime = switchToReaderMaxOverhead;
     connectReaderData.avgOverheadTime = switchToReaderAvgOverhead;
@@ -142,7 +143,7 @@ public class ReadWriteSplittingPerformanceTest {
         resultsWithPools.switchToWriterAvg - resultsWithoutPlugin.switchToWriterAvg;
 
     final PerfStatSwitchConnection connPoolsConnectReaderData = new PerfStatSwitchConnection();
-    connPoolsConnectReaderData.connectionSwitch = "Switch to reader (open new connection)";
+    connPoolsConnectReaderData.connectionSwitch = "Switch to reader";
     connPoolsConnectReaderData.minOverheadTime = connPoolSwitchToReaderMinOverhead;
     connPoolsConnectReaderData.maxOverheadTime = connPoolSwitchToReaderMaxOverhead;
     connPoolsConnectReaderData.avgOverheadTime = connPoolSwitchToReaderAvgOverhead;
@@ -163,7 +164,6 @@ public class ReadWriteSplittingPerformanceTest {
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
             TestEnvironment.getCurrent().getCurrentDriver())
     );
-
   }
 
   private Connection connectToInstance(Properties props) throws SQLException {

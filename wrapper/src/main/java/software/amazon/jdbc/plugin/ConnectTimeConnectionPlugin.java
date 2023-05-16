@@ -23,13 +23,18 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.util.Messages;
 
 public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Arrays.asList("connect", "forceConnect")));
   private static long connectTime = 0L;
+
+  private static final Logger LOGGER =
+      Logger.getLogger(ConnectTimeConnectionPlugin.class.getName());
 
   @Override
   public Set<String> getSubscribedMethods() {
@@ -44,10 +49,11 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
     final Connection result = connectFunc.call();
 
     final long elapsedTimeNanos = System.nanoTime() - startTime;
-    System.out.println("connect time plugin: " + elapsedTimeNanos);
     connectTime += elapsedTimeNanos;
-    System.out.println("connect time plugin connectTime: " + connectTime);
-
+    LOGGER.fine(
+        () -> Messages.get(
+            "ConnectTimeConnectionPlugin.connectTime",
+            new Object[] {elapsedTimeNanos}));
     return result;
   }
 
@@ -60,9 +66,11 @@ public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
     final Connection result = forceConnectFunc.call();
 
     final long elapsedTimeNanos = System.nanoTime() - startTime;
-    System.out.println("force connect time plugin: " + elapsedTimeNanos);
+    LOGGER.fine(
+        () -> Messages.get(
+            "ConnectTimeConnectionPlugin.connectTime",
+            new Object[] {driverProtocol, elapsedTimeNanos}));
     connectTime += elapsedTimeNanos;
-    System.out.println("force connect time plugin connectTime: " + connectTime);
 
     return result;
   }
