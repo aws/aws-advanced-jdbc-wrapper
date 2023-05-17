@@ -17,9 +17,7 @@
 package software.amazon.jdbc;
 
 import java.sql.SQLException;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import software.amazon.jdbc.cleanup.CanReleaseResources;

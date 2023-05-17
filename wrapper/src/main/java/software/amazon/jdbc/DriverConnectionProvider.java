@@ -102,8 +102,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull String protocol,
       final @NonNull Dialect dialect,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final boolean isInitialConnection)
+      final @NonNull Properties props)
       throws SQLException {
     final String databaseName =
         PropertyDefinition.DATABASE.getString(props) != null

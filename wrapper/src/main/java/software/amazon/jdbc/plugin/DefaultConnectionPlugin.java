@@ -145,18 +145,17 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connProvider);
+    return connectInternal(driverProtocol, hostSpec, props, connProvider);
   }
 
   private Connection connectInternal(
       String driverProtocol,
       HostSpec hostSpec,
       Properties props,
-      boolean isInitialConnection,
       ConnectionProvider connProvider)
       throws SQLException {
     final Connection conn = connProvider.connect(
-        driverProtocol, this.pluginService.getDialect(), hostSpec, props, isInitialConnection);
+        driverProtocol, this.pluginService.getDialect(), hostSpec, props);
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     this.pluginService.updateDialect(conn);
 
@@ -176,7 +175,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connProvider);
+    return connectInternal(driverProtocol, hostSpec, props, connProvider);
   }
 
   @Override
@@ -226,6 +225,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
+    // do nothing
   }
 
   List<String> parseMultiStatementQueries(String query) {

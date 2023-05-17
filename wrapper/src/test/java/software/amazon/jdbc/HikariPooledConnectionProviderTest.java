@@ -74,8 +74,7 @@ class HikariPooledConnectionProviderTest {
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, "username");
     props.setProperty(PropertyDefinition.PASSWORD.name, "password");
-    try (Connection conn = provider.connect(
-        "protocol", mockDialect, mockHostSpec, props, true)) {
+    try (Connection conn = provider.connect("protocol", mockDialect, mockHostSpec, props)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
@@ -102,8 +101,7 @@ class HikariPooledConnectionProviderTest {
     Properties props = new Properties();
     props.setProperty(PropertyDefinition.USER.name, "username");
     props.setProperty(PropertyDefinition.PASSWORD.name, "password");
-    try (Connection conn = provider.connect(
-        "protocol", mockDialect, mockHostSpec, props, true)) {
+    try (Connection conn = provider.connect("protocol", mockDialect, mockHostSpec, props)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
       final Set<PoolKey> keys = provider.getKeys();

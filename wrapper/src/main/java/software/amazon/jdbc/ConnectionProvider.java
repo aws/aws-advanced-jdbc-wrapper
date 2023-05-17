@@ -83,8 +83,7 @@ public interface ConnectionProvider {
       @NonNull String protocol,
       @NonNull Dialect dialect,
       @NonNull HostSpec hostSpec,
-      @NonNull Properties props,
-      boolean isInitialConnection)
+      @NonNull Properties props)
       throws SQLException;
 
   /**

@@ -159,8 +159,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       @NonNull String protocol,
       @NonNull Dialect dialect,
       @NonNull HostSpec hostSpec,
-      @NonNull Properties props,
-      boolean isInitialConnection)
+      @NonNull Properties props)
       throws SQLException {
 
     final HikariDataSource ds = databasePools.computeIfAbsent(

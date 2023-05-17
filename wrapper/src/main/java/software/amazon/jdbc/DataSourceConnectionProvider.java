@@ -123,8 +123,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       final @NonNull String protocol,
       final @NonNull Dialect dialect,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final boolean isInitialConnection)
+      final @NonNull Properties props)
       throws SQLException {
 
     final Properties copy = PropertyUtils.copyProperties(props);

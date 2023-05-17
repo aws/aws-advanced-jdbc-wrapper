@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -63,7 +62,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private volatile boolean inReadWriteSplit = false;
   private HostListProviderService hostListProviderService;
   private Connection writerConnection;
-  private HostSpec writerHostSpec;
   private Connection readerConnection;
   private HostSpec readerHostSpec;
 
@@ -252,7 +250,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private void setWriterConnection(final Connection writerConnection,
       final HostSpec writerHostSpec) {
     this.writerConnection = writerConnection;
-    this.writerHostSpec = writerHostSpec;
     LOGGER.finest(
         () -> Messages.get(
             "ReadWriteSplittingPlugin.setWriterConnection",
@@ -526,7 +523,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         internalConnection.close();
         if (internalConnection == writerConnection) {
           writerConnection = null;
-          writerHostSpec = null;
         }
 
         if (internalConnection == readerConnection) {
