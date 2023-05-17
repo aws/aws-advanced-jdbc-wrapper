@@ -93,6 +93,10 @@ checkstyle {
     maxWarnings = 0
     configDirectory.set(File(rootDir, "config/checkstyle"))
     configFile = configDirectory.get().file("google_checks.xml").asFile
+
+    // Checkstyle will throw an error if a driver-specific import is detected in the new changes.
+    // If the change is intentional, add the file to the suppression filter in checkstyle-suppressions.xml.
+    configProperties = mapOf("suppressionFile" to configDirectory.get().file("checkstyle-suppressions.xml").asFile)
 }
 
 spotless {
