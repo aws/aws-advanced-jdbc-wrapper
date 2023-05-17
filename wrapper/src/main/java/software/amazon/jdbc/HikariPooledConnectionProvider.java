@@ -48,7 +48,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final String LEAST_CONNECTIONS_STRATEGY = "leastConnections";
 
   private static final RdsUtils rdsUtils = new RdsUtils();
-  private static final CacheMap<PoolKey, HikariDataSource> databasePools = new CacheMap<>(
+  private static CacheMap<PoolKey, HikariDataSource> databasePools = new CacheMap<>(
       (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() > 0,
       (hikariDataSource) -> hikariDataSource.close()
   );
@@ -335,4 +335,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     }
 
   }
+
+  // For testing purposes only
+  void setDatabasePools(CacheMap<PoolKey, HikariDataSource> connectionPools) {
+    databasePools = connectionPools;
+  }
+
 }
