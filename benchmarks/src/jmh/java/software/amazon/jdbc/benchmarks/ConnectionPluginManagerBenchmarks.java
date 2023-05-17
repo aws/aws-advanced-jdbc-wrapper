@@ -17,12 +17,21 @@
 package software.amazon.jdbc.benchmarks;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.openMocks;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import org.mockito.Mock;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -51,21 +60,10 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
-import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
 @Fork(3)

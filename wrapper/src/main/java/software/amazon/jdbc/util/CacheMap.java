@@ -48,18 +48,18 @@ public class CacheMap<K, V> {
     return cacheItem == null ? null : cacheItem.item;
   }
 
-  public V getWithExtendExpiration(final K key, final long itemExpirationNano) {
-    final CacheItem cacheItem = cache.computeIfPresent(key,
-        (kk, vv) -> vv.isExpired() ? null : vv.withExtendExpiration(itemExpirationNano));
-    return cacheItem == null ? null : cacheItem.item;
-  }
-
   public V get(final K key, final V defaultItemValue, final long itemExpirationNano) {
     final CacheItem cacheItem = cache.compute(key,
         (kk, vv) -> (vv == null || vv.isExpired())
             ? new CacheItem(defaultItemValue, System.nanoTime() + itemExpirationNano)
             : vv);
     return cacheItem.item;
+  }
+
+  public V getWithExtendExpiration(final K key, final long itemExpirationNano) {
+    final CacheItem cacheItem = cache.computeIfPresent(key,
+        (kk, vv) -> vv.isExpired() ? null : vv.withExtendExpiration(itemExpirationNano));
+    return cacheItem == null ? null : cacheItem.item;
   }
 
   public void put(final K key, final V item, final long itemExpirationNano) {
@@ -73,9 +73,9 @@ public class CacheMap<K, V> {
   }
 
   public V computeIfAbsent(
-    final K key,
-    Function<? super K, ? extends V> mappingFunction,
-    final long itemExpirationNano) {
+      final K key,
+      Function<? super K, ? extends V> mappingFunction,
+      final long itemExpirationNano) {
 
     cleanUp();
     final CacheItem cacheItem = cache.computeIfAbsent(
