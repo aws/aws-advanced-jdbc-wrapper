@@ -152,6 +152,9 @@ public class AutoscalingTests {
       newInstanceConn.setReadOnly(true);
       // Connection pool cache should have hit the cleanup threshold and removed the pool for the
       // deleted instance.
+      String instanceId = auroraUtil.queryInstanceId(newInstanceConn);
+      assertNotEquals(instances.get(0).getInstanceId(), instanceId);
+      assertNotEquals(newInstance.getInstanceId(), instanceId);
       assertFalse(provider.getHosts().stream()
           .anyMatch((url) -> url.equals(newInstance.getUrl())));
       assertEquals(instances.size(), provider.getHosts().size());

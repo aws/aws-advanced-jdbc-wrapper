@@ -52,7 +52,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           add("initHostProvider");
           add("connect");
           add("notifyConnectionChanged");
-          add("notifyNodeListChanged");
           add("Connection.setReadOnly");
         }
       });
@@ -178,36 +177,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return OldConnectionSuggestedAction.PRESERVE;
     }
     return OldConnectionSuggestedAction.NO_OPINION;
-  }
-
-  @Override
-  public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
-    for (Map.Entry<String, EnumSet<NodeChangeOptions>> entry : changes.entrySet()) {
-      EnumSet<NodeChangeOptions> hostChanges = entry.getValue();
-      if (!hostChanges.contains(NodeChangeOptions.NODE_DELETED)) {
-        continue;
-      }
-
-      if (writerHostSpec != null && writerHostSpec.getUrl().equals(entry.getKey())) {
-        try {
-          writerConnection.close();
-        } catch (SQLException e) {
-          // Do nothing
-        }
-        writerConnection = null;
-        writerHostSpec = null;
-      }
-
-      if (readerHostSpec != null && readerHostSpec.getUrl().equals(entry.getKey())) {
-        try {
-          readerConnection.close();
-        } catch (SQLException e) {
-          // Do nothing
-        }
-        readerConnection = null;
-        readerHostSpec = null;
-      }
-    }
   }
 
   @Override
@@ -446,9 +415,25 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     if (!isConnectionUsable(this.readerConnection)) {
       initializeReaderConnection(hosts);
     } else {
-      switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
-      LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
-          new Object[] {this.readerHostSpec.getUrl()}));
+      try {
+        switchCurrentConnectionTo(this.readerConnection, this.readerHostSpec);
+        LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromWriterToReader",
+            new Object[] {this.readerHostSpec.getUrl()}));
+      } catch (SQLException e) {
+        if (e.getMessage() != null) {
+          LOGGER.warning(
+              () -> Messages.get("ReadWriteSplittingPlugin.errorSwitchingToCachedReaderWithCause",
+                  new Object[] {this.readerHostSpec.getUrl(), e.getMessage()}));
+        } else {
+          LOGGER.warning(() -> Messages.get("ReadWriteSplittingPlugin.errorSwitchingToCachedReader",
+              new Object[] {this.readerHostSpec.getUrl()}));
+        }
+
+        this.readerConnection.close();
+        this.readerConnection = null;
+        this.readerHostSpec = null;
+        initializeReaderConnection(hosts);
+      }
     }
   }
 
@@ -495,7 +480,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         readerHost = hostSpec;
         break;
       } catch (final SQLException e) {
-        LOGGER.config(
+        LOGGER.warning(
             () -> Messages.get(
                 "ReadWriteSplittingPlugin.failedToConnectToReader",
                 new Object[] {
