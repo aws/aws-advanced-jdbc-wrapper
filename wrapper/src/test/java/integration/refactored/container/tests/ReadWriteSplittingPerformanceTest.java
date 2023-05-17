@@ -78,10 +78,10 @@ public class ReadWriteSplittingPerformanceTest {
     // This test measures the time to switch connections between the reader and writer.
     final Properties propsWithoutPlugin = initNoPluginPropsWithTimeouts();
     final Result resultsWithoutPlugin = getSetReadOnlyResults(propsWithoutPlugin);
-    Properties propsWithPlugin = initReadWritePluginProps();
+    final Properties propsWithPlugin = initReadWritePluginProps();
     final Result resultsWithPlugin = getSetReadOnlyResults(propsWithPlugin);
 
-    HikariPooledConnectionProvider connProvider =
+    final HikariPooledConnectionProvider connProvider =
         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
     ConnectionProviderManager.setConnectionProvider(connProvider);
     final Result resultsWithPools = getSetReadOnlyResults(propsWithPlugin);
@@ -119,8 +119,8 @@ public class ReadWriteSplittingPerformanceTest {
     doWritePerfDataToFile(
         String.format(
             "./build/reports/tests/"
-                + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_" +
-                "SwitchReaderWriterConnection.xlsx",
+                + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_"
+                + "SwitchReaderWriterConnection.xlsx",
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
             TestEnvironment.getCurrent().getCurrentDriver())
     );
@@ -166,12 +166,12 @@ public class ReadWriteSplittingPerformanceTest {
     );
   }
 
-  private Connection connectToInstance(Properties props) throws SQLException {
+  private Connection connectToInstance(final Properties props) throws SQLException {
     final String url = ConnectionStringHelper.getWrapperClusterEndpointUrl();
     return DriverManager.getConnection(url, props);
   }
 
-  private void doWritePerfDataToFile(String fileName) throws IOException {
+  private void doWritePerfDataToFile(final String fileName) throws IOException {
     if (setReadOnlyPerfDataList.isEmpty()) {
       return;
     }
@@ -183,7 +183,7 @@ public class ReadWriteSplittingPerformanceTest {
       final XSSFSheet sheet = workbook.createSheet("PerformanceResults");
 
       for (int rows = 0; rows < setReadOnlyPerfDataList.size(); rows++) {
-        PerfStatBase perfStat = ((List<? extends PerfStatBase>) setReadOnlyPerfDataList).get(rows);
+        final PerfStatBase perfStat = ((List<? extends PerfStatBase>) setReadOnlyPerfDataList).get(rows);
         Row row;
 
         if (rows == 0) {
@@ -295,7 +295,7 @@ public class ReadWriteSplittingPerformanceTest {
     public long avgOverheadTime;
 
     @Override
-    public void writeHeader(Row row) {
+    public void writeHeader(final Row row) {
       Cell cell = row.createCell(0);
       cell.setCellValue("");
       cell = row.createCell(1);
@@ -307,7 +307,7 @@ public class ReadWriteSplittingPerformanceTest {
     }
 
     @Override
-    public void writeData(Row row) {
+    public void writeData(final Row row) {
       Cell cell = row.createCell(0);
       cell.setCellValue(this.connectionSwitch);
       cell = row.createCell(1);
