@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -167,24 +168,24 @@ class HikariPooledConnectionProviderTest {
   @Test
   public void testAcceptsUrl() {
     final String clusterUrl = "my-database.cluster-XYZ.us-east-1.rds.amazonaws.com";
-    final HikariPooledConnectionProvider connectionProvider =
+    final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
 
     assertTrue(
-        connectionProvider.acceptsUrl(protocol, new HostSpec(readerUrl2Connections), defaultProps));
+        provider.acceptsUrl(protocol, new HostSpec(readerUrl2Connections), defaultProps));
     assertFalse(
-        connectionProvider.acceptsUrl(protocol, new HostSpec(clusterUrl), defaultProps));
+        provider.acceptsUrl(protocol, new HostSpec(clusterUrl), defaultProps));
   }
 
   @Test
   public void testLeastConnectionsStrategy() throws SQLException {
-    final HikariPooledConnectionProvider connectionProvider =
+    final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
-    connectionProvider.setDatabasePools(getTestPoolMap());
+    provider.setDatabasePools(getTestPoolMap());
 
     assertThrows(UnsupportedOperationException.class, () ->
-        connectionProvider.getHostSpecByStrategy(testHosts, HostRole.READER, "random"));
-    HostSpec selectedHost = connectionProvider.getHostSpecByStrategy(testHosts, HostRole.READER, LEAST_CONNECTIONS);
+        provider.getHostSpecByStrategy(testHosts, HostRole.READER, "random"));
+    HostSpec selectedHost = provider.getHostSpecByStrategy(testHosts, HostRole.READER, LEAST_CONNECTIONS);
     // Other reader has 2 connections
     assertEquals(readerUrl1Connection, selectedHost.getHost());
   }
@@ -199,14 +200,27 @@ class HikariPooledConnectionProviderTest {
 
   @Test
   public void testConfigurePool() {
-    final HikariPooledConnectionProvider connectionProvider =
+    final HikariPooledConnectionProvider provider =
       new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
     final String expectedJdbcUrl =
         protocol + readerHost1Connection.getUrl() + db + "?database=" + db;
 
-    connectionProvider.configurePool(mockConfig, protocol, readerHost1Connection, defaultProps);
+    provider.configurePool(mockConfig, protocol, readerHost1Connection, defaultProps);
     verify(mockConfig).setJdbcUrl(expectedJdbcUrl);
     verify(mockConfig).setUsername(user1);
     verify(mockConfig).setPassword(password);
+  }
+
+  @Test
+  public void testConnectToDeletedInstance() throws SQLException {
+    final HikariPooledConnectionProvider provider =
+        spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
+
+    doReturn(mockDataSource).when(provider)
+        .createHikariDataSource(eq(protocol), eq(readerHost1Connection), eq(defaultProps));
+    when(mockDataSource.getConnection()).thenThrow(SQLException.class);
+
+    assertThrows(SQLException.class,
+        () -> provider.connect(protocol, mockDialect, readerHost1Connection, defaultProps));
   }
 }

@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.zaxxer.hikari.HikariConfig;
 import integration.refactored.DatabaseEngineDeployment;
@@ -116,6 +117,7 @@ public class AutoscalingTests {
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
+    final int originalClusterSize = instances.size();
     final long poolExpirationNanos = TimeUnit.MINUTES.toNanos(3);
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(instances.size()), poolExpirationNanos);
@@ -147,6 +149,16 @@ public class AutoscalingTests {
         newInstanceConn.setReadOnly(false);
       } finally {
         auroraUtil.deleteInstance(newInstance);
+      }
+
+      final long deletionCheckTimeout = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
+      while (System.nanoTime() < deletionCheckTimeout
+          && auroraUtil.getAuroraInstanceIds().size() != originalClusterSize) {
+        TimeUnit.SECONDS.sleep(5);
+      }
+
+      if (auroraUtil.getAuroraInstanceIds().size() != originalClusterSize) {
+        fail("The deleted instance is still in the cluster topology");
       }
 
       newInstanceConn.setReadOnly(true);
