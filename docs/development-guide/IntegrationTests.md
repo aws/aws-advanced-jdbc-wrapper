@@ -21,6 +21,10 @@ The Aurora integration tests are focused on testing connection strings and failo
 The tests are run in Docker but make a connection to test against an Aurora cluster.
 PostgreSQL and MySQL tests are currently supported.
 
+#### Supported Aurora PostgreSQL Versions
+- 14.7
+- 15.2
+
 ### Standard Integration Tests
 
 These integration tests are focused on testing connection strings against a local database inside a Docker container.
