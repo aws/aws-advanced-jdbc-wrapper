@@ -35,7 +35,7 @@ to releases, so you should be able to upgrade to the latest minor version of tha
 software without encountering incompatible changes (e.g., 1.1.0 → 1.3.x).
 
 Sometimes an incompatible change is unavoidable. When this happens, the software’s maintainers will increment 
-the major version number (e.g., increment from OpenSearch 1.3.z to OpenSearch 2.0.0). 
+the major version number (e.g., increment from aws-advanced-jdbc-wrapper 1.1.1 to aws-advanced-jdbc-wrapper 2.0.0). 
 The last minor version of the previous major version of the software will then enter a maintenance window 
 (e.g., 1.3.x). During the maintenance window, the software will continue to receive bug fixes and security patches, 
 but no new features.
