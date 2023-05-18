@@ -18,7 +18,6 @@ package software.amazon.jdbc.benchmarks;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.zaxxer.hikari.HikariConfig;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -40,9 +39,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Timeout;
 import org.openjdk.jmh.annotations.Warmup;
 import org.postgresql.PGProperty;
-import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
-import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 
 @State(Scope.Benchmark)
@@ -80,7 +77,7 @@ public class ReadWriteSplittingConnectionPoolingBenchmarks {
     return DriverManager.getConnection(url, props);
   }
 
-  protected Properties initNoPluginPropsWithTimeouts() {
+  protected Properties initNoPluginProps() {
     final Properties props = new Properties();
     props.setProperty(PGProperty.USER.getName(), USERNAME);
     props.setProperty(PGProperty.PASSWORD.getName(), PASSWORD);
@@ -88,7 +85,7 @@ public class ReadWriteSplittingConnectionPoolingBenchmarks {
   }
 
   protected Properties initReadWritePluginProps() {
-    final Properties props = initNoPluginPropsWithTimeouts();
+    final Properties props = initNoPluginProps();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
     return props;
   }
@@ -101,6 +98,10 @@ public class ReadWriteSplittingConnectionPoolingBenchmarks {
 
         // switch to reader if read-write splitting plugin is enabled
         conn.setReadOnly(true);
+
+        try (Statement stmt2 = conn.createStatement()) {
+          stmt2.executeQuery(QUERY_1);
+        }
 
       } catch (final Exception e) {
         fail("Encountered an error while executing benchmark load test: " + e.getMessage());
@@ -129,35 +130,35 @@ public class ReadWriteSplittingConnectionPoolingBenchmarks {
     }
   }
 
-  @Benchmark
-  public void noPluginEnabledBenchmarkTest() throws InterruptedException {
-    for (int i = 0; i < NUM_ITERATIONS; i++) {
-      runBenchmarkTest(initNoPluginPropsWithTimeouts());
-    }
-  }
-
+//   @Benchmark
+//   public void noPluginEnabledBenchmarkTest() throws InterruptedException {
+//     for (int i = 0; i < NUM_ITERATIONS; i++) {
+//       runBenchmarkTest(initNoPluginProps());
+//     }
+//   }
+//
   @Benchmark
   public void readWriteSplittingPluginEnabledBenchmarkTest() throws InterruptedException {
     for (int i = 0; i < NUM_ITERATIONS; i++) {
       runBenchmarkTest(initReadWritePluginProps());
     }
   }
-
-  @Benchmark
-  public void readWriteSplittingPluginWithConnectionPoolingBenchmarkTest() throws InterruptedException {
-    final HikariPooledConnectionProvider connProvider =
-        new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
-    ConnectionProviderManager.setConnectionProvider(connProvider);
-
-    try {
-      for (int i = 0; i < NUM_ITERATIONS; i++) {
-        runBenchmarkTest(initReadWritePluginProps());
-      }
-    } finally {
-      ConnectionProviderManager.resetProvider();
-      ConnectionProviderManager.releaseResources();
-    }
-  }
+//
+//   @Benchmark
+//   public void readWriteSplittingPluginWithConnectionPoolingBenchmarkTest() throws InterruptedException {
+//     final HikariPooledConnectionProvider connProvider =
+//         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
+//     ConnectionProviderManager.setConnectionProvider(connProvider);
+//
+//     try {
+//       for (int i = 0; i < NUM_ITERATIONS; i++) {
+//         runBenchmarkTest(initReadWritePluginProps());
+//       }
+//     } finally {
+//       ConnectionProviderManager.resetProvider();
+//       ConnectionProviderManager.releaseResources();
+//     }
+//   }
 
   public static void main(String[] args) throws Exception {
     org.openjdk.jmh.Main.main(args);
