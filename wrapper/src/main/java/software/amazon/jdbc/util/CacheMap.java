@@ -44,25 +44,15 @@ public class CacheMap<K, V> {
   }
 
   public V get(final K key) {
+    removeIfExpired(key);
     final CacheItem cacheItem = cache.get(key);
-    if (cacheItem == null || cacheItem.isExpired()) {
-      cache.remove(key);
-      if (cacheItem != null && itemDisposalFunc != null) {
-        itemDisposalFunc.dispose(cacheItem.item);
-      }
-      return null;
-    } else {
-      return cacheItem.item;
-    }
+    return cacheItem == null ? null : cacheItem.item;
   }
 
   public V get(final K key, final V defaultItemValue, final long itemExpirationNano) {
+    removeIfExpired(key);
     CacheItem cacheItem = cache.get(key);
-    if (cacheItem == null || cacheItem.isExpired()) {
-      cache.remove(key);
-      if (cacheItem != null && itemDisposalFunc != null) {
-        itemDisposalFunc.dispose(cacheItem.item);
-      }
+    if (cacheItem == null) {
       cacheItem = new CacheItem(defaultItemValue, System.nanoTime() + itemExpirationNano);
       cache.put(key, cacheItem);
     }
@@ -70,36 +60,34 @@ public class CacheMap<K, V> {
   }
 
   public V getWithExtendExpiration(final K key, final long itemExpirationNano) {
+    removeIfExpired(key);
+    final CacheItem cacheItem = cache.get(key);
+    return cacheItem == null ? null : cacheItem.withExtendExpiration(itemExpirationNano).item;
+  }
+
+  private void removeIfExpired(K key) {
     final CacheItem cacheItem = cache.get(key);
     if (cacheItem == null || cacheItem.isExpired()) {
-      cache.remove(key);
-      if (cacheItem != null && itemDisposalFunc != null) {
-        itemDisposalFunc.dispose(cacheItem.item);
-      }
-      return null;
-    } else {
-      return cacheItem.withExtendExpiration(itemExpirationNano).item;
+      removeAndDispose(key);
+    }
+  }
+
+  private void removeAndDispose(K key) {
+    final CacheItem cacheItem = cache.remove(key);
+    if (cacheItem != null && itemDisposalFunc != null) {
+      itemDisposalFunc.dispose(cacheItem.item);
     }
   }
 
   public void put(final K key, final V item, final long itemExpirationNano) {
     cleanUp();
-    final CacheItem oldItem = cache.get(key);
-    if (oldItem != null && itemDisposalFunc != null) {
-      itemDisposalFunc.dispose(oldItem.item);
-    }
+    removeAndDispose(key);
     cache.put(key, new CacheItem(item, System.nanoTime() + itemExpirationNano));
   }
 
   public void putIfAbsent(final K key, final V item, final long itemExpirationNano) {
     cleanUp();
-    final CacheItem currentItem = cache.get(key);
-    if (currentItem == null || currentItem.isExpired()) {
-      cache.remove(key);
-      if (currentItem != null && itemDisposalFunc != null) {
-        itemDisposalFunc.dispose(currentItem.item);
-      }
-    }
+    removeIfExpired(key);
     cache.putIfAbsent(key, new CacheItem(item, System.nanoTime() + itemExpirationNano));
   }
 
@@ -109,13 +97,7 @@ public class CacheMap<K, V> {
       final long itemExpirationNano) {
 
     cleanUp();
-    final CacheItem currentItem = cache.get(key);
-    if (currentItem == null || currentItem.isExpired()) {
-      cache.remove(key);
-      if (currentItem != null && itemDisposalFunc != null) {
-        itemDisposalFunc.dispose(currentItem.item);
-      }
-    }
+    removeIfExpired(key);
     final CacheItem cacheItem = cache.computeIfAbsent(
         key,
         k -> new CacheItem(
@@ -126,18 +108,12 @@ public class CacheMap<K, V> {
 
   public void remove(final K key) {
     cleanUp();
-    CacheItem cacheItem = cache.remove(key);
-    if (itemDisposalFunc != null) {
-      itemDisposalFunc.dispose(cacheItem.item);
-    }
+    removeAndDispose(key);
   }
 
   public void clear() {
     for (K key : cache.keySet()) {
-      CacheItem cacheItem = cache.remove(key);
-      if (itemDisposalFunc != null) {
-        itemDisposalFunc.dispose(cacheItem.item);
-      }
+      removeAndDispose(key);
     }
     cache.clear();
   }
@@ -161,14 +137,7 @@ public class CacheMap<K, V> {
 
     this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
     cache.forEach((key, value) -> {
-      if (value != null && !value.isExpired()) {
-        return;
-      }
-
-      cache.remove(key);
-      if (value != null && itemDisposalFunc != null) {
-        itemDisposalFunc.dispose(value.item);
-      }
+      removeIfExpired(key);
     });
   }
 
