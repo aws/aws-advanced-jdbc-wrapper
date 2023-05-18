@@ -16,6 +16,7 @@
 
 package integration.refactored.container.tests;
 
+import com.zaxxer.hikari.HikariConfig;
 import integration.refactored.DriverHelper;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.container.ConnectionStringHelper;
@@ -43,7 +44,11 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin;
+import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -52,7 +57,8 @@ import software.amazon.jdbc.util.StringUtils;
 @EnableOnNumOfInstances(min = 5)
 public class ReadWriteSplittingPerformanceTest {
 
-  private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingPerformanceTest.class.getName());
+  private static final Logger LOGGER =
+      Logger.getLogger(ReadWriteSplittingPerformanceTest.class.getName());
 
   private static final int REPEAT_TIMES = StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
       ? 10
@@ -64,15 +70,23 @@ public class ReadWriteSplittingPerformanceTest {
   private static final List<PerfStatSwitchConnection> setReadOnlyPerfDataList = new ArrayList<>();
 
   @TestTemplate
-  public void test_switchReaderWriterConnection() throws SQLException, IOException {
+  public void test_switchReaderWriterConnection()
+      throws SQLException, IOException {
 
     setReadOnlyPerfDataList.clear();
 
     // This test measures the time to switch connections between the reader and writer.
     final Properties propsWithoutPlugin = initNoPluginPropsWithTimeouts();
-    Result resultsWithoutPlugin = getSetReadOnlyResults(propsWithoutPlugin);
-    Properties propsWithPlugin = initReadWritePluginProps();
-    Result resultsWithPlugin = getSetReadOnlyResults(propsWithPlugin);
+    final Result resultsWithoutPlugin = getSetReadOnlyResults(propsWithoutPlugin);
+    final Properties propsWithPlugin = initReadWritePluginProps();
+    final Result resultsWithPlugin = getSetReadOnlyResults(propsWithPlugin);
+
+    final HikariPooledConnectionProvider connProvider =
+        new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
+    ConnectionProviderManager.setConnectionProvider(connProvider);
+    final Result resultsWithPools = getSetReadOnlyResults(propsWithPlugin);
+    ConnectionProviderManager.releaseResources();
+    ConnectionProviderManager.resetProvider();
 
     final long switchToReaderMinOverhead =
         resultsWithPlugin.switchToReaderMin - resultsWithoutPlugin.switchToReaderMin;
@@ -89,34 +103,75 @@ public class ReadWriteSplittingPerformanceTest {
         resultsWithPlugin.switchToWriterAvg - resultsWithoutPlugin.switchToWriterAvg;
 
     final PerfStatSwitchConnection connectReaderData = new PerfStatSwitchConnection();
-    connectReaderData.connectionSwitch = "Switch to reader (open new connection)";
-    connectReaderData.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToReaderMinOverhead);
-    connectReaderData.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToReaderMaxOverhead);
-    connectReaderData.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToReaderAvgOverhead);
+    connectReaderData.connectionSwitch = "Switch to reader";
+    connectReaderData.minOverheadTime = switchToReaderMinOverhead;
+    connectReaderData.maxOverheadTime = switchToReaderMaxOverhead;
+    connectReaderData.avgOverheadTime = switchToReaderAvgOverhead;
     setReadOnlyPerfDataList.add(connectReaderData);
 
     final PerfStatSwitchConnection connectWriterData = new PerfStatSwitchConnection();
     connectWriterData.connectionSwitch = "Switch back to writer (use cached connection)";
-    connectWriterData.minOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterMinOverhead);
-    connectWriterData.maxOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterMaxOverhead);
-    connectWriterData.avgOverheadTime = TimeUnit.NANOSECONDS.toMillis(switchToWriterAvgOverhead);
+    connectWriterData.minOverheadTime = switchToWriterMinOverhead;
+    connectWriterData.maxOverheadTime = switchToWriterMaxOverhead;
+    connectWriterData.avgOverheadTime = switchToWriterAvgOverhead;
     setReadOnlyPerfDataList.add(connectWriterData);
 
     doWritePerfDataToFile(
         String.format(
             "./build/reports/tests/"
-            + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_SwitchReaderWriterConnection.xlsx",
+                + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_"
+                + "SwitchReaderWriterConnection.xlsx",
+            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            TestEnvironment.getCurrent().getCurrentDriver())
+    );
+
+    setReadOnlyPerfDataList.clear();
+
+    // internal connection pool results
+    final long connPoolSwitchToReaderMinOverhead =
+        resultsWithPools.switchToReaderMin - resultsWithoutPlugin.switchToReaderMin;
+    final long connPoolSwitchToReaderMaxOverhead =
+        resultsWithPools.switchToReaderMax - resultsWithoutPlugin.switchToReaderMax;
+    final long connPoolSwitchToReaderAvgOverhead =
+        resultsWithPools.switchToReaderAvg - resultsWithoutPlugin.switchToReaderAvg;
+
+    final long connPoolSwitchToWriterMinOverhead =
+        resultsWithPools.switchToWriterMin - resultsWithoutPlugin.switchToWriterMin;
+    final long connPoolSwitchToWriterMaxOverhead =
+        resultsWithPools.switchToWriterMax - resultsWithoutPlugin.switchToWriterMax;
+    final long connPoolSwitchToWriterAvgOverhead =
+        resultsWithPools.switchToWriterAvg - resultsWithoutPlugin.switchToWriterAvg;
+
+    final PerfStatSwitchConnection connPoolsConnectReaderData = new PerfStatSwitchConnection();
+    connPoolsConnectReaderData.connectionSwitch = "Switch to reader";
+    connPoolsConnectReaderData.minOverheadTime = connPoolSwitchToReaderMinOverhead;
+    connPoolsConnectReaderData.maxOverheadTime = connPoolSwitchToReaderMaxOverhead;
+    connPoolsConnectReaderData.avgOverheadTime = connPoolSwitchToReaderAvgOverhead;
+    setReadOnlyPerfDataList.add(connPoolsConnectReaderData);
+
+    final PerfStatSwitchConnection connPoolsConnectWriterData = new PerfStatSwitchConnection();
+    connPoolsConnectWriterData.connectionSwitch = "Switch back to writer (use cached connection)";
+    connPoolsConnectWriterData.minOverheadTime = connPoolSwitchToWriterMinOverhead;
+    connPoolsConnectWriterData.maxOverheadTime = connPoolSwitchToWriterMaxOverhead;
+    connPoolsConnectWriterData.avgOverheadTime = connPoolSwitchToWriterAvgOverhead;
+    setReadOnlyPerfDataList.add(connPoolsConnectWriterData);
+
+    doWritePerfDataToFile(
+        String.format(
+            "./build/reports/tests/"
+                + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_"
+                + "InternalConnectionPools_SwitchReaderWriterConnection.xlsx",
             TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
             TestEnvironment.getCurrent().getCurrentDriver())
     );
   }
 
-  private Connection connectToInstance(Properties props) throws SQLException {
+  private Connection connectToInstance(final Properties props) throws SQLException {
     final String url = ConnectionStringHelper.getWrapperClusterEndpointUrl();
     return DriverManager.getConnection(url, props);
   }
 
-  private void doWritePerfDataToFile(String fileName) throws IOException {
+  private void doWritePerfDataToFile(final String fileName) throws IOException {
     if (setReadOnlyPerfDataList.isEmpty()) {
       return;
     }
@@ -128,7 +183,7 @@ public class ReadWriteSplittingPerformanceTest {
       final XSSFSheet sheet = workbook.createSheet("PerformanceResults");
 
       for (int rows = 0; rows < setReadOnlyPerfDataList.size(); rows++) {
-        PerfStatBase perfStat = ((List<? extends PerfStatBase>) setReadOnlyPerfDataList).get(rows);
+        final PerfStatBase perfStat = ((List<? extends PerfStatBase>) setReadOnlyPerfDataList).get(rows);
         Row row;
 
         if (rows == 0) {
@@ -159,7 +214,7 @@ public class ReadWriteSplittingPerformanceTest {
 
   protected Properties initReadWritePluginProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting,connectTime,executionTime");
     return props;
   }
 
@@ -172,15 +227,30 @@ public class ReadWriteSplittingPerformanceTest {
     final Result result = new Result();
 
     for (int i = 0; i < REPEAT_TIMES; i++) {
+
       try (final Connection conn = connectToInstance(props)) {
+
+        ConnectTimeConnectionPlugin.resetConnectTime();
+        ExecutionTimeConnectionPlugin.resetExecutionTime();
         switchToReaderStartTime = System.nanoTime();
         conn.setReadOnly(true);
+        long connectTime = ConnectTimeConnectionPlugin.getTotalConnectTime();
+        long executionTime = ExecutionTimeConnectionPlugin.getTotalExecutionTime();
+
         final long switchToReaderElapsedTime = (System.nanoTime() - switchToReaderStartTime);
-        elapsedSwitchToReaderTimes.add(switchToReaderElapsedTime);
+
+        elapsedSwitchToReaderTimes.add(switchToReaderElapsedTime - connectTime - executionTime);
 
         switchToWriterStartTime = System.nanoTime();
+        ConnectTimeConnectionPlugin.resetConnectTime();
+        ExecutionTimeConnectionPlugin.resetExecutionTime();
         conn.setReadOnly(false);
-        final long switchToWriterElapsedTime = (System.nanoTime() - switchToWriterStartTime);
+        connectTime = ConnectTimeConnectionPlugin.getTotalConnectTime();
+        executionTime = ExecutionTimeConnectionPlugin.getTotalExecutionTime();
+
+        final long switchToWriterElapsedTime =
+            (System.nanoTime() - switchToWriterStartTime - connectTime - executionTime);
+
         elapsedSwitchToWriterTimes.add(switchToWriterElapsedTime);
       }
     }
@@ -225,19 +295,19 @@ public class ReadWriteSplittingPerformanceTest {
     public long avgOverheadTime;
 
     @Override
-    public void writeHeader(Row row) {
+    public void writeHeader(final Row row) {
       Cell cell = row.createCell(0);
       cell.setCellValue("");
       cell = row.createCell(1);
-      cell.setCellValue("minOverheadTimeMillis");
+      cell.setCellValue("minOverheadTimeNanos");
       cell = row.createCell(2);
-      cell.setCellValue("maxOverheadTimeMillis");
+      cell.setCellValue("maxOverheadTimeNanos");
       cell = row.createCell(3);
-      cell.setCellValue("avgOverheadTimeMillis");
+      cell.setCellValue("avgOverheadTimeNanos");
     }
 
     @Override
-    public void writeData(Row row) {
+    public void writeData(final Row row) {
       Cell cell = row.createCell(0);
       cell.setCellValue(this.connectionSwitch);
       cell = row.createCell(1);
