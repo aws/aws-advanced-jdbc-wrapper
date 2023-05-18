@@ -60,12 +60,12 @@ The `aws-advanced-jdbc-wrapper` has a regular monthly release cadence. A new rel
 
 ## Aurora Engine Version Testing
 This `aws-advanced-jdbc-wrapper` is being tested against the following Community and Aurora database versions in our test suite:
-| Database          | Versions                                                                                                                                                                                                         |
-|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| MySQL             | 8.0.32                                                                                                                                                                                                           |
-| PostgreSQL        | 15.2                                                                                                                                                                                                             |
-| Aurora MySQL      | MySQL	8.0.mysql_aurora.3.02.2 (Wire-compatible with MySQL 8.0.23 onwards. For more details see [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraMySQLReleaseNotes/AuroraMySQL.Updates.3022.html))                     |
-| Aurora PostgreSQL | 14.5 (Compatible with PostgreSQL 14.5, see release notes [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraPostgreSQLReleaseNotes/AuroraPostgreSQL.Updates.html#AuroraPostgreSQL.Updates.20180305.145X)) |
+| Database          | Versions                                                                                                                                                                                                  |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| MySQL             | 8.0.32                                                                                                                                                                                                    |
+| PostgreSQL        | 15.2                                                                                                                                                                                                      |
+| Aurora MySQL      | MySQL	8.0.mysql_aurora.3.02.2 (Wire-compatible with MySQL 8.0.23 onwards. For more details see [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraMySQLReleaseNotes/AuroraMySQL.Updates.3022.html))|
+| Aurora PostgreSQL | 14.7 and 15.2 (Compatible with PostgreSQL 14.7 and 15.2, see release notes [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraPostgreSQLReleaseNotes/AuroraPostgreSQL.Updates.html))               |
 
 While MySQL support is experimental at the moment, the `aws-advanced-jdbc-wrapper` is compatible with MySQL 5.7 and MySQL 8.0 as per the Community MySQL Connector/J 8.0 Driver.
 
