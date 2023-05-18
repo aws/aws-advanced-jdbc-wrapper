@@ -60,8 +60,8 @@ public class ReadWriteSplittingConnectionPoolingBenchmarks {
   public static final String USERNAME = "pgadmin";
   public static final String PASSWORD = "my_password_2020";
 
-  private static final int NUM_ITERATIONS = 1;
-  private static final int NUM_THREADS = 1;
+  private static final int NUM_ITERATIONS = 10;
+  private static final int NUM_THREADS = 10;
   private static final String QUERY_1 = "SELECT pg_sleep(10)";
 
   @Setup(Level.Iteration)
