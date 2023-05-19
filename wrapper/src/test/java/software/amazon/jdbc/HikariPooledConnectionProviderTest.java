@@ -46,7 +46,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HikariPooledConnectionProvider.PoolKey;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.util.CacheMap;
+import software.amazon.jdbc.util.SlidingExpirationMap;
 
 class HikariPooledConnectionProviderTest {
   @Mock Connection mockConnection;
@@ -75,8 +75,8 @@ class HikariPooledConnectionProviderTest {
   private final String protocol = "protocol://";
 
   private final Properties defaultProps = getDefaultProps();
+  private final List<HostSpec> testHosts = getTestHosts();
   private HikariPooledConnectionProvider provider;
-  private List<HostSpec> testHosts = getTestHosts();
 
   private AutoCloseable closeable;
 
@@ -187,11 +187,14 @@ class HikariPooledConnectionProviderTest {
     assertEquals(readerUrl1Connection, selectedHost.getHost());
   }
 
-  private CacheMap<PoolKey, HikariDataSource> getTestPoolMap() {
-    CacheMap<PoolKey, HikariDataSource> map = new CacheMap<>();
-    map.put(new PoolKey(readerHost2Connections.getUrl(), user1), dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
-    map.put(new PoolKey(readerHost2Connections.getUrl(), user2), dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
-    map.put(new PoolKey(readerHost1Connection.getUrl(), user1), dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
+  private SlidingExpirationMap<PoolKey, HikariDataSource> getTestPoolMap() {
+    SlidingExpirationMap<PoolKey, HikariDataSource> map = new SlidingExpirationMap<>();
+    map.computeIfAbsent(new PoolKey(readerHost2Connections.getUrl(), user1),
+        (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
+    map.computeIfAbsent(new PoolKey(readerHost2Connections.getUrl(), user2),
+        (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
+    map.computeIfAbsent(new PoolKey(readerHost1Connection.getUrl(), user1),
+        (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
     return map;
   }
 

@@ -21,106 +21,51 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 public class CacheMap<K, V> {
 
-  private final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
-  private long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
+  private final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
+  private final long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   private final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
-  private final IsItemValidFunc<V> isItemValidFunc;
-  private final ItemDisposalFunc<V> itemDisposalFunc;
 
   public CacheMap() {
-    this.isItemValidFunc = null;
-    this.itemDisposalFunc = null;
-  }
-
-  public CacheMap(
-      final IsItemValidFunc<V> isItemValidFunc,
-      final ItemDisposalFunc<V> itemDisposalFunc) {
-    this.isItemValidFunc = isItemValidFunc;
-    this.itemDisposalFunc = itemDisposalFunc;
   }
 
   public V get(final K key) {
-    removeIfExpired(key);
-    final CacheItem cacheItem = cache.get(key);
+    final CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
     return cacheItem == null ? null : cacheItem.item;
   }
 
   public V get(final K key, final V defaultItemValue, final long itemExpirationNano) {
-    removeIfExpired(key);
-    CacheItem cacheItem = cache.get(key);
-    if (cacheItem == null) {
-      cacheItem = new CacheItem(defaultItemValue, System.nanoTime() + itemExpirationNano);
-      cache.put(key, cacheItem);
-    }
+    final CacheItem<V> cacheItem = cache.compute(key,
+        (kk, vv) -> (vv == null || vv.isExpired())
+            ? new CacheItem<>(defaultItemValue, System.nanoTime() + itemExpirationNano)
+            : vv);
     return cacheItem.item;
   }
 
-  public V getWithExtendExpiration(final K key, final long itemExpirationNano) {
-    removeIfExpired(key);
-    final CacheItem cacheItem = cache.get(key);
-    return cacheItem == null ? null : cacheItem.withExtendExpiration(itemExpirationNano).item;
-  }
-
-  private void removeIfExpired(K key) {
-    final CacheItem cacheItem = cache.get(key);
-    if (cacheItem == null || cacheItem.isExpired()) {
-      removeAndDispose(key);
-    }
-  }
-
-  private void removeAndDispose(K key) {
-    final CacheItem cacheItem = cache.remove(key);
-    if (cacheItem != null && itemDisposalFunc != null) {
-      itemDisposalFunc.dispose(cacheItem.item);
-    }
-  }
-
   public void put(final K key, final V item, final long itemExpirationNano) {
+    cache.put(key, new CacheItem<>(item, System.nanoTime() + itemExpirationNano));
     cleanUp();
-    removeAndDispose(key);
-    cache.put(key, new CacheItem(item, System.nanoTime() + itemExpirationNano));
   }
 
   public void putIfAbsent(final K key, final V item, final long itemExpirationNano) {
+    cache.putIfAbsent(key, new CacheItem<>(item, System.nanoTime() + itemExpirationNano));
     cleanUp();
-    removeIfExpired(key);
-    cache.putIfAbsent(key, new CacheItem(item, System.nanoTime() + itemExpirationNano));
-  }
-
-  public V computeIfAbsent(
-      final K key,
-      Function<? super K, ? extends V> mappingFunction,
-      final long itemExpirationNano) {
-
-    cleanUp();
-    removeIfExpired(key);
-    final CacheItem cacheItem = cache.computeIfAbsent(
-        key,
-        k -> new CacheItem(
-            mappingFunction.apply(k),
-            System.nanoTime() + itemExpirationNano));
-    return cacheItem.withExtendExpiration(itemExpirationNano).item;
   }
 
   public void remove(final K key) {
+    cache.remove(key);
     cleanUp();
-    removeAndDispose(key);
   }
 
   public void clear() {
-    for (K key : cache.keySet()) {
-      removeAndDispose(key);
-    }
     cache.clear();
   }
 
   public Map<K, V> getEntries() {
     final Map<K, V> entries = new HashMap<>();
-    for (final Map.Entry<K, CacheItem> entry : this.cache.entrySet()) {
+    for (final Map.Entry<K, CacheItem<V>> entry : this.cache.entrySet()) {
       entries.put(entry.getKey(), entry.getValue().item);
     }
     return entries;
@@ -131,27 +76,19 @@ public class CacheMap<K, V> {
   }
 
   private void cleanUp() {
-    if (this.cleanupTimeNanos.get() > System.nanoTime()) {
-      return;
+    if (this.cleanupTimeNanos.get() < System.nanoTime()) {
+      this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
+      cache.forEach((key, value) -> {
+        if (value == null || value.isExpired()) {
+          cache.remove(key);
+        }
+      });
     }
-
-    this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
-    cache.forEach((key, value) -> {
-      removeIfExpired(key);
-    });
   }
 
-  public interface IsItemValidFunc<V> {
-    boolean isValid(V item);
-  }
-
-  public interface ItemDisposalFunc<V> {
-    void dispose(V item);
-  }
-
-  class CacheItem {
-    private final V item;
-    private long expirationTime;
+  private static class CacheItem<V> {
+    final V item;
+    final long expirationTime;
 
     public CacheItem(final V item, final long expirationTime) {
       this.item = item;
@@ -159,15 +96,7 @@ public class CacheMap<K, V> {
     }
 
     boolean isExpired() {
-      if (isItemValidFunc != null) {
-        return System.nanoTime() > expirationTime && !isItemValidFunc.isValid(this.item);
-      }
       return System.nanoTime() > expirationTime;
-    }
-
-    public CacheItem withExtendExpiration(final long itemExpirationNano) {
-      this.expirationTime = System.nanoTime() + itemExpirationNano;
-      return this;
     }
 
     @Override
@@ -189,7 +118,7 @@ public class CacheMap<K, V> {
       if (getClass() != obj.getClass()) {
         return false;
       }
-      final CacheItem other = (CacheItem) obj;
+      final CacheItem<?> other = (CacheItem<?>) obj;
       if (item == null) {
         return other.item == null;
       } else {
@@ -201,15 +130,5 @@ public class CacheMap<K, V> {
     public String toString() {
       return "CacheItem [item=" + item + ", expirationTime=" + expirationTime + "]";
     }
-  }
-
-  // For testing purposes
-  void setCleanupIntervalNanos(long cleanupIntervalNanos) {
-    this.cleanupIntervalNanos = cleanupIntervalNanos;
-    this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
-  }
-
-  Map<K, CacheItem> getCache() {
-    return cache;
   }
 }

@@ -32,11 +32,11 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.SlidingExpirationMap;
 import software.amazon.jdbc.util.StringUtils;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
@@ -48,10 +48,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final String LEAST_CONNECTIONS_STRATEGY = "leastConnections";
 
   private static final RdsUtils rdsUtils = new RdsUtils();
-  private static CacheMap<PoolKey, HikariDataSource> databasePools = new CacheMap<>(
-      (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() > 0,
-      (hikariDataSource) -> hikariDataSource.close()
-  );
+  private static SlidingExpirationMap<PoolKey, HikariDataSource> databasePools =
+      new SlidingExpirationMap<>(
+          (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() > 0,
+          HikariDataSource::close
+      );
   private static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
   private final HikariPoolConfigurator poolConfigurator;
   private final HikariPoolMapping poolMapping;
@@ -337,8 +338,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   // For testing purposes only
-  void setDatabasePools(CacheMap<PoolKey, HikariDataSource> connectionPools) {
+  void setDatabasePools(SlidingExpirationMap<PoolKey, HikariDataSource> connectionPools) {
     databasePools = connectionPools;
   }
-
 }
