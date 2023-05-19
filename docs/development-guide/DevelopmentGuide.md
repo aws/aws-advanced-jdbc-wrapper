@@ -131,7 +131,7 @@ The diagram in this section shows the AWS JDBC Driver's performance when using t
 
 The average overhead time is measured as the average time difference between running the entire test with the read-write plugin and running the entire test without any plugins. The baseline overhead time is 0 because there are no plugins in this scenario and thus there is no plugin overhead.
 
-Note that the given overhead values represent the total overhead of running the entire test workflow rather than the overhead of executing a single method. The test executes 1 writer query and 10 read-only queries from 10 connections simultaneously.
+Note that the given overhead values represent the total overhead of running the entire test workflow rather than the overhead of executing a single method. The test executes 1 writer query and 1 read-only query from 10 connections simultaneously.
 
 ![](../images/jdbc_wrapper_postgresql_readwritesplitting_connectionpooling_performance.png)
 See [here](ReadWriteSplittingPluginPerformanceResults.md#read-write-splitting-plugin-postgres-performance-results) for a more detailed performance breakdown.
