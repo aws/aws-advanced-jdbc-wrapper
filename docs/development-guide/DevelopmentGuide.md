@@ -125,7 +125,7 @@ See [here](PluginPipelinePerformanceResults.md#failover-performance-with-differe
 ![](../images/jdbc_wrapper_postgresql_efm_6000_1000_1.png)
 See [here](PluginPipelinePerformanceResults.md#enhanced-failure-monitoring-performance-with-different-failure-detection-configuration) for a more detailed performance breakdown.
 
-#### Read-Write Splitting and Reader Load Balancing Performance Tests
+#### Read-Write Splitting and Internal Connection Pooling Performance Tests
 
 The diagram in this section shows the AWS JDBC Driver's performance when using the read-write splitting plugin, with or without connection pooling enabled. This test sets up a large number of connections in parallel; the initial connection is to the writer but will be changed to a random reader instance. The test executes a long query many times to simulate heavy queries.
 
