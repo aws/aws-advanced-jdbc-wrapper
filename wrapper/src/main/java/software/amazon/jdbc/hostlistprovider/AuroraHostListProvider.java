@@ -21,8 +21,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,9 +34,11 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -49,6 +54,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 
 public class AuroraHostListProvider implements DynamicHostListProvider {
@@ -76,6 +82,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
               + "This pattern is required to be specified for IP address or custom domain connections to AWS RDS "
               + "clusters. Otherwise, if unspecified, the pattern will be automatically created for AWS RDS clusters.");
 
+  private final Executor networkTimeoutExecutor = new SynchronousExecutor();
   private final HostListProviderService hostListProviderService;
   private final String originalUrl;
   private RdsUrlType rdsUrlType;
@@ -93,6 +100,7 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   public static final CacheMap<String, String> suggestedPrimaryClusterIdCache = new CacheMap<>();
   public static final CacheMap<String, Boolean> primaryClusterIdCache = new CacheMap<>();
 
+  private static final int defaultTopologyQueryTimeoutMs = 5000;
   private final ReentrantLock lock = new ReentrantLock();
   protected String clusterId;
   protected HostSpec clusterInstanceTemplate;
@@ -333,11 +341,27 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       this.topologyAwareDialect = (TopologyAwareDatabaseCluster) this.hostListProviderService.getDialect();
     }
 
+    int networkTimeout = -1;
+    try {
+      networkTimeout = conn.getNetworkTimeout();
+      // The topology query is not monitored by the EFM plugin, so it needs a socket timeout
+      if (networkTimeout == 0) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, defaultTopologyQueryTimeoutMs);
+      }
+    } catch (SQLException e) {
+      LOGGER.warning(() -> Messages.get("AuroraHostListProvider.errorGettingNetworkTimeout",
+          new Object[] {e.getMessage()}));
+    }
+
     try (final Statement stmt = conn.createStatement();
         final ResultSet resultSet = stmt.executeQuery(this.topologyAwareDialect.getTopologyQuery())) {
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("AuroraHostListProvider.invalidQuery"), e);
+    } finally {
+      if (networkTimeout == 0 && !conn.isClosed()) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
+      }
     }
   }
 
@@ -361,22 +385,34 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       hostMap.put(host.getHost(), host);
     }
 
-    int writerCount = 0;
     final List<HostSpec> hosts = new ArrayList<>();
+    final List<HostSpec> writers = new ArrayList<>();
 
     for (final HostSpec host : hostMap.values()) {
-      if (host.getRole() == HostRole.WRITER) {
-        writerCount++;
+      if (host.getRole() != HostRole.WRITER) {
+        hosts.add(host);
+      } else {
+        writers.add(host);
       }
-      hosts.add(host);
     }
+
+    int writerCount = writers.size();
 
     if (writerCount == 0) {
       LOGGER.severe(
           () -> Messages.get(
               "AuroraHostListProvider.invalidTopology"));
       hosts.clear();
+    } else if (writerCount == 1) {
+      hosts.add(writers.get(0));
+    } else {
+      // Take the latest updated writer node as the current writer. All others will be ignored.
+      List<HostSpec> sortedWriters = writers.stream()
+          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime).reversed())
+          .collect(Collectors.toList());
+      hosts.add(sortedWriters.get(0));
     }
+
     return hosts;
   }
 
@@ -394,14 +430,20 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
     final boolean isWriter = resultSet.getBoolean(2);
     final float cpuUtilization = resultSet.getFloat(3);
     final float nodeLag = resultSet.getFloat(4);
+    Timestamp lastUpdateTime;
+    try {
+      lastUpdateTime = resultSet.getTimestamp(5);
+    } catch (Exception e) {
+      lastUpdateTime = Timestamp.from(Instant.now());
+    }
 
     // Calculate weight based on node lag in time and CPU utilization.
     final long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
 
-    return createHost(hostName, isWriter, weight);
+    return createHost(hostName, isWriter, weight, lastUpdateTime);
   }
 
-  private HostSpec createHost(String host, final boolean isWriter, final long weight) {
+  private HostSpec createHost(String host, final boolean isWriter, final long weight, final Timestamp lastUpdateTime) {
     host = host == null ? "?" : host;
     final String endpoint = getHostEndpoint(host);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
@@ -413,7 +455,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         port,
         isWriter ? HostRole.WRITER : HostRole.READER,
         HostAvailability.AVAILABLE,
-        weight);
+        weight,
+        lastUpdateTime);
     hostSpec.addAlias(host);
     hostSpec.setHostId(host);
     return hostSpec;

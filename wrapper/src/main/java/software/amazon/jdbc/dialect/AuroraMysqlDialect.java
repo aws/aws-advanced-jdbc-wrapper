@@ -27,7 +27,7 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyAwareDat
   @Override
   public String getTopologyQuery() {
     return "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
-        + "CPU, REPLICA_LAG_IN_MILLISECONDS "
+        + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
         + "FROM information_schema.replica_host_status "
         // filter out nodes that haven't been updated in the last 5 minutes
         + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";

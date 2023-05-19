@@ -53,7 +53,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.4")
     testImplementation("org.mockito:mockito-inline:4.8.0")
     testImplementation("software.amazon.awssdk:rds:2.20.49")
-    testImplementation("software.amazon.awssdk:ec2:2.20.49")
+    testImplementation("software.amazon.awssdk:ec2:2.20.61")
     testImplementation("software.amazon.awssdk:secretsmanager:2.20.49")
     testImplementation("org.testcontainers:testcontainers:1.17.4")
     testImplementation("org.testcontainers:mysql:1.18.0")
@@ -93,6 +93,10 @@ checkstyle {
     maxWarnings = 0
     configDirectory.set(File(rootDir, "config/checkstyle"))
     configFile = configDirectory.get().file("google_checks.xml").asFile
+
+    // Checkstyle will throw an error if a driver-specific import is detected in the new changes.
+    // If the change is intentional, add the file to the suppression filter in checkstyle-suppressions.xml.
+    configProperties = mapOf("suppressionFile" to configDirectory.get().file("checkstyle-suppressions.xml").asFile)
 }
 
 spotless {

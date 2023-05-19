@@ -40,7 +40,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
   @Override
   public String getTopologyQuery() {
     return "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
-        + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0) "
+        + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
         + "FROM aurora_replica_status() "
         // filter out nodes that haven't been updated in the last 5 minutes
         + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";

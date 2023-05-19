@@ -29,7 +29,7 @@
     </module>
     <!-- https://checkstyle.org/config_filters.html#SuppressionFilter -->
     <module name="SuppressionFilter">
-        <property name="file" value="${org.checkstyle.google.suppressionfilter.config}"
+        <property name="file" value="${suppressionFile}"
                   default="checkstyle-suppressions.xml" />
         <property name="optional" value="true"/>
     </module>
@@ -350,6 +350,11 @@
             <property name="file" value="${org.checkstyle.google.suppressionxpathfilter.config}"
                       default="checkstyle-xpath-suppressions.xml" />
             <property name="optional" value="true"/>
+        </module>
+        <module name="IllegalImport">
+            <property name="regexp" value="true"/>
+            <property name="illegalPkgs" value="com\.mysql\.*, org\.postgresql\.*, org\.mariadb\.*"/>
+            <property name="illegalClasses" value="software\.amazon\.jdbc\.exceptions\.MySQLExceptionHandler"/>
         </module>
     </module>
 </module>

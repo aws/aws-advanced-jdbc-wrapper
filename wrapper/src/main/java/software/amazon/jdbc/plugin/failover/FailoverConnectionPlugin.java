@@ -321,14 +321,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   public boolean isFailoverEnabled() {
-    final boolean isMultiWriterCluster = this.pluginService.getHosts().stream()
-        .filter(h -> h.getRole() == HostRole.WRITER)
-        .count() > 1;
-
     return this.enableFailoverSetting
         && !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
-        && !Utils.isNullOrEmpty(this.pluginService.getHosts())
-        && !isMultiWriterCluster;
+        && !Utils.isNullOrEmpty(this.pluginService.getHosts());
   }
 
   private void initSettings() {
