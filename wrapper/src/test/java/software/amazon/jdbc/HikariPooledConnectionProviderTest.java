@@ -46,7 +46,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HikariPooledConnectionProvider.PoolKey;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.util.SlidingExpirationMap;
+import software.amazon.jdbc.util.SlidingExpirationCache;
 
 class HikariPooledConnectionProviderTest {
   @Mock Connection mockConnection;
@@ -187,8 +187,8 @@ class HikariPooledConnectionProviderTest {
     assertEquals(readerUrl1Connection, selectedHost.getHost());
   }
 
-  private SlidingExpirationMap<PoolKey, HikariDataSource> getTestPoolMap() {
-    SlidingExpirationMap<PoolKey, HikariDataSource> map = new SlidingExpirationMap<>();
+  private SlidingExpirationCache<PoolKey, HikariDataSource> getTestPoolMap() {
+    SlidingExpirationCache<PoolKey, HikariDataSource> map = new SlidingExpirationCache<>();
     map.computeIfAbsent(new PoolKey(readerHost2Connections.getUrl(), user1),
         (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
     map.computeIfAbsent(new PoolKey(readerHost2Connections.getUrl(), user2),

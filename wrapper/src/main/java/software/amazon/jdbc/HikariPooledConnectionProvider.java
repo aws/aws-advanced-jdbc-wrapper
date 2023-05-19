@@ -36,7 +36,7 @@ import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
-import software.amazon.jdbc.util.SlidingExpirationMap;
+import software.amazon.jdbc.util.SlidingExpirationCache;
 import software.amazon.jdbc.util.StringUtils;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
@@ -48,8 +48,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final String LEAST_CONNECTIONS_STRATEGY = "leastConnections";
 
   private static final RdsUtils rdsUtils = new RdsUtils();
-  private static SlidingExpirationMap<PoolKey, HikariDataSource> databasePools =
-      new SlidingExpirationMap<>(
+  private static SlidingExpirationCache<PoolKey, HikariDataSource> databasePools =
+      new SlidingExpirationCache<>(
           (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() > 0,
           HikariDataSource::close
       );
@@ -76,12 +76,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     this(hikariPoolConfigurator, null);
   }
 
-  public HikariPooledConnectionProvider(
-      HikariPoolConfigurator hikariPoolConfigurator, long expirationCheckNanos) {
-    this(hikariPoolConfigurator, null);
-    poolExpirationCheckNanos = expirationCheckNanos;
-  }
-
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
    * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
@@ -104,6 +98,42 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       HikariPoolConfigurator hikariPoolConfigurator, HikariPoolMapping mapping) {
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
+  }
+
+  /**
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * each database instance in a cluster. By maintaining internal connection pools, the driver can
+   * improve performance by reusing old {@link Connection} objects.
+   *
+   * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
+   * @param mapping                a function that returns a String key used for the internal
+   *                               connection pool keys. An internal connection pool will be
+   *                               generated for each unique key returned by this function.
+   * @param poolExpirationNanos    the amount of time that a pool should sit in the cache before
+   *                               being marked as expired for cleanup, in nanoseconds. Expired
+   *                               pools can still be used and will not be closed unless there
+   *                               are no active connections.
+   * @param poolCleanupNanos       the interval defining how often expired connection pools
+   *                               should be cleaned up, in nanoseconds. Note that expired pools
+   *                               will not be closed unless there are no active connections.
+   */
+  public HikariPooledConnectionProvider(
+      HikariPoolConfigurator hikariPoolConfigurator,
+      HikariPoolMapping mapping,
+      long poolExpirationNanos,
+      long poolCleanupNanos) {
+    this.poolConfigurator = hikariPoolConfigurator;
+    this.poolMapping = mapping;
+    poolExpirationCheckNanos = poolExpirationNanos;
+    databasePools.setCleanupIntervalNanos(poolCleanupNanos);
   }
 
   @Override
@@ -338,7 +368,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   }
 
   // For testing purposes only
-  void setDatabasePools(SlidingExpirationMap<PoolKey, HikariDataSource> connectionPools) {
+  void setDatabasePools(SlidingExpirationCache<PoolKey, HikariDataSource> connectionPools) {
     databasePools = connectionPools;
   }
 }

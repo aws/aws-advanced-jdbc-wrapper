@@ -120,7 +120,11 @@ public class AutoscalingTests {
     final int originalClusterSize = instances.size();
     final long poolExpirationNanos = TimeUnit.MINUTES.toNanos(3);
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(getHikariConfig(instances.size()), poolExpirationNanos);
+        new HikariPooledConnectionProvider(
+            getHikariConfig(instances.size()),
+            null,
+            poolExpirationNanos,
+            TimeUnit.MINUTES.toNanos(10));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final List<Connection> connections = new ArrayList<>();

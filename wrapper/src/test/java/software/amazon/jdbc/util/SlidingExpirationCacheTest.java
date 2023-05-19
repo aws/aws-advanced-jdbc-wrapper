@@ -31,9 +31,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-public class SlidingExpirationMapTest {
-  @Mock SlidingExpirationMap.ItemDisposalFunc<String> mockDisposalFunc;
-  @Mock SlidingExpirationMap.ShouldDisposeFunc<String> mockIsItemValidFunc;
+public class SlidingExpirationCacheTest {
+  @Mock SlidingExpirationCache.ItemDisposalFunc<String> mockDisposalFunc;
+  @Mock SlidingExpirationCache.ShouldDisposeFunc<String> mockIsItemValidFunc;
   private AutoCloseable closeable;
 
   @BeforeEach
@@ -48,7 +48,8 @@ public class SlidingExpirationMapTest {
 
   @Test
   public void testComputeIfAbsent() throws InterruptedException {
-    final SlidingExpirationMap<Integer, String> map = new SlidingExpirationMap<>(mockIsItemValidFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.setCleanupIntervalNanos(timeoutNanos * 2);
 
@@ -66,7 +67,8 @@ public class SlidingExpirationMapTest {
 
   @Test
   public void testRemove() {
-    final SlidingExpirationMap<Integer, String> map = new SlidingExpirationMap<>(mockIsItemValidFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
 
@@ -77,7 +79,8 @@ public class SlidingExpirationMapTest {
 
   @Test
   public void testClear() {
-    final SlidingExpirationMap<Integer, String> map = new SlidingExpirationMap<>(mockIsItemValidFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
     map.computeIfAbsent(2, (key) -> "b", timeoutNanos);
@@ -90,7 +93,8 @@ public class SlidingExpirationMapTest {
 
   @Test
   public void testGetEntries() throws InterruptedException {
-    final SlidingExpirationMap<Integer, String> map = new SlidingExpirationMap<>(mockIsItemValidFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     Map<Integer, String> expectedEntries = new HashMap<>();
     expectedEntries.put(1, "a");
@@ -105,7 +109,8 @@ public class SlidingExpirationMapTest {
 
   @Test
   public void testCleanup() throws InterruptedException {
-    final SlidingExpirationMap<Integer, String> map = new SlidingExpirationMap<>(mockIsItemValidFunc, mockDisposalFunc);
+    final SlidingExpirationCache<Integer, String>
+        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.setCleanupIntervalNanos(timeoutNanos * 2);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
@@ -113,7 +118,7 @@ public class SlidingExpirationMapTest {
     map.computeIfAbsent(2, (key) -> "b", timeoutNanos);
 
     assertTrue(map.getCache().containsKey(1));
-    assertTrue(map.getCache().get(1).isExpired());
+    assertTrue(map.getCache().get(1).shouldCleanup());
     TimeUnit.NANOSECONDS.sleep(timeoutNanos);
     assertEquals("c", map.computeIfAbsent(2, (key) -> "c", timeoutNanos));
     verify(mockIsItemValidFunc, times(2)).isValid(eq("a"));
