@@ -131,8 +131,9 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
         port,
         region);
     final TokenInfo tokenInfo = tokenCache.get(cacheKey);
+    final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
-    if (tokenInfo != null && !tokenInfo.isExpired()) {
+    if (isCachedToken) {
       LOGGER.finest(
           () -> Messages.get(
               "IamAuthConnectionPlugin.useCachedIamToken",
@@ -154,7 +155,47 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           cacheKey,
           new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
     }
-    return connectFunc.call();
+
+    try {
+      return connectFunc.call();
+    } catch (final SQLException exception) {
+
+      LOGGER.finest(
+          () -> Messages.get(
+              "IamAuthConnectionPlugin.connectException",
+              new Object[] {exception}));
+
+      if (!this.pluginService.isLoginException(exception) || !isCachedToken) {
+        throw exception;
+      }
+
+      // Login unsuccessful with cached token
+      // Try to generate a new token and try to connect again
+
+      final String token = generateAuthenticationToken(
+          hostSpec,
+          props,
+          host,
+          port,
+          region);
+      LOGGER.finest(
+          () -> Messages.get(
+              "IamAuthConnectionPlugin.generatedNewIamToken",
+              new Object[] {token}));
+      PropertyDefinition.PASSWORD.set(props, token);
+      tokenCache.put(
+          cacheKey,
+          new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
+
+      return connectFunc.call();
+
+    } catch (final Exception exception) {
+      LOGGER.warning(
+          () -> Messages.get(
+              "IamAuthConnectionPlugin.unhandledException",
+              new Object[] {exception}));
+      throw new SQLException(exception);
+    }
   }
 
   @Override
