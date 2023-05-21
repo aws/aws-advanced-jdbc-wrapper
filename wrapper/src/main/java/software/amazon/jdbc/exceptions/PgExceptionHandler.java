@@ -35,7 +35,10 @@ public class PgExceptionHandler implements ExceptionHandler {
       "XX" // internal error (backend)
   );
 
-  public static final String ACCESS_ERROR = "28P01";
+  public static final List<String> ACCESS_ERROR = Arrays.asList(
+      "28P01",
+      "28000" // PAM authentication errors
+  );
 
   @Override
   public boolean isNetworkException(final Throwable throwable) {
