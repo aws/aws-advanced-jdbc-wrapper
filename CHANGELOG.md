@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.1.2] - 2023-5-21
+### :crab: Changed
+- Explicitly check for 28000 and 28P01 SQLStates in the IAM authentication plugin after SQLExceptions are thrown ([PR #456](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/456) and [PR #457](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/457)).
+
 ## [2.1.1] - 2023-5-15
 ### :bug: Fixed
 - MySQL reference in code that could impact workflows with other drivers ([PR #446](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/446)).
@@ -100,6 +104,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 * The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 * The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.1.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.1...2.1.2
 [2.1.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.0...2.1.1
 [2.1.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.0.0...2.1.0
 [2.0.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/1.0.2...2.0.0
