@@ -153,7 +153,8 @@ public class SlidingExpirationCache<K, V> {
    * Set the cleanup interval for the cache. At cleanup time, expired entries marked for cleanup via
    * {@link ShouldDisposeFunc} (if defined) are disposed.
    *
-   * @param cleanupIntervalNanos
+   * @param cleanupIntervalNanos the time interval defining when we should clean up expired
+   *                             entries marked for cleanup, in nanoseconds
    */
   public void setCleanupIntervalNanos(long cleanupIntervalNanos) {
     this.cleanupIntervalNanos = cleanupIntervalNanos;
