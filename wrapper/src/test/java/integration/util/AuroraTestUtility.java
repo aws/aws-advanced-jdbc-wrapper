@@ -311,7 +311,7 @@ public class AuroraTestUtility {
             (requestBuilder) ->
                 requestBuilder.filters(
                     Filter.builder().name("db-instance-id").values(instanceId).build()),
-            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(10)));
+            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(15)));
 
     if (waiterResponse.matched().exception().isPresent()) {
       throw new InterruptedException(
@@ -360,7 +360,7 @@ public class AuroraTestUtility {
         (requestBuilder) -> requestBuilder.filters(
             Filter.builder().name("db-instance-id").values(instanceToDelete.getInstanceId())
                 .build()),
-        (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(10)));
+        (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(15)));
 
     if (waiterResponse.matched().exception().isPresent()) {
       throw new InterruptedException(
