@@ -314,7 +314,6 @@ public class AuroraTestUtility {
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(10)));
 
     if (waiterResponse.matched().exception().isPresent()) {
-      deleteCluster();
       throw new InterruptedException(
           "Instance creation timeout for " + instanceId
               + ". The instance was not available within 5 minutes");

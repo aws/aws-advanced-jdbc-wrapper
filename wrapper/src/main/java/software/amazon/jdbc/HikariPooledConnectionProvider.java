@@ -50,7 +50,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static SlidingExpirationCache<PoolKey, HikariDataSource> databasePools =
       new SlidingExpirationCache<>(
-          (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() > 0,
+          (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() == 0,
           HikariDataSource::close
       );
   private static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);

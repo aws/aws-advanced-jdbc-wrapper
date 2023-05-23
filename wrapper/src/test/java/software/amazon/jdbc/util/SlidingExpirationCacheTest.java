@@ -18,9 +18,11 @@ package software.amazon.jdbc.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +35,7 @@ import org.mockito.MockitoAnnotations;
 
 public class SlidingExpirationCacheTest {
   @Mock SlidingExpirationCache.ItemDisposalFunc<String> mockDisposalFunc;
-  @Mock SlidingExpirationCache.ShouldDisposeFunc<String> mockIsItemValidFunc;
+  @Mock SlidingExpirationCache.ShouldDisposeFunc<String> mockShouldDisposeFunc;
   private AutoCloseable closeable;
 
   @BeforeEach
@@ -49,9 +51,10 @@ public class SlidingExpirationCacheTest {
   @Test
   public void testComputeIfAbsent() throws InterruptedException {
     final SlidingExpirationCache<Integer, String>
-        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.setCleanupIntervalNanos(timeoutNanos * 2);
+    when(mockShouldDisposeFunc.shouldDispose(any())).thenReturn(true);
 
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
     assertEquals("a", map.computeIfAbsent(1, (key) -> "b", timeoutNanos));
@@ -61,14 +64,14 @@ public class SlidingExpirationCacheTest {
     assertEquals("a", map.computeIfAbsent(1, (key) -> "b", timeoutNanos));
     TimeUnit.NANOSECONDS.sleep(timeoutNanos);
     assertEquals("b", map.computeIfAbsent(1, (key) -> "b", timeoutNanos));
-    verify(mockIsItemValidFunc, times(1)).isValid(eq("a"));
+    verify(mockShouldDisposeFunc, times(1)).shouldDispose(eq("a"));
     verify(mockDisposalFunc, times(1)).dispose(eq("a"));
   }
 
   @Test
   public void testRemove() {
     final SlidingExpirationCache<Integer, String>
-        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
 
@@ -80,7 +83,7 @@ public class SlidingExpirationCacheTest {
   @Test
   public void testClear() {
     final SlidingExpirationCache<Integer, String>
-        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
     map.computeIfAbsent(2, (key) -> "b", timeoutNanos);
@@ -94,7 +97,7 @@ public class SlidingExpirationCacheTest {
   @Test
   public void testGetEntries() throws InterruptedException {
     final SlidingExpirationCache<Integer, String>
-        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     Map<Integer, String> expectedEntries = new HashMap<>();
     expectedEntries.put(1, "a");
@@ -110,9 +113,10 @@ public class SlidingExpirationCacheTest {
   @Test
   public void testCleanup() throws InterruptedException {
     final SlidingExpirationCache<Integer, String>
-        map = new SlidingExpirationCache<>(mockIsItemValidFunc, mockDisposalFunc);
+        map = new SlidingExpirationCache<>(mockShouldDisposeFunc, mockDisposalFunc);
     final long timeoutNanos = TimeUnit.SECONDS.toNanos(1);
     map.setCleanupIntervalNanos(timeoutNanos * 2);
+    when(mockShouldDisposeFunc.shouldDispose(any())).thenReturn(true);
     map.computeIfAbsent(1, (key) -> "a", timeoutNanos);
     TimeUnit.NANOSECONDS.sleep(timeoutNanos);
     map.computeIfAbsent(2, (key) -> "b", timeoutNanos);
@@ -121,7 +125,7 @@ public class SlidingExpirationCacheTest {
     assertTrue(map.getCache().get(1).shouldCleanup());
     TimeUnit.NANOSECONDS.sleep(timeoutNanos);
     assertEquals("c", map.computeIfAbsent(2, (key) -> "c", timeoutNanos));
-    verify(mockIsItemValidFunc, times(2)).isValid(eq("a"));
+    verify(mockShouldDisposeFunc, times(2)).shouldDispose(eq("a"));
     verify(mockDisposalFunc, times(1)).dispose(eq("a"));
     verify(mockDisposalFunc, times(1)).dispose(eq("b"));
     assertEquals("d", map.computeIfAbsent(1, (key) -> "d", timeoutNanos));

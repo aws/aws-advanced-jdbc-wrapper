@@ -168,7 +168,7 @@ public class SlidingExpirationCache<K, V> {
    * @param <V> the type of object being analyzed for disposal
    */
   public interface ShouldDisposeFunc<V> {
-    boolean isValid(V item);
+    boolean shouldDispose(V item);
   }
 
   /**
@@ -210,7 +210,7 @@ public class SlidingExpirationCache<K, V> {
      */
     boolean shouldCleanup() {
       if (shouldDisposeFunc != null) {
-        return System.nanoTime() > expirationTimeNano && !shouldDisposeFunc.isValid(this.item);
+        return System.nanoTime() > expirationTimeNano && shouldDisposeFunc.shouldDispose(this.item);
       }
       return System.nanoTime() > expirationTimeNano;
     }

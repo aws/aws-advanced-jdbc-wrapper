@@ -65,7 +65,7 @@ public interface ConnectionProvider {
    */
   HostSpec getHostSpecByStrategy(
       @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
-      throws SQLException;
+      throws SQLException, UnsupportedOperationException;
 
   /**
    * Called once per connection that needs to be created.
