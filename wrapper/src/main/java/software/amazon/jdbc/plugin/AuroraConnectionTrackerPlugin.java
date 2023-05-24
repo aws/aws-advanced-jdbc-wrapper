@@ -31,12 +31,14 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
-public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
+public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin implements
+    CanReleaseResources {
 
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
@@ -145,6 +147,11 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin {
         this.needUpdateCurrentWriter = true;
       }
     }
+  }
+
+  @Override
+  public void releaseResources() {
+    tracker.pruneNullConnections();
   }
 
   private HostSpec getWriter(final @NonNull List<HostSpec> hosts) {
