@@ -28,6 +28,9 @@ import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgDataSourceHelper {
 
+  private static final String BASE_DS_CLASS_NAME =
+      org.postgresql.ds.common.BaseDataSource.class.getName();
+
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull HostSpec hostSpec,
@@ -36,7 +39,7 @@ public class PgDataSourceHelper {
     if (!(dataSource instanceof BaseDataSource)) {
       throw new SQLException(Messages.get(
           "TargetDriverDialectManager.unexpectedClass",
-          new Object[] {"org.postgresql.ds.common.BaseDataSource", dataSource.getClass().getName()}));
+          new Object[] { BASE_DS_CLASS_NAME, dataSource.getClass().getName() }));
     }
 
     final BaseDataSource baseDataSource = (BaseDataSource) dataSource;
