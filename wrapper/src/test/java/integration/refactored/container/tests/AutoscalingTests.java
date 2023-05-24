@@ -203,10 +203,9 @@ public class AutoscalingTests {
     try {
       for (int i = 1; i < instances.size(); i++) {
         final String connString = ConnectionStringHelper.getWrapperUrl(instances.get(i));
-        final Connection conn1 = DriverManager.getConnection(connString, props);
-        connections.add(conn1);
-        final Connection conn2 = DriverManager.getConnection(connString, props);
-        connections.add(conn2);
+        // Create 2 connections per instance.
+        connections.add(DriverManager.getConnection(connString, props));
+        connections.add(DriverManager.getConnection(connString, props));
       }
 
       final Connection newInstanceConn;

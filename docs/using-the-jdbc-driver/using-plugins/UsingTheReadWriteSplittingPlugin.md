@@ -39,9 +39,28 @@ The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/Hi
 - username
 - password
 
-You can optionally pass in a `HikariPoolMapping` function as a second parameter to the `HikariPooledConnectionProvider`. This allows you to decide when new connection pools should be created by defining what is included in the pool map key. A new pool will be created each time a new connection is requested with a unique key. By default, a new pool will be created for each unique instance-user combination. If you would like to define a different key system, you should pass in a `HikariPoolMapping` function defining this logic. Please see [ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) for an example of how to configure the pool map key.
+You can optionally pass in a `HikariPoolMapping` function as a second parameter to the `HikariPooledConnectionProvider`. This allows you to decide when new connection pools should be created by defining what is included in the pool map key. A new pool will be created each time a new connection is requested with a unique key. By default, a new pool will be created for each unique instance-user combination. If you would like to define a different key system, you should pass in a `HikariPoolMapping` function defining this logic. A simple example is show below. Please see [ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) for the full example.
 
 > :warning: If you do not include the username in your HikariPoolMapping function, connection pools may be shared between different users.
+
+```java
+props.setProperty("somePropertyValue", "1"); // used in getPoolKey
+final HikariPooledConnectionProvider connProvider =
+    new HikariPooledConnectionProvider(
+        ReadWriteSplittingPostgresExample::getHikariConfig,
+        ReadWriteSplittingPostgresExample::getPoolKey
+    );
+ConnectionProviderManager.setConnectionProvider(connProvider);
+
+private static String getPoolKey(HostSpec hostSpec, Properties props) {
+  // Include the URL, user, and somePropertyValue in the connection pool key so that a new
+  // connection pool will be opened for each different instance-user-somePropertyValue
+  // combination.
+  final String user = props.getProperty(PropertyDefinition.USER.name);
+  final String somePropertyValue = props.getProperty("somePropertyValue");
+  return hostSpec.getUrl() + user + somePropertyValue;
+}
+```
 
 2. Call `ConnectionProviderManager.setConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
 

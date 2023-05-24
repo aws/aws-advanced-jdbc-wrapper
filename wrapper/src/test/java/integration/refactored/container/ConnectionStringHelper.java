@@ -103,7 +103,6 @@ public class ConnectionStringHelper {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
-
   public static String getWrapperUrl(String host, int port, String databaseName) {
     return getWrapperUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
   }
