@@ -39,6 +39,7 @@ import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
+import software.amazon.jdbc.plugin.IamAuthPrefetchConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
@@ -70,6 +71,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("efm", HostMonitoringConnectionPluginFactory.class);
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
+          put("iamPrefetch", IamAuthPrefetchConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
           put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);

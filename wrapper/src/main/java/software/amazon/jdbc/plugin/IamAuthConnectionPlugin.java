@@ -96,7 +96,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     return connectInternal(driverProtocol, hostSpec, props, connectFunc);
   }
 
-  private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
+  protected Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
@@ -219,7 +219,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     );
   }
 
-  private String getCacheKey(
+  protected String getCacheKey(
       final String user,
       final String hostname,
       final int port,
@@ -252,7 +252,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private Region getRdsRegion(final String hostname) throws SQLException {
+  protected Region getRdsRegion(final String hostname) throws SQLException {
 
     // Get Region
     final String rdsRegion = rdsUtils.getRdsRegion(hostname);
