@@ -47,7 +47,10 @@ import software.amazon.jdbc.plugin.IamAuthConnectionPlugin;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.IAM)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 // MariaDb driver has no configuration parameters to force using 'mysql_clear_password'
 // authentication that is essential for IAM. A proper user name and IAM token are passed to MariaDb
 // driver however 'mysql_native_password' authentication is chosen by default.
@@ -105,7 +108,7 @@ public class AwsIamIntegrationTest {
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
-                .getEndpoint());
+                .getHost());
     props.setProperty(
         "iamHost",
         TestEnvironment.getCurrent()
@@ -113,7 +116,7 @@ public class AwsIamIntegrationTest {
             .getDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpoint());
+            .getHost());
 
     final Connection conn =
         DriverManager.getConnection(
@@ -124,7 +127,7 @@ public class AwsIamIntegrationTest {
                     .getDatabaseInfo()
                     .getInstances()
                     .get(0)
-                    .getEndpointPort(),
+                    .getPort(),
                 TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
             props);
     Assertions.assertDoesNotThrow(conn::close);

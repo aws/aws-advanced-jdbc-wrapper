@@ -64,7 +64,10 @@ import software.amazon.jdbc.util.SqlState;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 public class AuroraFailoverTest {
@@ -102,8 +105,8 @@ public class AuroraFailoverTest {
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
-                initialWriterInstanceInfo.getEndpoint(),
-                initialWriterInstanceInfo.getEndpointPort(),
+                initialWriterInstanceInfo.getHost(),
+                initialWriterInstanceInfo.getPort(),
                 TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
             props)) {
 
@@ -138,8 +141,8 @@ public class AuroraFailoverTest {
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
-                initialWriterInstanceInfo.getEndpoint(),
-                initialWriterInstanceInfo.getEndpointPort(),
+                initialWriterInstanceInfo.getHost(),
+                initialWriterInstanceInfo.getPort(),
                 TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
             props)) {
 
@@ -174,8 +177,8 @@ public class AuroraFailoverTest {
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
-                instanceInfo.getEndpoint(),
-                instanceInfo.getEndpointPort(),
+                instanceInfo.getHost(),
+                instanceInfo.getPort(),
                 TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props)) {
 
@@ -208,8 +211,8 @@ public class AuroraFailoverTest {
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
-                initialWriterInstanceInfo.getEndpoint(),
-                initialWriterInstanceInfo.getEndpointPort(),
+                initialWriterInstanceInfo.getHost(),
+                initialWriterInstanceInfo.getPort(),
                 TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
             props)) {
 
@@ -267,8 +270,8 @@ public class AuroraFailoverTest {
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
-                initialWriterInstanceInfo.getEndpoint(),
-                initialWriterInstanceInfo.getEndpointPort(),
+                initialWriterInstanceInfo.getHost(),
+                initialWriterInstanceInfo.getPort(),
                 TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
             props)) {
 
@@ -383,7 +386,7 @@ public class AuroraFailoverTest {
 
     try (final Connection conn =
         createDataSourceConnectionWithFailoverUsingInstanceId(
-            initialWriterInstanceInfo.getEndpoint())) {
+            initialWriterInstanceInfo.getHost())) {
 
       // Trigger failover
       auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
@@ -400,7 +403,7 @@ public class AuroraFailoverTest {
       final String nextWriterId = instanceIDs.get(0);
 
       LOGGER.fine("currentConnectionObject: " + conn.unwrap(Connection.class));
-      LOGGER.fine("initialWriterInstanceInfo endpoint: " + initialWriterInstanceInfo.getEndpoint());
+      LOGGER.fine("initialWriterInstanceInfo endpoint: " + initialWriterInstanceInfo.getHost());
       LOGGER.fine("currentConnectionId: " + currentConnectionId);
       LOGGER.fine("nextWriterId: " + nextWriterId);
       LOGGER.fine("nominatedWriterId: " + nominatedWriterId);

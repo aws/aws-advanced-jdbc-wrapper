@@ -18,6 +18,7 @@ package integration.refactored.container;
 
 import integration.refactored.DatabaseEngine;
 import integration.refactored.DriverHelper;
+import integration.refactored.TestInstanceInfo;
 import java.util.Properties;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
@@ -36,13 +37,13 @@ public class ConnectionStringHelper {
             .getDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpoint(),
+            .getHost(),
         TestEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpointPort(),
+            .getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
         wrapperPlugins);
   }
@@ -84,13 +85,21 @@ public class ConnectionStringHelper {
             .getDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpoint(),
+            .getHost(),
         TestEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpointPort(),
+            .getPort(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+  }
+
+  public static String getWrapperUrl(TestInstanceInfo instance) {
+    return getWrapperUrl(
+        TestEnvironment.getCurrent().getCurrentDriver(),
+        instance.getHost(),
+        instance.getPort(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
@@ -133,13 +142,13 @@ public class ConnectionStringHelper {
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpoint(),
+            .getHost(),
         TestEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
-            .getEndpointPort(),
+            .getPort(),
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
   }
 

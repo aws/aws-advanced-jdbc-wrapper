@@ -41,7 +41,6 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -152,7 +151,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   private Connection connectInternal(
       String driverProtocol, HostSpec hostSpec, Properties props, ConnectionProvider connProvider)
       throws SQLException {
-    final Connection conn = connProvider.connect(driverProtocol, this.pluginService.getDialect(), hostSpec, props);
+    final Connection conn =
+        connProvider.connect(driverProtocol, this.pluginService.getDialect(), hostSpec, props);
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     this.pluginService.updateDialect(conn);
 
@@ -177,12 +177,21 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public boolean acceptsStrategy(HostRole role, String strategy) {
+    if (HostRole.UNKNOWN.equals(role)) {
+      // Users must request either a writer or a reader role.
+      return false;
+    }
     return this.connProviderManager.acceptsStrategy(role, strategy);
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException {
+    if (HostRole.UNKNOWN.equals(role)) {
+      // Users must request either a writer or a reader role.
+      throw new SQLException("DefaultConnectionPlugin.unknownRoleRequested");
+    }
+
     List<HostSpec> hosts = this.pluginService.getHosts();
     if (hosts.size() < 1) {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));

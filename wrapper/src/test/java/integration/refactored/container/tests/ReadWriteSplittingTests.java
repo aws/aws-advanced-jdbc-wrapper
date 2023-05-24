@@ -50,6 +50,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -60,8 +61,8 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
-import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
@@ -69,13 +70,18 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
 @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 public class ReadWriteSplittingTests {
 
@@ -171,21 +177,9 @@ public class ReadWriteSplittingTests {
 
   // Assumes the writer is stored as the first instance and all other instances are readers.
   protected String getWrapperReaderInstanceUrl() {
-    return ConnectionStringHelper.getWrapperUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(1)
-            .getEndpoint(),
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(1)
-            .getEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    TestInstanceInfo readerInstance =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
+    return ConnectionStringHelper.getWrapperUrl(readerInstance);
   }
 
   @TestTemplate
@@ -304,15 +298,13 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   public void test_setReadOnlyTrue_oneHost() throws SQLException {
-
-
     // Use static host list with only one host
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
     ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props, "true");
 
     final String writerUrl =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getEndpoint();
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost();
     final String url = DriverHelper.getWrapperDriverProtocol()
         + writerUrl + "/"
         + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
@@ -573,7 +565,7 @@ public class ReadWriteSplittingTests {
     Properties props = getProps();
 
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        new HikariPooledConnectionProvider(getHikariConfig(1));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final Connection conn1;
@@ -600,11 +592,13 @@ public class ReadWriteSplittingTests {
     }
   }
 
-  protected static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
-    final HikariConfig config = new HikariConfig();
-    config.setMaximumPoolSize(1);
-    config.setInitializationFailTimeout(20000);
-    return config;
+  protected HikariPoolConfigurator getHikariConfig(int maxPoolSize) {
+    return (hostSpec, props) -> {
+      final HikariConfig config = new HikariConfig();
+      config.setMaximumPoolSize(maxPoolSize);
+      config.setInitializationFailTimeout(75000);
+      return config;
+    };
   }
 
   @TestTemplate
@@ -613,7 +607,7 @@ public class ReadWriteSplittingTests {
     Properties props = getPropsWithFailover();
 
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        new HikariPooledConnectionProvider(getHikariConfig(1));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final String initialWriterId;
@@ -655,7 +649,7 @@ public class ReadWriteSplittingTests {
     Properties props = getPropsWithFailover();
 
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        new HikariPooledConnectionProvider(getHikariConfig(1));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final Connection initialWriterConn;
@@ -689,7 +683,7 @@ public class ReadWriteSplittingTests {
     DriverHelper.setMonitoringSocketTimeout(props, 3, TimeUnit.SECONDS);
 
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        new HikariPooledConnectionProvider(getHikariConfig(1));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final Connection initialWriterConn1;
@@ -726,7 +720,7 @@ public class ReadWriteSplittingTests {
     Properties props = getPropsWithFailover();
 
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        new HikariPooledConnectionProvider(getHikariConfig(1));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final String initialWriterId;
@@ -783,7 +777,7 @@ public class ReadWriteSplittingTests {
     wrongUserRightPasswordProps.setProperty(PropertyDefinition.USER.name, "bogus_user");
 
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(ReadWriteSplittingTests::getHikariConfig);
+        new HikariPooledConnectionProvider(getHikariConfig(1));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     try {
@@ -824,6 +818,108 @@ public class ReadWriteSplittingTests {
         stmt.execute("DROP DATABASE IF EXISTS " + limitedUserNewDb);
         stmt.execute("DROP USER IF EXISTS " + limitedUserName);
       }
+    }
+  }
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 5)
+  public void test_pooledConnection_leastConnectionsStrategy() throws SQLException {
+    final Properties props = getProps();
+    ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
+
+    final List<TestInstanceInfo> instances =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+    final HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider(getHikariConfig(instances.size()));
+    ConnectionProviderManager.setConnectionProvider(provider);
+
+    final List<Connection> connections = new ArrayList<>();
+    final List<String> connectedReaderIDs = new ArrayList<>();
+    try {
+      // Assume one writer and [size - 1] readers
+      for (int i = 0; i < instances.size() - 1; i++) {
+        final Connection conn =
+            DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
+        connections.add(conn);
+        conn.setReadOnly(true);
+        final String readerId = auroraUtil.queryInstanceId(conn);
+
+        assertFalse(connectedReaderIDs.contains(readerId));
+        connectedReaderIDs.add(readerId);
+      }
+    } finally {
+      for (Connection connection : connections) {
+        connection.close();
+      }
+      ConnectionProviderManager.releaseResources();
+      ConnectionProviderManager.resetProvider();
+    }
+  }
+
+  /**
+   * Tests custom pool mapping together with internal connection pools and the leastConnections
+   * host selection strategy. This test overloads one reader with connections and then verifies
+   * that new connections are sent to the other readers until their connection count equals that of
+   * the overloaded reader.
+   */
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 5)
+  public void test_pooledConnection_leastConnectionsWithPoolMapping() throws SQLException {
+    final Properties defaultProps = getProps();
+    ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(defaultProps, "leastConnections");
+
+    final List<Properties> propSets = new ArrayList<>();
+    final int numOverloadedReaderConnections = 3;
+    for (int i = 0; i < numOverloadedReaderConnections; i++) {
+      final Properties props = PropertyUtils.copyProperties(defaultProps);
+      props.setProperty("arbitraryProp", "value" + i);
+      propSets.add(props);
+    }
+
+    final List<TestInstanceInfo> instances =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+    // We will be testing all instances excluding the writer and overloaded reader. Each instance
+    // should be tested numOverloadedReaderConnections times to increase the pool connection count
+    // until it equals the connection count of the overloaded reader.
+    final int numTestConnections = (instances.size() - 2) * numOverloadedReaderConnections;
+    final HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider(
+            getHikariConfig(numTestConnections),
+            // Create a new pool for each instance-arbitraryProp combination
+            (hostSpec, connProps) -> hostSpec.getUrl() + connProps.getProperty("arbitraryProp")
+        );
+    ConnectionProviderManager.setConnectionProvider(provider);
+
+    final List<Connection> connections = new ArrayList<>();
+    try {
+      final TestInstanceInfo overloadedReader = instances.get(1);
+      final String overloadedReaderConnString =
+          ConnectionStringHelper.getWrapperUrl(overloadedReader);
+      for (int i = 0; i < numOverloadedReaderConnections; i++) {
+        // This should result in numOverloadedReaderConnections pools to the same reader instance,
+        // with each pool consisting of just one connection. The total connection count for the
+        // instance should be numOverloadedReaderConnections despite being spread across multiple
+        // pools.
+        final Connection conn = DriverManager.getConnection(overloadedReaderConnString, propSets.get(i));
+        connections.add(conn);
+      }
+
+      final String overloadedReaderId = overloadedReader.getInstanceId();
+      for (int i = 0; i < numTestConnections; i++) {
+        final Connection conn =
+            DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), defaultProps);
+        connections.add(conn);
+        conn.setReadOnly(true);
+        final String readerId = auroraUtil.queryInstanceId(conn);
+        assertNotEquals(overloadedReaderId, readerId);
+      }
+    } finally {
+      for (Connection connection : connections) {
+        connection.close();
+      }
+
+      ConnectionProviderManager.releaseResources();
+      ConnectionProviderManager.resetProvider();
     }
   }
 }

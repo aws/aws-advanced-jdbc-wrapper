@@ -23,32 +23,36 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class TestInstanceInfo {
 
   private String instanceId; // "instance-1"
-  private String endpoint; // "instance-1.ABC.cluster-XYZ.us-west-2.rds.amazonaws.com"
-  private int endpointPort;
+  private String host; // "instance-1.ABC.cluster-XYZ.us-west-2.rds.amazonaws.com"
+  private int port;
 
   // This constructor should NOT be used in the code. It's required for serialization.
   public TestInstanceInfo() {
   }
 
-  public TestInstanceInfo(String instanceId, String endpoint, int endpointPort) {
+  public TestInstanceInfo(String instanceId, String host, int port) {
     this.instanceId = instanceId;
-    this.endpoint = endpoint;
-    this.endpointPort = endpointPort;
+    this.host = host;
+    this.port = port;
   }
 
   public String getInstanceId() {
     return this.instanceId;
   }
 
-  public String getEndpoint() {
-    return this.endpoint;
+  public String getHost() {
+    return this.host;
+  }
+
+  public int getPort() {
+    return this.port;
   }
 
   public String getUrl() {
-    return getEndpoint() + ":" + getEndpointPort();
-  }
-
-  public int getEndpointPort() {
-    return this.endpointPort;
+    String url = host + ":" + port;
+    if (!url.endsWith("/")) {
+      url += "/";
+    }
+    return url;
   }
 }

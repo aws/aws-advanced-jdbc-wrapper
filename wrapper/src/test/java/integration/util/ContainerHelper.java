@@ -306,7 +306,7 @@ public class ContainerHelper {
         .withNetwork(network)
         .withNetworkAliases(
             "proxy-instance-" + instance.getInstanceId(),
-            instance.getEndpoint() + proxyDomainNameSuffix);
+            instance.getHost() + proxyDomainNameSuffix);
   }
 
 }

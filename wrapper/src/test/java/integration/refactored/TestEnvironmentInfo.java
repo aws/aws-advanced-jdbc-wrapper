@@ -30,6 +30,8 @@ public class TestEnvironmentInfo {
 
   private TestDatabaseInfo databaseInfo;
   private TestProxyDatabaseInfo proxyDatabaseInfo;
+  private String databaseEngine;
+  private String databaseEngineVersion;
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
@@ -37,6 +39,14 @@ public class TestEnvironmentInfo {
 
   public TestProxyDatabaseInfo getProxyDatabaseInfo() {
     return this.proxyDatabaseInfo;
+  }
+
+  public String getDatabaseEngine() {
+    return databaseEngine;
+  }
+
+  public String getDatabaseEngineVersion() {
+    return databaseEngineVersion;
   }
 
   public TestEnvironmentRequest getRequest() {
@@ -85,6 +95,14 @@ public class TestEnvironmentInfo {
 
   public void setProxyDatabaseInfo(TestProxyDatabaseInfo proxyDatabaseInfo) {
     this.proxyDatabaseInfo = proxyDatabaseInfo;
+  }
+
+  public void setDatabaseEngine(String databaseEngine) {
+    this.databaseEngine = databaseEngine;
+  }
+
+  public void setDatabaseEngineVersion(String databaseEngineVersion) {
+    this.databaseEngineVersion = databaseEngineVersion;
   }
 
   public void setAwsAccessKeyId(String awsAccessKeyId) {

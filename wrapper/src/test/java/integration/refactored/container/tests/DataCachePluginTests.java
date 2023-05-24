@@ -45,7 +45,10 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 public class DataCachePluginTests {
 

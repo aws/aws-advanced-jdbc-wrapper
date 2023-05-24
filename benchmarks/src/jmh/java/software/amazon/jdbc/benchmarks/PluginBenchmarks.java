@@ -107,8 +107,8 @@ public class PluginBenchmarks {
         .thenReturn(mockStatement);
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class), any(Properties.class)))
-        .thenReturn(mockConnection);
+    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
+        any(Properties.class))).thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
     when(mockResultSet.next()).thenReturn(true, true, false);

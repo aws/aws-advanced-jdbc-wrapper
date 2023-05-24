@@ -234,7 +234,7 @@ public class AdvancedPerformanceTest {
                     .getDatabaseInfo()
                     .getInstances()
                     .get(0)
-                    .getEndpoint())
+                    .getHost())
             .getHostAddress();
     LOGGER.finest("Writer resolves to " + writerIpAddress);
     LOGGER.finest(

@@ -44,7 +44,10 @@ import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@DisableOnTestFeature({TestEnvironmentFeatures.PERFORMANCE, TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY})
+@DisableOnTestFeature({
+    TestEnvironmentFeatures.PERFORMANCE,
+    TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 public class LogQueryPluginTests {
 
   private static final Logger LOGGER = Logger.getLogger(LogQueryPluginTests.class.getName());
