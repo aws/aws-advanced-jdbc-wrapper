@@ -90,8 +90,8 @@ public class SlidingExpirationCache<K, V> {
    * @param key the key associated with the value to be removed/disposed
    */
   public void remove(final K key) {
-    cleanUp();
     removeAndDispose(key);
+    cleanUp();
   }
 
   private void removeAndDispose(K key) {
