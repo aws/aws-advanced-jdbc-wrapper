@@ -26,10 +26,9 @@ import software.amazon.jdbc.HostSpec;
 
 public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDialect {
 
-  private static final String DRIVER_CLASS_NAME = com.mysql.cj.jdbc.Driver.class.getName();
-  private static final String DS_CLASS_NAME = com.mysql.cj.jdbc.MysqlDataSource.class.getName();
-  private static final String CP_DS_CLASS_NAME =
-      com.mysql.cj.jdbc.MysqlConnectionPoolDataSource.class.getName();
+  private static final String DRIVER_CLASS_NAME = "com.mysql.cj.jdbc.Driver";
+  private static final String DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlDataSource";
+  private static final String CP_DS_CLASS_NAME = "com.mysql.cj.jdbc.MysqlConnectionPoolDataSource";
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -56,6 +55,6 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
     // The logic is isolated to a separated class since it uses
     // direct reference to com.mysql.cj.jdbc.MysqlDataSource
     final MysqlConnectorJDataSourceHelper helper = new MysqlConnectorJDataSourceHelper();
-    helper.prepareDataSource(dataSource, protocol, hostSpec, props);
+    helper.prepareDataSource(dataSource, hostSpec, props);
   }
 }

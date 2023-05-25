@@ -28,10 +28,9 @@ import software.amazon.jdbc.PropertyDefinition;
 public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
 
   private static final String PERMIT_MYSQL_SCHEME = "permitMysqlScheme";
-  private static final String DRIVER_CLASS_NAME = org.mariadb.jdbc.Driver.class.getName();
-  private static final String DS_CLASS_NAME = org.mariadb.jdbc.MariaDbDataSource.class.getName();
-  private static final String CP_DS_CLASS_NAME =
-      org.mariadb.jdbc.MariaDbPoolDataSource.class.getName();
+  private static final String DRIVER_CLASS_NAME = "org.mariadb.jdbc.Driver";
+  private static final String DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbDataSource";
+  private static final String CP_DS_CLASS_NAME = "org.mariadb.jdbc.MariaDbPoolDataSource";
 
   @Override
   public boolean isDialect(Driver driver) {

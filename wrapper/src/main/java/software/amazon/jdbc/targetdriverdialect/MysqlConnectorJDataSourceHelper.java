@@ -30,7 +30,6 @@ public class MysqlConnectorJDataSourceHelper {
 
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
-      final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException {
 

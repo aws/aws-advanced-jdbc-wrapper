@@ -29,13 +29,10 @@ import software.amazon.jdbc.HostSpec;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
-  private static final String DRIVER_CLASS_NAME = org.postgresql.Driver.class.getName();
-  private static final String SIMPLE_DS_CLASS_NAME =
-      org.postgresql.ds.PGSimpleDataSource.class.getName();
-  private static final String POOLING_DS_CLASS_NAME =
-      org.postgresql.ds.PGPoolingDataSource.class.getName();
-  private static final String CP_DS_CLASS_NAME =
-      org.postgresql.ds.PGConnectionPoolDataSource.class.getName();
+  private static final String DRIVER_CLASS_NAME = "org.postgresql.Driver";
+  private static final String SIMPLE_DS_CLASS_NAME = "org.postgresql.ds.PGSimpleDataSource";
+  private static final String POOLING_DS_CLASS_NAME = "org.postgresql.ds.PGPoolingDataSource";
+  private static final String CP_DS_CLASS_NAME = "org.postgresql.ds.PGConnectionPoolDataSource";
 
   private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
       SIMPLE_DS_CLASS_NAME,
