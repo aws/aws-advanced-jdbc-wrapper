@@ -33,8 +33,6 @@ dependencies {
     compileOnly("software.amazon.awssdk:secretsmanager:2.20.49")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.14.2")
     compileOnly("mysql:mysql-connector-java:8.0.31")
-    compileOnly("org.postgresql:postgresql:42.5.0")
-    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.0")
     compileOnly("org.osgi:org.osgi.core:4.3.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
