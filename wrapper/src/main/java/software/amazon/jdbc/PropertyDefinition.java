@@ -88,7 +88,7 @@ public class PropertyDefinition {
 
   public static void removeAllExcept(final Properties props, String... propNames) {
     Set<String> propsToDelete = PROPS_BY_NAME.keySet();
-    propsToDelete.removeAll(Arrays.asList(propNames));
+    Arrays.asList(propNames).forEach(propsToDelete::remove);
     propsToDelete.forEach(props::remove);
   }
 

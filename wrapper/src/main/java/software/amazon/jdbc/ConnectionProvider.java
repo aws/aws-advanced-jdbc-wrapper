@@ -86,6 +86,7 @@ public interface ConnectionProvider {
 
   /**
    * Called once per connection that needs to be created.
+   * This method is deprecated. Use {@link #connect(String, Dialect, HostSpec, Properties)} instead.
    *
    * @param url   the connection URL
    * @param props the Properties to use for the connection

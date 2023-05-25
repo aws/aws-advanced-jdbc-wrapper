@@ -78,7 +78,7 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
       final @Nullable String databasePropertyName) throws SQLException {
 
     // The logic is isolated to a separated class since it uses
-    // direct reference to org.postgresql.ds.common.BaseDataSource
+    // direct reference to org.mariadb.jdbc.MariaDbDataSource
     final MariadbDataSourceHelper helper = new MariadbDataSourceHelper();
     helper.prepareDataSource(dataSource, protocol, hostSpec, props);
   }
