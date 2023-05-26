@@ -86,12 +86,14 @@ public interface ConnectionProvider {
 
   /**
    * Called once per connection that needs to be created.
+   * This method is deprecated. Use {@link #connect(String, Dialect, HostSpec, Properties)} instead.
    *
    * @param url   the connection URL
    * @param props the Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
+  @Deprecated
   Connection connect(@NonNull String url, @NonNull Properties props)
       throws SQLException; // TODO: this method is only called by tests/benchmarks and can likely be deprecated
 }

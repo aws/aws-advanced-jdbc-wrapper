@@ -46,6 +46,7 @@ import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.util.CacheMap;
@@ -116,6 +117,10 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
   private static final Logger LOGGER = Logger.getLogger(AuroraHostListProvider.class.getName());
 
   Properties properties;
+
+  static {
+    PropertyDefinition.registerPluginProperties(AuroraHostListProvider.class);
+  }
 
   public AuroraHostListProvider(
       final String driverProtocol,

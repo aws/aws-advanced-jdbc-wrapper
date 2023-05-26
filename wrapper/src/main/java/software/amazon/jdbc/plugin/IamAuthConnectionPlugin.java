@@ -72,6 +72,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   protected final PluginService pluginService;
   protected final RdsUtils rdsUtils = new RdsUtils();
 
+  static {
+    PropertyDefinition.registerPluginProperties(IamAuthConnectionPlugin.class);
+  }
+
   public IamAuthConnectionPlugin(final @NonNull PluginService pluginService) {
     this.pluginService = pluginService;
   }

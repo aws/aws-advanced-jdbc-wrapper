@@ -23,10 +23,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.exceptions.SQLLoginException;
+import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
@@ -46,9 +48,13 @@ public class DriverConnectionProvider implements ConnectionProvider {
       });
 
   private final java.sql.Driver driver;
+  private final @NonNull TargetDriverDialect targetDriverDialect;
 
-  public DriverConnectionProvider(final java.sql.Driver driver) {
+  public DriverConnectionProvider(
+      final java.sql.Driver driver,
+      final @NonNull TargetDriverDialect targetDriverDialect) {
     this.driver = driver;
+    this.targetDriverDialect = targetDriverDialect;
   }
 
   /**
@@ -103,34 +109,19 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
-    final String databaseName =
-        PropertyDefinition.DATABASE.getString(props) != null
-            ? PropertyDefinition.DATABASE.getString(props)
-            : "";
-    final StringBuilder urlBuilder = new StringBuilder();
-    urlBuilder.append(protocol).append(hostSpec.getUrl()).append(databaseName);
 
-    // In the case where we are connecting to MySQL using MariaDB driver,
-    // we need to append "?permitMysqlScheme" to the connection URL
-    // Such logic is controlled by dialect.
-    final Set<String> propertiesToUrl = dialect.appendPropertiesToUrl();
-    if (propertiesToUrl != null) {
-      boolean isFirstParameter = true;
-      for (final String propertyName : propertiesToUrl) {
-        if (props.stringPropertyNames().contains(propertyName)) {
-          if (isFirstParameter) {
-            urlBuilder.append("?").append(propertyName);
-            isFirstParameter = false;
-          } else {
-            urlBuilder.append("&").append(propertyName);
-          }
-        }
-      }
+    final ConnectInfo connectInfo =
+        this.targetDriverDialect.prepareConnectInfo(protocol, hostSpec, props);
+
+    LOGGER.finest(() -> "Connecting to " + connectInfo.url
+        + PropertyUtils.logProperties(connectInfo.props, "\nwith properties: \n"));
+
+    Connection conn = this.driver.connect(connectInfo.url, connectInfo.props);
+
+    if (conn == null) {
+      throw new SQLLoginException(Messages.get("ConnectionProvider.noConnection"));
     }
-
-    LOGGER.finest(() -> "Connecting to " + urlBuilder
-        + PropertyUtils.logProperties(props, "\nwith properties: \n"));
-    return this.driver.connect(urlBuilder.toString(), props);
+    return conn;
   }
 
   /**
@@ -141,6 +132,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
    * @return {@link Connection} resulting from the given connection information
    * @throws SQLException if an error occurs
    */
+  @Deprecated
   public Connection connect(@NonNull final String url, @NonNull final Properties props) throws SQLException {
 
     LOGGER.finest(() -> "Connecting to " + url);

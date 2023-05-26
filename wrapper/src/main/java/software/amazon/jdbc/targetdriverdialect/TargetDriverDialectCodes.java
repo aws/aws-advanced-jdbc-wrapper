@@ -14,22 +14,11 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.dialect;
+package software.amazon.jdbc.targetdriverdialect;
 
-import java.sql.Connection;
-import java.util.List;
-import software.amazon.jdbc.exceptions.ExceptionHandler;
-
-public interface Dialect {
-  int getDefaultPort();
-
-  ExceptionHandler getExceptionHandler();
-
-  String getHostAliasQuery();
-
-  String getServerVersionQuery();
-
-  boolean isDialect(Connection connection);
-
-  List</* dialect code */ String> getDialectUpdateCandidates();
+public class TargetDriverDialectCodes {
+  public static final String PG_JDBC = "pgjdbc";
+  public static final String MYSQL_CONNECTOR_J = "mysql-connector-j";
+  public static final String MARIADB_CONNECTOR_J_VER_3 = "mariadb-connector-j-3"; // ver 3.0.3+
+  public static final String GENERIC = "generic";
 }

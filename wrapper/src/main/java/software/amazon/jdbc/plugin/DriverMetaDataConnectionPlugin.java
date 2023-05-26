@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.Set;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PropertyDefinition;
 
 public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -31,6 +32,10 @@ public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final String GET_DRIVER_NAME = "DatabaseMetaData.getDriverName";
   private final Properties properties;
+
+  static {
+    PropertyDefinition.registerPluginProperties(DriverMetaDataConnectionPlugin.class);
+  }
 
   public DriverMetaDataConnectionPlugin(Properties properties) {
     this.properties = properties;
@@ -45,6 +50,6 @@ public class DriverMetaDataConnectionPlugin extends AbstractConnectionPlugin {
   public <T, E extends Exception> T execute(Class<T> resultClass, Class<E> exceptionClass,
       Object methodInvokeOn, String methodName, JdbcCallable<T, E> jdbcMethodFunc,
       Object[] jdbcMethodArgs) throws E {
-    return (T) WRAPPER_DRIVER_NAME.getString(this.properties);
+    return resultClass.cast(WRAPPER_DRIVER_NAME.getString(this.properties));
   }
 }

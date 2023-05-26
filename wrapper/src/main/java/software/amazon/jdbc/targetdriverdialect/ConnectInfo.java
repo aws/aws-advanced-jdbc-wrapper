@@ -14,22 +14,16 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.dialect;
+package software.amazon.jdbc.targetdriverdialect;
 
-import java.sql.Connection;
-import java.util.List;
-import software.amazon.jdbc.exceptions.ExceptionHandler;
+import java.util.Properties;
 
-public interface Dialect {
-  int getDefaultPort();
+public class ConnectInfo {
+  public String url;
+  public Properties props;
 
-  ExceptionHandler getExceptionHandler();
-
-  String getHostAliasQuery();
-
-  String getServerVersionQuery();
-
-  boolean isDialect(Connection connection);
-
-  List</* dialect code */ String> getDialectUpdateCandidates();
+  public ConnectInfo(final String url, final Properties props) {
+    this.url = url;
+    this.props = props;
+  }
 }

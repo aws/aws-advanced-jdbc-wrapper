@@ -21,7 +21,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
-import java.util.Set;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MariaDBExceptionHandler;
 
@@ -66,11 +65,6 @@ public class MariaDbDialect implements Dialect {
       // ignore
     }
     return false;
-  }
-
-  @Override
-  public Set<String> appendPropertiesToUrl() {
-    return null;
   }
 
   @Override

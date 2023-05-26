@@ -98,6 +98,7 @@ public class PluginBenchmarks {
   }
 
   @Setup(Level.Iteration)
+  @SuppressWarnings("deprecation")
   public void setUpIteration() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean()))
@@ -105,6 +106,7 @@ public class PluginBenchmarks {
     when(mockConnectionPluginManager.execute(
         any(), any(), any(), eq("Connection.createStatement"), any(), any()))
         .thenReturn(mockStatement);
+
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
     when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),

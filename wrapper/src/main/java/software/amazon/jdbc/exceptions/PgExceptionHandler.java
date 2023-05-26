@@ -75,6 +75,9 @@ public class PgExceptionHandler implements ExceptionHandler {
     Throwable exception = throwable;
 
     while (exception != null) {
+      if (exception instanceof SQLLoginException) {
+        return true;
+      }
       if (exception instanceof SQLException) {
         return isLoginException(((SQLException) exception).getSQLState());
       }

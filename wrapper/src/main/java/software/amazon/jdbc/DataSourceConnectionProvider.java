@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc;
 
-import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import static software.amazon.jdbc.util.StringUtils.isNullOrEmpty;
 
 import java.sql.Connection;
@@ -32,6 +31,8 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.exceptions.SQLLoginException;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
@@ -56,16 +57,20 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private final @Nullable String portPropertyName;
   private final @Nullable String urlPropertyName;
   private final @Nullable String databasePropertyName;
+  private final @NonNull TargetDriverDialect targetDriverDialect;
+
 
   private final ReentrantLock lock = new ReentrantLock();
 
   public DataSourceConnectionProvider(
       final @NonNull DataSource dataSource,
+      final @NonNull TargetDriverDialect targetDriverDialect,
       final @Nullable String serverPropertyName,
       final @Nullable String portPropertyName,
       final @Nullable String urlPropertyName,
       final @Nullable String databasePropertyName) {
     this.dataSource = dataSource;
+    this.targetDriverDialect = targetDriverDialect;
     this.serverPropertyName = serverPropertyName;
     this.portPropertyName = portPropertyName;
     this.urlPropertyName = urlPropertyName;
@@ -127,41 +132,6 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
 
     final Properties copy = PropertyUtils.copyProperties(props);
 
-    if (!isNullOrEmpty(this.serverPropertyName)) {
-      copy.setProperty(this.serverPropertyName, hostSpec.getHost());
-    }
-
-    if (hostSpec.isPortSpecified() && !isNullOrEmpty(this.portPropertyName)) {
-      copy.put(this.portPropertyName, hostSpec.getPort());
-    }
-
-    if (!isNullOrEmpty(this.databasePropertyName)
-        && !isNullOrEmpty(PropertyDefinition.DATABASE.getString(props))) {
-      copy.setProperty(this.databasePropertyName, PropertyDefinition.DATABASE.getString(props));
-    }
-
-    if (!isNullOrEmpty(this.urlPropertyName)) {
-      final Properties urlProperties = PropertyUtils.copyProperties(copy);
-
-      if (!isNullOrEmpty(props.getProperty(this.urlPropertyName))) {
-        // Remove the current url property to replace with a new url built from updated HostSpec and properties
-        urlProperties.remove(this.urlPropertyName);
-      }
-
-      String finalUrl = buildUrl(
-          protocol,
-          hostSpec,
-          this.serverPropertyName,
-          this.portPropertyName,
-          this.databasePropertyName,
-          urlProperties);
-      LOGGER.finest(() -> "Connecting to " + finalUrl);
-      copy.setProperty(this.urlPropertyName, finalUrl);
-    }
-
-    PropertyDefinition.removeAllExceptCredentials(copy);
-    LOGGER.finest(() -> PropertyUtils.logProperties(copy, "Connecting with properties: \n"));
-
     Connection conn;
 
     if (this.lock.isLocked()) {
@@ -169,7 +139,15 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       LOGGER.finest(() -> "Use a separate DataSource object to create a connection.");
       // use a new data source instance to instantiate a connection
       final DataSource ds = createDataSource();
-      PropertyUtils.applyProperties(ds, copy);
+      this.targetDriverDialect.prepareDataSource(
+          ds,
+          protocol,
+          hostSpec,
+          copy,
+          this.serverPropertyName,
+          this.portPropertyName,
+          this.urlPropertyName,
+          this.databasePropertyName);
       conn = ds.getConnection();
 
     } else {
@@ -179,11 +157,23 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       this.lock.lock();
       LOGGER.finest(() -> "Use main DataSource object to create a connection.");
       try {
-        PropertyUtils.applyProperties(this.dataSource, copy);
+        this.targetDriverDialect.prepareDataSource(
+            this.dataSource,
+            protocol,
+            hostSpec,
+            copy,
+            this.serverPropertyName,
+            this.portPropertyName,
+            this.urlPropertyName,
+            this.databasePropertyName);
         conn = this.dataSource.getConnection();
       } finally {
         this.lock.unlock();
       }
+    }
+
+    if (conn == null) {
+      throw new SQLLoginException(Messages.get("ConnectionProvider.noConnection"));
     }
 
     return conn;
@@ -198,6 +188,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
    * @throws SQLException if an error occurs
    */
   @Override
+  @Deprecated
   public Connection connect(final @NonNull String url, final @NonNull Properties props) throws SQLException {
     final Properties copy = PropertyUtils.copyProperties(props);
 

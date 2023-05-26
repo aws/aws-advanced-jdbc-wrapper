@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.dialect;
+package software.amazon.jdbc.targetdriverdialect;
 
-import java.sql.Connection;
-import java.util.List;
-import software.amazon.jdbc.exceptions.ExceptionHandler;
+import java.sql.Driver;
+import java.sql.SQLException;
+import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-public interface Dialect {
-  int getDefaultPort();
+public interface TargetDriverDialectProvider {
 
-  ExceptionHandler getExceptionHandler();
+  TargetDriverDialect getDialect(
+      final @NonNull Driver driver,
+      final @NonNull Properties props) throws SQLException;
 
-  String getHostAliasQuery();
-
-  String getServerVersionQuery();
-
-  boolean isDialect(Connection connection);
-
-  List</* dialect code */ String> getDialectUpdateCandidates();
+  TargetDriverDialect getDialect(
+      final @NonNull String dataSourceClass,
+      final @NonNull Properties props) throws SQLException;
 }

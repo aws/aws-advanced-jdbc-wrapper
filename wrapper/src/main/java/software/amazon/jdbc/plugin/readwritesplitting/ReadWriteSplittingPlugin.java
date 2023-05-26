@@ -34,6 +34,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
@@ -70,6 +71,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           "readerHostSelectorStrategy",
           "random",
           "The strategy that should be used to select a new reader host.");
+
+  static {
+    PropertyDefinition.registerPluginProperties(ReadWriteSplittingPlugin.class);
+  }
 
   ReadWriteSplittingPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;

@@ -40,6 +40,7 @@ import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
@@ -136,6 +137,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty(
           "failoverMode", null,
           "Set node role to follow during failover.");
+
+  static {
+    PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
+  }
 
   public FailoverConnectionPlugin(final PluginService pluginService, final Properties properties) {
     this(pluginService, properties, new RdsUtils());

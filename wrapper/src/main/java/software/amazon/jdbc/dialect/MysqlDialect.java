@@ -21,10 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 
@@ -74,11 +71,6 @@ public class MysqlDialect implements Dialect {
       // ignore
     }
     return false;
-  }
-
-  @Override
-  public Set<String> appendPropertiesToUrl() {
-    return new HashSet<>(Collections.singletonList("permitMysqlScheme"));
   }
 
   @Override

@@ -30,6 +30,8 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
@@ -121,7 +123,11 @@ public class Driver implements java.sql.Driver {
       PARENT_LOGGER.setLevel(logLevel);
     }
 
-    final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver);
+    final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+    final TargetDriverDialect targetDriverDialect =
+        targetDriverDialectManager.getDialect(driver, info);
+
+    final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver, targetDriverDialect);
 
     return new ConnectionWrapper(info, driverUrl, connectionProvider);
   }
@@ -131,8 +137,6 @@ public class Driver implements java.sql.Driver {
     if (url == null) {
       throw new SQLException(Messages.get("Driver.nullUrl"));
     }
-    // get defaults
-    Properties defaults;
 
     return url.startsWith(PROTOCOL_PREFIX);
   }
