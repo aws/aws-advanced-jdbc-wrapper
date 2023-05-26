@@ -46,9 +46,9 @@ public class HikariFailoverExample {
 
       // Configure AwsWrapperDataSource:
       ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-      ds.addDataSourceProperty("databasePropertyName", "databaseName");
-      ds.addDataSourceProperty("portPropertyName", "portNumber");
-      ds.addDataSourceProperty("serverPropertyName", "serverName");
+      ds.addDataSourceProperty("serverName", ENDPOINT);
+      ds.addDataSourceProperty("portNumber", "5432");
+      ds.addDataSourceProperty("database", DATABASE_NAME);
 
       // The failover plugin throws failover-related exceptions that need to be handled explicitly by HikariCP,
       // otherwise connections will be closed immediately after failover. Set `ExceptionOverrideClassName` to provide
@@ -58,11 +58,10 @@ public class HikariFailoverExample {
       // Specify the driver-specific data source for AwsWrapperDataSource:
       ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
 
-      // Configuring PGSimpleDataSource:
       Properties targetDataSourceProps = new Properties();
-      targetDataSourceProps.setProperty("serverName", ENDPOINT);
-      targetDataSourceProps.setProperty("databaseName", DATABASE_NAME);
-      targetDataSourceProps.setProperty("portNumber", "5432");
+
+      // Configuring PGSimpleDataSource if needed:
+      // targetDataSourceProps.setProperty("ssl", "true");
 
       // Enable the failover and host monitoring connection plugins.
       targetDataSourceProps.setProperty("wrapperPlugins", "failover,efm");

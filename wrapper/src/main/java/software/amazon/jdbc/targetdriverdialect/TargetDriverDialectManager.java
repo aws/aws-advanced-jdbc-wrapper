@@ -75,6 +75,7 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
       final @NonNull String dataSourceClass,
       final @NonNull Properties props) throws SQLException {
 
+    LOGGER.finest(() -> "Try to identify target driver dialect for data source class: " + dataSourceClass);
     return this.getDialect(props, (targetDriverDialect -> targetDriverDialect.isDialect(dataSourceClass)));
   }
 

@@ -45,10 +45,9 @@ public class AwsWrapperDataSourceFactory implements ObjectFactory {
         "jdbcUrl",
         "targetDataSourceClassName",
         "jdbcProtocol",
-        "serverPropertyName",
-        "portPropertyName",
-        "urlPropertyName",
-        "databasePropertyName");
+        "serverName",
+        "serverPort",
+        "database");
 
     final Reference reference = (Reference) obj;
 

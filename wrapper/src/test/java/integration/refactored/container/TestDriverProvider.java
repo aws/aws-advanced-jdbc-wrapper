@@ -34,7 +34,6 @@ import integration.refactored.container.condition.EnableBasedOnEnvironmentFeatur
 import integration.refactored.container.condition.EnableBasedOnTestDriverExtension;
 import integration.refactored.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
-import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +47,8 @@ import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
+import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
   private static final Logger LOGGER = Logger.getLogger(TestDriverProvider.class.getName());
@@ -122,8 +123,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     // Need to ensure that cluster details through API matches topology fetched through SQL
                     // Wait up to 5min
                     long startTimeNano = System.nanoTime();
-                    while ((instanceIDs.size()
-                        != testRequest.getNumOfInstances()
+                    while ((instanceIDs.size() != testRequest.getNumOfInstances()
+                        || instanceIDs.size() == 0
                         || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
                         && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
 
@@ -170,6 +171,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   auroraUtil.makeSureInstancesUp(instanceIDs);
                   TestAuroraHostListProvider.clearCache();
                   TestPluginServiceImpl.clearHostAvailabilityCache();
+                  DialectManager.resetEndpointCache();
+                  TargetDriverDialectManager.resetCustomDialect();
                 }
               }
             });

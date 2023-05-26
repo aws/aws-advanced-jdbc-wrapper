@@ -63,23 +63,17 @@ class AwsWrapperDataSourceTest {
 
   @Test
   public void testGetConnectionWithNewCredentialsWithDataSource() throws SQLException {
-    final String expectedUrl1 = "protocol//testserver/?user=user1&password=pass1";
+    final String expectedUrl1 = "protocol//testserver/";
     final Properties expectedProperties1 = new Properties();
     expectedProperties1.setProperty("user", "user1");
     expectedProperties1.setProperty("password", "pass1");
-    expectedProperties1.setProperty("serverName", "testserver");
 
     final Properties expectedProperties2 = new Properties();
     expectedProperties2.setProperty("user", "user2");
     expectedProperties2.setProperty("password", "pass2");
-    expectedProperties2.setProperty("serverName", "testserver");
 
     ds.setJdbcProtocol("protocol");
-    ds.setServerPropertyName("serverName");
-
-    Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", "testserver");
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
+    ds.setServerName("testserver");
 
     ds.getConnection("user1", "pass1");
     ds.getConnection("user2", "pass2");
@@ -89,7 +83,7 @@ class AwsWrapperDataSourceTest {
     assertEquals(2, urls.size());
     assertEquals(2, properties.size());
     assertEquals(expectedUrl1, urls.get(0));
-    assertEquals(expectedUrl1, urls.get(1)); // JDBC Url doesn't get updated when we are reusing the connection.
+    assertEquals(expectedUrl1, urls.get(1)); // JDBC Url doesn't get updated when we are reusing the data source.
     assertEquals(expectedProperties1, properties.get(0));
     assertEquals(expectedProperties2, properties.get(1));
   }
@@ -123,11 +117,7 @@ class AwsWrapperDataSourceTest {
   @Test
   public void testConnectionWithDataSourceClassNameAndUrl() throws SQLException {
     final String expectedUrl = "jdbc:postgresql://testserver/db";
-    ds.setUrlPropertyName("url");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("url", "jdbc:postgresql://testserver/db");
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
+    ds.setJdbcUrl("jdbc:postgresql://testserver/db");
 
     try (final Connection conn = ds.getConnection("user", "pass")) {
       final List<String> urls = urlArgumentCaptor.getAllValues();
@@ -156,20 +146,11 @@ class AwsWrapperDataSourceTest {
 
   @Test
   public void testConnectionWithDataSourceClassNameAndServerName() throws SQLException {
-    final String expectedUrl = "protocol//testServer/db?user=user&password=pass";
+    final String expectedUrl = "protocol//testServer/db";
 
     ds.setJdbcProtocol("protocol");
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(
-        "serverName",
-        "testServer");
-    targetDataSourceProps.setProperty(
-        "databaseName",
-        "db");
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
+    ds.setServerName("testServer");
+    ds.setDatabase("db");
 
     try (final Connection conn = ds.getConnection("user", "pass")) {
       final List<String> urls = urlArgumentCaptor.getAllValues();
@@ -184,14 +165,12 @@ class AwsWrapperDataSourceTest {
   @Test
   @DisableOnTestDriver(TestDriver.MARIADB)
   public void testConnectionWithDataSourceClassNameAndCredentialProperties() throws SQLException {
-    final String expectedUrl = "protocol//testServer/db?user=user&password=pass";
+    final String expectedUrl = "protocol//testServer/db";
     ds.setJdbcProtocol("protocol");
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", "testServer");
-    targetDataSourceProps.setProperty("databaseName", "db");
+    targetDataSourceProps.setProperty("database", "db");
     targetDataSourceProps.setProperty("user", "user");
     targetDataSourceProps.setProperty("password", "pass");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
@@ -209,12 +188,10 @@ class AwsWrapperDataSourceTest {
   @Test
   public void testConnectionWithDataSourceClassNameMissingProtocol() {
     ds = new AwsWrapperDataSource();
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", "testServer");
-    targetDataSourceProps.setProperty("databaseName", "db");
+    targetDataSourceProps.setProperty("database", "db");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     assertThrows(SQLException.class, () -> ds.getConnection("user", "pass"));
@@ -224,11 +201,7 @@ class AwsWrapperDataSourceTest {
   public void testConnectionWithDataSourceClassNameMissingServer() {
     ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol("protocol");
-    ds.setDatabasePropertyName("databaseName");
-
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("databaseName", "db");
-    ds.setTargetDataSourceProperties(targetDataSourceProps);
+    ds.setDatabase("db");
 
     assertThrows(SQLException.class, () -> ds.getConnection("user", "pass"));
   }
@@ -237,7 +210,6 @@ class AwsWrapperDataSourceTest {
   public void testConnectionWithDataSourceClassNameMissingDatabase() {
     ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol("protocol");
-    ds.setServerPropertyName("serverName");
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", "testServer");
@@ -249,7 +221,6 @@ class AwsWrapperDataSourceTest {
   @Test
   public void testConnectionWithUrlMissingPassword() {
     ds = new AwsWrapperDataSource();
-    ds.setUrlPropertyName("url");
     ds.setJdbcUrl("protocol://testserver/");
 
     assertThrows(SQLException.class, () -> ds.getConnection("user", ""));

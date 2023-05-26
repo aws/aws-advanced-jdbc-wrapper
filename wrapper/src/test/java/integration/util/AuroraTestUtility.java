@@ -639,7 +639,7 @@ public class AuroraTestUtility {
                   TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(id);
               try (final Connection conn =
                   DriverManager.getConnection(
-                      ConnectionStringHelper.getUrl(
+                      ConnectionStringHelper.getUrlWithPlugins(
                           instanceInfo.getHost(),
                           instanceInfo.getPort(),
                           TestEnvironment.getCurrent()

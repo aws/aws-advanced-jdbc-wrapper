@@ -19,10 +19,12 @@ package software.amazon.jdbc;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class PropertyDefinition {
@@ -63,10 +65,10 @@ public class PropertyDefinition {
           "database", null, "Driver database name");
 
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
-      new HashMap<>();
+      new ConcurrentHashMap<>();
+  private static final Set<String> KNOWN_PROPS_BY_PREFIX = ConcurrentHashMap.newKeySet();
 
   static {
-    PROPS_BY_NAME.clear();
     registerProperties(PropertyDefinition.class);
   }
 
@@ -82,21 +84,35 @@ public class PropertyDefinition {
     registerProperties(pluginClass);
   }
 
+  public static void registerPluginProperties(final @NonNull String propertyNamePrefix) {
+    KNOWN_PROPS_BY_PREFIX.add(propertyNamePrefix);
+  }
+
   public static void removeAll(final Properties props) {
     PROPS_BY_NAME.keySet().forEach(props::remove);
+
+    props.stringPropertyNames().stream()
+        .filter(propertyName -> KNOWN_PROPS_BY_PREFIX.stream()
+            .anyMatch(propertyName::startsWith))
+        .forEach(props::remove);
   }
 
   public static void removeAllExcept(final Properties props, String... propNames) {
-    Set<String> propsToDelete = PROPS_BY_NAME.keySet();
+    Set<String> propsToDelete = new HashSet<>(PROPS_BY_NAME.keySet());
     Arrays.asList(propNames).forEach(propsToDelete::remove);
     propsToDelete.forEach(props::remove);
+
+    props.stringPropertyNames().stream()
+        .filter(propertyName -> KNOWN_PROPS_BY_PREFIX.stream()
+            .anyMatch(propertyName::startsWith))
+        .forEach(props::remove);
   }
 
   public static void removeAllExceptCredentials(final Properties props) {
     final String user = props.getProperty(PropertyDefinition.USER.name, null);
     final String password = props.getProperty(PropertyDefinition.PASSWORD.name, null);
 
-    PROPS_BY_NAME.keySet().forEach(props::remove);
+    removeAll(props);
 
     if (user != null) {
       props.setProperty(PropertyDefinition.USER.name, user);

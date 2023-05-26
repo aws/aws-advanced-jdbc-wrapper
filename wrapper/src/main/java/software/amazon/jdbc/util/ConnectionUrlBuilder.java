@@ -22,20 +22,52 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Enumeration;
 import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class ConnectionUrlBuilder {
 
+  // Builds a connection URL of the generic format: "protocol//[hosts][:port]/[database]"
+  public static String buildUrl(
+      final @NonNull String jdbcProtocol,
+      final @NonNull String serverName,
+      final int port,
+      final @Nullable String databaseName) throws SQLException {
+
+    if (StringUtils.isNullOrEmpty(jdbcProtocol) || StringUtils.isNullOrEmpty(serverName)) {
+      throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
+    }
+
+    final StringBuilder urlBuilder = new StringBuilder();
+    urlBuilder.append(jdbcProtocol);
+
+    if (!jdbcProtocol.endsWith("//")) {
+      urlBuilder.append("//");
+    }
+
+    urlBuilder.append(serverName);
+
+    if (port > 0) {
+      urlBuilder.append(":").append(port);
+    }
+
+    urlBuilder.append("/");
+
+    if (!StringUtils.isNullOrEmpty(databaseName)) {
+      urlBuilder.append(databaseName);
+    }
+
+    return urlBuilder.toString();
+  }
+
   // Builds a connection URL of the generic format: "protocol//[hosts][/database][?properties]"
   public static String buildUrl(final String jdbcProtocol,
       final HostSpec hostSpec,
-      final String serverPropertyName,
-      final String portPropertyName,
-      final String databasePropertyName,
       final Properties props) throws SQLException {
 
-    if (StringUtils.isNullOrEmpty(jdbcProtocol)) {
+    if (StringUtils.isNullOrEmpty(jdbcProtocol) || hostSpec == null) {
       throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
     }
 
@@ -43,52 +75,25 @@ public class ConnectionUrlBuilder {
     final StringBuilder urlBuilder = new StringBuilder();
     urlBuilder.append(jdbcProtocol);
 
-    if (!jdbcProtocol.contains("//")) {
+    if (!jdbcProtocol.endsWith("//")) {
       urlBuilder.append("//");
     }
 
-    if (hostSpec != null) {
-      urlBuilder.append(hostSpec.getUrl());
-    } else {
-      if (StringUtils.isNullOrEmpty(serverPropertyName)
-          || StringUtils.isNullOrEmpty(props.getProperty(serverPropertyName))) {
-        throw new SQLException(Messages.get("ConnectionUrlBuilder.missingJdbcProtocol"));
-      }
-
-      urlBuilder.append(copy.get(serverPropertyName));
-
-      if (!StringUtils.isNullOrEmpty(portPropertyName) && !StringUtils.isNullOrEmpty(
-          copy.getProperty(portPropertyName))) {
-        urlBuilder.append(":").append(copy.get(portPropertyName));
-      }
-
-      urlBuilder.append("/");
-    }
+    urlBuilder.append(hostSpec.getUrl());
 
     if (!StringUtils.isNullOrEmpty(PropertyDefinition.DATABASE.getString(copy))) {
       urlBuilder.append(PropertyDefinition.DATABASE.getString(copy));
       copy.remove(PropertyDefinition.DATABASE.name);
     }
 
-    if (!StringUtils.isNullOrEmpty(serverPropertyName)) {
-      removeProperty(serverPropertyName, copy);
-    }
-    if (!StringUtils.isNullOrEmpty(portPropertyName)) {
-      removeProperty(portPropertyName, copy);
-    }
-    if (!StringUtils.isNullOrEmpty(databasePropertyName)) {
-      removeProperty(databasePropertyName, copy);
-    }
-
     final StringBuilder queryBuilder = new StringBuilder();
     final Enumeration<?> propertyNames = copy.propertyNames();
     while (propertyNames.hasMoreElements()) {
       final String propertyName = propertyNames.nextElement().toString();
-      if (queryBuilder.length() != 0) {
-        queryBuilder.append("&");
-      }
-
-      if (!StringUtils.isNullOrEmpty(propertyName)) {
+      if (propertyName != null && !propertyName.trim().equals("")) {
+        if (queryBuilder.length() != 0) {
+          queryBuilder.append("&");
+        }
         final String propertyValue = copy.getProperty(propertyName);
         try {
           queryBuilder
@@ -108,12 +113,5 @@ public class ConnectionUrlBuilder {
     }
 
     return urlBuilder.toString();
-  }
-
-  private static void removeProperty(final String propertyKey, final Properties props) {
-    if (!StringUtils.isNullOrEmpty(propertyKey)
-        && !StringUtils.isNullOrEmpty(props.getProperty(propertyKey))) {
-      props.remove(propertyKey);
-    }
   }
 }

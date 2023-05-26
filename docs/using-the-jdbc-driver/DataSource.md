@@ -16,17 +16,16 @@ you need to specify what property names the underlying datasource uses.
 For example, one datasource implementation could use the method `setUser` to set the datasource username,
 while another might use the method `setUsername` for the same task. See the table below for a list of configurable property names.
 
-> **:warning: Note:** If the same connection property is provided both explicitly in the connection URL and in the datasource properties, the value set in the connection URL will take precedence. 
+> **:warning: Note:** If the same connection property is provided both explicitly in the connection URL and in the datasource properties, the value set in the datasource properties will take precedence. 
 
-| Property                    | Configuration Method           | Description                                                                                       | Type     | Required                                                                                                                                 | Example                                |
-|-----------------------------|--------------------------------|---------------------------------------------------------------------------------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
-| Server name                 | `setServerPropertyName`        | The name of the server or host property.                                                          | `String` | Yes, if no URL is provided.                                                                                                              | `serverName`                           |
-| Database name               | `setDatabasePropertyName`      | The name of the database property.                                                                | `String` | No                                                                                                                                       | `databaseName`                         |
-| Port name                   | `setPortPropertyName`          | The name of the port property.                                                                    | `String` | No                                                                                                                                       | `port`                                 |
-| URL name                    | `setUrlPropertyName`           | The name of the URL property.                                                                     | `String` | No, but some drivers, such as MariaDb, require some parameters to be included in the URL so it is recommended to provide this parameter. | `url`                                  |
-| JDBC URL                    | `setJdbcUrl`                   | The URL to connect with.                                                                          | `String` | No, if there is enough information provided by the other properties that can be used to create a URL.                                    | `jdbc:postgresql://localhost/postgres` |
-| JDBC protocol               | `setJdbcProtocol`              | The JDBC protocol that will be used.                                                              | `String` | Yes, if the JDBC URL has not been set.                                                                                                   | `jdbc:postgresql:`                     |
-| Underlying DataSource class | `setTargetDataSourceClassName` | The fully qualified class name of the underlying DataSource class the AWS JDBC Driver should use. | `String` | Yes, if the JDBC URL has not been set.                                                                                                   | `org.postgresql.ds.PGSimpleDataSource` |
+| Property                    | Configuration Method           | Description                                                                                       | Type     | Required                                                                                                                                                                                                                          | Example                              |
+|-----------------------------|--------------------------------|---------------------------------------------------------------------------------------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------|
+| Server name                 | `setServerName`                | The name of the server.                                                                           | `String` | Yes, if no URL is provided.                                                                                                                                                                                                       | `db-server.mydomain.com`             |
+| Server port            | `setServerPort`    | The server port.                                                                                  | `String` | No                                                                                                                                                                                                                                | `5432`                               |
+| Database name               | `setDatabase`                  | The name of the database.                                                                         | `String` | No                                                                                                                                                                                                                                | `testDatabase`                       |
+| JDBC URL                    | `setJdbcUrl`                   | The URL to connect with.                                                                          | `String` | No. Either URL or server name should be set. If both URL and server name have been set, URL will take precedence. Please note that some drivers, such as MariaDb, require some parameters to be included particularly in the URL.                                                                                                                            | `jdbc:postgresql://localhost/postgres` |
+| JDBC protocol               | `setJdbcProtocol`              | The JDBC protocol that will be used.                                                              | `String` | Yes, if the JDBC URL has not been set.                                                                                                                                                                                            | `jdbc:postgresql:`                   |
+| Underlying DataSource class | `setTargetDataSourceClassName` | The fully qualified class name of the underlying DataSource class the AWS JDBC Driver should use. | `String` | Yes, if the JDBC URL has not been set.                                                                                                                                                                                            | `org.postgresql.ds.PGSimpleDataSource` |
 
 ## Using the AwsWrapperDataSource with Connection Pooling Frameworks
 
@@ -63,21 +62,20 @@ To use the AWS JDBC Driver with a connection pool, you must:
    ```java
    // Note: jdbcProtocol is required when connecting via server name
    ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-   ds.addDataSourceProperty("serverPropertyName", "serverName");
-   
-   ds.addDataSourceProperty("databasePropertyName", "databaseName");
-   ds.addDataSourceProperty("portPropertyName", "port");
+   ds.addDataSourceProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
+   ds.addDataSourceProperty("serverPort", "5432");
+   ds.addDataSourceProperty("database", "postgres");
    ```
 
-4. Configure the driver-specific datasource:
+4. Set the driver-specific datasource:
    ```java
    ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
-   
+    ```
+
+5. Configure the driver-specific datasource, if needed. This step is optional:
+   ```java
    Properties targetDataSourceProps = new Properties();
-   targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
-   targetDataSourceProps.setProperty("databaseName", "postgres");
-   targetDataSourceProps.setProperty("port", "5432");
-   
+   targetDataSourceProps.setProperty("socketTimeout", "10");
    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
    ```
 

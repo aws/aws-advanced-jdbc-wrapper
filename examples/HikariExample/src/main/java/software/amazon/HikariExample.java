@@ -43,20 +43,17 @@ public class HikariExample {
 
       // Configure AwsWrapperDataSource:
       ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-      ds.addDataSourceProperty("databasePropertyName", "databaseName");
-      ds.addDataSourceProperty("portPropertyName", "portNumber");
-      ds.addDataSourceProperty("serverPropertyName", "serverName");
+      ds.addDataSourceProperty("database", DATABASE_NAME);
+      ds.addDataSourceProperty("serverPort", "5432");
+      ds.addDataSourceProperty("serverName", ENDPOINT);
 
       // Specify the driver-specific data source for AwsWrapperDataSource:
       ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
 
-      // Configuring PGSimpleDataSource:
-      Properties targetDataSourceProps = new Properties();
-      targetDataSourceProps.setProperty("serverName", ENDPOINT);
-      targetDataSourceProps.setProperty("databaseName", DATABASE_NAME);
-      targetDataSourceProps.setProperty("portNumber", "5432");
-
-      ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
+      // Configuring PGSimpleDataSource (optional):
+      // Properties targetDataSourceProps = new Properties();
+      // targetDataSourceProps.setProperty("socketTimeout", "10");
+      // ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
       // Attempt a connection:
       try (final Connection conn = ds.getConnection();

@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.postgresql.ds.common.BaseDataSource;
@@ -27,6 +28,9 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgDataSourceHelper {
+
+  private static final Logger LOGGER =
+      Logger.getLogger(PgDataSourceHelper.class.getName());
 
   private static final String BASE_DS_CLASS_NAME =
       org.postgresql.ds.common.BaseDataSource.class.getName();
@@ -56,6 +60,7 @@ public class PgDataSourceHelper {
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and try to apply them to data source
     PropertyDefinition.removeAll(props);
+
     PropertyUtils.applyProperties(dataSource, props);
   }
 }

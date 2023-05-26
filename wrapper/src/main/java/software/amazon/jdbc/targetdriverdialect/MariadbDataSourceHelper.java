@@ -63,13 +63,7 @@ public class MariadbDataSourceHelper {
     // and include them to connect URL.
     PropertyDefinition.removeAllExcept(props, PropertyDefinition.DATABASE.name);
 
-    String finalUrl = buildUrl(
-        protocol,
-        hostSpec,
-        null,
-        null,
-        null,
-        props);
+    String finalUrl = buildUrl(protocol, hostSpec, props);
     LOGGER.finest(() -> "Connecting to " + finalUrl);
     mariaDbDataSource.setUrl(finalUrl);
   }

@@ -19,6 +19,7 @@ package software.amazon.jdbc.targetdriverdialect;
 import com.mysql.cj.jdbc.MysqlDataSource;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -27,6 +28,9 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class MysqlConnectorJDataSourceHelper {
+
+  private static final Logger LOGGER =
+      Logger.getLogger(MysqlConnectorJDataSourceHelper.class.getName());
 
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
@@ -53,6 +57,7 @@ public class MysqlConnectorJDataSourceHelper {
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and try to apply them to data source
     PropertyDefinition.removeAll(props);
+
     PropertyUtils.applyProperties(dataSource, props);
   }
 }

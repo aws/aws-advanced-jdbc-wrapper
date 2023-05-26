@@ -223,19 +223,12 @@ public class AwsIamIntegrationTest {
   void test_AwsIam_UserAndPasswordPropertiesArePreserved() throws SQLException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
-
+    ds.setServerName(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
+    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties props =
         initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
-    props.setProperty(
-        "serverName",
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
-    props.setProperty(
-        "databaseName",
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceProperties(props);
 
     try (final Connection conn = ds.getConnection()) {
