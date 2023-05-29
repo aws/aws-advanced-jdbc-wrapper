@@ -19,6 +19,8 @@
 - [Development Guide](./development-guide/DevelopmentGuide.md)
   - [Setup](./development-guide/DevelopmentGuide.md#setup)
   - [Building the AWS JDBC Driver](./development-guide/DevelopmentGuide.md#building-the-aws-advanced-jdbc-driver)
+  - [Testing Overview](./development-guide/DevelopmentGuide.md#testing-overview)
+    - [Performance Tests](./development-guide/DevelopmentGuide.md#performance-tests)
   - [Running the Tests](./development-guide/DevelopmentGuide.md#running-the-tests)
   - [Architecture](./development-guide/Architecture.md)
     - [Plugin Manager](./development-guide/PluginManager.md)
