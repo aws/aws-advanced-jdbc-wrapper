@@ -18,8 +18,6 @@ package software.amazon.jdbc.plugin;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -35,12 +33,10 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
-public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin implements
-    CanReleaseResources {
+public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthPrefetchConnectionPlugin.class.getName());
 
@@ -193,8 +189,7 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin imp
     tokenCache.put(cacheKey, token);
   }
 
-  @Override
-  public void releaseResources() {
+  public static void clearCache() {
     cacheThread.forEach((k, thread) -> thread.cancel(true));
     tokenCache.clear();
     cacheThread.clear();
