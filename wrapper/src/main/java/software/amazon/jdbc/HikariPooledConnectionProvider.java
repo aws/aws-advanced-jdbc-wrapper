@@ -140,7 +140,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   public boolean acceptsUrl(
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
-    return RdsUrlType.RDS_INSTANCE.equals(urlType);
+    return urlType.isRds();
   }
 
   @Override

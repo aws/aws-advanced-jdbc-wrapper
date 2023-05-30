@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -40,6 +41,7 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
 
 public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
@@ -49,10 +51,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
+          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("initHostProvider");
           add("connect");
+          add("forceConnect");
           add("notifyConnectionChanged");
-          add("Connection.setReadOnly");
         }
       });
   static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
@@ -214,6 +217,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         LOGGER.finer(
             () -> Messages.get("ReadWriteSplittingPlugin.failoverExceptionWhileExecutingCommand",
                 new Object[] {methodName}));
+        ConnectionProviderManager.releaseResources();
         closeIdleConnections();
       } else {
         LOGGER.finest(

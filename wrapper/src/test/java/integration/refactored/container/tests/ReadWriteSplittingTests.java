@@ -645,30 +645,63 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
-  public void test_pooledConnectionFailoverWithClusterURL() throws SQLException, InterruptedException {
-    Properties props = getPropsWithFailover();
+  public void test_pooledConnectionFailoverWithClusterUrl() throws SQLException, InterruptedException {
+    System.setProperty("com.zaxxer.hikari.aliveBypassWindowMs",
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
 
+    final Properties props = getDefaultPropsNoPlugins();
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover");
+
+    final int maxPoolSize = 3;
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider(getHikariConfig(1));
+        new HikariPooledConnectionProvider(getHikariConfig(maxPoolSize));
     ConnectionProviderManager.setConnectionProvider(provider);
 
     final Connection initialWriterConn;
     final Connection newWriterConn;
+    final String originalWriterId;
+    final String nextWriterId;
 
-    try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperClusterEndpointUrl(),
-        props)) {
-      initialWriterConn = conn.unwrap(Connection.class);
-      // The internal connection pool should not be used if the connection is established via a cluster URL.
-      assertEquals(0, provider.getHostCount(), "Internal connection pool should be empty.");
-      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
-      assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
-      final String nextWriterId = auroraUtil.queryInstanceId(conn);
-      assertNotEquals(writerConnectionId, nextWriterId);
-      assertEquals(0, provider.getHostCount(), "Internal connection pool should be empty.");
-      newWriterConn = conn.unwrap(Connection.class);
-      assertNotSame(initialWriterConn, newWriterConn);
+    List<Connection> setupConnections = new ArrayList<>();
+    for (int i = 0; i < maxPoolSize; i++) {
+      Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperClusterEndpointUrl(), props);
+      setupConnections.add(conn);
+    }
+    for (Connection conn : setupConnections) {
+      conn.close();
+    }
+
+    try {
+      try (final Connection conn = DriverManager.getConnection(
+          ConnectionStringHelper.getWrapperClusterEndpointUrl(),
+          props)) {
+        initialWriterConn = conn.unwrap(Connection.class);
+        // The internal connection pool should not be used if the connection is established via a
+        // cluster URL.
+        assertEquals(1, provider.getHostCount(), "There should only be one internal pool, for the cluster URL.");
+        originalWriterId = auroraUtil.queryInstanceId(conn);
+        auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+        assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
+
+        nextWriterId = auroraUtil.queryInstanceId(conn);
+        assertNotEquals(originalWriterId, nextWriterId);
+        assertEquals(0, provider.getHostCount(), "Internal connection pool should be empty after failover.");
+        newWriterConn = conn.unwrap(Connection.class);
+        assertNotSame(initialWriterConn, newWriterConn);
+      }
+
+      List<Connection> verificationConnections = new ArrayList<>();
+      for (int i = 0; i < maxPoolSize; i++) {
+        Connection conn = DriverManager.getConnection(
+            ConnectionStringHelper.getWrapperClusterEndpointUrl(),
+            props);
+        verificationConnections.add(conn);
+        assertEquals(nextWriterId, auroraUtil.queryInstanceId(conn));
+      }
+      for (Connection conn : verificationConnections) {
+        conn.close();
+      }
+
     } finally {
       ConnectionProviderManager.releaseResources();
       ConnectionProviderManager.resetProvider();
