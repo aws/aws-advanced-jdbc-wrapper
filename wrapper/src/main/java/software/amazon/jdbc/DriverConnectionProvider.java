@@ -110,8 +110,9 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull Properties props)
       throws SQLException {
 
+    final Properties copy = PropertyUtils.copyProperties(props);
     final ConnectInfo connectInfo =
-        this.targetDriverDialect.prepareConnectInfo(protocol, hostSpec, props);
+        this.targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(connectInfo.props, "\nwith properties: \n"));
