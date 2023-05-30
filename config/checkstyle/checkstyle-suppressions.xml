@@ -27,4 +27,5 @@
   <suppress files="[\\/]MysqlConnectorJDataSourceHelper\.java" checks="IllegalImport"/>
   <suppress files="[\\/]PgDataSourceHelper\.java" checks="IllegalImport"/>
   <suppress files="[\\/]test[\\/]" checks="IllegalImport"/>
+  <suppress files="[\\/]ExtendedFormatter\.java" checks="Header"/>
 </suppressions>
