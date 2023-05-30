@@ -167,12 +167,15 @@ class HikariPooledConnectionProviderTest {
   @Test
   public void testAcceptsUrl() {
     final String clusterUrl = "my-database.cluster-XYZ.us-east-1.rds.amazonaws.com";
+    final String nonRdsUrl = "my-database.com";
     provider = new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
 
     assertTrue(
         provider.acceptsUrl(protocol, new HostSpec(readerUrl2Connections), defaultProps));
-    assertFalse(
+    assertTrue(
         provider.acceptsUrl(protocol, new HostSpec(clusterUrl), defaultProps));
+    assertFalse(
+        provider.acceptsUrl(protocol, new HostSpec(nonRdsUrl), defaultProps));
   }
 
   @Test
