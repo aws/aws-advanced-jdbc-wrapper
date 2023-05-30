@@ -51,6 +51,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
+          // All network methods need to be added so that the plugin can monitor them for failover exceptions
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("initHostProvider");
           add("connect");

@@ -56,6 +56,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -85,6 +86,8 @@ import software.amazon.jdbc.util.SqlState;
 @MakeSureFirstInstanceWriter
 public class ReadWriteSplittingTests {
 
+  // Timeout controlling whether a cached connection should be checked for validity before being returned
+  private static final String HIKARI_VALIDATION_TIMEOUT_PROPERTY = "com.zaxxer.hikari.aliveBypassWindowMs";
   protected static final AuroraTestUtility auroraUtil =
       new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
@@ -122,6 +125,11 @@ public class ReadWriteSplittingTests {
     final Properties props = getDefaultPropsNoPlugins();
     PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
     return props;
+  }
+
+  @AfterEach
+  public void afterEach() {
+    System.clearProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY);
   }
 
   @TestTemplate
@@ -562,6 +570,9 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   public void test_pooledConnection_reuseCachedConnection() throws SQLException {
+    // Replicate worst-case scenario: hikari does not check for validity before returning cached connections.
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
     Properties props = getProps();
 
     final HikariPooledConnectionProvider provider =
@@ -604,6 +615,8 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnectionFailover() throws SQLException, InterruptedException {
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
     Properties props = getPropsWithFailover();
 
     final HikariPooledConnectionProvider provider =
@@ -646,7 +659,7 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnectionFailoverWithClusterUrl() throws SQLException, InterruptedException {
-    System.setProperty("com.zaxxer.hikari.aliveBypassWindowMs",
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
         String.valueOf(TimeUnit.MINUTES.toMillis(10)));
 
     final Properties props = getDefaultPropsNoPlugins();
@@ -711,6 +724,8 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   public void test_pooledConnection_failoverFailed() throws SQLException {
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
     Properties props = getProxiedPropsWithFailover();
     FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.set(props, "1000");
     DriverHelper.setMonitoringSocketTimeout(props, 3, TimeUnit.SECONDS);
@@ -750,6 +765,8 @@ public class ReadWriteSplittingTests {
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
   public void test_pooledConnection_failoverInTransaction()
       throws SQLException, InterruptedException {
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
     Properties props = getPropsWithFailover();
 
     final HikariPooledConnectionProvider provider =
@@ -794,6 +811,8 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   public void test_pooledConnection_differentUsers() throws SQLException {
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
     Properties privilegedUserProps = getProps();
 
     Properties privilegedUserWithWrongPasswordProps = getProps();
@@ -857,6 +876,8 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnNumOfInstances(min = 5)
   public void test_pooledConnection_leastConnectionsStrategy() throws SQLException {
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
     final Properties props = getProps();
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
 
@@ -898,6 +919,8 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnNumOfInstances(min = 5)
   public void test_pooledConnection_leastConnectionsWithPoolMapping() throws SQLException {
+    System.setProperty(HIKARI_VALIDATION_TIMEOUT_PROPERTY,
+        String.valueOf(TimeUnit.MINUTES.toMillis(10)));
     final Properties defaultProps = getProps();
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(defaultProps, "leastConnections");
 

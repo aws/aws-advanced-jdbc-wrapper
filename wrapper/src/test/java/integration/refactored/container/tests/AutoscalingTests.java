@@ -109,6 +109,9 @@ public class AutoscalingTests {
   @TestTemplate
   public void test_pooledConnectionAutoScaling_setReadOnlyOnOldConnection()
       throws SQLException, InterruptedException {
+    // Timeout controlling whether a cached connection should be checked for validity before being returned.
+    // Replicate worst-case scenario: hikari does not check for validity before returning cached connections.
+    System.setProperty("com.zaxxer.hikari.aliveBypassWindowMs", String.valueOf(TimeUnit.HOURS.toMillis(1)));
     final Properties props = getProps();
     final long topologyRefreshRateMs = 5000;
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
@@ -187,6 +190,7 @@ public class AutoscalingTests {
   @TestTemplate
   public void test_pooledConnectionAutoScaling_failoverFromDeletedReader()
       throws SQLException, InterruptedException {
+    System.setProperty("com.zaxxer.hikari.aliveBypassWindowMs", String.valueOf(TimeUnit.HOURS.toMillis(1)));
     final Properties props = getPropsWithFailover();
     final long topologyRefreshRateMs = 5000;
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
