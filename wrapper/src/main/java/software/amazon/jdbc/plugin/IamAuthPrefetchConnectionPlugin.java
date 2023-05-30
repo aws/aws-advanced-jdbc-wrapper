@@ -88,7 +88,9 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
         ? getRdsRegion(host)
         : Region.of(iamRegion);
 
-    final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);
+    final int tokenExpirationSec = Math.min(
+        IAM_EXPIRATION.getInteger(props),
+        Integer.parseInt(IAM_EXPIRATION.defaultValue));
 
     final String cacheKey = getCacheKey(
         PropertyDefinition.USER.getString(props),
