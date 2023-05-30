@@ -98,6 +98,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   protected Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    final long startTime = System.nanoTime();
+
     if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
@@ -148,7 +150,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     try {
-      return connectFunc.call();
+      final Connection conn = connectFunc.call();
+      final long elapsedTimeNanos = System.nanoTime() - startTime;
+      LOGGER.info("IAM Connection Time in nanoseconds: " + elapsedTimeNanos);
+      return conn;
     } catch (final SQLException exception) {
 
       LOGGER.finest(
@@ -178,7 +183,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           cacheKey,
           new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
 
-      return connectFunc.call();
+      final Connection conn = connectFunc.call();
+      final long elapsedTimeNanos = System.nanoTime() - startTime;
+      LOGGER.info("IAM Connection Time in nanoseconds: " + elapsedTimeNanos);
+      return conn;
 
     } catch (final Exception exception) {
       LOGGER.warning(
