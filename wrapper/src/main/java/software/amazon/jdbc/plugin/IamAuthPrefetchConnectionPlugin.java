@@ -58,6 +58,7 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
   protected Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     final long startTime = System.nanoTime();
+    long getNewTokenTimeNanos = 0L;
 
     if (StringUtils.isNullOrEmpty(PropertyDefinition.USER.getString(props))) {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
@@ -106,12 +107,15 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
               "IamAuthConnectionPlugin.useCachedIamToken",
               new Object[] {token}));
     } else {
+      final long newTokenTime = System.nanoTime();
       updateToken(cacheKey, fetchNewToken(
           hostSpec,
           props,
           host,
           port,
           region));
+      getNewTokenTimeNanos = System.nanoTime() - newTokenTime;
+
       final String threadHost = host;
       final int threadPort = port;
       cacheThread.putIfAbsent(
@@ -133,7 +137,7 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
     try {
       PropertyDefinition.PASSWORD.set(props, tokenCache.get(cacheKey));
       final Connection conn = connectFunc.call();
-      final long elapsedTimeNanos = System.nanoTime() - startTime;
+      final long elapsedTimeNanos = System.nanoTime() - startTime - getNewTokenTimeNanos;
       LOGGER.info("IAM Connection Time in nanoseconds: " + elapsedTimeNanos);
       return conn;
     } catch (final SQLException exception) {
@@ -155,7 +159,7 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
       PropertyDefinition.PASSWORD.set(props, token);
 
       final Connection conn = connectFunc.call();
-      final long elapsedTimeNanos = System.nanoTime() - startTime;
+      final long elapsedTimeNanos = System.nanoTime() - startTime - getNewTokenTimeNanos;
       LOGGER.fine("IAM Connection Time in nanoseconds: " + elapsedTimeNanos);
       return conn;
 
