@@ -107,20 +107,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       host = IAM_HOST.getString(props);
     }
 
-    int port = hostSpec.getPort();
-    if (!hostSpec.isPortSpecified()) {
-      if (StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props))) {
-        port = this.pluginService.getDialect().getDefaultPort();
-      } else {
-        port = IAM_DEFAULT_PORT.getInteger(props);
-        if (port <= 0) {
-          throw new IllegalArgumentException(
-              Messages.get(
-                  "IamAuthConnectionPlugin.invalidPort",
-                  new Object[] {port}));
-        }
-      }
-    }
+    int port = getPort(props, hostSpec);
 
     final String iamRegion = IAM_REGION.getString(props);
     final Region region = StringUtils.isNullOrEmpty(iamRegion)
@@ -243,6 +230,26 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   public static void clearCache() {
     tokenCache.clear();
+  }
+
+  private int getPort(Properties props, HostSpec hostSpec) {
+    if (!StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props))) {
+      int defaultPort = IAM_DEFAULT_PORT.getInteger(props);
+      if (defaultPort > 0) {
+        return defaultPort;
+      } else {
+        LOGGER.finest(
+            () -> Messages.get(
+                "IamAuthConnectionPlugin.invalidPort",
+                new Object[] {defaultPort}));
+      }
+    }
+
+    if (hostSpec.isPortSpecified()) {
+      return hostSpec.getPort();
+    } else {
+      return this.pluginService.getDialect().getDefaultPort();
+    }
   }
 
   private Region getRdsRegion(final String hostname) throws SQLException {
