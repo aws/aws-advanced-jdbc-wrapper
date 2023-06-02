@@ -11,10 +11,7 @@ To establish a connection with the AwsWrapperDataSource, you must:
 
 ### Configurable DataSource Properties
 
-To allow the AWS Advanced JDBC Driver to work with multiple driver-specific datasources,
-you need to specify what property names the underlying datasource uses.
-For example, one datasource implementation could use the method `setUser` to set the datasource username,
-while another might use the method `setUsername` for the same task. See the table below for a list of configurable property names.
+See the table below for a list of configurable properties.
 
 > **:warning: Note:** If the same connection property is provided both explicitly in the connection URL and in the datasource properties, the value set in the datasource properties will take precedence. 
 
