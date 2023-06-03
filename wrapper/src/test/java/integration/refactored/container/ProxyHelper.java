@@ -85,14 +85,15 @@ public class ProxyHelper {
   /** Allow traffic to and from server. */
   private static void enableConnectivity(Proxy proxy) {
     try {
-      final List<? extends Toxic> toxics = proxy.toxics().getAll().stream()
+      proxy.toxics().getAll().stream()
           .filter(t -> "DOWN-STREAM".equals(t.getName()) || "UP-STREAM".equals(t.getName()))
-          .collect(Collectors.toList());
-      if (toxics != null) {
-        for (Toxic toxic : toxics) {
-          toxic.remove();
-        }
-      }
+          .forEach(toxic1 -> {
+            try {
+              toxic1.remove();
+            } catch (IOException e) {
+              // ignore
+            }
+          });
     } catch (IOException ex) {
       // ignore
     }
