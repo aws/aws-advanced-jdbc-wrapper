@@ -117,7 +117,7 @@ class AwsWrapperDataSourceTest {
   @Test
   public void testConnectionWithDataSourceClassNameAndUrl() throws SQLException {
     final String expectedUrl = "jdbc:postgresql://testserver/db";
-    ds.setJdbcUrl("jdbc:postgresql://testserver/db");
+    ds.setJdbcUrl(expectedUrl);
 
     try (final Connection conn = ds.getConnection("user", "pass")) {
       final List<String> urls = urlArgumentCaptor.getAllValues();
