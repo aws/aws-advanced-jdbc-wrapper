@@ -79,7 +79,7 @@ public class HikariTests {
   public void testOpenConnectionWithUrl() throws SQLException {
     final HikariDataSource dataSource = new HikariDataSource();
     final String url = ConnectionStringHelper.getWrapperUrl();
-    dataSource.setJdbcUrl(url + (url.contains("?") ? "&" : "?") + "wrapperPlugins=\"\"");
+    dataSource.setJdbcUrl(url);
     dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     dataSource.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "");
@@ -104,15 +104,20 @@ public class HikariTests {
     dataSource.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
     // Configure the connection pool:
-    dataSource.setJdbcUrl(ConnectionStringHelper.getWrapperUrl());
     dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
     // Configure AwsWrapperDataSource:
     dataSource.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
-    dataSource.addDataSourceProperty("databasePropertyName", "databaseName");
-    dataSource.addDataSourceProperty("portPropertyName", "port");
-    dataSource.addDataSourceProperty("serverPropertyName", "serverName");
+    dataSource.addDataSourceProperty("serverName",
+        TestEnvironment.getCurrent()
+            .getInfo()
+            .getDatabaseInfo()
+            .getInstances()
+            .get(0)
+            .getHost());
+    dataSource.addDataSourceProperty(PropertyDefinition.DATABASE.name,
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
     // Specify the driver-specific DataSource for AwsWrapperDataSource:
     dataSource.addDataSourceProperty("targetDataSourceClassName",
@@ -120,20 +125,16 @@ public class HikariTests {
 
     // Configuring driver-specific DataSource:
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(
-        "serverName",
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getHost());
-    targetDataSourceProps.setProperty(
-        "databaseName",
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
-    // For MariaDB tests, MariaDbDataSource only accepts the url parameter.
-    targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl());
+
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
+        == DatabaseEngine.MYSQL) {
+      // Connecting to Mysql database with MariaDb driver requires a configuration parameter
+      // "permitMysqlScheme"
+      targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+    }
+
     dataSource.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
     final Connection conn = dataSource.getConnection();
@@ -225,6 +226,7 @@ public class HikariTests {
     }
 
     ProxyHelper.enableAllConnectivity();
+    dataSource.close();
   }
 
   private HikariDataSource createDataSource(final Properties customProps) {
@@ -245,7 +247,15 @@ public class HikariTests {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     config.setUsername(proxyDatabaseInfo.getUsername());
     config.setPassword(proxyDatabaseInfo.getPassword());
-    config.setMaximumPoolSize(3);
+
+    /*
+     It should be 1 max connection. Otherwise, HikariCP will start adding more connections in
+     background. Taking into account that tests intensively enable/disable connectivity to
+     configured host (provider with "serverName" property), these attempts may fail.
+     That makes test logs less readable but causes no functional failures to the test itself.
+    */
+    config.setMaximumPoolSize(1);
+
     config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
     config.setInitializationFailTimeout(75000);
     config.setConnectionTimeout(1000);
@@ -254,28 +264,21 @@ public class HikariTests {
     config.addDataSourceProperty("targetDataSourceClassName",
         DriverHelper.getDataSourceClassname());
     config.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
-    config.addDataSourceProperty("portPropertyName", "portNumber");
-    config.addDataSourceProperty("serverPropertyName", "serverName");
-    config.addDataSourceProperty("databasePropertyName", "databaseName");
-    config.addDataSourceProperty("urlPropertyName", "url");
-
-    final Properties targetDataSourceProps = new Properties();
-
-    targetDataSourceProps.setProperty(
-        "serverName",
+    config.addDataSourceProperty("serverName",
         TestEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
             .getHost());
-    targetDataSourceProps.setProperty(
-        "databaseName",
+    config.addDataSourceProperty("database",
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
-
-    targetDataSourceProps.setProperty("portNumber",
+    config.addDataSourceProperty("serverPort",
         Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
             .getClusterEndpointPort()));
+
+    final Properties targetDataSourceProps = new Properties();
+
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(
         "clusterInstanceHostPattern",
@@ -293,6 +296,7 @@ public class HikariTests {
         HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL.name, "1000");
     targetDataSourceProps.setProperty(
         HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
+
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
       // Connecting to Mysql database with MariaDb driver requires a configuration parameter

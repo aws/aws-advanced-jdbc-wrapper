@@ -79,18 +79,15 @@ public class ReadWriteSplittingSpringJdbcTemplateExample {
   private static DataSource getSimplePostgresDataSource() {
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol("jdbc:postgresql:");
-    ds.setDatabasePropertyName("databaseName");
-    ds.setServerPropertyName("serverName");
-    ds.setPortPropertyName("port");
+    ds.setServerName(DATABASE_URL);
+    ds.setDatabase(DATABASE_NAME);
+    ds.setServerPort("5432");
 
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
         PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
-    targetDataSourceProps.setProperty("serverName", DATABASE_URL);
-    targetDataSourceProps.setProperty("databaseName", DATABASE_NAME);
-    targetDataSourceProps.setProperty("port", "5432");
 
     ds.setUser(USERNAME);
     ds.setPassword(PASSWORD);
@@ -112,19 +109,15 @@ public class ReadWriteSplittingSpringJdbcTemplateExample {
 
     ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
     ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
-    ds.addDataSourceProperty("serverPropertyName", "serverName");
-
-    ds.addDataSourceProperty("databasePropertyName", "databaseName");
-    ds.addDataSourceProperty("portPropertyName", "port");
+    ds.addDataSourceProperty("serverName", DATABASE_URL);
+    ds.addDataSourceProperty("serverPort", "5432");
+    ds.addDataSourceProperty("database", DATABASE_NAME);
 
     ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name,
         "readWriteSplitting,failover,efm");
-    targetDataSourceProps.setProperty("serverName", DATABASE_URL);
-    targetDataSourceProps.setProperty("databaseName", DATABASE_NAME);
-    targetDataSourceProps.setProperty("port", "5432");
 
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 

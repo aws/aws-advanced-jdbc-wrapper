@@ -26,10 +26,6 @@ import software.amazon.jdbc.util.StringUtils;
 public class ConnectionStringHelper {
 
   public static String getUrl() {
-    return getUrl(null);
-  }
-
-  public static String getUrl(final String wrapperPlugins) {
     return getUrl(
         TestEnvironment.getCurrent().getCurrentDriver(),
         TestEnvironment.getCurrent()
@@ -44,20 +40,18 @@ public class ConnectionStringHelper {
             .getInstances()
             .get(0)
             .getPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
-        wrapperPlugins);
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
-  public static String getUrl(String host, int port, String databaseName, String wrapperPlugins) {
-    return getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName, wrapperPlugins);
+  public static String getUrl(String host, int port, String databaseName) {
+    return getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
   }
 
   public static String getUrl(
       TestDriver testDriver,
       String host,
       int port,
-      String databaseName,
-      String wrapperPlugins) {
+      String databaseName) {
     final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     final String requiredParameters = DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
     final String url = DriverHelper.getDriverProtocol(databaseEngine, testDriver)
@@ -66,10 +60,29 @@ public class ConnectionStringHelper {
         + port
         + "/"
         + databaseName
-        + requiredParameters
-        + (requiredParameters.startsWith("?") ? "&" : "?")
-        + "wrapperPlugins=";
-    return wrapperPlugins != null ? url + wrapperPlugins : url;
+        + requiredParameters;
+    return url;
+  }
+
+  public static String getUrlWithPlugins(String host, int port, String databaseName, String wrapperPlugins) {
+    final String url = getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
+    return url
+        + (url.contains("?") ? "&" : "?")
+        + "wrapperPlugins="
+        + wrapperPlugins;
+  }
+
+  public static String getUrlWithPlugins(
+      TestDriver testDriver,
+      String host,
+      int port,
+      String databaseName,
+      String wrapperPlugins) {
+    final String url = getUrl(testDriver, host, port, databaseName);
+    return url
+        + (url.contains("?") ? "&" : "?")
+        + "wrapperPlugins="
+        + wrapperPlugins;
   }
 
   /**

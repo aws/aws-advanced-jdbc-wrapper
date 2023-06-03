@@ -17,11 +17,12 @@
 package integration.refactored.container;
 
 import eu.rekawek.toxiproxy.Proxy;
+import eu.rekawek.toxiproxy.model.Toxic;
 import eu.rekawek.toxiproxy.model.ToxicDirection;
-import integration.refactored.TestInstanceInfo;
 import java.io.IOException;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ProxyHelper {
 
@@ -84,13 +85,15 @@ public class ProxyHelper {
   /** Allow traffic to and from server. */
   private static void enableConnectivity(Proxy proxy) {
     try {
-      proxy.toxics().get("DOWN-STREAM").remove();
-    } catch (IOException ex) {
-      // ignore
-    }
-
-    try {
-      proxy.toxics().get("UP-STREAM").remove();
+      proxy.toxics().getAll().stream()
+          .filter(t -> "DOWN-STREAM".equals(t.getName()) || "UP-STREAM".equals(t.getName()))
+          .forEach(toxic1 -> {
+            try {
+              toxic1.remove();
+            } catch (IOException e) {
+              // ignore
+            }
+          });
     } catch (IOException ex) {
       // ignore
     }

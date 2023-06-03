@@ -49,7 +49,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -374,7 +373,6 @@ public class AuroraFailoverTest {
   }
 
   @TestTemplate
-  @Disabled
   public void test_DataSourceWriterConnection_BasicFailover()
       throws SQLException, InterruptedException {
 
@@ -489,20 +487,14 @@ public class AuroraFailoverTest {
 
     // Configure the property names for the underlying driver-specific data source:
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setDatabasePropertyName("databaseName");
-    ds.setServerPropertyName("serverName");
-    ds.setPortPropertyName("port");
-    ds.setUrlPropertyName("url");
+    ds.setServerName(instanceEndpoint);
+    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
     // Specify the driver-specific data source:
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     // Configure the driver-specific data source:
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", instanceEndpoint);
-    targetDataSourceProps.setProperty(
-        "databaseName",
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     targetDataSourceProps.setProperty("wrapperPlugins", "failover");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB

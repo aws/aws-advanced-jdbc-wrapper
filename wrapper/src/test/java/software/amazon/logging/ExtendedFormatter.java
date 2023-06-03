@@ -42,6 +42,7 @@ public class ExtendedFormatter extends SimpleFormatter {
    * - ( 5$) the log message
    * - ( 6$) the throwable and its backtrace, if any
    * - ( 7$) the thread name
+   * - ( 8$) the thread ID
    */
   private static final String format = LogManager.getLogManager()
       .getProperty(ExtendedFormatter.class.getName() + ".format");
@@ -92,7 +93,8 @@ public class ExtendedFormatter extends SimpleFormatter {
         record.getLevel().getLocalizedName(),
         message,
         throwable,
-        threadName);
+        threadName,
+        record.getThreadID());
   }
 
   private static String getThreadName(int logRecordThreadId) {

@@ -39,7 +39,8 @@ class ConnectionUrlBuilderTest {
       final String db,
       final String expected,
       final Properties props) throws SQLException {
-    Properties properties = new Properties(props);
+    Properties properties = new Properties();
+    properties.putAll(props);
     properties.setProperty(server, server);
     properties.setProperty(port, "1234");
     properties.setProperty(db, db);
@@ -47,9 +48,6 @@ class ConnectionUrlBuilderTest {
     final String actual = ConnectionUrlBuilder.buildUrl(
         jdbcProtocol,
         host,
-        server,
-        port,
-        db,
         properties);
     assertEquals(expected, actual);
   }
@@ -70,9 +68,6 @@ class ConnectionUrlBuilderTest {
     assertThrows(SQLException.class, () -> ConnectionUrlBuilder.buildUrl(
         jdbcProtocol,
         host,
-        server,
-        port,
-        db,
         properties));
   }
 
@@ -87,7 +82,7 @@ class ConnectionUrlBuilderTest {
             "",
             "port",
             "database",
-            "protocol//fooUrl/database",
+            "protocol//fooUrl/database?port=1234&bar=baz",
             properties),
         Arguments.of(
             "protocol//",
@@ -95,7 +90,7 @@ class ConnectionUrlBuilderTest {
             " ",
             "port",
             "database",
-            "protocol//fooUrl/database",
+            "protocol//fooUrl/database?port=1234&bar=baz",
             properties),
         Arguments.of(
             "protocol",
@@ -103,24 +98,8 @@ class ConnectionUrlBuilderTest {
             "server",
             "port",
             "database",
-            "protocol//fooUrl/database",
-            properties),
-        Arguments.of(
-            "protocol",
-            null,
-            "server",
-            "port",
-            "database",
-            "protocol//server:1234/database",
-            null),
-        Arguments.of(
-            "protocol",
-            null,
-            "server",
-            "port",
-            "db",
-            "protocol//server:1234/",
-            null)
+            "protocol//fooUrl/database?port=1234&bar=baz&server=server",
+            properties)
     );
   }
 

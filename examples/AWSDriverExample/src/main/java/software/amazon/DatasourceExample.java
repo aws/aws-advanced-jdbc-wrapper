@@ -32,9 +32,6 @@ public class DatasourceExample {
 
     // Configure the property names for the underlying driver-specific data source:
     ds.setJdbcProtocol("jdbc:postgresql:");
-    ds.setDatabasePropertyName("databaseName");
-    ds.setServerPropertyName("serverName");
-    ds.setPortPropertyName("port");
 
     // Specify the driver-specific data source:
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
@@ -42,8 +39,8 @@ public class DatasourceExample {
     // Configure the driver-specific data source:
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
-    targetDataSourceProps.setProperty("databaseName", "employees");
-    targetDataSourceProps.setProperty("port", "5432");
+    targetDataSourceProps.setProperty("database", "employees");
+    targetDataSourceProps.setProperty("serverPort", "5432");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     // Try and make a connection:

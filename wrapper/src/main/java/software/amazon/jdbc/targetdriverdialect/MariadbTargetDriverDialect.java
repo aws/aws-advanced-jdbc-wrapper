@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 
@@ -54,14 +53,14 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
             : "";
     final boolean permitMysqlSchemeFlag = props.containsKey(PERMIT_MYSQL_SCHEME);
 
-    // "permitMysqlScheme" should be in Url rather than in properties.
-    String urlBuilder = protocol + hostSpec.getUrl() + databaseName
-        + (permitMysqlSchemeFlag ? "?" + PERMIT_MYSQL_SCHEME : "");
-
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and use them to make a connection
     props.remove(PERMIT_MYSQL_SCHEME);
     PropertyDefinition.removeAllExceptCredentials(props);
+
+    // "permitMysqlScheme" should be in Url rather than in properties.
+    String urlBuilder = protocol + hostSpec.getUrl() + databaseName
+        + (permitMysqlSchemeFlag ? "?" + PERMIT_MYSQL_SCHEME : "");
 
     return new ConnectInfo(urlBuilder, props);
   }
@@ -71,11 +70,7 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final @Nullable String serverPropertyName,
-      final @Nullable String portPropertyName,
-      final @Nullable String urlPropertyName,
-      final @Nullable String databasePropertyName) throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to org.mariadb.jdbc.MariaDbDataSource

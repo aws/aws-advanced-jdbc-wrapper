@@ -87,6 +87,7 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
   static {
     PropertyDefinition.registerPluginProperties(HostMonitoringConnectionPlugin.class);
+    PropertyDefinition.registerPluginProperties("monitoring-");
   }
 
   /**

@@ -63,23 +63,16 @@ public class DataSourceTests {
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerPropertyName("serverName");
-    ds.setDatabasePropertyName("databaseName");
-
+    ds.setServerName(TestEnvironment.getCurrent()
+        .getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(0)
+        .getHost());
+    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(
-        "serverName",
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getHost());
-    targetDataSourceProps.setProperty(
-        "databaseName",
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
@@ -120,10 +113,9 @@ public class DataSourceTests {
 
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setUrlPropertyName("url");
+    ds.setJdbcUrl(ConnectionStringHelper.getUrl());
 
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("url", ConnectionStringHelper.getUrl());
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();

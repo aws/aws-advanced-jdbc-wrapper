@@ -73,7 +73,7 @@ public class BasicConnectivityTests {
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
 
     String url =
-        ConnectionStringHelper.getUrl(
+        ConnectionStringHelper.getUrlWithPlugins(
             testDriver,
             TestEnvironment.getCurrent()
                 .getInfo()
@@ -169,7 +169,7 @@ public class BasicConnectivityTests {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
 
     String url =
-        ConnectionStringHelper.getUrl(
+        ConnectionStringHelper.getUrlWithPlugins(
             testDriver,
             instanceInfo.getHost(),
             instanceInfo.getPort(),

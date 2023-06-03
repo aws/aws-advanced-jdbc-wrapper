@@ -24,7 +24,6 @@ import java.util.Properties;
 import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
@@ -54,11 +53,7 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final @Nullable String serverPropertyName,
-      final @Nullable String portPropertyName,
-      final @Nullable String urlPropertyName,
-      final @Nullable String databasePropertyName) throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to org.postgresql.ds.common.BaseDataSource

@@ -17,7 +17,6 @@
 package software.amazon.jdbc.targetdriverdialect;
 
 import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
-import static software.amazon.jdbc.util.StringUtils.isNullOrEmpty;
 
 import java.sql.Driver;
 import java.sql.SQLException;
@@ -25,7 +24,6 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.PropertyUtils;
@@ -59,6 +57,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and use them to make a connection
     PropertyDefinition.removeAllExceptCredentials(props);
+
     return new ConnectInfo(urlBuilder, props);
   }
 
@@ -67,50 +66,23 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final @Nullable String serverPropertyName,
-      final @Nullable String portPropertyName,
-      final @Nullable String urlPropertyName,
-      final @Nullable String databasePropertyName) throws SQLException {
+      final @NonNull Properties props) throws SQLException {
 
-    final Properties customProps = new Properties();
+    String finalUrl = buildUrl(
+        protocol,
+        hostSpec.getHost(),
+        hostSpec.getPort(),
+        PropertyDefinition.DATABASE.getString(props));
 
-    if (!isNullOrEmpty(serverPropertyName)) {
-      customProps.setProperty(serverPropertyName, hostSpec.getHost());
-    }
+    LOGGER.finest(() -> "Connecting to " + finalUrl);
+    props.setProperty("url", finalUrl);
 
-    if (hostSpec.isPortSpecified() && !isNullOrEmpty(portPropertyName)) {
-      customProps.put(portPropertyName, hostSpec.getPort());
-    }
+    PropertyDefinition.removeAllExceptCredentials(props);
 
-    if (!isNullOrEmpty(databasePropertyName)
-        && !isNullOrEmpty(PropertyDefinition.DATABASE.getString(props))) {
-      customProps.setProperty(databasePropertyName, PropertyDefinition.DATABASE.getString(props));
-    }
+    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
 
-    if (!isNullOrEmpty(urlPropertyName)) {
-      final Properties urlProperties = PropertyUtils.copyProperties(customProps);
-
-      if (!isNullOrEmpty(props.getProperty(urlPropertyName))) {
-        // Remove the current url property to replace with a new url built from updated HostSpec and properties
-        urlProperties.remove(urlPropertyName);
-      }
-
-      String finalUrl = buildUrl(
-          protocol,
-          hostSpec,
-          serverPropertyName,
-          portPropertyName,
-          databasePropertyName,
-          urlProperties);
-      LOGGER.finest(() -> "Connecting to " + finalUrl);
-      customProps.setProperty(urlPropertyName, finalUrl);
-    }
-
-    LOGGER.finest(() -> PropertyUtils.logProperties(customProps, "Connecting with properties: \n"));
-
-    if (!customProps.isEmpty()) {
-      PropertyUtils.applyProperties(dataSource, customProps);
+    if (!props.isEmpty()) {
+      PropertyUtils.applyProperties(dataSource, props);
     }
   }
 

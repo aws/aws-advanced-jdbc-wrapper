@@ -310,7 +310,7 @@ public class AdvancedPerformanceTest {
             final Properties props = ConnectionStringHelper.getDefaultProperties();
             final Connection conn =
                 openConnectionWithRetry(
-                    ConnectionStringHelper.getUrl(
+                    ConnectionStringHelper.getUrlWithPlugins(
                         TestEnvironment.getCurrent()
                             .getInfo()
                             .getDatabaseInfo()
