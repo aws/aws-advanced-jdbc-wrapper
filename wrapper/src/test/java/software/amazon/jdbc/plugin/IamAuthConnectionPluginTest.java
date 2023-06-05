@@ -113,15 +113,31 @@ class IamAuthConnectionPluginTest {
   }
 
   @Test
-  public void testPostgresConnectWithInvalidPort() {
-    props.setProperty("iamDefaultPort", "0");
-    PluginService mockPluginService = Mockito.mock(PluginService.class);
-    final IamAuthConnectionPlugin targetPlugin = new IamAuthConnectionPlugin(mockPluginService);
+  public void testPostgresConnectWithInvalidPortFallbacksToHostPort() throws SQLException {
+    final String invalidIamDefaultPort = "0";
+    props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, invalidIamDefaultPort);
 
-    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-        () -> targetPlugin.connect(PG_DRIVER_PROTOCOL, PG_HOST_SPEC, props, true, mockLambda));
+    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";
+    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
-    assertEquals("Port number: 0 is not valid. Port number should be greater than zero.", exception.getMessage());
+    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
+  }
+
+  @Test
+  public void testPostgresConnectWithInvalidPortAndNoHostPortFallbacksToHostPort() throws SQLException {
+    final String invalidIamDefaultPort = "0";
+    props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, invalidIamDefaultPort);
+
+    when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
+
+    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + DEFAULT_PG_PORT + ":postgresqlUser";
+    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+
+    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
   }
 
   @Test
@@ -144,6 +160,18 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testConnectWithSpecifiedPort() throws SQLException {
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:" + "postgresqlUser";
+    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+
+    testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
+  }
+
+  @Test
+  public void testConnectWithSpecifiedIamDefaultPort() throws SQLException {
+    final String iamDefaultPort = "9999";
+    props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, iamDefaultPort);
+    final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
+        + iamDefaultPort + ":postgresqlUser";
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
         new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
