@@ -18,10 +18,11 @@ package software.amazon.jdbc.plugin;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -39,11 +40,13 @@ import software.amazon.jdbc.util.StringUtils;
 public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthPrefetchConnectionPlugin.class.getName());
+  private static final int PREFETCH_INTERVAL_SEC = 30;
+  private static final int TOKEN_EXPIRATION_SEC = 15 * 60;
 
-  static final Map<String, String> tokenCache = new HashMap<>();
-  static final ConcurrentHashMap<String, Future<?>> cacheThread = new ConcurrentHashMap<>();
+  static final Map<String, TokenInfo> tokenCache = new HashMap<>();
+  static Future<?> prefetchThread = null;
 
-  static final ExecutorService executorService = Executors.newCachedThreadPool(
+  static final ExecutorService executorService = Executors.newSingleThreadExecutor(
       r -> {
         final Thread prefetchThread = new Thread(r);
         prefetchThread.setDaemon(true);
@@ -98,7 +101,7 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
         host,
         port,
         region);
-    final String token = tokenCache.get(cacheKey);
+    final TokenInfo token = tokenCache.get(cacheKey);
     final boolean isCachedToken = token != null;
 
     if (isCachedToken) {
@@ -118,24 +121,27 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
 
       final String threadHost = host;
       final int threadPort = port;
-      cacheThread.putIfAbsent(
-          cacheKey,
-          executorService.submit(() -> {
-            while (true) {
-              TimeUnit.SECONDS.sleep(tokenExpirationSec);
-              tokenCache.computeIfPresent(cacheKey, (k, v) -> fetchNewToken(
-                  hostSpec,
-                  props,
-                  threadHost,
-                  threadPort,
-                  region));
-            }
-          })
-      );
+      if (prefetchThread == null) {
+        prefetchThread = executorService.submit(() -> {
+          while (true) {
+            TimeUnit.SECONDS.sleep(PREFETCH_INTERVAL_SEC);
+            tokenCache.forEach((k, v) -> {
+              if (v.isExpired()) {
+                tokenCache.put(k, fetchNewToken(
+                    hostSpec,
+                    props,
+                    threadHost,
+                    threadPort,
+                    region));
+              }
+            });
+          }
+        });
+      }
     }
 
     try {
-      PropertyDefinition.PASSWORD.set(props, tokenCache.get(cacheKey));
+      PropertyDefinition.PASSWORD.set(props, tokenCache.get(cacheKey).getToken());
       final Connection conn = connectFunc.call();
       final long elapsedTimeNanos = System.nanoTime() - startTime - getNewTokenTimeNanos;
       LOGGER.info("IAM Connection Time in nanoseconds: " + elapsedTimeNanos);
@@ -156,7 +162,7 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
           host,
           port,
           region));
-      PropertyDefinition.PASSWORD.set(props, token);
+      PropertyDefinition.PASSWORD.set(props, token.getToken());
 
       final Connection conn = connectFunc.call();
       final long elapsedTimeNanos = System.nanoTime() - startTime - getNewTokenTimeNanos;
@@ -172,7 +178,7 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
     }
   }
 
-  private String fetchNewToken(
+  private TokenInfo fetchNewToken(
       final HostSpec hostSpec,
       final Properties props,
       final String host,
@@ -188,16 +194,16 @@ public class IamAuthPrefetchConnectionPlugin extends IamAuthConnectionPlugin {
         () -> Messages.get(
             "IamAuthConnectionPlugin.generatedNewIamToken",
             new Object[] {newToken}));
-    return newToken;
+    return new TokenInfo(newToken, Instant.now().plus(TOKEN_EXPIRATION_SEC, ChronoUnit.SECONDS));
   }
 
-  private void updateToken(final String cacheKey, final String token) {
+  private void updateToken(final String cacheKey, final TokenInfo token) {
     tokenCache.put(cacheKey, token);
   }
 
   public static void clearCache() {
-    cacheThread.forEach((k, thread) -> thread.cancel(true));
+    prefetchThread.cancel(true);
     tokenCache.clear();
-    cacheThread.clear();
+    prefetchThread = null;
   }
 }
