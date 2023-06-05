@@ -169,4 +169,10 @@ public class OpenedConnectionTracker {
     builder.append("\n]");
     LOGGER.finest(Messages.get("OpenedConnectionTracker.invalidatingConnections", new Object[] {builder.toString()}));
   }
+
+  public void pruneNullConnections() {
+    openedConnections.forEach((key, queue) -> {
+      queue.removeIf(connectionWeakReference -> Objects.equals(connectionWeakReference.get(), null));
+    });
+  }
 }
