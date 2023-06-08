@@ -125,6 +125,12 @@ public class RdsUtils {
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-])+\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
 
+  private static final Pattern ELB_PATTERN =
+      Pattern.compile(
+          "(?<instance>.+)\\.elb\\."
+              + "((?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com)",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Pattern IP_V4 =
       Pattern.compile(
           "^(([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){1}"
@@ -167,6 +173,11 @@ public class RdsUtils {
     return AURORA_PROXY_DNS_PATTERN.matcher(host).find() || AURORA_CHINA_PROXY_DNS_PATTERN.matcher(host).find();
   }
 
+  public boolean isElbUrl(final String host) {
+    return !StringUtils.isNullOrEmpty(host)
+        && (ELB_PATTERN.matcher(host).find());
+  }
+
   public String getRdsInstanceHostPattern(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return "?";
@@ -195,6 +206,10 @@ public class RdsUtils {
     final Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
     if (chinaMatcher.find()) {
       return chinaMatcher.group(REGION_GROUP);
+    }
+    final Matcher elbMatcher = ELB_PATTERN.matcher(host);
+    if (elbMatcher.find()) {
+      return elbMatcher.group(REGION_GROUP);
     }
     return null;
   }
@@ -277,6 +292,7 @@ public class RdsUtils {
     } else if (isRdsDns(host)) {
       return RdsUrlType.RDS_INSTANCE;
     } else {
+      // ELB URLs will also be classified as other
       return RdsUrlType.OTHER;
     }
   }

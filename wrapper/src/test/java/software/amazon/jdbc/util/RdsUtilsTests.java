@@ -46,6 +46,9 @@ public class RdsUtilsTests {
   private static final String chinaRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
 
+  private static final String usEastRegionElbUrl =
+      "elb-name.elb.us-east-2.amazonaws.com";
+
   @Test
   public void testIsRdsDns() {
     RdsUtils target = new RdsUtils();
@@ -55,6 +58,7 @@ public class RdsUtilsTests {
     assertTrue(target.isRdsDns(usEastRegionInstance));
     assertTrue(target.isRdsDns(usEastRegionProxy));
     assertTrue(target.isRdsDns(usEastRegionCustomDomain));
+    assertFalse(target.isRdsDns(usEastRegionElbUrl));
 
     assertTrue(target.isRdsDns(chinaRegionCluster));
     assertTrue(target.isRdsDns(chinaRegionClusterReadOnly));
@@ -91,6 +95,7 @@ public class RdsUtilsTests {
     assertFalse(target.isRdsClusterDns(usEastRegionInstance));
     assertFalse(target.isRdsClusterDns(usEastRegionProxy));
     assertFalse(target.isRdsClusterDns(usEastRegionCustomDomain));
+    assertFalse(target.isRdsClusterDns(usEastRegionElbUrl));
 
     assertTrue(target.isRdsClusterDns(chinaRegionCluster));
     assertTrue(target.isRdsClusterDns(chinaRegionClusterReadOnly));
@@ -108,6 +113,7 @@ public class RdsUtilsTests {
     assertFalse(target.isWriterClusterDns(usEastRegionInstance));
     assertFalse(target.isWriterClusterDns(usEastRegionProxy));
     assertFalse(target.isWriterClusterDns(usEastRegionCustomDomain));
+    assertFalse(target.isWriterClusterDns(usEastRegionElbUrl));
 
     assertTrue(target.isWriterClusterDns(chinaRegionCluster));
     assertFalse(target.isWriterClusterDns(chinaRegionClusterReadOnly));
@@ -125,6 +131,7 @@ public class RdsUtilsTests {
     assertFalse(target.isReaderClusterDns(usEastRegionInstance));
     assertFalse(target.isReaderClusterDns(usEastRegionProxy));
     assertFalse(target.isReaderClusterDns(usEastRegionCustomDomain));
+    assertFalse(target.isReaderClusterDns(usEastRegionElbUrl));
 
     assertFalse(target.isReaderClusterDns(chinaRegionCluster));
     assertTrue(target.isReaderClusterDns(chinaRegionClusterReadOnly));
@@ -143,6 +150,7 @@ public class RdsUtilsTests {
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionInstance));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionProxy));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionCustomDomain));
+    assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionElbUrl));
 
     final String chinaExpectedHostPattern = "cn-northwest-1";
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(chinaRegionCluster));

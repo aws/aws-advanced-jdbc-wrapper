@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
 ## [?]
+
+### :magic_wand: Added
+- Elastic Load Balancer URL support ([PR#476](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/476)).
+
 ### :bug: Fixed
 - Values for the `wrapperLoggerLevel` parameter are no longer case-sensitive ([#PR #481](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/481)).
 
