@@ -110,7 +110,7 @@ public class Driver implements java.sql.Driver {
 
     final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
     if (!StringUtils.isNullOrEmpty(logLevelStr)) {
-      final Level logLevel = Level.parse(logLevelStr);
+      final Level logLevel = Level.parse(logLevelStr.toUpperCase());
       final Logger rootLogger = Logger.getLogger("");
       for (final Handler handler : rootLogger.getHandlers()) {
         if (handler instanceof ConsoleHandler) {
