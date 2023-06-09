@@ -68,9 +68,15 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 
 2. Call `ConnectionProviderManager.setConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
 
-3. Continue as normal: create connections and use them as needed.
+3. By default, the read-write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. If you would like the plugin to select a reader based on the instance with the least connections instead, set the following connection property. Note that this strategy is only available when internal connection pools are enabled - if you set the connection property without enabling internal pools, an exception will be thrown.
 
-4. When you are finished using all connections, call `ConnectionProviderManager.releaseResources`.
+```java
+props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "leastConnections");
+```
+
+4. Continue as normal: create connections and use them as needed.
+
+5. When you are finished using all connections, call `ConnectionProviderManager.releaseResources`.
 
 > :warning: **Note:** You must call `ConnectionProviderManager.releaseResources` to close the internal connection pools when you are finished using all connections. Unless `ConnectionProviderManager.releaseResources` is called, the wrapper driver will keep the pools open so that they can be shared between connections.
 
