@@ -31,7 +31,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:rds:2.20.49")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.20.49")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.14.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     compileOnly("mysql:mysql-connector-java:8.0.31")
     compileOnly("org.postgresql:postgresql:42.5.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.0")
@@ -63,7 +63,7 @@ dependencies {
     testImplementation("org.testcontainers:toxiproxy:1.17.5")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
     testImplementation("org.slf4j:slf4j-simple:2.0.3")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.14.2")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
 }
 
 repositories {
