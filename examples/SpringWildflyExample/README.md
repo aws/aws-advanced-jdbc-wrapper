@@ -134,7 +134,7 @@ Since this example uses the PostgreSQL JDBC driver as the target driver, you nee
 
   <resources>
     <resource-root path="aws-advanced-jdbc-wrapper-2.2.0.jar"/>
-    <resource-root path="postgresql-42.5.0.jar"/>
+    <resource-root path="postgresql-42.5.4.jar"/>
   </resources>
 </module>
 ```
