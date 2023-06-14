@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Link performance test in table of contents. See [Documentation Table of Contents](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/Documentation.md).
   - Cluster URLs are not internally pooled. See [Using Read Write Splitting Plugin Internal Connection Pooling](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling).
   - The `leastConnections` strategy in the [Using Read Write Splitting Plugin Internal Connection Pooling](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) at point #3.
+- Sample code and tutorial for using the driver with:
+  - Spring and Hibernate
+  - Spring and Wildfly
 
 ### :bug: Fixed
 - Pruned null connections in connection tracker plugins ([PR #461](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/461))
