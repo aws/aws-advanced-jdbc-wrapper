@@ -34,12 +34,12 @@ public class SpringWildflyExampleApplication implements CommandLineRunner {
 
   @Override
   public void run(String... args) {
-    LOGGER.info("Mvp -> {}", jdbcTemplate.query(
-        "SELECT * FROM mvp LIMIT 10",
+    LOGGER.info("Example -> {}", jdbcTemplate.query(
+        "SELECT * FROM example LIMIT 10",
         (rs, rowNum) ->
-            new MVP(
+            new Example(
                 rs.getInt("status"),
-                rs.getInt("mvp_id")
+                rs.getInt("id")
             )
     ));
   }

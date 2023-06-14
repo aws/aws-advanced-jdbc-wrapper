@@ -14,39 +14,10 @@
  * limitations under the License.
  */
 
-package example;
+package example.data;
 
-public class MVP {
+import org.springframework.data.jpa.repository.JpaRepository;
 
-  int status;
-  int mvpId;
+public interface ExampleRepository extends JpaRepository<Example, Integer> {
 
-  public MVP(int status, int mvpId) {
-    this.status = status;
-    this.mvpId = mvpId;
-  }
-
-  public int getStatus() {
-    return status;
-  }
-
-  public void setStatus(int status) {
-    this.status = status;
-  }
-
-  public int getMvpId() {
-    return mvpId;
-  }
-
-  public void setMvpId(int mvpId) {
-    this.mvpId = mvpId;
-  }
-
-  @Override
-  public String toString() {
-    return "MVP{" +
-        "status=" + status +
-        ", mvpId='" + mvpId +
-        '}';
-  }
 }

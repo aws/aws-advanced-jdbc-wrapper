@@ -22,18 +22,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import example.mvp.MVPRepository;
+import example.data.ExampleRepository;
 
 @SpringBootApplication
 public class SpringHibernateExampleApplication implements CommandLineRunner {
   private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
   @Autowired
-  MVPRepository repository;
+  ExampleRepository repository;
 
   @Override
   public void run(String... args) {
-    LOGGER.info("Mvp -> {}", repository.findAll());
+    LOGGER.info("Example -> {}", repository.findAll());
   }
 
   public static void main(String[] args) {

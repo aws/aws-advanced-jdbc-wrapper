@@ -141,7 +141,7 @@
                     </driver>
                 </drivers>
                 <datasource jndi-name="java:jboss/datasources/AWSWrapper" pool-name="AWSWrapper" enabled="true" use-java-context="true" statistics-enabled="${wildfly.datasources.statistics-enabled:${wildfly.statistics-enabled:false}}">
-                    <connection-url>jdbc:aws-wrapper:postgresql:/cluster-endpoint:5432/db</connection-url>
+                    <connection-url>jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/db</connection-url>
                     <driver>wrapper</driver>
                     <connection-property name="failoverTimeoutMs">180000</connection-property>
                     <connection-property name="failoverWriterReconnectIntervalMs">2000</connection-property>

@@ -1,11 +1,11 @@
-# Tutorial: Getting Started with the AWS Advanced JDBC Wrapper, Spring Boot and Hibernate
+# Tutorial: Getting Started with the AWS Advanced JDBC Driver, Spring Boot and Hibernate
 
-In this tutorial, you will set up a String Boot and Hibernate application with the AWS Advanced JDBC Wrapper, and use the IAM Authentication plugin to fetch some data from an Aurora PostgreSQL database.
+In this tutorial, you will set up a Spring Boot and Hibernate application with the AWS Advanced JDBC Driver, and use the IAM Authentication plugin to fetch some data from an Aurora PostgreSQL database.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
 >    - Hibernate
->    - AWS Advanced JDBC Wrapper 2.1.2
+>    - AWS Advanced JDBC Driver 2.1.2
 >    - Postgresql 42.5.4
 >    - Gradle 7
 >    - Java 11
@@ -13,7 +13,7 @@ In this tutorial, you will set up a String Boot and Hibernate application with t
 You will progress through the following sections:
 1. Create a Gradle Spring Boot project
 2. Add the required Gradle dependencies
-3. Configure the AWS Advanced JDBC Wrapper
+3. Configure the AWS Advanced JDBC Driver
 
 ## Pre-requisites
 - A database with IAM authentication enabled. This tutorial uses the Aurora PostgreSQL database. For information on how to enable IAM database authentication for Aurora databases, please see the [AWS documentation](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html).
@@ -22,22 +22,19 @@ You will progress through the following sections:
 Create a Gradle project with the following project hierarchy:
 
 ```
-├───.mvn
-│   └───wrapper
-├───pom.xml
 └───src
     ├───main
         ├───java
         │   └───example
-        |       ├───mvp
-        |           ├───MVP.java
-        |           └───MVPRepository.java
+        |       ├───data
+        |           ├───Example.java
+        |           └───ExampleRepository.java
         │       └───SpringHibernateExampleApplication.java
         └───resources
                 └───application.yml
 ```
 
-> Note: this sample code assumes the target database contains a table named MVP that can be generated using the SQL queries provided in `src/main/resources/mvp.sql`.
+> Note: this sample code assumes the target database contains a table named Example that can be generated using the SQL queries provided in `src/main/resources/example.sql`.
 
 `SpringHibernateExampleApplication.java` contains the following the code:
 
@@ -47,11 +44,11 @@ public class SpringHibernateExampleApplication implements CommandLineRunner {
   private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
   @Autowired
-  MVPRepository repository;
+  ExampleRepository repository;
 
   @Override
   public void run(String... args) {
-    LOGGER.info("Mvp -> {}", repository.findAll());
+    LOGGER.info("Example -> {}", repository.findAll());
   }
 
   public static void main(String[] args) {
@@ -60,67 +57,69 @@ public class SpringHibernateExampleApplication implements CommandLineRunner {
 }
 ```
 
-`MVP.java` contains the following code:
+`Example.java` contains the following code:
+
 ```java
-package example.mvp;
+package example.data;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 
 @Entity
-public class MVP {
+public class Example {
 
-  @Id
-  @GeneratedValue
-  private int mvpId;
+   @Id
+   @GeneratedValue
+   private int id;
 
-  private int status;
+   private int status;
 
-  public MVP() {
-    super();
-  }
+   public Example() {
+      super();
+   }
 
-  public MVP(int id, int status) {
-    super();
-    this.mvpId = id;
-    this.status = status;
-  }
+   public Example(int id, int status) {
+      super();
+      this.id = id;
+      this.status = status;
+   }
 
-  public MVP(int status) {
-    super();
-    this.status = status;
-  }
+   public Example(int status) {
+      super();
+      this.status = status;
+   }
 
-  public int getMvpId() {
-    return mvpId;
-  }
+   public int getId() {
+      return id;
+   }
 
-  public void setMvpId(int id) {
-    this.mvpId = id;
-  }
+   public void setId(int id) {
+      this.id = id;
+   }
 
-  public int getStatus() {
-    return status;
-  }
+   public int getStatus() {
+      return status;
+   }
 
-  public void setStatus(int name) {
-    this.status = name;
-  }
+   public void setStatus(int name) {
+      this.status = name;
+   }
 
-  @Override
-  public String toString() {
-    return String.format("Mvp [id=%s, status=%s]", mvpId, status);
-  }
+   @Override
+   public String toString() {
+      return String.format("Example [id=%s, status=%s]", id, status);
+   }
 }
 ```
-Lastly, `MVPRepository.java` contains the following code:
+Lastly, `ExampleRepository.java` contains the following code:
+
 ```java
-package example.mvp;
+package example.data;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface MVPRepository extends JpaRepository<MVP, Integer> {
+public interface ExampleRepository extends JpaRepository<Example, Integer> {
 
 }
 ```
@@ -143,7 +142,7 @@ Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
 1. In the `application.yml`, add a new datasource for Spring:
     ```yaml
     datasource:
-        url: jdbc:aws-wrapper:postgresql://cluster-endpoint:5432/db
+        url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/db
         username: jane_doe
         driver-class-name: software.amazon.jdbc.Driver
         hikari:
@@ -174,7 +173,7 @@ Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
       jdbc: TRACE
    ```
 
-Start the application by running `./gradlew :springhibernate:bootRun` in the terminal. You should see the application making a connection to the database and fetching data from the MVP table.
+Start the application by running `./gradlew :springhibernate:bootRun` in the terminal. You should see the application making a connection to the database and fetching data from the Example table.
 
 # Summary
-This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Wrapper to a simple Spring Boot and Wildfly application.
+This tutorial walks through the steps required to add and configure the AWS Advanced JDBC Driver to a simple Spring Boot and Hibernate application.

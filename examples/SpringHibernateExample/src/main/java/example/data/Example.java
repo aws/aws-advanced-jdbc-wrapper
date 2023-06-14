@@ -14,42 +14,42 @@
  * limitations under the License.
  */
 
-package example.mvp;
+package example.data;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 
 @Entity
-public class MVP {
+public class Example {
 
   @Id
   @GeneratedValue
-  private int mvpId;
+  private int id;
 
   private int status;
 
-  public MVP() {
+  public Example() {
     super();
   }
 
-  public MVP(int id, int status) {
+  public Example(int id, int status) {
     super();
-    this.mvpId = id;
+    this.id = id;
     this.status = status;
   }
 
-  public MVP(int status) {
+  public Example(int status) {
     super();
     this.status = status;
   }
 
-  public int getMvpId() {
-    return mvpId;
+  public int getId() {
+    return id;
   }
 
-  public void setMvpId(int id) {
-    this.mvpId = id;
+  public void setId(int id) {
+    this.id = id;
   }
 
   public int getStatus() {
@@ -62,6 +62,6 @@ public class MVP {
 
   @Override
   public String toString() {
-    return String.format("Mvp [id=%s, status=%s]", mvpId, status);
+    return String.format("Example [id=%s, status=%s]", id, status);
   }
 }

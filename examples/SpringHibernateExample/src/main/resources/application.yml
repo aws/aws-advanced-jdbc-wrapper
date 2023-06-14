@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:aws-wrapper:postgresql://cluster-endpoint:5432/db
+    url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/db
     username: jane_doe
     driver-class-name: software.amazon.jdbc.Driver
     hikari:
