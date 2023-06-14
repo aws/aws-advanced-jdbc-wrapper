@@ -60,7 +60,7 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.18.3")
     testImplementation("org.testcontainers:mariadb:1.18.3")
     testImplementation("org.testcontainers:junit-jupiter:1.17.4")
-    testImplementation("org.testcontainers:toxiproxy:1.17.5")
+    testImplementation("org.testcontainers:toxiproxy:1.18.3")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
     testImplementation("org.slf4j:slf4j-simple:2.0.3")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
