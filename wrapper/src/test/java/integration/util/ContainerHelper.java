@@ -49,7 +49,7 @@ public class ContainerHelper {
 
   private static final String MYSQL_CONTAINER_IMAGE_NAME = "mysql:latest";
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
-  private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:latest";
+  private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 

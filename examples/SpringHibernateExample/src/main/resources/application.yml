@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/db
+    username: jane_doe
+    driver-class-name: software.amazon.jdbc.Driver
+    hikari:
+      data-source-properties:
+        wrapperPlugins: iam,failover,efm
+        iamRegion: us-east-2
+        iamExpiration: 1320
+      exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
+      max-lifetime: 1260000
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+logging:
+  level:
+    software:
+      amazon:
+        jdbc: TRACE
