@@ -158,7 +158,7 @@ Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
    
    This example contains some very simple configurations for the IAM Authentication plugin, if you are interested in other configurations related to failover, please visit [the documentation for failover parameters](../../docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md#failover-parameters)
 2. Configure Hibernate dialect:
-   ```properties
+   ```yaml
    jpa:
     properties:
       hibernate:

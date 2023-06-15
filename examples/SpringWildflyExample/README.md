@@ -44,7 +44,7 @@ Create a Gradle project with the following project hierarchy:
               ├───amazon
               │   └───standalone.xml
 ```
-> Note: The wildfly directory will contain all the files you have downloaded in step 3. For simplicity, the diagram above only shows the files requiring modifications or need to be added.
+> Note: The wildfly directory will contain all the files that you will download in step 3. For simplicity, the diagram above only shows the files that either need to be added or require modifications.
 
 The file `Example.java` contains the following:
 ```java

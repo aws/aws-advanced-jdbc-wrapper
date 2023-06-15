@@ -23,7 +23,8 @@ include(
     "hikari",
     "driverexample",
     "springhibernate",
-    "springwildfly"
+    "springwildfly",
+    "springboothikariexample"
 )
 
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
@@ -32,6 +33,7 @@ project(":hikari").projectDir = file("examples/HikariExample")
 project(":driverexample").projectDir = file("examples/AWSDriverExample")
 project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
 project(":springwildfly").projectDir = file("examples/SpringWildflyExample/spring")
+project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
 
 pluginManagement {
     plugins {
