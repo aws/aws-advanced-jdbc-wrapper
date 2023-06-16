@@ -3,8 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [2.2.0] - 2023-6-14
+## [2.2.1] - 2023-6-16
 
+### :bug: Fixed
+- Move the Spring Wildfly example `gradle.properties` file to `examples/SpringWildflyExample/spring` ([Issue #491](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/491)).
+
+## [2.2.0] - 2023-6-14
 ### :magic_wand: Added
 - Autoscaling and the least connections strategy ([PR #451](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/451)).
 - [Target driver dialects](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-the-jdbc-driver/TargetDriverDialects.md) ([PR #452](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/452)).
@@ -14,14 +18,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Internal connection pool behaviour only verifying password on initial connection. See [Using the Read Write Splitting Plugin Internal Connection Pooling document](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) and [code example](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/examples/AWSDriverExample/src/main/java/software/amazon/InternalConnectionPoolPasswordWarning.java).
   - Link performance test in table of contents. See [Documentation Table of Contents](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/Documentation.md).
   - Cluster URLs are not internally pooled. See [Using Read Write Splitting Plugin Internal Connection Pooling](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling).
-  - The `leastConnections` strategy in the [Using Read Write Splitting Plugin Internal Connection Pooling](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) at point #3.
+  - The `leastConnections` strategy in the [Using Read Write Splitting Plugin Internal Connection Pooling](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling) at point 3.
 - Sample code and tutorial for using the driver with:
   - [Spring and Hibernate](./examples/SpringHibernateExample/README.md)
   - [Spring and Wildfly](./examples/SpringWildflyExample/README.md)
   - [Spring and Hikari](./examples/SpringBootHikariExample/README.md)
 
 ### :bug: Fixed
-- Pruned null connections in connection tracker plugins ([PR #461](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/461))
+- Pruned null connections in connection tracker plugins ([PR #461](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/461)).
 - HikariCP integration tests and reworked AwsWrapperDataSource by removing property names, introduced a set of simple properties to set database, server name and server port ([PR #468](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/468)).
 - Checkstyle failure due to modified license and driver connection provider passing original properties resulting properties being overridden for subsequent connections ([PR #471](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/471)).
 - IamAuthConnectionPlugin to properly prioritize the override property IAM_DEFAULT_PORT then Hosts port, and then Dialect port ([Issue #473](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/473)).
@@ -132,6 +136,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 * The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 * The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.2.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.0...2.2.1
 [2.2.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.2...2.2.0
 [2.1.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.1...2.1.2
 [2.1.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.0...2.1.1
