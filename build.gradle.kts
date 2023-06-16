@@ -83,7 +83,7 @@ allprojects {
 
     publishing {
         publications {
-            if (project.props.bool("nexus.publish", default = true)) {
+            if (project.props.bool("nexus.publish", default = false)) {
                 create<MavenPublication>(project.name) {
                     groupId = "software.amazon.jdbc"
                     artifactId = "aws-advanced-jdbc-wrapper"
