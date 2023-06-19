@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.2.0] - 2023-6-14
 ### :magic_wand: Added
 - Autoscaling and the least connections strategy ([PR #451](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/451)).
-- [Target driver dialects](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-the-jdbc-driver/TargetDriverDialects.md) ([PR #452](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/452)).
+- [Target driver dialects](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/TargetDriverDialects.md) ([PR #452](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/452)).
 - Elastic Load Balancer URL support ([PR #476](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/476)).
 - Documentation:
   - Using the Driver with plain RDS Databases. See [Using the Driver](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-jdbc-driver-with-plain-rds-databases).
