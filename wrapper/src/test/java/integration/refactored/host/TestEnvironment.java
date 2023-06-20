@@ -54,7 +54,7 @@ import software.amazon.jdbc.util.StringUtils;
 public class TestEnvironment implements AutoCloseable {
 
   private static final Logger LOGGER = Logger.getLogger(TestEnvironment.class.getName());
-  private static final int NUM_OR_ENV_PRE_CREATE = 4; // create this number of environments in advance
+  private static final int NUM_OR_ENV_PRE_CREATE = 1; // create this number of environments in advance
 
   private static final ExecutorService envPreCreateExecutor = Executors.newCachedThreadPool();
 
