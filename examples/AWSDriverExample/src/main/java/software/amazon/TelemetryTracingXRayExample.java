@@ -33,6 +33,8 @@ public class TelemetryTracingXRayExample {
   public static final String POSTGRESQL_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://atlas-postgres.cluster-czygpppufgy4.us-east-2.rds.amazonaws.com:5432/postgres";
 
+  private static final String USERNAME = "username";
+  private static final String PASSWORD = "password";
   private static final String SQL_DBLIST = "select datname from pg_database;";
   private static final String SQL_SLEEP = "select pg_sleep(20);";
   private static final String SQL_TABLELIST = "select * from information_schema.tables where table_schema='public';";
@@ -78,8 +80,8 @@ public class TelemetryTracingXRayExample {
 
     final Properties properties = new Properties();
     properties.setProperty(PropertyDefinition.PLUGINS.name, "dataCache, efm, failover");
-    properties.setProperty(PropertyDefinition.USER.name, MetricsUtil.USERNAME);
-    properties.setProperty(PropertyDefinition.PASSWORD.name, MetricsUtil.PASSWORD);
+    properties.setProperty(PropertyDefinition.USER.name, USERNAME);
+    properties.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 
     properties.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, String.valueOf(true));
     properties.setProperty(PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.name, String.valueOf(true));
