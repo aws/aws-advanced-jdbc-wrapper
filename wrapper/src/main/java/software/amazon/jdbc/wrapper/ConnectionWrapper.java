@@ -75,7 +75,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   public ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
-      @NonNull final ConnectionProvider connectionProvider)
+      @NonNull final ConnectionProvider connectionProvider,
+      @NonNull final TelemetryFactory telemetryFactory)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -85,7 +86,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.originalUrl = url;
     this.targetDriverProtocol = getProtocol(url);
 
-    final TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(props);
     final ConnectionPluginManager pluginManager =
         new ConnectionPluginManager(connectionProvider, this, telemetryFactory);
     final PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);

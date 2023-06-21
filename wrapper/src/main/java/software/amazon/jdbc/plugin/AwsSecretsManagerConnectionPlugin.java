@@ -48,9 +48,16 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
+  private static final String TELEMETRY_UPDATE_SECRETS = "fetch credentials";
+  private static final String TELEMETRY_FETCH_CREDENTIALS_COUNTER = "secretsManager.fetchCredentials.count";
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -77,6 +84,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   private final Function<String, GetSecretValueRequest> getSecretValueRequestFunc;
   private Secret secret;
   protected PluginService pluginService;
+
+  private final TelemetryCounter fetchCredentialsCounter;
 
   static {
     PropertyDefinition.registerPluginProperties(AwsSecretsManagerConnectionPlugin.class);
@@ -150,6 +159,8 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
     this.secretsManagerClientFunc = secretsManagerClientFunc;
     this.getSecretValueRequestFunc = getSecretValueRequestFunc;
+    this.fetchCredentialsCounter = this.pluginService.getTelemetryFactory()
+        .createCounter(TELEMETRY_FETCH_CREDENTIALS_COUNTER);
   }
 
   @Override
@@ -217,26 +228,43 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
    */
   private boolean updateSecret(final HostSpec hostSpec, final boolean forceReFetch) throws SQLException {
 
-    boolean fetched = false;
-    this.secret = secretsCache.get(this.secretKey);
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_UPDATE_SECRETS, TelemetryTraceLevel.NESTED);
+    this.fetchCredentialsCounter.inc();
 
-    if (secret == null || forceReFetch) {
-      try {
-        this.secret = fetchLatestCredentials(hostSpec);
-        if (this.secret != null) {
-          fetched = true;
-          secretsCache.put(this.secretKey, this.secret);
+    try {
+
+      boolean fetched = false;
+      this.secret = secretsCache.get(this.secretKey);
+
+      if (secret == null || forceReFetch) {
+        try {
+          this.secret = fetchLatestCredentials(hostSpec);
+          if (this.secret != null) {
+            fetched = true;
+            secretsCache.put(this.secretKey, this.secret);
+          }
+        } catch (final SecretsManagerException | JsonProcessingException exception) {
+          LOGGER.log(
+              Level.WARNING,
+              exception,
+              () -> Messages.get(
+                  "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
+          throw new SQLException(
+              Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"),
+              exception);
         }
-      } catch (final SecretsManagerException | JsonProcessingException exception) {
-        LOGGER.log(
-            Level.WARNING,
-            exception,
-            () -> Messages.get(
-                "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-        throw new SQLException(Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"), exception);
       }
+      return fetched;
+
+    } catch (Exception ex) {
+      telemetryContext.setSuccess(false);
+      telemetryContext.setException(ex);
+      throw ex;
+    } finally {
+      telemetryContext.closeContext();
     }
-    return fetched;
   }
 
   /**

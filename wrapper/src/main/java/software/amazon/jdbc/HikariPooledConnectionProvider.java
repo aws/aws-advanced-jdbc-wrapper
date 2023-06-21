@@ -45,6 +45,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final Logger LOGGER =
       Logger.getLogger(HikariPooledConnectionProvider.class.getName());
 
+  private static final String thisClassName = HikariPooledConnectionProvider.class.getName();
   private static final String LEAST_CONNECTIONS_STRATEGY = "leastConnections";
 
   private static final RdsUtils rdsUtils = new RdsUtils();
@@ -303,6 +304,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    */
   public Set<PoolKey> getKeys() {
     return databasePools.getEntries().keySet();
+  }
+
+  @Override
+  public String getTargetName() {
+    return thisClassName;
   }
 
   /**

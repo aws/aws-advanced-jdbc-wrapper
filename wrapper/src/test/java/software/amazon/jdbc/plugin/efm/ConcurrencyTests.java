@@ -360,6 +360,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public String getTargetName() {
+      return null;
+    }
+
+    @Override
     public boolean isNetworkException(Throwable throwable) {
       return false;
     }

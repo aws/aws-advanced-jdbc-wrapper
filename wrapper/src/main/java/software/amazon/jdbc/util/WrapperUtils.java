@@ -56,6 +56,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcRunnable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ArrayWrapper;
 import software.amazon.jdbc.wrapper.BlobWrapper;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
@@ -186,8 +187,8 @@ public class WrapperUtils {
     TelemetryContext context = null;
 
     try {
-      context = telemetryFactory.openTelemetryContext(methodName);
-      context.setAttribute("methodName", methodName);
+      context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
+      context.setAttribute("jdbcCall", methodName);
 
       final T result =
           pluginManager.execute(
@@ -227,8 +228,8 @@ public class WrapperUtils {
     TelemetryContext context = null;
 
     try {
-      context = telemetryFactory.openTelemetryContext(methodName);
-      context.setAttribute("methodName", methodName);
+      context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
+      context.setAttribute("jdbcCall", methodName);
 
       final T result =
           pluginManager.execute(resultClass,

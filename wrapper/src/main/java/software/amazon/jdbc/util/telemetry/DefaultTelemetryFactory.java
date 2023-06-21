@@ -20,62 +20,72 @@ import java.util.Properties;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class DefaultTelemetryFactory implements TelemetryFactory {
+
   private final boolean enableTelemetry;
   private final String telemetryTracesBackend;
   private final String telemetryMetricsBackend;
   private final boolean telemetrySubmitToplevel;
 
-  public DefaultTelemetryFactory(Properties properties) {
+  private final TelemetryFactory tracesTelemetryFactory;
+  private final TelemetryFactory metricsTelemetryFactory;
+
+  public DefaultTelemetryFactory(final Properties properties) {
     this.enableTelemetry = PropertyDefinition.ENABLE_TELEMETRY.getBoolean(properties);
     this.telemetryTracesBackend = PropertyDefinition.TELEMETRY_TRACES_BACKEND.getString(properties);
     this.telemetryMetricsBackend = PropertyDefinition.TELEMETRY_METRICS_BACKEND.getString(properties);
     this.telemetrySubmitToplevel = PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.getBoolean(properties);
-  }
 
-  @Override
-  public TelemetryContext openTelemetryContext(String name) {
     if (enableTelemetry) {
+
       if ("otlp".equalsIgnoreCase(telemetryTracesBackend)) {
-        return OpenTelemetryFactory.openTelemetryContext(name, telemetrySubmitToplevel);
+        this.tracesTelemetryFactory = new OpenTelemetryFactory();
       } else if ("xray".equalsIgnoreCase(telemetryTracesBackend)) {
-        return XRayTelemetryFactory.openTelemetryContext(name, telemetrySubmitToplevel);
+        this.tracesTelemetryFactory = new XRayTelemetryFactory();
       } else if ("none".equalsIgnoreCase(telemetryTracesBackend)) {
-        return new NullTelemetryContext(name);
+        this.tracesTelemetryFactory = new NullTelemetryFactory();
       } else {
         throw new RuntimeException(
             telemetryTracesBackend + " is not a valid tracing backend. Available options: OTLP, XRAY, NONE.");
       }
+    } else {
+      this.tracesTelemetryFactory = new NullTelemetryFactory();
     }
-    return new NullTelemetryContext(name);
-  }
 
-  @Override
-  public TelemetryCounter createCounter(String name) {
     if (enableTelemetry) {
       if ("otlp".equalsIgnoreCase(telemetryMetricsBackend)) {
-        return OpenTelemetryFactory.createCounter(name);
+        this.metricsTelemetryFactory = new OpenTelemetryFactory();
       } else if ("none".equalsIgnoreCase(telemetryMetricsBackend)) {
-        return new NullTelemetryCounter(name);
+        this.metricsTelemetryFactory = new NullTelemetryFactory();
       } else {
         throw new RuntimeException(
             telemetryTracesBackend + " is not a valid metrics backend. Available options: OTLP, NONE.");
       }
+    } else {
+      this.metricsTelemetryFactory = new NullTelemetryFactory();
     }
-    return new NullTelemetryCounter(name);
   }
 
   @Override
-  public TelemetryGauge createGauge(String name, GaugeCallable<Long> callback) {
-    if (enableTelemetry) {
-      if ("otlp".equalsIgnoreCase(telemetryMetricsBackend)) {
-        return OpenTelemetryFactory.createGauge(name, callback);
-      } else if ("none".equalsIgnoreCase(telemetryMetricsBackend)) {
-        return new NullTelemetryGauge(name);
-      } else {
-        throw new RuntimeException(
-            telemetryTracesBackend + " is not a valid metrics backend. Available options: OTLP, NONE.");
-      }
+  public TelemetryContext openTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
+    TelemetryTraceLevel effectiveTraceLevel = traceLevel;
+    if (!this.telemetrySubmitToplevel && traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
+      effectiveTraceLevel = TelemetryTraceLevel.NESTED;
     }
-    return new NullTelemetryGauge(name);
+    return this.tracesTelemetryFactory.openTelemetryContext(name, effectiveTraceLevel);
+  }
+
+  @Override
+  public void postCopy(TelemetryContext telemetryContext, TelemetryTraceLevel traceLevel) {
+    this.tracesTelemetryFactory.postCopy(telemetryContext, traceLevel);
+  }
+
+  @Override
+  public TelemetryCounter createCounter(final String name) {
+    return this.metricsTelemetryFactory.createCounter(name);
+  }
+
+  @Override
+  public TelemetryGauge createGauge(final String name, final GaugeCallable<Long> callback) {
+    return this.metricsTelemetryFactory.createGauge(name, callback);
   }
 }

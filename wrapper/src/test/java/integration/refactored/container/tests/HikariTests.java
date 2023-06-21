@@ -124,8 +124,7 @@ public class HikariTests {
         DriverHelper.getDataSourceClassname());
 
     // Configuring driver-specific DataSource:
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+    final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
@@ -158,7 +157,7 @@ public class HikariTests {
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testFailoverLostConnection() throws SQLException {
-    final Properties customProps = new Properties();
+    final Properties customProps = ConnectionStringHelper.getDefaultProperties();
     customProps.setProperty(PropertyDefinition.PLUGINS.name, "failover");
     customProps.setProperty("failoverTimeoutMs", Integer.toString(1));
     DriverHelper.setSocketTimeout(customProps, 1, TimeUnit.SECONDS);
@@ -277,7 +276,7 @@ public class HikariTests {
         Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
             .getClusterEndpointPort()));
 
-    final Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
 
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(

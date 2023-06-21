@@ -20,16 +20,16 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 // Annotation is required to avoid an error when trying to serialize the getUrl method
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class TestXRayTelemetryInfo {
+public class TestTelemetryInfo {
 
   private String endpoint;
   private int endpointPort;
 
   // This constructor should NOT be used in the code. It's required for serialization.
-  public TestXRayTelemetryInfo() {
+  public TestTelemetryInfo() {
   }
 
-  public TestXRayTelemetryInfo(String endpoint, int endpointPort) {
+  public TestTelemetryInfo(String endpoint, int endpointPort) {
     this.endpoint = endpoint;
     this.endpointPort = endpointPort;
   }

@@ -63,8 +63,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
-import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
-import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -122,7 +120,8 @@ public class ConnectionPluginManagerBenchmarks {
         mockConnection);
     when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
         any(Properties.class))).thenReturn(mockConnection);
-    when(mockTelemetryFactory.openTelemetryContext(anyString())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
     when(mockConnection.createStatement()).thenReturn(mockStatement);

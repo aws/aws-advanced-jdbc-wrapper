@@ -237,7 +237,7 @@ public class AwsIamIntegrationTest {
   }
 
   protected Properties initAwsIamProps(String user, String password) {
-    final Properties props = new Properties();
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     props.setProperty(PropertyDefinition.USER.name, user);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);

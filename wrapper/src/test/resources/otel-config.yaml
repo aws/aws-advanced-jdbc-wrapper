@@ -1,0 +1,38 @@
+extensions:
+  health_check:
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  awsxray:
+    endpoint: 0.0.0.0:2000
+    transport: udp
+
+processors:
+  batch/traces:
+    timeout: 1s
+    send_batch_size: 1
+  batch/metrics:
+    timeout: 1s
+
+exporters:
+  awsxray:
+  awsemf:
+    log_group_name: "aws_advanced_jdbc_wrapper"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp,awsxray]
+      processors: [batch/traces]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp]
+      processors: [batch/metrics]
+      exporters: [awsemf]
+
+  extensions: [health_check]

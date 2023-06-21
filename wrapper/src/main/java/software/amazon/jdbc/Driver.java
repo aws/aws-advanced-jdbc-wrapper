@@ -39,6 +39,7 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class Driver implements java.sql.Driver {
@@ -47,7 +48,6 @@ public class Driver implements java.sql.Driver {
   private static final Logger PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
-  private static TelemetryFactory telemetryFactory;
 
   static {
     try {
@@ -99,54 +99,53 @@ public class Driver implements java.sql.Driver {
 
     LOGGER.finest("Opening connection to " + url);
 
-    final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
-    final java.sql.Driver driver = DriverManager.getDriver(driverUrl);
-
-    // get current time
-
-    if (driver == null) {
-      LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl}));
-      return null;
-    }
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
     if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(info, databaseName);
     }
     ConnectionUrlParser.parsePropertiesFromUrl(url, info);
 
-    boolean telemetryEnabled = PropertyDefinition.ENABLE_TELEMETRY.getBoolean(info);
-    if (telemetryEnabled) {
-      telemetryFactory = new DefaultTelemetryFactory(info);
-    }
+    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(info);
+    TelemetryContext context = telemetryFactory.openTelemetryContext(
+        "software.amazon.jdbc.Driver.connect", TelemetryTraceLevel.TOP_LEVEL);
 
-    TelemetryContext context = telemetryFactory.openTelemetryContext("Driver connect");
+    try {
 
-    // replace segment create time with function create time
+      final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
+      final java.sql.Driver driver = DriverManager.getDriver(driverUrl);
 
-    final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
-    if (!StringUtils.isNullOrEmpty(logLevelStr)) {
-      final Level logLevel = Level.parse(logLevelStr.toUpperCase());
-      final Logger rootLogger = Logger.getLogger("");
-      for (final Handler handler : rootLogger.getHandlers()) {
-        if (handler instanceof ConsoleHandler) {
-          if (handler.getLevel().intValue() > logLevel.intValue()) {
-            // Set higher (more detailed) level as requested
-            handler.setLevel(logLevel);
+      if (driver == null) {
+        LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[]{driverUrl}));
+        return null;
+      }
+
+      final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
+      if (!StringUtils.isNullOrEmpty(logLevelStr)) {
+        final Level logLevel = Level.parse(logLevelStr.toUpperCase());
+        final Logger rootLogger = Logger.getLogger("");
+        for (final Handler handler : rootLogger.getHandlers()) {
+          if (handler instanceof ConsoleHandler) {
+            if (handler.getLevel().intValue() > logLevel.intValue()) {
+              // Set higher (more detailed) level as requested
+              handler.setLevel(logLevel);
+            }
           }
         }
+        PARENT_LOGGER.setLevel(logLevel);
       }
-      PARENT_LOGGER.setLevel(logLevel);
+
+      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+      final TargetDriverDialect targetDriverDialect =
+          targetDriverDialectManager.getDialect(driver, info);
+
+      final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver,
+          targetDriverDialect);
+
+      return new ConnectionWrapper(info, driverUrl, connectionProvider, telemetryFactory);
+
+    } finally {
+      context.closeContext();
     }
-
-    final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-    final TargetDriverDialect targetDriverDialect =
-        targetDriverDialectManager.getDialect(driver, info);
-
-    final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver, targetDriverDialect);
-
-    context.closeContext();
-
-    return new ConnectionWrapper(info, driverUrl, connectionProvider);
   }
 
   @Override

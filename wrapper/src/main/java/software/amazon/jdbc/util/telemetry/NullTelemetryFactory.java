@@ -16,32 +16,25 @@
 
 package software.amazon.jdbc.util.telemetry;
 
-public class XRayTelemetryFactory implements TelemetryFactory{
+public class NullTelemetryFactory implements TelemetryFactory {
 
   @Override
-  public TelemetryContext openTelemetryContext(
-      final String name,
-      final TelemetryTraceLevel traceLevel) {
-    return new XRayTelemetryContext(name, traceLevel);
+  public TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel) {
+    return new NullTelemetryContext(name);
   }
 
   @Override
   public void postCopy(TelemetryContext telemetryContext, TelemetryTraceLevel traceLevel) {
-    if (telemetryContext instanceof XRayTelemetryContext) {
-      XRayTelemetryContext.postCopy((XRayTelemetryContext) telemetryContext, traceLevel);
-    } else {
-      throw new RuntimeException("Wrong parameter type: " + telemetryContext.getClass().getName());
-    }
+    // do nothing
   }
 
   @Override
   public TelemetryCounter createCounter(String name) {
-    throw new RuntimeException("XRay doesn't support metrics.");
+    return new NullTelemetryCounter(name);
   }
 
   @Override
   public TelemetryGauge createGauge(String name, GaugeCallable<Long> callback) {
-    throw new RuntimeException("XRay doesn't support metrics.");
+    return new NullTelemetryGauge(name);
   }
-
 }

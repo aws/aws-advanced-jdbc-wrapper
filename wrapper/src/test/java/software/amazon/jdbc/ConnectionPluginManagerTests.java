@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -72,7 +73,8 @@ public class ConnectionPluginManagerTests {
   void init() {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.openTelemetryContext(anyString())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
   }
 
   @Test

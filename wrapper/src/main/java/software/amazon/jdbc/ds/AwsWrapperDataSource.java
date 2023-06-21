@@ -49,6 +49,10 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class AwsWrapperDataSource implements DataSource, Referenceable, Serializable {
@@ -93,101 +97,114 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     final Properties props = PropertyUtils.copyProperties(this.targetDataSourceProperties);
     String finalUrl;
 
-    // Identify the URL for connection.
-    if (!StringUtils.isNullOrEmpty(this.jdbcUrl)) {
+    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(props);
+    TelemetryContext context = telemetryFactory.openTelemetryContext(
+        "software.amazon.jdbc.ds.AwsWrapperDataSource.getConnection",
+        TelemetryTraceLevel.TOP_LEVEL);
 
-      finalUrl = this.jdbcUrl;
-      parsePropertiesFromUrl(this.jdbcUrl, props);
-      setDatabasePropertyFromUrl(props);
+    try {
 
-      // Override credentials with the ones provided through the data source property.
-      setCredentialProperties(props);
+      // Identify the URL for connection.
+      if (!StringUtils.isNullOrEmpty(this.jdbcUrl)) {
 
-      // Override database with the one provided through the data source property.
-      if (!StringUtils.isNullOrEmpty(this.database)) {
-        PropertyDefinition.DATABASE.set(props, this.database);
-      }
-
-    } else {
-      String serverName = !StringUtils.isNullOrEmpty(this.serverName)
-          ? this.serverName
-          : props.getProperty(SERVER_NAME);
-      String serverPort = !StringUtils.isNullOrEmpty(this.serverPort)
-          ? this.serverPort
-          : props.getProperty(SERVER_PORT);
-      String databaseName = !StringUtils.isNullOrEmpty(this.database)
-          ? this.database
-          : PropertyDefinition.DATABASE.getString(props);
-
-      if (!StringUtils.isNullOrEmpty(serverName)) {
-
-        if (StringUtils.isNullOrEmpty(this.jdbcProtocol)) {
-          throw new SQLException(Messages.get("AwsWrapperDataSource.missingJdbcProtocol"));
-        }
-
-        int port = HostSpec.NO_PORT;
-        if (!StringUtils.isNullOrEmpty(serverPort)) {
-          port = Integer.parseInt(serverPort);
-        }
-
-        finalUrl = buildUrl(
-            this.jdbcProtocol,
-            serverName,
-            port,
-            databaseName);
+        finalUrl = this.jdbcUrl;
+        parsePropertiesFromUrl(this.jdbcUrl, props);
+        setDatabasePropertyFromUrl(props);
 
         // Override credentials with the ones provided through the data source property.
         setCredentialProperties(props);
 
         // Override database with the one provided through the data source property.
-        if (!StringUtils.isNullOrEmpty(databaseName)) {
-          PropertyDefinition.DATABASE.set(props, databaseName);
+        if (!StringUtils.isNullOrEmpty(this.database)) {
+          PropertyDefinition.DATABASE.set(props, this.database);
         }
 
       } else {
-        throw new SQLException(Messages.get("AwsWrapperDataSource.missingTarget"));
+        String serverName = !StringUtils.isNullOrEmpty(this.serverName)
+            ? this.serverName
+            : props.getProperty(SERVER_NAME);
+        String serverPort = !StringUtils.isNullOrEmpty(this.serverPort)
+            ? this.serverPort
+            : props.getProperty(SERVER_PORT);
+        String databaseName = !StringUtils.isNullOrEmpty(this.database)
+            ? this.database
+            : PropertyDefinition.DATABASE.getString(props);
+
+        if (!StringUtils.isNullOrEmpty(serverName)) {
+
+          if (StringUtils.isNullOrEmpty(this.jdbcProtocol)) {
+            throw new SQLException(Messages.get("AwsWrapperDataSource.missingJdbcProtocol"));
+          }
+
+          int port = HostSpec.NO_PORT;
+          if (!StringUtils.isNullOrEmpty(serverPort)) {
+            port = Integer.parseInt(serverPort);
+          }
+
+          finalUrl = buildUrl(
+              this.jdbcProtocol,
+              serverName,
+              port,
+              databaseName);
+
+          // Override credentials with the ones provided through the data source property.
+          setCredentialProperties(props);
+
+          // Override database with the one provided through the data source property.
+          if (!StringUtils.isNullOrEmpty(databaseName)) {
+            PropertyDefinition.DATABASE.set(props, databaseName);
+          }
+
+        } else {
+          throw new SQLException(Messages.get("AwsWrapperDataSource.missingTarget"));
+        }
       }
-    }
 
-    // Identify what connection provider to use.
-    if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
+      // Identify what connection provider to use.
+      if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
 
-      final DataSource targetDataSource = createTargetDataSource();
-      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-      final TargetDriverDialect targetDriverDialect =
-          targetDriverDialectManager.getDialect(this.targetDataSourceClassName, props);
+        final DataSource targetDataSource = createTargetDataSource();
+        final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+        final TargetDriverDialect targetDriverDialect =
+            targetDriverDialectManager.getDialect(this.targetDataSourceClassName, props);
 
-      return createConnectionWrapper(
-          props,
-          finalUrl,
-          new DataSourceConnectionProvider(
-              targetDataSource,
-              targetDriverDialect));
-    } else {
+        return createConnectionWrapper(
+            props,
+            finalUrl,
+            new DataSourceConnectionProvider(
+                targetDataSource,
+                targetDriverDialect),
+            telemetryFactory);
+      } else {
 
-      final java.sql.Driver targetDriver = DriverManager.getDriver(finalUrl);
+        final java.sql.Driver targetDriver = DriverManager.getDriver(finalUrl);
 
-      if (targetDriver == null) {
-        throw new SQLException(Messages.get("AwsWrapperDataSource.missingDriver",
-            new Object[] {finalUrl}));
+        if (targetDriver == null) {
+          throw new SQLException(Messages.get("AwsWrapperDataSource.missingDriver",
+              new Object[]{finalUrl}));
+        }
+
+        final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+        final TargetDriverDialect targetDriverDialect =
+            targetDriverDialectManager.getDialect(targetDriver, props);
+
+        return createConnectionWrapper(
+            props,
+            finalUrl,
+            new DriverConnectionProvider(targetDriver, targetDriverDialect),
+            telemetryFactory);
       }
-
-      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-      final TargetDriverDialect targetDriverDialect =
-          targetDriverDialectManager.getDialect(targetDriver, props);
-
-      return createConnectionWrapper(
-          props,
-          finalUrl,
-          new DriverConnectionProvider(targetDriver, targetDriverDialect));
+    } finally {
+      context.closeContext();
     }
   }
 
   ConnectionWrapper createConnectionWrapper(
       final Properties props,
       final String url,
-      final ConnectionProvider provider) throws SQLException {
-    return new ConnectionWrapper(props, url, provider);
+      final ConnectionProvider provider,
+      final TelemetryFactory telemetryFactory) throws SQLException {
+    return new ConnectionWrapper(props, url, provider, telemetryFactory);
   }
 
   public void setTargetDataSourceClassName(@Nullable final String dataSourceClassName) {

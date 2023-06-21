@@ -63,6 +63,7 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
@@ -97,18 +98,18 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
       new HashMap<Class<? extends ConnectionPlugin>, String>() {
         {
-          put(ExecutionTimeConnectionPlugin.class, "executionTime");
-          put(AuroraConnectionTrackerPlugin.class, "auroraConnectionTracker");
-          put(AuroraHostListConnectionPlugin.class, "auroraHostList");
-          put(LogQueryConnectionPlugin.class, "logQuery");
-          put(DataCacheConnectionPlugin.class, "dataCache");
-          put(HostMonitoringConnectionPlugin.class, "efm");
-          put(FailoverConnectionPlugin.class, "failover");
-          put(IamAuthConnectionPlugin.class, "iam");
-          put(AwsSecretsManagerConnectionPlugin.class, "awsSecretsManager");
-          put(AuroraStaleDnsPlugin.class, "auroraStaleDns");
-          put(ReadWriteSplittingPlugin.class, "readWriteSplitting");
-          put(DefaultConnectionPlugin.class, "driver");
+          put(ExecutionTimeConnectionPlugin.class, "plugin:executionTime");
+          put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
+          put(AuroraHostListConnectionPlugin.class, "plugin:auroraHostList");
+          put(LogQueryConnectionPlugin.class, "plugin:logQuery");
+          put(DataCacheConnectionPlugin.class, "plugin:dataCache");
+          put(HostMonitoringConnectionPlugin.class, "plugin:efm");
+          put(FailoverConnectionPlugin.class, "plugin:failover");
+          put(IamAuthConnectionPlugin.class, "plugin:iam");
+          put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
+          put(AuroraStaleDnsPlugin.class, "plugin:auroraStaleDns");
+          put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");
+          put(DefaultConnectionPlugin.class, "plugin: target driver");
         }
       };
 
@@ -300,7 +301,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
   protected <T, E extends Exception> T executeWithTelemetry(
       final @NonNull JdbcCallable<T, E> execution,
       final @NonNull String pluginName) throws E {
-    final TelemetryContext context = telemetryFactory.openTelemetryContext(pluginName);
+    final TelemetryContext context = telemetryFactory.openTelemetryContext(
+        pluginName, TelemetryTraceLevel.NESTED);
     try {
       return execution.call();
     } finally {
@@ -426,7 +428,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
       final boolean isInitialConnection)
       throws SQLException {
 
-    TelemetryContext context = telemetryFactory.openTelemetryContext("connect");
+    TelemetryContext context = telemetryFactory.openTelemetryContext(
+        "connect", TelemetryTraceLevel.NESTED);
     try {
       return executeWithSubscribedPlugins(
           CONNECT_METHOD,
@@ -573,7 +576,8 @@ public class ConnectionPluginManager implements CanReleaseResources {
       final HostListProviderService hostListProviderService)
       throws SQLException {
 
-    TelemetryContext context = telemetryFactory.openTelemetryContext("initHostProvider");
+    TelemetryContext context = telemetryFactory.openTelemetryContext(
+        "initHostProvider", TelemetryTraceLevel.NESTED);
     try {
       executeWithSubscribedPlugins(
           INIT_HOST_PROVIDER_METHOD,
@@ -638,6 +642,10 @@ public class ConnectionPluginManager implements CanReleaseResources {
             ((CanReleaseResources) plugin).releaseResources();
           }
         });
+  }
+
+  public ConnectionProvider getDefaultConnProvider() {
+    return this.defaultConnProvider;
   }
 
   private interface PluginPipeline<T, E extends Exception> {

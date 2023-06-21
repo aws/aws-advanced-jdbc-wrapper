@@ -49,6 +49,7 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class MonitorImplTest {
@@ -67,6 +68,7 @@ class MonitorImplTest {
   @Mock MonitorServiceImpl monitorService;
   @Mock TelemetryFactory telemetryFactory;
   @Mock TelemetryContext telemetryContext;
+  @Mock TelemetryCounter telemetryCounter;
 
   private static final long SHORT_INTERVAL_MILLIS = 30;
   private static final long SHORT_INTERVAL_SECONDS = TimeUnit.MILLISECONDS.toSeconds(SHORT_INTERVAL_MILLIS);
@@ -87,7 +89,9 @@ class MonitorImplTest {
     when(longProperty.getValue()).thenReturn(SHORT_INTERVAL_MILLIS);
     when(pluginService.forceConnect(any(HostSpec.class), any(Properties.class))).thenReturn(connection);
     when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
-    when(telemetryFactory.openTelemetryContext(anyString())).thenReturn(telemetryContext);
+    when(telemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(telemetryContext);
+    when(telemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(telemetryContext);
+    when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
     MonitorThreadContainer.getInstance(executorServiceInitializer);
 

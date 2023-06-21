@@ -29,16 +29,26 @@ import integration.refactored.DatabaseEngineDeployment;
 import integration.refactored.TestEnvironmentFeatures;
 import integration.refactored.TestEnvironmentInfo;
 import integration.refactored.TestInstanceInfo;
+import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import io.opentelemetry.sdk.resources.Resource;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment {
+
+  private static final Logger LOGGER = Logger.getLogger(TestEnvironment.class.getName());
 
   private static TestEnvironment env;
 
@@ -83,11 +93,11 @@ public class TestEnvironment {
         .info
         .getRequest()
         .getFeatures()
-        .contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED)) {
+        .contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED)) {
       try {
         String xrayEndpoint = String.format("%s:%d",
-            environment.info.getXRayTelemetryInfo().getEndpoint(),
-            environment.info.getXRayTelemetryInfo().getEndpointPort());
+            environment.info.getTracesTelemetryInfo().getEndpoint(),
+            environment.info.getTracesTelemetryInfo().getEndpointPort());
 
         DaemonConfiguration configuration = new DaemonConfiguration();
         configuration.setUDPAddress(xrayEndpoint);
@@ -95,6 +105,40 @@ public class TestEnvironment {
         Emitter emitter = Emitter.create(configuration);
         AWSXRayRecorderBuilder builder = AWSXRayRecorderBuilder.standard().withEmitter(emitter);
         AWSXRay.setGlobalRecorder(builder.build());
+      } catch (Exception ex) {
+        throw new RuntimeException("Error initializing XRay.", ex);
+      }
+    }
+
+    if (environment
+        .info
+        .getRequest()
+        .getFeatures()
+        .contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
+
+      try {
+        String metricsEndpoint = String.format("http://%s:%d",
+            environment.info.getMetricsTelemetryInfo().getEndpoint(),
+            environment.info.getMetricsTelemetryInfo().getEndpointPort());
+
+        MetricReader metricReader = PeriodicMetricReader.builder(
+            OtlpGrpcMetricExporter.builder()
+                .setEndpoint(metricsEndpoint)
+                .build())
+            .setInterval(5, TimeUnit.SECONDS) // send metrics every 5s
+            .build();
+
+        OpenTelemetrySdk.builder()
+            .setMeterProvider(
+                SdkMeterProvider.builder()
+                    .setResource(Resource.getDefault()
+                        .toBuilder()
+                        .put("service.name", "AWSJDBCWrapperIntegrationTests")
+                        .build())
+                    .registerMetricReader(metricReader)
+                    .build())
+            .buildAndRegisterGlobal();
+
       } catch (Exception ex) {
         throw new RuntimeException("Error initializing XRay.", ex);
       }

@@ -32,7 +32,8 @@ public class TestEnvironmentInfo {
   private TestProxyDatabaseInfo proxyDatabaseInfo;
   private String databaseEngine;
   private String databaseEngineVersion;
-  private TestXRayTelemetryInfo xrayTelemetryInfo;
+  private TestTelemetryInfo tracesTelemetryInfo;
+  private TestTelemetryInfo metricsTelemetryInfo;
 
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
@@ -50,8 +51,12 @@ public class TestEnvironmentInfo {
     return databaseEngineVersion;
   }
 
-  public TestXRayTelemetryInfo getXRayTelemetryInfo() {
-    return this.xrayTelemetryInfo;
+  public TestTelemetryInfo getTracesTelemetryInfo() {
+    return this.tracesTelemetryInfo;
+  }
+
+  public TestTelemetryInfo getMetricsTelemetryInfo() {
+    return this.metricsTelemetryInfo;
   }
 
   public TestEnvironmentRequest getRequest() {
@@ -110,8 +115,12 @@ public class TestEnvironmentInfo {
     this.databaseEngineVersion = databaseEngineVersion;
   }
 
-  public void setXRayTelemetryInfo(TestXRayTelemetryInfo xrayTelemetryInfo) {
-    this.xrayTelemetryInfo = xrayTelemetryInfo;
+  public void setTracesTelemetryInfo(TestTelemetryInfo tracesTelemetryInfo) {
+    this.tracesTelemetryInfo = tracesTelemetryInfo;
+  }
+
+  public void setMetricsTelemetryInfo(TestTelemetryInfo metricsTelemetryInfo) {
+    this.metricsTelemetryInfo = metricsTelemetryInfo;
   }
 
   public void setAwsAccessKeyId(String awsAccessKeyId) {

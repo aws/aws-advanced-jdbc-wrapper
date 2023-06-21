@@ -22,6 +22,8 @@ public interface TelemetryContext extends AutoCloseable {
 
   void setAttribute(String key, String value);
 
+  void setException(Exception exception);
+
   String getName();
 
   void closeContext();

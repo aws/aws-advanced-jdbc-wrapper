@@ -31,13 +31,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class OpenedConnectionTracker {
 
   static final Map<String, Queue<WeakReference<Connection>>> openedConnections = new ConcurrentHashMap<>();
+  private static final String TELEMETRY_INVALIDATE_CONNECTIONS = "invalidate connections";
   private static final ExecutorService invalidateConnectionsExecutorService =
       Executors.newCachedThreadPool(
           r -> {
@@ -55,6 +60,11 @@ public class OpenedConnectionTracker {
 
   private static final Logger LOGGER = Logger.getLogger(OpenedConnectionTracker.class.getName());
   private static final RdsUtils rdsUtils = new RdsUtils();
+  private final PluginService pluginService;
+
+  public OpenedConnectionTracker(final PluginService pluginService) {
+    this.pluginService = pluginService;
+  }
 
   public void populateOpenedConnectionQueue(final HostSpec hostSpec, final Connection conn) {
     final Set<String> aliases = hostSpec.asAliases();
@@ -87,13 +97,24 @@ public class OpenedConnectionTracker {
   }
 
   public void invalidateAllConnections(final String... node) {
-    final Optional<String> instanceEndpoint = Arrays.stream(node).filter(rdsUtils::isRdsInstance).findFirst();
-    if (!instanceEndpoint.isPresent()) {
-      return;
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_INVALIDATE_CONNECTIONS, TelemetryTraceLevel.NESTED);
+
+    try {
+      final Optional<String> instanceEndpoint = Arrays.stream(node).filter(rdsUtils::isRdsInstance)
+          .findFirst();
+      if (!instanceEndpoint.isPresent()) {
+        return;
+      }
+      final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(
+          instanceEndpoint.get());
+      logConnectionQueue(instanceEndpoint.get(), connectionQueue);
+      invalidateConnections(openedConnections.get(instanceEndpoint.get()));
+
+    } finally {
+      telemetryContext.closeContext();
     }
-    final Queue<WeakReference<Connection>> connectionQueue = openedConnections.get(instanceEndpoint.get());
-    logConnectionQueue(instanceEndpoint.get(), connectionQueue);
-    invalidateConnections(openedConnections.get(instanceEndpoint.get()));
   }
 
   public void invalidateCurrentConnection(final HostSpec hostSpec, final Connection connection) {

@@ -55,6 +55,7 @@ public class ContainerHelper {
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 
   private static final String XRAY_TELEMETRY_IMAGE_NAME = "amazon/aws-xray-daemon";
+  private static final String OTLP_TELEMETRY_IMAGE_NAME = "amazon/aws-otel-collector";
 
   private static final String RETRIEVE_TOPOLOGY_SQL_POSTGRES =
       "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
@@ -107,21 +108,11 @@ public class ContainerHelper {
     assertEquals(0, exitCode, "Some tests failed.");
   }
 
+  // This container supports traces to AWS XRay.
   public GenericContainer<?> createTelemetryXrayContainer(
       String xrayAwsRegion,
       Network network,
       String networkAlias) {
-    class FixedExposedPortContainer<T extends GenericContainer<T>> extends GenericContainer<T> {
-
-      public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
-        super(withDockerfileFromBuilder);
-      }
-
-      public T withFixedExposedPort(int hostPort, int containerPort, InternetProtocol protocol) {
-        super.addFixedExposedPort(hostPort, containerPort, protocol);
-        return self();
-      }
-    }
 
     return new FixedExposedPortContainer<>(
         new ImageFromDockerfile("xray-daemon", true)
@@ -135,10 +126,29 @@ public class ContainerHelper {
                           "--log-level", "debug",
                           "--region", xrayAwsRegion)
                         .build()))
-        .withFixedExposedPort(2000, 2000, InternetProtocol.UDP)
+        .withExposedPort(2000)
         .waitingFor(Wait.forLogMessage(".*Starting proxy http server on 0.0.0.0:2000.*", 1))
         .withNetworkAliases(networkAlias)
         .withNetwork(network);
+  }
+
+  // This container supports traces and metrics to AWS CloudWatch/XRay
+  public GenericContainer<?> createTelemetryOtlpContainer(
+      Network network,
+      String networkAlias) {
+
+    return new FixedExposedPortContainer<>(DockerImageName.parse(OTLP_TELEMETRY_IMAGE_NAME))
+        .withExposedPort(2000)
+        .withExposedPort(1777)
+        .withExposedPort(4317)
+        .withExposedPort(4318)
+        .waitingFor(Wait.forLogMessage(".*Everything is ready. Begin running and processing data.*", 1))
+        .withNetworkAliases(networkAlias)
+        .withNetwork(network)
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/resources/otel-config.yaml"),
+            "/etc/otel-config.yaml");
+
   }
 
   public GenericContainer<?> createTestContainer(String dockerImageName, String testContainerImageName) {
@@ -346,4 +356,24 @@ public class ContainerHelper {
             instance.getHost() + proxyDomainNameSuffix);
   }
 
+  public static class FixedExposedPortContainer<T extends FixedExposedPortContainer<T>> extends GenericContainer<T> {
+
+    public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
+      super(withDockerfileFromBuilder);
+    }
+
+    public FixedExposedPortContainer(final DockerImageName dockerImageName) {
+      super(dockerImageName);
+    }
+
+    public T withFixedExposedPort(int hostPort, int containerPort, InternetProtocol protocol) {
+      super.addFixedExposedPort(hostPort, containerPort, protocol);
+      return self();
+    }
+
+    public T withExposedPort(Integer port) {
+      super.addExposedPort(port);
+      return self();
+    }
+  }
 }

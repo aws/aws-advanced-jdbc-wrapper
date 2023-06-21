@@ -158,4 +158,6 @@ public interface PluginService extends ExceptionHandler {
   void fillAliases(final Connection connection, final HostSpec hostSpec) throws SQLException;
 
   TelemetryFactory getTelemetryFactory();
+
+  String getTargetName();
 }

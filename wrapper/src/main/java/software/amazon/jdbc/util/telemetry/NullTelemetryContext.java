@@ -33,6 +33,10 @@ public class NullTelemetryContext implements TelemetryContext {
   }
 
   @Override
+  public void setException(Exception exception) {
+  }
+
+  @Override
   public String getName() {
     return name;
   }

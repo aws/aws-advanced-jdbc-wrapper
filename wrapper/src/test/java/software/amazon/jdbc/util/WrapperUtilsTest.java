@@ -19,6 +19,7 @@ package software.amazon.jdbc.util;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
@@ -78,7 +79,8 @@ public class WrapperUtilsTest {
         any(Object[].class));
 
     when(pluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.openTelemetryContext(anyString())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
   }
 
   @AfterEach

@@ -22,7 +22,6 @@ import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
 
 import com.amazonaws.xray.AWSXRay;
 import com.amazonaws.xray.entities.Segment;
-import com.amazonaws.xray.entities.Subsegment;
 import integration.container.aurora.TestAuroraHostListProvider;
 import integration.container.aurora.TestPluginServiceImpl;
 import integration.refactored.DatabaseEngineDeployment;
@@ -42,6 +41,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -100,30 +100,30 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
             new BeforeEachCallback() {
               @Override
               public void beforeEach(ExtensionContext context) throws Exception {
-                boolean telemetryEnabled = TestEnvironment.getCurrent()
+                boolean tracesEnabled = TestEnvironment.getCurrent()
                     .getInfo()
                     .getRequest()
                     .getFeatures()
-                    .contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED);
+                    .contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED);
 
-                if (telemetryEnabled) {
-                  String testName = "unknown-test";
+                if (tracesEnabled) {
+                  String testName = null;
                   if (context.getElement().isPresent() && context.getElement().get() instanceof Method) {
                     Method method = (Method) context.getElement().get();
                     testName = method.getDeclaringClass().getSimpleName() + "." + method.getName();
                   }
 
-                  Segment segment = AWSXRay.beginSegment(testName);
+                  Segment segment = AWSXRay.beginSegment("test: setup");
                   segment.putAnnotation("engine",
                       TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
                   segment.putAnnotation("deployment",
                       TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment().toString());
                   segment.putAnnotation("targetJVM",
                       TestEnvironment.getCurrent().getInfo().getRequest().getTargetJvm().toString());
-                  LOGGER.finest("[XRay] Opened test segment.");
-                  LOGGER.finest("[XRay] Reference: " + segment.getId());
-                  Subsegment subsegment = AWSXRay.beginSubsegment("test setup");
-                  AWSXRay.sendSegment(segment);
+                  if (testName != null) {
+                    segment.putAnnotation("testName", testName);
+                  }
+                  LOGGER.finest("[XRay] Test setup trace ID: " + segment.getTraceId());
                 }
 
                 DriverHelper.unregisterAllDrivers();
@@ -206,28 +206,23 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   DialectManager.resetEndpointCache();
                   TargetDriverDialectManager.resetCustomDialect();
                 }
-                if (telemetryEnabled) {
-                  AWSXRay.endSubsegment();
-                  Subsegment subsegment = AWSXRay.beginSubsegment("test");
-                  LOGGER.finest("[XRay] XRay reference: " + subsegment.getId());
+                if (tracesEnabled) {
+                    AWSXRay.endSegment();
                 }
               }
             },
             new AfterEachCallback() {
               @Override
               public void afterEach(ExtensionContext context) throws Exception {
-                boolean telemetryEnabled = TestEnvironment.getCurrent()
+                Set<TestEnvironmentFeatures> features = TestEnvironment.getCurrent()
                     .getInfo()
                     .getRequest()
-                    .getFeatures()
-                    .contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED);
+                    .getFeatures();
 
-                if (telemetryEnabled) {
-                  AWSXRay.endSubsegment();
-                  Segment segment = AWSXRay.getCurrentSegment();
-                  AWSXRay.endSegment();
-                  AWSXRay.sendSegment(segment);
-                  LOGGER.finest("[XRay] Closed test segment.");
+                if (features.contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED)
+                    || features.contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
+
+                  TimeUnit.SECONDS.sleep(3); // let OTLP container to send all collected metrics and traces
                 }
               }
             });

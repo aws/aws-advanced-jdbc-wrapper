@@ -29,7 +29,7 @@ import integration.refactored.TestEnvironmentInfo;
 import integration.refactored.TestEnvironmentRequest;
 import integration.refactored.TestInstanceInfo;
 import integration.refactored.TestProxyDatabaseInfo;
-import integration.refactored.TestXRayTelemetryInfo;
+import integration.refactored.TestTelemetryInfo;
 import integration.refactored.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
@@ -62,9 +62,12 @@ public class TestEnvironment implements AutoCloseable {
   private static final String DATABASE_CONTAINER_NAME_PREFIX = "database-container-";
   private static final String TEST_CONTAINER_NAME = "test-container";
   private static final String TELEMETRY_XRAY_CONTAINER_NAME = "xray-daemon";
+  private static final String TELEMETRY_OTLP_CONTAINER_NAME = "otlp-daemon";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
   private static final String HIBERNATE_VERSION = "6.2.0.CR2";
+
+  private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;
 
   private final TestEnvironmentInfo info =
       new TestEnvironmentInfo(); // only this info is passed to test container
@@ -85,6 +88,7 @@ public class TestEnvironment implements AutoCloseable {
   private final ArrayList<GenericContainer<?>> databaseContainers = new ArrayList<>();
   private ArrayList<ToxiproxyContainer> proxyContainers;
   private GenericContainer<?> telemetryXRayContainer;
+  private GenericContainer<?> telemetryOtlpContainer;
 
   private String runnerIP;
 
@@ -101,8 +105,6 @@ public class TestEnvironment implements AutoCloseable {
     preCreateEnvironment(request.getEnvPreCreateIndex());
 
     TestEnvironment env;
-
-    initAwsCredentials(env);
 
     switch (request.getDatabaseEngineDeployment()) {
       case DOCKER:
@@ -134,8 +136,15 @@ public class TestEnvironment implements AutoCloseable {
       createProxyContainers(env);
     }
 
-    if (request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_XRAY_ENABLED)) {
+    if (!USE_OTLP_CONTAINER_FOR_TRACES
+        && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED)) {
       createTelemetryXRayContainer(env);
+    }
+
+    if ((USE_OTLP_CONTAINER_FOR_TRACES
+        && request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED))
+        || request.getFeatures().contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)) {
+      createTelemetryOtlpContainer(env);
     }
 
     createTestContainer(env);
@@ -653,6 +662,7 @@ public class TestEnvironment implements AutoCloseable {
         .withNetwork(env.network)
         .withEnv("TEST_ENV_INFO_JSON", getEnvironmentInfoAsString(env))
         .withEnv("TEST_ENV_DESCRIPTION", env.info.getRequest().getDisplayName());
+
     if (env.info
         .getRequest()
         .getFeatures()
@@ -667,7 +677,7 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private static void createTelemetryXRayContainer(TestEnvironment env) {
-    String xrayRegion =
+    String xrayAwsRegion =
         !StringUtils.isNullOrEmpty(System.getenv("XRAY_AWS_REGION"))
             ? System.getenv("XRAY_AWS_REGION")
             : "us-east-2";
@@ -676,23 +686,60 @@ public class TestEnvironment implements AutoCloseable {
     final ContainerHelper containerHelper = new ContainerHelper();
 
     env.telemetryXRayContainer = containerHelper.createTelemetryXrayContainer(
-        xrayRegion,
+        xrayAwsRegion,
         env.network,
         TELEMETRY_XRAY_CONTAINER_NAME);
 
-    if (env.info
+    if (!env.info
         .getRequest()
         .getFeatures()
         .contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
-      env.telemetryXRayContainer
-          .withEnv("AWS_ACCESS_KEY_ID", env.awsAccessKeyId)
-          .withEnv("AWS_SECRET_ACCESS_KEY", env.awsSecretAccessKey)
-          .withEnv("AWS_SESSION_TOKEN", env.awsSessionToken);
+      throw new RuntimeException("AWS_CREDENTIALS_ENABLED is required for XRay telemetry.");
     }
 
-    env.info.setXRayTelemetryInfo(new TestXRayTelemetryInfo(TELEMETRY_XRAY_CONTAINER_NAME, 2000));
+    env.telemetryXRayContainer
+        .withEnv("AWS_ACCESS_KEY_ID", env.awsAccessKeyId)
+        .withEnv("AWS_SECRET_ACCESS_KEY", env.awsSecretAccessKey)
+        .withEnv("AWS_SESSION_TOKEN", env.awsSessionToken);
+
+    env.info.setTracesTelemetryInfo(new TestTelemetryInfo(TELEMETRY_XRAY_CONTAINER_NAME, 2000));
     LOGGER.finest("Starting XRay telemetry container");
     env.telemetryXRayContainer.start();
+  }
+
+  private static void createTelemetryOtlpContainer(TestEnvironment env) {
+
+    LOGGER.finest("Creating OTLP telemetry container");
+    final ContainerHelper containerHelper = new ContainerHelper();
+
+    env.telemetryOtlpContainer = containerHelper.createTelemetryOtlpContainer(
+        env.network,
+        TELEMETRY_OTLP_CONTAINER_NAME);
+
+    if (!env.info
+        .getRequest()
+        .getFeatures()
+        .contains(TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)) {
+      throw new RuntimeException("AWS_CREDENTIALS_ENABLED is required for OTLP telemetry.");
+    }
+
+    String otlpRegion = !StringUtils.isNullOrEmpty(System.getenv("OTLP_AWS_REGION"))
+        ? System.getenv("OTLP_AWS_REGION")
+        : "us-east-2";
+
+    env.telemetryOtlpContainer
+        .withEnv("AWS_ACCESS_KEY_ID", env.awsAccessKeyId)
+        .withEnv("AWS_SECRET_ACCESS_KEY", env.awsSecretAccessKey)
+        .withEnv("AWS_SESSION_TOKEN", env.awsSessionToken)
+        .withEnv("AWS_REGION", otlpRegion);
+
+    if (USE_OTLP_CONTAINER_FOR_TRACES) {
+      env.info.setTracesTelemetryInfo(new TestTelemetryInfo(TELEMETRY_OTLP_CONTAINER_NAME, 2000));
+    }
+    env.info.setMetricsTelemetryInfo(new TestTelemetryInfo(TELEMETRY_OTLP_CONTAINER_NAME, 4317));
+
+    LOGGER.finest("Starting OTLP telemetry container");
+    env.telemetryOtlpContainer.start();
   }
 
   private static String getContainerBaseImageName(TestEnvironmentRequest request) {
@@ -837,6 +884,11 @@ public class TestEnvironment implements AutoCloseable {
     if (this.telemetryXRayContainer != null) {
       this.telemetryXRayContainer.stop();
       this.telemetryXRayContainer = null;
+    }
+
+    if (this.telemetryOtlpContainer != null) {
+      this.telemetryOtlpContainer.stop();
+      this.telemetryOtlpContainer = null;
     }
 
     if (this.testContainer != null) {

@@ -72,7 +72,7 @@ public class PropertyDefinition {
   public static final AwsWrapperProperty TELEMETRY_SUBMIT_TOPLEVEL =
       new AwsWrapperProperty(
           "telemetrySubmitToplevel", "false",
-          "Allows submitting top level traces if application does not have any previous tracing");
+          "Force submitting traces related to JDBC calls as top level traces.");
 
   public static final AwsWrapperProperty TELEMETRY_TRACES_BACKEND =
       new AwsWrapperProperty(

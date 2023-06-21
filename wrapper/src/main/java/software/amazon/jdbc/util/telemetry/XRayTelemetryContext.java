@@ -18,52 +18,151 @@ package software.amazon.jdbc.util.telemetry;
 
 import com.amazonaws.xray.AWSXRay;
 import com.amazonaws.xray.entities.Entity;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Logger;
 
 public class XRayTelemetryContext implements TelemetryContext {
 
-  private final boolean isSubsegment;
+  private static final Logger LOGGER = Logger.getLogger(XRayTelemetryContext.class.getName());
+
   private Entity traceEntity;
   private final String name;
-  private final boolean submitTopLevel;
 
-  public XRayTelemetryContext(String name, boolean submitTopLevel) {
+  public XRayTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
     this.name = name;
-    this.submitTopLevel = submitTopLevel;
-    isSubsegment = AWSXRay.getTraceEntity() != null;
-    if (isSubsegment) {
-      traceEntity = AWSXRay.beginSubsegment(name);
+
+    Entity parentEntity = AWSXRay.getTraceEntity();
+
+    TelemetryTraceLevel effectiveTraceLevel = traceLevel;
+    if (parentEntity == null && traceLevel == TelemetryTraceLevel.NESTED) {
+      effectiveTraceLevel = TelemetryTraceLevel.NO_TRACE;
+    }
+
+    switch (effectiveTraceLevel) {
+      case FORCE_TOP_LEVEL:
+      case TOP_LEVEL:
+        this.traceEntity = AWSXRay.beginSegment(name);
+        if (parentEntity != null) {
+          this.setAttribute(TelemetryConst.PARENT_TRACE_ANNOTATION, parentEntity.getTraceId().toString());
+        }
+        LOGGER.finest(() -> String.format("[XRay] Telemetry '%s' trace ID: %s", name, this.traceEntity.getTraceId()));
+        break;
+
+      case NESTED:
+        this.traceEntity = AWSXRay.beginSubsegment(name);
+        this.setAttribute(TelemetryConst.TRACE_NAME_ANNOTATION, name);
+        break;
+
+      case NO_TRACE:
+        // do not post this trace
+        break;
+    }
+  }
+
+  public static void postCopy(
+      final XRayTelemetryContext telemetryContext,
+      final TelemetryTraceLevel traceLevel) {
+
+    if (traceLevel == TelemetryTraceLevel.NO_TRACE) {
+      return;
+    }
+
+    if (traceLevel == TelemetryTraceLevel.FORCE_TOP_LEVEL
+        || traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
+
+      /*
+       Post a copy context in a separate lambda/thread,
+       so it's not connected to a current context.
+      */
+      CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+        XRayTelemetryContext copy = clone(telemetryContext, traceLevel);
+        copy.closeContext();
+      });
+
+      try {
+        future.get();
+      } catch (InterruptedException | ExecutionException e) {
+        throw new RuntimeException(e);
+      }
+
     } else {
-      if (submitTopLevel) {
-        traceEntity = AWSXRay.beginSegment(name);
+
+      // Post a copy context in the same thread and in the same context.
+      XRayTelemetryContext copy = clone(telemetryContext, traceLevel);
+      copy.closeContext();
+    }
+  }
+
+  private static XRayTelemetryContext clone(
+      final XRayTelemetryContext telemetryContext,
+      final TelemetryTraceLevel traceLevel) {
+
+    XRayTelemetryContext copy = new XRayTelemetryContext(
+        TelemetryConst.COPY_TRACE_NAME_PREFIX + telemetryContext.getName(), traceLevel);
+
+    copy.traceEntity.setStartTime(telemetryContext.traceEntity.getStartTime());
+    copy.traceEntity.setEndTime(telemetryContext.traceEntity.getEndTime());
+
+    Map<String, Object> annotations = telemetryContext.traceEntity.getAnnotations();
+    for (Map.Entry<String, Object> entry : annotations.entrySet()) {
+      if (entry.getValue() != null && entry.getKey() != TelemetryConst.TRACE_NAME_ANNOTATION) {
+        copy.setAttribute(entry.getKey(), entry.getValue().toString());
       }
     }
+    copy.traceEntity.setError(telemetryContext.traceEntity.isError());
+    copy.setAttribute(
+        TelemetryConst.SOURCE_TRACE_ANNOTATION,
+        telemetryContext.traceEntity.getTraceId().toString());
+
+    if (telemetryContext.traceEntity.getParent() != null) {
+      if (traceLevel == TelemetryTraceLevel.NESTED) {
+        copy.traceEntity.setParent(telemetryContext.traceEntity.getParent());
+      }
+      if (traceLevel == TelemetryTraceLevel.FORCE_TOP_LEVEL
+          || traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
+        copy.setAttribute(
+            TelemetryConst.PARENT_TRACE_ANNOTATION,
+            telemetryContext.traceEntity.getParent().getTraceId().toString());
+      }
+    }
+
+    return copy;
   }
 
   @Override
   public void setSuccess(boolean success) {
-    if (isSubsegment || submitTopLevel) {
-      traceEntity.setError(!success);
+    if (this.traceEntity != null) {
+      this.traceEntity.setError(!success);
     }
   }
 
   @Override
   public void setAttribute(String key, String value) {
-    if (isSubsegment || submitTopLevel) {
-      traceEntity.putAnnotation(key, value);
+    if (this.traceEntity != null) {
+      this.traceEntity.putAnnotation(key, value);
+    }
+  }
+
+  @Override
+  public void setException(Exception exception) {
+    if (this.traceEntity != null && exception != null) {
+      setAttribute("exceptionType", exception.getClass().getSimpleName());
+      setAttribute("exceptionMessage", exception.getMessage());
     }
   }
 
   @Override
   public String getName() {
-    return name;
+    return this.name;
   }
 
   @Override
   public void closeContext() {
     try {
-      if (traceEntity != null) {
-        traceEntity.close();
-        traceEntity = null;
+      if (this.traceEntity != null) {
+        this.traceEntity.close();
       }
     } catch (Exception e) {
       // Ignore
@@ -72,7 +171,7 @@ public class XRayTelemetryContext implements TelemetryContext {
 
   @Override
   public String toString() {
-    return traceEntity.getId();
+    return this.traceEntity == null ? "null" : this.traceEntity.getId();
   }
 
   @Override

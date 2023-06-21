@@ -70,10 +70,11 @@ public class DataSourceTests {
         .get(0)
         .getHost());
     ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    ds.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+    ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+    final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -86,6 +87,14 @@ public class DataSourceTests {
 
     assertNotSame(ds, dsFromJndiLookup);
     final Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
+
+    /*
+     The following properties are not passed to target driver.
+     They will be dynamically added while opening a connection.
+    */
+    targetDataSourceProps.remove("user");
+    targetDataSourceProps.remove("password");
+
     assertEquals(targetDataSourceProps, jndiDsProperties);
 
     for (Field f : ds.getClass().getFields()) {
@@ -114,8 +123,10 @@ public class DataSourceTests {
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
     ds.setJdbcUrl(ConnectionStringHelper.getUrl());
+    ds.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+    ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
-    final Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();
@@ -128,6 +139,14 @@ public class DataSourceTests {
 
     assertNotSame(ds, dsFromJndiLookup);
     final Properties jndiDsProperties = dsFromJndiLookup.getTargetDataSourceProperties();
+
+    /*
+     The following properties are not passed to target driver.
+     They will be dynamically added while opening a connection.
+    */
+    targetDataSourceProps.remove("user");
+    targetDataSourceProps.remove("password");
+
     assertEquals(targetDataSourceProps, jndiDsProperties);
 
     for (Field f : ds.getClass().getFields()) {

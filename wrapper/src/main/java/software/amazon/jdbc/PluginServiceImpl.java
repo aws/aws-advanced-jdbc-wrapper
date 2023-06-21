@@ -535,7 +535,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
   }
 
+  @Override
   public TelemetryFactory getTelemetryFactory() {
     return this.pluginManager.getTelemetryFactory();
+  }
+
+  @Override
+  public String getTargetName() {
+    return this.pluginManager.getDefaultConnProvider().getTargetName();
   }
 }

@@ -53,6 +53,9 @@ dependencies {
     testImplementation("org.slf4j:slf4j-simple:1.7.+")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.13.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:1.27.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.27.0")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.27.0")
 }
 
 tasks.withType<Test> {

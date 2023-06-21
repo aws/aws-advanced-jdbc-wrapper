@@ -96,4 +96,6 @@ public interface ConnectionProvider {
   @Deprecated
   Connection connect(@NonNull String url, @NonNull Properties props)
       throws SQLException; // TODO: this method is only called by tests/benchmarks and can likely be deprecated
+
+  String getTargetName();
 }

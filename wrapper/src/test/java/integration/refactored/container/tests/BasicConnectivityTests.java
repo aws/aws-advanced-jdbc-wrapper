@@ -107,16 +107,9 @@ public class BasicConnectivityTests {
   public void test_WrapperConnection(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
-    final Properties props = new Properties();
-    props.setProperty(
-        PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    props.setProperty(
-        PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
-    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     String url =
         ConnectionStringHelper.getWrapperUrl(
@@ -154,16 +147,9 @@ public class BasicConnectivityTests {
   public void test_ProxiedDirectConnection(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
-    final Properties props = new Properties();
-    props.setProperty(
-        PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername());
-    props.setProperty(
-        PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
-    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     TestInstanceInfo instanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
@@ -200,16 +186,9 @@ public class BasicConnectivityTests {
   public void test_ProxiedWrapperConnection() throws SQLException {
     LOGGER.info(TestEnvironment.getCurrent().getCurrentDriver().toString());
 
-    final Properties props = new Properties();
-    props.setProperty(
-        PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername());
-    props.setProperty(
-        PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
-    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     TestInstanceInfo instanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
@@ -304,10 +283,9 @@ public class BasicConnectivityTests {
       return;
     }
 
-    final Properties props = new Properties();
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     props.setProperty(PropertyDefinition.USER.name, username);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    props.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     LOGGER.finest("Connecting to " + url);
 

@@ -59,9 +59,8 @@ public class SpringTests {
     dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
-    Properties props = new Properties();
+    Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");
-    props.setProperty(PropertyDefinition.PLUGINS.name, "");
     dataSource.setConnectionProperties(props);
 
     return dataSource;

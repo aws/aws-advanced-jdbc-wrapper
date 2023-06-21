@@ -62,8 +62,11 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.DynamicHostListProvider;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.telemetry.GaugeCallable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 class FailoverConnectionPluginTest {
 
@@ -76,14 +79,17 @@ class FailoverConnectionPluginTest {
   @Mock HostSpec mockHostSpec;
   @Mock HostListProviderService mockHostListProviderService;
   @Mock AuroraHostListProvider mockHostListProvider;
-  @Mock TelemetryFactory mockTelemetryFactory;
-  @Mock TelemetryCounter mockTelemetryCounter;
   @Mock JdbcCallable<Void, SQLException> mockInitHostProviderFunc;
   @Mock ClusterAwareReaderFailoverHandler mockReaderFailoverHandler;
   @Mock ClusterAwareWriterFailoverHandler mockWriterFailoverHandler;
   @Mock ReaderFailoverResult mockReaderResult;
   @Mock WriterFailoverResult mockWriterResult;
   @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
+  @Mock private TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryContext mockTelemetryContext;
+  @Mock TelemetryCounter mockTelemetryCounter;
+  @Mock TelemetryGauge mockTelemetryGauge;
+
 
   private final Properties properties = new Properties();
   private FailoverConnectionPlugin plugin;
@@ -104,9 +110,15 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.getCurrentHostSpec()).thenReturn(mockHostSpec);
     when(mockPluginService.connect(any(HostSpec.class), eq(properties))).thenReturn(mockConnection);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     when(mockReaderFailoverHandler.failover(any(), any())).thenReturn(mockReaderResult);
     when(mockWriterFailoverHandler.failover(any())).thenReturn(mockWriterResult);
+
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
+    // noinspection unchecked
+    when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
 
     properties.clear();
   }

@@ -145,6 +145,7 @@ public class MonitorConnectionContext {
     try {
       this.connectionToAbort.abort(ABORT_EXECUTOR);
       this.connectionToAbort.close();
+      this.abortedConnectionsCounter.inc();
     } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(

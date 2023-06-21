@@ -49,12 +49,14 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
   private final java.sql.Driver driver;
   private final @NonNull TargetDriverDialect targetDriverDialect;
+  private final @NonNull String targetDriverClassName;
 
   public DriverConnectionProvider(
       final java.sql.Driver driver,
       final @NonNull TargetDriverDialect targetDriverDialect) {
     this.driver = driver;
     this.targetDriverDialect = targetDriverDialect;
+    this.targetDriverClassName = driver.getClass().getName();
   }
 
   /**
@@ -138,5 +140,10 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);
+  }
+
+  @Override
+  public String getTargetName() {
+    return this.targetDriverClassName;
   }
 }

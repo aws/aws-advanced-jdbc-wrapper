@@ -20,11 +20,10 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.trace.Tracer;
-import java.util.function.ToLongFunction;
 
-public class OpenTelemetryFactory {
+public class OpenTelemetryFactory implements TelemetryFactory {
 
-  private static final String INSTRUMENTATION_NAME = TelemetryFactory.class.getName();
+  private static final String INSTRUMENTATION_NAME = "aws-advanced-jdbc-wrapper";
 
   private static OpenTelemetry openTelemetry;
   private static Tracer tracer;
@@ -43,17 +42,26 @@ public class OpenTelemetryFactory {
     return openTelemetry;
   }
 
-  public static TelemetryContext openTelemetryContext(String name, boolean submitTopLevel) {
+  public TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel) {
     tracer = getOpenTelemetry().getTracer(INSTRUMENTATION_NAME);
-    return new OpenTelemetryContext(tracer, name);
+    return new OpenTelemetryContext(tracer, name, traceLevel);
   }
 
-  public static TelemetryCounter createCounter(String name) {
+  @Override
+  public void postCopy(TelemetryContext telemetryContext, TelemetryTraceLevel traceLevel) {
+    if (telemetryContext instanceof OpenTelemetryContext) {
+      OpenTelemetryContext.postCopy((OpenTelemetryContext) telemetryContext, traceLevel);
+    } else {
+      throw new RuntimeException("Wrong parameter type: " + telemetryContext.getClass().getName());
+    }
+  }
+
+  public TelemetryCounter createCounter(String name) {
     meter = getOpenTelemetry().getMeter(INSTRUMENTATION_NAME);
     return new OpenTelemetryCounter(meter, name);
   }
 
-  public static TelemetryGauge createGauge(String name, GaugeCallable<Long> callback) {
+  public TelemetryGauge createGauge(String name, GaugeCallable<Long> callback) {
     meter = getOpenTelemetry().getMeter(INSTRUMENTATION_NAME);
     return new OpenTelemetryGauge(meter, name, callback);
   }

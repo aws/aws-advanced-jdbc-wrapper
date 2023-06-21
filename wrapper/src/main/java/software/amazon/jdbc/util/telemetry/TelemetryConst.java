@@ -16,14 +16,12 @@
 
 package software.amazon.jdbc.util.telemetry;
 
-public interface TelemetryFactory {
+public class TelemetryConst {
+  public static final String TRACE_NAME_ANNOTATION = "traceName";
+  public static final String SOURCE_TRACE_ANNOTATION = "sourceTraceId";
+  public static final String PARENT_TRACE_ANNOTATION = "parentTraceId";
+  public static final String EXCEPTION_TYPE_ANNOTATION = "exceptionType";
+  public static final String EXCEPTION_MESSAGE_ANNOTATION = "exceptionMessage";
 
-  TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel);
-
-  void postCopy(TelemetryContext telemetryContext, TelemetryTraceLevel traceLevel);
-
-  TelemetryCounter createCounter(String name);
-
-  TelemetryGauge createGauge(String name, GaugeCallable<Long> callback);
-
+  public static final String COPY_TRACE_NAME_PREFIX = "copy: ";
 }
