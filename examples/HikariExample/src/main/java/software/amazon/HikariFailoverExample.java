@@ -47,7 +47,7 @@ public class HikariFailoverExample {
       // Configure AwsWrapperDataSource:
       ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:");
       ds.addDataSourceProperty("serverName", ENDPOINT);
-      ds.addDataSourceProperty("portNumber", "5432");
+      ds.addDataSourceProperty("serverPort", "5432");
       ds.addDataSourceProperty("database", DATABASE_NAME);
 
       // The failover plugin throws failover-related exceptions that need to be handled explicitly by HikariCP,
