@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
 ## [2.2.x] - ???
+### :magic_wand: Added
+- Host Availability Strategy to help keep host health status up to date ([PR #530](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/530)).   
+
 ### :crab: Changed
 - Dynamically sets the default host list provider based on the dialect used. User applications no longer need to manually set the AuroraHostListProvider when connecting to Aurora Postgres or Aurora MySQL databases.
 - Deprecated AuroraHostListConnectionPlugin. 

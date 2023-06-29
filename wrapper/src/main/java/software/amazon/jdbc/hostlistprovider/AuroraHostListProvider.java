@@ -42,11 +42,12 @@ import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.AwsWrapperProperty;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -169,7 +170,8 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
 
       // initial topology is based on connection string
       this.initialHostList =
-          this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false);
+          this.connectionUrlParser.getHostsFromConnectionUrl(this.originalUrl, false,
+              () -> this.hostListProviderService.getHostSpecBuilder());
       if (this.initialHostList == null || this.initialHostList.isEmpty()) {
         throw new SQLException(Messages.get("AuroraHostListProvider.parsedListEmpty",
             new Object[] {this.originalUrl}));
@@ -181,10 +183,12 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
       this.isPrimaryClusterId = false;
       this.refreshRateNano =
           TimeUnit.MILLISECONDS.toNanos(CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(properties));
+
+      HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
       this.clusterInstanceTemplate =
           CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
-              ? new HostSpec(rdsHelper.getRdsInstanceHostPattern(originalUrl))
-              : new HostSpec(CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties));
+              ? hostSpecBuilder.host(rdsHelper.getRdsInstanceHostPattern(originalUrl)).build()
+              : hostSpecBuilder.host(CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties)).build();
       validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
 
       this.rdsUrlType = rdsHelper.identifyRdsType(originalUrl);
@@ -459,13 +463,14 @@ public class AuroraHostListProvider implements DynamicHostListProvider {
         ? this.clusterInstanceTemplate.getPort()
         : this.initialHostSpec.getPort();
 
-    final HostSpec hostSpec = new HostSpec(
-        endpoint,
-        port,
-        isWriter ? HostRole.WRITER : HostRole.READER,
-        HostAvailability.AVAILABLE,
-        weight,
-        lastUpdateTime);
+    final HostSpec hostSpec = this.hostListProviderService.getHostSpecBuilder()
+        .host(endpoint)
+        .port(port)
+        .role(isWriter ? HostRole.WRITER : HostRole.READER)
+        .availability(HostAvailability.AVAILABLE)
+        .weight(weight)
+        .lastUpdateTime(lastUpdateTime)
+        .build();
     hostSpec.addAlias(host);
     hostSpec.setHostId(host);
     return hostSpec;

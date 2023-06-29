@@ -46,6 +46,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HikariPooledConnectionProvider.PoolKey;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.SlidingExpirationCache;
 
 class HikariPooledConnectionProviderTest {
@@ -67,11 +68,14 @@ class HikariPooledConnectionProviderTest {
   private final String password = "password";
   private final String db = "mydb";
   private final String writerUrlNoConnections = "writerWithNoConnections.XYZ.us-east-1.rds.amazonaws.com";
-  private final HostSpec writerHostNoConnections = new HostSpec(writerUrlNoConnections, port, HostRole.WRITER);
+  private final HostSpec writerHostNoConnections = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host(writerUrlNoConnections).port(port).role(HostRole.WRITER).build();
   private final String readerUrl1Connection = "readerWith1connection.XYZ.us-east-1.rds.amazonaws.com";
-  private final HostSpec readerHost1Connection = new HostSpec(readerUrl1Connection, port, HostRole.READER);
+  private final HostSpec readerHost1Connection = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host(readerUrl1Connection).port(port).role(HostRole.READER).build();
   private final String readerUrl2Connections = "readerWith2connections.XYZ.us-east-1.rds.amazonaws.com";
-  private final HostSpec readerHost2Connections = new HostSpec(readerUrl2Connections, port, HostRole.READER);
+  private final HostSpec readerHost2Connections = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host(readerUrl2Connections).port(port).role(HostRole.READER).build();
   private final String protocol = "protocol://";
 
   private final Properties defaultProps = getDefaultProps();
@@ -170,9 +174,12 @@ class HikariPooledConnectionProviderTest {
     provider = new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
 
     assertTrue(
-        provider.acceptsUrl(protocol, new HostSpec(readerUrl2Connections), defaultProps));
+        provider.acceptsUrl(protocol,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(readerUrl2Connections).build(),
+            defaultProps));
     assertFalse(
-        provider.acceptsUrl(protocol, new HostSpec(clusterUrl), defaultProps));
+        provider.acceptsUrl(protocol,
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(clusterUrl).build(), defaultProps));
   }
 
   @Test

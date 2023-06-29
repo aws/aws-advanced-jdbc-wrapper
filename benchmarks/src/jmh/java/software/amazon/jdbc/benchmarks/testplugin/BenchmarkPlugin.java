@@ -31,10 +31,12 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   final List<String> resources = new ArrayList<>();
@@ -82,7 +84,7 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
     LOGGER.finer(() -> String.format("getHostSpecByStrategy=''%s''", strategy));
     resources.add("getHostSpecByStrategy");
-    return new HostSpec("host", 1234, role);
+    return new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").port(1234).role(role).build();
   }
 
   @Override

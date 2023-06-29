@@ -55,6 +55,7 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
@@ -62,6 +63,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -161,7 +163,7 @@ public class ConnectionPluginManagerBenchmarks {
   public Connection connectWithPlugins() throws SQLException {
     return pluginManager.connect(
         "driverProtocol",
-        new HostSpec("host"),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
         propertiesWithPlugins,
         true);
   }
@@ -170,7 +172,7 @@ public class ConnectionPluginManagerBenchmarks {
   public Connection connectWithNoPlugins() throws SQLException {
     return pluginManagerWithNoPlugins.connect(
         "driverProtocol",
-        new HostSpec("host"),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
         propertiesWithoutPlugins,
         true);
   }

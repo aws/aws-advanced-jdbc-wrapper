@@ -26,6 +26,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
@@ -155,4 +156,6 @@ public interface PluginService extends ExceptionHandler {
   HostSpec identifyConnection(final Connection connection) throws SQLException;
 
   void fillAliases(final Connection connection, final HostSpec hostSpec) throws SQLException;
+
+  HostSpecBuilder getHostSpecBuilder();
 }

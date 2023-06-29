@@ -40,6 +40,8 @@ import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.exceptions.ExceptionManager;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
@@ -72,7 +74,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final String originalUrl,
       final String targetDriverProtocol) throws SQLException {
     this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol,
-        new DialectManager());
+        null);
   }
 
   public PluginServiceImpl(
@@ -81,13 +83,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
       final String targetDriverProtocol,
-      @NonNull final DialectProvider dialectProvider) throws SQLException {
+      @Nullable final DialectProvider dialectProvider) throws SQLException {
     this.pluginManager = pluginManager;
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
     this.exceptionManager = exceptionManager;
-    this.dialectProvider = dialectProvider;
+    this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
     this.dialect = this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
   }
 
@@ -535,5 +537,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     if (host != null) {
       hostSpec.addAlias(host.asAliases().toArray(new String[]{}));
     }
+  }
+
+  @Override
+  public HostSpecBuilder getHostSpecBuilder() {
+    return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.props));
   }
 }

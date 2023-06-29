@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 
 /**
  * An object representing connection info for a given host. Modifiable fields are thread-safe to support sharing this
@@ -31,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HostSpec {
 
   public static final int NO_PORT = -1;
-  private static final long DEFAULT_WEIGHT = 100;
+  public static final long DEFAULT_WEIGHT = 100;
 
   protected final String host;
   protected final int port;
@@ -42,60 +44,15 @@ public class HostSpec {
   protected long weight; // Greater or equal 0. Lesser the weight, the healthier node.
   protected String hostId;
   protected Timestamp lastUpdateTime;
+  protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
-  public HostSpec(final String host) {
-    this.host = host;
-    this.port = NO_PORT;
-    this.availability = HostAvailability.AVAILABLE;
-    this.role = HostRole.WRITER;
-    this.allAliases.add(this.asAlias());
-    this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = Timestamp.from(Instant.now());
+  private HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
+      final HostAvailabilityStrategy hostAvailabilityStrategy) {
+    this(host, port, role, availability, DEFAULT_WEIGHT, Timestamp.from(Instant.now()), hostAvailabilityStrategy);
   }
 
-  public HostSpec(final String host, final int port) {
-    this.host = host;
-    this.port = port;
-    this.availability = HostAvailability.AVAILABLE;
-    this.role = HostRole.WRITER;
-    this.allAliases.add(this.asAlias());
-    this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = Timestamp.from(Instant.now());
-  }
-
-  public HostSpec(final String host, final int port, final HostRole role) {
-    this.host = host;
-    this.port = port;
-    this.availability = HostAvailability.AVAILABLE;
-    this.role = role;
-    this.allAliases.add(this.asAlias());
-    this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = Timestamp.from(Instant.now());
-  }
-
-  public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability) {
-    this.host = host;
-    this.port = port;
-    this.availability = availability;
-    this.role = role;
-    this.allAliases.add(this.asAlias());
-    this.weight = DEFAULT_WEIGHT;
-    this.lastUpdateTime = Timestamp.from(Instant.now());
-  }
-
-  public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
-      final long weight) {
-    this.host = host;
-    this.port = port;
-    this.availability = availability;
-    this.role = role;
-    this.allAliases.add(this.asAlias());
-    this.weight = weight;
-    this.lastUpdateTime = Timestamp.from(Instant.now());
-  }
-
-  public HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
-      final long weight, final Timestamp lastUpdateTime) {
+  HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
+       final long weight, final Timestamp lastUpdateTime, final HostAvailabilityStrategy hostAvailabilityStrategy) {
     this.host = host;
     this.port = port;
     this.availability = availability;
@@ -103,6 +60,7 @@ public class HostSpec {
     this.allAliases.add(this.asAlias());
     this.weight = weight;
     this.lastUpdateTime = lastUpdateTime;
+    this.hostAvailabilityStrategy = hostAvailabilityStrategy;
   }
 
   /**
@@ -112,7 +70,8 @@ public class HostSpec {
    * @param role     the role of this host (writer or reader).
    */
   public HostSpec(final HostSpec copyHost, final HostRole role) {
-    this(copyHost.getHost(), copyHost.getPort(), role, copyHost.getAvailability());
+    this(copyHost.getHost(), copyHost.getPort(), role, copyHost.getAvailability(),
+        copyHost.getHostAvailabilityStrategy());
   }
 
   public String getHost() {
@@ -132,11 +91,29 @@ public class HostSpec {
   }
 
   public HostAvailability getAvailability() {
+    if (this.hostAvailabilityStrategy != null) {
+      return this.hostAvailabilityStrategy.getHostAvailability(this.availability);
+    }
+    return this.availability;
+  }
+
+  public HostAvailability getRawAvailability() {
     return this.availability;
   }
 
   public void setAvailability(final HostAvailability availability) {
     this.availability = availability;
+    if (this.hostAvailabilityStrategy != null) {
+      this.hostAvailabilityStrategy.setHostAvailability(availability);
+    }
+  }
+
+  public HostAvailabilityStrategy getHostAvailabilityStrategy() {
+    return this.hostAvailabilityStrategy;
+  }
+
+  public void setHostAvailabilityStrategy(final HostAvailabilityStrategy hostAvailabilityStrategy) {
+    this.hostAvailabilityStrategy = hostAvailabilityStrategy;
   }
 
   public Timestamp getLastUpdateTime() {

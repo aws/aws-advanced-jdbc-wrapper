@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.hostavailability;
 
-public enum HostAvailability {
-  UNCERTAIN,
-  AVAILABLE,
-  NOT_AVAILABLE
+import software.amazon.jdbc.AwsWrapperProperty;
+
+public interface HostAvailabilityStrategy {
+
+  void setHostAvailability(HostAvailability hostAvailability);
+
+  HostAvailability getHostAvailability(HostAvailability rawHostAvailability);
 }

@@ -14,28 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.hostavailability;
 
-import java.sql.Connection;
-import software.amazon.jdbc.dialect.Dialect;
-
-public interface HostListProviderService {
-
-  boolean isStaticHostListProvider();
-
-  HostListProvider getHostListProvider();
-
-  void setHostListProvider(HostListProvider hostListProvider);
-
-  void setInitialConnectionHostSpec(final HostSpec initialConnectionHostSpec);
-
-  HostSpec getInitialConnectionHostSpec();
-
-  Connection getCurrentConnection();
-
-  HostSpec getCurrentHostSpec();
-
-  Dialect getDialect();
-
-  HostSpecBuilder getHostSpecBuilder();
+public enum HostAvailability {
+  AVAILABLE,
+  NOT_AVAILABLE
 }

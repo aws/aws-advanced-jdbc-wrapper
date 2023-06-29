@@ -31,6 +31,8 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class AwsCredentialsManagerTest {
 
@@ -58,10 +60,12 @@ class AwsCredentialsManagerTest {
   @Test
   public void testAwsCredentialsManager() {
     final String postgresUrl = "db-identifier-postgres.XYZ.us-east-2.rds.amazonaws.com";
-    final HostSpec postgresHostSpec = new HostSpec(postgresUrl);
+    final HostSpec postgresHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(postgresUrl)
+        .build();
 
     final String mysqlUrl = "db-identifier-mysql.XYZ.us-east-2.rds.amazonaws.com";
-    final HostSpec mysqlHostSpec = new HostSpec(mysqlUrl);
+    final HostSpec mysqlHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(mysqlUrl)
+        .build();
 
     AwsCredentialsManager.setCustomHandler((hostSpec, props) -> {
       if (postgresUrl.equals(hostSpec.getHost())) {
