@@ -6,7 +6,9 @@ Before using the AWS Advanced JDBC Driver, you must install:
 
 - Amazon Corretto 8+ or Java 8+.
 - The AWS Advanced JDBC Driver.
-- Your choice of underlying JDBC driver. To use the wrapper with Aurora with PostgreSQL compatibility, you need to install the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
+- Your choice of underlying JDBC driver. 
+  - To use the wrapper with Aurora with PostgreSQL compatibility, install the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc).
+  - To use the wrapper with Aurora with MySQL compatibility, install the [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) or [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
 
 If you are using the AWS JDBC Driver as part of a Gradle project, include the wrapper and underlying driver as dependencies.  For example, to include the AWS Advanced JDBC Driver and the PostgreSQL JDBC Driver as dependencies in a Gradle project, update the ```build.gradle``` file as follows:
 
