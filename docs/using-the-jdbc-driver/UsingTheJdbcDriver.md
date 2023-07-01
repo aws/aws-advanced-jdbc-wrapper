@@ -155,7 +155,7 @@ application to take advantage of the features of clustered MySQL databases. It i
 compatible for the[MySQL Connector/J driver](https://github.com/mysql/mysql-connector-j), and is compatible with all
 MySQL deployments.
 
-The AWS JDBC Driver has the same features as the AWS JDBC Driver as well as the read-write splitting feature. This
+The AWS JDBC Driver has the same functionalities as the AWS JDBC Driver for MySQL, as well as additional features such as the read-write splitting plugin. This
 section highlights the steps required to migrate from the AWS JDBC Driver for MySQL to the AWS JDBC Driver.
 
 ### Replacement Steps
@@ -174,7 +174,7 @@ In the AWS JDBC Driver for MySQL, plugins are set by providing a list of connect
 "jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/db?connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory,com.mysql.cj.jdbc.ha.plugins.failover.FailoverConnectionPluginFactory,com.mysql.cj.jdbc.ha.plugins.NodeMonitoringConnectionPluginFactory"
 ```
 
-In AWS JDBC Driver you simply need to specify the plugin codes:
+In AWS JDBC Driver plugins are set by specifying the plugin codes:
 
 ```java
 "jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306/db?wrapperPlugins=iam,failover"
@@ -191,7 +191,6 @@ the `Connection#setReadOnly` method.
 ### Example Configurations
 
 #### Using the IAM Authentication Plugin with AWS JDBC Driver for MySQL
-### Using the IAM Authentication Plugin with AWS JDBC Driver for MySQL
 
 ```java
 public static void main(String[] args) throws SQLException {
@@ -232,12 +231,12 @@ see [How do I use IAM with the AWS Advanced JDBC Driver?](https://github.com/aws
 
 ### Secrets Manager Plugin
 
-The Secrets Manager Plugin in both AWS JDBC Driver for MySQL and the AWS JDBC Driver use the same configuration
+The Secrets Manager Plugin in both the AWS JDBC Driver for MySQL and the AWS JDBC Driver uses the same configuration
 parameters. To migrate to the AWS JDBC Driver, simply change
 the `connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory` parameter
 to `wrapperPlugins=awsSecretsManager`
 
-#### Using the IAM Authentication Plugin with AWS JDBC Driver for MySQL
+#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver for MySQL
 
 ```java
 public static void main(String[] args) throws SQLException {
@@ -254,7 +253,7 @@ public static void main(String[] args) throws SQLException {
     }
   }
 ```
-#### Using the IAM Authentication Plugin with AWS JDBC Driver
+#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver
 
 ```java
 public static void main(String[] args) throws SQLException {
