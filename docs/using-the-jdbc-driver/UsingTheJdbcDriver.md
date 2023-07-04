@@ -155,7 +155,7 @@ application to take advantage of the features of clustered MySQL databases. It i
 compatible for the[MySQL Connector/J driver](https://github.com/mysql/mysql-connector-j), and is compatible with all
 MySQL deployments.
 
-The AWS JDBC Driver has the same functionalities as the AWS JDBC Driver for MySQL, as well as additional features such as the read-write splitting plugin. This
+The AWS JDBC Driver has the same functionalities as the AWS JDBC Driver for MySQL, as well as additional features such as support for Read/Write Splitting. This
 section highlights the steps required to migrate from the AWS JDBC Driver for MySQL to the AWS JDBC Driver.
 
 ### Replacement Steps
@@ -174,7 +174,7 @@ In the AWS JDBC Driver for MySQL, plugins are set by providing a list of connect
 "jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/db?connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory,com.mysql.cj.jdbc.ha.plugins.failover.FailoverConnectionPluginFactory,com.mysql.cj.jdbc.ha.plugins.NodeMonitoringConnectionPluginFactory"
 ```
 
-In AWS JDBC Driver plugins are set by specifying the plugin codes:
+In the AWS JDBC Driver, plugins are set by specifying the plugin codes:
 
 ```java
 "jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306/db?wrapperPlugins=iam,failover"
