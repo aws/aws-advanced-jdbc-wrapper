@@ -154,14 +154,16 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
 
       final DataSource targetDataSource = createTargetDataSource();
-      try {
-        targetDataSource.setLoginTimeout(loginTimeout);
-      } catch (Exception ex) {
-        LOGGER.finest(
-            () ->
-                Messages.get(
-                    "DataSource.failedToSetProperty",
-                    new Object[] {"loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()}));
+      if (loginTimeout >= 0) {
+        try {
+          targetDataSource.setLoginTimeout(loginTimeout);
+        } catch (Exception ex) {
+          LOGGER.finest(
+              () ->
+                  Messages.get(
+                      "DataSource.failedToSetProperty",
+                      new Object[] {"loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()}));
+        }
       }
 
       final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
@@ -348,7 +350,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     }
   }
 
-  private DataSource createTargetDataSource() throws SQLException {
+  DataSource createTargetDataSource() throws SQLException {
     try {
       return WrapperUtils.createInstance(this.targetDataSourceClassName, DataSource.class);
     } catch (final InstantiationException instEx) {

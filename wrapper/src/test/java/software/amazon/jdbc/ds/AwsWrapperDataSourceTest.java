@@ -20,11 +20,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
-import integration.refactored.container.TestDriver;
-import integration.refactored.container.condition.DisableOnTestDriver;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
@@ -33,8 +33,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.postgresql.ds.PGSimpleDataSource;
+import integration.refactored.container.TestDriver;
+import integration.refactored.container.condition.DisableOnTestDriver;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 class AwsWrapperDataSourceTest {
@@ -49,7 +51,7 @@ class AwsWrapperDataSourceTest {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    ds = Mockito.spy(new AwsWrapperDataSource());
+    ds = spy(new AwsWrapperDataSource());
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
     doReturn(mockConnection)
         .when(ds)
@@ -224,5 +226,36 @@ class AwsWrapperDataSourceTest {
     ds.setJdbcUrl("protocol://testserver/");
 
     assertThrows(SQLException.class, () -> ds.getConnection("user", ""));
+  }
+
+  @Test
+  public void testSetLoginTimeout() throws SQLException {
+    ds = new AwsWrapperDataSource();
+    assertThrows(SQLFeatureNotSupportedException.class, () -> ds.getLoginTimeout());
+
+    ds.setLoginTimeout(30);
+    assertEquals(30, ds.getLoginTimeout());
+
+    // Setting login timeout to an invalid value should result in a no-op.
+    ds.setLoginTimeout(-100);
+    assertEquals(30, ds.getLoginTimeout());
+  }
+
+  @Test
+  @DisableOnTestDriver(TestDriver.MARIADB)
+  public void testSetLoginTimeoutOnTargetDataSource() throws SQLException {
+    PGSimpleDataSource simpleDS = new PGSimpleDataSource();
+    doReturn(simpleDS).when(ds).createTargetDataSource();
+
+    ds.setJdbcUrl("jdbc:postgresql://testserver/");
+
+    try (final Connection conn = ds.getConnection()) {
+      assertEquals(0, simpleDS.getLoginTimeout());
+    }
+
+    ds.setLoginTimeout(500);
+    try (final Connection conn = ds.getConnection()) {
+      assertEquals(500, simpleDS.getLoginTimeout());
+    }
   }
 }
