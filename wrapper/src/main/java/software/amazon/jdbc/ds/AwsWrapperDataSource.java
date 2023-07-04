@@ -78,7 +78,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   protected @Nullable String serverName;
   protected @Nullable String serverPort;
   protected @Nullable String database;
-  private int loginTimeout = -1;
+  private int loginTimeout = 0;
 
   @Override
   public Connection getConnection() throws SQLException {
@@ -154,16 +154,14 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
 
       final DataSource targetDataSource = createTargetDataSource();
-      if (loginTimeout >= 0) {
-        try {
-          targetDataSource.setLoginTimeout(loginTimeout);
-        } catch (Exception ex) {
-          LOGGER.finest(
-              () ->
-                  Messages.get(
-                      "DataSource.failedToSetProperty",
-                      new Object[] {"loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()}));
-        }
+      try {
+        targetDataSource.setLoginTimeout(loginTimeout);
+      } catch (Exception ex) {
+        LOGGER.finest(
+            () ->
+                Messages.get(
+                    "DataSource.failedToSetProperty",
+                    new Object[] {"loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()}));
       }
 
       final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
@@ -297,18 +295,14 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
   @Override
   public void setLoginTimeout(final int seconds) throws SQLException {
-    if (seconds <= 0) {
-      return;
+    if (seconds < 0) {
+      throw new SQLException("Login timeout cannot be a negative value.");
     }
     loginTimeout = seconds;
   }
 
   @Override
   public int getLoginTimeout() throws SQLException {
-    if (loginTimeout <= 0) {
-      throw new SQLFeatureNotSupportedException();
-    }
-
     return loginTimeout;
   }
 

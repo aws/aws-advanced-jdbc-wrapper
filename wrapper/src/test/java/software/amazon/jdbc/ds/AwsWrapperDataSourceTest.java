@@ -22,9 +22,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import integration.refactored.container.TestDriver;
+import integration.refactored.container.condition.DisableOnTestDriver;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.AfterEach;
@@ -35,8 +36,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.postgresql.ds.PGSimpleDataSource;
-import integration.refactored.container.TestDriver;
-import integration.refactored.container.condition.DisableOnTestDriver;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 class AwsWrapperDataSourceTest {
@@ -230,15 +229,9 @@ class AwsWrapperDataSourceTest {
 
   @Test
   public void testSetLoginTimeout() throws SQLException {
-    ds = new AwsWrapperDataSource();
-    assertThrows(SQLFeatureNotSupportedException.class, () -> ds.getLoginTimeout());
-
     ds.setLoginTimeout(30);
     assertEquals(30, ds.getLoginTimeout());
-
-    // Setting login timeout to an invalid value should result in a no-op.
-    ds.setLoginTimeout(-100);
-    assertEquals(30, ds.getLoginTimeout());
+    assertThrows(SQLException.class, () -> ds.setLoginTimeout(-100));
   }
 
   @Test
