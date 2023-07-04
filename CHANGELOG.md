@@ -3,10 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [2.2.2] - 2023-?-??
+## [2.2.2] - 2023-07-05
 
 ### :crab: Changed
-- Update documentation to indicate MySQL JDBC Driver support ([PR #508](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/508)).   
+- Update documentation to indicate MySQL JDBC Driver support ([PR #508](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/508)).
 
 ## [2.2.1] - 2023-6-16
 
@@ -141,7 +141,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 * The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 * The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
-[3.0.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.1...2.2.2
+[2.2.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.1...2.2.2
 [2.2.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.0...2.2.1
 [2.2.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.2...2.2.0
 [2.1.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.1...2.1.2

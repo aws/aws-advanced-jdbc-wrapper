@@ -147,3 +147,130 @@ dependencies {
     implementation(files("path-to-snapshot-jar"))
 }
 ```
+
+## AWS JDBC Driver for MySQL Migration Guide
+
+**[The Amazon Web Services (AWS) JDBC Driver for MySQL](https://github.com/awslabs/aws-mysql-jdbc)**allows an
+application to take advantage of the features of clustered MySQL databases. It is based on and can be used as a drop-in
+compatible for the[MySQL Connector/J driver](https://github.com/mysql/mysql-connector-j), and is compatible with all
+MySQL deployments.
+
+The AWS JDBC Driver has the same functionalities as the AWS JDBC Driver for MySQL, as well as additional features such as support for Read/Write Splitting. This
+section highlights the steps required to migrate from the AWS JDBC Driver for MySQL to the AWS JDBC Driver.
+
+### Replacement Steps
+
+1. Update the driver class name from `software.aws.rds.jdbc.mysql.Driver` to `software.amazon.jdbc.Driver`
+2. Update the URL JDBC protocol from `jdbc:mysql:aws:` to  `jdbc:aws-wrapper:mysql`
+3. Update the plugin configuration parameter from `connectionPluginFactories`
+   to  [wrapperPlugins](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
+   See more details below.
+
+### Plugins Configuration
+
+In the AWS JDBC Driver for MySQL, plugins are set by providing a list of connection plugin factories:
+
+```java
+"jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/db?connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory,com.mysql.cj.jdbc.ha.plugins.failover.FailoverConnectionPluginFactory,com.mysql.cj.jdbc.ha.plugins.NodeMonitoringConnectionPluginFactory"
+```
+
+In the AWS JDBC Driver, plugins are set by specifying the plugin codes:
+
+```java
+"jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306/db?wrapperPlugins=iam,failover"
+```
+
+To see the list of available plugins and their associated plugin code, see
+the [documentation](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins).
+
+The AWS JDBC Driver also provides
+the [Read-Write Splitting plugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#read-write-splitting-plugin),
+this plugin allows the application to switch the connections between writer and reader instances by calling
+the `Connection#setReadOnly` method.
+
+### Example Configurations
+
+#### Using the IAM Authentication Plugin with AWS JDBC Driver for MySQL
+
+```java
+public static void main(String[] args) throws SQLException {
+    final Properties properties = new Properties();
+    properties.setProperty("useAwsIam", "true");
+    properties.setProperty("user", "foo");
+
+    try (final Connection conn = DriverManager.getConnection(
+        "jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        final Statement statement = conn.createStatement();
+        final ResultSet result = statement.executeQuery("SELECT 1")) {
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+
+#### Using the IAM Authentication Plugin with AWS JDBC Driver
+
+```java
+public static void main(String[] args) throws SQLException {
+
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "iam");
+    properties.setProperty("user", "iam_user");
+
+    try (Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        Statement statement = conn.createStatement();
+        ResultSet result = statement.executeQuery("SELECT 1")) {
+
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+
+The IAM Authentication Plugin in the AWS JDBC Driver has extra parameters to support custom endpoints. For more
+information,
+see [How do I use IAM with the AWS Advanced JDBC Driver?](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-advanced-jdbc-driver)
+
+### Secrets Manager Plugin
+
+The Secrets Manager Plugin in both the AWS JDBC Driver for MySQL and the AWS JDBC Driver uses the same configuration
+parameters. To migrate to the AWS JDBC Driver, simply change
+the `connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory` parameter
+to `wrapperPlugins=awsSecretsManager`
+
+#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver for MySQL
+
+```java
+public static void main(String[] args) throws SQLException {
+    final Properties properties = new Properties();
+    properties.setProperty("connectionPluginFactories", AWSSecretsManagerPluginFactory.class.getName());
+    properties.setProperty("secretsManagerSecretId", "secretId");
+    properties.setProperty("secretsManagerRegion", "us-east-2");
+
+    try (final Connection conn = DriverManager.getConnection(
+        "jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        final Statement statement = conn.createStatement();
+        final ResultSet result = statement.executeQuery("SELECT 1")) {
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver
+
+```java
+public static void main(String[] args) throws SQLException {
+
+    final Properties properties = new Properties
+    properties.setProperty("wrapperPlugins", "awsSecretsManagers");
+    properties.setProperty("secretsManagerSecretId", "secretId");
+    properties.setProperty("secretsManagerRegion", "us-east-2");
+
+    try (Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        Statement statement = conn.createStatement();
+        ResultSet result = statement.executeQuery("SELECT 1")) {
+
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+
+## Enable Logging
+To enable logging in the AWS JDBC Driver, change the `logger=StandardLogger` parameter to `wrapperLoggerLevel=FINEST`
