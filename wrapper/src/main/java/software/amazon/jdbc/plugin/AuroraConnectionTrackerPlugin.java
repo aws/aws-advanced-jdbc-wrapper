@@ -49,6 +49,8 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
           add("connect");
           add("forceConnect");
           add("notifyNodeListChanged");
+          add(METHOD_ABORT);
+          add(METHOD_CLOSE);
         }
       });
 
