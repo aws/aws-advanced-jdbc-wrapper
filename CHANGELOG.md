@@ -4,9 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
 ## [2.2.2] - 2023-07-05
+### :magic_wand: Added
+- Official support for Amazon Aurora with MySQL compatibility. The AWS JDBC Driver has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+- Documentation:
+  - Maintenance and release policy ([PR #442](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/442) and [PR #507](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/507)).
+  - Migration guide for moving from the AWS JDBC Driver for MySQL to the AWS JDBC Driver ([PR #510](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/510)).
 
 ### :crab: Changed
-- Update documentation to indicate MySQL JDBC Driver support ([PR #508](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/508)).
+- Improved integration test suite performance by creating required test database clusters in advance ([PR #411](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/411)).
+- Documentation:
+  - Correct `portNumber` to `serverPort` in Hikari example ([PR #504](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/504)).
+  - Updated Maven Central links and references to third party framework examples ([PR #499](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/499)).
 
 ## [2.2.1] - 2023-6-16
 
