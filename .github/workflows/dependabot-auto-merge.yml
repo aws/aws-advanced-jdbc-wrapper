@@ -1,7 +1,10 @@
 name: "Dependabot Automerge"
 
 on:
+  workflow_dispatch:
   pull_request:
+    branches:
+      - 'chore(deps):*'
 
 jobs:
   worker:
