@@ -19,6 +19,8 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
+import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -81,7 +83,7 @@ public class HikariTests {
     dataSource.setJdbcUrl(url);
     dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
-    dataSource.addDataSourceProperty(PropertyDefinition.PLUGINS.name, "");
+    dataSource.addDataSourceProperty(PLUGINS.name, "");
 
     final Connection conn = dataSource.getConnection();
 
@@ -124,7 +126,7 @@ public class HikariTests {
 
     // Configuring driver-specific DataSource:
     final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
+    targetDataSourceProps.setProperty(PLUGINS.name, "");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
@@ -158,8 +160,8 @@ public class HikariTests {
   @EnableOnNumOfInstances(min = 3)
   public void testFailoverLostConnection() throws SQLException {
     final Properties customProps = new Properties();
-    customProps.setProperty(PropertyDefinition.PLUGINS.name, "failover");
-    customProps.setProperty("failoverTimeoutMs", Integer.toString(1));
+    PLUGINS.set(customProps, "failover");
+    FAILOVER_TIMEOUT_MS.set(customProps, Integer.toString(1));
     DriverHelper.setSocketTimeout(customProps, 1, TimeUnit.SECONDS);
 
     final HikariDataSource dataSource = createDataSource(customProps);
@@ -278,7 +280,7 @@ public class HikariTests {
 
     final Properties targetDataSourceProps = new Properties();
 
-    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(
         "clusterInstanceHostPattern",
         "?."

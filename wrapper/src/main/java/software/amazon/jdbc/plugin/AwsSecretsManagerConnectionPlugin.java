@@ -59,10 +59,10 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
         }
       });
 
-  protected static final AwsWrapperProperty SECRET_ID_PROPERTY = new AwsWrapperProperty(
+  public static final AwsWrapperProperty SECRET_ID_PROPERTY = new AwsWrapperProperty(
       "secretsManagerSecretId", null,
       "The name or the ARN of the secret to retrieve.");
-  protected static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
+  public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
       "secretsManagerRegion", "us-east-1",
       "The region of the secret to retrieve.");
 

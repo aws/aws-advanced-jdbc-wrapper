@@ -27,8 +27,56 @@ Enhanced Failure Monitoring (EFM) is a feature available from the [Host Monitori
 Please visit [this page](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-jdbc-driver-with-plain-rds-databases) for more information.
 
 ## Getting Started
-For more information on how to obtain the AWS JDBC Driver, minimum requirements to use it, and how to integrate the AWS JDBC Driver into your project, please visit the [Getting Started page](./docs/GettingStarted.md).
+For more information on how to obtain the AWS JDBC Driver, minimum requirements to use it, 
+and how to integrate the AWS JDBC Driver into your project, please visit the 
+[Getting Started page](./docs/GettingStarted.md).
+### Maven Central
+You can find our driver by searching in The Central Repository with GroupId and ArtifactId [software.amazon:aws-advanced-jdbc-wrapper][mvn-search].
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper/badge.svg)](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
+```xml
+<!-- Add the following dependency to your pom.xml, -->
+<!-- replacing LATEST with specific version as required -->
+
+<dependency>
+  <groupId>software.amazon</groupId>
+  <artifactId>aws-advanced-jdbc-wrapper</artifactId>
+  <version>LATEST</version>
+</dependency>
+```
+
+[mvn-search]: https://search.maven.org/search?q=g:software.amazon.jdbc "Search on Maven Central"
+
+## Properties
+
+| Parameter                              |                              Reference                               |                                                   Documentation Link                                                   |
+|----------------------------------------|:--------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------:|
+| `wrapperDialect`                       |                       `DialectManager.DIALECT`                       |            [Dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md), and whether you should include it.             |
+| `wrapperPlugins`                       |                     `PropertyDefinition.PLUGINS`                     |                                                                                                                        |
+| `secretsManagerSecretId`               |        `AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY`        |         [SecretsManagerPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)          |
+| `secretsManagerRegion`                 |         `AwsSecretsManagerConnectionPlugin.REGION_PROPERTY`          |         [SecretsManagerPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)          |
+| `wrapperDriverName`                    |         `DriverMetaDataConnectionPlugin.WRAPPER_DRIVER_NAME`         | [DriverMetaDataConnectionPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheDriverMetadataConnectionPlugin.md) |
+| `failoverMode`                         |               `FailoverConnectionPlugin.FAILOVER_MODE`               |                 [FailoverPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)                 |
+| `clusterInstanceHostPattern`           |        `AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN`        |                 [FailoverPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)                 |
+| `enableClusterAwareFailover`           |       `FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER`       |                 [FailoverPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)                 |
+| `failoverClusterTopologyRefreshRateMs` | `FailoverConnectionPlugin.FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS` |                 [FailoverPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)                 |
+| `failoverReaderConnectTimeoutMs`       |    `FailoverConnectionPlugin.FAILOVER_READER_CONNECT_TIMEOUT_MS`     |                 [FailoverPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)                 |
+| `failoverTimeoutMs`                    |            `FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS`            |                 [FailoverPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)                 |
+| `failoverWriterReconnectIntervalMs`    |   `FailoverConnectionPlugin.FAILOVER_WRITER_RECONNECT_INTERVAL_MS`   |                 [FailoverPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)                 |
+| `failureDetectionCount`                |       `HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT`       |           [HostMonitoringPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)           |
+| `failureDetectionEnabled`              |      `HostMonitoringConnectionPlugin.FAILURE_DETECTION_ENABLED`      |           [HostMonitoringPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)           |
+| `failureDetectionInterval`             |     `HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL`      |           [HostMonitoringPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)           |
+| `failureDetectionTime`                 |       `HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME`        |           [HostMonitoringPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)           |
+| `monitorDisposalTime`                  |            `MonitorServiceImpl.MONITOR_DISPOSAL_TIME_MS`             |           [HostMonitoringPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)           |
+| `iamDefaultPort`                       |              `IamAuthConnectionPlugin.IAM_DEFAULT_PORT`              |        [IamAuthenticationPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)        |
+| `iamHost`                              |                  `IamAuthConnectionPlugin.IAM_HOST`                  |        [IamAuthenticationPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)        |
+| `iamRegion`                            |                 `IamAuthConnectionPlugin.IAM_REGION`                 |        [IamAuthenticationPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)        |
+| `iamExpiration`                        |               `IamAuthConnectionPlugin.IAM_EXPIRATION`               |        [IamAuthenticationPlugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)        |
+| `wrapperLogUnclosedConnections`        |            `PropertyDefinition.LOG_UNCLOSED_CONNECTIONS`             |                  [LogUnclosedConnections](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging)                  |
+| `wrapperLoggerLevel`                   |                  `PropertyDefinition.LOGGER_LEVEL`                   |                       [LoggingLevel](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging)                       |
+| `wrapperProfileName`                   |                  `PropertyDefinition.PROFILE_NAME`                   |           [ConfigurationProfiles](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles)           |
+
+**A Secret ARN** has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
 ## Using the AWS JDBC Driver
 Please refer to the AWS JDBC Driver's [Documentation page](./docs/Documentation.md) for details about using the AWS JDBC Driver. 
 
