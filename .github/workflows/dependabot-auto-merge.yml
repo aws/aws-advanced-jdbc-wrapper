@@ -3,16 +3,16 @@ name: "Dependabot Automerge"
 on:
   workflow_dispatch:
   pull_request:
-    branches:
-      - 'dependabot/gradle/main/*'
 
 jobs:
   worker:
     runs-on: ubuntu-latest
 
-    if: github.actor == 'dependabot[bot]'
     steps:
+      - name: Print actor
+        run: echo "${{ github.actor }}"
       - name: Dependabot metadata
+        if: github.actor == 'dependabot[bot]'
         id: metadata
         uses: dependabot/fetch-metadata@v1
         with:
