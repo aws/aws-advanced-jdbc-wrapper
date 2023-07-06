@@ -17,7 +17,6 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       - name: Approve PR
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        uses: actions/github-script@v6
         permissions: write-all
         run: gh pr review --approve "$PR_URL"
         env:
