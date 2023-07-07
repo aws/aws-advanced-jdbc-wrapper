@@ -583,7 +583,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       return null;
     }
 
-    for(ConnectionPlugin p : this.plugins) {
+    for (ConnectionPlugin p : this.plugins) {
       if (iface.isAssignableFrom(p.getClass())) {
         return iface.cast(p);
       }
@@ -597,7 +597,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       return false;
     }
 
-    for(ConnectionPlugin p : this.plugins) {
+    for (ConnectionPlugin p : this.plugins) {
       if (iface.isAssignableFrom(p.getClass())) {
         return true;
       }

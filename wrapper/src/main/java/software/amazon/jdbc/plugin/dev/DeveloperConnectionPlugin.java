@@ -67,7 +67,8 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
   }
 
   @Override
-  public void setCallback(final ExceptionSimulatorExecuteJdbcMethodCallback exceptionSimulatorExecuteJdbcMethodCallback) {
+  public void setCallback(
+      final ExceptionSimulatorExecuteJdbcMethodCallback exceptionSimulatorExecuteJdbcMethodCallback) {
     this.exceptionSimulatorExecuteJdbcMethodCallback = exceptionSimulatorExecuteJdbcMethodCallback;
   }
 
