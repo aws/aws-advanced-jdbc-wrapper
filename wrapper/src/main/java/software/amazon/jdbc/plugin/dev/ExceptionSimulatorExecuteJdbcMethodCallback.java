@@ -16,7 +16,7 @@
 
 package software.amazon.jdbc.plugin.dev;
 
-public interface ExceptionSimulatorCallback {
+public interface ExceptionSimulatorExecuteJdbcMethodCallback {
   <T, E extends Exception> Throwable getExceptionToRaise(
       final Class<T> resultClass,
       final Class<E> exceptionClass,

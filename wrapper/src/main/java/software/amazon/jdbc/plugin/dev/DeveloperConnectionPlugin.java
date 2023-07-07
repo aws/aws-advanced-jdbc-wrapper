@@ -24,10 +24,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -44,17 +42,9 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
 
   private String nextMethodName;
   private Throwable nextException;
-  private ExceptionSimulatorCallback exceptionSimulatorCallback;
-  private final PluginService pluginService;
-  private final Properties props;
+  private ExceptionSimulatorExecuteJdbcMethodCallback exceptionSimulatorExecuteJdbcMethodCallback;
 
-  public DeveloperConnectionPlugin(
-      final PluginService pluginService,
-      final Properties props) {
-
-    this.pluginService = pluginService;
-    this.props = props;
-  }
+  public DeveloperConnectionPlugin() { }
 
   @Override
   public Set<String> getSubscribedMethods() {
@@ -77,8 +67,8 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
   }
 
   @Override
-  public void setCallback(final ExceptionSimulatorCallback exceptionSimulatorCallback) {
-    this.exceptionSimulatorCallback = exceptionSimulatorCallback;
+  public void setCallback(final ExceptionSimulatorExecuteJdbcMethodCallback exceptionSimulatorExecuteJdbcMethodCallback) {
+    this.exceptionSimulatorExecuteJdbcMethodCallback = exceptionSimulatorExecuteJdbcMethodCallback;
   }
 
   @Override
@@ -109,34 +99,108 @@ public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implemen
 
     if (this.nextException != null) {
       if (ALL_METHODS.equals(this.nextMethodName) || methodName.equals(this.nextMethodName)) {
-        this.raiseException(exceptionClass, this.nextException);
+        this.raiseException(exceptionClass, this.nextException, methodName);
       }
-    } else if (this.exceptionSimulatorCallback != null) {
-      Throwable userException = this.exceptionSimulatorCallback.getExceptionToRaise(
-          resultClass,
+    } else if (this.exceptionSimulatorExecuteJdbcMethodCallback != null) {
+      this.raiseException(
           exceptionClass,
-          methodName,
-          jdbcMethodArgs);
-
-      if (userException != null) {
-        this.raiseException(exceptionClass, this.nextException);
-      }
+          this.exceptionSimulatorExecuteJdbcMethodCallback.getExceptionToRaise(
+              resultClass,
+              exceptionClass,
+              methodName,
+              jdbcMethodArgs),
+          methodName);
     }
   }
 
   protected <E extends Exception> void raiseException(
       final Class<E> exceptionClass,
-      final Throwable throwable)
+      final Throwable throwable,
+      final String methodName)
       throws E {
+
+    if (throwable == null) {
+      return;
+    }
 
     if (throwable instanceof RuntimeException) {
       this.nextException = null;
       this.nextMethodName = null;
+      LOGGER.finest(() -> String.format("Raise an exception %s while executing %s.",
+          throwable.getClass().getName(), methodName));
       throw (RuntimeException) throwable;
     } else {
       E resulException = WrapperUtils.wrapExceptionIfNeeded(exceptionClass, throwable);
       this.nextException = null;
       this.nextMethodName = null;
+      LOGGER.finest(() -> String.format("Raise an exception %s while executing %s.",
+          resulException.getClass().getName(), methodName));
+      throw resulException;
+    }
+  }
+
+  @Override
+  public Connection connect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+
+    this.raiseExceptionOnConnectIfNeeded(driverProtocol, hostSpec, props, isInitialConnection);
+    return super.connect(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
+  }
+
+  @Override
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+
+    this.raiseExceptionOnConnectIfNeeded(driverProtocol, hostSpec, props, isInitialConnection);
+    return super.connect(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
+  }
+
+  protected void raiseExceptionOnConnectIfNeeded(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection)
+      throws SQLException {
+
+    if (ExceptionSimulatorManager.nextException != null) {
+      this.raiseExceptionOnConnect(ExceptionSimulatorManager.nextException);
+    } else if (ExceptionSimulatorManager.connectCallback != null) {
+      this.raiseExceptionOnConnect(
+          ExceptionSimulatorManager.connectCallback.getExceptionToRaise(
+            driverProtocol,
+            hostSpec,
+            props,
+            isInitialConnection));
+    }
+  }
+
+  protected void raiseExceptionOnConnect(final Throwable throwable)
+      throws SQLException {
+
+    if (throwable == null) {
+      return;
+    }
+
+    if (throwable instanceof RuntimeException) {
+      ExceptionSimulatorManager.nextException = null;
+      LOGGER.finest(() -> String.format("Raise an exception %s while opening a new connection.",
+          ExceptionSimulatorManager.nextException.getClass().getName()));
+      throw (RuntimeException) throwable;
+    } else {
+      SQLException resulException = WrapperUtils.wrapExceptionIfNeeded(SQLException.class, throwable);
+      ExceptionSimulatorManager.nextException = null;
+      LOGGER.finest(() -> String.format("Raise an exception %s while opening a new connection.",
+          resulException.getClass().getName()));
       throw resulException;
     }
   }

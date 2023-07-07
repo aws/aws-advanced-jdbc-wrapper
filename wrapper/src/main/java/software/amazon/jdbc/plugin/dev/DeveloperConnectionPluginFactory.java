@@ -25,6 +25,6 @@ public class DeveloperConnectionPluginFactory implements ConnectionPluginFactory
 
   @Override
   public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
-    return new DeveloperConnectionPlugin(pluginService, props);
+    return new DeveloperConnectionPlugin();
   }
 }

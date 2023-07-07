@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
@@ -43,6 +44,7 @@ public class DeveloperConnectionPluginTest {
 
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock Connection mockConnection;
+  @Mock ExceptionSimulatorConnectCallback mockConnectCallback;
 
   private AutoCloseable closeable;
 
@@ -56,6 +58,7 @@ public class DeveloperConnectionPluginTest {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(mockConnectionProvider.connect(any(), any(), any(), any())).thenReturn(mockConnection);
+    when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
   }
 
   @Test
@@ -200,5 +203,59 @@ public class DeveloperConnectionPluginTest {
 
       assertDoesNotThrow(() -> wrapper.createStatement());
     }
+  }
+
+  @Test
+  public void test_RaiseExceptionOnConnect() {
+
+    final Properties props = new Properties();
+    props.put(PropertyDefinition.PLUGINS.name, "dev");
+    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
+
+    final SQLException exception = new SQLException("test");
+    ExceptionSimulatorManager.raiseExceptionOnNextConnect(exception);
+
+    Throwable thrownException = assertThrows(
+        SQLException.class,
+        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+    assertSame(exception, thrownException);
+
+    assertDoesNotThrow(
+        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+  }
+
+  @Test
+  public void test_NoExceptionOnConnectWithCallback() {
+
+    final Properties props = new Properties();
+    props.put(PropertyDefinition.PLUGINS.name, "dev");
+    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
+
+    ExceptionSimulatorManager.setCallback(mockConnectCallback);
+
+    assertDoesNotThrow(
+        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+  }
+
+  @Test
+  public void test_RaiseExceptionOnConnectWithCallback() {
+
+    final Properties props = new Properties();
+    props.put(PropertyDefinition.PLUGINS.name, "dev");
+    props.put(DialectManager.DIALECT.name, DialectCodes.PG);
+
+    final SQLException exception = new SQLException("test");
+    when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean()))
+        .thenReturn(exception)
+        .thenReturn(null);
+    ExceptionSimulatorManager.setCallback(mockConnectCallback);
+
+    Throwable thrownException = assertThrows(
+        SQLException.class,
+        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+    assertSame(exception, thrownException);
+
+    assertDoesNotThrow(
+        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
   }
 }
