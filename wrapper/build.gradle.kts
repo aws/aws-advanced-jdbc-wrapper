@@ -40,7 +40,7 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
     testImplementation("org.junit.platform:junit-platform-engine:1.9.3")
     testImplementation("org.junit.platform:junit-platform-launcher:1.9.0")
-    testImplementation("org.junit.platform:junit-platform-suite-engine:1.9.0")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.9.3")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
