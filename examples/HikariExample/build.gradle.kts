@@ -15,7 +15,7 @@
  */
 
 dependencies {
-    implementation("org.postgresql:postgresql:42.6.0")
+    implementation("org.postgresql:postgresql:42.5.4")
     implementation("mysql:mysql-connector-java:8.0.32")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("com.zaxxer:HikariCP:4.0.3")
