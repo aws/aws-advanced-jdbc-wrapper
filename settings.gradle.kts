@@ -42,7 +42,7 @@ pluginManagement {
 
         id("biz.aQute.bnd.builder") version "6.3.1"
         id("com.github.spotbugs") version "5.0.+"
-        id("com.diffplug.spotless") version "6.19.+"
+        id("com.diffplug.spotless") version "6.11.+"
         id("com.github.vlsi.gradle-extensions") version "1.+"
         id("com.github.vlsi.stage-vote-release") version "1.+"
         id("com.github.vlsi.ide") version "1.+"

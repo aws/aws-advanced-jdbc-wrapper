@@ -16,7 +16,7 @@
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.+")
-    implementation("org.postgresql:postgresql:42.6.0")
+    implementation("org.postgresql:postgresql:42.5.4")
     implementation("mysql:mysql-connector-java:8.0.31")
     implementation("software.amazon.awssdk:rds:2.20.49")
     implementation("software.amazon.awssdk:secretsmanager:2.20.88")

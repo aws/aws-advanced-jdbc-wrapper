@@ -1,15 +1,16 @@
-name: "Dependabot Automerge"
+name: Dependabot Automerge
 
 on:
-  workflow_dispatch:
   pull_request:
+    branches:
+      - 'dependabot/**/*'
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  worker:
+  dependabot-automerge:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
 
