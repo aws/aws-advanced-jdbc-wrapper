@@ -18,6 +18,7 @@ package software.amazon.jdbc;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Wrapper;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
+import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
@@ -58,7 +60,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
  * <p>THIS CLASS IS NOT MULTI-THREADING SAFE IT'S EXPECTED TO HAVE ONE INSTANCE OF THIS MANAGER PER
  * JDBC CONNECTION
  */
-public class ConnectionPluginManager implements CanReleaseResources {
+public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
       new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
@@ -76,6 +78,7 @@ public class ConnectionPluginManager implements CanReleaseResources {
           put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
           put("driverMetaData", DriverMetaDataConnectionPluginFactory.class);
           put("connectTime", ConnectTimeConnectionPluginFactory.class);
+          put("dev", DeveloperConnectionPluginFactory.class);
         }
       };
 
@@ -572,6 +575,34 @@ public class ConnectionPluginManager implements CanReleaseResources {
             ((CanReleaseResources) plugin).releaseResources();
           }
         });
+  }
+
+  @Override
+  public <T> T unwrap(Class<T> iface) throws SQLException {
+    if (this.plugins == null) {
+      return null;
+    }
+
+    for (ConnectionPlugin p : this.plugins) {
+      if (iface.isAssignableFrom(p.getClass())) {
+        return iface.cast(p);
+      }
+    }
+    return null;
+  }
+
+  @Override
+  public boolean isWrapperFor(Class<?> iface) throws SQLException {
+    if (this.plugins == null) {
+      return false;
+    }
+
+    for (ConnectionPlugin p : this.plugins) {
+      if (iface.isAssignableFrom(p.getClass())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private interface PluginPipeline<T, E extends Exception> {

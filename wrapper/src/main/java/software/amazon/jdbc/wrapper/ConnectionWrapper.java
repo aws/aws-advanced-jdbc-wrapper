@@ -492,11 +492,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public boolean isWrapperFor(final Class<?> iface) throws SQLException {
-    return this.pluginService.getCurrentConnection().isWrapperFor(iface);
-  }
-
-  @Override
   public String nativeSQL(final String sql) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         String.class,
@@ -831,8 +826,21 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
+  public boolean isWrapperFor(final Class<?> iface) throws SQLException {
+    boolean result = this.pluginService.getCurrentConnection().isWrapperFor(iface);
+    if (result) {
+      return true;
+    }
+    return this.pluginManager.isWrapperFor(iface);
+  }
+
+  @Override
   public <T> T unwrap(final Class<T> iface) throws SQLException {
-    return this.pluginService.getCurrentConnection().unwrap(iface);
+    T result = this.pluginService.getCurrentConnection().unwrap(iface);
+    if (result != null) {
+      return result;
+    }
+    return this.pluginManager.unwrap(iface);
   }
 
   @Override
