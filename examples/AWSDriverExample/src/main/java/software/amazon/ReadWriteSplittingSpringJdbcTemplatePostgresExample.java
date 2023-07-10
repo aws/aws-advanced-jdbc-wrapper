@@ -25,7 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 
-public class ReadWriteSplittingSpringJdbcTemplateExample {
+public class ReadWriteSplittingSpringJdbcTemplatePostgresExample {
 
   private static final String DATABASE_URL = "database-url";
   private static final String DATABASE_NAME = "database-name";

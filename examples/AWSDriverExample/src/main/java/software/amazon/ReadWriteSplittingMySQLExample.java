@@ -23,8 +23,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import software.amazon.jdbc.ConnectionProviderManager;
-import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
@@ -32,11 +30,11 @@ import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 
 
-public class ReadWriteSplittingPostgresExample {
+public class ReadWriteSplittingMySQLExample {
 
   // User configures connection properties here
-  public static final String POSTGRESQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:postgresql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
+  public static final String MYSQL_CONNECTION_STRING =
+      "jdbc:aws-wrapper:mysql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
 
@@ -53,6 +51,7 @@ public class ReadWriteSplittingPostgresExample {
      * Optional: configure read-write splitting to use internal connection pools (the getPoolKey
      * parameter is optional, see UsingTheReadWriteSplittingPlugin.md for more info).
      */
+
     // props.setProperty("somePropertyValue", "1"); // used in getPoolKey
     // final HikariPooledConnectionProvider connProvider =
     //     new HikariPooledConnectionProvider(
@@ -62,7 +61,7 @@ public class ReadWriteSplittingPostgresExample {
     // ConnectionProviderManager.setConnectionProvider(connProvider);
 
     /* Setup Step: Open connection and create tables - uncomment this section to create table and test values */
-    // try (final Connection connection = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
+    // try (final Connection connection = DriverManager.getConnection(MYSQL_CONNECTION_STRING, props)) {
     // setInitialSessionSettings(connection);
     // executeWithFailoverHandling(connection,
     //    "CREATE TABLE bank_test (id int primary key, name varchar(40), account_balance int)");
@@ -71,7 +70,7 @@ public class ReadWriteSplittingPostgresExample {
     // }
 
     // Example Step: Open connection and perform transaction
-    try (final Connection conn = DriverManager.getConnection(POSTGRESQL_CONNECTION_STRING, props)) {
+    try (final Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, props)) {
       setInitialSessionSettings(conn);
       // Begin business transaction
       conn.setAutoCommit(false);
