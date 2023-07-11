@@ -39,7 +39,7 @@ public class AwsIamAuthenticationDatasourceExample {
       ds.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
       // Configure AwsWrapperDataSource:
-      ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql:"); // Set protocol to jdbc:mysql for MySQL
+      ds.addDataSourceProperty("jdbcProtocol", "jdbc:postgresql://"); // Set protocol to jdbc:mysql for MySQL
       ds.addDataSourceProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
       ds.addDataSourceProperty("serverPort", "5432"); // Set port to 3306 for MySQL
       ds.addDataSourceProperty("database", "postgres");

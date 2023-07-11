@@ -55,8 +55,8 @@ public class ReadWriteSplittingMySQLExample {
     // props.setProperty("somePropertyValue", "1"); // used in getPoolKey
     // final HikariPooledConnectionProvider connProvider =
     //     new HikariPooledConnectionProvider(
-    //         ReadWriteSplittingPostgresExample::getHikariConfig,
-    //         ReadWriteSplittingPostgresExample::getPoolKey
+    //         ReadWriteSplittingMySQLExample::getHikariConfig,
+    //         ReadWriteSplittingMySQLExample::getPoolKey
     //     );
     // ConnectionProviderManager.setConnectionProvider(connProvider);
 
