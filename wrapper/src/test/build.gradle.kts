@@ -82,7 +82,6 @@ tasks.withType<Test> {
 
 tasks.register<Test>("in-container") {
     filter.excludeTestsMatching("software.*") // exclude unit tests
-    filter.excludeTestsMatching("integration.container.*") // exclude old integration tests
 
     // modify below filter to select specific integration tests
     // see https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestFilter.html
