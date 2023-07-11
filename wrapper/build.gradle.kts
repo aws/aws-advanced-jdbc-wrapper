@@ -262,7 +262,7 @@ tasks.withType<Test> {
 
 tasks.register<Test>("test-all-environments") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-performance", "true")
     }
@@ -270,7 +270,7 @@ tasks.register<Test>("test-all-environments") {
 
 tasks.register<Test>("test-all-docker") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -279,7 +279,7 @@ tasks.register<Test>("test-all-docker") {
 
 tasks.register<Test>("test-hibernate-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -292,7 +292,7 @@ tasks.register<Test>("test-hibernate-only") {
 
 tasks.register<Test>("test-all-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -301,7 +301,7 @@ tasks.register<Test>("test-all-aurora") {
 
 tasks.register<Test>("test-all-pg-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -314,7 +314,7 @@ tasks.register<Test>("test-all-pg-aurora") {
 
 tasks.register<Test>("test-all-mysql-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -327,7 +327,7 @@ tasks.register<Test>("test-all-mysql-aurora") {
 
 tasks.register<Test>("debug-all-environments") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-performance", "true")
     }
@@ -335,7 +335,7 @@ tasks.register<Test>("debug-all-environments") {
 
 tasks.register<Test>("debug-all-docker") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -344,7 +344,7 @@ tasks.register<Test>("debug-all-docker") {
 
 tasks.register<Test>("debug-all-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -353,7 +353,7 @@ tasks.register<Test>("debug-all-aurora") {
 
 tasks.register<Test>("debug-hibernate-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -367,7 +367,7 @@ tasks.register<Test>("debug-hibernate-only") {
 
 tasks.register<Test>("test-all-aurora-performance") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-iam", "true")
@@ -379,7 +379,7 @@ tasks.register<Test>("test-all-aurora-performance") {
 
 tasks.register<Test>("test-aurora-pg-performance") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-iam", "true")
@@ -395,7 +395,7 @@ tasks.register<Test>("test-aurora-pg-performance") {
 
 tasks.register<Test>("test-aurora-mysql-performance") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-iam", "true")
@@ -413,7 +413,7 @@ tasks.register<Test>("test-aurora-mysql-performance") {
 
 tasks.register<Test>("test-autoscaling-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-autoscaling-only", "true")
         systemProperty("test-no-docker", "true")
@@ -424,7 +424,7 @@ tasks.register<Test>("test-autoscaling-only") {
 
 tasks.register<Test>("debug-autoscaling-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-autoscaling-only", "true")
         systemProperty("test-no-docker", "true")

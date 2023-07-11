@@ -23,7 +23,7 @@ import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
-import integration.refactored.TestInstanceInfo;
+import integration.TestInstanceInfo;
 import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.Function;
