@@ -31,26 +31,9 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
-import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
-import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
-import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
-import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
-import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
-import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
-import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
-import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
-import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
-import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
-import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
-import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
-import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
-import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
-import software.amazon.jdbc.util.SqlState;
-import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -61,28 +44,6 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
  * JDBC CONNECTION
  */
 public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
-
-  protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
-      new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
-        {
-          put("executionTime", ExecutionTimeConnectionPluginFactory.class);
-          put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
-          put("logQuery", LogQueryConnectionPluginFactory.class);
-          put("dataCache", DataCacheConnectionPluginFactory.class);
-          put("efm", HostMonitoringConnectionPluginFactory.class);
-          put("failover", FailoverConnectionPluginFactory.class);
-          put("iam", IamAuthConnectionPluginFactory.class);
-          put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
-          put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
-          put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
-          put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
-          put("driverMetaData", DriverMetaDataConnectionPluginFactory.class);
-          put("connectTime", ConnectTimeConnectionPluginFactory.class);
-          put("dev", DeveloperConnectionPluginFactory.class);
-        }
-      };
-
-  protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover,efm";
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
   private static final String ALL_METHODS = "*";
@@ -166,70 +127,12 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     this.props = props;
     this.pluginService = pluginService;
 
-    final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
-
-    final List<Class<? extends ConnectionPluginFactory>> pluginFactories;
-
-    if (profileName != null) {
-
-      if (!DriverConfigurationProfiles.contains(profileName)) {
-        throw new SQLException(
-            Messages.get(
-                "ConnectionPluginManager.configurationProfileNotFound",
-                new Object[] {profileName}));
-      }
-      pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
-
-    } else {
-
-      String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
-
-      if (pluginCodes == null) {
-        pluginCodes = DEFAULT_PLUGINS;
-      }
-
-      final List<String> pluginCodeList = StringUtils.split(pluginCodes, ",", true);
-      pluginFactories = new ArrayList<>(pluginCodeList.size());
-
-      for (final String pluginCode : pluginCodeList) {
-        if (!pluginFactoriesByCode.containsKey(pluginCode)) {
-          throw new SQLException(
-              Messages.get(
-                  "ConnectionPluginManager.unknownPluginCode",
-                  new Object[] {pluginCode}));
-        }
-        pluginFactories.add(pluginFactoriesByCode.get(pluginCode));
-      }
-    }
-
-    if (!pluginFactories.isEmpty()) {
-      try {
-        final ConnectionPluginFactory[] factories =
-            WrapperUtils.loadClasses(
-                    pluginFactories,
-                    ConnectionPluginFactory.class,
-                    "ConnectionPluginManager.unableToLoadPlugin")
-                .toArray(new ConnectionPluginFactory[0]);
-
-        // make a chain of connection plugins
-
-        this.plugins = new ArrayList<>(factories.length + 1);
-
-        for (final ConnectionPluginFactory factory : factories) {
-          this.plugins.add(factory.getInstance(this.pluginService, this.props));
-        }
-
-      } catch (final InstantiationException instEx) {
-        throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
-      }
-    } else {
-      this.plugins = new ArrayList<>(1); // one spot for default connection plugin
-    }
-
-    // add default connection plugin to the tail
-    final ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(this.pluginService, this.defaultConnProvider, pluginManagerService);
-    this.plugins.add(defaultPlugin);
+    ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
+    this.plugins = pluginChainBuilder.getPlugins(
+        this.pluginService,
+        this.defaultConnProvider,
+        pluginManagerService,
+        props);
   }
 
   protected <T, E extends Exception> T executeWithSubscribedPlugins(

@@ -48,6 +48,12 @@ public class PropertyDefinition {
       new AwsWrapperProperty(
           "wrapperPlugins", null, "Comma separated list of connection plugin codes");
 
+  public static final AwsWrapperProperty PRESERVE_PLUGINS_ORDER =
+      new AwsWrapperProperty(
+          "preserveWrapperPluginsOrder",
+          "false",
+          "Allows to preserve plugin order provided by user.");
+
   public static final AwsWrapperProperty PROFILE_NAME =
       new AwsWrapperProperty(
           "wrapperProfileName", null, "Driver configuration profile name");
