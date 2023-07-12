@@ -36,7 +36,17 @@ Please refer to the AWS JDBC Driver's [Documentation page](./docs/Documentation.
 To configure logging, check out the [Logging](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging) section.
 
 ## Documentation
-Technical documentation regarding the functionality of the AWS JDBC Driver will be maintained in this GitHub repository. Since the AWS JDBC Driver requires an underlying JDBC driver, please refer to the individual driver's documentation for driver specific information.
+Technical documentation regarding the functionality of the AWS JDBC Driver will be maintained in this GitHub repository. Since the AWS JDBC Driver requires an underlying JDBC driver, please refer to the individual driver's documentation for driver-specific information.
+
+## Examples
+
+| Description                                                  |                                                                                                                                                                       Examples                                                                                                                                                                       |
+|--------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+| Using the AWS IAM authentication plugin with `DriverManager` | - [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationPostgresqlExample.java) <br/> - [MySQL](examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationMysqlExample.java) <br/> - [MariaDB](examples/AWSDriverExample/src/main/java/software/amazon/AwsIamAuthenticationMariadbExample.java) |
+| Using the driver with `AWSWrapperDatasource`                 |                                                                                                                            - [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java)                                                                                                                            |
+| Using the Driver metadata plugin to override driver name     |                                                                                                                            - [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java)                                                                                                                            |
+| Using the Read/Write Splitting plugin                        |                                                                                                                    - [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java)                                                                                                                    |
+| Using the Read/Write Splitting pluginw with Spring           |                                                                                                                    - [PostgreSQL](examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java)                                                                                                                    |
 
 ## Getting Help and Opening Issues
 If you encounter a bug with the AWS JDBC Driver, we would like to hear about it.
