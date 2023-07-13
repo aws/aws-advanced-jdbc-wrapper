@@ -97,20 +97,19 @@ public class Driver implements java.sql.Driver {
 
     final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
 
-    final String message = Messages.get(
-        "Driver.missingDriver",
-        new Object[] {driverUrl, Collections.list(DriverManager.getDrivers())});
-
     java.sql.Driver driver;
     try {
       driver = DriverManager.getDriver(driverUrl);
     } catch (SQLException e) {
-      LOGGER.warning(() -> message);
-      throw new SQLException(message, e);
+      throw new SQLException(Messages.get(
+          "Driver.missingDriver",
+          new Object[] {driverUrl, Collections.list(DriverManager.getDrivers())}), e);
     }
 
     if (driver == null) {
-      LOGGER.warning(() -> message);
+      LOGGER.severe(() -> Messages.get(
+          "Driver.missingDriver",
+          new Object[] {driverUrl, Collections.list(DriverManager.getDrivers())}));
       return null;
     }
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
