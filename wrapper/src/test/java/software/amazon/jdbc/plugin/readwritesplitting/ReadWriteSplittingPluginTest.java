@@ -21,11 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -36,6 +33,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -254,6 +252,30 @@ public class ReadWriteSplittingPluginTest {
     plugin.switchConnectionIfRequired(false);
 
     assertEquals(mockWriterConn, plugin.getWriterConnection());
+  }
+
+  @Test
+  public void testSetReadOnly_false_closeReaderConnection() throws SQLException {
+    AtomicReference<Connection> currentConnectionHolder = new AtomicReference<>(mockReaderConn1);
+    doAnswer(invocation -> {
+              Connection connection = invocation.getArgument(0, Connection.class);
+              currentConnectionHolder.set(connection);
+              return null;
+            }).when(this.mockPluginService).setCurrentConnection(any(), any());
+    when(this.mockPluginService.getCurrentConnection()).thenAnswer(invocation -> currentConnectionHolder.get());
+    when(this.mockPluginService.getCurrentHostSpec()).thenReturn(readerHostSpec1);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+              mockPluginService,
+              defaultProps,
+              mockHostListProviderService,
+              null,
+              mockReaderConn1);
+    plugin.switchConnectionIfRequired(false);
+
+    assertEquals(mockWriterConn, plugin.getWriterConnection());
+
+    verify(mockReaderConn1).close();
   }
 
   @Test

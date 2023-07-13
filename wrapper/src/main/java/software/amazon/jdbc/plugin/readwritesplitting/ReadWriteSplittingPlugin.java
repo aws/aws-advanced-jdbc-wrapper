@@ -363,6 +363,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     } else {
       switchCurrentConnectionTo(this.writerConnection, writerHost);
     }
+    this.closeConnectionIfIdle(this.readerConnection);
 
     LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
         new Object[] {writerHost.getUrl()}));
