@@ -64,6 +64,8 @@ public class TestEnvironment implements AutoCloseable {
   protected static final int PROXY_CONTROL_PORT = 8474;
   private static final String HIBERNATE_VERSION = "6.2.0.CR2";
 
+  private static final TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
+
   private final TestEnvironmentInfo info =
       new TestEnvironmentInfo(); // only this info is passed to test container
 
@@ -310,16 +312,15 @@ public class TestEnvironment implements AutoCloseable {
   private static void createAuroraDbCluster(TestEnvironment env, int numOfInstances) {
 
     env.info.setAuroraRegion(
-        !StringUtils.isNullOrEmpty(System.getenv("AURORA_DB_REGION"))
-            ? System.getenv("AURORA_DB_REGION")
+        !StringUtils.isNullOrEmpty(config.auroraDbRegion)
+            ? config.auroraDbRegion
             : "us-east-2");
 
     env.reuseAuroraDbCluster =
-        !StringUtils.isNullOrEmpty(System.getenv("REUSE_AURORA_CLUSTER"))
-            && Boolean.parseBoolean(System.getenv("REUSE_AURORA_CLUSTER"));
-    env.auroraClusterName = System.getenv("AURORA_CLUSTER_NAME"); // "cluster-mysql"
-    env.auroraClusterDomain =
-        System.getenv("AURORA_CLUSTER_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
+        !StringUtils.isNullOrEmpty(config.reuseAuroraCluster)
+            && Boolean.parseBoolean(config.reuseAuroraCluster);
+    env.auroraClusterName = config.auroraClusterName; // "cluster-mysql"
+    env.auroraClusterDomain = config.auroraClusterDomain; // "XYZ.us-west-2.rds.amazonaws.com"
 
     if (StringUtils.isNullOrEmpty(env.auroraClusterDomain)) {
       throw new RuntimeException("Environment variable AURORA_CLUSTER_DOMAIN is required.");
@@ -485,16 +486,16 @@ public class TestEnvironment implements AutoCloseable {
 
   private static void initDatabaseParams(TestEnvironment env) {
     final String dbName =
-        !StringUtils.isNullOrEmpty(System.getenv("DB_DATABASE_NAME"))
-            ? System.getenv("DB_DATABASE_NAME")
+        !StringUtils.isNullOrEmpty(config.dbName)
+            ? config.dbName
             : "test_database";
     final String dbUsername =
-        !StringUtils.isNullOrEmpty(System.getenv("DB_USERNAME"))
-            ? System.getenv("DB_USERNAME")
+        !StringUtils.isNullOrEmpty(config.dbUsername)
+            ? config.dbUsername
             : "test_user";
     final String dbPassword =
-        !StringUtils.isNullOrEmpty(System.getenv("DB_PASSWORD"))
-            ? System.getenv("DB_PASSWORD")
+        !StringUtils.isNullOrEmpty(config.dbPassword)
+            ? config.dbPassword
             : "secret_password";
 
     env.info.setDatabaseInfo(new TestDatabaseInfo());
@@ -504,9 +505,9 @@ public class TestEnvironment implements AutoCloseable {
   }
 
   private static void initAwsCredentials(TestEnvironment env) {
-    env.awsAccessKeyId = System.getenv("AWS_ACCESS_KEY_ID");
-    env.awsSecretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY");
-    env.awsSessionToken = System.getenv("AWS_SESSION_TOKEN");
+    env.awsAccessKeyId = config.awsAccessKeyId;
+    env.awsSecretAccessKey = config.awsSecretAccessKey;
+    env.awsSessionToken = config.awsSessionToken;
 
     if (StringUtils.isNullOrEmpty(env.awsAccessKeyId)) {
       throw new RuntimeException("Environment variable AWS_ACCESS_KEY_ID is required.");
@@ -678,8 +679,8 @@ public class TestEnvironment implements AutoCloseable {
     }
 
     env.info.setIamUsername(
-        !StringUtils.isNullOrEmpty(System.getenv("IAM_USER"))
-            ? System.getenv("IAM_USER")
+        !StringUtils.isNullOrEmpty(config.iamUser)
+            ? config.iamUser
             : "jane_doe");
 
     if (!env.reuseAuroraDbCluster) {
