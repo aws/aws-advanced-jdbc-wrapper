@@ -76,7 +76,7 @@ public class ConnectionPluginChainBuilderTests {
     ConnectionPluginChainBuilder builder = new ConnectionPluginChainBuilder();
     Properties props = new Properties();
     props.put(PropertyDefinition.PLUGINS.name, "iam,efm,failover");
-    props.put(PropertyDefinition.PRESERVE_PLUGINS_ORDER.name, "true");
+    props.put(PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.name, "false");
 
     List<ConnectionPlugin> result =
         builder.getPlugins(mockPluginService, mockConnectionProvider, mockPluginManagerService, props);

@@ -50,7 +50,7 @@ public class ConnectionPluginChainBuilder {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginChainBuilder.class.getName());
 
-  private static final int STICK_TO_PRIOR_PLUGIN = -1;
+  private static final int WEIGHT_RELATIVE_TO_PRIOR_PLUGIN = -1;
 
   protected static final Map<String, Class<? extends ConnectionPluginFactory>> pluginFactoriesByCode =
       new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
@@ -73,8 +73,9 @@ public class ConnectionPluginChainBuilder {
       };
 
   /**
-   * Plugins are sorted by assigned weight ascending.
-   * The first plugin in the final sorted list has a minimal weight.
+   * The final list of plugins will be sorted by weight, starting from the lowest values up to
+   * the highest values. The first plugin of the list will have the lowest weight, and the
+   * last one will have the highest weight.
    */
   protected static final Map<Class<? extends ConnectionPluginFactory>, Integer> pluginWeightByPluginFactory =
       new HashMap<Class<? extends ConnectionPluginFactory>, Integer>() {
@@ -90,14 +91,18 @@ public class ConnectionPluginChainBuilder {
           put(IamAuthConnectionPluginFactory.class, 900);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1000);
           put(LogQueryConnectionPluginFactory.class, 1100);
-          put(ConnectTimeConnectionPluginFactory.class, STICK_TO_PRIOR_PLUGIN);
-          put(ExecutionTimeConnectionPluginFactory.class, STICK_TO_PRIOR_PLUGIN);
-          put(DeveloperConnectionPluginFactory.class, STICK_TO_PRIOR_PLUGIN);
+          put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
+          put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
+          put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
         }
       };
 
   protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover,efm";
 
+  /*
+   Internal class used for plugin factory sorting. It holds a reference to a plugin
+   factory and an assigned weight.
+  */
   private static class PluginFactoryInfo {
     public Class<? extends ConnectionPluginFactory> factory;
     public int weight;
@@ -154,7 +159,7 @@ public class ConnectionPluginChainBuilder {
 
     if (!pluginFactories.isEmpty()) {
 
-      if (!PropertyDefinition.PRESERVE_PLUGINS_ORDER.getBoolean(props)) {
+      if (PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.getBoolean(props)) {
         pluginFactories = this.sortPluginFactories(pluginFactories);
 
         final List<Class<? extends ConnectionPluginFactory>> tempPluginFactories = pluginFactories;
@@ -199,26 +204,25 @@ public class ConnectionPluginChainBuilder {
   protected List<Class<? extends ConnectionPluginFactory>> sortPluginFactories(
       final List<Class<? extends ConnectionPluginFactory>> unsortedPluginFactories) {
 
-    ArrayList<PluginFactoryInfo> weights = new ArrayList<>();
+    final ArrayList<PluginFactoryInfo> weights = new ArrayList<>();
+    int lastWeight = 0;
     for (Class<? extends ConnectionPluginFactory> pluginFactory : unsortedPluginFactories) {
       Integer pluginFactoryWeight = pluginWeightByPluginFactory.get(pluginFactory);
-      if (pluginFactoryWeight == null) {
-        // This plugin factory is unknown. It might be a user custom plugin factory.
-        // Let's keep this plugin factory original position.
-        pluginFactoryWeight = STICK_TO_PRIOR_PLUGIN;
-      }
-      weights.add(new PluginFactoryInfo(pluginFactory, pluginFactoryWeight));
-    }
 
-    // Determine weights for plugin factories with STICK_TO_PRIOR_PLUGIN
-    int lastWeight = 0;
-    for (PluginFactoryInfo info : weights) {
-      if (info.weight != STICK_TO_PRIOR_PLUGIN) {
-        lastWeight = info.weight;
-        continue;
+      if (pluginFactoryWeight == null || pluginFactoryWeight == WEIGHT_RELATIVE_TO_PRIOR_PLUGIN) {
+
+        // This plugin factory is unknown, or it has relative (to prior plugin factory) weight.
+        lastWeight++;
+        weights.add(new PluginFactoryInfo(pluginFactory, lastWeight));
+
+      } else {
+        // Otherwise, use the wight assigned to this plugin factory
+        weights.add(new PluginFactoryInfo(pluginFactory, pluginFactoryWeight));
+
+        // Remember this weight for next plugin factories that might have
+        // relative (to this plugin factory) weight.
+        lastWeight = pluginFactoryWeight;
       }
-      lastWeight++;
-      info.weight = lastWeight;
     }
 
     return weights.stream()
