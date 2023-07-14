@@ -103,13 +103,17 @@ public class Driver implements java.sql.Driver {
     } catch (SQLException e) {
       throw new SQLException(Messages.get(
           "Driver.missingDriver",
-          new Object[] {driverUrl, Collections.list(DriverManager.getDrivers())}), e);
+          new Object[] {
+              driverUrl,
+              Collections.list(DriverManager.getDrivers()).stream().map(x -> x.getClass().getName())}), e);
     }
 
     if (driver == null) {
       LOGGER.severe(() -> Messages.get(
           "Driver.missingDriver",
-          new Object[] {driverUrl, Collections.list(DriverManager.getDrivers())}));
+          new Object[] {
+              driverUrl,
+              Collections.list(DriverManager.getDrivers()).stream().map(x -> x.getClass().getName())}));
       return null;
     }
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
