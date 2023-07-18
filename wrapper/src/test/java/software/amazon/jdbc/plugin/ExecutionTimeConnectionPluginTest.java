@@ -63,6 +63,10 @@ class ExecutionTimeConnectionPluginTest {
     final StreamHandler handler = new StreamHandler(os, new SimpleFormatter());
     handler.setLevel(Level.ALL);
     logger.addHandler(handler);
+    logger.setLevel(Level.ALL);
+
+    final Logger packageLogger = Logger.getLogger("software.amazon.jdbc");
+    packageLogger.setLevel(Level.ALL);
 
     final ExecutionTimeConnectionPlugin plugin = new ExecutionTimeConnectionPlugin();
 

@@ -167,11 +167,13 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
               "HostMonitoringConnectionPlugin.activatedMonitoring",
               new Object[] {methodName}));
 
+      final HostSpec monitoringHostSpec = this.getMonitoringHostSpec();
+
       monitorContext =
           this.monitorService.startMonitoring(
               this.pluginService.getCurrentConnection(), // abort this connection if needed
-              this.getMonitoringHostSpec().asAliases(),
-              this.getMonitoringHostSpec(),
+              monitoringHostSpec.asAliases(),
+              monitoringHostSpec,
               this.properties,
               failureDetectionTimeMillis,
               failureDetectionIntervalMillis,

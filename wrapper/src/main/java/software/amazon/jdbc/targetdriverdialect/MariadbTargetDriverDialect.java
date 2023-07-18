@@ -56,7 +56,12 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and use them to make a connection
     props.remove(PERMIT_MYSQL_SCHEME);
-    PropertyDefinition.removeAllExceptCredentials(props);
+    PropertyDefinition.removeAllExcept(props,
+        PropertyDefinition.USER.name,
+        PropertyDefinition.PASSWORD.name,
+        PropertyDefinition.TCP_KEEP_ALIVE.name,
+        PropertyDefinition.CONNECT_TIMEOUT.name,
+        PropertyDefinition.SOCKET_TIMEOUT.name);
 
     // "permitMysqlScheme" should be in Url rather than in properties.
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName

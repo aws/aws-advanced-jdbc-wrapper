@@ -21,9 +21,11 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -34,13 +36,14 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SlidingExpirationCache;
-import software.amazon.jdbc.util.StringUtils;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {
@@ -173,7 +176,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
               "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
               new Object[] {strategy, DataSourceConnectionProvider.class}));
     }
-
     if (LeastConnectionsHostSelector.STRATEGY_LEAST_CONNECTIONS.equals(strategy)) {
       return this.leastConnectionsHostSelector.getHost(hosts, role, props);
     } else {
@@ -185,6 +187,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   public Connection connect(
       @NonNull String protocol,
       @NonNull Dialect dialect,
+      @NonNull TargetDriverDialect targetDriverDialect,
       @NonNull HostSpec hostSpec,
       @NonNull Properties props)
       throws SQLException {
@@ -194,7 +197,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     final HikariDataSource ds = databasePools.computeIfAbsent(
         new PoolKey(hostSpec.getUrl(), getPoolKey(hostSpec, copy)),
-        (lambdaPoolKey) -> createHikariDataSource(protocol, hostSpec, copy),
+        (lambdaPoolKey) -> createHikariDataSource(protocol, hostSpec, copy, targetDriverDialect),
         poolExpirationCheckNanos
     );
 
@@ -243,29 +246,44 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    * @param protocol        the driver protocol that should be used to form connections
    * @param hostSpec        the host details used to form the connection
    * @param connectionProps the connection properties
+   * @param targetDriverDialect the target driver dialect {@link TargetDriverDialect}
    */
   protected void configurePool(
-      HikariConfig config, String protocol, HostSpec hostSpec, Properties connectionProps) {
-    StringBuilder urlBuilder = new StringBuilder().append(protocol).append(hostSpec.getUrl());
+      final HikariConfig config,
+      final String protocol,
+      final HostSpec hostSpec,
+      final Properties connectionProps,
+      final @NonNull TargetDriverDialect targetDriverDialect) {
 
-    final String db = PropertyDefinition.DATABASE.getString(connectionProps);
-    if (!StringUtils.isNullOrEmpty(db)) {
-      urlBuilder.append(db);
+    final Properties copy = PropertyUtils.copyProperties(connectionProps);
+
+    ConnectInfo connectInfo;
+    try {
+      connectInfo = targetDriverDialect.prepareConnectInfo(
+          protocol, hostSpec, copy);
+    } catch (SQLException ex) {
+      throw new RuntimeException(ex);
     }
 
+    StringBuilder urlBuilder = new StringBuilder(connectInfo.url);
+
     final StringJoiner propsJoiner = new StringJoiner("&");
-    connectionProps.forEach((k, v) -> {
+    connectInfo.props.forEach((k, v) -> {
       if (!PropertyDefinition.PASSWORD.name.equals(k) && !PropertyDefinition.USER.name.equals(k)) {
         propsJoiner.add(k + "=" + v);
       }
     });
-    urlBuilder.append("?").append(propsJoiner);
+
+    if (connectInfo.url.contains("?")) {
+      urlBuilder.append("&").append(propsJoiner);
+    } else {
+      urlBuilder.append("?").append(propsJoiner);
+    }
 
     config.setJdbcUrl(urlBuilder.toString());
-    config.setExceptionOverrideClassName(HikariCPSQLException.class.getName());
 
-    final String user = connectionProps.getProperty(PropertyDefinition.USER.name);
-    final String password = connectionProps.getProperty(PropertyDefinition.PASSWORD.name);
+    final String user = connectInfo.props.getProperty(PropertyDefinition.USER.name);
+    final String password = connectInfo.props.getProperty(PropertyDefinition.PASSWORD.name);
     if (user != null) {
       config.setUsername(user);
     }
@@ -327,9 +345,14 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     });
   }
 
-  HikariDataSource createHikariDataSource(String protocol, HostSpec hostSpec, Properties props) {
+  HikariDataSource createHikariDataSource(
+      final String protocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final @NonNull TargetDriverDialect targetDriverDialect) {
+
     HikariConfig config = poolConfigurator.configurePool(hostSpec, props);
-    configurePool(config, protocol, hostSpec, props);
+    configurePool(config, protocol, hostSpec, props, targetDriverDialect);
     return new HikariDataSource(config);
   }
 
