@@ -3,7 +3,7 @@ name: Dependabot Automerge
 on:
   pull_request:
     branches:
-      - 'dependabot/**/*'
+      - 'dependabot/**'
 
 permissions:
   contents: write
