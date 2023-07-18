@@ -29,6 +29,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
@@ -57,14 +59,18 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       Collections.singletonList("*")));
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
+  private final @NonNull ConnectionProvider defaultConnProvider;
+  private final @Nullable ConnectionProvider effectiveConnProvider;
+
   private final ConnectionProviderManager connProviderManager;
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
 
   public DefaultConnectionPlugin(
-      final PluginService pluginService,
-      final ConnectionProvider defaultConnProvider,
-      final PluginManagerService pluginManagerService) {
+      final @NonNull PluginService pluginService,
+      final @NonNull ConnectionProvider defaultConnProvider,
+      final @Nullable ConnectionProvider effectiveConnProvider,
+      final @NonNull PluginManagerService pluginManagerService) {
     if (pluginService == null) {
       throw new IllegalArgumentException("pluginService");
     }
@@ -77,6 +83,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
+    this.defaultConnProvider = defaultConnProvider;
+    this.effectiveConnProvider = effectiveConnProvider;
     this.connProviderManager = new ConnectionProviderManager(defaultConnProvider);
   }
 
@@ -140,8 +148,19 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    final ConnectionProvider connProvider =
-        this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+
+    ConnectionProvider connProvider = null;
+
+    if (this.effectiveConnProvider != null) {
+      if (this.effectiveConnProvider.acceptsUrl(driverProtocol, hostSpec, props)) {
+        connProvider = this.effectiveConnProvider;
+      }
+    }
+
+    if (connProvider == null) {
+      connProvider =
+          this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
+    }
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
@@ -152,7 +171,12 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       String driverProtocol, HostSpec hostSpec, Properties props, ConnectionProvider connProvider)
       throws SQLException {
     final Connection conn =
-        connProvider.connect(driverProtocol, this.pluginService.getDialect(), hostSpec, props);
+        connProvider.connect(
+            driverProtocol,
+            this.pluginService.getDialect(),
+            this.pluginService.getTargetDriverDialect(),
+            hostSpec,
+            props);
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     this.pluginService.updateDialect(conn);
 
@@ -167,12 +191,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    final ConnectionProvider connProvider =
-        this.connProviderManager.getDefaultProvider();
 
     // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, connProvider);
+    return connectInternal(driverProtocol, hostSpec, props, this.defaultConnProvider);
   }
 
   @Override
@@ -180,6 +202,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     if (HostRole.UNKNOWN.equals(role)) {
       // Users must request either a writer or a reader role.
       return false;
+    }
+
+    if (this.effectiveConnProvider != null) {
+      return this.effectiveConnProvider.acceptsStrategy(role, strategy);
     }
     return this.connProviderManager.acceptsStrategy(role, strategy);
   }
@@ -197,6 +223,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
     }
 
+    if (this.effectiveConnProvider != null) {
+      return this.effectiveConnProvider.getHostSpecByStrategy(hosts, role, strategy);
+    }
     return this.connProviderManager.getHostSpecByStrategy(hosts, role, strategy);
   }
 

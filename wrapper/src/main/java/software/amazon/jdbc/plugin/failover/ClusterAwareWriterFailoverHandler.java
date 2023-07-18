@@ -146,7 +146,6 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       final List<HostSpec> currentTopology, final ExecutorService executorService,
       final CompletionService<WriterFailoverResult> completionService) {
     final HostSpec writerHost = this.getWriter(currentTopology);
-    this.pluginService.setAvailability(writerHost.asAliases(), HostAvailability.NOT_AVAILABLE);
     completionService.submit(new ReconnectToWriterHandler(writerHost));
     completionService.submit(new WaitForNewWriterHandler(
         currentTopology,

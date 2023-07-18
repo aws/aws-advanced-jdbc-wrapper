@@ -60,8 +60,13 @@ public class ConnectionPluginChainBuilderTests {
     Properties props = new Properties();
     props.put(PropertyDefinition.PLUGINS.name, "iam,efm,failover");
 
-    List<ConnectionPlugin> result =
-        builder.getPlugins(mockPluginService, mockConnectionProvider, mockPluginManagerService, props);
+    List<ConnectionPlugin> result = builder.getPlugins(
+        mockPluginService,
+        mockConnectionProvider,
+        null,
+        mockPluginManagerService,
+        props,
+        null);
 
     assertNotNull(result);
     assertEquals(4, result.size());
@@ -78,8 +83,13 @@ public class ConnectionPluginChainBuilderTests {
     props.put(PropertyDefinition.PLUGINS.name, "iam,efm,failover");
     props.put(PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.name, "false");
 
-    List<ConnectionPlugin> result =
-        builder.getPlugins(mockPluginService, mockConnectionProvider, mockPluginManagerService, props);
+    List<ConnectionPlugin> result = builder.getPlugins(
+        mockPluginService,
+        mockConnectionProvider,
+        null,
+        mockPluginManagerService,
+        props,
+        null);
 
     assertNotNull(result);
     assertEquals(4, result.size());
@@ -95,8 +105,13 @@ public class ConnectionPluginChainBuilderTests {
     Properties props = new Properties();
     props.put(PropertyDefinition.PLUGINS.name, "dev,iam,executionTime,connectTime,efm,failover");
 
-    List<ConnectionPlugin> result =
-        builder.getPlugins(mockPluginService, mockConnectionProvider, mockPluginManagerService, props);
+    List<ConnectionPlugin> result = builder.getPlugins(
+        mockPluginService,
+        mockConnectionProvider,
+        null,
+        mockPluginManagerService,
+        props,
+        null);
 
     assertNotNull(result);
     assertEquals(7, result.size());

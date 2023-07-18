@@ -29,7 +29,7 @@ public class RandomHostSelector implements HostSelector {
     List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec -> role.equals(hostSpec.getRole())).collect(Collectors.toList());
     if (eligibleHosts.size() == 0) {
-      throw new SQLException(Messages.get("RandomHostSelector.noHostsMatchingRole", new Object[]{role}));
+      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
     int randomIndex = new Random().nextInt(eligibleHosts.size());

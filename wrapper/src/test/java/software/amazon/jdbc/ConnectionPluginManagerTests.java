@@ -47,6 +47,8 @@ import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ConnectionPluginManagerTests {
@@ -56,6 +58,7 @@ public class ConnectionPluginManagerTests {
   @Mock ConnectionWrapper mockConnectionWrapper;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
+  ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
 
   private AutoCloseable closeable;
 
@@ -84,7 +87,7 @@ public class ConnectionPluginManagerTests {
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     final Object result =
         target.execute(
@@ -125,7 +128,7 @@ public class ConnectionPluginManagerTests {
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     final Object result =
         target.execute(
@@ -164,7 +167,7 @@ public class ConnectionPluginManagerTests {
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     final Object result =
         target.execute(
@@ -200,7 +203,7 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     final Connection conn = target.connect("any",
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
@@ -227,7 +230,7 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     assertThrows(
         SQLException.class,
@@ -252,7 +255,7 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     assertThrows(
         SQLException.class,
@@ -280,7 +283,7 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     final Exception ex =
         assertThrows(
@@ -307,7 +310,7 @@ public class ConnectionPluginManagerTests {
 
     final Properties testProperties = new Properties();
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper);
 
     final Exception ex =
         assertThrows(
@@ -339,7 +342,7 @@ public class ConnectionPluginManagerTests {
     final Object[] testArgs = new Object[] {10, "arg2", 3.33};
 
     final ConnectionPluginManager target = Mockito.spy(
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper));
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper));
 
     Object result =
         target.execute(
@@ -417,7 +420,7 @@ public class ConnectionPluginManagerTests {
     when(mockOldResultSet.getStatement()).thenReturn(mockOldStatement);
 
     final ConnectionPluginManager target =
-        new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper,
+        new ConnectionPluginManager(mockConnectionProvider, null, testProperties, testPlugins, mockConnectionWrapper,
             mockPluginService);
 
     assertThrows(SQLException.class,
@@ -447,8 +450,9 @@ public class ConnectionPluginManagerTests {
 
     final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
         mockConnectionProvider,
+        null,
         mockConnectionWrapper));
-    target.init(mockPluginService, testProperties, mockPluginManagerService);
+    target.init(mockPluginService, testProperties, mockPluginManagerService, configurationProfile);
 
     assertEquals(4, target.plugins.size());
     assertEquals(AuroraConnectionTrackerPlugin.class, target.plugins.get(0).getClass());
@@ -464,8 +468,10 @@ public class ConnectionPluginManagerTests {
 
     final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
         mockConnectionProvider,
+        null,
         mockConnectionWrapper));
-    target.init(mockPluginService, testProperties, mockPluginManagerService);
+    target.init(mockPluginService, testProperties, mockPluginManagerService,
+        configurationProfile);
 
     assertEquals(1, target.plugins.size());
   }
@@ -477,8 +483,10 @@ public class ConnectionPluginManagerTests {
 
     final ConnectionPluginManager target = Mockito.spy(new ConnectionPluginManager(
         mockConnectionProvider,
+        null,
         mockConnectionWrapper));
-    target.init(mockPluginService, testProperties, mockPluginManagerService);
+    target.init(mockPluginService, testProperties, mockPluginManagerService,
+        configurationProfile);
 
     assertEquals(2, target.plugins.size());
     assertEquals(LogQueryConnectionPlugin.class, target.plugins.get(0).getClass());

@@ -21,7 +21,10 @@ import java.sql.SQLException;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.StringUtils;
 
 public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDialect {
 
@@ -38,6 +41,29 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   public boolean isDialect(String dataSourceClass) {
     return DS_CLASS_NAME.equals(dataSourceClass)
         || CP_DS_CLASS_NAME.equals(dataSourceClass);
+  }
+
+  @Override
+  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props) throws SQLException {
+
+    final String databaseName =
+        PropertyDefinition.DATABASE.getString(props) != null
+            ? PropertyDefinition.DATABASE.getString(props)
+            : "";
+    String urlBuilder = protocol + hostSpec.getUrl() + databaseName;
+
+    // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
+    // and use them to make a connection
+    PropertyDefinition.removeAllExcept(props,
+        PropertyDefinition.USER.name,
+        PropertyDefinition.PASSWORD.name,
+        PropertyDefinition.TCP_KEEP_ALIVE.name,
+        PropertyDefinition.SOCKET_TIMEOUT.name,
+        PropertyDefinition.CONNECT_TIMEOUT.name);
+
+    return new ConnectInfo(urlBuilder, props);
   }
 
   @Override

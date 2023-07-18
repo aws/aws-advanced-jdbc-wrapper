@@ -162,7 +162,7 @@ public class OpenedConnectionTracker {
     }
 
     final StringBuilder builder = new StringBuilder();
-    builder.append(host).append("[");
+    builder.append(host).append("\n[");
     for (final WeakReference<Connection> connection : queue) {
       builder.append("\n\t").append(connection.get());
     }

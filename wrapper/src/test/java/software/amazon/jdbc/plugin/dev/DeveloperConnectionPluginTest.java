@@ -38,6 +38,7 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.DialectCodes;
 import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class DeveloperConnectionPluginTest {
@@ -45,6 +46,7 @@ public class DeveloperConnectionPluginTest {
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock Connection mockConnection;
   @Mock ExceptionSimulatorConnectCallback mockConnectCallback;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
 
   private AutoCloseable closeable;
 
@@ -57,7 +59,7 @@ public class DeveloperConnectionPluginTest {
   void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
-    when(mockConnectionProvider.connect(any(), any(), any(), any())).thenReturn(mockConnection);
+    when(mockConnectionProvider.connect(any(), any(), any(), any(), any())).thenReturn(mockConnection);
     when(mockConnectCallback.getExceptionToRaise(any(), any(), any(), anyBoolean())).thenReturn(null);
   }
 
@@ -68,7 +70,12 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        props, "any-protocol://any-host/", mockConnectionProvider)) {
+        props,
+        "any-protocol://any-host/",
+        mockConnectionProvider,
+        null,
+        mockTargetDriverDialect,
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -91,7 +98,12 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        props, "any-protocol://any-host/", mockConnectionProvider)) {
+        props,
+        "any-protocol://any-host/",
+        mockConnectionProvider,
+        null,
+        mockTargetDriverDialect,
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -114,7 +126,12 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        props, "any-protocol://any-host/", mockConnectionProvider)) {
+        props,
+        "any-protocol://any-host/",
+        mockConnectionProvider,
+        null,
+        mockTargetDriverDialect,
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -137,7 +154,12 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        props, "any-protocol://any-host/", mockConnectionProvider)) {
+        props,
+        "any-protocol://any-host/",
+        mockConnectionProvider,
+        null,
+        mockTargetDriverDialect,
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -162,7 +184,12 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        props, "any-protocol://any-host/", mockConnectionProvider)) {
+        props,
+        "any-protocol://any-host/",
+        mockConnectionProvider,
+        null,
+        mockTargetDriverDialect,
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -185,7 +212,12 @@ public class DeveloperConnectionPluginTest {
     props.put(PropertyDefinition.PLUGINS.name, "dev");
     props.put(DialectManager.DIALECT.name, DialectCodes.PG);
     try (ConnectionWrapper wrapper = new ConnectionWrapper(
-        props, "any-protocol://any-host/", mockConnectionProvider)) {
+        props,
+        "any-protocol://any-host/",
+        mockConnectionProvider,
+        null,
+        mockTargetDriverDialect,
+        null)) {
 
       ExceptionSimulator simulator = wrapper.unwrap(ExceptionSimulator.class);
       assertNotNull(simulator);
@@ -217,11 +249,21 @@ public class DeveloperConnectionPluginTest {
 
     Throwable thrownException = assertThrows(
         SQLException.class,
-        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+        () -> new ConnectionWrapper(props,
+            "any-protocol://any-host/",
+            mockConnectionProvider,
+            null,
+            mockTargetDriverDialect,
+            null));
     assertSame(exception, thrownException);
 
     assertDoesNotThrow(
-        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+        () -> new ConnectionWrapper(props,
+            "any-protocol://any-host/",
+            mockConnectionProvider,
+            null,
+            mockTargetDriverDialect,
+            null));
   }
 
   @Test
@@ -234,7 +276,12 @@ public class DeveloperConnectionPluginTest {
     ExceptionSimulatorManager.setCallback(mockConnectCallback);
 
     assertDoesNotThrow(
-        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+        () -> new ConnectionWrapper(props,
+            "any-protocol://any-host/",
+            mockConnectionProvider,
+            null,
+            mockTargetDriverDialect,
+            null));
   }
 
   @Test
@@ -252,10 +299,20 @@ public class DeveloperConnectionPluginTest {
 
     Throwable thrownException = assertThrows(
         SQLException.class,
-        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+        () -> new ConnectionWrapper(props,
+            "any-protocol://any-host/",
+            mockConnectionProvider,
+            null,
+            mockTargetDriverDialect,
+            null));
     assertSame(exception, thrownException);
 
     assertDoesNotThrow(
-        () -> new ConnectionWrapper(props, "any-protocol://any-host/", mockConnectionProvider));
+        () -> new ConnectionWrapper(props,
+            "any-protocol://any-host/",
+            mockConnectionProvider,
+            null,
+            mockTargetDriverDialect,
+            null));
   }
 }

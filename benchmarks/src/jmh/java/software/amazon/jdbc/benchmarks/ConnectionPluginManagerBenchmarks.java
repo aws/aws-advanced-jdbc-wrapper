@@ -65,6 +65,9 @@ import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -91,6 +94,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Mock Connection mockConnection;
   @Mock Statement mockStatement;
   @Mock ResultSet mockResultSet;
+  ConfigurationProfile configurationProfile;
   private AutoCloseable closeable;
 
   public static void main(String[] args) throws RunnerException {
@@ -110,7 +114,11 @@ public class ConnectionPluginManagerBenchmarks {
 
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
+    when(mockConnectionProvider.connect(
+        anyString(),
+        any(Dialect.class),
+        any(TargetDriverDialect.class),
+        any(HostSpec.class),
         any(Properties.class))).thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
@@ -124,20 +132,25 @@ public class ConnectionPluginManagerBenchmarks {
     final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new ArrayList<>(
         Collections.nCopies(10, BenchmarkPluginFactory.class));
 
-    DriverConfigurationProfiles.addOrReplaceProfile(
-        "benchmark",
-        pluginFactories);
+    configurationProfile = ConfigurationProfileBuilder.get()
+        .withName("benchmark")
+        .withPluginFactories(pluginFactories)
+        .build();
+
     propertiesWithoutPlugins = new Properties();
     propertiesWithoutPlugins.setProperty(PropertyDefinition.PLUGINS.name, "");
 
     propertiesWithPlugins = new Properties();
-    propertiesWithPlugins.setProperty(PropertyDefinition.PROFILE_NAME.name, "benchmark");
 
-    pluginManager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
-    pluginManager.init(mockPluginService, propertiesWithPlugins, mockPluginManagerService);
+    pluginManager = new ConnectionPluginManager(mockConnectionProvider, null, mockConnectionWrapper);
+    pluginManager.init(
+        mockPluginService, propertiesWithPlugins, mockPluginManagerService,
+        configurationProfile);
 
-    pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
-    pluginManagerWithNoPlugins.init(mockPluginService, propertiesWithoutPlugins, mockPluginManagerService);
+    pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider, null, mockConnectionWrapper);
+    pluginManagerWithNoPlugins.init(
+        mockPluginService, propertiesWithoutPlugins, mockPluginManagerService,
+        null);
   }
 
   @TearDown(Level.Iteration)
@@ -147,15 +160,21 @@ public class ConnectionPluginManagerBenchmarks {
 
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
-    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
-    manager.init(mockPluginService, propertiesWithoutPlugins, mockPluginManagerService);
+    final ConnectionPluginManager manager =
+        new ConnectionPluginManager(mockConnectionProvider, null, mockConnectionWrapper);
+    manager.init(
+        mockPluginService, propertiesWithoutPlugins, mockPluginManagerService,
+        configurationProfile);
     return manager;
   }
 
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithPlugins() throws SQLException {
-    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
-    manager.init(mockPluginService, propertiesWithPlugins, mockPluginManagerService);
+    final ConnectionPluginManager manager =
+        new ConnectionPluginManager(mockConnectionProvider, null, mockConnectionWrapper);
+    manager.init(
+        mockPluginService, propertiesWithPlugins, mockPluginManagerService,
+        configurationProfile);
     return manager;
   }
 

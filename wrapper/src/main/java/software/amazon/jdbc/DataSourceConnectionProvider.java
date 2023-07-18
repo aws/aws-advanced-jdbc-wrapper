@@ -50,16 +50,11 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
         }
       });
   private final @NonNull DataSource dataSource;
-  private final @NonNull TargetDriverDialect targetDriverDialect;
-
 
   private final ReentrantLock lock = new ReentrantLock();
 
-  public DataSourceConnectionProvider(
-      final @NonNull DataSource dataSource,
-      final @NonNull TargetDriverDialect targetDriverDialect) {
+  public DataSourceConnectionProvider(final @NonNull DataSource dataSource) {
     this.dataSource = dataSource;
-    this.targetDriverDialect = targetDriverDialect;
   }
 
   /**
@@ -111,6 +106,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   public Connection connect(
       final @NonNull String protocol,
       final @NonNull Dialect dialect,
+      final @NonNull TargetDriverDialect targetDriverDialect,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
@@ -124,7 +120,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       LOGGER.finest(() -> "Use a separate DataSource object to create a connection.");
       // use a new data source instance to instantiate a connection
       final DataSource ds = createDataSource();
-      this.targetDriverDialect.prepareDataSource(
+      targetDriverDialect.prepareDataSource(
           ds,
           protocol,
           hostSpec,
@@ -138,7 +134,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       this.lock.lock();
       LOGGER.finest(() -> "Use main DataSource object to create a connection.");
       try {
-        this.targetDriverDialect.prepareDataSource(
+        targetDriverDialect.prepareDataSource(
             this.dataSource,
             protocol,
             hostSpec,

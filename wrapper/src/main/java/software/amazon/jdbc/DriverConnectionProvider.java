@@ -48,13 +48,9 @@ public class DriverConnectionProvider implements ConnectionProvider {
       });
 
   private final java.sql.Driver driver;
-  private final @NonNull TargetDriverDialect targetDriverDialect;
 
-  public DriverConnectionProvider(
-      final java.sql.Driver driver,
-      final @NonNull TargetDriverDialect targetDriverDialect) {
+  public DriverConnectionProvider(final java.sql.Driver driver) {
     this.driver = driver;
-    this.targetDriverDialect = targetDriverDialect;
   }
 
   /**
@@ -97,6 +93,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
    * Called once per connection that needs to be created.
    *
    * @param protocol The connection protocol (example "jdbc:mysql://")
+   * @param dialect The database dialect
+   * @param targetDriverDialect The target driver dialect
    * @param hostSpec The HostSpec containing the host-port information for the host to connect to
    * @param props The Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
@@ -106,13 +104,14 @@ public class DriverConnectionProvider implements ConnectionProvider {
   public Connection connect(
       final @NonNull String protocol,
       final @NonNull Dialect dialect,
+      final @NonNull TargetDriverDialect targetDriverDialect,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
 
     final Properties copy = PropertyUtils.copyProperties(props);
     final ConnectInfo connectInfo =
-        this.targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
+        targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(connectInfo.props, "\nwith properties: \n"));

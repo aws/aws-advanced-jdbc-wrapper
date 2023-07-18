@@ -69,6 +69,8 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 @Disabled
 @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
@@ -386,6 +388,11 @@ public class ConcurrencyTests {
     @Override
     public Dialect getDialect() {
       return new UnknownDialect();
+    }
+
+    @Override
+    public TargetDriverDialect getTargetDriverDialect() {
+      return new PgTargetDriverDialect();
     }
 
     public void updateDialect(final @NonNull Connection connection) throws SQLException { }

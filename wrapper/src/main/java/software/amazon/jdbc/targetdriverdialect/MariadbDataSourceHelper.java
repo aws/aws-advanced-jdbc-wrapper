@@ -20,6 +20,7 @@ import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -27,6 +28,7 @@ import org.mariadb.jdbc.MariaDbDataSource;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 
 public class MariadbDataSourceHelper {
 
@@ -59,9 +61,18 @@ public class MariadbDataSourceHelper {
       props.remove(LOGIN_TIMEOUT);
     }
 
+    Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    if (loginTimeout != null) {
+      mariaDbDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
+    }
+
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and include them to connect URL.
-    PropertyDefinition.removeAllExcept(props, PropertyDefinition.DATABASE.name);
+    PropertyDefinition.removeAllExcept(props,
+        PropertyDefinition.DATABASE.name,
+        PropertyDefinition.TCP_KEEP_ALIVE.name,
+        PropertyDefinition.CONNECT_TIMEOUT.name,
+        PropertyDefinition.SOCKET_TIMEOUT.name);
 
     String finalUrl = buildUrl(protocol, hostSpec, props);
     LOGGER.finest(() -> "Connecting to " + finalUrl);

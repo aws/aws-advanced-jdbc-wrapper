@@ -39,10 +39,13 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
+import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 
@@ -65,16 +68,45 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private boolean isInTransaction;
   private boolean explicitReadOnly;
   private final ExceptionManager exceptionManager;
+  protected final @Nullable ExceptionHandler exceptionHandler;
   protected final DialectProvider dialectProvider;
   protected Dialect dialect;
+  protected TargetDriverDialect targetDriverDialect;
+  protected @Nullable final ConfigurationProfile configurationProfile;
 
   public PluginServiceImpl(
       @NonNull final ConnectionPluginManager pluginManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol) throws SQLException {
-    this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol,
+      @NonNull final String targetDriverProtocol,
+      @NonNull final TargetDriverDialect targetDriverDialect)
+      throws SQLException {
+
+    this(pluginManager,
+        new ExceptionManager(),
+        props,
+        originalUrl,
+        targetDriverProtocol,
+        null,
+        targetDriverDialect,
         null);
+  }
+
+  public PluginServiceImpl(
+      @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final Properties props,
+      @NonNull final String originalUrl,
+      @NonNull final String targetDriverProtocol,
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
+    this(pluginManager,
+        new ExceptionManager(),
+        props,
+        originalUrl,
+        targetDriverProtocol,
+        null,
+        targetDriverDialect,
+        configurationProfile);
   }
 
   public PluginServiceImpl(
@@ -82,15 +114,26 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol,
-      @Nullable final DialectProvider dialectProvider) throws SQLException {
+      @NonNull final String targetDriverProtocol,
+      @Nullable final DialectProvider dialectProvider,
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
     this.pluginManager = pluginManager;
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
+    this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
     this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
-    this.dialect = this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
+    this.targetDriverDialect = targetDriverDialect;
+
+    this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
+        ? this.configurationProfile.getExceptionHandler()
+        : null;
+
+    this.dialect = this.configurationProfile != null && this.configurationProfile.getDialect() != null
+        ? this.configurationProfile.getDialect()
+        : this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
   }
 
   @Override
@@ -474,28 +517,44 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public boolean isNetworkException(final Throwable throwable) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isNetworkException(throwable);
+    }
     return this.exceptionManager.isNetworkException(this.dialect, throwable);
   }
 
   @Override
   public boolean isNetworkException(final String sqlState) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isNetworkException(sqlState);
+    }
     return this.exceptionManager.isNetworkException(this.dialect, sqlState);
   }
 
   @Override
   public boolean isLoginException(final Throwable throwable) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isLoginException(throwable);
+    }
     return this.exceptionManager.isLoginException(this.dialect, throwable);
-
   }
 
   @Override
   public boolean isLoginException(final String sqlState) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isLoginException(sqlState);
+    }
     return this.exceptionManager.isLoginException(this.dialect, sqlState);
   }
 
   @Override
   public Dialect getDialect() {
     return this.dialect;
+  }
+
+  @Override
+  public TargetDriverDialect getTargetDriverDialect() {
+    return this.targetDriverDialect;
   }
 
   public void updateDialect(final @NonNull Connection connection) throws SQLException {

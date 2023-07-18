@@ -61,7 +61,7 @@ class DefaultConnectionPluginTest {
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
-    plugin = new DefaultConnectionPlugin(pluginService, connectionProvider, pluginManagerService);
+    plugin = new DefaultConnectionPlugin(pluginService, connectionProvider, null, pluginManagerService);
   }
 
   @AfterEach

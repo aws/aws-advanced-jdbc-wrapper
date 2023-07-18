@@ -65,6 +65,9 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 
 public class AwsSecretsManagerConnectionPluginTest {
@@ -103,6 +106,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock ConnectionPluginManager mockConnectionPluginManager;
   @Mock Dialect mockTopologyAwareDialect;
   @Mock DialectManager mockDialectManager;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
+  ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
 
   @BeforeEach
   public void init() throws SQLException {
@@ -218,7 +223,9 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PROPS,
             "url",
             protocol,
-            mockDialectManager),
+            mockDialectManager,
+            mockTargetDriverDialect,
+            configurationProfile),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -315,7 +322,9 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PROPS,
             "url",
             TEST_PG_PROTOCOL,
-            mockDialectManager),
+            mockDialectManager,
+            mockTargetDriverDialect,
+            configurationProfile),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -354,7 +363,9 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PROPS,
             "url",
             TEST_MYSQL_PROTOCOL,
-            mockDialectManager),
+            mockDialectManager,
+            mockTargetDriverDialect,
+            configurationProfile),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -392,7 +403,9 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PROPS,
             "url",
             TEST_PG_PROTOCOL,
-            mockDialectManager),
+            mockDialectManager,
+            mockTargetDriverDialect,
+            configurationProfile),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -430,7 +443,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     SECRET_ID_PROPERTY.set(props, arn);
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
+        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
@@ -450,7 +463,7 @@ public class AwsSecretsManagerConnectionPluginTest {
     REGION_PROPERTY.set(props, expectedRegion.toString());
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
-        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
+        new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL, mockTargetDriverDialect),
         props,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));

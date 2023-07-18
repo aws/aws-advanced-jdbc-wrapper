@@ -71,6 +71,27 @@ public class PropertyDefinition {
       new AwsWrapperProperty(
           "database", null, "Driver database name");
 
+  public static final AwsWrapperProperty LOGIN_TIMEOUT =
+      new AwsWrapperProperty(
+          "loginTimeout", null, "Login timeout in msec.");
+
+  public static final AwsWrapperProperty CONNECT_TIMEOUT =
+      new AwsWrapperProperty(
+          "connectTimeout", null, "Socket connect timeout in msec.");
+  public static final AwsWrapperProperty SOCKET_TIMEOUT =
+      new AwsWrapperProperty(
+          "socketTimeout", null, "Socket timeout in msec.");
+
+  public static final AwsWrapperProperty TCP_KEEP_ALIVE =
+      new AwsWrapperProperty(
+          "tcpKeepAlive",
+          "false",
+          "Enable or disable TCP keep-alive probe.",
+          false,
+          new String[] {
+              "true", "false"
+          });
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Set<String> KNOWN_PROPS_BY_PREFIX = ConcurrentHashMap.newKeySet();

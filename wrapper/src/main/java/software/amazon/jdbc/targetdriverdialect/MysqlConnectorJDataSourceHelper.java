@@ -19,13 +19,16 @@ package software.amazon.jdbc.targetdriverdialect;
 import com.mysql.cj.jdbc.MysqlDataSource;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.StringUtils;
 
 public class MysqlConnectorJDataSourceHelper {
 
@@ -54,9 +57,19 @@ public class MysqlConnectorJDataSourceHelper {
       baseDataSource.setPortNumber(hostSpec.getPort());
     }
 
+    Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    if (loginTimeout != null) {
+      baseDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
+    }
+
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and try to apply them to data source
-    PropertyDefinition.removeAll(props);
+    PropertyDefinition.removeAllExcept(props,
+        PropertyDefinition.USER.name,
+        PropertyDefinition.PASSWORD.name,
+        PropertyDefinition.TCP_KEEP_ALIVE.name,
+        PropertyDefinition.SOCKET_TIMEOUT.name,
+        PropertyDefinition.CONNECT_TIMEOUT.name);
 
     PropertyUtils.applyProperties(dataSource, props);
   }

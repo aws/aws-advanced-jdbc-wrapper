@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.awssdk.services.rds.endpoints.internal.Value.Bool;
+import software.amazon.jdbc.AwsWrapperProperty;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
@@ -120,10 +122,20 @@ public class PropertyUtils {
       return copy;
     }
 
-    for (final Map.Entry<Object, Object> entry : props.entrySet()) {
-      copy.setProperty(entry.getKey().toString(), entry.getValue().toString());
+    return addProperties(copy, props);
+  }
+
+  public static @NonNull Properties addProperties(
+      final Properties dest, final Properties propsToAdd) {
+
+    if (propsToAdd == null) {
+      return dest;
     }
-    return copy;
+
+    for (final Map.Entry<Object, Object> entry : propsToAdd.entrySet()) {
+      dest.setProperty(entry.getKey().toString(), entry.getValue().toString());
+    }
+    return dest;
   }
 
   public static String logProperties(final Properties props, final String caption) {
@@ -141,5 +153,27 @@ public class PropertyUtils {
       sb.insert(0, caption);
     }
     return sb.toString();
+  }
+
+  public static Integer getIntegerPropertyValue(
+      final @NonNull Properties props,
+      final @NonNull AwsWrapperProperty wrapperProperty) {
+
+    Integer result = null;
+    if (!StringUtils.isNullOrEmpty(wrapperProperty.getString(props))) {
+      result = wrapperProperty.getInteger(props);
+    }
+    return result;
+  }
+
+  public static Boolean getBooleanPropertyValue(
+      final @NonNull Properties props,
+      final @NonNull AwsWrapperProperty wrapperProperty) {
+
+    Boolean result = null;
+    if (!StringUtils.isNullOrEmpty(wrapperProperty.getString(props))) {
+      result = wrapperProperty.getBoolean(props);
+    }
+    return result;
   }
 }

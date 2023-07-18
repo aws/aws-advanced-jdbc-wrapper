@@ -31,11 +31,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
@@ -122,9 +125,25 @@ public class Driver implements java.sql.Driver {
     if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(info, databaseName);
     }
-    ConnectionUrlParser.parsePropertiesFromUrl(url, info);
 
-    final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
+    ConnectionUrlParser.parsePropertiesFromUrl(url, info);
+    final Properties props = PropertyUtils.copyProperties(info);
+
+    final String profileName = PropertyDefinition.PROFILE_NAME.getString(info);
+    ConfigurationProfile configurationProfile = null;
+    if (!StringUtils.isNullOrEmpty(profileName)) {
+      configurationProfile = DriverConfigurationProfiles.getProfileConfiguration(profileName);
+      if (configurationProfile != null) {
+        PropertyUtils.addProperties(props, configurationProfile.getProperties());
+      } else {
+        throw new SQLException(
+            Messages.get(
+                "Driver.configurationProfileNotFound",
+                new Object[] {profileName}));
+      }
+    }
+
+    final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
     if (!StringUtils.isNullOrEmpty(logLevelStr)) {
       final Level logLevel = Level.parse(logLevelStr.toUpperCase());
       final Logger rootLogger = Logger.getLogger("");
@@ -139,13 +158,30 @@ public class Driver implements java.sql.Driver {
       PARENT_LOGGER.setLevel(logLevel);
     }
 
-    final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-    final TargetDriverDialect targetDriverDialect =
-        targetDriverDialectManager.getDialect(driver, info);
+    TargetDriverDialect targetDriverDialect = configurationProfile == null
+        ? null
+        : configurationProfile.getTargetDriverDialect();
 
-    final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver, targetDriverDialect);
+    if (targetDriverDialect == null) {
+      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+      targetDriverDialect = targetDriverDialectManager.getDialect(driver, props);
+    }
 
-    return new ConnectionWrapper(info, driverUrl, connectionProvider);
+    final ConnectionProvider defaultConnectionProvider =
+        new DriverConnectionProvider(driver);
+
+    ConnectionProvider effectiveConnectionProvider = null;
+    if (configurationProfile != null) {
+      effectiveConnectionProvider = configurationProfile.getConnectionProvider();
+    }
+
+    return new ConnectionWrapper(
+        props,
+        driverUrl,
+        defaultConnectionProvider,
+        effectiveConnectionProvider,
+        targetDriverDialect,
+        configurationProfile);
   }
 
   @Override

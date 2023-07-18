@@ -27,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
@@ -150,6 +151,8 @@ public interface PluginService extends ExceptionHandler {
   Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException;
 
   Dialect getDialect();
+
+  TargetDriverDialect getTargetDriverDialect();
 
   void updateDialect(final @NonNull Connection connection) throws SQLException;
 

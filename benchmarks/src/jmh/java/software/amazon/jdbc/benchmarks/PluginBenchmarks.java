@@ -60,6 +60,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -82,6 +83,7 @@ public class PluginBenchmarks {
       .host(TEST_HOST).port(TEST_PORT).build();
 
   @Mock private PluginService mockPluginService;
+  @Mock private Dialect mockDialect;
   @Mock private ConnectionPluginManager mockConnectionPluginManager;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private PluginManagerService mockPluginManagerService;
@@ -113,7 +115,11 @@ public class PluginBenchmarks {
 
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
+    when(mockConnectionProvider.connect(
+        anyString(),
+        any(Dialect.class),
+        any(TargetDriverDialect.class),
+        any(HostSpec.class),
         any(Properties.class))).thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
@@ -125,6 +131,7 @@ public class PluginBenchmarks {
     when(mockStatement.getConnection()).thenReturn(mockConnection);
     when(this.mockPluginService.acceptsStrategy(any(), eq("random"))).thenReturn(true);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
+    when(this.mockPluginService.getDialect()).thenReturn(mockDialect);
   }
 
   @TearDown(Level.Iteration)

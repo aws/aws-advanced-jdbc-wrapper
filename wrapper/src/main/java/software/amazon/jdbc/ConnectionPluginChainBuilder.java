@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
@@ -40,6 +41,7 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
@@ -116,25 +118,17 @@ public class ConnectionPluginChainBuilder {
   public List<ConnectionPlugin> getPlugins(
       final PluginService pluginService,
       final ConnectionProvider defaultConnProvider,
+      final ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
-      final Properties props)
+      final Properties props,
+      @Nullable ConfigurationProfile configurationProfile)
       throws SQLException {
 
     List<ConnectionPlugin> plugins;
     List<Class<? extends ConnectionPluginFactory>> pluginFactories;
 
-    final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
-
-    if (profileName != null) {
-
-      if (!DriverConfigurationProfiles.contains(profileName)) {
-        throw new SQLException(
-            Messages.get(
-                "ConnectionPluginManager.configurationProfileNotFound",
-                new Object[] {profileName}));
-      }
-      pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
-
+    if (configurationProfile != null && configurationProfile.getPluginFactories() != null) {
+      pluginFactories = configurationProfile.getPluginFactories();
     } else {
 
       String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
@@ -194,8 +188,12 @@ public class ConnectionPluginChainBuilder {
     }
 
     // add default connection plugin to the tail
-    final ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(pluginService, defaultConnProvider, pluginManagerService);
+    final ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
+        pluginService,
+        defaultConnProvider,
+        effectiveConnProvider,
+        pluginManagerService);
+
     plugins.add(defaultPlugin);
 
     return plugins;
