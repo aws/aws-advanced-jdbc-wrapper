@@ -53,9 +53,11 @@ dependencies {
     implementation("io.vertx:vertx-web")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.12.7.1")
     implementation("org.postgresql:postgresql:42.5.4")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
+    implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
 }
 ```
+
+Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Set up connection pools
 Vert.x applications can use connection pools to handle requests. In this example, we use two connection pools, one to handle write requests and another to handle read requests. Vert.x uses C3P0 by default to manage database connections.

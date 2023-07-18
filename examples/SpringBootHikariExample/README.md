@@ -59,10 +59,12 @@ In the `build.gradle.kts` file, add the following dependencies.
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-web")
-	implementation(project(":aws-advanced-jdbc-wrapper"))
+	implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
 	implementation("org.postgresql:postgresql:42.5.4")
 }
 ```
+
+Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Configure the Datasource
 
