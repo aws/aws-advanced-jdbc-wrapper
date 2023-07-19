@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.2.x] - ???
 ### :magic_wand: Added
-- Host Availability Strategy to help keep host health status up to date ([PR #530](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/530)).   
+- Host Availability Strategy to help keep host health status up to date ([PR #530](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/530)).
 
 ### :crab: Changed
 - Dynamically sets the default host list provider based on the dialect used. User applications no longer need to manually set the AuroraHostListProvider when connecting to Aurora Postgres or Aurora MySQL databases.
@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - As an enhancement, the wrapper is now able to automatically set the Aurora host list provider for connections to Aurora MySQL and Aurora PostgreSQL databases.
     Aurora Host List Connection Plugin is deprecated. If you were using the `AuroraHostListConnectionPlugin`, you can simply remove the plugin from the `wrapperPlugins` parameter.
     However, if you choose to, you can ensure the provider is used by specifying a topology-aware dialect, for more information, see [Database Dialects](docs/using-the-jdbc-driver/DatabaseDialects.md).
+- Close underlying connections in the Read Write Splitting Plugin after switching to read-write or read-only depending on whether internal connection pooling is used ([PR #583](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/583)).
 
 ## [2.2.3] - 2023-07-28
 ### :magic_wand: Added

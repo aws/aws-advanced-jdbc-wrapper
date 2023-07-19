@@ -23,11 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.zaxxer.hikari.HikariConfig;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -42,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -50,6 +54,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -527,22 +532,99 @@ public class ReadWriteSplittingPluginTest {
   @Test
   public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() throws SQLException {
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
-            mockPluginService,
-            defaultProps,
-            mockHostListProviderService,
-            null,
-            null);
+        mockPluginService,
+        defaultProps,
+        mockHostListProviderService,
+        null,
+        null);
 
     // calling clearWarnings() on nullified connection would throw an exception
     assertDoesNotThrow(() -> {
       plugin.execute(
-              ResultSet.class,
-              SQLException.class,
-              mockStatement,
-              "Connection.clearWarnings",
-              mockSqlFunction,
-              new Object[] {}
+          ResultSet.class,
+          SQLException.class,
+          mockStatement,
+          "Connection.clearWarnings",
+          mockSqlFunction,
+          new Object[] {}
       );
     });
+  }
+
+  @Test
+  public void testClosePooledReaderConnectionAfterSetReadOnly() throws SQLException {
+    doReturn(writerHostSpec)
+        .doReturn(writerHostSpec)
+        .doReturn(readerHostSpec1)
+        .when(this.mockPluginService).getCurrentHostSpec();
+    doReturn(mockReaderConn1).when(mockPluginService).connect(readerHostSpec1, null);
+    when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
+
+    final HikariPooledConnectionProvider connProvider =
+        new HikariPooledConnectionProvider(
+            ReadWriteSplittingPluginTest::getHikariConfig,
+            ReadWriteSplittingPluginTest::getPoolKey
+        );
+    when(mockPluginService.getConnectionProvider()).thenReturn(connProvider);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        defaultProps,
+        mockHostListProviderService,
+        mockWriterConn,
+        null);
+    final ReadWriteSplittingPlugin spyPlugin = spy(plugin);
+
+    spyPlugin.switchConnectionIfRequired(true);
+    spyPlugin.switchConnectionIfRequired(false);
+
+    verify(spyPlugin, times(1)).closeConnectionIfIdle(eq(mockReaderConn1));
+  }
+
+  @Test
+  public void testClosePooledWriterConnectionAfterSetReadOnly() throws SQLException {
+    doReturn(writerHostSpec)
+        .doReturn(writerHostSpec)
+        .doReturn(readerHostSpec1)
+        .doReturn(readerHostSpec1)
+        .doReturn(writerHostSpec)
+        .when(this.mockPluginService).getCurrentHostSpec();
+    doReturn(mockWriterConn).when(mockPluginService).connect(writerHostSpec, null);
+    when(mockPluginService.getDriverProtocol()).thenReturn("jdbc:postgresql://");
+
+    final HikariPooledConnectionProvider connProvider =
+        new HikariPooledConnectionProvider(
+            ReadWriteSplittingPluginTest::getHikariConfig,
+            ReadWriteSplittingPluginTest::getPoolKey
+        );
+    when(mockPluginService.getConnectionProvider()).thenReturn(connProvider);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+        mockPluginService,
+        defaultProps,
+        mockHostListProviderService,
+        null,
+        null);
+    final ReadWriteSplittingPlugin spyPlugin = spy(plugin);
+
+    spyPlugin.switchConnectionIfRequired(true);
+    spyPlugin.switchConnectionIfRequired(false);
+    spyPlugin.switchConnectionIfRequired(true);
+
+    verify(spyPlugin, times(1)).closeConnectionIfIdle(eq(mockWriterConn));
+  }
+
+  private static HikariConfig getHikariConfig(HostSpec hostSpec, Properties props) {
+    final HikariConfig config = new HikariConfig();
+    config.setMaximumPoolSize(3);
+    config.setInitializationFailTimeout(75000);
+    config.setConnectionTimeout(10000);
+    return config;
+  }
+
+  private static String getPoolKey(HostSpec hostSpec, Properties props) {
+    final String user = props.getProperty(PropertyDefinition.USER.name);
+    final String somePropertyValue = props.getProperty("somePropertyValue");
+    return hostSpec.getUrl() + user + somePropertyValue;
   }
 }
