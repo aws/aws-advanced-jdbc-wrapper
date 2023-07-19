@@ -19,7 +19,7 @@ plugins {
     java
     jacoco
     id("biz.aQute.bnd.builder")
-    id("com.diffplug.spotless")
+    id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
     id("com.github.spotbugs")
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
