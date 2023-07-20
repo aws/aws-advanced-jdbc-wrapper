@@ -35,7 +35,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 /**
- * After Aurora DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
+ * After RDS DB cluster fail over is completed and a cluster has elected a new writer node, the corresponding
  * cluster (writer) endpoint contains stale data and points to an old writer node. That old writer node plays
  * a reader role after fail over and connecting with the cluster endpoint connects to it. In such case a user
  * application expects a writer connection but practically gets connected to a reader. Any DML statements fail
@@ -47,9 +47,9 @@ import software.amazon.jdbc.util.SubscribedMethodHelper;
  * <p>This plugin tries to recognize such a wrong connection to a reader when a writer connection is expected, and to
  * mitigate it by reconnecting a proper new writer.
  */
-public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
+public class RdsStaleDnsPlugin extends AbstractConnectionPlugin {
 
-  private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsPlugin.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(RdsStaleDnsPlugin.class.getName());
 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
@@ -63,12 +63,12 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       });
 
   private final PluginService pluginService;
-  private final AuroraStaleDnsHelper helper;
+  private final RdsStaleDnsHelper helper;
   private HostListProviderService hostListProviderService;
 
-  public AuroraStaleDnsPlugin(final PluginService pluginService, final Properties properties) {
+  public RdsStaleDnsPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
-    this.helper = new AuroraStaleDnsHelper(this.pluginService);
+    this.helper = new RdsStaleDnsHelper(this.pluginService);
   }
 
   @Override
@@ -109,7 +109,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
     this.hostListProviderService = hostListProviderService;
     if (hostListProviderService.isStaticHostListProvider()) {
-      throw new SQLException(Messages.get("AuroraStaleDnsPlugin.requireDynamicProvider"));
+      throw new SQLException(Messages.get("RdsStaleDnsPlugin.requireDynamicProvider"));
     }
     initHostProviderFunc.call();
   }

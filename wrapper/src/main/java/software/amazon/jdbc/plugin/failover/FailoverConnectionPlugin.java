@@ -43,7 +43,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
+import software.amazon.jdbc.plugin.staledns.RdsStaleDnsHelper;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -98,7 +98,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private boolean isInTransaction = false;
   private RdsUrlType rdsUrlType;
   private HostListProviderService hostListProviderService;
-  private final AuroraStaleDnsHelper staleDnsHelper;
+  private final RdsStaleDnsHelper staleDnsHelper;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -160,7 +160,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     initSettings();
 
-    this.staleDnsHelper = new AuroraStaleDnsHelper(this.pluginService);
+    this.staleDnsHelper = new RdsStaleDnsHelper(this.pluginService);
   }
 
   @Override

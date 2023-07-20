@@ -38,9 +38,9 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
 
-public class AuroraStaleDnsHelper {
+public class RdsStaleDnsHelper {
 
-  private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsHelper.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(RdsStaleDnsHelper.class.getName());
 
   private final PluginService pluginService;
   private final RdsUtils rdsUtils = new RdsUtils();
@@ -50,7 +50,7 @@ public class AuroraStaleDnsHelper {
 
   private static final int RETRIES = 3;
 
-  public AuroraStaleDnsHelper(final PluginService pluginService) {
+  public RdsStaleDnsHelper(final PluginService pluginService) {
     this.pluginService = pluginService;
   }
 
@@ -76,7 +76,7 @@ public class AuroraStaleDnsHelper {
     }
 
     final String hostInetAddress = clusterInetAddress;
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.clusterEndpointDns",
+    LOGGER.finest(() -> Messages.get("RdsStaleDnsHelper.clusterEndpointDns",
         new Object[]{hostInetAddress}));
 
     if (clusterInetAddress == null) {
@@ -106,7 +106,7 @@ public class AuroraStaleDnsHelper {
       this.writerHostSpec = writerCandidate;
     }
 
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerHostSpec",
+    LOGGER.finest(() -> Messages.get("RdsStaleDnsHelper.writerHostSpec",
         new Object[]{this.writerHostSpec}));
 
     if (this.writerHostSpec == null) {
@@ -121,7 +121,7 @@ public class AuroraStaleDnsHelper {
       }
     }
 
-    LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.writerInetAddress",
+    LOGGER.finest(() -> Messages.get("RdsStaleDnsHelper.writerInetAddress",
         new Object[]{this.writerHostAddress}));
 
     if (this.writerHostAddress == null) {
@@ -132,7 +132,7 @@ public class AuroraStaleDnsHelper {
       // DNS resolves a cluster endpoint to a wrong writer
       // opens a connection to a proper writer node
 
-      LOGGER.fine(() -> Messages.get("AuroraStaleDnsHelper.staleDnsDetected",
+      LOGGER.fine(() -> Messages.get("RdsStaleDnsHelper.staleDnsDetected",
           new Object[]{this.writerHostSpec}));
 
       final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
@@ -162,7 +162,7 @@ public class AuroraStaleDnsHelper {
       LOGGER.finest(() -> String.format("[%s]: %s", entry.getKey(), entry.getValue()));
       if (entry.getKey().equals(this.writerHostSpec.getUrl())
           && entry.getValue().contains(NodeChangeOptions.PROMOTED_TO_READER)) {
-        LOGGER.finest(() -> Messages.get("AuroraStaleDnsHelper.reset"));
+        LOGGER.finest(() -> Messages.get("RdsStaleDnsHelper.reset"));
         this.writerHostSpec = null;
         this.writerHostAddress = null;
       }
