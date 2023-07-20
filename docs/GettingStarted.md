@@ -46,7 +46,7 @@ You can use [Maven's dependency management](https://search.maven.org/search?q=g:
     <dependency>
         <groupId>software.amazon.jdbc</groupId>
         <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-        <version>2.2.2</version>
+        <version>LATEST</version>
     </dependency>
 </dependencies>
 ```

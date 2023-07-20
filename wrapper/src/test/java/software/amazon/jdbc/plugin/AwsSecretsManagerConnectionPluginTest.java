@@ -27,6 +27,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.REGION_PROPERTY;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY;
 
 import com.mysql.cj.exceptions.CJException;
 import java.sql.Connection;
@@ -104,8 +106,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
-    TEST_PROPS.setProperty("secretsManagerRegion", TEST_REGION);
-    TEST_PROPS.setProperty("secretsManagerSecretId", TEST_SECRET_ID);
+    REGION_PROPERTY.set(TEST_PROPS, TEST_REGION);
+    SECRET_ID_PROPERTY.set(TEST_PROPS, TEST_SECRET_ID);
 
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         mockService,
@@ -420,7 +422,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   public void testConnectViaARN(final String arn, final Region expectedRegionParsedFromARN)
       throws SQLException {
     final Properties props = new Properties();
-    props.setProperty("secretsManagerSecretId", arn);
+
+    SECRET_ID_PROPERTY.set(props, arn);
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
@@ -439,8 +442,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     final Region expectedRegion = Region.US_ISO_EAST_1;
 
     final Properties props = new Properties();
-    props.setProperty("secretsManagerSecretId", arn);
-    props.setProperty("secretsManagerRegion", expectedRegion.toString());
+    SECRET_ID_PROPERTY.set(props, arn);
+    REGION_PROPERTY.set(props, expectedRegion.toString());
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
@@ -473,10 +476,10 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   private static Stream<Arguments> missingArguments() {
     final Properties missingId = new Properties();
-    missingId.setProperty("secretsManagerRegion", TEST_REGION);
+    REGION_PROPERTY.set(missingId, TEST_REGION);
 
     final Properties missingRegion = new Properties();
-    missingRegion.setProperty("secretsManagerSecretId", TEST_SECRET_ID);
+    SECRET_ID_PROPERTY.set(missingRegion, TEST_SECRET_ID);
 
     return Stream.of(
         Arguments.of(missingId),

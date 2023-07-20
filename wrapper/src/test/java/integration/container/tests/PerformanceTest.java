@@ -17,6 +17,11 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.fail;
+import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
+import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
@@ -69,7 +74,7 @@ public class PerformanceTest {
 
   private static final int TIMEOUT_SEC = 1;
   private static final int CONNECT_TIMEOUT_SEC = 3;
-  private static final int FAILOVER_TIMEOUT_MS = 120000;
+  private static final int PERF_FAILOVER_TIMEOUT_MS = 120000;
 
   private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList =
       new ArrayList<>();
@@ -152,10 +157,10 @@ public class PerformanceTest {
     DriverHelper.setMonitoringSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
     DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
     // this performance test measures efm failure detection time after disconnecting the network
-    props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
-    props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
-    props.setProperty("failureDetectionCount", Integer.toString(detectionCount));
-    props.setProperty("wrapperPlugins", "efm");
+    FAILURE_DETECTION_TIME.set(props, Integer.toString(detectionTime));
+    FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(detectionInterval));
+    FAILURE_DETECTION_COUNT.set(props, Integer.toString(detectionCount));
+    PLUGINS.set(props, "efm");
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, false, data);
@@ -207,11 +212,11 @@ public class PerformanceTest {
 
     // this performance test measures failover and efm failure detection time after disconnecting
     // the network
-    props.setProperty("failureDetectionTime", Integer.toString(detectionTime));
-    props.setProperty("failureDetectionInterval", Integer.toString(detectionInterval));
-    props.setProperty("failureDetectionCount", Integer.toString(detectionCount));
-    props.setProperty("wrapperPlugins", "failover,efm");
-    props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
+    FAILURE_DETECTION_TIME.set(props, Integer.toString(detectionTime));
+    FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(detectionInterval));
+    FAILURE_DETECTION_COUNT.set(props, Integer.toString(detectionCount));
+    PLUGINS.set(props, "failover,efm");
+    FAILOVER_TIMEOUT_MS.set(props, Integer.toString(PERF_FAILOVER_TIMEOUT_MS));
     props.setProperty(
         "clusterInstanceHostPattern",
         "?."
@@ -273,7 +278,7 @@ public class PerformanceTest {
                 .getInfo()
                 .getProxyDatabaseInfo()
                 .getInstanceEndpointSuffix());
-    props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
+    props.setProperty("failoverTimeoutMs", Integer.toString(PERF_FAILOVER_TIMEOUT_MS));
 
     final PerfStatSocketTimeout data = new PerfStatSocketTimeout();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);

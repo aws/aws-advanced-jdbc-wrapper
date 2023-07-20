@@ -18,6 +18,11 @@ package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
+import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
@@ -77,7 +82,7 @@ public class AdvancedPerformanceTest {
 
   private static final int TIMEOUT_SEC = 5;
   private static final int CONNECT_TIMEOUT_SEC = 5;
-  private static final int FAILOVER_TIMEOUT_MS = 300000;
+  private static final int EFM_FAILOVER_TIMEOUT_MS = 300000;
   private static final int EFM_FAILURE_DETECTION_TIME_MS = 30000;
   private static final int EFM_FAILURE_DETECTION_INTERVAL_MS = 5000;
   private static final int EFM_FAILURE_DETECTION_COUNT = 3;
@@ -377,13 +382,10 @@ public class AdvancedPerformanceTest {
             DriverHelper.setMonitoringConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
             DriverHelper.setMonitoringSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
             DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-            props.setProperty(
-                "failureDetectionTime", Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
-            props.setProperty(
-                "failureDetectionInterval", Integer.toString(EFM_FAILURE_DETECTION_INTERVAL_MS));
-            props.setProperty(
-                "failureDetectionCount", Integer.toString(EFM_FAILURE_DETECTION_COUNT));
-            props.setProperty("wrapperPlugins", "efm");
+            FAILURE_DETECTION_TIME.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
+            FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(EFM_FAILURE_DETECTION_INTERVAL_MS));
+            FAILURE_DETECTION_COUNT.set(props, Integer.toString(EFM_FAILURE_DETECTION_COUNT));
+            PLUGINS.set(props, "efm");
 
             final Connection conn =
                 openConnectionWithRetry(
@@ -455,14 +457,11 @@ public class AdvancedPerformanceTest {
             DriverHelper.setMonitoringConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
             DriverHelper.setMonitoringSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
             DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-            props.setProperty(
-                "failureDetectionTime", Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
-            props.setProperty(
-                "failureDetectionInterval", Integer.toString(EFM_FAILURE_DETECTION_INTERVAL_MS));
-            props.setProperty(
-                "failureDetectionCount", Integer.toString(EFM_FAILURE_DETECTION_COUNT));
-            props.setProperty("failoverTimeoutMs", Integer.toString(FAILOVER_TIMEOUT_MS));
-            props.setProperty("wrapperPlugins", "failover,efm");
+            FAILURE_DETECTION_TIME.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
+            FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
+            FAILURE_DETECTION_COUNT.set(props, Integer.toString(EFM_FAILURE_DETECTION_COUNT));
+            FAILOVER_TIMEOUT_MS.set(props, Integer.toString(EFM_FAILOVER_TIMEOUT_MS));
+            PLUGINS.set(props, "failover,efm");
 
             final Connection conn =
                 openConnectionWithRetry(

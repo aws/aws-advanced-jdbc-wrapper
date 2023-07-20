@@ -16,6 +16,11 @@
 
 package software.amazon.jdbc.plugin.efm;
 
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
+import static software.amazon.jdbc.plugin.efm.MonitorServiceImpl.MONITOR_DISPOSAL_TIME_MS;
+
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -107,10 +112,10 @@ public class ConcurrencyTests {
       executor.submit(() -> {
 
         final Properties properties = new Properties();
-        properties.put("monitorDisposalTime", "30000");
-        properties.put("failureDetectionTime", "10000");
-        properties.put("failureDetectionInterval", "1000");
-        properties.put("failureDetectionCount", "1");
+        MONITOR_DISPOSAL_TIME_MS.set(properties, "30000");
+        FAILURE_DETECTION_TIME.set(properties, "10000");
+        FAILURE_DETECTION_INTERVAL.set(properties, "1000");
+        FAILURE_DETECTION_COUNT.set(properties, "1");
 
         final JdbcCallable<ResultSet, SQLException> sqlFunction = () -> {
           try {
@@ -193,10 +198,10 @@ public class ConcurrencyTests {
     hostSpec.addAlias("test-host-alias-b");
 
     final Properties properties = new Properties();
-    properties.put("monitorDisposalTime", "30000");
-    properties.put("failureDetectionTime", "10000");
-    properties.put("failureDetectionInterval", "1000");
-    properties.put("failureDetectionCount", "1");
+    MONITOR_DISPOSAL_TIME_MS.set(properties, "30000");
+    FAILURE_DETECTION_TIME.set(properties, "10000");
+    FAILURE_DETECTION_INTERVAL.set(properties, "1000");
+    FAILURE_DETECTION_COUNT.set(properties, "1");
 
     final JdbcCallable<ResultSet, SQLException> sqlFunction = () -> {
       try {
