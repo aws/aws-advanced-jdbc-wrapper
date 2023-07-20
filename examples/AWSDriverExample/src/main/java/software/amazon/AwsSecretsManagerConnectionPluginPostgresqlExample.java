@@ -22,7 +22,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import software.amazon.jdbc.PropertyDefinition;
+
+import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.REGION_PROPERTY;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY;
 
 public class AwsSecretsManagerConnectionPluginPostgresqlExample {
 
@@ -31,11 +34,11 @@ public class AwsSecretsManagerConnectionPluginPostgresqlExample {
   public static void main(String[] args) throws SQLException {
     // Set the AWS Secrets Manager Connection Plugin parameters and the JDBC Wrapper parameters.
     final Properties properties = new Properties();
-    properties.setProperty("secretsManagerRegion", "us-east-2");
-    properties.setProperty("secretsManagerSecretId", "secretId");
+    REGION_PROPERTY.set(properties, "us-east-2");
+    SECRET_ID_PROPERTY.set(properties, "secretId");
 
     // Enable the AWS Secrets Manager Connection Plugin.
-    properties.setProperty(PropertyDefinition.PLUGINS.name, "awsSecretsManager");
+    PLUGINS.set(properties, "awsSecretsManager");
 
     // Try and make a connection:
     try (final Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);
