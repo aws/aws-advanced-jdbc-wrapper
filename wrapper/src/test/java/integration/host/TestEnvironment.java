@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
@@ -62,6 +63,7 @@ public class TestEnvironment implements AutoCloseable {
   private static final String TEST_CONTAINER_NAME = "test-container";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
+  protected static final int PROXY_PORT = 8666;
   private static final String HIBERNATE_VERSION = "6.2.0.CR2";
 
   private static final TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
@@ -95,7 +97,7 @@ public class TestEnvironment implements AutoCloseable {
     this.info.setRequest(request);
   }
 
-  public static TestEnvironment build(TestEnvironmentRequest request) {
+  public static TestEnvironment build(TestEnvironmentRequest request) throws IOException {
     LOGGER.finest("Building test env: " + request.getEnvPreCreateIndex());
     preCreateEnvironment(request.getEnvPreCreateIndex());
 
@@ -528,7 +530,7 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createProxyContainers(TestEnvironment env) {
+  private static void createProxyContainers(TestEnvironment env) throws IOException {
     ContainerHelper containerHelper = new ContainerHelper();
 
     int port = getPort(env.info.getRequest());
@@ -541,21 +543,20 @@ public class TestEnvironment implements AutoCloseable {
 
     env.proxyContainers = new ArrayList<>();
 
-    int proxyPort = 0;
     for (TestInstanceInfo instance : env.info.getDatabaseInfo().getInstances()) {
       ToxiproxyContainer container =
           containerHelper.createProxyContainer(env.network, instance, PROXIED_DOMAIN_NAME_SUFFIX);
 
       container.start();
       env.proxyContainers.add(container);
+      final ToxiproxyClient toxiproxyClient = new ToxiproxyClient(
+          container.getHost(),
+          container.getMappedPort(PROXY_CONTROL_PORT));
 
-      ToxiproxyContainer.ContainerProxy proxy =
-          container.getProxy(instance.getHost(), instance.getPort());
-
-      if (proxyPort != 0 && proxyPort != proxy.getOriginalProxyPort()) {
-        throw new RuntimeException("DB cluster proxies should be on the same port.");
-      }
-      proxyPort = proxy.getOriginalProxyPort();
+      containerHelper.createProxy(
+          toxiproxyClient,
+          instance.getHost(),
+          instance.getPort());
     }
 
     if (!StringUtils.isNullOrEmpty(env.info.getDatabaseInfo().getClusterEndpoint())) {
@@ -565,14 +566,13 @@ public class TestEnvironment implements AutoCloseable {
               "proxy-cluster",
               env.info.getDatabaseInfo().getClusterEndpoint() + PROXIED_DOMAIN_NAME_SUFFIX,
               env.info.getDatabaseInfo().getClusterEndpoint(),
-              port,
-              proxyPort));
+              port));
 
       env.info
           .getProxyDatabaseInfo()
           .setClusterEndpoint(
               env.info.getDatabaseInfo().getClusterEndpoint() + PROXIED_DOMAIN_NAME_SUFFIX,
-              proxyPort);
+              PROXY_PORT);
     }
 
     if (!StringUtils.isNullOrEmpty(env.info.getDatabaseInfo().getClusterReadOnlyEndpoint())) {
@@ -582,14 +582,13 @@ public class TestEnvironment implements AutoCloseable {
               "proxy-ro-cluster",
               env.info.getDatabaseInfo().getClusterReadOnlyEndpoint() + PROXIED_DOMAIN_NAME_SUFFIX,
               env.info.getDatabaseInfo().getClusterReadOnlyEndpoint(),
-              port,
-              proxyPort));
+              port));
 
       env.info
           .getProxyDatabaseInfo()
           .setClusterReadOnlyEndpoint(
               env.info.getDatabaseInfo().getClusterReadOnlyEndpoint() + PROXIED_DOMAIN_NAME_SUFFIX,
-              proxyPort);
+              PROXY_PORT);
     }
 
     if (!StringUtils.isNullOrEmpty(env.info.getDatabaseInfo().getInstanceEndpointSuffix())) {
@@ -597,7 +596,7 @@ public class TestEnvironment implements AutoCloseable {
           .getProxyDatabaseInfo()
           .setInstanceEndpointSuffix(
               env.info.getDatabaseInfo().getInstanceEndpointSuffix() + PROXIED_DOMAIN_NAME_SUFFIX,
-              proxyPort);
+              PROXY_PORT);
     }
 
     for (TestInstanceInfo instanceInfo : env.info.getDatabaseInfo().getInstances()) {
@@ -605,7 +604,7 @@ public class TestEnvironment implements AutoCloseable {
           new TestInstanceInfo(
               instanceInfo.getInstanceId(),
               instanceInfo.getHost() + PROXIED_DOMAIN_NAME_SUFFIX,
-              proxyPort);
+              PROXY_PORT);
       env.info.getProxyDatabaseInfo().getInstances().add(proxyInstanceInfo);
     }
   }

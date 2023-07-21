@@ -23,8 +23,10 @@ import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.DockerException;
+import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.TestInstanceInfo;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.testcontainers.DockerClientFactory;
@@ -53,13 +55,7 @@ public class ContainerHelper {
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 
-  private static final String RETRIEVE_TOPOLOGY_SQL_POSTGRES =
-      "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
-          + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
-  private static final String RETRIEVE_TOPOLOGY_SQL_MYSQL =
-      "SELECT SERVER_ID, SESSION_ID FROM information_schema.replica_host_status "
-          + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
-  private static final String SERVER_ID = "SERVER_ID";
+  private final static int proxyPort = 8666;
 
   public Long runCmd(GenericContainer<?> container, String... cmd)
       throws IOException, InterruptedException {
@@ -285,19 +281,23 @@ public class ContainerHelper {
       String networkAlias,
       String networkUrl,
       String hostname,
-      int port,
-      int expectedProxyPort) {
+      int port) throws IOException {
     final ToxiproxyContainer container =
         new ToxiproxyContainer(TOXIPROXY_IMAGE)
             .withNetwork(network)
             .withNetworkAliases(networkAlias, networkUrl);
     container.start();
-    ToxiproxyContainer.ContainerProxy proxy = container.getProxy(hostname, port);
-    assertEquals(
-        expectedProxyPort,
-        proxy.getOriginalProxyPort(),
-        "Proxy port for " + hostname + " should be " + expectedProxyPort);
+    final ToxiproxyClient toxiproxyClient = new ToxiproxyClient(container.getHost(), container.getMappedPort(8474));
+    this.createProxy(toxiproxyClient, hostname, port);
     return container;
+  }
+
+  public void createProxy(final ToxiproxyClient client, String hostname, int port)
+      throws IOException {
+    client.createProxy(
+        hostname + ":" + port,
+        "0.0.0.0:" + proxyPort,
+        hostname + ":" + port);
   }
 
   public ToxiproxyContainer createProxyContainer(
