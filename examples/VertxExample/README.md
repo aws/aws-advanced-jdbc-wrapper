@@ -3,7 +3,7 @@
 In this tutorial, you will set up a Vert.x application with the AWS JDBC Driver, and use the driver to execute some simple database operations on an Aurora PostgreSQL database.
 
 > Note: this tutorial was written using the following technologies:
->    - AWS JDBC Wrapper 2.2.3
+>    - AWS JDBC Wrapper 2.2.2
 >    - PostgreSQL 42.5.4
 >    - Java 8
 >    - Vert.x 4.4.2
