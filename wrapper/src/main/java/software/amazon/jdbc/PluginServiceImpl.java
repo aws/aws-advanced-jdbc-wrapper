@@ -38,7 +38,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
-import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
@@ -372,7 +372,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   void setNodeList(@Nullable final List<HostSpec> oldHosts,
-                   @Nullable final List<HostSpec> newHosts) {
+      @Nullable final List<HostSpec> newHosts) {
 
     final Map<String, HostSpec> oldHostMap = oldHosts == null
         ? new HashMap<>()
@@ -487,18 +487,21 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public void updateDialect(final @NonNull Connection connection) throws SQLException {
+    final Dialect originalDialect = this.dialect;
     this.dialect = this.dialectProvider.getDialect(
         this.originalUrl,
         this.initialConnectionHostSpec,
         connection);
+    if (originalDialect == this.dialect) {
+      return;
+    }
+
+    final HostListProviderSupplier supplier = this.dialect.getHostListProvider();
+    this.setHostListProvider(supplier.getProvider(props, this.originalUrl, this));
   }
 
   @Override
   public HostSpec identifyConnection(Connection connection) throws SQLException {
-    if (!(this.getDialect() instanceof TopologyAwareDatabaseCluster)) {
-      return null;
-    }
-
     return this.hostListProvider.identifyConnection(connection);
   }
 
@@ -509,7 +512,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     if (!hostSpec.getAliases().isEmpty()) {
-      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[] {hostSpec.getAliases()}));
+      LOGGER.finest(() -> Messages.get("PluginServiceImpl.nonEmptyAliases", new Object[]{hostSpec.getAliases()}));
       return;
     }
 
@@ -530,7 +533,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     // Add the instance endpoint if the current connection is associated with a topology aware database cluster.
     final HostSpec host = this.identifyConnection(connection);
     if (host != null) {
-      hostSpec.addAlias(host.asAliases().toArray(new String[] {}));
+      hostSpec.addAlias(host.asAliases().toArray(new String[]{}));
     }
   }
 }

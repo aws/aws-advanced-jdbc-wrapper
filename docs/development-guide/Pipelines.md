@@ -67,7 +67,7 @@ it does not perform any additional work.
 
 For cases where keeping updated information on existing and available replicas is necessary,
 such as during the failover procedure, it is important to have a host list provider that can re-fetch information once in a while,
-like the [Aurora host list provider](/wrapper/src/main/java/software/amazon/jdbc/plugin/AuroraHostListConnectionPlugin.java).
+like the Aurora host list provider.
 
 ## Connection Changed Notification Pipeline
 

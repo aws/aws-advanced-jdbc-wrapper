@@ -28,7 +28,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.igormaznitsa:jcp:7.0.5")
+    implementation("com.igormaznitsa:jcp:7.0.2")
 }
 
 tasks.withType<KotlinCompile> {

@@ -19,9 +19,13 @@ package software.amazon.jdbc.dialect;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
+import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 
 public class UnknownDialect implements Dialect {
 
@@ -68,5 +72,10 @@ public class UnknownDialect implements Dialect {
   @Override
   public List<String> getDialectUpdateCandidates() {
     return dialectUpdateCandidates;
+  }
+
+  @Override
+  public HostListProviderSupplier getHostListProvider() {
+    return ConnectionStringHostListProvider::new;
   }
 }

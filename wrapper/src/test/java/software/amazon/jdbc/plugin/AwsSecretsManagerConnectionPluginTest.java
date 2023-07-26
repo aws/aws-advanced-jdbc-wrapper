@@ -59,7 +59,6 @@ import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
-import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
@@ -99,7 +98,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock JdbcCallable<Connection, SQLException> connectFunc;
   @Mock PluginServiceImpl mockService;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
-  @Mock(extraInterfaces = TopologyAwareDatabaseCluster.class) private Dialect mockTopologyAwareDialect;
+  @Mock Dialect mockTopologyAwareDialect;
   @Mock DialectManager mockDialectManager;
 
   @BeforeEach

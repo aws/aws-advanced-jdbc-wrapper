@@ -19,10 +19,7 @@ package software.amazon.jdbc.plugin.staledns;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLSyntaxErrorException;
-import java.sql.Statement;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Properties;
@@ -33,7 +30,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.Utils;
@@ -83,11 +79,7 @@ public class AuroraStaleDnsHelper {
       return conn;
     }
 
-    String query = null;
-    if (this.pluginService.getDialect() instanceof TopologyAwareDatabaseCluster) {
-      query = ((TopologyAwareDatabaseCluster) this.pluginService.getDialect()).getIsReaderQuery();
-    }
-    if (query == null || isReadOnly(conn, query)) {
+    if (this.pluginService.getHostRole(conn) == HostRole.READER) {
       // This is if-statement is only reached if the connection url is a writer cluster endpoint.
       // If the new connection resolves to a reader instance, this means the topology is outdated.
       // Force refresh to update the topology.
@@ -176,26 +168,5 @@ public class AuroraStaleDnsHelper {
       }
     }
     return null;
-  }
-
-  private boolean isReadOnly(final Connection connection, final String query)
-      throws SQLSyntaxErrorException {
-    for (int i = 0; i < RETRIES; i++) {
-      try (final Statement statement = connection.createStatement();
-          final ResultSet rs = statement.executeQuery(query)) {
-        if (rs.next()) {
-          return rs.getBoolean(1);
-        }
-      } catch (final SQLSyntaxErrorException e) {
-        throw e;
-      } catch (final SQLException e) {
-
-        // Return false if the SQLException is not a network error. Otherwise, retry.
-        if (!pluginService.isNetworkException(e)) {
-          return false;
-        }
-      }
-    }
-    return false;
   }
 }

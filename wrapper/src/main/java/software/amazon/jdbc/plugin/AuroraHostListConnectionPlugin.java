@@ -25,9 +25,11 @@ import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.Messages;
 
+@Deprecated
 public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
@@ -57,8 +59,9 @@ public class AuroraHostListConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     if (hostListProviderService.isStaticHostListProvider()) {
-      hostListProviderService.setHostListProvider(
-          new AuroraHostListProvider(driverProtocol, hostListProviderService, props, initialUrl));
+      HostListProviderSupplier supplier =
+          this.pluginService.getDialect().getHostListProvider();
+      hostListProviderService.setHostListProvider(supplier.getProvider(props, initialUrl, hostListProviderService));
     } else if (!(provider instanceof AuroraHostListProvider)) {
       throw new SQLException(Messages.get("AuroraHostListConnectionPlugin.providerAlreadySet",
           new Object[] {provider.getClass().getName()}));

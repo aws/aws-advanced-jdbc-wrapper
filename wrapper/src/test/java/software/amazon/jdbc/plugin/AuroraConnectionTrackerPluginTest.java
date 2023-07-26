@@ -46,7 +46,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -58,7 +57,7 @@ public class AuroraConnectionTrackerPluginTest {
   @Mock Statement mockStatement;
   @Mock ResultSet mockResultSet;
   @Mock PluginService mockPluginService;
-  @Mock(extraInterfaces = TopologyAwareDatabaseCluster.class) private Dialect mockTopologyAwareDialect;
+  @Mock Dialect mockTopologyAwareDialect;
   @Mock RdsUtils mockRdsUtils;
   @Mock OpenedConnectionTracker mockTracker;
   @Mock JdbcCallable<Connection, SQLException> mockConnectionFunction;
@@ -80,7 +79,6 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockRdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
-    when(((TopologyAwareDatabaseCluster) mockTopologyAwareDialect).getNodeIdQuery()).thenReturn("any");
   }
 
   @AfterEach

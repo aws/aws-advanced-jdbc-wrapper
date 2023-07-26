@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-package integration.container.aurora;
+package software.amazon.jdbc.dialect;
 
-import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
-import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import java.util.Properties;
 
-public class TestAuroraHostListProvider extends AuroraHostListProvider {
-
-  public TestAuroraHostListProvider(
-      HostListProviderService hostListProviderService,
-      Properties properties,
-      String originalUrl) {
-
-    super(properties, originalUrl, hostListProviderService, "", "", "");
-  }
-
-  public static void clearCache() {
-    AuroraHostListProvider.clearAll();
-  }
+@FunctionalInterface
+public interface HostListProviderSupplier {
+  @NonNull HostListProvider getProvider(
+      final @NonNull Properties properties,
+      final String initialUrl,
+      final @NonNull HostListProviderService hostListProviderService);
 }

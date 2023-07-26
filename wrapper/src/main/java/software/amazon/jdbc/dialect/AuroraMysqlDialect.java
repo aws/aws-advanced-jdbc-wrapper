@@ -16,32 +16,24 @@
 
 package software.amazon.jdbc.dialect;
 
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 
-public class AuroraMysqlDialect extends MysqlDialect implements TopologyAwareDatabaseCluster {
+public class AuroraMysqlDialect extends MysqlDialect {
 
-  @Override
-  public String getTopologyQuery() {
-    return "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
-        + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
-        + "FROM information_schema.replica_host_status "
-        // filter out nodes that haven't been updated in the last 5 minutes
-        + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
-  }
+  private static final String TOPOLOGY_QUERY =
+      "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
+          + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
+          + "FROM information_schema.replica_host_status "
+          // filter out nodes that haven't been updated in the last 5 minutes
+          + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
-  @Override
-  public String getNodeIdQuery() {
-    return "SELECT @@aurora_server_id";
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return "SELECT @@innodb_read_only";
-  }
+  private static final String NODE_ID_QUERY = "SELECT @@aurora_server_id";
+  private static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -60,5 +52,16 @@ public class AuroraMysqlDialect extends MysqlDialect implements TopologyAwareDat
   @Override
   public List</* dialect code */ String> getDialectUpdateCandidates() {
     return null;
+  }
+
+  @Override
+  public HostListProviderSupplier getHostListProvider() {
+    return (properties, initialUrl, hostListProviderService) -> new AuroraHostListProvider(
+        properties,
+        initialUrl,
+        hostListProviderService,
+        TOPOLOGY_QUERY,
+        NODE_ID_QUERY,
+        IS_READER_QUERY);
   }
 }
