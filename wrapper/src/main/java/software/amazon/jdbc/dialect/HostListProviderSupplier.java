@@ -16,10 +16,10 @@
 
 package software.amazon.jdbc.dialect;
 
+import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
-import java.util.Properties;
 
 @FunctionalInterface
 public interface HostListProviderSupplier {

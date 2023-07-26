@@ -16,15 +16,12 @@
 
 package software.amazon.jdbc.dialect;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostListProviderService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Properties;
 import java.util.logging.Logger;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 /**
  * Suitable for the following AWS PG configurations.

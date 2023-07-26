@@ -16,12 +16,12 @@
 
 package software.amazon.jdbc.dialect;
 
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 public class AuroraMysqlDialect extends MysqlDialect {
 
