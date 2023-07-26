@@ -1,34 +1,42 @@
 # Amazon Web Services (AWS) JDBC Driver
-
 [![build_status](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/main.yml/badge.svg)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper/badge.svg)](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
 [![Javadoc](https://javadoc.io/badge2/software.amazon.jdbc/aws-advanced-jdbc-wrapper/javadoc.svg)](https://javadoc.io/doc/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
 [![Qodana](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml/badge.svg)](https://github.com/awslabs/aws-advanced-jdbc-wrapper/actions/workflows/code_quality.yml)
 
-The **Amazon Web Services JDBC Driver** has been redesigned as an advanced JDBC wrapper. This wrapper is complementary to and extends the functionality of an existing JDBC driver to help an application take advantage of the features of clustered databases such as Amazon Aurora. The AWS JDBC Driver does not implement connectivity on its own to any database, but will enable support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice.
+The **Amazon Web Services (AWS) JDBC Driver** has been redesigned as an advanced JDBC wrapper.
 
-The AWS JDBC Driver is meant to work with any JDBC driver. Currently, the AWS JDBC Driver has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+The wrapper is complementary to an existing JDBC driver and aims to extend the functionality of the driver to enable applications to take full advantage of the features of clustered databases such as Amazon Aurora. In other words, the AWS JDBC Driver does not connect directly to any database, but enables support of AWS and Aurora functionalities on top of an underlying JDBC driver of the user's choice.
 
-In conjunction with the PostgreSQL JDBC Driver, MySQL JDBC Driver, and MariaDB JDBC Driver, the AWS JDBC Driver enables fast failover for Amazon Aurora with PostgreSQL and MySQL compatibility. It also supports integration with [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) and [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/).
+The AWS JDBC Driver is targeted to work with **any** existing JDBC driver. Currently, the AWS JDBC Driver has been validated to support the [PostgreSQL JDBC Driver](https://github.com/pgjdbc/pgjdbc), [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j), and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
 
-## About the Driver
+In conjunction with the JDBC Drivers for PostgreSQL, MySQL, and MariaDB, the AWS JDBC Driver enables functionalities from Amazon Aurora such as fast failover for PostgreSQL and MySQL Aurora clusters. It also introduces integration with AWS authentication services such as [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) and [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/).
+
+## About the Wrapper
+Hosting a database cluster in the cloud via Aurora is able to provide users with sets of features and configurations to obtain maximum performance and availabilty, such as database failover. However, at the moment, most existing drivers do not currently support those functionalites or are not able to entirely take advantage of it.
+
+The main idea behind the AWS JDBC Driver is to add a software layer on top of an existing JDBC driver that would enable all the enhancements brought by Aurora, without requiring users to change their workflow with their databases and existing JDBC drivers.
 
 ### What is Failover?
-In an Amazon Aurora database (DB) cluster, failover is a mechanism by which Aurora automatically repairs the DB cluster status when a primary DB instance becomes unavailable. It achieves this goal by electing an Aurora Replica to become the new primary DB instance, so that the DB cluster can provide maximum availability to a primary read-write DB instance. The AWS JDBC Driver is designed to coordinate with this behavior in order to provide minimal downtime in the event of a DB instance failure.
+In an Amazon Aurora database cluster, **failover** is a mechanism by which Aurora automatically repairs the cluster status when a primary DB instance becomes unavailable. It achieves this goal by electing an Aurora Replica to become the new primary DB instance, so that the DB cluster can provide maximum availability to a primary read-write DB instance. The AWS JDBC Driver is designed to understand the situation and coordinate with the cluster in order to provide minimal downtime and allow connections to be very quickly restored in the event of a DB instance failure.
 
 ### Benefits of the AWS JDBC Driver
-Although Aurora is able to provide maximum availability through the use of failover, existing client drivers do not currently support this functionality. This is partially due to the time required for the DNS of the new primary DB instance to be fully resolved in order to properly direct the connection. The AWS JDBC Driver allows customers to continue using their existing community drivers in addition to having the AWS JDBC Driver fully exploit failover behavior by maintaining a cache of the Aurora cluster topology and each DB instance's role (Aurora Replica or primary DB instance). This topology is provided via a direct query to the Aurora DB, essentially providing a shortcut to bypass the delays caused by DNS resolution. With this knowledge, the AWS JDBC Driver can more closely monitor the Aurora DB cluster status so that a connection to the new primary DB instance can be established as fast as possible. Additionally, as noted above, the AWS JDBC Driver is designed to augment existing JDBC community drivers and be a unified connector to JDBC workflows for Aurora.
+This is partially due to the time required for the DNS of the new primary DB instance to be fully resolved in order to properly direct the connection. The AWS JDBC Driver allows customers to continue using their existing community drivers in addition to having the AWS JDBC Driver fully exploit failover behavior by maintaining a cache of the Aurora cluster topology and each DB instance's role (Aurora Replica or primary DB instance). This topology is provided via a direct query to the Aurora DB, essentially providing a shortcut to bypass the delays caused by DNS resolution. With this knowledge, the AWS JDBC Driver can more closely monitor the Aurora DB cluster status so that a connection to the new primary DB instance can be established as fast as possible.
 
-#### Enhanced Failure Monitoring
-Enhanced Failure Monitoring (EFM) is a feature available from the [Host Monitoring Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md#enhanced-failure-monitoring) that periodically checks the connected database node's health and availability. If a database node is determined to be unhealthy, the connection is aborted.
+### Enhanced Failure Monitoring
+Since a database failover is usually identified by reaching a network or a connection timeout, the AWS JDBC Driver introduces an enhanced and customizable manner to faster identify a database outage.
 
-#### Using the AWS JDBC Driver with plain RDS databases
+Enhanced Failure Monitoring (EFM) is a feature available from the [Host Monitoring Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md#enhanced-failure-monitoring) that periodically checks the connected database node's health and availability. If a database node is determined to be unhealthy, the connection is aborted (and potentially routed to another healthy node in the cluster).
+
+### Using the AWS JDBC Driver with plain RDS databases
+The AWS JDBC Driver also works with RDS provided databases that are not Aurora.
+
 Please visit [this page](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#using-the-aws-jdbc-driver-with-plain-rds-databases) for more information.
 
 ## Getting Started
-For more information on how to obtain the AWS JDBC Driver, minimum requirements to use it, 
-and how to integrate the AWS JDBC Driver into your project, please visit the 
+For more information on how to download the AWS JDBC Driver, minimum requirements to use it, 
+and how to integrate it within your project and with your JDBC driver of choice, please visit the 
 [Getting Started page](./docs/GettingStarted.md).
 ### Maven Central
 You can find our driver by searching in The Central Repository with GroupId and ArtifactId [software.amazon:aws-advanced-jdbc-wrapper][mvn-search].
@@ -78,10 +86,12 @@ You can find our driver by searching in The Central Repository with GroupId and 
 
 **A Secret ARN** has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
 ## Using the AWS JDBC Driver
-Please refer to the AWS JDBC Driver's [Documentation page](./docs/Documentation.md) for details about using the AWS JDBC Driver. 
+To find all the documentation and concrete examples on how to use the AWS JDBC Driver, please refer to the [AWS JDBC Driver Documentation](./docs/Documentation.md) page.
 
 ## Logging
-To configure logging, check out the [Logging](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging) section.
+Enabling logging is a very useful mechanism for troubleshooting any issue one might potentially experience while using the AWS JDBC Driver.
+
+In order to learn how to enable and configure logging, check out the [Logging](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging) section.
 
 ## Documentation
 Technical documentation regarding the functionality of the AWS JDBC Driver will be maintained in this GitHub repository. Since the AWS JDBC Driver requires an underlying JDBC driver, please refer to the individual driver's documentation for driver-specific information.
@@ -121,8 +131,7 @@ For all other questions, please use [GitHub discussions](https://github.com/awsl
 **Note:** Before making a pull request, [run all tests](./docs/development-guide/DevelopmentGuide.md#running-the-tests) and verify everything is passing.
 
 ### Code Style
-We enforce a style using [Google checkstyle](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml).
-This can be verified in the tests; tests will not pass with checkstyle errors.
+The project source code is written using the [Google checkstyle](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml), and the style is strictly enforced in our automation pipelines. Any contribution that does not respect/satisfy the style will automatically fail at build time.
 
 ## Releases
 The `aws-advanced-jdbc-wrapper` has a regular monthly release cadence. A new release will occur during the last week of each month. However, if there are no changes since the latest release, then a release will not occur.
