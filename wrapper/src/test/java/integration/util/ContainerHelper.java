@@ -26,7 +26,6 @@ import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.TestInstanceInfo;
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.testcontainers.DockerClientFactory;
@@ -55,7 +54,8 @@ public class ContainerHelper {
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 
-  private static final int proxyPort = 8666;
+  private static final int PROXY_CONTROL_PORT = 8474;
+  private static final int PROXY_PORT = 8666;
 
   public Long runCmd(GenericContainer<?> container, String... cmd)
       throws IOException, InterruptedException {
@@ -287,7 +287,9 @@ public class ContainerHelper {
             .withNetwork(network)
             .withNetworkAliases(networkAlias, networkUrl);
     container.start();
-    final ToxiproxyClient toxiproxyClient = new ToxiproxyClient(container.getHost(), container.getMappedPort(8474));
+    final ToxiproxyClient toxiproxyClient = new ToxiproxyClient(
+        container.getHost(),
+        container.getMappedPort(PROXY_CONTROL_PORT));
     this.createProxy(toxiproxyClient, hostname, port);
     return container;
   }
@@ -296,7 +298,7 @@ public class ContainerHelper {
       throws IOException {
     client.createProxy(
         hostname + ":" + port,
-        "0.0.0.0:" + proxyPort,
+        "0.0.0.0:" + PROXY_PORT,
         hostname + ":" + port);
   }
 
