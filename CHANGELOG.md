@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.2.x] - ???
 ### :crab: Changed
 - Dynamically sets the default host list provider based on the dialect used. User applications no longer need to manually set the AuroraHostListProvider when connecting to Aurora Postgres or Aurora MySQL databases.
-- Deprecated AuroraHostListConnectionPlugin.
+- Deprecated AuroraHostListConnectionPlugin. 
+  - As an enhancement, the wrapper is now able to automatically set the Aurora host list provider for connections to Aurora MySQL and Aurora PostgreSQL databases.
+    Aurora Host List Connection Plugin is deprecated. If you were using the `AuroraHostListConnectionPlugin`, you can simply remove the plugin from the `wrapperPlugins` parameter.
+    However, if you choose to, you can ensure the provider is used by specifying a topology-aware dialect, for more information, see [Database Dialects](docs/using-the-jdbc-driver/DatabaseDialects.md).
 
 ## [2.2.3] - 2023-07-28
 ### :magic_wand: Added

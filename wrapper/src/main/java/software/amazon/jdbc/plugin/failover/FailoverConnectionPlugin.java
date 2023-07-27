@@ -215,10 +215,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         initialUrl,
         hostListProviderService,
         initHostProviderFunc,
-        () -> this.hostListProviderService
-            .getDialect()
-            .getHostListProvider()
-            .getProvider(properties, initialUrl, hostListProviderService),
         () ->
             new ClusterAwareReaderFailoverHandler(
                 this.pluginService,
@@ -240,7 +236,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final String initialUrl,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc,
-      final Supplier<HostListProvider> hostListProviderSupplier,
       final Supplier<ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
       final Supplier<ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
       throws SQLException {
@@ -250,7 +245,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     if (hostListProviderService.isStaticHostListProvider()) {
-      hostListProviderService.setHostListProvider(hostListProviderSupplier.get());
+      throw new SQLException(Messages.get(
+          "Failover.invalidHostListProvider",
+          new Object[] {this.pluginService.getHostListProvider()}));
     }
 
     this.readerFailoverHandler = readerFailoverHandlerSupplier.get();

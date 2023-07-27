@@ -68,17 +68,28 @@ class FailoverConnectionPluginTest {
   private static final String MONITOR_METHOD_NAME = "Connection.executeQuery";
   private static final Object[] EMPTY_ARGS = {};
 
-  @Mock PluginService mockPluginService;
-  @Mock Connection mockConnection;
-  @Mock HostSpec mockHostSpec;
-  @Mock HostListProviderService mockHostListProviderService;
-  @Mock AuroraHostListProvider mockHostListProvider;
-  @Mock JdbcCallable<Void, SQLException> mockInitHostProviderFunc;
-  @Mock ClusterAwareReaderFailoverHandler mockReaderFailoverHandler;
-  @Mock ClusterAwareWriterFailoverHandler mockWriterFailoverHandler;
-  @Mock ReaderFailoverResult mockReaderResult;
-  @Mock WriterFailoverResult mockWriterResult;
-  @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
+  @Mock
+  PluginService mockPluginService;
+  @Mock
+  Connection mockConnection;
+  @Mock
+  HostSpec mockHostSpec;
+  @Mock
+  HostListProviderService mockHostListProviderService;
+  @Mock
+  AuroraHostListProvider mockHostListProvider;
+  @Mock
+  JdbcCallable<Void, SQLException> mockInitHostProviderFunc;
+  @Mock
+  ClusterAwareReaderFailoverHandler mockReaderFailoverHandler;
+  @Mock
+  ClusterAwareWriterFailoverHandler mockWriterFailoverHandler;
+  @Mock
+  ReaderFailoverResult mockReaderResult;
+  @Mock
+  WriterFailoverResult mockWriterResult;
+  @Mock
+  JdbcCallable<ResultSet, SQLException> mockSqlFunction;
 
   private final Properties properties = new Properties();
   private FailoverConnectionPlugin plugin;
@@ -113,7 +124,6 @@ class FailoverConnectionPluginTest {
         "initialUrl",
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockHostListProvider,
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
@@ -121,21 +131,19 @@ class FailoverConnectionPluginTest {
   }
 
   @Test
-  void test_initHostProvider_withStaticHostListProvider() throws SQLException {
+  void test_initHostProvider_withStaticHostListProvider() {
     when(mockHostListProviderService.isStaticHostListProvider()).thenReturn(true);
 
     initializePlugin();
 
-    plugin.initHostProvider(
-        "initialUrl",
-        mockHostListProviderService,
-        mockInitHostProviderFunc,
-        () -> mockHostListProvider,
-        () -> mockReaderFailoverHandler,
-        () -> mockWriterFailoverHandler);
-
-    verify(mockHostListProviderService).isStaticHostListProvider();
-    verify(mockHostListProviderService).setHostListProvider(eq(mockHostListProvider));
+    assertThrows(SQLException.class, () -> {
+      plugin.initHostProvider(
+          "initialUrl",
+          mockHostListProviderService,
+          mockInitHostProviderFunc,
+          () -> mockReaderFailoverHandler,
+          () -> mockWriterFailoverHandler);
+    });
   }
 
   @Test
@@ -149,7 +157,6 @@ class FailoverConnectionPluginTest {
         "initialUrl",
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockHostListProvider,
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
@@ -298,7 +305,6 @@ class FailoverConnectionPluginTest {
         "initialUrl",
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockHostListProvider,
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
@@ -327,7 +333,6 @@ class FailoverConnectionPluginTest {
         "initialUrl",
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockHostListProvider,
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
@@ -349,7 +354,6 @@ class FailoverConnectionPluginTest {
         "initialUrl",
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockHostListProvider,
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
@@ -371,7 +375,6 @@ class FailoverConnectionPluginTest {
         "initialUrl",
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockHostListProvider,
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
@@ -396,7 +399,6 @@ class FailoverConnectionPluginTest {
         "initialUrl",
         mockHostListProviderService,
         mockInitHostProviderFunc,
-        () -> mockHostListProvider,
         () -> mockReaderFailoverHandler,
         () -> mockWriterFailoverHandler);
 
