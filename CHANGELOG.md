@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - MySQL code samples ([PR #532](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/532)).
   - Add a Table of Contents section for the sample codes on README.md. See [README.md](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/README.md#examples).
   - Sample tutorial and code example for Vert.x. See the [tutorial](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/examples/VertxExample/README.md) and [code example](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/examples/VertxExample/src/main/java/com/example/starter/MainVerticle.java).
-  - Added Properties section on the README listing all the driver properties and where they are used. See the [README.md](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/README.md#properties)
+  - Added Properties section on the README listing all the driver properties and where they are used. See the [README.md](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/README.md#properties).
 
 ## [2.2.2] - 2023-07-05
 ### :magic_wand: Added
