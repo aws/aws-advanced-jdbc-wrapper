@@ -502,7 +502,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public HostSpec identifyConnection(Connection connection) throws SQLException {
-    return this.hostListProvider.identifyConnection(connection);
+    return this.getHostListProvider().identifyConnection(connection);
   }
 
   @Override
