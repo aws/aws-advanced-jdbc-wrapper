@@ -55,7 +55,7 @@ public class ContainerHelper {
   private static final DockerImageName TOXIPROXY_IMAGE =
       DockerImageName.parse("shopify/toxiproxy:2.1.4");
 
-  private final static int proxyPort = 8666;
+  private static final int proxyPort = 8666;
 
   public Long runCmd(GenericContainer<?> container, String... cmd)
       throws IOException, InterruptedException {
