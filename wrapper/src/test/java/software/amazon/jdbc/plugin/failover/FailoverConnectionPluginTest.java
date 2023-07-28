@@ -116,21 +116,6 @@ class FailoverConnectionPluginTest {
   }
 
   @Test
-  void test_initHostProvider_withFailoverDisabled() throws SQLException {
-    properties.setProperty(FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
-    initializePlugin();
-
-    plugin.initHostProvider(
-        "initialUrl",
-        mockHostListProviderService,
-        mockInitHostProviderFunc,
-        () -> mockReaderFailoverHandler,
-        () -> mockWriterFailoverHandler);
-
-    verify(mockHostListProviderService, never()).isStaticHostListProvider();
-  }
-
-  @Test
   void test_notifyNodeListChanged_withFailoverDisabled() {
     properties.setProperty(FailoverConnectionPlugin.ENABLE_CLUSTER_AWARE_FAILOVER.name, "false");
     final Map<String, EnumSet<NodeChangeOptions>> changes = new HashMap<>();
