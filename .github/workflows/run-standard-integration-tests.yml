@@ -9,10 +9,6 @@ on:
     branches:
       - '*'
     paths-ignore:
-      - '**/*.md'
-      - '**/docs/**'
-      - '**/*.jpg'
-      - '**/*.png'
       - '**/release_draft.yml'
       - '**/maven*.yml'
 

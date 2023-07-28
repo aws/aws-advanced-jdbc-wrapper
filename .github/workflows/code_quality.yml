@@ -11,7 +11,6 @@ on:
     paths-ignore:
       - '**/release_draft.yml'
       - '**/maven*.yml'
-      - '**/*.md'
 
 jobs:
   qodana:
