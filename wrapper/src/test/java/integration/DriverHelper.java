@@ -30,6 +30,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.postgresql.PGProperty;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
+import software.amazon.jdbc.dialect.DialectCodes;
+import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.util.StringUtils;
 
 public class DriverHelper {
 
@@ -179,10 +182,29 @@ public class DriverHelper {
 
   public static String getDriverRequiredParameters(
       DatabaseEngine databaseEngine, TestDriver testDriver) {
+    final String dialect = getDialect(databaseEngine);
+    final String params = dialect.equals(DialectCodes.UNKNOWN) ? "" : "?wrapperDialect=" + dialect;
     if (testDriver == TestDriver.MARIADB && databaseEngine == DatabaseEngine.MYSQL) {
-      return "?permitMysqlScheme";
+      return StringUtils.isNullOrEmpty(params) ? "?permitMysqlScheme" : params + "&permitMysqlScheme";
     }
-    return "";
+    return params;
+  }
+
+  public static String getDialect(DatabaseEngine databaseEngine) {
+    final DatabaseEngineDeployment deployment =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+    if (deployment == DatabaseEngineDeployment.AURORA) {
+      switch (databaseEngine) {
+        case PG:
+          return DialectCodes.AURORA_PG;
+        case MYSQL:
+          return DialectCodes.AURORA_MYSQL;
+        default:
+          return DialectCodes.UNKNOWN;
+      }
+    }
+
+    return DialectCodes.UNKNOWN;
   }
 
   public static String getHostnameSql() {

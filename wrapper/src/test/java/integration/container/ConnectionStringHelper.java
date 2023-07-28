@@ -21,6 +21,8 @@ import integration.DriverHelper;
 import integration.TestInstanceInfo;
 import java.util.Properties;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.DialectCodes;
+import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.util.StringUtils;
 
 public class ConnectionStringHelper {
@@ -184,13 +186,15 @@ public class ConnectionStringHelper {
 
   public static Properties getDefaultProperties() {
     final Properties props = new Properties();
-    props.setProperty(
-        PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    props.setProperty(
-        PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
-    DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
+    final TestEnvironment env = TestEnvironment.getCurrent();
+    PropertyDefinition.USER.set(props, env.getInfo().getDatabaseInfo().getUsername());
+    PropertyDefinition.PASSWORD.set(props, env.getInfo().getDatabaseInfo().getPassword());
+    DriverHelper.setTcpKeepAlive(env.getCurrentDriver(), props, false);
+    final String dialect = DriverHelper.getDialect(env.getInfo().getRequest().getDatabaseEngine());
+    if (!dialect.equals(DialectCodes.UNKNOWN)) {
+      DialectManager.DIALECT.set(props, dialect);
+    }
+
     return props;
   }
 

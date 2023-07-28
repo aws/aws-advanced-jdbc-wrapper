@@ -55,6 +55,8 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.DialectCodes;
+import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
@@ -309,6 +311,12 @@ public class HikariTests {
     DriverHelper.setMonitoringSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
     DriverHelper.setConnectTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
+    final String dialect = DriverHelper.getDialect(TestEnvironment.getCurrent().getInfo()
+        .getRequest()
+        .getDatabaseEngine());
+    if (!dialect.equals(DialectCodes.UNKNOWN)) {
+      DialectManager.DIALECT.set(targetDataSourceProps, dialect);
+    }
 
     if (customProps != null) {
       final Enumeration<?> propertyNames = customProps.propertyNames();
