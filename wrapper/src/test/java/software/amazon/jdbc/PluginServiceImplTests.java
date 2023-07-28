@@ -654,7 +654,9 @@ public class PluginServiceImplTests {
     when(target.getDialect()).thenReturn(dialect);
     when(resultSet.next()).thenReturn(true, false); // Result set contains 1 row.
     when(resultSet.getString(eq(1))).thenReturn("ip");
-    when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(new HostSpec("instance"));
+    if (dialect instanceof AuroraPgDialect) {
+      when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(new HostSpec("instance"));
+    }
 
     target.fillAliases(newConnection, empty);
 

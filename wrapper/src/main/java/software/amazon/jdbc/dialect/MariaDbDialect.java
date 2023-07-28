@@ -23,6 +23,7 @@ import java.sql.Statement;
 import java.util.List;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MariaDBExceptionHandler;
+import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 
 public class MariaDbDialect implements Dialect {
 
@@ -72,4 +73,7 @@ public class MariaDbDialect implements Dialect {
     return null;
   }
 
+  public HostListProviderSupplier getHostListProvider() {
+    return ConnectionStringHostListProvider::new;
+  }
 }

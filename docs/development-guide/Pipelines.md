@@ -67,7 +67,9 @@ it does not perform any additional work.
 
 For cases where keeping updated information on existing and available replicas is necessary,
 such as during the failover procedure, it is important to have a host list provider that can re-fetch information once in a while,
-like the [Aurora host list provider](/wrapper/src/main/java/software/amazon/jdbc/plugin/AuroraHostListConnectionPlugin.java).
+like the Aurora host list provider.
+The Aurora host list provider should be automatically used by the wrapper when the application is connecting to Aurora databases.
+However, you can ensure that the provider is used by specifying a topology-aware dialect, for more information, see [Database Dialects](../using-the-jdbc-driver/DatabaseDialects.md).
 
 ## Connection Changed Notification Pipeline
 
@@ -87,7 +89,7 @@ will be called whenever changes in the current node list are detected.
 
 Plugins should subscribe to this pipeline and the getHostSpecByStrategy pipeline if they implement a host selection strategy via the `getHostSpecByStrategy` method. In this case, plugins should override the `acceptsStrategy` and `getHostSpecByStrategy` methods to implement any desired logic. The `acceptsStrategy` method should return true for each selection strategy that the plugin supports.
 
-## getHostSpecByStrategy pipeline
+## Get HostSpec by Strategy pipeline
 
 Plugins should subscribe to this pipeline and the acceptsStrategy pipeline if they implement a host selection strategy. In this case, plugins should override both the `acceptsStrategy` method and the `getHostSpecByStrategy` method. The `acceptsStrategy` method should return true for each strategy that can be processed by the plugin in `getHostSpecByStrategy`. The `getHostSpecByStrategy` method should implement the desired logic for selecting a host using any plugin-accepted strategies. Host selection via a "random" strategy is supported by default.
 

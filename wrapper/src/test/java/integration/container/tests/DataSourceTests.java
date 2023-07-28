@@ -116,6 +116,7 @@ public class DataSourceTests {
     ds.setJdbcUrl(ConnectionStringHelper.getUrl());
 
     final Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     final Hashtable<String, Object> env = new Hashtable<>();

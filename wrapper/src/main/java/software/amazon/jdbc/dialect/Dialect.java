@@ -32,4 +32,6 @@ public interface Dialect {
   boolean isDialect(Connection connection);
 
   List</* dialect code */ String> getDialectUpdateCandidates();
+
+  HostListProviderSupplier getHostListProvider();
 }
