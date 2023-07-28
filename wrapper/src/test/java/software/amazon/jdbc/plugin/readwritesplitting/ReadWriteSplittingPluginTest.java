@@ -23,6 +23,7 @@ import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -472,5 +473,69 @@ public class ReadWriteSplittingPluginTest {
             true,
             this.mockConnectFunc));
     verify(mockHostListProviderService, times(0)).setInitialConnectionHostSpec(any(HostSpec.class));
+  }
+
+  @Test
+  public void testExecuteClearWarnings() throws SQLException {
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+            mockPluginService,
+            defaultProps,
+            mockHostListProviderService,
+            mockWriterConn,
+            mockReaderConn1);
+
+    plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            "Connection.clearWarnings",
+            mockSqlFunction,
+            new Object[] {}
+    );
+    verify(mockWriterConn, times(1)).clearWarnings();
+    verify(mockReaderConn1, times(1)).clearWarnings();
+  }
+
+  @Test
+  public void testExecuteClearWarningsOnClosedConnectionsIsNotCalled() throws SQLException {
+    when(mockWriterConn.isClosed()).thenReturn(true);
+    when(mockReaderConn1.isClosed()).thenReturn(true);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+            mockPluginService,
+            defaultProps,
+            mockHostListProviderService,
+            mockWriterConn,
+            mockReaderConn1);
+
+    plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            "Connection.clearWarnings",
+            mockSqlFunction,
+            new Object[] {}
+    );
+    verify(mockWriterConn, never()).clearWarnings();
+    verify(mockReaderConn1, never()).clearWarnings();
+  }
+
+  @Test
+  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() throws SQLException {
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+            mockPluginService,
+            defaultProps,
+            mockHostListProviderService,
+            null,
+            null);
+
+    plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            "Connection.clearWarnings",
+            mockSqlFunction,
+            new Object[] {}
+    );
   }
 }
