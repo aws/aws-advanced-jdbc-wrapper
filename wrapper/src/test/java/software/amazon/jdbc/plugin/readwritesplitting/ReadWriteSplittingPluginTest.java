@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.readwritesplitting;
 
 import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
@@ -529,13 +530,16 @@ public class ReadWriteSplittingPluginTest {
             null,
             null);
 
-    plugin.execute(
-            ResultSet.class,
-            SQLException.class,
-            mockStatement,
-            "Connection.clearWarnings",
-            mockSqlFunction,
-            new Object[] {}
-    );
+    // calling clearWarnings() on nullified connection would throw an exception
+    assertDoesNotThrow(() -> {
+      plugin.execute(
+              ResultSet.class,
+              SQLException.class,
+              mockStatement,
+              "Connection.clearWarnings",
+              mockSqlFunction,
+              new Object[] {}
+      );
+    });
   }
 }
