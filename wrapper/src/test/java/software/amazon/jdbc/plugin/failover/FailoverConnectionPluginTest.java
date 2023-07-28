@@ -131,22 +131,6 @@ class FailoverConnectionPluginTest {
   }
 
   @Test
-  void test_initHostProvider_withStaticHostListProvider() {
-    when(mockHostListProviderService.isStaticHostListProvider()).thenReturn(true);
-
-    initializePlugin();
-
-    assertThrows(SQLException.class, () -> {
-      plugin.initHostProvider(
-          "initialUrl",
-          mockHostListProviderService,
-          mockInitHostProviderFunc,
-          () -> mockReaderFailoverHandler,
-          () -> mockWriterFailoverHandler);
-    });
-  }
-
-  @Test
   void test_initHostProvider_withDynamicHostListProvider() throws SQLException {
     when(mockHostListProviderService.isStaticHostListProvider()).thenReturn(false);
     when(mockPluginService.getHostListProvider()).thenReturn(new FooHostListProvider());

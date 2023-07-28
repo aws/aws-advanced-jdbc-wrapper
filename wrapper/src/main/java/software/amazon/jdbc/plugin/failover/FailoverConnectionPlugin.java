@@ -31,7 +31,6 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostAvailability;
-import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -41,7 +40,6 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.util.Messages;
@@ -242,12 +240,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.hostListProviderService = hostListProviderService;
     if (!this.enableFailoverSetting) {
       return;
-    }
-
-    if (hostListProviderService.isStaticHostListProvider()) {
-      throw new SQLException(Messages.get(
-          "Failover.invalidHostListProvider",
-          new Object[] {this.pluginService.getHostListProvider()}));
     }
 
     this.readerFailoverHandler = readerFailoverHandlerSupplier.get();
