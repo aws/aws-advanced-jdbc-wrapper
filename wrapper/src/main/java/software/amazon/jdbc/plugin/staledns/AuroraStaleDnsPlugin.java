@@ -108,9 +108,6 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc) throws SQLException {
     this.hostListProviderService = hostListProviderService;
-    if (hostListProviderService.isStaticHostListProvider()) {
-      throw new SQLException(Messages.get("AuroraStaleDnsPlugin.requireDynamicProvider"));
-    }
     initHostProviderFunc.call();
   }
 

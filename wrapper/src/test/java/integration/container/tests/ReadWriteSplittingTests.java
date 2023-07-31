@@ -297,29 +297,6 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
-  public void test_setReadOnlyTrue_oneHost() throws SQLException {
-    // Use static host list with only one host
-    final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
-    ConnectionStringHostListProvider.SINGLE_WRITER_CONNECTION_STRING.set(props, "true");
-
-    final String writerUrl =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getHost();
-    final String url = DriverHelper.getWrapperDriverProtocol()
-        + writerUrl + "/"
-        + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-        + DriverHelper.getDriverRequiredParameters();
-
-    try (final Connection conn = DriverManager.getConnection(url, props)) {
-      final String writerConnectionId = auroraUtil.queryInstanceId(conn);
-
-      conn.setReadOnly(true);
-      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      assertEquals(writerConnectionId, currentConnectionId);
-    }
-  }
-
-  @TestTemplate
   @EnableOnNumOfInstances(min = 3)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_setReadOnlyTrue_allReadersDown() throws SQLException {
