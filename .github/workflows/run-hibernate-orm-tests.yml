@@ -17,6 +17,19 @@ jobs:
     name: 'Run Hibernate ORM integration tests'
     runs-on: ubuntu-latest
     steps:
+      - name: 'Get changed files'
+        uses: tj-actions/changed-files@v37
+        with:
+          files_yaml: |
+            doc:
+              - '**/*.md'
+              - '**/docs/**'
+              - '**/*.jpg'
+              - '**/*.png'
+      - name: 'Check changed files'
+        id: changed-files
+        if: steps.changed-files-specific.outputs.only_changed == 'true' || steps.changed-files-specific.outputs.only_modified == 'true'
+        run: echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
       - name: 'Clone repository'
         uses: actions/checkout@v3
         with:
@@ -27,17 +40,18 @@ jobs:
           distribution: 'corretto'
           java-version: 8
       - name: 'Run Hibernate ORM integration tests'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
         run: |
           ./gradlew --no-parallel --no-daemon test-hibernate-only
       - name: 'Archive junit results'
-        if: always()
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
         uses: actions/upload-artifact@v3
         with:
           name: junit-report
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
-        if: always()
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
         uses: actions/upload-artifact@v3
         with:
           name: html-summary-report

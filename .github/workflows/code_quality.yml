@@ -16,8 +16,23 @@ jobs:
   qodana:
     runs-on: ubuntu-latest
     steps:
+      - name: 'Get changed files'
+        uses: tj-actions/changed-files@v37
+        with:
+          files_yaml: |
+            doc:
+              - '**/*.md'
+              - '**/docs/**'
+              - '**/*.jpg'
+              - '**/*.png'
+      - name: 'Check changed files'
+        id: changed-files
+        if: steps.changed-files-specific.outputs.only_changed == 'true' || steps.changed-files-specific.outputs.only_modified == 'true'
+        run: echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
         with:
           fetch-depth: 0
       - name: 'Qodana Scan'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
         uses: JetBrains/qodana-action@v2022.2.1
