@@ -28,7 +28,7 @@ jobs:
               - '**/*.png'
       - name: 'Check changed files'
         id: changed-files
-        if: steps.changed-files-specific.outputs.only_changed == 'true' || steps.changed-files-specific.outputs.only_modified == 'true'
+        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'true' || steps.changed-files-specific.outputs.doc_only_modified == 'true'}}
         run: echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
       - name: 'Clone repository'
         if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
