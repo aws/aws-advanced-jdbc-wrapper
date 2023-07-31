@@ -54,10 +54,12 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -74,8 +76,10 @@ public class PluginBenchmarks {
   private static final String CONNECTION_STRING = "jdbc:postgresql://my.domain.com";
   private static final String PG_CONNECTION_STRING =
       "jdbc:aws-wrapper:postgresql://instance-0.XYZ.us-east-2.rds.amazonaws.com";
+  private static final String TEST_HOST = "instance-0";
   private static final int TEST_PORT = 5432;
-  private final HostSpec writerHostSpec = new HostSpec("instance-0", TEST_PORT);
+  private final HostSpec writerHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host(TEST_HOST).port(TEST_PORT).build();
 
   @Mock private PluginService mockPluginService;
   @Mock private ConnectionPluginManager mockConnectionPluginManager;

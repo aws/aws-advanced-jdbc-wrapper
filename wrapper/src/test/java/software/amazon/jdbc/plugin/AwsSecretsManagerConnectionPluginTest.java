@@ -54,6 +54,7 @@ import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerExcept
 import software.amazon.awssdk.utils.Pair;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
@@ -63,6 +64,7 @@ import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
 
 public class AwsSecretsManagerConnectionPluginTest {
@@ -83,7 +85,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final Pair<String, Region> SECRET_CACHE_KEY = Pair.of(TEST_SECRET_ID, Region.of(TEST_REGION));
   private static final AwsSecretsManagerConnectionPlugin.Secret TEST_SECRET =
       new AwsSecretsManagerConnectionPlugin.Secret("testUser", "testPassword");
-  private static final HostSpec TEST_HOSTSPEC = new HostSpec(TEST_HOST, TEST_PORT);
+  private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host(TEST_HOST).port(TEST_PORT).build();
   private static final GetSecretValueResponse VALID_GET_SECRET_VALUE_RESPONSE =
       GetSecretValueResponse.builder().secretString(VALID_SECRET_STRING).build();
   private static final GetSecretValueResponse INVALID_GET_SECRET_VALUE_RESPONSE =
@@ -116,6 +119,8 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     when(mockDialectManager.getDialect(anyString(), anyString(), any(Properties.class)))
         .thenReturn(mockTopologyAwareDialect);
+
+    when(mockService.getHostSpecBuilder()).thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
   }
 
   @AfterEach

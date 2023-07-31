@@ -27,6 +27,8 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
@@ -74,6 +76,12 @@ public class DialectManager implements DialectProvider {
   private boolean canUpdate = false;
   private Dialect dialect = null;
   private String dialectCode;
+
+  private PluginService pluginService;
+
+  public DialectManager(PluginService pluginService) {
+    this.pluginService = pluginService;
+  }
 
   public static void setCustomDialect(final @NonNull Dialect dialect) {
     customDialect = dialect;
@@ -127,7 +135,8 @@ public class DialectManager implements DialectProvider {
     }
 
     String host = url;
-    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(url, true);
+    final List<HostSpec> hosts = this.connectionUrlParser.getHostsFromConnectionUrl(url, true,
+        () -> pluginService.getHostSpecBuilder());
     if (!Utils.isNullOrEmpty(hosts)) {
       host = hosts.get(0).getHost();
     }

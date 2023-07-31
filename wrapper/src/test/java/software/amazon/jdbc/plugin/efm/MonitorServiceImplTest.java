@@ -42,7 +42,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class MonitorServiceImplTest {
 
@@ -184,8 +186,10 @@ class MonitorServiceImplTest {
     final Set<String> keysB = new HashSet<>(Collections.singletonList("monitorB"));
 
     // Populate threadContainer with MonitorA and MonitorB
-    monitorService.getMonitor(keysA, new HostSpec("test"), new Properties());
-    monitorService.getMonitor(keysB, new HostSpec("test"), new Properties());
+    monitorService.getMonitor(keysA,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test").build(), new Properties());
+    monitorService.getMonitor(keysB,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test").build(), new Properties());
 
     monitorService.stopMonitoringForAllConnections(keysA);
     verify(monitorA).clearContexts();

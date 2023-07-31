@@ -26,6 +26,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class ConnectionUrlBuilderTest {
 
@@ -72,7 +74,8 @@ class ConnectionUrlBuilderTest {
   }
 
   static Stream<Arguments> urlArguments() {
-    final HostSpec hostSpec = new HostSpec("fooUrl");
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("fooUrl")
+        .build();
     final Properties properties = new Properties();
     properties.setProperty("bar", "baz");
     return Stream.of(
@@ -104,7 +107,8 @@ class ConnectionUrlBuilderTest {
   }
 
   static Stream<Arguments> invalidUrlArguments() {
-    final HostSpec hostSpec = new HostSpec("fooUrl");
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("fooUrl")
+        .build();
     return Stream.of(
         Arguments.of("", hostSpec, "server", "1234", "dbName")
     );

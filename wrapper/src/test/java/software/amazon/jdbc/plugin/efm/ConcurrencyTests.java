@@ -57,15 +57,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 @Disabled
 @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
@@ -104,7 +106,8 @@ public class ConcurrencyTests {
           return monitoringThread;
         });
 
-    final HostSpec hostSpec = new HostSpec("test-host");
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test-host")
+        .build();
     hostSpec.addAlias("test-host-alias-a");
     hostSpec.addAlias("test-host-alias-b");
 
@@ -193,7 +196,8 @@ public class ConcurrencyTests {
           return monitoringThread;
         });
 
-    final HostSpec hostSpec = new HostSpec("test-host");
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test-host")
+        .build();
     hostSpec.addAlias("test-host-alias-a");
     hostSpec.addAlias("test-host-alias-b");
 
@@ -394,6 +398,11 @@ public class ConcurrencyTests {
     @Override
     public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
 
+    }
+
+    @Override
+    public HostSpecBuilder getHostSpecBuilder() {
+      return new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
     }
   }
 

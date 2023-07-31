@@ -43,9 +43,11 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class ClusterAwareWriterFailoverHandlerTest {
 
@@ -59,10 +61,14 @@ class ClusterAwareWriterFailoverHandlerTest {
 
   private AutoCloseable closeable;
   private final Properties properties = new Properties();
-  private final HostSpec newWriterHost = new HostSpec("new-writer-host");
-  private final HostSpec writer = new HostSpec("writer-host");
-  private final HostSpec readerA = new HostSpec("reader-a-host");
-  private final HostSpec readerB = new HostSpec("reader-b-host");
+  private final HostSpec newWriterHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("new-writer-host").build();
+  private final HostSpec writer = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("writer-host").build();
+  private final HostSpec readerA = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("reader-a-host").build();
+  private final HostSpec readerB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("reader-b-host").build();
   private final List<HostSpec> topology = Arrays.asList(writer, readerA, readerB);
   private final List<HostSpec> newTopology = Arrays.asList(newWriterHost, readerA, readerB);
 

@@ -54,14 +54,14 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.dialect.AuroraMysqlDialect;
-import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider.FetchTopologyResult;
 
 class AuroraHostListProviderTest {
@@ -78,8 +78,11 @@ class AuroraHostListProviderTest {
   @Captor private ArgumentCaptor<String> queryCaptor;
 
   private AutoCloseable closeable;
-  private final HostSpec currentHostSpec = new HostSpec("foo", 1234);
-  private final List<HostSpec> hosts = Arrays.asList(new HostSpec("host1"), new HostSpec("host2"));
+  private final HostSpec currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("foo").port(1234).build();
+  private final List<HostSpec> hosts = Arrays.asList(
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host1").build(),
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host2").build());
 
   @BeforeEach
   void setUp() throws SQLException {
@@ -90,6 +93,8 @@ class AuroraHostListProviderTest {
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(queryCaptor.capture())).thenReturn(mockResultSet);
     when(mockHostListProviderService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    when(mockHostListProviderService.getHostSpecBuilder())
+        .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
   }
 
   @AfterEach
@@ -134,7 +139,8 @@ class AuroraHostListProviderTest {
 
     AuroraHostListProvider.topologyCache.put(auroraHostListProvider.clusterId, hosts, defaultRefreshRateNano);
 
-    final List<HostSpec> newHosts = Collections.singletonList(new HostSpec("newHost"));
+    final List<HostSpec> newHosts = Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("newHost").build());
     doReturn(newHosts).when(auroraHostListProvider).queryForTopology(mockConnection);
 
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
@@ -172,15 +178,19 @@ class AuroraHostListProviderTest {
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
     verify(auroraHostListProvider, atMostOnce()).queryForTopology(mockConnection);
     assertNotNull(result.hosts);
-    assertEquals(Arrays.asList(new HostSpec("url")), result.hosts);
+    assertEquals(
+        Arrays.asList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("url").build()),
+        result.hosts);
   }
 
   @Test
   void testQueryForTopology_withDifferentDriverProtocol() throws SQLException {
     final List<HostSpec> expectedMySQL = Collections.singletonList(
-        new HostSpec("mysql", HostSpec.NO_PORT, HostRole.WRITER, HostAvailability.AVAILABLE, 0));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("mysql").port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER).availability(HostAvailability.AVAILABLE).weight(0).build());
     final List<HostSpec> expectedPostgres = Collections.singletonList(
-        new HostSpec("postgresql", HostSpec.NO_PORT, HostRole.WRITER, HostAvailability.AVAILABLE, 0));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("postgresql").port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER).availability(HostAvailability.AVAILABLE).weight(0).build());
     when(mockResultSet.next()).thenReturn(true, false);
     when(mockResultSet.getBoolean(eq(2))).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("mysql");
@@ -248,9 +258,12 @@ class AuroraHostListProviderTest {
             "jdbc:something://cluster-a.domain.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
-        new HostSpec("instance-a-1.domain.com", HostSpec.NO_PORT, HostRole.WRITER),
-        new HostSpec("instance-a-2.domain.com", HostSpec.NO_PORT, HostRole.READER),
-        new HostSpec("instance-a-3.domain.com", HostSpec.NO_PORT, HostRole.READER));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-1.domain.com").port(HostSpec.NO_PORT).role(HostRole.WRITER).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-2.domain.com").port(HostSpec.NO_PORT).role(HostRole.READER).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-3.domain.com").port(HostSpec.NO_PORT).role(HostRole.READER).build());
 
     doReturn(topologyClusterA)
         .when(provider1).queryForTopology(any(Connection.class));
@@ -267,9 +280,12 @@ class AuroraHostListProviderTest {
     assertNull(provider2.getCachedTopology());
 
     final List<HostSpec> topologyClusterB = Arrays.asList(
-        new HostSpec("instance-b-1.domain.com", HostSpec.NO_PORT, HostRole.WRITER),
-        new HostSpec("instance-b-2.domain.com", HostSpec.NO_PORT, HostRole.READER),
-        new HostSpec("instance-b-3.domain.com", HostSpec.NO_PORT, HostRole.READER));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-b-1.domain.com").port(HostSpec.NO_PORT).role(HostRole.WRITER).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-b-2.domain.com").port(HostSpec.NO_PORT).role(HostRole.READER).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-b-3.domain.com").port(HostSpec.NO_PORT).role(HostRole.READER).build());
     doReturn(topologyClusterB).when(provider2).queryForTopology(any(Connection.class));
 
     final List<HostSpec> topologyProvider2 = provider2.refresh(Mockito.mock(Connection.class));
@@ -287,9 +303,21 @@ class AuroraHostListProviderTest {
             "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
-        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER),
-        new HostSpec("instance-a-2.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER),
-        new HostSpec("instance-a-3.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-2.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.READER)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-3.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.READER)
+            .build());
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
@@ -322,9 +350,21 @@ class AuroraHostListProviderTest {
             "jdbc:something://cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
-        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER),
-        new HostSpec("instance-a-2.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER),
-        new HostSpec("instance-a-3.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-2.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.READER)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-3.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.READER)
+            .build());
 
     doReturn(topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
@@ -357,9 +397,21 @@ class AuroraHostListProviderTest {
             "jdbc:something://instance-a-2.xyz.us-east-2.rds.amazonaws.com/"));
     provider1.init();
     final List<HostSpec> topologyClusterA = Arrays.asList(
-        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER),
-        new HostSpec("instance-a-2.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER),
-        new HostSpec("instance-a-3.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.READER));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-2.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.READER)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-3.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.READER)
+            .build());
 
     doAnswer(a -> topologyClusterA).when(provider1).queryForTopology(any(Connection.class));
 
@@ -416,7 +468,8 @@ class AuroraHostListProviderTest {
     auroraHostListProvider = Mockito.spy(getAuroraHostListProvider(
         mockHostListProviderService,
         "jdbc:someprotocol://url"));
-    auroraHostListProvider.clusterInstanceTemplate = new HostSpec("?.pattern");
+    auroraHostListProvider.clusterInstanceTemplate = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("?.pattern").build();
 
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
@@ -428,7 +481,11 @@ class AuroraHostListProviderTest {
   @Test
   void testIdentifyConnectionHostNotInTopology() throws SQLException {
     final List<HostSpec> cachedTopology = Collections.singletonList(
-        new HostSpec("instance-a-1.xyz.us-east-2.rds.amazonaws.com", HostSpec.NO_PORT, HostRole.WRITER));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+            .port(HostSpec.NO_PORT)
+            .role(HostRole.WRITER)
+            .build());
 
     auroraHostListProvider = Mockito.spy(getAuroraHostListProvider(
         mockHostListProviderService,
@@ -442,10 +499,11 @@ class AuroraHostListProviderTest {
 
   @Test
   void testIdentifyConnectionHostInTopology() throws SQLException {
-    final HostSpec expectedHost = new HostSpec(
-        "instance-a-1.xyz.us-east-2.rds.amazonaws.com",
-        HostSpec.NO_PORT,
-        HostRole.WRITER);
+    final HostSpec expectedHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+        .port(HostSpec.NO_PORT)
+        .role(HostRole.WRITER)
+        .build();
     expectedHost.setHostId("instance-a-1");
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
@@ -480,8 +538,14 @@ class AuroraHostListProviderTest {
     when(mockResultSet.getFloat(4)).thenReturn(nodeLag).thenReturn(nodeLag);
     when(mockResultSet.getTimestamp(5)).thenReturn(firstTimestamp).thenReturn(secondTimestamp);
     long weight = Math.round(nodeLag) * 100L + Math.round(cpuUtilization);
-    final HostSpec expectedWriter =
-        new HostSpec(hostName2, -1, HostRole.WRITER, HostAvailability.AVAILABLE, weight, secondTimestamp);
+    final HostSpec expectedWriter = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host(hostName2)
+        .port(-1)
+        .role(HostRole.WRITER)
+        .availability(HostAvailability.AVAILABLE)
+        .weight(weight)
+        .lastUpdateTime(secondTimestamp)
+        .build();
 
     final FetchTopologyResult result = auroraHostListProvider.getTopology(mockConnection, true);
     verify(auroraHostListProvider, atMostOnce()).queryForTopology(mockConnection);

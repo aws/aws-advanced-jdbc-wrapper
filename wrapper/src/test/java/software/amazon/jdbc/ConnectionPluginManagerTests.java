@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.mock.TestPluginOne;
 import software.amazon.jdbc.mock.TestPluginThree;
 import software.amazon.jdbc.mock.TestPluginThrowException;
@@ -201,7 +202,9 @@ public class ConnectionPluginManagerTests {
     final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider, testProperties, testPlugins, mockConnectionWrapper);
 
-    final Connection conn = target.connect("any", new HostSpec("anyHost"), testProperties, true);
+    final Connection conn = target.connect("any",
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
+        true);
 
     assertEquals(expectedConnection, conn);
     assertEquals(4, calls.size());
@@ -228,7 +231,8 @@ public class ConnectionPluginManagerTests {
 
     assertThrows(
         SQLException.class,
-        () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
+        () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            testProperties, true));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -252,7 +256,8 @@ public class ConnectionPluginManagerTests {
 
     assertThrows(
         SQLException.class,
-        () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
+        () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+            testProperties, true));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -280,7 +285,9 @@ public class ConnectionPluginManagerTests {
     final Exception ex =
         assertThrows(
             IllegalArgumentException.class,
-            () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
+            () -> target.connect("any",
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+                testProperties, true));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -305,7 +312,9 @@ public class ConnectionPluginManagerTests {
     final Exception ex =
         assertThrows(
             IllegalArgumentException.class,
-            () -> target.connect("any", new HostSpec("anyHost"), testProperties, true));
+            () -> target.connect("any",
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
+                testProperties, true));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));

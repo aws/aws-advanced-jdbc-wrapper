@@ -14,28 +14,19 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.hostavailability;
 
-import java.sql.Connection;
-import software.amazon.jdbc.dialect.Dialect;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public interface HostListProviderService {
+import org.junit.jupiter.api.Test;
 
-  boolean isStaticHostListProvider();
+public class SimpleHostAvailabilityStrategyTests {
 
-  HostListProvider getHostListProvider();
-
-  void setHostListProvider(HostListProvider hostListProvider);
-
-  void setInitialConnectionHostSpec(final HostSpec initialConnectionHostSpec);
-
-  HostSpec getInitialConnectionHostSpec();
-
-  Connection getCurrentConnection();
-
-  HostSpec getCurrentHostSpec();
-
-  Dialect getDialect();
-
-  HostSpecBuilder getHostSpecBuilder();
+  @Test
+  public void testGetHostAvailability() {
+    SimpleHostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
+    HostAvailability expectedAvailability = HostAvailability.NOT_AVAILABLE;
+    HostAvailability actualAvailability = availabilityStrategy.getHostAvailability(expectedAvailability);
+    assertEquals(expectedAvailability, actualAvailability);
+  }
 }

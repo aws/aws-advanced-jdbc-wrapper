@@ -32,10 +32,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.Utils;
 
@@ -232,7 +232,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         writerHost = host;
         continue;
       }
-      if (host.getAvailability() == HostAvailability.AVAILABLE) {
+      if (host.getRawAvailability() == HostAvailability.AVAILABLE) {
         activeReaders.add(host);
       } else {
         downHostList.add(host);
@@ -281,7 +281,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       if (host.getRole() == HostRole.WRITER) {
         continue;
       }
-      if (host.getAvailability() == HostAvailability.AVAILABLE) {
+      if (host.getRawAvailability() == HostAvailability.AVAILABLE) {
         activeReaders.add(host);
       } else {
         downHostList.add(host);
