@@ -32,9 +32,7 @@ dependencies {
 }
 
 tasks.withType<KotlinCompile> {
-    sourceCompatibility = "unused"
-    targetCompatibility = "unused"
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "19"
     }
 }

@@ -35,12 +35,12 @@ jobs:
         id: changed-files
         if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
         run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
-      - name: 'Set up JDK 8'
+      - name: 'Set up JDK 17'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/setup-java@v3
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: 17
       - name: 'Run standard integration tests'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         run: |

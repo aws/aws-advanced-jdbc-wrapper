@@ -54,6 +54,12 @@ dependencies {
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.13.4")
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
 tasks.withType<Test> {
 
     testClassesDirs += fileTree("./libs") { include("*.jar") } + project.files("./test")
@@ -71,7 +77,7 @@ tasks.withType<Test> {
         showStackTraces = true
     }
 
-    systemProperty("java.util.logging.config.file", "./test/resources/logging-test.properties")
+    systemProperty("java.util.logging.config.˚file", "./test/resources/logging-test.properties")
     systemProperty("junit.jupiter.params.displayname.default", "{displayName} - {arguments}")
 
     reports.junitXml.required.set(true)

@@ -13,18 +13,18 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 50
-      - name: 'Set up JDK 8'
+      - name: 'Set up JDK 17'
         uses: actions/setup-java@v3
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: 17
       - name: 'Configure AWS credentials'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: 'Set up temp AWS credentials'
+      - name: 'Set up temp AWS credentflials'
         run: |
           creds=($(aws sts get-session-token \
             --duration-seconds 21600 \
