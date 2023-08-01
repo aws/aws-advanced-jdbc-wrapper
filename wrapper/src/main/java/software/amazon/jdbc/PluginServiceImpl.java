@@ -154,6 +154,16 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public ConnectionProvider getConnectionProvider() {
+    return this.pluginManager.defaultConnProvider;
+  }
+
+  @Override
+  public String getDriverProtocol() {
+    return this.driverProtocol;
+  }
+
+  @Override
   public void setCurrentConnection(
       final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
 
