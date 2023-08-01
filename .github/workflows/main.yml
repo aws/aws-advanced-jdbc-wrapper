@@ -34,25 +34,27 @@ jobs:
               - '**/*.png'
       - name: 'Check changed files'
         id: changed-files
-        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'true' || steps.changed-files-specific.outputs.doc_only_modified == 'true'}}
-        run: echo "ONLY_DOCS=true" >> $GITHUB_OUTPUT
+        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
+        run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
       - name: 'Clone repository'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
         uses: actions/checkout@v3
       - name: 'Set up JDK 8'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
         uses: actions/setup-java@v3
         with:
           distribution: 'corretto'
           java-version: 8
       - name: 'Run all checks'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
-        run: ./gradlew check
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
+        run: |
+          echo ${{steps.changed-files.outputs.ONLY_DOCS}}
+          ./gradlew check
       - name: 'Generate code coverage report'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
         run: ./gradlew jacocoTestReport
       - name: 'Archive test results'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} != 'true'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
         uses: actions/upload-artifact@v3
         with:
           name: 'junit-report'
