@@ -28,7 +28,7 @@ jobs:
               - '**/*.png'
       - name: 'Check changed files'
         id: changed-files
-        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'true' || steps.changed-files-specific.outputs.doc_only_modified == 'true'}}
+        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
         run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
