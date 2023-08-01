@@ -32,29 +32,29 @@ jobs:
         if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
         run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
       - name: 'Clone repository'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/checkout@v3
         with:
           fetch-depth: 50
       - name: 'Set up JDK 8'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/setup-java@v3
         with:
           distribution: 'corretto'
           java-version: 8
       - name: 'Run standard integration tests'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         run: |
           ./gradlew --no-parallel --no-daemon test-all-docker
       - name: 'Archive junit results'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/upload-artifact@v2
         with:
           name: junit-report
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS}} == 'false'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/upload-artifact@v2
         with:
           name: html-summary-report
