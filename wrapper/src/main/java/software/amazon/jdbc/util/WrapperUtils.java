@@ -556,6 +556,18 @@ public class WrapperUtils {
       return exceptionClass.cast(exception);
     }
 
-    return exceptionClass.cast(new RuntimeException(exception));
+    // wrap in an expected exception type
+    E result;
+    try {
+      result = createInstance(
+          exceptionClass,
+          exceptionClass,
+          new Class<?>[] {Throwable.class},
+          exception);
+    } catch (InstantiationException e) {
+      throw new RuntimeException(e);
+    }
+
+    return exceptionClass.cast(result);
   }
 }

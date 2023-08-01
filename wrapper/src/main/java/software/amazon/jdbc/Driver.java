@@ -29,6 +29,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
@@ -96,12 +97,27 @@ public class Driver implements java.sql.Driver {
     LOGGER.finest("Opening connection to " + url);
 
     final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
-    final java.sql.Driver driver = DriverManager.getDriver(driverUrl);
+
+    java.sql.Driver driver;
+    try {
+      driver = DriverManager.getDriver(driverUrl);
+    } catch (SQLException e) {
+      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
+          .stream()
+          .map(x -> x.getClass().getName())
+          .collect(Collectors.toList());
+      throw new SQLException(Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), e);
+    }
 
     if (driver == null) {
-      LOGGER.warning(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl}));
+      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
+          .stream()
+          .map(x -> x.getClass().getName())
+          .collect(Collectors.toList());
+      LOGGER.severe(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}));
       return null;
     }
+
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
     if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(info, databaseName);

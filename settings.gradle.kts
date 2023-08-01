@@ -24,7 +24,8 @@ include(
     "driverexample",
     "springhibernate",
     "springwildfly",
-    "springboothikariexample"
+    "springboothikariexample",
+    "vertxexample"
 )
 
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
@@ -34,15 +35,16 @@ project(":driverexample").projectDir = file("examples/AWSDriverExample")
 project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
 project(":springwildfly").projectDir = file("examples/SpringWildflyExample/spring")
 project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
+project(":vertxexample").projectDir = file("examples/VertxExample")
 
 pluginManagement {
     plugins {
         fun String.v() = extra["$this.version"].toString()
         fun PluginDependenciesSpec.idv(id: String, key: String = id) = id(id) version key.v()
 
-        id("biz.aQute.bnd.builder") version "6.3.1"
+        id("biz.aQute.bnd.builder") version "6.4.0"
         id("com.github.spotbugs") version "5.0.+"
-        id("com.diffplug.spotless") version "6.11.+"
+        id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
         id("com.github.vlsi.gradle-extensions") version "1.+"
         id("com.github.vlsi.stage-vote-release") version "1.+"
         id("com.github.vlsi.ide") version "1.+"

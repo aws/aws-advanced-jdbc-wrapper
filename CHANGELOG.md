@@ -3,10 +3,39 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [2.2.2] - 2023-?-??
+## [2.2.x] - ???
+### :magic_wand: Added
+- Host Availability Strategy to help keep host health status up to date ([PR #530](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/530)).   
 
 ### :crab: Changed
-- Update documentation to indicate MySQL JDBC Driver support ([PR #508](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/508)).   
+- Dynamically sets the default host list provider based on the dialect used. User applications no longer need to manually set the AuroraHostListProvider when connecting to Aurora Postgres or Aurora MySQL databases.
+- Deprecated AuroraHostListConnectionPlugin. 
+  - As an enhancement, the wrapper is now able to automatically set the Aurora host list provider for connections to Aurora MySQL and Aurora PostgreSQL databases.
+    Aurora Host List Connection Plugin is deprecated. If you were using the `AuroraHostListConnectionPlugin`, you can simply remove the plugin from the `wrapperPlugins` parameter.
+    However, if you choose to, you can ensure the provider is used by specifying a topology-aware dialect, for more information, see [Database Dialects](docs/using-the-jdbc-driver/DatabaseDialects.md).
+
+## [2.2.3] - 2023-07-28
+### :magic_wand: Added
+- Developer plugin to help test various scenarios including events like network outages and database cluster failover. This plugin is NOT intended to be used in production environments and is only for testing ([PR #531](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/531)).
+- Documentation:
+  - Developer plugin. See [UsingTheJdbcDriver](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins) and [UsingTheDeveloperPlugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheDeveloperPlugin.md).
+  - MySQL code samples ([PR #532](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/532)).
+  - Add a Table of Contents section for the sample codes on README.md. See [README.md](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/README.md#examples).
+  - Sample tutorial and code example for Vert.x. See the [tutorial](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/examples/VertxExample/README.md) and [code example](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/examples/VertxExample/src/main/java/com/example/starter/MainVerticle.java).
+  - Added Properties section on the README listing all the driver properties and where they are used. See the [README.md](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/README.md#properties).
+
+## [2.2.2] - 2023-07-05
+### :magic_wand: Added
+- Official support for Amazon Aurora with MySQL compatibility. The AWS JDBC Driver has been validated to support [MySQL JDBC Driver](https://github.com/mysql/mysql-connector-j) and [MariaDB JDBC Driver](https://github.com/mariadb-corporation/mariadb-connector-j).
+- Documentation:
+  - Maintenance and release policy ([PR #442](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/442) and [PR #507](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/507)).
+  - Migration guide for moving from the AWS JDBC Driver for MySQL to the AWS JDBC Driver ([PR #510](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/510)).
+
+### :crab: Changed
+- Improved integration test suite performance by creating required test database clusters in advance ([PR #411](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/411)).
+- Documentation:
+  - Correct `portNumber` to `serverPort` in Hikari example ([PR #504](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/504)).
+  - Updated Maven Central links and references to third party framework examples ([PR #499](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/499)).
 
 ## [2.2.1] - 2023-6-16
 
@@ -141,7 +170,8 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 * The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 * The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
-[3.0.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.1...2.2.2
+[2.2.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.2...2.2.3
+[2.2.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.1...2.2.2
 [2.2.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.0...2.2.1
 [2.2.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.2...2.2.0
 [2.1.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.1.1...2.1.2

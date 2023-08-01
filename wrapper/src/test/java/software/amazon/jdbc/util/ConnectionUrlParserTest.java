@@ -30,13 +30,16 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class ConnectionUrlParserTest {
   @ParameterizedTest
   @MethodSource("testGetHostsFromConnectionUrlArguments")
   void testGetHostsFromConnectionUrl_returnCorrectHostList(String testUrl, List<HostSpec> expected) {
     final ConnectionUrlParser parser = new ConnectionUrlParser();
-    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, false);
+    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, false,
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
 
     assertEquals(expected.size(), results.size());
     for (int i = 0; i < expected.size(); i++) {
@@ -49,9 +52,18 @@ class ConnectionUrlParserTest {
     final ConnectionUrlParser parser = new ConnectionUrlParser();
     final String testUrl = "jdbc:driver:test://instance-1,instance-2:3303,instance-3/test";
     final List<HostSpec> expected =
-        Arrays.asList(new HostSpec("instance-1"), new HostSpec("instance-2", 3303, HostRole.READER),
-            new HostSpec("instance-3", HostSpec.NO_PORT, HostRole.READER));
-    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, true);
+        Arrays.asList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2")
+                .port(3303)
+                .role(HostRole.READER)
+                .build(),
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3")
+                .port(HostSpec.NO_PORT)
+                .role(HostRole.READER)
+                .build());
+    final List<HostSpec> results = parser.getHostsFromConnectionUrl(testUrl, true,
+        () -> new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
 
     assertEquals(expected.size(), results.size());
     for (int i = 0; i < expected.size(); i++) {
@@ -94,14 +106,21 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//", new ArrayList<HostSpec>()),
         Arguments.of("bar/", new ArrayList<HostSpec>()),
         Arguments.of("invalid-hosts?", new ArrayList<HostSpec>()),
-        Arguments.of("jdbc//host:3303/db?param=1", Collections.singletonList(new HostSpec("host", 3303))),
-        Arguments.of("protocol//host2:3303", Collections.singletonList(new HostSpec("host2", 3303))),
-        Arguments.of("foo//host:3303/?#", Collections.singletonList(new HostSpec("host", 3303))),
+        Arguments.of("jdbc//host:3303/db?param=1", Collections.singletonList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").port(3303).build())),
+        Arguments.of("protocol//host2:3303", Collections.singletonList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host2").port(3303).build())),
+        Arguments.of("foo//host:3303/?#", Collections.singletonList(
+            new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").port(3303).build())),
         Arguments.of("jdbc:mysql:replication://host:badInt?param=",
-            Collections.singletonList(new HostSpec("host"))),
+            Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
+                .build())),
         Arguments.of("jdbc:driver:test://instance-1,instance-2:3303,instance-3/test",
-            Arrays.asList(new HostSpec("instance-1"), new HostSpec("instance-2", 3303),
-                new HostSpec("instance-3")))
+            Arrays.asList(
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").build(),
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").port(3303)
+                    .build(),
+                new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").build()))
     );
   }
 

@@ -11,14 +11,29 @@ on:
     paths-ignore:
       - '**/release_draft.yml'
       - '**/maven*.yml'
-      - '**/*.md'
 
 jobs:
   qodana:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: 'Clone repository'
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: 'Get changed files'
+        uses: tj-actions/changed-files@v37
+        id: changed-files-specific
+        with:
+          files_yaml: |
+            doc:
+              - '**/*.md'
+              - '**/docs/**'
+              - '**/*.jpg'
+              - '**/*.png'
+      - name: 'Check changed files'
+        id: changed-files
+        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
+        run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
       - name: 'Qodana Scan'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: JetBrains/qodana-action@v2022.2.1

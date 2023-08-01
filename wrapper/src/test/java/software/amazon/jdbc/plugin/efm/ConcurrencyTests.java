@@ -16,6 +16,11 @@
 
 package software.amazon.jdbc.plugin.efm;
 
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
+import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
+import static software.amazon.jdbc.plugin.efm.MonitorServiceImpl.MONITOR_DISPOSAL_TIME_MS;
+
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -52,15 +57,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 @Disabled
 @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
@@ -99,7 +106,8 @@ public class ConcurrencyTests {
           return monitoringThread;
         });
 
-    final HostSpec hostSpec = new HostSpec("test-host");
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test-host")
+        .build();
     hostSpec.addAlias("test-host-alias-a");
     hostSpec.addAlias("test-host-alias-b");
 
@@ -107,10 +115,10 @@ public class ConcurrencyTests {
       executor.submit(() -> {
 
         final Properties properties = new Properties();
-        properties.put("monitorDisposalTime", "30000");
-        properties.put("failureDetectionTime", "10000");
-        properties.put("failureDetectionInterval", "1000");
-        properties.put("failureDetectionCount", "1");
+        MONITOR_DISPOSAL_TIME_MS.set(properties, "30000");
+        FAILURE_DETECTION_TIME.set(properties, "10000");
+        FAILURE_DETECTION_INTERVAL.set(properties, "1000");
+        FAILURE_DETECTION_COUNT.set(properties, "1");
 
         final JdbcCallable<ResultSet, SQLException> sqlFunction = () -> {
           try {
@@ -188,15 +196,16 @@ public class ConcurrencyTests {
           return monitoringThread;
         });
 
-    final HostSpec hostSpec = new HostSpec("test-host");
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test-host")
+        .build();
     hostSpec.addAlias("test-host-alias-a");
     hostSpec.addAlias("test-host-alias-b");
 
     final Properties properties = new Properties();
-    properties.put("monitorDisposalTime", "30000");
-    properties.put("failureDetectionTime", "10000");
-    properties.put("failureDetectionInterval", "1000");
-    properties.put("failureDetectionCount", "1");
+    MONITOR_DISPOSAL_TIME_MS.set(properties, "30000");
+    FAILURE_DETECTION_TIME.set(properties, "10000");
+    FAILURE_DETECTION_INTERVAL.set(properties, "1000");
+    FAILURE_DETECTION_COUNT.set(properties, "1");
 
     final JdbcCallable<ResultSet, SQLException> sqlFunction = () -> {
       try {
@@ -389,6 +398,11 @@ public class ConcurrencyTests {
     @Override
     public void fillAliases(Connection connection, HostSpec hostSpec) throws SQLException {
 
+    }
+
+    @Override
+    public HostSpecBuilder getHostSpecBuilder() {
+      return new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
     }
   }
 

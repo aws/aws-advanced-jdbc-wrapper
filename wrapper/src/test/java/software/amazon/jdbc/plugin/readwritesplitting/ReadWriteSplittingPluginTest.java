@@ -17,12 +17,13 @@
 package software.amazon.jdbc.plugin.readwritesplitting;
 
 import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,11 +45,13 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.SqlState;
 
@@ -57,21 +60,23 @@ public class ReadWriteSplittingPluginTest {
   private static final int TEST_PORT = 5432;
   private static final Properties defaultProps = new Properties();
 
-  private final HostSpec writerHostSpec = new HostSpec("instance-0", TEST_PORT);
-  private final HostSpec readerHostSpec1 = new HostSpec("instance-1", TEST_PORT, HostRole.READER);
-  private final HostSpec readerHostSpec2 = new HostSpec("instance-2", TEST_PORT, HostRole.READER);
-  private final HostSpec readerHostSpec3 = new HostSpec("instance-3", TEST_PORT, HostRole.READER);
-  private final HostSpec readerHostSpecWithIncorrectRole =
-      new HostSpec("instance-1", TEST_PORT, HostRole.WRITER);
-  private final HostSpec instanceUrlHostSpec = new HostSpec(
-      "jdbc:aws-wrapper:postgresql://my-instance-name.XYZ.us-east-2.rds.amazonaws.com",
-      TEST_PORT);
-  private final HostSpec ipUrlHostSpec =
-      new HostSpec("10.10.10.10", TEST_PORT);
-  private final HostSpec clusterUrlHostSpec = new HostSpec(
-      "my-cluster-name.cluster-XYZ.us-east-2.rds.amazonaws.com",
-      TEST_PORT);
-
+  private final HostSpec writerHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("instance-0").port(TEST_PORT).build();
+  private final HostSpec readerHostSpec1 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("instance-1").port(TEST_PORT).role(HostRole.READER).build();
+  private final HostSpec readerHostSpec2 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("instance-2").port(TEST_PORT).role(HostRole.READER).build();
+  private final HostSpec readerHostSpec3 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("instance-3").port(TEST_PORT).role(HostRole.READER).build();
+  private final HostSpec readerHostSpecWithIncorrectRole = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("instance-1").port(TEST_PORT).role(HostRole.WRITER).build();
+  private final HostSpec instanceUrlHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("jdbc:aws-wrapper:postgresql://my-instance-name.XYZ.us-east-2.rds.amazonaws.com").port(TEST_PORT)
+      .build();
+  private final HostSpec ipUrlHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("10.10.10.10").port(TEST_PORT).build();
+  private final HostSpec clusterUrlHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("my-cluster-name.cluster-XYZ.us-east-2.rds.amazonaws.com").port(TEST_PORT).build();
   private final List<HostSpec> defaultHosts = Arrays.asList(
       writerHostSpec,
       readerHostSpec1,
@@ -472,5 +477,72 @@ public class ReadWriteSplittingPluginTest {
             true,
             this.mockConnectFunc));
     verify(mockHostListProviderService, times(0)).setInitialConnectionHostSpec(any(HostSpec.class));
+  }
+
+  @Test
+  public void testExecuteClearWarnings() throws SQLException {
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+            mockPluginService,
+            defaultProps,
+            mockHostListProviderService,
+            mockWriterConn,
+            mockReaderConn1);
+
+    plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            "Connection.clearWarnings",
+            mockSqlFunction,
+            new Object[] {}
+    );
+    verify(mockWriterConn, times(1)).clearWarnings();
+    verify(mockReaderConn1, times(1)).clearWarnings();
+  }
+
+  @Test
+  public void testExecuteClearWarningsOnClosedConnectionsIsNotCalled() throws SQLException {
+    when(mockWriterConn.isClosed()).thenReturn(true);
+    when(mockReaderConn1.isClosed()).thenReturn(true);
+
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+            mockPluginService,
+            defaultProps,
+            mockHostListProviderService,
+            mockWriterConn,
+            mockReaderConn1);
+
+    plugin.execute(
+            ResultSet.class,
+            SQLException.class,
+            mockStatement,
+            "Connection.clearWarnings",
+            mockSqlFunction,
+            new Object[] {}
+    );
+    verify(mockWriterConn, never()).clearWarnings();
+    verify(mockReaderConn1, never()).clearWarnings();
+  }
+
+  @Test
+  public void testExecuteClearWarningsOnNullConnectionsIsNotCalled() throws SQLException {
+    final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
+            mockPluginService,
+            defaultProps,
+            mockHostListProviderService,
+            null,
+            null);
+
+    // calling clearWarnings() on nullified connection would throw an exception
+    assertDoesNotThrow(() -> {
+      plugin.execute(
+              ResultSet.class,
+              SQLException.class,
+              mockStatement,
+              "Connection.clearWarnings",
+              mockSqlFunction,
+              new Object[] {}
+      );
+    });
   }
 }

@@ -60,6 +60,8 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 public class PluginServiceImplTests {
 
@@ -104,9 +106,13 @@ public class PluginServiceImplTests {
         spy(new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
-    target.currentHostSpec = new HostSpec("old-host");
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
+        .build();
 
-    target.setCurrentConnection(newConnection, new HostSpec("new-host"));
+
+
+    target.setCurrentConnection(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
 
     assertNotEquals(oldConnection, target.currentConnection);
     assertEquals(newConnection, target.currentConnection);
@@ -123,9 +129,11 @@ public class PluginServiceImplTests {
         spy(new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
-    target.currentHostSpec = new HostSpec("old-host");
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
+        .build();
 
-    target.setCurrentConnection(newConnection, new HostSpec("new-host"));
+    target.setCurrentConnection(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
 
     assertNotEquals(oldConnection, target.currentConnection);
     assertEquals(newConnection, target.currentConnection);
@@ -142,9 +150,11 @@ public class PluginServiceImplTests {
         spy(new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
-    target.currentHostSpec = new HostSpec("old-host");
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
+        .build();
 
-    target.setCurrentConnection(newConnection, new HostSpec("new-host"));
+    target.setCurrentConnection(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
 
     assertNotEquals(oldConnection, target.currentConnection);
     assertEquals(newConnection, target.currentConnection);
@@ -165,9 +175,11 @@ public class PluginServiceImplTests {
         spy(new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
-    target.currentHostSpec = new HostSpec("old-host");
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
+        .build();
 
-    target.setCurrentConnection(newConnection, new HostSpec("new-host"));
+    target.setCurrentConnection(newConnection,
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
 
     assertNotEquals(oldConnection, target.currentConnection);
     assertEquals(newConnection, target.currentConnection);
@@ -185,12 +197,14 @@ public class PluginServiceImplTests {
         spy(new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
-    target.currentHostSpec =
-        new HostSpec("old-host", 1000, HostRole.WRITER, HostAvailability.AVAILABLE);
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("old-host").port(1000).role(HostRole.WRITER).availability(HostAvailability.AVAILABLE).build();
 
     target.setCurrentConnection(
         newConnection,
-        new HostSpec("new-host", 2000, HostRole.READER, HostAvailability.NOT_AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("new-host").port(2000).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
+            .build());
 
     assertNull(argumentSkipPlugin.getValue());
     assertTrue(argumentChanges.getValue().contains(NodeChangeOptions.NODE_CHANGED));
@@ -215,10 +229,13 @@ public class PluginServiceImplTests {
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
-        new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("old-host").port(1000).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
+            .build();
 
-    target.setCurrentConnection(
-        newConnection, new HostSpec("old-host", 1000, HostRole.WRITER, HostAvailability.AVAILABLE));
+    target.setCurrentConnection(newConnection, new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("old-host").port(1000).role(HostRole.WRITER).availability(HostAvailability.AVAILABLE)
+            .build());
 
     assertNull(argumentSkipPlugin.getValue());
     assertTrue(argumentChanges.getValue().contains(NodeChangeOptions.NODE_CHANGED));
@@ -243,10 +260,14 @@ public class PluginServiceImplTests {
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
-        new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE);
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("old-host").port(1000).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
+            .build();
 
     target.setCurrentConnection(
-        newConnection, new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE));
+        newConnection, new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("old-host").port(1000).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
+            .build());
 
     assertNull(argumentSkipPlugin.getValue());
     assertFalse(argumentChanges.getValue().contains(NodeChangeOptions.NODE_CHANGED));
@@ -269,11 +290,13 @@ public class PluginServiceImplTests {
         spy(new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.currentConnection = oldConnection;
-    target.currentHostSpec =
-        new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE);
+    target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("old-host").port(1000).role(HostRole.READER).availability(HostAvailability.AVAILABLE).build();
 
     target.setCurrentConnection(
-        oldConnection, new HostSpec("old-host", 1000, HostRole.READER, HostAvailability.AVAILABLE));
+        oldConnection, new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("old-host").port(1000).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
+            .build());
 
     verify(pluginManager, times(0)).notifyConnectionChanged(any(), any());
   }
@@ -283,7 +306,8 @@ public class PluginServiceImplTests {
 
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostA")));
+    when(hostListProvider.refresh()).thenReturn(Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").build()));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
@@ -308,12 +332,15 @@ public class PluginServiceImplTests {
   public void testSetNodeListDeleted() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    when(hostListProvider.refresh()).thenReturn(Collections.singletonList(new HostSpec("hostB")));
+    when(hostListProvider.refresh()).thenReturn(Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").build()));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
-    target.hosts = Arrays.asList(new HostSpec("hostA"), new HostSpec("hostB"));
+    target.hosts = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").build());
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
@@ -334,12 +361,14 @@ public class PluginServiceImplTests {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
     when(hostListProvider.refresh()).thenReturn(
-        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+        Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA")
+            .port(HostSpec.NO_PORT).role(HostRole.READER).build()));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
-    target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.WRITER));
+    target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.WRITER).build());
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
@@ -361,12 +390,14 @@ public class PluginServiceImplTests {
     doNothing().when(pluginManager).notifyNodeListChanged(any());
 
     when(hostListProvider.refresh()).thenReturn(
-        Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER)));
+        Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).build()));
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
-    target.hosts = Collections.singletonList(new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER));
+    target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).build());
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
@@ -384,7 +415,9 @@ public class PluginServiceImplTests {
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.hosts = Collections.singletonList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
+            .build());
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA");
@@ -403,7 +436,9 @@ public class PluginServiceImplTests {
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.hosts = Collections.singletonList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
+            .build());
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA");
@@ -429,7 +464,9 @@ public class PluginServiceImplTests {
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
     target.hosts = Collections.singletonList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
+            .build());
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA");
@@ -451,10 +488,14 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentUp_ByAlias() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    final HostSpec hostA = new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostA = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
+        .build();
     hostA.addAlias("ip-10-10-10-10");
     hostA.addAlias("hostA.custom.domain.com");
-    final HostSpec hostB = new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostB").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
+        .build();
     hostB.addAlias("ip-10-10-10-10");
     hostB.addAlias("hostB.custom.domain.com");
 
@@ -484,10 +525,14 @@ public class PluginServiceImplTests {
   public void testNodeAvailabilityChanged_WentUp_MultipleHostsByAlias() throws SQLException {
     doNothing().when(pluginManager).notifyNodeListChanged(argumentChangesMap.capture());
 
-    final HostSpec hostA = new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostA = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
+        .build();;
     hostA.addAlias("ip-10-10-10-10");
     hostA.addAlias("hostA.custom.domain.com");
-    final HostSpec hostB = new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE);
+    final HostSpec hostB = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("hostB").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
+        .build();
     hostB.addAlias("ip-10-10-10-10");
     hostB.addAlias("hostB.custom.domain.com");
 
@@ -522,23 +567,37 @@ public class PluginServiceImplTests {
   @Test
   void testRefreshHostList_withCachedHostAvailability() throws SQLException {
     final List<HostSpec> newHostSpecs = Arrays.asList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
-        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE)
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostC").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build()
     );
     final List<HostSpec> newHostSpecs2 = Arrays.asList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE)
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostC").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build()
     );
     final List<HostSpec> expectedHostSpecs = Arrays.asList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostC").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build()
+    );
     final List<HostSpec> expectedHostSpecs2 = Arrays.asList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostC").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build()
+    );
 
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostA/", HostAvailability.NOT_AVAILABLE,
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
@@ -565,18 +624,29 @@ public class PluginServiceImplTests {
   @Test
   void testForceRefreshHostList_withCachedHostAvailability() throws SQLException {
     final List<HostSpec> newHostSpecs = Arrays.asList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
-        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE)
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostC").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build()
     );
     final List<HostSpec> expectedHostSpecs = Arrays.asList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostC").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build()
+    );
     final List<HostSpec> expectedHostSpecs2 = Arrays.asList(
-        new HostSpec("hostA", HostSpec.NO_PORT, HostRole.READER, HostAvailability.NOT_AVAILABLE),
-        new HostSpec("hostB", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE),
-        new HostSpec("hostC", HostSpec.NO_PORT, HostRole.READER, HostAvailability.AVAILABLE));
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostC").port(HostSpec.NO_PORT)
+            .role(HostRole.READER).availability(HostAvailability.AVAILABLE).build()
+    );
 
     PluginServiceImpl.hostAvailabilityExpiringCache.put("hostA/", HostAvailability.NOT_AVAILABLE,
         PluginServiceImpl.DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO);
@@ -613,7 +683,8 @@ public class PluginServiceImplTests {
 
   @Test
   void testIdentifyConnectionWithAliases() throws SQLException {
-    final HostSpec expected = new HostSpec("test");
+    final HostSpec expected = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("test")
+        .build();
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
@@ -630,7 +701,8 @@ public class PluginServiceImplTests {
 
   @Test
   void testFillAliasesNonEmptyAliases() throws SQLException {
-    final HostSpec oneAlias = new HostSpec("foo");
+    final HostSpec oneAlias = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo")
+        .build();
     oneAlias.addAlias(oneAlias.asAlias());
 
     PluginServiceImpl target = spy(
@@ -646,7 +718,7 @@ public class PluginServiceImplTests {
   @ParameterizedTest
   @MethodSource("fillAliasesDialects")
   void testFillAliasesWithInstanceEndpoint(Dialect dialect, String[] expectedInstanceAliases) throws SQLException {
-    final HostSpec empty = new HostSpec("foo");
+    final HostSpec empty = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo").build();
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
             pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
@@ -654,7 +726,10 @@ public class PluginServiceImplTests {
     when(target.getDialect()).thenReturn(dialect);
     when(resultSet.next()).thenReturn(true, false); // Result set contains 1 row.
     when(resultSet.getString(eq(1))).thenReturn("ip");
-    when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(new HostSpec("instance"));
+    if (dialect instanceof AuroraPgDialect) {
+      when(hostListProvider.identifyConnection(eq(newConnection)))
+          .thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance").build());
+    }
 
     target.fillAliases(newConnection, empty);
 

@@ -39,7 +39,7 @@ See the following classes for examples:
 - [ExecutionTimeConnectionPlugin](/wrapper/src/main/java/software/amazon/jdbc/plugin/ExecutionTimeConnectionPlugin.java)
     - The `ExecutionTimeConnectionPlugin` only overrides the `execute` method because it is only concerned with elapsed time during execution, it does not establish new connections or set up any host list provider.
 
-A `ConnectionPluginFactory` implementation is also required for the new custom plugin. This factory class is used to register and initialize custom plugins. See [AuroraHostListConnectionPluginFactory](/wrapper/src/main/java/software/amazon/jdbc/plugin/AuroraHostListConnectionPluginFactory.java) for a simple implementation example.
+A `ConnectionPluginFactory` implementation is also required for the new custom plugin. This factory class is used to register and initialize custom plugins. See [ExecutionTimeConnectionPluginFactory](/wrapper/src/main/java/software/amazon/jdbc/plugin/ExecutionTimeConnectionPluginFactory.java) for a simple implementation example.
 
 ### Subscribed Methods
 

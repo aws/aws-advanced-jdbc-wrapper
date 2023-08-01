@@ -48,6 +48,13 @@ public class PropertyDefinition {
       new AwsWrapperProperty(
           "wrapperPlugins", null, "Comma separated list of connection plugin codes");
 
+  public static final AwsWrapperProperty AUTO_SORT_PLUGIN_ORDER =
+      new AwsWrapperProperty(
+          "autoSortWrapperPluginOrder",
+          "true",
+          "This flag is enabled by default, meaning that the plugins order will be automatically adjusted."
+          + " Disable it at your own risk or if you really need plugins to be executed in a particular order.");
+
   public static final AwsWrapperProperty PROFILE_NAME =
       new AwsWrapperProperty(
           "wrapperProfileName", null, "Driver configuration profile name");

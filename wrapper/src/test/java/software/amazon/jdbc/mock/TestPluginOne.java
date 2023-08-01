@@ -29,9 +29,11 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 public class TestPluginOne implements ConnectionPlugin {
 
@@ -118,7 +120,8 @@ public class TestPluginOne implements ConnectionPlugin {
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy) {
     this.calls.add(this.getClass().getSimpleName() + ":before getHostSpecByStrategy");
-    HostSpec result = new HostSpec("host", 1234, role);
+    HostSpec result = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("host").port(1234).role(role).build();
     this.calls.add(this.getClass().getSimpleName() + ":after getHostSpecByStrategy");
     return result;
   }

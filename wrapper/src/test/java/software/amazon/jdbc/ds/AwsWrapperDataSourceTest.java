@@ -22,8 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import integration.refactored.container.TestDriver;
-import integration.refactored.container.condition.DisableOnTestDriver;
+import integration.container.TestDriver;
+import integration.container.condition.DisableOnTestDriver;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;

@@ -37,7 +37,7 @@ public class MonitorServiceImpl implements MonitorService {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorServiceImpl.class.getName());
 
-  protected static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
+  public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
           "monitorDisposalTime",
           "60000",

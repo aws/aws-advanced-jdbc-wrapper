@@ -19,12 +19,15 @@ package software.amazon.jdbc.util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 
 public class ConnectionUrlParser {
 
@@ -42,7 +45,8 @@ public class ConnectionUrlParser {
   private static final RdsUtils rdsUtils = new RdsUtils();
 
   public List<HostSpec> getHostsFromConnectionUrl(final String initialConnection,
-                                                  final boolean singleWriterConnectionString) {
+                                                  final boolean singleWriterConnectionString,
+                                                  final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
     final List<HostSpec> hostsList = new ArrayList<>();
     final Matcher matcher = CONNECTION_STRING_PATTERN.matcher(initialConnection);
     if (!matcher.matches()) {
@@ -56,9 +60,9 @@ public class ConnectionUrlParser {
         final HostSpec host;
         if (singleWriterConnectionString) {
           final HostRole role = i > 0 ? HostRole.READER : HostRole.WRITER;
-          host = parseHostPortPair(hostArray[i], role);
+          host = parseHostPortPair(hostArray[i], role, hostSpecBuilderSupplier);
         } else {
-          host = parseHostPortPair(hostArray[i]);
+          host = parseHostPortPair(hostArray[i], hostSpecBuilderSupplier);
         }
 
         if (!StringUtils.isNullOrEmpty(host.getHost())) {
@@ -70,29 +74,39 @@ public class ConnectionUrlParser {
     return hostsList;
   }
 
-  public static HostSpec parseHostPortPair(final String url) {
+  public static HostSpec parseHostPortPair(final String url, final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostPortPair[0]);
     // Assign HostRole of READER if using the reader cluster URL, otherwise assume a HostRole of WRITER
     final HostRole hostRole = RdsUrlType.RDS_READER_CLUSTER.equals(urlType) ? HostRole.READER : HostRole.WRITER;
-    return getHostSpec(hostPortPair, hostRole);
+    return getHostSpec(hostPortPair, hostRole, hostSpecBuilderSupplier.get());
   }
 
-  public static HostSpec parseHostPortPair(final String url, final HostRole role) {
+  public static HostSpec parseHostPortPair(final String url, final HostRole role,
+      final Supplier<HostSpecBuilder> hostSpecBuilderSupplier) {
     final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
-    return getHostSpec(hostPortPair, role);
+    return getHostSpec(hostPortPair, role, hostSpecBuilderSupplier.get());
   }
 
-  private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole) {
+  private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole,
+      final HostSpecBuilder hostSpecBuilder) {
     if (hostPortPair.length > 1) {
       final String[] port = hostPortPair[1].split("/");
       int portValue = parsePortAsInt(hostPortPair[1]);
       if (port.length > 1) {
         portValue = parsePortAsInt(port[0]);
       }
-      return new HostSpec(hostPortPair[0], portValue, hostRole);
+      return hostSpecBuilder
+          .host(hostPortPair[0])
+          .port(portValue)
+          .role(hostRole)
+          .build();
     }
-    return new HostSpec(hostPortPair[0], HostSpec.NO_PORT, hostRole);
+    return hostSpecBuilder
+        .host(hostPortPair[0])
+        .port(HostSpec.NO_PORT)
+        .role(hostRole)
+        .build();
   }
 
   private static int parsePortAsInt(final String port) {

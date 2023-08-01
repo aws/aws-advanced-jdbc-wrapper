@@ -3,7 +3,7 @@
 The AWS Advanced JDBC Driver supports usage of database credentials stored as secrets in the [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) through the AWS Secrets Manager Connection Plugin. When you create a new connection with this plugin enabled, the plugin will retrieve the secret and the connection will be created with the credentials inside that secret.
 
 ## Enabling the AWS Secrets Manager Connection Plugin
-> :warning: **Note:** To use this plugin, you must include the runtime dependencies [Jackson Databind](https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://mvnrepository.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These parameters are required for the AWS JDBC Driver to pass database credentials to the underlying driver.
+> :warning: **Note:** To use this plugin, you must include the runtime dependencies [Jackson Databind](https://central.sonatype.com/artifact/com.fasterxml.jackson.core/jackson-databind) and [AWS Secrets Manager](https://central.sonatype.com/artifact/software.amazon.awssdk/secretsmanager) in your project. These parameters are required for the AWS JDBC Driver to pass database credentials to the underlying driver.
 
 To enable the AWS Secrets Manager Connection Plugin, add the plugin code `awsSecretsManager` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
 
@@ -12,10 +12,15 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 
 > **Note:** To use this plugin, you will need to set the following AWS Secrets Manager specific parameters.
 
-| Parameter                | Value  |                                                                                     Required                                                                                      | Description                                             | Example     | Default Value |
-|--------------------------|:------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------------------------------------------------------|:------------|---------------|
-| `secretsManagerSecretId` | String |                                                                                        Yes                                                                                        | Set this value to be the secret name or the secret ARN. | `secretId`  | `null`        |
-| `secretsManagerRegion`   | String | Yes unless the `secretsManagerSecretId` is a Secret ARN. A Secret ARN has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters` | Set this value to be the region your secret is in.      | `us-east-2` | `us-east-1`   |
+| Parameter                | Value  |                         Required                         | Description                                             | Example     | Default Value |
+|--------------------------|:------:|:--------------------------------------------------------:|:--------------------------------------------------------|:------------|---------------|
+| `secretsManagerSecretId` | String |                           Yes                            | Set this value to be the secret name or the secret ARN. | `secretId`  | `null`        |
+| `secretsManagerRegion`   | String | Yes unless the `secretsManagerSecretId` is a Secret ARN. | Set this value to be the region your secret is in.      | `us-east-2` | `us-east-1`   |
+
+*NOTE* A Secret ARN has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
+
+## Secret Data
+The plugin assumes that the secret contains the following properties `username` and `password`
 
 ### Example
 [AwsSecretsManagerConnectionPluginPostgresqlExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/AwsSecretsManagerConnectionPluginPostgresqlExample.java)

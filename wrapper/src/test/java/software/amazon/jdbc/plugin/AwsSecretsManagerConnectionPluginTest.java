@@ -27,6 +27,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.REGION_PROPERTY;
+import static software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin.SECRET_ID_PROPERTY;
 
 import com.mysql.cj.exceptions.CJException;
 import java.sql.Connection;
@@ -52,16 +54,17 @@ import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerExcept
 import software.amazon.awssdk.utils.Pair;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
-import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
 
 public class AwsSecretsManagerConnectionPluginTest {
@@ -82,7 +85,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final Pair<String, Region> SECRET_CACHE_KEY = Pair.of(TEST_SECRET_ID, Region.of(TEST_REGION));
   private static final AwsSecretsManagerConnectionPlugin.Secret TEST_SECRET =
       new AwsSecretsManagerConnectionPlugin.Secret("testUser", "testPassword");
-  private static final HostSpec TEST_HOSTSPEC = new HostSpec(TEST_HOST, TEST_PORT);
+  private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host(TEST_HOST).port(TEST_PORT).build();
   private static final GetSecretValueResponse VALID_GET_SECRET_VALUE_RESPONSE =
       GetSecretValueResponse.builder().secretString(VALID_SECRET_STRING).build();
   private static final GetSecretValueResponse INVALID_GET_SECRET_VALUE_RESPONSE =
@@ -97,15 +101,15 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock JdbcCallable<Connection, SQLException> connectFunc;
   @Mock PluginServiceImpl mockService;
   @Mock ConnectionPluginManager mockConnectionPluginManager;
-  @Mock(extraInterfaces = TopologyAwareDatabaseCluster.class) private Dialect mockTopologyAwareDialect;
+  @Mock Dialect mockTopologyAwareDialect;
   @Mock DialectManager mockDialectManager;
 
   @BeforeEach
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
 
-    TEST_PROPS.setProperty("secretsManagerRegion", TEST_REGION);
-    TEST_PROPS.setProperty("secretsManagerSecretId", TEST_SECRET_ID);
+    REGION_PROPERTY.set(TEST_PROPS, TEST_REGION);
+    SECRET_ID_PROPERTY.set(TEST_PROPS, TEST_SECRET_ID);
 
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         mockService,
@@ -115,6 +119,8 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     when(mockDialectManager.getDialect(anyString(), anyString(), any(Properties.class)))
         .thenReturn(mockTopologyAwareDialect);
+
+    when(mockService.getHostSpecBuilder()).thenReturn(new HostSpecBuilder(new SimpleHostAvailabilityStrategy()));
   }
 
   @AfterEach
@@ -420,7 +426,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   public void testConnectViaARN(final String arn, final Region expectedRegionParsedFromARN)
       throws SQLException {
     final Properties props = new Properties();
-    props.setProperty("secretsManagerSecretId", arn);
+
+    SECRET_ID_PROPERTY.set(props, arn);
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
@@ -439,8 +446,8 @@ public class AwsSecretsManagerConnectionPluginTest {
     final Region expectedRegion = Region.US_ISO_EAST_1;
 
     final Properties props = new Properties();
-    props.setProperty("secretsManagerSecretId", arn);
-    props.setProperty("secretsManagerRegion", expectedRegion.toString());
+    SECRET_ID_PROPERTY.set(props, arn);
+    REGION_PROPERTY.set(props, expectedRegion.toString());
 
     this.plugin = spy(new AwsSecretsManagerConnectionPlugin(
         new PluginServiceImpl(mockConnectionPluginManager, props, "url", TEST_PG_PROTOCOL),
@@ -473,10 +480,10 @@ public class AwsSecretsManagerConnectionPluginTest {
 
   private static Stream<Arguments> missingArguments() {
     final Properties missingId = new Properties();
-    missingId.setProperty("secretsManagerRegion", TEST_REGION);
+    REGION_PROPERTY.set(missingId, TEST_REGION);
 
     final Properties missingRegion = new Properties();
-    missingRegion.setProperty("secretsManagerSecretId", TEST_SECRET_ID);
+    SECRET_ID_PROPERTY.set(missingRegion, TEST_SECRET_ID);
 
     return Stream.of(
         Arguments.of(missingId),

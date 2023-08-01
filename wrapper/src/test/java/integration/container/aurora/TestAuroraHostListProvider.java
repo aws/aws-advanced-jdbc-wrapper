@@ -24,12 +24,11 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 public class TestAuroraHostListProvider extends AuroraHostListProvider {
 
   public TestAuroraHostListProvider(
-      String driverProtocol,
       HostListProviderService hostListProviderService,
       Properties properties,
       String originalUrl) {
 
-    super(driverProtocol, hostListProviderService, properties, originalUrl);
+    super(properties, originalUrl, hostListProviderService, "", "", "");
   }
 
   public static void clearCache() {

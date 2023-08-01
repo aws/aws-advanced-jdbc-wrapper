@@ -19,7 +19,7 @@ plugins {
     java
     jacoco
     id("biz.aQute.bnd.builder")
-    id("com.diffplug.spotless")
+    id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
     id("com.github.spotbugs")
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
@@ -30,39 +30,40 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.26.0")
     compileOnly("software.amazon.awssdk:rds:2.20.49")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.20.88")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.20.105")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     compileOnly("mysql:mysql-connector-java:8.0.31")
     compileOnly("org.postgresql:postgresql:42.5.0")
-    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.0")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.4")
     compileOnly("org.osgi:org.osgi.core:4.3.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
-    testImplementation("org.junit.platform:junit-platform-engine:1.9.0")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.9.0")
-    testImplementation("org.junit.platform:junit-platform-suite-engine:1.9.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.1")
+    testImplementation("org.junit.platform:junit-platform-engine:1.9.3")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.10.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.9.0")
     testImplementation("org.postgresql:postgresql:42.5.0")
     testImplementation("mysql:mysql-connector-java:8.0.31")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.0")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.4")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.4")
-    testImplementation("org.mockito:mockito-inline:4.8.0")
+    testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
+    testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.20.49")
-    testImplementation("software.amazon.awssdk:ec2:2.20.61")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.20.88")
+    testImplementation("software.amazon.awssdk:ec2:2.20.105")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.20.105")
     testImplementation("org.testcontainers:testcontainers:1.18.3")
     testImplementation("org.testcontainers:mysql:1.18.3")
     testImplementation("org.testcontainers:postgresql:1.18.3")
     testImplementation("org.testcontainers:mariadb:1.18.3")
     testImplementation("org.testcontainers:junit-jupiter:1.17.4")
     testImplementation("org.testcontainers:toxiproxy:1.18.3")
+    testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.2.2")
-    testImplementation("org.slf4j:slf4j-simple:2.0.3")
+    testImplementation("org.slf4j:slf4j-simple:2.0.7")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
 }
 
@@ -262,7 +263,7 @@ tasks.withType<Test> {
 
 tasks.register<Test>("test-all-environments") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-performance", "true")
     }
@@ -270,7 +271,7 @@ tasks.register<Test>("test-all-environments") {
 
 tasks.register<Test>("test-all-docker") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -279,7 +280,7 @@ tasks.register<Test>("test-all-docker") {
 
 tasks.register<Test>("test-hibernate-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -292,7 +293,7 @@ tasks.register<Test>("test-hibernate-only") {
 
 tasks.register<Test>("test-all-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -301,7 +302,7 @@ tasks.register<Test>("test-all-aurora") {
 
 tasks.register<Test>("test-all-pg-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -314,7 +315,7 @@ tasks.register<Test>("test-all-pg-aurora") {
 
 tasks.register<Test>("test-all-mysql-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -327,7 +328,7 @@ tasks.register<Test>("test-all-mysql-aurora") {
 
 tasks.register<Test>("debug-all-environments") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-performance", "true")
     }
@@ -335,7 +336,7 @@ tasks.register<Test>("debug-all-environments") {
 
 tasks.register<Test>("debug-all-docker") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -344,7 +345,7 @@ tasks.register<Test>("debug-all-docker") {
 
 tasks.register<Test>("debug-all-aurora") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
@@ -353,7 +354,7 @@ tasks.register<Test>("debug-all-aurora") {
 
 tasks.register<Test>("debug-hibernate-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-performance", "true")
@@ -367,7 +368,7 @@ tasks.register<Test>("debug-hibernate-only") {
 
 tasks.register<Test>("test-all-aurora-performance") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-iam", "true")
@@ -379,7 +380,7 @@ tasks.register<Test>("test-all-aurora-performance") {
 
 tasks.register<Test>("test-aurora-pg-performance") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-iam", "true")
@@ -395,7 +396,7 @@ tasks.register<Test>("test-aurora-pg-performance") {
 
 tasks.register<Test>("test-aurora-mysql-performance") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-iam", "true")
@@ -413,7 +414,7 @@ tasks.register<Test>("test-aurora-mysql-performance") {
 
 tasks.register<Test>("test-autoscaling-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.runTests")
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
         systemProperty("test-autoscaling-only", "true")
         systemProperty("test-no-docker", "true")
@@ -424,7 +425,7 @@ tasks.register<Test>("test-autoscaling-only") {
 
 tasks.register<Test>("debug-autoscaling-only") {
     group = "verification"
-    filter.includeTestsMatching("integration.refactored.host.TestRunner.debugTests")
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
         systemProperty("test-autoscaling-only", "true")
         systemProperty("test-no-docker", "true")

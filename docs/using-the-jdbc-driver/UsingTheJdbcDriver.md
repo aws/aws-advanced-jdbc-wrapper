@@ -108,7 +108,6 @@ The AWS JDBC Driver has several built-in plugins that are available to use. Plea
 |------------------------------------------------------------------------------------------------|---------------------------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Failover Connection Plugin](./using-plugins/UsingTheFailoverPlugin.md)                        | `failover`                | Aurora                 | Enables the failover functionality supported by Amazon Aurora clusters. Prevents opening a wrong connection to an old writer node dues to stale DNS after failover event. This plugin is enabled by default.                                                                                                                                                                                                                                                                                                           |
 | [Host Monitoring Connection Plugin](./using-plugins/UsingTheHostMonitoringPlugin.md)           | `efm`                     | Aurora                 | Enables enhanced host connection failure monitoring, allowing faster failure detection rates. This plugin is enabled by default.                                                                                                                                                                                                                                                                                                                                                                                       |
-| Aurora Host List Connection Plugin                                                             | `auroraHostList`          | Aurora                 | Retrieves Amazon Aurora clusters information. <br><br>**:warning:Note:** this plugin does not need to be explicitly loaded if the failover connection plugin is loaded.                                                                                                                                                                                                                                                                                                                                                |
 | Data Cache Connection Plugin                                                                   | `dataCache`               | Any database           | Caches results from SQL queries matching the regular expression specified in the  `dataCacheTriggerCondition` configuration parameter.                                                                                                                                                                                                                                                                                                                                                                                 |
 | Execution Time Connection Plugin                                                               | `executionTime`           | Any database           | Logs the time taken to execute any JDBC method.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Log Query Connection Plugin                                                                    | `logQuery`                | Any database           | Tracks and logs the SQL statements to be executed. Sometimes SQL statements are not passed directly to the JDBC method as a parameter, such as [executeBatch()](https://docs.oracle.com/javase/8/docs/api/java/sql/Statement.html#executeBatch--). Users can set `enhancedLogQueryEnabled` to `true`, allowing the JDBC Wrapper to obtain SQL statements via Java Reflection. <br><br> :warning:**Note:** Enabling Java Reflection may cause a performance degradation.                                                |
@@ -118,6 +117,11 @@ The AWS JDBC Driver has several built-in plugins that are available to use. Plea
 | [Aurora Connection Tracker Plugin](./using-plugins/UsingTheAuroraConnectionTrackerPlugin.md)   | `auroraConnectionTracker` | Aurora                 | Tracks all the opened connections. In the event of a cluster failover, the plugin will close all the impacted connections to the node. This plugin is enabled by default.                                                                                                                                                                                                                                                                                                                                              |
 | [Driver Metadata Connection Plugin](./using-plugins/UsingTheDriverMetadataConnectionPlugin.md) | `driverMetaData`          | Any database           | Allows user application to override the return value of `DatabaseMetaData#getDriverName`                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | [Read Write Splitting Plugin](./using-plugins/UsingTheReadWriteSplittingPlugin.md)             | `readWriteSplitting`      | Aurora                 | Enables read write splitting functionality where users can switch between database reader and writer instances.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| [Developer Plugin](./using-plugins/UsingTheDeveloperPlugin.md)                                 | `dev`                     | Any database           | Helps developers test various everyday scenarios including rare events like network outages and database cluster failover. The plugin allows injecting and raising an expected exception, then verifying how applications handle it.                                                                                                                                                                                                                                                                                   |
+
+:exclamation: **NOTE**: As an enhancement, the wrapper is now able to automatically set the Aurora host list provider for connections to Aurora MySQL and Aurora PostgreSQL databases.
+Aurora Host List Connection Plugin is deprecated. If you were using the Aurora Host List Connection Plugin, you can simply remove the plugin from the `wrapperPlugins` parameter.
+However, if you choose to, you can ensure the provider is used by specifying a topology-aware dialect, for more information, see [Database Dialects](../using-the-jdbc-driver/DatabaseDialects.md).
 
 :exclamation:**NOTE**: To see information logged by plugins such as `DataCacheConnectionPlugin` and `LogQueryConnectionPlugin`,
 > see the [Logging](#logging) section.
@@ -134,7 +138,7 @@ If there is an unreleased feature you would like to try, it may be available in 
   <dependency>
     <groupId>software.amazon.jdbc</groupId>
     <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-    <version>2.2.1-SNAPSHOT</version>
+    <version>2.2.2-SNAPSHOT</version>
     <scope>system</scope>
     <systemPath>path-to-snapshot-jar</systemPath>
   </dependency>
@@ -147,3 +151,130 @@ dependencies {
     implementation(files("path-to-snapshot-jar"))
 }
 ```
+
+## AWS JDBC Driver for MySQL Migration Guide
+
+**[The Amazon Web Services (AWS) JDBC Driver for MySQL](https://github.com/awslabs/aws-mysql-jdbc)**allows an
+application to take advantage of the features of clustered MySQL databases. It is based on and can be used as a drop-in
+compatible for the[MySQL Connector/J driver](https://github.com/mysql/mysql-connector-j), and is compatible with all
+MySQL deployments.
+
+The AWS JDBC Driver has the same functionalities as the AWS JDBC Driver for MySQL, as well as additional features such as support for Read/Write Splitting. This
+section highlights the steps required to migrate from the AWS JDBC Driver for MySQL to the AWS JDBC Driver.
+
+### Replacement Steps
+
+1. Update the driver class name from `software.aws.rds.jdbc.mysql.Driver` to `software.amazon.jdbc.Driver`
+2. Update the URL JDBC protocol from `jdbc:mysql:aws:` to  `jdbc:aws-wrapper:mysql`
+3. Update the plugin configuration parameter from `connectionPluginFactories`
+   to  [wrapperPlugins](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
+   See more details below.
+
+### Plugins Configuration
+
+In the AWS JDBC Driver for MySQL, plugins are set by providing a list of connection plugin factories:
+
+```java
+"jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/db?connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory,com.mysql.cj.jdbc.ha.plugins.failover.FailoverConnectionPluginFactory,com.mysql.cj.jdbc.ha.plugins.NodeMonitoringConnectionPluginFactory"
+```
+
+In the AWS JDBC Driver, plugins are set by specifying the plugin codes:
+
+```java
+"jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306/db?wrapperPlugins=iam,failover"
+```
+
+To see the list of available plugins and their associated plugin code, see
+the [documentation](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#list-of-available-plugins).
+
+The AWS JDBC Driver also provides
+the [Read-Write Splitting plugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#read-write-splitting-plugin),
+this plugin allows the application to switch the connections between writer and reader instances by calling
+the `Connection#setReadOnly` method.
+
+### Example Configurations
+
+#### Using the IAM Authentication Plugin with AWS JDBC Driver for MySQL
+
+```java
+public static void main(String[] args) throws SQLException {
+    final Properties properties = new Properties();
+    properties.setProperty("useAwsIam", "true");
+    properties.setProperty("user", "foo");
+
+    try (final Connection conn = DriverManager.getConnection(
+        "jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        final Statement statement = conn.createStatement();
+        final ResultSet result = statement.executeQuery("SELECT 1")) {
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+
+#### Using the IAM Authentication Plugin with AWS JDBC Driver
+
+```java
+public static void main(String[] args) throws SQLException {
+
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "iam");
+    properties.setProperty("user", "iam_user");
+
+    try (Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        Statement statement = conn.createStatement();
+        ResultSet result = statement.executeQuery("SELECT 1")) {
+
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+
+The IAM Authentication Plugin in the AWS JDBC Driver has extra parameters to support custom endpoints. For more
+information,
+see [How do I use IAM with the AWS Advanced JDBC Driver?](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md#how-do-i-use-iam-with-the-aws-advanced-jdbc-driver)
+
+### Secrets Manager Plugin
+
+The Secrets Manager Plugin in both the AWS JDBC Driver for MySQL and the AWS JDBC Driver uses the same configuration
+parameters. To migrate to the AWS JDBC Driver, simply change
+the `connectionPluginFactories=com.mysql.cj.jdbc.ha.plugins.AWSSecretsManagerPluginFactory` parameter
+to `wrapperPlugins=awsSecretsManager`
+
+#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver for MySQL
+
+```java
+public static void main(String[] args) throws SQLException {
+    final Properties properties = new Properties();
+    properties.setProperty("connectionPluginFactories", AWSSecretsManagerPluginFactory.class.getName());
+    properties.setProperty("secretsManagerSecretId", "secretId");
+    properties.setProperty("secretsManagerRegion", "us-east-2");
+
+    try (final Connection conn = DriverManager.getConnection(
+        "jdbc:mysql:aws://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        final Statement statement = conn.createStatement();
+        final ResultSet result = statement.executeQuery("SELECT 1")) {
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+#### Using the AWS Secrets Manager Plugin with AWS JDBC Driver
+
+```java
+public static void main(String[] args) throws SQLException {
+
+    final Properties properties = new Properties
+    properties.setProperty("wrapperPlugins", "awsSecretsManagers");
+    properties.setProperty("secretsManagerSecretId", "secretId");
+    properties.setProperty("secretsManagerRegion", "us-east-2");
+
+    try (Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:mysql://db-identifier.XYZ.us-east-2.rds.amazonaws.com:3306", properties);
+        Statement statement = conn.createStatement();
+        ResultSet result = statement.executeQuery("SELECT 1")) {
+
+      System.out.println(Util.getResult(result));
+    }
+  }
+```
+
+## Enable Logging
+To enable logging in the AWS JDBC Driver, change the `logger=StandardLogger` parameter to `wrapperLoggerLevel=FINEST`

@@ -11,10 +11,6 @@ on:
     paths-ignore:
       - '**/release_draft.yml'
       - '**/maven*.yml'
-      - '**/*.md'
-      - '**/docs/**'
-      - '**/*.jpg'
-      - '**/*.png'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,21 +24,38 @@ jobs:
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v3
-
+        with:
+          fetch-depth: 50
+      - name: 'Get changed files'
+        id: changed-files-specific
+        uses: tj-actions/changed-files@v37
+        with:
+          files_yaml: |
+            doc:
+              - '**/*.md'
+              - '**/docs/**'
+              - '**/*.jpg'
+              - '**/*.png'
+      - name: 'Check changed files'
+        id: changed-files
+        if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
+        run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
       - name: 'Set up JDK 8'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/setup-java@v3
         with:
           distribution: 'corretto'
           java-version: 8
-
       - name: 'Run all checks'
-        run: ./gradlew check
-
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
+        run: |
+          echo ${{steps.changed-files.outputs.ONLY_DOCS}}
+          ./gradlew check
       - name: 'Generate code coverage report'
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         run: ./gradlew jacocoTestReport
-
       - name: 'Archive test results'
-        if: always()
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         uses: actions/upload-artifact@v3
         with:
           name: 'junit-report'

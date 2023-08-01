@@ -45,10 +45,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
-import software.amazon.jdbc.HostAvailability;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class ClusterAwareReaderFailoverHandlerTest {
 
@@ -58,12 +60,18 @@ class ClusterAwareReaderFailoverHandlerTest {
   private AutoCloseable closeable;
   private final Properties properties = new Properties();
   private final List<HostSpec> defaultHosts = Arrays.asList(
-      new HostSpec("writer", 1234, HostRole.WRITER),
-      new HostSpec("reader1", 1234, HostRole.READER),
-      new HostSpec("reader2", 1234, HostRole.READER),
-      new HostSpec("reader3", 1234, HostRole.READER),
-      new HostSpec("reader4", 1234, HostRole.READER),
-      new HostSpec("reader5", 1234, HostRole.READER)
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("writer").port(1234).role(HostRole.WRITER).build(),
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("reader1").port(1234).role(HostRole.READER).build(),
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("reader2").port(1234).role(HostRole.READER).build(),
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("reader3").port(1234).role(HostRole.READER).build(),
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("reader4").port(1234).role(HostRole.READER).build(),
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+          .host("reader5").port(1234).role(HostRole.READER).build()
   );
 
   @BeforeEach
@@ -166,7 +174,8 @@ class ClusterAwareReaderFailoverHandlerTest {
         new ClusterAwareReaderFailoverHandler(
             mockPluginService,
             properties);
-    final HostSpec currentHost = new HostSpec("writer", 1234);
+    final HostSpec currentHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("writer")
+        .port(1234).build();
 
     ReaderFailoverResult result = target.failover(null, currentHost);
     assertFalse(result.isConnected());
@@ -338,8 +347,10 @@ class ClusterAwareReaderFailoverHandlerTest {
   @Test
   public void testHostFailoverStrictReaderEnabled() {
 
-    final HostSpec writer = new HostSpec("writer", 1234, HostRole.WRITER);
-    final HostSpec reader = new HostSpec("reader1", 1234, HostRole.READER);
+    final HostSpec writer = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("writer").port(1234).role(HostRole.WRITER).build();
+    final HostSpec reader = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("reader1").port(1234).role(HostRole.READER).build();
     final List<HostSpec> hosts = Arrays.asList(writer, reader);
 
     final ClusterAwareReaderFailoverHandler target =

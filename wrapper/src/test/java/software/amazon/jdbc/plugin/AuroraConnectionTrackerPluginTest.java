@@ -43,10 +43,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.TopologyAwareDatabaseCluster;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -58,7 +59,7 @@ public class AuroraConnectionTrackerPluginTest {
   @Mock Statement mockStatement;
   @Mock ResultSet mockResultSet;
   @Mock PluginService mockPluginService;
-  @Mock(extraInterfaces = TopologyAwareDatabaseCluster.class) private Dialect mockTopologyAwareDialect;
+  @Mock Dialect mockTopologyAwareDialect;
   @Mock RdsUtils mockRdsUtils;
   @Mock OpenedConnectionTracker mockTracker;
   @Mock JdbcCallable<Connection, SQLException> mockConnectionFunction;
@@ -80,7 +81,6 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockRdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
-    when(((TopologyAwareDatabaseCluster) mockTopologyAwareDialect).getNodeIdQuery()).thenReturn("any");
   }
 
   @AfterEach
@@ -93,7 +93,8 @@ public class AuroraConnectionTrackerPluginTest {
   public void testTrackNewInstanceConnections(
       final String protocol,
       final boolean isInitialConnection) throws SQLException {
-    final HostSpec hostSpec = new HostSpec("instance1");
+    final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance1")
+        .build();
     when(mockPluginService.getCurrentHostSpec()).thenReturn(hostSpec);
     when(mockRdsUtils.isRdsInstance("instance1")).thenReturn(true);
 
@@ -119,7 +120,8 @@ public class AuroraConnectionTrackerPluginTest {
   @Test
   public void testInvalidateOpenedConnections() throws SQLException {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
-    final HostSpec originalHost = new HostSpec("host");
+    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
+        .build();
     when(mockPluginService.getHosts()).thenReturn(Collections.singletonList(originalHost));
     doThrow(expectedException).when(mockSqlFunction).call();
 
@@ -146,7 +148,8 @@ public class AuroraConnectionTrackerPluginTest {
   @ParameterizedTest
   @ValueSource(strings = {AuroraConnectionTrackerPlugin.METHOD_ABORT, AuroraConnectionTrackerPlugin.METHOD_CLOSE})
   public void testInvalidateConnectionsOnCloseOrAbort(final String method) throws SQLException {
-    final HostSpec originalHost = new HostSpec("host");
+    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
+        .build();
     when(mockPluginService.getCurrentHostSpec()).thenReturn(originalHost);
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(

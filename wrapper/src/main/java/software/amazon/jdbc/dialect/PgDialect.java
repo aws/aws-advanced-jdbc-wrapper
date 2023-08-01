@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
+import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 
 /**
  * Generic dialect for any Postgresql database.
@@ -76,5 +77,10 @@ public class PgDialect implements Dialect {
   @Override
   public List<String> getDialectUpdateCandidates() {
     return dialectUpdateCandidates;
+  }
+
+  @Override
+  public HostListProviderSupplier getHostListProvider() {
+    return ConnectionStringHostListProvider::new;
   }
 }

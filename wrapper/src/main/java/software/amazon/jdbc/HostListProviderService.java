@@ -36,4 +36,6 @@ public interface HostListProviderService {
   HostSpec getCurrentHostSpec();
 
   Dialect getDialect();
+
+  HostSpecBuilder getHostSpecBuilder();
 }

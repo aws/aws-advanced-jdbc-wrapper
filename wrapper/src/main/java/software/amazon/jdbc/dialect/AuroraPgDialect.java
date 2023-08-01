@@ -21,13 +21,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 /**
  * Suitable for the following AWS PG configurations.
  * - Regional Cluster
  */
-public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseCluster {
-
+public class AuroraPgDialect extends PgDialect {
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
   private static final String extensionsSql =
@@ -37,24 +37,15 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
 
   private static final String topologySql = "SELECT 1 FROM aurora_replica_status() LIMIT 1";
 
-  @Override
-  public String getTopologyQuery() {
-    return "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
-        + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
-        + "FROM aurora_replica_status() "
-        // filter out nodes that haven't been updated in the last 5 minutes
-        + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
-  }
+  private static final String TOPOLOGY_QUERY =
+      "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
+          + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
+          + "FROM aurora_replica_status() "
+          // filter out nodes that haven't been updated in the last 5 minutes
+          + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
 
-  @Override
-  public String getNodeIdQuery() {
-    return "SELECT aurora_db_instance_identifier()";
-  }
-
-  @Override
-  public String getIsReaderQuery() {
-    return "SELECT pg_is_in_recovery()";
-  }
+  private static final String NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
+  private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -66,7 +57,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
     boolean hasTopology = false;
     try {
       try (final Statement stmt = connection.createStatement();
-          final ResultSet rs = stmt.executeQuery(extensionsSql)) {
+           final ResultSet rs = stmt.executeQuery(extensionsSql)) {
         if (rs.next()) {
           final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
           LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
@@ -77,7 +68,7 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
       }
 
       try (final Statement stmt = connection.createStatement();
-          final ResultSet rs = stmt.executeQuery(topologySql)) {
+           final ResultSet rs = stmt.executeQuery(topologySql)) {
         if (rs.next()) {
           LOGGER.finest(() -> "hasTopology: true");
           hasTopology = true;
@@ -90,5 +81,16 @@ public class AuroraPgDialect extends PgDialect implements TopologyAwareDatabaseC
       // ignore
     }
     return false;
+  }
+
+  @Override
+  public HostListProviderSupplier getHostListProvider() {
+    return (properties, initialUrl, hostListProviderService) -> new AuroraHostListProvider(
+        properties,
+        initialUrl,
+        hostListProviderService,
+        TOPOLOGY_QUERY,
+        NODE_ID_QUERY,
+        IS_READER_QUERY);
   }
 }

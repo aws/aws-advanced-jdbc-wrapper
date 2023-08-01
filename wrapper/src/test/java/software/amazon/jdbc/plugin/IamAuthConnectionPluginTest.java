@@ -40,10 +40,12 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class IamAuthConnectionPluginTest {
 
@@ -57,10 +59,14 @@ class IamAuthConnectionPluginTest {
       + DEFAULT_MYSQL_PORT + ":mysqlUser";
   private static final String PG_DRIVER_PROTOCOL = "jdbc:postgresql:";
   private static final String MYSQL_DRIVER_PROTOCOL = "jdbc:mysql:";
-  private static final HostSpec PG_HOST_SPEC = new HostSpec("pg.testdb.us-east-2.rds.amazonaws.com");
-  private static final HostSpec PG_HOST_SPEC_WITH_PORT = new HostSpec("pg.testdb.us-east-2.rds.amazonaws.com", 1234);
-  private static final HostSpec PG_HOST_SPEC_WITH_REGION = new HostSpec("pg.testdb.us-west-1.rds.amazonaws.com");
-  private static final HostSpec MYSQL_HOST_SPEC = new HostSpec("mysql.testdb.us-east-2.rds.amazonaws.com");
+  private static final HostSpec PG_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("pg.testdb.us-east-2.rds.amazonaws.com").build();
+  private static final HostSpec PG_HOST_SPEC_WITH_PORT = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("pg.testdb.us-east-2.rds.amazonaws.com").port(1234).build();
+  private static final HostSpec PG_HOST_SPEC_WITH_REGION = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("pg.testdb.us-west-1.rds.amazonaws.com").build();
+  private static final HostSpec MYSQL_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+      .host("mysql.testdb.us-east-2.rds.amazonaws.com").build();
   private Properties props;
 
   @Mock JdbcCallable<Connection, SQLException> mockLambda;
@@ -200,7 +206,7 @@ class IamAuthConnectionPluginTest {
 
     testGenerateToken(
         PG_DRIVER_PROTOCOL,
-        new HostSpec("8.8.8.8"),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("8.8.8.8").build(),
         "pg.testdb.us-east-2.rds.amazonaws.com");
   }
 

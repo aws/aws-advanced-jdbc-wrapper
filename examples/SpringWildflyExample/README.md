@@ -5,7 +5,7 @@ In this tutorial, you will set up a Wildfly and Spring Boot application with the
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
 >    - Wildfly 26.1.1 Final
->    - AWS Advanced JDBC Wrapper 2.2.1
+>    - AWS Advanced JDBC Wrapper 2.2.2
 >    - Postgresql 42.5.4
 >    - Gradle 7
 >    - Java 11
@@ -38,7 +38,7 @@ Create a Gradle project with the following project hierarchy:
               │       └───main
               │       │   │───module.xml
               │       │   │───postgresql-42.5.4.jar
-              │       │   └───aws-advanced-jdbc-wrapper-2.2.1.jar
+              │       │   └───aws-advanced-jdbc-wrapper-2.2.2.jar
       └───standalone
           ├───configuration
               ├───amazon
@@ -95,9 +95,11 @@ dependencies {
    implementation("org.springframework.boot:spring-boot-starter-web")
    runtimeOnly("org.springframework.boot:spring-boot-devtools")
    implementation("org.postgresql:postgresql")
-   implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper")
+   implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
 }
 ```
+
+Please note that the sample code inside the AWS JDBC Driver project will use the dependency `implementation(project(":aws-advanced-jdbc-wrapper"))` instead of `implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")` as seen above.
 
 ## Step 3: Configure Wildfly
 > Note: for simplicity, this repository does not contain the entire wildfly application, and instead only contains the modified files.
@@ -133,7 +135,7 @@ Since this example uses the PostgreSQL JDBC driver as the target driver, you nee
 <module xmlns="urn:jboss:module:1.1" name="software.amazon.jdbc">
 
   <resources>
-    <resource-root path="aws-advanced-jdbc-wrapper-2.2.1.jar"/>
+    <resource-root path="aws-advanced-jdbc-wrapper-2.2.2.jar"/>
     <resource-root path="postgresql-42.5.4.jar"/>
   </resources>
 </module>

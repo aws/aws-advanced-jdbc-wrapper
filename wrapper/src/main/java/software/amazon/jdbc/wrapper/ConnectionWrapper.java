@@ -40,6 +40,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
@@ -49,6 +50,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
+import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
@@ -121,9 +123,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.pluginManagerService = pluginManagerService;
 
     this.pluginManager.init(this.pluginService, props, pluginManagerService);
-
-    this.hostListProviderService.setHostListProvider(
-        new ConnectionStringHostListProvider(props, this.originalUrl, this.hostListProviderService));
+    final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
+    if (supplier != null) {
+      final HostListProvider provider = supplier.getProvider(props, this.originalUrl, hostListProviderService);
+      hostListProviderService.setHostListProvider(provider);
+    }
 
     this.pluginManager.initHostProvider(
         this.targetDriverProtocol, this.originalUrl, props, this.hostListProviderService);
@@ -492,11 +496,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public boolean isWrapperFor(final Class<?> iface) throws SQLException {
-    return this.pluginService.getCurrentConnection().isWrapperFor(iface);
-  }
-
-  @Override
   public String nativeSQL(final String sql) throws SQLException {
     return WrapperUtils.executeWithPlugins(
         String.class,
@@ -831,8 +830,21 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
+  public boolean isWrapperFor(final Class<?> iface) throws SQLException {
+    boolean result = this.pluginService.getCurrentConnection().isWrapperFor(iface);
+    if (result) {
+      return true;
+    }
+    return this.pluginManager.isWrapperFor(iface);
+  }
+
+  @Override
   public <T> T unwrap(final Class<T> iface) throws SQLException {
-    return this.pluginService.getCurrentConnection().unwrap(iface);
+    T result = this.pluginService.getCurrentConnection().unwrap(iface);
+    if (result != null) {
+      return result;
+    }
+    return this.pluginManager.unwrap(iface);
   }
 
   @Override
