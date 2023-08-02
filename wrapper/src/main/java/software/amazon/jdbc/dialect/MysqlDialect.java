@@ -29,7 +29,7 @@ import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 public class MysqlDialect implements Dialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.AURORA_MYSQL, DialectCodes.RDS_MYSQL);
+      DialectCodes.AURORA_MYSQL, DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER, DialectCodes.RDS_MYSQL);
   private static MySQLExceptionHandler mySQLExceptionHandler;
 
   @Override

@@ -19,9 +19,6 @@ package software.amazon.jdbc.dialect;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
@@ -32,6 +29,8 @@ public class UnknownDialect implements Dialect {
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.AURORA_PG,
       DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
       DialectCodes.RDS_PG,
       DialectCodes.RDS_MYSQL,
       DialectCodes.PG,
