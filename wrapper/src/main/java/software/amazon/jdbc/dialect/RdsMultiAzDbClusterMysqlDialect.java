@@ -20,28 +20,28 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Collections;
 import java.util.List;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 
-public class AuroraMysqlDialect extends MysqlDialect {
+public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String TOPOLOGY_QUERY =
-      "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
-          + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
-          + "FROM information_schema.replica_host_status "
-          // filter out nodes that haven't been updated in the last 5 minutes
-          + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
+      "SELECT id, endpoint, port FROM rds.rds_topology";
 
-  private static final String NODE_ID_QUERY = "SELECT @@aurora_server_id";
-  private static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
+  private static final String FETCH_WRITER_NODE_QUERY =
+      "SHOW REPLICA STATUS";
+
+  private static final String FETCH_WRITER_NODE_QUERY_HEADER = "Source_Server_Id";
+
+  private static final String NODE_ID_QUERY = "SELECT @@server_id";
+  private static final String IS_READER_QUERY = "SELECT @@read_only";
 
   @Override
   public boolean isDialect(final Connection connection) {
     try (final Statement stmt = connection.createStatement();
-        final ResultSet rs = stmt.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")) {
+         final ResultSet rs = stmt.executeQuery("SELECT id FROM rds.rds_topology LIMIT 1")) {
       if (rs.next()) {
-        // If variable with such name is presented then it means it's an Aurora cluster
+        // If the table is presented it means it's a Multi-AZ DB cluster
         return true;
       }
     } catch (final SQLException ex) {
@@ -52,18 +52,19 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public List</* dialect code */ String> getDialectUpdateCandidates() {
-    return Collections.singletonList(
-        DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
+    return null;
   }
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService) -> new AuroraHostListProvider(
+    return (properties, initialUrl, hostListProviderService) -> new RdsMultiAzDbClusterListProvider(
         properties,
         initialUrl,
         hostListProviderService,
         TOPOLOGY_QUERY,
         NODE_ID_QUERY,
-        IS_READER_QUERY);
+        IS_READER_QUERY,
+        FETCH_WRITER_NODE_QUERY,
+        FETCH_WRITER_NODE_QUERY_HEADER);
   }
 }

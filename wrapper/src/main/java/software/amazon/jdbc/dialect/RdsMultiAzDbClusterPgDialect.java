@@ -16,19 +16,10 @@
 
 package software.amazon.jdbc.dialect;
 
-public class DialectCodes {
-  public static final String AURORA_MYSQL = "aurora-mysql";
-  public static final String RDS_MYSQL = "rds-mysql";
-  public static final String MYSQL = "mysql";
-  public static final String RDS_MULTI_AZ_MYSQL_CLUSTER = "rds-multi-az-mysql-cluster";
-
-  public static final String AURORA_PG = "aurora-pg";
-  public static final String RDS_PG = "rds-pg";
-  public static final String RDS_MULTI_AZ_PG_CLUSTER = "rds-multi-az-pg-cluster";
-  public static final String PG = "pg";
-
-  public static final String MARIADB = "mariadb";
-
-  public static final String UNKNOWN = "unknown";
-  public static final String CUSTOM = "custom";
+/**
+ * Suitable for the following AWS PG configurations.
+ * - Regional Cluster
+ */
+public class RdsMultiAzDbClusterPgDialect extends PgDialect {
+  // Not Implemented
 }
