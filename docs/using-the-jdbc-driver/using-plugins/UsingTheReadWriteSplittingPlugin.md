@@ -15,7 +15,7 @@ If you would like to use the read-write splitting plugin without the failover pl
 
 ```
 final Properties properties = new Properties();
-properties.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
+properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
 ```
 
 ### Supplying the connection string
