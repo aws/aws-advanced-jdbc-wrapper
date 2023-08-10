@@ -78,7 +78,6 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
   protected @Nullable String serverName;
   protected @Nullable String serverPort;
   protected @Nullable String database;
-  private int loginTimeout = 0;
 
   @Override
   public Connection getConnection() throws SQLException {
@@ -154,16 +153,6 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     if (!StringUtils.isNullOrEmpty(this.targetDataSourceClassName)) {
 
       final DataSource targetDataSource = createTargetDataSource();
-      try {
-        targetDataSource.setLoginTimeout(loginTimeout);
-      } catch (Exception ex) {
-        LOGGER.finest(
-            () ->
-                Messages.get(
-                    "DataSource.failedToSetProperty",
-                    new Object[] {"loginTimeout", targetDataSource.getClass(), ex.getCause().getMessage()}));
-      }
-
       final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
       final TargetDriverDialect targetDriverDialect =
           targetDriverDialectManager.getDialect(this.targetDataSourceClassName, props);
@@ -295,15 +284,12 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
 
   @Override
   public void setLoginTimeout(final int seconds) throws SQLException {
-    if (seconds < 0) {
-      throw new SQLException("Login timeout cannot be a negative value.");
-    }
-    loginTimeout = seconds;
+    throw new SQLFeatureNotSupportedException();
   }
 
   @Override
   public int getLoginTimeout() throws SQLException {
-    return loginTimeout;
+    throw new SQLFeatureNotSupportedException();
   }
 
   @Override
@@ -344,7 +330,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     }
   }
 
-  DataSource createTargetDataSource() throws SQLException {
+  private DataSource createTargetDataSource() throws SQLException {
     try {
       return WrapperUtils.createInstance(this.targetDataSourceClassName, DataSource.class);
     } catch (final InstantiationException instEx) {
