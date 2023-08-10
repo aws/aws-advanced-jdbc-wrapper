@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 import integration.container.TestDriver;
 import integration.container.condition.DisableOnTestDriver;
@@ -33,8 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.postgresql.ds.PGSimpleDataSource;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 class AwsWrapperDataSourceTest {
@@ -49,7 +50,7 @@ class AwsWrapperDataSourceTest {
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
-    ds = Mockito.spy(new AwsWrapperDataSource());
+    ds = spy(new AwsWrapperDataSource());
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
     doReturn(mockConnection)
         .when(ds)
@@ -224,5 +225,30 @@ class AwsWrapperDataSourceTest {
     ds.setJdbcUrl("protocol://testserver/");
 
     assertThrows(SQLException.class, () -> ds.getConnection("user", ""));
+  }
+
+  @Test
+  public void testSetLoginTimeout() throws SQLException {
+    ds.setLoginTimeout(30);
+    assertEquals(30, ds.getLoginTimeout());
+    assertThrows(SQLException.class, () -> ds.setLoginTimeout(-100));
+  }
+
+  @Test
+  @DisableOnTestDriver(TestDriver.MARIADB)
+  public void testSetLoginTimeoutOnTargetDataSource() throws SQLException {
+    PGSimpleDataSource simpleDS = new PGSimpleDataSource();
+    doReturn(simpleDS).when(ds).createTargetDataSource();
+
+    ds.setJdbcUrl("jdbc:postgresql://testserver/");
+
+    try (final Connection conn = ds.getConnection()) {
+      assertEquals(0, simpleDS.getLoginTimeout());
+    }
+
+    ds.setLoginTimeout(500);
+    try (final Connection conn = ds.getConnection()) {
+      assertEquals(500, simpleDS.getLoginTimeout());
+    }
   }
 }
