@@ -65,15 +65,6 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 public class AutoscalingTests {
   protected static final AuroraTestUtility auroraUtil =
       new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
-  private static final Logger LOGGER = Logger.getLogger(AutoscalingTests.class.getName());
-
-  protected static Properties getProxiedProps() {
-    final Properties props = getProps();
-    AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
-            .getInstanceEndpointSuffix());
-    return props;
-  }
 
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
@@ -84,7 +75,7 @@ public class AutoscalingTests {
 
   protected static Properties getProps() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "auroraHostList,readWriteSplitting");
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
     return props;
   }
 
