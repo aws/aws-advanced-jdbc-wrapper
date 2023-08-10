@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -34,6 +35,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
 import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.PooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
@@ -62,11 +64,14 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private final PluginService pluginService;
   private final Properties properties;
   private final String readerSelectorStrategy;
+  private final ConnectionProviderManager connProviderManager;
   private volatile boolean inReadWriteSplit = false;
   private HostListProviderService hostListProviderService;
   private Connection writerConnection;
   private Connection readerConnection;
   private HostSpec readerHostSpec;
+  private boolean isReaderConnFromInternalPool;
+  private boolean isWriterConnFromInternalPool;
 
   public static final AwsWrapperProperty READER_HOST_SELECTOR_STRATEGY =
       new AwsWrapperProperty(
@@ -82,6 +87,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.pluginService = pluginService;
     this.properties = properties;
     this.readerSelectorStrategy = READER_HOST_SELECTOR_STRATEGY.getString(properties);
+    this.connProviderManager = new ConnectionProviderManager(pluginService.getConnectionProvider());
   }
 
   /**
@@ -131,6 +137,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           Messages.get("ReadWriteSplittingPlugin.unsupportedHostSpecSelectorStrategy",
               new Object[] { this.readerSelectorStrategy }));
     }
+
     return connectInternal(isInitialConnection, connectFunc);
   }
 
@@ -263,6 +270,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void getNewWriterConnection(final HostSpec writerHostSpec) throws SQLException {
     final Connection conn = this.pluginService.connect(writerHostSpec, this.properties);
+    this.isWriterConnFromInternalPool = this.connProviderManager.getConnectionProvider(
+        this.pluginService.getDriverProtocol(),
+        writerHostSpec,
+        this.properties)
+        instanceof PooledConnectionProvider;
     setWriterConnection(conn, writerHostSpec);
     switchCurrentConnectionTo(this.writerConnection, writerHostSpec);
   }
@@ -379,6 +391,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       switchCurrentConnectionTo(this.writerConnection, writerHost);
     }
 
+    if (this.isReaderConnFromInternalPool) {
+      this.closeConnectionIfIdle(this.readerConnection);
+    }
+
     LOGGER.finer(() -> Messages.get("ReadWriteSplittingPlugin.switchedFromReaderToWriter",
         new Object[] {writerHost.getUrl()}));
   }
@@ -452,6 +468,10 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         initializeReaderConnection(hosts);
       }
     }
+
+    if (this.isWriterConnFromInternalPool) {
+      this.closeConnectionIfIdle(this.writerConnection);
+    }
   }
 
   private void initializeReaderConnection(final @NonNull List<HostSpec> hosts) throws SQLException {
@@ -494,6 +514,11 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(HostRole.READER, this.readerSelectorStrategy);
       try {
         conn = this.pluginService.connect(hostSpec, this.properties);
+        this.isReaderConnFromInternalPool = this.connProviderManager.getConnectionProvider(
+            this.pluginService.getDriverProtocol(),
+            hostSpec,
+            this.properties)
+            instanceof PooledConnectionProvider;
         readerHost = hostSpec;
         break;
       } catch (final SQLException e) {
@@ -534,7 +559,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     closeConnectionIfIdle(this.writerConnection);
   }
 
-  private void closeConnectionIfIdle(final Connection internalConnection) {
+  void closeConnectionIfIdle(final Connection internalConnection) {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     try {
       if (internalConnection != null

@@ -57,6 +57,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -313,7 +314,6 @@ public class ConcurrencyTests {
 
     @Override
     public void setAvailability(Set<String> hostAliases, HostAvailability availability) {
-
     }
 
     @Override
@@ -403,6 +403,16 @@ public class ConcurrencyTests {
     @Override
     public HostSpecBuilder getHostSpecBuilder() {
       return new HostSpecBuilder(new SimpleHostAvailabilityStrategy());
+    }
+
+    @Override
+    public ConnectionProvider getConnectionProvider() {
+      return null;
+    }
+
+    @Override
+    public String getDriverProtocol() {
+      return null;
     }
   }
 

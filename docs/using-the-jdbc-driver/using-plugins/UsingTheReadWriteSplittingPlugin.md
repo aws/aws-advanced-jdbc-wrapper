@@ -11,12 +11,13 @@ final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
 ```
 
-If you would like to use the read-write splitting plugin without the failover plugin, the Aurora host list plugin must be included before the read-write splitting plugin. This informs the driver that it should query for Aurora's topology.
-
+If you would like to use the read-write splitting plugin without the failover plugin, make sure you have the `readWriteSplitting` plugin in the `wrapperPlugins` property, and that the failover plugin is not part of it.
 ```
 final Properties properties = new Properties();
-properties.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting");
+properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
 ```
+
+> The Aurora Host List Plugin is deprecated after version 2.2.3. To use the Read Write Splitting plugin without failover with versions 2.2.3 and earlier, add the Aurora Host List Plugin to the plugin list like so: `"auroraHostList,readWriteSplitting"`.
 
 ### Supplying the connection string
 

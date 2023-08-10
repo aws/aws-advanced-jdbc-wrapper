@@ -158,4 +158,8 @@ public interface PluginService extends ExceptionHandler {
   void fillAliases(final Connection connection, final HostSpec hostSpec) throws SQLException;
 
   HostSpecBuilder getHostSpecBuilder();
+
+  ConnectionProvider getConnectionProvider();
+
+  String getDriverProtocol();
 }

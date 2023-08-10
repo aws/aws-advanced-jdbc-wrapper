@@ -114,7 +114,7 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getProps() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "auroraHostList,readWriteSplitting");
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting");
     return props;
   }
 
