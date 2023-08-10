@@ -17,7 +17,7 @@ final Properties properties = new Properties();
 properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
 ```
 
-> After 2.2.3, the Aurora HostList Plugin is deprecated. Users using earlier versions still need to add the plugin to the plugin list like so: `"auroraHostList,readWriteSplitting"`.
+> The Aurora Host List Plugin is deprecated after version 2.2.3. To use the Read Write Splitting plugin without failover with versions 2.2.3 and earlier, add the Aurora Host List Plugin to the plugin list like so: `"auroraHostList,readWriteSplitting"`.
 
 ### Supplying the connection string
 
