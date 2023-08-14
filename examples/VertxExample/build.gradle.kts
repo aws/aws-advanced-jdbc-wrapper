@@ -33,7 +33,7 @@ application {
 }
 
 dependencies {
-    implementation(platform("io.vertx:vertx-stack-depchain:4.4.2"))
+    implementation(platform("io.vertx:vertx-stack-depchain:4.4.4"))
     implementation("io.vertx:vertx-core")
     implementation("io.vertx:vertx-config")
     implementation("io.vertx:vertx-jdbc-client")
