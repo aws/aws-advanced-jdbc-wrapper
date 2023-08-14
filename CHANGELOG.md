@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :magic_wand: Added
 - Host Availability Strategy to help keep host health status up to date ([PR #530](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/530)).
 
+### :bug: Fixed
+- Race condition issues between `MonitorThreadContainer#getInstance()` and `MonitorThreadContainer#releaseInstance()` ([PR #601](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/601)).
+
 ### :crab: Changed
 - Dynamically sets the default host list provider based on the dialect used. User applications no longer need to manually set the AuroraHostListProvider when connecting to Aurora Postgres or Aurora MySQL databases.
 - Deprecated AuroraHostListConnectionPlugin. 

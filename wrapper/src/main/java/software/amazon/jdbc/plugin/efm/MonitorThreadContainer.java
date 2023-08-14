@@ -54,19 +54,19 @@ public class MonitorThreadContainer {
   }
 
   static MonitorThreadContainer getInstance(final ExecutorServiceInitializer executorServiceInitializer) {
-    if (singleton == null) {
-      LOCK_OBJECT.lock();
-      try {
-        if (singleton == null) {
-          singleton = new MonitorThreadContainer(executorServiceInitializer);
-          CLASS_USAGE_COUNT.set(0);
-        }
-      } finally {
-        LOCK_OBJECT.unlock();
+    MonitorThreadContainer singletonToReturn;
+    LOCK_OBJECT.lock();
+    try {
+      if (singleton == null) {
+        singleton = new MonitorThreadContainer(executorServiceInitializer);
+        CLASS_USAGE_COUNT.set(0);
       }
+      singletonToReturn = singleton;
+      CLASS_USAGE_COUNT.getAndIncrement();
+    } finally {
+      LOCK_OBJECT.unlock();
     }
-    CLASS_USAGE_COUNT.getAndIncrement();
-    return singleton;
+    return singletonToReturn;
   }
 
   /**
@@ -77,18 +77,15 @@ public class MonitorThreadContainer {
     if (singleton == null) {
       return;
     }
-
-    if (CLASS_USAGE_COUNT.decrementAndGet() <= 0) {
-      LOCK_OBJECT.lock();
-      try {
-        if (singleton != null) {
-          singleton.releaseResources();
-          singleton = null;
-          CLASS_USAGE_COUNT.set(0);
-        }
-      } finally {
-        LOCK_OBJECT.unlock();
+    LOCK_OBJECT.lock();
+    try {
+      if (singleton != null && CLASS_USAGE_COUNT.decrementAndGet() <= 0) {
+        singleton.releaseResources();
+        singleton = null;
+        CLASS_USAGE_COUNT.set(0);
       }
+    } finally {
+      LOCK_OBJECT.unlock();
     }
   }
 
