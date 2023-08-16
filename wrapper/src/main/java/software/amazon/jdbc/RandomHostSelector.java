@@ -18,21 +18,29 @@ package software.amazon.jdbc;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.util.Messages;
 
 public class RandomHostSelector implements HostSelector {
 
+  public static final String STRATEGY_RANDOM = "random";
+
   @Override
-  public HostSpec getHost(List<HostSpec> hosts, HostRole role) throws SQLException {
-    List<HostSpec> eligibleHosts = hosts.stream()
+  public HostSpec getHost(
+      @NonNull final List<HostSpec> hosts,
+      @NonNull final HostRole role,
+      @Nullable final Properties props) throws SQLException {
+    final List<HostSpec> eligibleHosts = hosts.stream()
         .filter(hostSpec -> role.equals(hostSpec.getRole())).collect(Collectors.toList());
     if (eligibleHosts.size() == 0) {
-      throw new SQLException(Messages.get("RandomHostSelector.noHostsMatchingRole", new Object[]{role}));
+      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
 
-    int randomIndex = new Random().nextInt(eligibleHosts.size());
+    final int randomIndex = new Random().nextInt(eligibleHosts.size());
     return eligibleHosts.get(randomIndex);
   }
 }
