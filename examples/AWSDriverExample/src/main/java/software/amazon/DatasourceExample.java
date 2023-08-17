@@ -30,17 +30,31 @@ public class DatasourceExample {
   public static void main(String[] args) throws SQLException {
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
-    // Configure the property names for the underlying driver-specific data source:
     ds.setJdbcProtocol("jdbc:postgresql:");
 
     // Specify the driver-specific data source:
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
-    // Configure the driver-specific data source:
+    // Configure basic data source information:
+    ds.setServerName("db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
+    ds.setDatabase("employees");
+    ds.setServerPort("5432");
+
+    // Configure the driver-specific and AWS JDBC Driver properties (optional):
     Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
-    targetDataSourceProps.setProperty("database", "employees");
-    targetDataSourceProps.setProperty("serverPort", "5432");
+
+    // Alternatively, instead of using the methods above to configure the basic data source information,
+    // those properties can be set using the target data source properties:
+    // targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
+    // targetDataSourceProps.setProperty("database", "employees");
+    // targetDataSourceProps.setProperty("serverPort", "5432");
+
+    // Configure any driver-specific properties:
+    targetDataSourceProps.setProperty("ssl", "true");
+
+    // Configure any AWS JDBC Driver properties:
+    targetDataSourceProps.setProperty("wrapperLoggerLevel", "ALL");
+
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     // Try and make a connection:
