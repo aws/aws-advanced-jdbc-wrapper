@@ -92,7 +92,7 @@ public class AuroraTestUtility {
   private String dbName = "test";
   private String dbIdentifier = "test-identifier";
   private String dbEngine = "aurora-postgresql";
-  private String dbEngineVersion = "13.7";
+  private String dbEngineVersion = "13.9";
   private String dbInstanceClass = "db.r5.large";
   private final Region dbRegion;
   private final String dbSecGroup = "default";

@@ -42,7 +42,8 @@ public class AuroraPgDialect extends PgDialect {
           + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
           + "FROM aurora_replica_status() "
           // filter out nodes that haven't been updated in the last 5 minutes
-          + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
+          + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
+          + "OR LAST_UPDATE_TIMESTAMP IS NULL";
 
   private static final String NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
