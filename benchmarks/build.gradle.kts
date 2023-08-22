@@ -26,7 +26,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:4.0.3")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
-    testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
+    testImplementation("org.mockito:mockito-inline:5.2.0") // 5.2.0 is the last version compatible with Java 8
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
