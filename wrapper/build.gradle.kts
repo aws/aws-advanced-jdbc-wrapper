@@ -30,7 +30,7 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.37.0")
     compileOnly("software.amazon.awssdk:rds:2.20.49")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.20.105")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.20.131")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     compileOnly("mysql:mysql-connector-java:8.0.31")
     compileOnly("org.postgresql:postgresql:42.5.0")
@@ -54,7 +54,7 @@ dependencies {
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.20.49")
     testImplementation("software.amazon.awssdk:ec2:2.20.105")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.20.105")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.20.131")
     testImplementation("org.testcontainers:testcontainers:1.18.3")
     testImplementation("org.testcontainers:mysql:1.18.3")
     testImplementation("org.testcontainers:postgresql:1.18.3")
