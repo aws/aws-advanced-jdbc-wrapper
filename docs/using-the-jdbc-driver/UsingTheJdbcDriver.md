@@ -11,8 +11,7 @@ The AWS JDBC Driver uses the protocol prefix `jdbc:aws-wrapper:`. Internally, th
 ## Getting a Connection
 To get a connection from the AWS JDBC Driver, the user application can either connect with a DriverManager or with a DataSource.
 
-The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers;
-[this example](../driver-specific/postgresql/ConnectionSample.java) demonstrates establishing a connection with the PostgreSQL JDBC driver.
+The process of getting a connection with a DriverManager will remain the same as with other JDBC Drivers; [this example](../driver-specific/postgresql/ConnectionSample.java) demonstrates establishing a connection with the PostgreSQL JDBC driver. Note that when connection properties are configured in both the connection string and with a Properties object, the connection string values will take precedence.
 
 Establishing a connection with a DataSource may require some additional steps.
 For detailed information and examples, review the [Datasource](./DataSource.md) documentation.

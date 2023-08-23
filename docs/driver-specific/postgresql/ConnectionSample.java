@@ -21,7 +21,15 @@ import java.sql.*;
  */
 public class ConnectionTestSample {
 
-  private static final String CONNECTION_STRING =  "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/connectionSample";
+  private static final String CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/connectionSample";
+  // Alternatively, all connection properties can be set in the connection string:
+  // private static final String CONNECTION_STRING =
+  //     "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/connectionSample"
+  //         + "?user=username"
+  //         + "&password=password"
+  //         + "&loginTimeout=100"
+  //         + "&wrapperPlugins=failover,efm"
+  //         + "&wrapperLogUnclosedConnections=true";
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
 
