@@ -16,6 +16,7 @@ permissions:
 jobs:
   ubuntu-latest-jdbc-wrapper-release-gh-draft:
     name: 'Build And Release Draft'
+    environment: draft_release
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone Repository'
