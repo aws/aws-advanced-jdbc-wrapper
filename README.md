@@ -38,6 +38,7 @@ Please visit [this page](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#usin
 For more information on how to download the AWS JDBC Driver, minimum requirements to use it, 
 and how to integrate it within your project and with your JDBC driver of choice, please visit the 
 [Getting Started page](./docs/GettingStarted.md).
+
 ### Maven Central
 You can find our driver by searching in The Central Repository with GroupId and ArtifactId [software.amazon:aws-advanced-jdbc-wrapper][mvn-search].
 
@@ -85,8 +86,6 @@ You can find our driver by searching in The Central Repository with GroupId and 
 | `wrapperProfileName`                   |                  `PropertyDefinition.PROFILE_NAME`                   |           [ConfigurationProfiles](./docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles)           |
 
 **A Secret ARN** has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
-## Using the AWS JDBC Driver
-To find all the documentation and concrete examples on how to use the AWS JDBC Driver, please refer to the [AWS JDBC Driver Documentation](./docs/Documentation.md) page.
 
 ## Logging
 Enabling logging is a very useful mechanism for troubleshooting any issue one might potentially experience while using the AWS JDBC Driver.
@@ -95,6 +94,9 @@ In order to learn how to enable and configure logging, check out the [Logging](.
 
 ## Documentation
 Technical documentation regarding the functionality of the AWS JDBC Driver will be maintained in this GitHub repository. Since the AWS JDBC Driver requires an underlying JDBC driver, please refer to the individual driver's documentation for driver-specific information.
+
+### Using the AWS JDBC Driver
+To find all the documentation and concrete examples on how to use the AWS JDBC Driver, please refer to the [AWS JDBC Driver Documentation](./docs/Documentation.md) page.
 
 ## Examples
 
