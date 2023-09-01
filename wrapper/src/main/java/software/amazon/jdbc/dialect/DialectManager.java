@@ -166,6 +166,7 @@ public class DialectManager implements DialectProvider {
     if (driverProtocol.contains("postgresql")) {
       RdsUrlType type = this.rdsHelper.identifyRdsType(host);
       if (type.isRdsCluster()) {
+        this.canUpdate = true;
         this.dialectCode = DialectCodes.AURORA_PG;
         this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_PG);
         return this.dialect;

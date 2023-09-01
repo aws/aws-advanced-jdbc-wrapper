@@ -26,7 +26,7 @@ import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String TOPOLOGY_QUERY =
-      "SELECT id, endpoint, port FROM rds.rds_topology";
+      "SELECT id, endpoint, port FROM mysql.rds_topology";
 
   private static final String FETCH_WRITER_NODE_QUERY =
       "SHOW REPLICA STATUS";
@@ -39,7 +39,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   @Override
   public boolean isDialect(final Connection connection) {
     try (final Statement stmt = connection.createStatement();
-         final ResultSet rs = stmt.executeQuery("SELECT id FROM rds.rds_topology LIMIT 1")) {
+         final ResultSet rs = stmt.executeQuery("SELECT id FROM mysql.rds_topology LIMIT 1")) {
       if (rs.next()) {
         // If the table is presented it means it's a Multi-AZ DB cluster
         return true;
