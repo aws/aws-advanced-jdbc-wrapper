@@ -32,7 +32,7 @@ dependencies {
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.20.136")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
-    compileOnly("mysql:mysql-connector-java:8.0.31")
+    compileOnly("mysql:mysql-connector-java:8.0.33")
     compileOnly("org.postgresql:postgresql:42.5.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.4")
     compileOnly("org.osgi:org.osgi.core:4.3.0")
@@ -47,7 +47,7 @@ dependencies {
 
     testImplementation("org.apache.commons:commons-dbcp2:2.9.0")
     testImplementation("org.postgresql:postgresql:42.5.0")
-    testImplementation("mysql:mysql-connector-java:8.0.31")
+    testImplementation("mysql:mysql-connector-java:8.0.33")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.4")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
