@@ -21,7 +21,7 @@ plugins {
 dependencies {
     jmhImplementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("org.postgresql:postgresql:42.5.0")
-    implementation("mysql:mysql-connector-java:8.0.31")
+    implementation("mysql:mysql-connector-java:8.0.33")
     implementation("org.mariadb.jdbc:mariadb-java-client:3.1.4")
     implementation("com.zaxxer:HikariCP:4.0.3")
 
