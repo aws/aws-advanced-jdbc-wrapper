@@ -58,7 +58,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.18.3")
     testImplementation("org.testcontainers:mysql:1.18.3")
     testImplementation("org.testcontainers:postgresql:1.18.3")
-    testImplementation("org.testcontainers:mariadb:1.18.3")
+    testImplementation("org.testcontainers:mariadb:1.19.0")
     testImplementation("org.testcontainers:junit-jupiter:1.19.0")
     testImplementation("org.testcontainers:toxiproxy:1.19.0")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
