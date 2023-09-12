@@ -187,9 +187,7 @@ class HikariPooledConnectionProviderTest {
     provider = new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig);
     provider.setDatabasePools(getTestPoolMap());
 
-    assertThrows(UnsupportedOperationException.class, () ->
-        provider.getHostSpecByStrategy(testHosts, HostRole.READER, "random"));
-    HostSpec selectedHost = provider.getHostSpecByStrategy(testHosts, HostRole.READER, LEAST_CONNECTIONS);
+    HostSpec selectedHost = provider.getHostSpecByStrategy(testHosts, HostRole.READER, LEAST_CONNECTIONS, defaultProps);
     // Other reader has 2 connections
     assertEquals(readerUrl1Connection, selectedHost.getHost());
   }

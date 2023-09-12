@@ -414,6 +414,11 @@ public class ConcurrencyTests {
     public String getDriverProtocol() {
       return null;
     }
+
+    @Override
+    public Properties getProperties() {
+      return null;
+    }
   }
 
   public static class TestConnection implements Connection {

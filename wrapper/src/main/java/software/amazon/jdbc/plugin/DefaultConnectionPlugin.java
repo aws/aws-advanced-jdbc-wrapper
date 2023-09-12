@@ -197,7 +197,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
     }
 
-    return this.connProviderManager.getHostSpecByStrategy(hosts, role, strategy);
+    return this.connProviderManager.getHostSpecByStrategy(hosts, role, strategy, this.pluginService.getProperties());
   }
 
   @Override

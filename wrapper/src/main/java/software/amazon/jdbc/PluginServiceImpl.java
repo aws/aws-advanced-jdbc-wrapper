@@ -553,4 +553,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public HostSpecBuilder getHostSpecBuilder() {
     return new HostSpecBuilder(new HostAvailabilityStrategyFactory().create(this.props));
   }
+
+  @Override
+  public Properties getProperties() {
+    return this.props;
+  }
 }

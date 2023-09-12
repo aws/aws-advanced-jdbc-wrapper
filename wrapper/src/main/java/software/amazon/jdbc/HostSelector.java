@@ -18,17 +18,22 @@ package software.amazon.jdbc;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface HostSelector {
 
   /**
    * Selects a host with the requested role from the given host list.
    *
-   * @param hosts a list of available hosts to pick from
-   * @param role  the desired host role - either a writer or a reader
+   * @param hosts a list of available hosts to pick from.
+   * @param role  the desired host role - either a writer or a reader.
+   * @param props connection properties that may be needed by the host selector in order to choose a host.
    * @return a host matching the requested role
    * @throws SQLException if the host list does not contain any hosts matching the requested role or
    *                      an error occurs while selecting a host
    */
-  HostSpec getHost(List<HostSpec> hosts, HostRole role) throws SQLException;
+  HostSpec getHost(
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @Nullable Properties props) throws SQLException;
 }

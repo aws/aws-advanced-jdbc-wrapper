@@ -162,4 +162,6 @@ public interface PluginService extends ExceptionHandler {
   ConnectionProvider getConnectionProvider();
 
   String getDriverProtocol();
+
+  Properties getProperties();
 }
