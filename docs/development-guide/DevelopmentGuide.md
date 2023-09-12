@@ -155,7 +155,7 @@ Windows:
 For more information on how to run the integration tests, please visit [Integration Tests](/docs/development-guide/IntegrationTests.md).
 
 #### Sample Code
-[Connection Test Sample Code](/docs/driver-specific/postgresql/ConnectionSample.java)
+[Connection Test Sample Code](./../../examples/AWSDriverExample/src/main/java/software/amazon/PgConnectionSample.java)
 
 ## Architecture
 For more information on how the AWS Advanced JDBC Driver functions and how it is structured, please visit [Architecture](./Architecture.md).
