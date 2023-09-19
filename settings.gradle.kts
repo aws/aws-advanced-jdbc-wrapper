@@ -44,7 +44,7 @@ pluginManagement {
 
         id("biz.aQute.bnd.builder") version "6.4.0"
         id("com.github.spotbugs") version "5.1.+"
-        id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
+        id("com.diffplug.spotless") version "6.21.0" // 6.21.0 is the last version that is compatible with Java 8
         id("com.github.vlsi.gradle-extensions") version "1.+"
         id("com.github.vlsi.stage-vote-release") version "1.+"
         id("com.github.vlsi.ide") version "1.+"
