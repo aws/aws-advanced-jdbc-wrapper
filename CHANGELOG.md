@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [?]
+### :crab: Changed
+- Renamed the `messages.properties` file to `aws_advanced_jdbc_wrapper_messages.properties` ([PR #643](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/647)).
+
 ## [2.2.4] - 2023-08-29
 ### :magic_wand: Added
 - Host Availability Strategy to help keep host health status up to date ([PR #530](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/530)).
