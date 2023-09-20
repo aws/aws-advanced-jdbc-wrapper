@@ -14,7 +14,7 @@ The AWS JDBC Driver is targeted to work with **any** existing JDBC driver. Curre
 In conjunction with the JDBC Drivers for PostgreSQL, MySQL, and MariaDB, the AWS JDBC Driver enables functionalities from Amazon Aurora such as fast failover for PostgreSQL and MySQL Aurora clusters. It also introduces integration with AWS authentication services such as [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) and [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/).
 
 ## About the Wrapper
-Hosting a database cluster in the cloud via Aurora is able to provide users with sets of features and configurations to obtain maximum performance and availabilty, such as database failover. However, at the moment, most existing drivers do not currently support those functionalites or are not able to entirely take advantage of it.
+Hosting a database cluster in the cloud via Aurora is able to provide users with sets of features and configurations to obtain maximum performance and availability, such as database failover. However, at the moment, most existing drivers do not currently support those functionalities or are not able to entirely take advantage of it.
 
 The main idea behind the AWS JDBC Driver is to add a software layer on top of an existing JDBC driver that would enable all the enhancements brought by Aurora, without requiring users to change their workflow with their databases and existing JDBC drivers.
 
@@ -45,7 +45,7 @@ You can find our driver by searching in The Central Repository with GroupId and 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper/badge.svg)](https://maven-badges.herokuapp.com/maven-central/software.amazon.jdbc/aws-advanced-jdbc-wrapper)
 ```xml
 <!-- Add the following dependency to your pom.xml, -->
-<!-- replacing LATEST with specific version as required -->
+<!-- replacing LATEST with the specific version as required -->
 
 <dependency>
   <groupId>software.amazon</groupId>
