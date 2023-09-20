@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - test/autoscaling
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
