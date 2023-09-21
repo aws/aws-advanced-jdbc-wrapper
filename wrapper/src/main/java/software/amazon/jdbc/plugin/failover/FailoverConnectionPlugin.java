@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AWSConnection;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -507,9 +508,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    to.setReadOnly(from.isReadOnly());
-    to.setAutoCommit(from.getAutoCommit());
-    to.setTransactionIsolation(from.getTransactionIsolation());
+    ((AWSConnection)from).updateConnection((AWSConnection) to);
   }
 
   /**

@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AWSConnection;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HostListProviderService;
@@ -432,8 +433,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    to.setAutoCommit(from.getAutoCommit());
-    to.setTransactionIsolation(from.getTransactionIsolation());
+    // TODO: probably don't want to update readOnly
+    ((AWSConnection)from).updateConnection((AWSConnection) to);
   }
 
   private synchronized void switchToReaderConnection(final List<HostSpec> hosts)
