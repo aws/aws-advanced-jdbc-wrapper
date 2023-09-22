@@ -566,7 +566,7 @@ public class AuroraFailoverTest {
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     // Configure the driver-specific data source:
-    Properties targetDataSourceProps = new Properties();
+    Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
     targetDataSourceProps.setProperty("wrapperPlugins", "failover");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB

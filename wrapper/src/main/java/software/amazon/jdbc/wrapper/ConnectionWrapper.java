@@ -56,12 +56,15 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionWrapper.class.getName());
 
   protected ConnectionPluginManager pluginManager;
+  protected TelemetryFactory telemetryFactory;
   protected PluginService pluginService;
   protected HostListProviderService hostListProviderService;
 
@@ -74,7 +77,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   public ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
-      @NonNull final ConnectionProvider connectionProvider)
+      @NonNull final ConnectionProvider connectionProvider,
+      @NonNull final TelemetryFactory telemetryFactory)
       throws SQLException {
 
     if (StringUtils.isNullOrEmpty(url)) {
@@ -84,10 +88,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.originalUrl = url;
     this.targetDriverProtocol = getProtocol(url);
 
-    final ConnectionPluginManager pluginManager = new ConnectionPluginManager(connectionProvider, this);
+    final ConnectionPluginManager pluginManager =
+        new ConnectionPluginManager(connectionProvider, this, telemetryFactory);
     final PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
 
-    init(props, pluginManager, pluginService, pluginService, pluginService);
+    init(props, pluginManager, telemetryFactory, pluginService, pluginService, pluginService);
 
     if (PropertyDefinition.LOG_UNCLOSED_CONNECTIONS.getBoolean(props)) {
       this.openConnectionStacktrace = new Throwable(Messages.get("ConnectionWrapper.unclosedConnectionInstantiated"));
@@ -99,6 +104,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       @NonNull final Properties props,
       @NonNull final String url,
       @NonNull final ConnectionPluginManager connectionPluginManager,
+      @NonNull final TelemetryFactory telemetryFactory,
       @NonNull final PluginService pluginService,
       @NonNull final HostListProviderService hostListProviderService,
       @NonNull final PluginManagerService pluginManagerService)
@@ -108,16 +114,19 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       throw new IllegalArgumentException("url");
     }
 
-    init(props, connectionPluginManager, pluginService, hostListProviderService, pluginManagerService);
+    init(props,
+        connectionPluginManager, telemetryFactory, pluginService, hostListProviderService, pluginManagerService);
   }
 
   protected void init(
       final Properties props,
       final ConnectionPluginManager connectionPluginManager,
+      final TelemetryFactory telemetryFactory,
       final PluginService pluginService,
       final HostListProviderService hostListProviderService,
       final PluginManagerService pluginManagerService) throws SQLException {
     this.pluginManager = connectionPluginManager;
+    this.telemetryFactory = telemetryFactory;
     this.pluginService = pluginService;
     this.hostListProviderService = hostListProviderService;
     this.pluginManagerService = pluginManagerService;

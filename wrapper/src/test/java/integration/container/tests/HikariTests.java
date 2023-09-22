@@ -278,7 +278,7 @@ public class HikariTests {
         Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
             .getClusterEndpointPort()));
 
-    final Properties targetDataSourceProps = new Properties();
+    final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
 
     targetDataSourceProps.setProperty(PLUGINS.name, "failover,efm");
     targetDataSourceProps.setProperty(

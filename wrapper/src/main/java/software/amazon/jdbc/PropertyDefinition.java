@@ -71,6 +71,36 @@ public class PropertyDefinition {
       new AwsWrapperProperty(
           "database", null, "Driver database name");
 
+  public static final AwsWrapperProperty ENABLE_TELEMETRY =
+      new AwsWrapperProperty(
+          "enableTelemetry", "false",
+          "Enables telemetry and observability of the driver");
+
+  public static final AwsWrapperProperty TELEMETRY_SUBMIT_TOPLEVEL =
+      new AwsWrapperProperty(
+          "telemetrySubmitToplevel", "false",
+          "Force submitting traces related to JDBC calls as top level traces.");
+
+  public static final AwsWrapperProperty TELEMETRY_TRACES_BACKEND =
+      new AwsWrapperProperty(
+          "telemetryTracesBackend",
+          null,
+          "Method to export telemetry traces of the driver",
+          false,
+          new String[] {
+              "XRAY", "OTLP", "NONE"
+          });
+
+  public static final AwsWrapperProperty TELEMETRY_METRICS_BACKEND =
+      new AwsWrapperProperty(
+          "telemetryMetricsBackend",
+          null,
+          "Method to export telemetry metrics of the driver",
+          false,
+          new String[] {
+              "OTLP", "NONE"
+          });
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Set<String> KNOWN_PROPS_BY_PREFIX = ConcurrentHashMap.newKeySet();

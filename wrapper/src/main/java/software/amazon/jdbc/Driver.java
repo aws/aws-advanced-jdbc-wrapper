@@ -37,6 +37,10 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class Driver implements java.sql.Driver {
@@ -96,56 +100,69 @@ public class Driver implements java.sql.Driver {
 
     LOGGER.finest("Opening connection to " + url);
 
-    final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
-
-    java.sql.Driver driver;
-    try {
-      driver = DriverManager.getDriver(driverUrl);
-    } catch (SQLException e) {
-      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-          .stream()
-          .map(x -> x.getClass().getName())
-          .collect(Collectors.toList());
-      throw new SQLException(Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), e);
-    }
-
-    if (driver == null) {
-      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-          .stream()
-          .map(x -> x.getClass().getName())
-          .collect(Collectors.toList());
-      LOGGER.severe(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}));
-      return null;
-    }
-
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
     if (!StringUtils.isNullOrEmpty(databaseName)) {
       PropertyDefinition.DATABASE.set(info, databaseName);
     }
     ConnectionUrlParser.parsePropertiesFromUrl(url, info);
 
-    final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
-    if (!StringUtils.isNullOrEmpty(logLevelStr)) {
-      final Level logLevel = Level.parse(logLevelStr.toUpperCase());
-      final Logger rootLogger = Logger.getLogger("");
-      for (final Handler handler : rootLogger.getHandlers()) {
-        if (handler instanceof ConsoleHandler) {
-          if (handler.getLevel().intValue() > logLevel.intValue()) {
-            // Set higher (more detailed) level as requested
-            handler.setLevel(logLevel);
+    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(info);
+    TelemetryContext context = telemetryFactory.openTelemetryContext(
+        "software.amazon.jdbc.Driver.connect", TelemetryTraceLevel.TOP_LEVEL);
+
+    try {
+      final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
+
+      java.sql.Driver driver;
+      try {
+        driver = DriverManager.getDriver(driverUrl);
+      } catch (SQLException e) {
+        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
+            .stream()
+            .map(x -> x.getClass().getName())
+            .collect(Collectors.toList());
+        throw new SQLException(
+            Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), e);
+      }
+
+      if (driver == null) {
+        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
+            .stream()
+            .map(x -> x.getClass().getName())
+            .collect(Collectors.toList());
+        LOGGER.severe(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}));
+        return null;
+      }
+
+      final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
+      if (!StringUtils.isNullOrEmpty(logLevelStr)) {
+        final Level logLevel = Level.parse(logLevelStr.toUpperCase());
+        final Logger rootLogger = Logger.getLogger("");
+        for (final Handler handler : rootLogger.getHandlers()) {
+          if (handler instanceof ConsoleHandler) {
+            if (handler.getLevel().intValue() > logLevel.intValue()) {
+              // Set higher (more detailed) level as requested
+              handler.setLevel(logLevel);
+            }
           }
         }
+        PARENT_LOGGER.setLevel(logLevel);
       }
-      PARENT_LOGGER.setLevel(logLevel);
+
+      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+      final TargetDriverDialect targetDriverDialect = targetDriverDialectManager.getDialect(driver, info);
+
+      final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver, targetDriverDialect);
+
+      return new ConnectionWrapper(info, driverUrl, connectionProvider, telemetryFactory);
+
+    } catch (Exception ex) {
+      context.setException(ex);
+      context.setSuccess(false);
+      throw ex;
+    } finally {
+      context.closeContext();
     }
-
-    final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-    final TargetDriverDialect targetDriverDialect =
-        targetDriverDialectManager.getDialect(driver, info);
-
-    final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver, targetDriverDialect);
-
-    return new ConnectionWrapper(info, driverUrl, connectionProvider);
   }
 
   @Override

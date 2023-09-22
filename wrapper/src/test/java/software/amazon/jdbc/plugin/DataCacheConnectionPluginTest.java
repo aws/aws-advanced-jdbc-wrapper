@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,6 +32,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class DataCacheConnectionPluginTest {
 
@@ -38,24 +42,24 @@ class DataCacheConnectionPluginTest {
 
   private AutoCloseable closeable;
 
-  @Mock
-  ResultSet mockResult1;
-  @Mock
-  ResultSet mockResult2;
-  @Mock
-  Statement mockStatement;
-  @Mock
-  ResultSetMetaData mockMetaData;
+  @Mock PluginService mockPluginService;
+  @Mock TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryCounter mockTelemetryCounter;
+  @Mock ResultSet mockResult1;
+  @Mock ResultSet mockResult2;
+  @Mock Statement mockStatement;
+  @Mock ResultSetMetaData mockMetaData;
 
-  @Mock
-  JdbcCallable mockCallable;
-
+  @Mock JdbcCallable mockCallable;
 
   @BeforeEach
   void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, "foo");
     DataCacheConnectionPlugin.clearCache();
+
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
 
     when(mockResult1.getMetaData()).thenReturn(mockMetaData);
     when(mockResult2.getMetaData()).thenReturn(mockMetaData);
@@ -78,7 +82,7 @@ class DataCacheConnectionPluginTest {
   void test_execute_withEmptyCache() throws SQLException {
     final String methodName = "Statement.executeQuery";
 
-    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(props);
+    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(mockPluginService, props);
 
     final ResultSet rs = plugin.execute(
         ResultSet.class,
@@ -95,7 +99,7 @@ class DataCacheConnectionPluginTest {
   void test_execute_withCache() throws Exception {
     final String methodName = "Statement.executeQuery";
 
-    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(props);
+    final DataCacheConnectionPlugin plugin = new DataCacheConnectionPlugin(mockPluginService, props);
 
     when(mockCallable.call()).thenReturn(mockResult1, mockResult2);
 

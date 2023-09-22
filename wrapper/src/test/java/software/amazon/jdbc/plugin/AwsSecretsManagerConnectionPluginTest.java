@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -66,6 +67,11 @@ import software.amazon.jdbc.exceptions.MySQLExceptionHandler;
 import software.amazon.jdbc.exceptions.PgExceptionHandler;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.GaugeCallable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 public class AwsSecretsManagerConnectionPluginTest {
 
@@ -103,6 +109,10 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock ConnectionPluginManager mockConnectionPluginManager;
   @Mock Dialect mockTopologyAwareDialect;
   @Mock DialectManager mockDialectManager;
+  @Mock private TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryContext mockTelemetryContext;
+  @Mock TelemetryCounter mockTelemetryCounter;
+  @Mock TelemetryGauge mockTelemetryGauge;
 
   @BeforeEach
   public void init() throws SQLException {
@@ -110,6 +120,17 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     REGION_PROPERTY.set(TEST_PROPS, TEST_REGION);
     SECRET_ID_PROPERTY.set(TEST_PROPS, TEST_SECRET_ID);
+
+    when(mockDialectManager.getDialect(anyString(), anyString(), any(Properties.class)))
+        .thenReturn(mockTopologyAwareDialect);
+
+    when(mockService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
+    // noinspection unchecked
+    when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
 
     this.plugin = new AwsSecretsManagerConnectionPlugin(
         mockService,

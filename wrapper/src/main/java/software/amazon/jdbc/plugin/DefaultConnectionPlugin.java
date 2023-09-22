@@ -44,6 +44,9 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 /**
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
@@ -51,8 +54,7 @@ import software.amazon.jdbc.util.WrapperUtils;
  */
 public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(DefaultConnectionPlugin.class.getName());
+  private static final Logger LOGGER =  Logger.getLogger(DefaultConnectionPlugin.class.getName());
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
       Collections.singletonList("*")));
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
@@ -98,7 +100,16 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     LOGGER.finest(
         () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
 
-    final T result = jdbcMethodFunc.call();
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
+
+    T result;
+    try {
+      result = jdbcMethodFunc.call();
+    } finally {
+      telemetryContext.closeContext();
+    }
 
     final Connection currentConn = this.pluginService.getCurrentConnection();
     final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
@@ -151,8 +162,17 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   private Connection connectInternal(
       String driverProtocol, HostSpec hostSpec, Properties props, ConnectionProvider connProvider)
       throws SQLException {
-    final Connection conn =
-        connProvider.connect(driverProtocol, this.pluginService.getDialect(), hostSpec, props);
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        connProvider.getTargetName(), TelemetryTraceLevel.NESTED);
+
+    Connection conn;
+    try {
+      conn = connProvider.connect(driverProtocol, this.pluginService.getDialect(), hostSpec, props);
+    } finally {
+      telemetryContext.closeContext();
+    }
+
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     this.pluginService.updateDialect(conn);
 

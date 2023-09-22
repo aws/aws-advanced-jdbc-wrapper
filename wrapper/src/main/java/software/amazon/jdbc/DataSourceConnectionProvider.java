@@ -52,6 +52,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
         }
       });
   private final @NonNull DataSource dataSource;
+  private final @NonNull String dataSourceClassName;
   private final @NonNull TargetDriverDialect targetDriverDialect;
 
 
@@ -62,6 +63,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       final @NonNull TargetDriverDialect targetDriverDialect) {
     this.dataSource = dataSource;
     this.targetDriverDialect = targetDriverDialect;
+    this.dataSourceClassName = dataSource.getClass().getName();
   }
 
   /**
@@ -182,5 +184,10 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     } catch (final InstantiationException instEx) {
       throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
     }
+  }
+
+  @Override
+  public String getTargetName() {
+    return this.dataSourceClassName;
   }
 }
