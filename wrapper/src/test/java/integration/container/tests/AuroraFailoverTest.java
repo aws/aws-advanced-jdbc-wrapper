@@ -483,13 +483,14 @@ public class AuroraFailoverTest {
       conn.setAutoCommit(false);
 
       final Statement testStmt1 = conn.createStatement();
-      testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_2");
+      testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_3");
       testStmt1.executeUpdate(
-          "CREATE TABLE test3_2 (id int not null primary key, test3_2_field varchar(255) not null)");
+          "CREATE TABLE test3_3 (id int not null primary key, test3_3_field varchar(255) not null)");
       conn.setAutoCommit(false); // open a new transaction
+      conn.commit();
 
       final Statement testStmt2 = conn.createStatement();
-      testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (1, 'test field string 1')");
+      testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (1, 'test field string 1')");
 
       auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
@@ -498,7 +499,7 @@ public class AuroraFailoverTest {
           assertThrows(
               SQLException.class,
               () ->
-                  testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (2, 'test field string 2')"));
+                  testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (2, 'test field string 2')"));
       assertEquals(
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
@@ -513,12 +514,13 @@ public class AuroraFailoverTest {
       // testStmt2 can NOT be used anymore since it's invalid
 
       final Statement testStmt3 = conn.createStatement();
-      final ResultSet rs = testStmt3.executeQuery("SELECT count(*) from test3_2");
+      final ResultSet rs = testStmt3.executeQuery("SELECT count(*) from test3_3");
       rs.next();
       // Assert that NO row has been inserted to the table;
       assertEquals(0, rs.getInt(1));
 
-      testStmt3.executeUpdate("DROP TABLE IF EXISTS test3_2");
+      testStmt3.executeUpdate("DROP TABLE IF EXISTS test3_3");
+      conn.commit();
 
       // Assert autocommit is still false after failover.
       assertFalse(conn.getAutoCommit());
