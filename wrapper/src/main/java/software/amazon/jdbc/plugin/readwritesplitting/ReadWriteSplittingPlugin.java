@@ -434,7 +434,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     // TODO: probably don't want to update readOnly
-    ((AWSConnection)from).updateConnection((AWSConnection) to);
+    ((AWSConnection) from).updateConnection((AWSConnection) to);
   }
 
   private synchronized void switchToReaderConnection(final List<HostSpec> hosts)

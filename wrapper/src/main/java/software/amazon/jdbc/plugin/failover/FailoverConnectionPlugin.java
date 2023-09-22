@@ -508,7 +508,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    ((AWSConnection)from).updateConnection((AWSConnection) to);
+    ((AWSConnection) from).updateConnection((AWSConnection) to);
   }
 
   /**

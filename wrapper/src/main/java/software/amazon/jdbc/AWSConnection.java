@@ -58,26 +58,6 @@ public class AWSConnection implements Connection {
   }
 
   @Override
-  public Statement createStatement() throws SQLException {
-    return delegate.createStatement();
-  }
-
-  @Override
-  public PreparedStatement prepareStatement(String sql) throws SQLException {
-    return delegate.prepareStatement(sql);
-  }
-
-  @Override
-  public CallableStatement prepareCall(String sql) throws SQLException {
-    return delegate.prepareCall(sql);
-  }
-
-  @Override
-  public String nativeSQL(String sql) throws SQLException {
-    return delegate.nativeSQL(sql);
-  }
-
-  @Override
   public void setAutoCommit(boolean autoCommit) throws SQLException {
     if (delegate.getAutoCommit() != autoCommit) {
       dirtyBits |= AUTO_COMMIT_DIRTY;
@@ -87,14 +67,9 @@ public class AWSConnection implements Connection {
   }
 
   @Override
-  public boolean getAutoCommit() throws SQLException {
-    return delegate.getAutoCommit();
-  }
-
-  @Override
   public void commit() throws SQLException {
     // commit resets autocommit so we need to remove the flag
-    if ((dirtyBits & AUTO_COMMIT_DIRTY) != 0 && inTransaction){
+    if ((dirtyBits & AUTO_COMMIT_DIRTY) != 0 && inTransaction) {
       dirtyBits ^= AUTO_COMMIT_DIRTY;
       inTransaction = false;
     }
@@ -104,7 +79,7 @@ public class AWSConnection implements Connection {
   @Override
   public void rollback() throws SQLException {
     // rollback resets autocommit so we need to remove the flag
-    if ((dirtyBits & AUTO_COMMIT_DIRTY) != 0 && inTransaction){
+    if ((dirtyBits & AUTO_COMMIT_DIRTY) != 0 && inTransaction) {
       dirtyBits ^= AUTO_COMMIT_DIRTY;
       inTransaction = false;
     }
@@ -112,18 +87,13 @@ public class AWSConnection implements Connection {
   }
 
   @Override
+  public void rollback(Savepoint savepoint) throws SQLException {
+    delegate.rollback(savepoint);
+  }
+
+  @Override
   public void close() throws SQLException {
     delegate.close();
-  }
-
-  @Override
-  public boolean isClosed() throws SQLException {
-    return delegate.isClosed();
-  }
-
-  @Override
-  public DatabaseMetaData getMetaData() throws SQLException {
-    return delegate.getMetaData();
   }
 
   @Override
@@ -133,19 +103,9 @@ public class AWSConnection implements Connection {
   }
 
   @Override
-  public boolean isReadOnly() throws SQLException {
-    return delegate.isReadOnly();
-  }
-
-  @Override
   public void setCatalog(String catalog) throws SQLException {
     dirtyBits |= CATALOG_DIRTY_BIT;
     delegate.setCatalog(catalog);
-  }
-
-  @Override
-  public String getCatalog() throws SQLException {
-    return delegate.getCatalog();
   }
 
   @Override
@@ -155,39 +115,13 @@ public class AWSConnection implements Connection {
   }
 
   @Override
-  public int getTransactionIsolation() throws SQLException {
-    return delegate.getTransactionIsolation();
-  }
-
-  @Override
-  public SQLWarning getWarnings() throws SQLException {
-    return delegate.getWarnings();
-  }
-
-  @Override
   public void clearWarnings() throws SQLException {
     delegate.clearWarnings();
   }
 
   @Override
-  public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
-    return delegate.createStatement(resultSetType, resultSetConcurrency);
-  }
-
-  @Override
-  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
-      throws SQLException {
-    return delegate.prepareStatement(sql, resultSetType, resultSetConcurrency);
-  }
-
-  @Override
-  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
-    return delegate.prepareCall(sql, resultSetType, resultSetConcurrency);
-  }
-
-  @Override
-  public Map<String, Class<?>> getTypeMap() throws SQLException {
-    return delegate.getTypeMap();
+  public void releaseSavepoint(Savepoint savepoint) throws SQLException {
+    delegate.releaseSavepoint(savepoint);
   }
 
   @Override
@@ -203,8 +137,53 @@ public class AWSConnection implements Connection {
   }
 
   @Override
+  public boolean isClosed() throws SQLException {
+    return delegate.isClosed();
+  }
+
+  @Override
+  public boolean isReadOnly() throws SQLException {
+    return delegate.isReadOnly();
+  }
+
+  @Override
+  public boolean getAutoCommit() throws SQLException {
+    return delegate.getAutoCommit();
+  }
+
+  @Override
+  public String nativeSQL(String sql) throws SQLException {
+    return delegate.nativeSQL(sql);
+  }
+
+  @Override
+  public String getCatalog() throws SQLException {
+    return delegate.getCatalog();
+  }
+
+  @Override
+  public int getTransactionIsolation() throws SQLException {
+    return delegate.getTransactionIsolation();
+  }
+
+  @Override
   public int getHoldability() throws SQLException {
     return delegate.getHoldability();
+  }
+
+  @Override
+  public DatabaseMetaData getMetaData() throws SQLException {
+    return delegate.getMetaData();
+  }
+
+  @Override
+  public SQLWarning getWarnings() throws SQLException {
+    return delegate.getWarnings();
+  }
+
+  @Override
+  public Map<String, Class<?>> getTypeMap() throws SQLException {
+    return delegate.getTypeMap();
   }
 
   @Override
@@ -218,28 +197,36 @@ public class AWSConnection implements Connection {
   }
 
   @Override
-  public void rollback(Savepoint savepoint) throws SQLException {
-    delegate.rollback(savepoint);
+  public Statement createStatement() throws SQLException {
+    return delegate.createStatement();
   }
 
   @Override
-  public void releaseSavepoint(Savepoint savepoint) throws SQLException {
-    delegate.releaseSavepoint(savepoint);
+  public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
+    return delegate.createStatement(resultSetType, resultSetConcurrency);
   }
 
   @Override
-  public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+  public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+      throws SQLException {
     return delegate.createStatement(resultSetType, resultSetConcurrency, resultSetHoldability);
   }
 
   @Override
-  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+  public PreparedStatement prepareStatement(String sql) throws SQLException {
+    return delegate.prepareStatement(sql);
+  }
+
+  @Override
+  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
+      throws SQLException {
     return delegate.prepareStatement(sql, resultSetType, resultSetConcurrency);
   }
 
   @Override
-  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-    return delegate.prepareCall(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
+  public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
+      int resultSetHoldability) throws SQLException {
+    return delegate.prepareStatement(sql, resultSetType, resultSetConcurrency);
   }
 
   @Override
@@ -255,6 +242,22 @@ public class AWSConnection implements Connection {
   @Override
   public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
     return delegate.prepareStatement(sql, columnNames);
+  }
+
+  @Override
+  public CallableStatement prepareCall(String sql) throws SQLException {
+    return delegate.prepareCall(sql);
+  }
+
+  @Override
+  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency,
+      int resultSetHoldability) throws SQLException {
+    return delegate.prepareCall(sql, resultSetType, resultSetConcurrency, resultSetHoldability);
+  }
+
+  @Override
+  public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+    return delegate.prepareCall(sql, resultSetType, resultSetConcurrency);
   }
 
   @Override
