@@ -47,6 +47,8 @@ public class AWSConnection implements Connection {
   private static final int SCHEMA_DIRTY_BIT     = 0b100000;
   private static final int TYPE_MAP_DIRTY_BIT   = 0b1000000;
   private static final int HOLDABILITY_DIRTY_BIT = 0b10000000;
+
+  private boolean inTransaction = true;
   private int dirtyBits = 0;
   private final Connection delegate;
   private  Executor executor;
@@ -77,9 +79,11 @@ public class AWSConnection implements Connection {
 
   @Override
   public void setAutoCommit(boolean autoCommit) throws SQLException {
-    // need to do more here to figure out if this is dirty or not
-    dirtyBits |= AUTO_COMMIT_DIRTY;
+    if (delegate.getAutoCommit() != autoCommit) {
+      dirtyBits |= AUTO_COMMIT_DIRTY;
+    }
     delegate.setAutoCommit(autoCommit);
+    this.inTransaction = !autoCommit;
   }
 
   @Override
@@ -89,11 +93,21 @@ public class AWSConnection implements Connection {
 
   @Override
   public void commit() throws SQLException {
+    // commit resets autocommit so we need to remove the flag
+    if ((dirtyBits & AUTO_COMMIT_DIRTY) != 0 && inTransaction){
+      dirtyBits ^= AUTO_COMMIT_DIRTY;
+      inTransaction = false;
+    }
     delegate.commit();
   }
 
   @Override
   public void rollback() throws SQLException {
+    // rollback resets autocommit so we need to remove the flag
+    if ((dirtyBits & AUTO_COMMIT_DIRTY) != 0 && inTransaction){
+      dirtyBits ^= AUTO_COMMIT_DIRTY;
+      inTransaction = false;
+    }
     delegate.rollback();
   }
 
