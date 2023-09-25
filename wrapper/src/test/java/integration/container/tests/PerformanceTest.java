@@ -54,6 +54,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -163,7 +164,7 @@ public class PerformanceTest {
     PLUGINS.set(props, "efm");
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
-    doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, false, data);
+    doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, data);
     data.paramDetectionTime = detectionTime;
     data.paramDetectionInterval = detectionInterval;
     data.paramDetectionCount = detectionCount;
@@ -224,9 +225,10 @@ public class PerformanceTest {
                 .getInfo()
                 .getProxyDatabaseInfo()
                 .getInstanceEndpointSuffix());
+    FailoverConnectionPlugin.FAILOVER_MODE.set(props, "strict-reader");
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
-    doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);
+    doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, data);
     data.paramDetectionTime = detectionTime;
     data.paramDetectionInterval = detectionInterval;
     data.paramDetectionCount = detectionCount;
@@ -279,9 +281,10 @@ public class PerformanceTest {
                 .getProxyDatabaseInfo()
                 .getInstanceEndpointSuffix());
     props.setProperty("failoverTimeoutMs", Integer.toString(PERF_FAILOVER_TIMEOUT_MS));
+    FailoverConnectionPlugin.FAILOVER_MODE.set(props, "strict-reader");
 
     final PerfStatSocketTimeout data = new PerfStatSocketTimeout();
-    doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, true, data);
+    doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, data);
     data.paramSocketTimeout = socketTimeout;
     failoverWithSocketTimeoutPerfDataList.add(data);
   }
@@ -290,7 +293,6 @@ public class PerformanceTest {
       int sleepDelayMillis,
       int repeatTimes,
       Properties props,
-      boolean openReadOnlyConnection,
       PerfStatBase data)
       throws SQLException {
 
@@ -324,7 +326,6 @@ public class PerformanceTest {
       try (final Connection conn = openConnectionWithRetry(props);
           final Statement statement = conn.createStatement()) {
 
-        conn.setReadOnly(openReadOnlyConnection);
         thread.start();
 
         // Execute long query
