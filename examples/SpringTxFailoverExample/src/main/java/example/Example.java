@@ -14,9 +14,36 @@
  * limitations under the License.
  */
 
-dependencies {
-    implementation("org.postgresql:postgresql:42.6.0")
-    implementation("mysql:mysql-connector-java:8.0.33")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("com.zaxxer:HikariCP:4.0.3")
+package example;
+
+public class Example {
+
+  private int id;
+
+  private int status;
+
+  public Example() {
+    super();
+  }
+
+  public int getId() {
+    return id;
+  }
+
+  public void setId(int id) {
+    this.id = id;
+  }
+
+  public int getStatus() {
+    return status;
+  }
+
+  public void setStatus(int name) {
+    this.status = name;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("Example [id=%s, status=%s]", id, status);
+  }
 }

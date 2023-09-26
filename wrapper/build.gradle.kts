@@ -27,17 +27,17 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.37.0")
-    compileOnly("software.amazon.awssdk:rds:2.20.49")
+    implementation("org.checkerframework:checker-qual:3.38.0")
+    compileOnly("software.amazon.awssdk:rds:2.20.154")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.20.150")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.20.154")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     compileOnly("mysql:mysql-connector-java:8.0.33")
-    compileOnly("org.postgresql:postgresql:42.5.0")
+    compileOnly("org.postgresql:postgresql:42.6.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.2.0")
-    compileOnly("org.osgi:org.osgi.core:4.3.0")
+    compileOnly("org.osgi:org.osgi.core:6.0.0")
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
+    testImplementation("org.junit.platform:junit-platform-commons:1.10.0")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.0")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.10.0")
@@ -46,18 +46,18 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.10.0")
-    testImplementation("org.postgresql:postgresql:42.5.0")
+    testImplementation("org.postgresql:postgresql:42.6.0")
     testImplementation("mysql:mysql-connector-java:8.0.33")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.2.0")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.20.49")
+    testImplementation("software.amazon.awssdk:rds:2.20.154")
     testImplementation("software.amazon.awssdk:ec2:2.20.105")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.20.150")
-    testImplementation("org.testcontainers:testcontainers:1.18.3")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.20.154")
+    testImplementation("org.testcontainers:testcontainers:1.19.0")
     testImplementation("org.testcontainers:mysql:1.19.0")
-    testImplementation("org.testcontainers:postgresql:1.18.3")
+    testImplementation("org.testcontainers:postgresql:1.19.0")
     testImplementation("org.testcontainers:mariadb:1.19.0")
     testImplementation("org.testcontainers:junit-jupiter:1.19.0")
     testImplementation("org.testcontainers:toxiproxy:1.19.0")

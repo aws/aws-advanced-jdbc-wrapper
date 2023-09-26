@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
-dependencies {
-    implementation("org.postgresql:postgresql:42.6.0")
-    implementation("mysql:mysql-connector-java:8.0.33")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("com.zaxxer:HikariCP:4.0.3")
+package example;
+
+import java.util.List;
+import java.util.Map;
+
+public interface ExampleDao {
+  public void create(Example example);
+
+  public void delete();
+
+  public List<Map<String, Object>> getAll();
 }

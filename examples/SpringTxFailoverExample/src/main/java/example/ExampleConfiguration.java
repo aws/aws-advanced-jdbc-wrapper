@@ -14,9 +14,24 @@
  * limitations under the License.
  */
 
-dependencies {
-    implementation("org.postgresql:postgresql:42.6.0")
-    implementation("mysql:mysql-connector-java:8.0.33")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("com.zaxxer:HikariCP:4.0.3")
+package example;
+
+import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.retry.annotation.EnableRetry;
+
+@Configuration
+@EnableRetry
+public class ExampleConfiguration {
+
+  @Autowired
+  private DataSource dataSource;
+
+  @Bean
+  public DataSourceTransactionManager getDataSourceTransactionManager() {
+    return new DataSourceTransactionManager(dataSource);
+  }
 }

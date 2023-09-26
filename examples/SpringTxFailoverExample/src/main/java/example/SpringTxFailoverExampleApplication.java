@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-dependencies {
-    implementation("org.postgresql:postgresql:42.6.0")
-    implementation("mysql:mysql-connector-java:8.0.33")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("com.zaxxer:HikariCP:4.0.3")
+package example;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class SpringTxFailoverExampleApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(SpringTxFailoverExampleApplication.class, args);
+  }
 }

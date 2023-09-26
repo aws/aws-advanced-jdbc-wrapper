@@ -117,7 +117,7 @@ public class ReadWriteSplittingMySQLExample {
   public static void setInitialSessionSettings(Connection conn) throws SQLException {
     try (Statement stmt1 = conn.createStatement()) {
       // User can edit settings
-      stmt1.executeUpdate("SET TIME ZONE 'UTC'");
+      stmt1.executeUpdate("SET time_zone = 'UTC'");
     }
   }
 

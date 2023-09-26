@@ -1,10 +1,10 @@
-# Tutorial: Getting started with Spring Boot, Hikari, and the AWS Advanced JDBC Wrapper Driver
+# Tutorial: Getting started with Spring Boot, Hikari, and the AWS JDBC Driver
 
-In this tutorial, you will set up a Spring Boot application using Hikari and the AWS Advanced JDBC Driver.
+In this tutorial, you will set up a Spring Boot application using Hikari and the AWS JDBC Driver.
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
->    - AWS Advanced JDBC Wrapper 2.2.4
+>    - AWS JDBC Driver 2.2.4
 >    - Postgresql 42.5.4
 >    - Java 8
 
@@ -68,7 +68,7 @@ Please note that the sample code inside the AWS JDBC Driver project will use the
 
 ## Step 3: Configure the Datasource
 
-In the `application.yml` file, configure Hikari and AWS Advanced JDBC Wrapper Driver as its driver.
+In the `application.yml` file, configure Hikari and AWS JDBC Driver as its driver.
 
 ```yaml
 spring:
@@ -141,4 +141,3 @@ Start the application by running `./gradlew run` in the terminal.
 
 Create an HTTP request to the application by running the following terminal command `curl http://localhost:8080/select1`.
 This will trigger the query statement `SELECT 1;` and return the results.  
-

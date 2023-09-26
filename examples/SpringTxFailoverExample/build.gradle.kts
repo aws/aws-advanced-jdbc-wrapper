@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
+plugins {
+    id("org.springframework.boot") version "2.7.0"
+    id("io.spring.dependency-management") version "1.1.3"
+}
+
 dependencies {
-    implementation("org.postgresql:postgresql:42.6.0")
-    implementation("mysql:mysql-connector-java:8.0.33")
+	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.springframework.retry:spring-retry:1.3.4")
+	implementation("org.springframework:spring-aspects:5.3.29")
+	implementation("org.postgresql:postgresql")
     implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("com.zaxxer:HikariCP:4.0.3")
 }
