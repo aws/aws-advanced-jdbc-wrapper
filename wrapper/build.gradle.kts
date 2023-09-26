@@ -33,7 +33,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:secretsmanager:2.20.154")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     compileOnly("mysql:mysql-connector-java:8.0.33")
-    compileOnly("org.postgresql:postgresql:42.5.0")
+    compileOnly("org.postgresql:postgresql:42.6.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.2.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
 
@@ -46,7 +46,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.10.0")
-    testImplementation("org.postgresql:postgresql:42.5.0")
+    testImplementation("org.postgresql:postgresql:42.6.0")
     testImplementation("mysql:mysql-connector-java:8.0.33")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.2.0")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
