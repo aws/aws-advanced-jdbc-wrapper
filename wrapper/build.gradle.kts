@@ -37,7 +37,7 @@ dependencies {
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.2.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
+    testImplementation("org.junit.platform:junit-platform-commons:1.10.0")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.0")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.10.0")
