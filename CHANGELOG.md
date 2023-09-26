@@ -3,9 +3,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [?]
+## [2.2.5] - 2023-10-03
+### :magic_wand: Added
+- Optional preservation of partial session state post failover ([PR #632](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/632)).
+- Round Robin host selection strategy ([PR #603](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/603)).
+- Sample application failover retry with Spring Boot ([PR #638](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/638)).
+
 ### :crab: Changed
-- Renamed the `messages.properties` file to `aws_advanced_jdbc_wrapper_messages.properties` ([PR #643](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/647)).
+- Renamed the `messages.properties` file to `aws_advanced_jdbc_wrapper_messages.properties` ([Issue #633](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/633)).
 
 ## [2.2.4] - 2023-08-29
 ### :magic_wand: Added
@@ -179,12 +184,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take advantage of the features of clustered Aurora databases.
 
 ### :magic_wand: Added
-* Support for PostgreSQL
-* The [Failover Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
-* The [Host Monitoring Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
-* The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
-* The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
+- Support for PostgreSQL
+- The [Failover Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
+- The [Host Monitoring Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
+- The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
+- The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.2.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.4...2.2.5
 [2.2.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.3...2.2.4
 [2.2.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.2...2.2.3
 [2.2.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.1...2.2.2
