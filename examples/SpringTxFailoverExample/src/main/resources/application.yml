@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/db
+    username: jane_doe
+    password: password
+    driver-class-name: software.amazon.jdbc.Driver
+    hikari:
+      exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
+      max-lifetime: 1260000
+      auto-commit: false
+      maximum-pool-size: 3
+      data-source-properties:
+        keepSessionStateOnFailover: true
