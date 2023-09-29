@@ -23,7 +23,7 @@ import java.sql.Statement;
 import java.util.List;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 
-public class RdsMultiAzDbClusterPgDialect extends MysqlDialect {
+public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   private static final String TOPOLOGY_QUERY =
       "SELECT LOWER(id) AS id, LOWER(endpoint) AS endpoint, port FROM rds_tools.show_topology()";
