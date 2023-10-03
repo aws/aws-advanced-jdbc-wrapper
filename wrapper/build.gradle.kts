@@ -62,7 +62,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:1.19.0")
     testImplementation("org.testcontainers:toxiproxy:1.19.0")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
-    testImplementation("org.apache.poi:poi-ooxml:5.2.3")
+    testImplementation("org.apache.poi:poi-ooxml:5.2.4")
     testImplementation("org.slf4j:slf4j-simple:2.0.9")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
 }
