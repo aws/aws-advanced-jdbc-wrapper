@@ -202,7 +202,7 @@ public class MonitorImpl implements Monitor {
           } else {
             delayMillis -= status.elapsedTimeNano;
             // Check for min delay between node health check
-            if (delayMillis < MIN_CONNECTION_CHECK_TIMEOUT_MILLIS) {
+            if (delayMillis <= 0) {
               delayMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
             }
             // Use this delay as node checkout timeout since it corresponds to min interval for all active contexts
