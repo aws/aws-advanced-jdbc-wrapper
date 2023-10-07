@@ -15,3 +15,5 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: errata-ai/vale-action@reviewdog
+        with:
+          fail_on_error: true
