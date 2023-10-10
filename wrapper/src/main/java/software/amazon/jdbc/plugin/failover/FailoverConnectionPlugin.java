@@ -236,7 +236,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     T result = null;
 
     try {
-      updateTopology(false);
+      if (canUpdateTopology(methodName)) {
+        updateTopology(false);
+      }
       result = jdbcMethodFunc.call();
     } catch (final IllegalStateException e) {
       dealWithIllegalStateException(e, exceptionClass);
@@ -439,6 +441,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         || methodName.equals(METHOD_GET_CATALOG)
         || methodName.equals(METHOD_GET_SCHEMA)
         || methodName.equals(METHOD_GET_TRANSACTION_ISOLATION);
+  }
+
+  /**
+   * Updating topology requires creating and executing a new statement.
+   * This may cause interruptions during certain workflows. For instance,
+   * the driver should not be updating topology while the connection is fetching a large streaming result set.
+   *
+   * @param methodName the method to check.
+   * @return true if the driver should update topology before executing the method; false otherwise.
+   */
+  private boolean canUpdateTopology(final String methodName) {
+    return SubscribedMethodHelper.METHODS_REQUIRING_UPDATED_TOPOLOGY.contains(methodName);
   }
 
   /**
