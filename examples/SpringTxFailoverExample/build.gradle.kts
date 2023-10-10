@@ -22,7 +22,7 @@ plugins {
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 	implementation("org.springframework.boot:spring-boot-starter-web")
-	implementation("org.springframework.retry:spring-retry:1.3.4")
+	implementation("org.springframework.retry:spring-retry:2.0.3")
 	implementation("org.springframework:spring-aspects:5.3.29")
 	implementation("org.postgresql:postgresql")
     implementation(project(":aws-advanced-jdbc-wrapper"))
