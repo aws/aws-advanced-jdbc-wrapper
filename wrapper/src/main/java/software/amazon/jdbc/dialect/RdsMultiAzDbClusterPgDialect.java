@@ -21,9 +21,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import software.amazon.jdbc.exceptions.ExceptionHandler;
+import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 
 public class RdsMultiAzDbClusterPgDialect extends PgDialect {
+
+  private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
   private static final String TOPOLOGY_QUERY =
       "SELECT LOWER(id) AS id, LOWER(endpoint) AS endpoint, port FROM rds_tools.show_topology()";
@@ -37,6 +41,14 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   private static final String NODE_ID_QUERY =
       "SELECT LOWER(dbi_resource_id) AS dbi_resource_id FROM rds_tools.dbi_resource_id()";
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
+
+  @Override
+  public ExceptionHandler getExceptionHandler() {
+    if (exceptionHandler == null) {
+      exceptionHandler = new MultiAzDbClusterPgExceptionHandler();
+    }
+    return exceptionHandler;
+  }
 
   @Override
   public boolean isDialect(final Connection connection) {
