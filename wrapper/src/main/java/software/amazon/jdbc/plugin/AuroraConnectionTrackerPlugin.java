@@ -23,6 +23,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -128,9 +129,11 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
     } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
-        tracker.invalidateAllConnections(this.currentWriter);
-        tracker.logOpenedConnections();
-        this.needUpdateCurrentWriter = true;
+        if (!Objects.equals(this.getWriter(this.pluginService.getHosts()), this.currentWriter)) {
+          tracker.invalidateAllConnections(this.currentWriter);
+          tracker.logOpenedConnections();
+          this.needUpdateCurrentWriter = true;
+        }
       }
       throw e;
     }
