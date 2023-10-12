@@ -18,8 +18,10 @@ package integration.container;
 
 import integration.DatabaseEngine;
 import integration.DriverHelper;
+import integration.TestEnvironmentFeatures;
 import integration.TestInstanceInfo;
 import java.util.Properties;
+import java.util.Set;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -190,7 +192,20 @@ public class ConnectionStringHelper {
     props.setProperty(
         PropertyDefinition.PASSWORD.name,
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+
+    final Set<TestEnvironmentFeatures> features =
+        TestEnvironment.getCurrent().getInfo().getRequest().getFeatures();
+    props.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "true");
+    props.setProperty(PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.name, "true");
+    props.setProperty(
+        PropertyDefinition.TELEMETRY_TRACES_BACKEND.name,
+        features.contains(TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED) ? "xray" : "none");
+    props.setProperty(
+        PropertyDefinition.TELEMETRY_METRICS_BACKEND.name,
+        features.contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED) ? "otlp" : "none");
+
     DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
+
     return props;
   }
 

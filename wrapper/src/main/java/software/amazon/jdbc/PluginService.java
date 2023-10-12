@@ -27,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * Interface for retrieving the current active {@link Connection} and its {@link HostSpec}.
@@ -164,4 +165,9 @@ public interface PluginService extends ExceptionHandler {
   String getDriverProtocol();
 
   Properties getProperties();
+
+  TelemetryFactory getTelemetryFactory();
+
+  String getTargetName();
+
 }

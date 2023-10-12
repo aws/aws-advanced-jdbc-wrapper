@@ -54,7 +54,7 @@ class AwsWrapperDataSourceTest {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
     doReturn(mockConnection)
         .when(ds)
-        .createConnectionWrapper(propertiesArgumentCaptor.capture(), urlArgumentCaptor.capture(), any());
+        .createConnectionWrapper(propertiesArgumentCaptor.capture(), urlArgumentCaptor.capture(), any(), any());
   }
 
   @AfterEach

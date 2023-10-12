@@ -69,6 +69,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 @Disabled
 @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
@@ -362,6 +363,15 @@ public class ConcurrencyTests {
       return new TestConnection();
     }
 
+    @Override
+    public TelemetryFactory getTelemetryFactory() {
+      return null;
+    }
+
+    @Override
+    public String getTargetName() {
+      return null;
+    }
 
     @Override
     public boolean isNetworkException(Throwable throwable) {

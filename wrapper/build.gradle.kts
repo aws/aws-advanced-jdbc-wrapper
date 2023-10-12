@@ -36,6 +36,12 @@ dependencies {
     compileOnly("org.postgresql:postgresql:42.6.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.2.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
+    compileOnly("org.osgi:org.osgi.core:4.3.0")
+    compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
+    compileOnly("io.opentelemetry:opentelemetry-api:1.31.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk:1.31.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.31.0")
+
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.0")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.0")
@@ -65,6 +71,11 @@ dependencies {
     testImplementation("org.apache.poi:poi-ooxml:5.2.4")
     testImplementation("org.slf4j:slf4j-simple:2.0.9")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
+    testImplementation("io.opentelemetry:opentelemetry-api:1.31.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:1.31.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.31.0")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.31.0")
 }
 
 repositories {
@@ -297,6 +308,11 @@ tasks.register<Test>("test-all-aurora") {
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
     }
 }
 

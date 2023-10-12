@@ -39,6 +39,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
 import org.testcontainers.containers.output.OutputFrame;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder;
 import org.testcontainers.utility.DockerImageName;
@@ -56,6 +57,17 @@ public class ContainerHelper {
 
   private static final int PROXY_CONTROL_PORT = 8474;
   private static final int PROXY_PORT = 8666;
+
+  private static final String XRAY_TELEMETRY_IMAGE_NAME = "amazon/aws-xray-daemon";
+  private static final String OTLP_TELEMETRY_IMAGE_NAME = "amazon/aws-otel-collector";
+
+  private static final String RETRIEVE_TOPOLOGY_SQL_POSTGRES =
+      "SELECT SERVER_ID, SESSION_ID FROM aurora_replica_status() "
+          + "ORDER BY CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN 0 ELSE 1 END";
+  private static final String RETRIEVE_TOPOLOGY_SQL_MYSQL =
+      "SELECT SERVER_ID, SESSION_ID FROM information_schema.replica_host_status "
+          + "ORDER BY IF(SESSION_ID = 'MASTER_SESSION_ID', 0, 1)";
+  private static final String SERVER_ID = "SERVER_ID";
 
   public Long runCmd(GenericContainer<?> container, String... cmd)
       throws IOException, InterruptedException {
@@ -98,6 +110,49 @@ public class ContainerHelper {
             container, consumer, "./gradlew", task, "--debug-jvm", "--no-parallel", "--no-daemon");
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
+  }
+
+  // This container supports traces to AWS XRay.
+  public GenericContainer<?> createTelemetryXrayContainer(
+      String xrayAwsRegion,
+      Network network,
+      String networkAlias) {
+
+    return new FixedExposedPortContainer<>(
+        new ImageFromDockerfile("xray-daemon", true)
+            .withDockerfileFromBuilder(
+                builder -> builder
+                        .from(XRAY_TELEMETRY_IMAGE_NAME)
+                        .entryPoint("/xray",
+                          "-t", "0.0.0.0:2000",
+                          "-b", "0.0.0.0:2000",
+                          "--local-mode",
+                          "--log-level", "debug",
+                          "--region", xrayAwsRegion)
+                        .build()))
+        .withExposedPort(2000)
+        .waitingFor(Wait.forLogMessage(".*Starting proxy http server on 0.0.0.0:2000.*", 1))
+        .withNetworkAliases(networkAlias)
+        .withNetwork(network);
+  }
+
+  // This container supports traces and metrics to AWS CloudWatch/XRay
+  public GenericContainer<?> createTelemetryOtlpContainer(
+      Network network,
+      String networkAlias) {
+
+    return new FixedExposedPortContainer<>(DockerImageName.parse(OTLP_TELEMETRY_IMAGE_NAME))
+        .withExposedPort(2000)
+        .withExposedPort(1777)
+        .withExposedPort(4317)
+        .withExposedPort(4318)
+        .waitingFor(Wait.forLogMessage(".*Everything is ready. Begin running and processing data.*", 1))
+        .withNetworkAliases(networkAlias)
+        .withNetwork(network)
+        .withCopyFileToContainer(
+            MountableFile.forHostPath("./src/test/resources/otel-config.yaml"),
+            "/etc/otel-config.yaml");
+
   }
 
   public GenericContainer<?> createTestContainer(String dockerImageName, String testContainerImageName) {
@@ -311,4 +366,24 @@ public class ContainerHelper {
             instance.getHost() + proxyDomainNameSuffix);
   }
 
+  public static class FixedExposedPortContainer<T extends FixedExposedPortContainer<T>> extends GenericContainer<T> {
+
+    public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
+      super(withDockerfileFromBuilder);
+    }
+
+    public FixedExposedPortContainer(final DockerImageName dockerImageName) {
+      super(dockerImageName);
+    }
+
+    public T withFixedExposedPort(int hostPort, int containerPort, InternetProtocol protocol) {
+      super.addFixedExposedPort(hostPort, containerPort, protocol);
+      return self();
+    }
+
+    public T withExposedPort(Integer port) {
+      super.addExposedPort(port);
+      return self();
+    }
+  }
 }

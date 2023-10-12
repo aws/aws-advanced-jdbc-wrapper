@@ -19,6 +19,10 @@ package software.amazon.jdbc;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -35,12 +39,16 @@ import software.amazon.jdbc.plugin.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionPluginChainBuilderTests {
 
   @Mock ConnectionProvider mockConnectionProvider;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
+  @Mock TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryContext mockTelemetryContext;
 
   private AutoCloseable closeable;
 
@@ -52,6 +60,9 @@ public class ConnectionPluginChainBuilderTests {
   @BeforeEach
   void beforeEach() {
     closeable = MockitoAnnotations.openMocks(this);
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
   }
 
   @Test

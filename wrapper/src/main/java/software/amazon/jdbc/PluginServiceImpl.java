@@ -45,6 +45,7 @@ import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
     HostListProviderService, PluginManagerService {
@@ -558,4 +559,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public Properties getProperties() {
     return this.props;
   }
+
+  public TelemetryFactory getTelemetryFactory() {
+    return this.pluginManager.getTelemetryFactory();
+  }
+
+  public String getTargetName() {
+    return this.pluginManager.getDefaultConnProvider().getTargetName();
+  }
+
 }

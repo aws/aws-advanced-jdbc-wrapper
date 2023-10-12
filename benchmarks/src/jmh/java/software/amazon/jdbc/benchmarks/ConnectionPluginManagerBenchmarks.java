@@ -65,6 +65,12 @@ import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
+import software.amazon.jdbc.util.telemetry.GaugeCallable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -87,10 +93,14 @@ public class ConnectionPluginManagerBenchmarks {
   @Mock ConnectionWrapper mockConnectionWrapper;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
+  @Mock TelemetryFactory mockTelemetryFactory;
   @Mock HostListProviderService mockHostListProvider;
   @Mock Connection mockConnection;
   @Mock Statement mockStatement;
   @Mock ResultSet mockResultSet;
+  @Mock TelemetryContext mockTelemetryContext;
+  @Mock TelemetryCounter mockTelemetryCounter;
+  @Mock TelemetryGauge mockTelemetryGauge;
   private AutoCloseable closeable;
 
   public static void main(String[] args) throws RunnerException {
@@ -112,6 +122,11 @@ public class ConnectionPluginManagerBenchmarks {
         mockConnection);
     when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
         any(Properties.class))).thenReturn(mockConnection);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
+    when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
+    when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
     when(mockResultSet.next()).thenReturn(true, true, false);
@@ -119,6 +134,7 @@ public class ConnectionPluginManagerBenchmarks {
     when(mockResultSet.getString(eq(FIELD_SERVER_ID)))
         .thenReturn("myInstance1.domain.com", "myInstance2.domain.com", "myInstance3.domain.com");
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
 
     // Create a plugin chain with 10 custom test plugins.
     final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new ArrayList<>(
@@ -132,11 +148,15 @@ public class ConnectionPluginManagerBenchmarks {
 
     propertiesWithPlugins = new Properties();
     propertiesWithPlugins.setProperty(PropertyDefinition.PROFILE_NAME.name, "benchmark");
+    propertiesWithPlugins.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "false");
 
-    pluginManager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
+    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(propertiesWithPlugins);
+
+    pluginManager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper, telemetryFactory);
     pluginManager.init(mockPluginService, propertiesWithPlugins, mockPluginManagerService);
 
-    pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
+    pluginManagerWithNoPlugins = new ConnectionPluginManager(mockConnectionProvider,
+        mockConnectionWrapper, telemetryFactory);
     pluginManagerWithNoPlugins.init(mockPluginService, propertiesWithoutPlugins, mockPluginManagerService);
   }
 
@@ -147,14 +167,16 @@ public class ConnectionPluginManagerBenchmarks {
 
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithNoPlugins() throws SQLException {
-    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
+    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider,
+        mockConnectionWrapper, mockTelemetryFactory);
     manager.init(mockPluginService, propertiesWithoutPlugins, mockPluginManagerService);
     return manager;
   }
 
   @Benchmark
   public ConnectionPluginManager initConnectionPluginManagerWithPlugins() throws SQLException {
-    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider, mockConnectionWrapper);
+    final ConnectionPluginManager manager = new ConnectionPluginManager(mockConnectionProvider,
+        mockConnectionWrapper, mockTelemetryFactory);
     manager.init(mockPluginService, propertiesWithPlugins, mockPluginManagerService);
     return manager;
   }
@@ -223,12 +245,16 @@ public class ConnectionPluginManagerBenchmarks {
 
   @Benchmark
   public EnumSet<OldConnectionSuggestedAction> notifyConnectionChangedWithPlugins() {
-    return pluginManager.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION), null);
+    return pluginManager.notifyConnectionChanged(
+        EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION),
+        null);
   }
 
   @Benchmark
   public EnumSet<OldConnectionSuggestedAction> notifyConnectionChangedWithNoPlugins() {
-    return pluginManagerWithNoPlugins.notifyConnectionChanged(EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION), null);
+    return pluginManagerWithNoPlugins.notifyConnectionChanged(
+        EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION),
+        null);
   }
 
   @Benchmark

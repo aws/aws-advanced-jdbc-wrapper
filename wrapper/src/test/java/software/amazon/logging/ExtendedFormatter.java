@@ -1,3 +1,4 @@
+//CHECKSTYLE:OFF
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +17,7 @@
  *
  * Modifications Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  */
+//CHECKSTYLE:ON
 
 package software.amazon.logging;
 

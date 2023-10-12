@@ -33,6 +33,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
 class MonitorConnectionContextTest {
   private static final long FAILURE_DETECTION_TIME_MILLIS = 10;
@@ -45,6 +46,7 @@ class MonitorConnectionContextTest {
 
   @Mock Connection connectionToAbort;
   @Mock Monitor monitor;
+  @Mock TelemetryCounter abortedConnectionsCounter;
 
   @BeforeEach
   void init() {
@@ -55,7 +57,8 @@ class MonitorConnectionContextTest {
             null,
             FAILURE_DETECTION_TIME_MILLIS,
             FAILURE_DETECTION_INTERVAL_MILLIS,
-            FAILURE_DETECTION_COUNT);
+            FAILURE_DETECTION_COUNT,
+            abortedConnectionsCounter);
   }
 
   @AfterEach
@@ -161,7 +164,8 @@ class MonitorConnectionContextTest {
             connectionToAbort,
             FAILURE_DETECTION_TIME_MILLIS,
             FAILURE_DETECTION_INTERVAL_MILLIS,
-            FAILURE_DETECTION_COUNT);
+            FAILURE_DETECTION_COUNT,
+            abortedConnectionsCounter);
 
     doThrow(new SQLException("unexpected SQLException during abort")).when(connectionToAbort)
         .close();

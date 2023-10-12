@@ -44,8 +44,9 @@ import software.amazon.jdbc.util.StringUtils;
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(HikariPooledConnectionProvider.class.getName());
+  private static final String thisClassName = HikariPooledConnectionProvider.class.getName();
+  private static final Logger LOGGER = Logger.getLogger(HikariPooledConnectionProvider.class.getName());
+
   private static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
@@ -53,6 +54,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
           put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
         }
       });
+
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static SlidingExpirationCache<PoolKey, HikariDataSource> databasePools =
       new SlidingExpirationCache<>(
@@ -296,6 +298,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    */
   public Set<PoolKey> getKeys() {
     return databasePools.getEntries().keySet();
+  }
+
+  @Override
+  public String getTargetName() {
+    return thisClassName;
   }
 
   /**

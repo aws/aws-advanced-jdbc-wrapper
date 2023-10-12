@@ -28,6 +28,12 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 /**
  * This class uses a background thread to monitor a particular server with one or more active {@link
@@ -54,6 +60,7 @@ public class MonitorImpl implements Monitor {
   private final Queue<MonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
   private final Queue<MonitorConnectionContext> newContexts = new ConcurrentLinkedQueue<>();
   private final PluginService pluginService;
+  private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
   private final MonitorService monitorService;
@@ -62,6 +69,10 @@ public class MonitorImpl implements Monitor {
   private volatile boolean stopped = false;
   private Connection monitoringConn = null;
   private long nodeCheckTimeoutMillis = MIN_CONNECTION_CHECK_TIMEOUT_MILLIS;
+
+  private final TelemetryGauge contextsSizeGauge;
+  private final TelemetryCounter nodeInvalidCounter;
+  private TelemetryContext telemetryContext;
 
   /**
    * Store the monitoring configuration for a connection.
@@ -84,12 +95,20 @@ public class MonitorImpl implements Monitor {
       final long monitorDisposalTimeMillis,
       @NonNull final MonitorService monitorService) {
     this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;
     this.monitorService = monitorService;
-
+    
     this.contextLastUsedTimestampNano = this.getCurrentTimeNano();
+    this.contextsSizeGauge = telemetryFactory.createGauge("efm.activeContexts.queue.size",
+        () -> (long) activeContexts.size());
+
+    final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
+        ? this.hostSpec.getHost()
+        : this.hostSpec.getHostId();
+    this.nodeInvalidCounter = telemetryFactory.createCounter(String.format("efm.nodeUnhealthy.count.%s", nodeId));
   }
 
   @Override
@@ -118,6 +137,9 @@ public class MonitorImpl implements Monitor {
 
   @Override
   public void run() {
+    this.telemetryContext = telemetryFactory.openTelemetryContext(
+        "monitoring thread", TelemetryTraceLevel.TOP_LEVEL);
+    telemetryContext.setAttribute("url", hostSpec.getUrl());
     try {
       this.stopped = false;
       while (true) {
@@ -230,6 +252,9 @@ public class MonitorImpl implements Monitor {
           // ignore
         }
       }
+      if (telemetryContext != null) {
+        this.telemetryContext.closeContext();
+      }
       this.stopped = true;
     }
   }
@@ -244,6 +269,8 @@ public class MonitorImpl implements Monitor {
    * @return whether the server is still alive and the elapsed time spent checking.
    */
   ConnectionStatus checkConnectionStatus(final long shortestFailureDetectionIntervalMillis) {
+    TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
+        "connection status check", TelemetryTraceLevel.NESTED);
     long startNano = this.getCurrentTimeNano();
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
@@ -270,9 +297,17 @@ public class MonitorImpl implements Monitor {
       startNano = this.getCurrentTimeNano();
       final boolean isValid = this.monitoringConn.isValid(
           (int) TimeUnit.MILLISECONDS.toSeconds(shortestFailureDetectionIntervalMillis));
+      if (!isValid) {
+        this.nodeInvalidCounter.inc();
+      }
       return new ConnectionStatus(isValid, this.getCurrentTimeNano() - startNano);
+
     } catch (final SQLException sqlEx) {
+      this.nodeInvalidCounter.inc();
       return new ConnectionStatus(false, this.getCurrentTimeNano() - startNano);
+
+    } finally {
+      connectContext.closeContext();
     }
   }
 

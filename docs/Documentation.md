@@ -4,6 +4,7 @@
 - [Using the AWS JDBC Driver](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md)
   - [Data Sources](/docs/using-the-jdbc-driver/DataSource.md)
   - [Logging](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging)
+  - [Telemetry](/docs/using-the-jdbc-driver/Telemetry.md)
   - [JDBC Wrapper Parameters](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#aws-advanced-jdbc-driver-parameters)
   - [Database Dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md)
   - [Target Driver Dialects](/docs/using-the-jdbc-driver/TargetDriverDialects.md)
