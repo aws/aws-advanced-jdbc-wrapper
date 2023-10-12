@@ -48,7 +48,7 @@ You can find our driver by searching in The Central Repository with GroupId and 
 <!-- replacing LATEST with the specific version as required -->
 
 <dependency>
-  <groupId>software.amazon</groupId>
+  <groupId>software.amazon.jdbc</groupId>
   <artifactId>aws-advanced-jdbc-wrapper</artifactId>
   <version>LATEST</version>
 </dependency>
