@@ -24,13 +24,15 @@ import java.util.List;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
+import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
   private static final String TOPOLOGY_QUERY =
-      "SELECT LOWER(id) AS id, LOWER(endpoint) AS endpoint, port FROM rds_tools.show_topology()";
+      "SELECT LOWER(id) AS id, LOWER(endpoint) AS endpoint, port FROM "
+      + "rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
   private static final String FETCH_WRITER_NODE_QUERY =
       "SELECT LOWER(multi_az_db_cluster_source_dbi_resource_id) AS multi_az_db_cluster_source_dbi_resource_id FROM "
