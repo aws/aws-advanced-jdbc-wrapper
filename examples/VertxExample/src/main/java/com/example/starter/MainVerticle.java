@@ -37,7 +37,7 @@ public class MainVerticle extends AbstractVerticle {
   public static final String INSERT = "INSERT INTO example (status, id) VALUES (?, ?)";
 
   final JsonObject writeConfig = new JsonObject()
-    .put("url", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-ro-XYZ.us-east-2.rds.amazonaws.com:5432/postgres")
+    .put("url", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres")
     .put("driverClass", "software.amazon.jdbc.Driver")
     .put("user", "username")
     .put("password", "password")
