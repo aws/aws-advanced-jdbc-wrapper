@@ -16,14 +16,19 @@
 
 package software.amazon.jdbc.util;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -137,5 +142,20 @@ public class WrapperUtilsTest {
     for (CompletableFuture<Integer> future : futures) {
       future.join();
     }
+  }
+
+  @Test
+  void getConnectionFromSqlObjectChecksStatementNotClosed() throws Exception {
+    final Statement mockClosedStatement = mock(Statement.class);
+    when(mockClosedStatement.isClosed()).thenReturn(true);
+    when(mockClosedStatement.getConnection()).thenThrow(IllegalStateException.class);
+
+    final ResultSet mockResultSet = mock(ResultSet.class);
+    when(mockResultSet.getStatement()).thenReturn(mockClosedStatement);
+
+    final Connection stmtConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
+    assertNull(stmtConn);
+    final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
+    assertNull(rsConn);
   }
 }

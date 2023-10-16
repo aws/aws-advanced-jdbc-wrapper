@@ -553,10 +553,11 @@ public class WrapperUtils {
         return (Connection) obj;
       } else if (obj instanceof Statement) {
         final Statement stmt = (Statement) obj;
-        return stmt.getConnection();
+        return !stmt.isClosed() ? stmt.getConnection() : null;
       } else if (obj instanceof ResultSet) {
         final ResultSet rs = (ResultSet) obj;
-        return rs.getStatement() != null ? rs.getStatement().getConnection() : null;
+        final Statement stmt = rs.getStatement();
+        return stmt != null && !stmt.isClosed() ? stmt.getConnection() : null;
       }
     } catch (final SQLException | UnsupportedOperationException e) {
       // Do nothing. The UnsupportedOperationException comes from ResultSets returned by
