@@ -44,7 +44,7 @@ pluginManagement {
         fun String.v() = extra["$this.version"].toString()
         fun PluginDependenciesSpec.idv(id: String, key: String = id) = id(id) version key.v()
 
-        id("biz.aQute.bnd.builder") version "6.4.0"
+        id("biz.aQute.bnd.builder") version "7.0.0"
         id("com.github.spotbugs") version "5.1.+"
         id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
         id("com.github.vlsi.gradle-extensions") version "1.+"
