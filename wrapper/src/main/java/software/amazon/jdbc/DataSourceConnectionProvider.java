@@ -27,6 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -46,10 +47,12 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
-          put("random", new RandomHostSelector());
+          put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
+          put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
         }
       });
   private final @NonNull DataSource dataSource;
+  private final @NonNull String dataSourceClassName;
   private final @NonNull TargetDriverDialect targetDriverDialect;
 
 
@@ -60,6 +63,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       final @NonNull TargetDriverDialect targetDriverDialect) {
     this.dataSource = dataSource;
     this.targetDriverDialect = targetDriverDialect;
+    this.dataSourceClassName = dataSource.getClass().getName();
   }
 
   /**
@@ -86,7 +90,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
 
   @Override
   public HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException {
     if (!acceptedStrategies.containsKey(strategy)) {
       throw new UnsupportedOperationException(
@@ -95,7 +99,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
               new Object[] {strategy, DataSourceConnectionProvider.class}));
     }
 
-    return acceptedStrategies.get(strategy).getHost(hosts, role);
+    return acceptedStrategies.get(strategy).getHost(hosts, role, props);
   }
 
   /**
@@ -180,5 +184,10 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     } catch (final InstantiationException instEx) {
       throw new SQLException(instEx.getMessage(), SqlState.UNKNOWN_STATE.getState(), instEx);
     }
+  }
+
+  @Override
+  public String getTargetName() {
+    return this.dataSourceClassName;
   }
 }

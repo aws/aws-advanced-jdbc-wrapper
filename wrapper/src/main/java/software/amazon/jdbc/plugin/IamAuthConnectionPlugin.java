@@ -39,10 +39,16 @@ import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthConnectionPlugin.class.getName());
+  private static final String TELEMETRY_FETCH_TOKEN = "fetch IAM token";
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -76,8 +82,15 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     PropertyDefinition.registerPluginProperties(IamAuthConnectionPlugin.class);
   }
 
+  private final TelemetryFactory telemetryFactory;
+  private final TelemetryGauge cacheSizeGauge;
+  private final TelemetryCounter fetchTokenCounter;
+
   public IamAuthConnectionPlugin(final @NonNull PluginService pluginService) {
     this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size", () -> (long) tokenCache.size());
+    this.fetchTokenCounter = telemetryFactory.createCounter("iam.fetchToken.count");
   }
 
   @Override
@@ -206,17 +219,31 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       final String hostname,
       final int port,
       final Region region) {
-    final String user = PropertyDefinition.USER.getString(props);
-    final RdsUtilities utilities = RdsUtilities.builder()
-        .credentialsProvider(AwsCredentialsManager.getProvider(originalHostSpec, props))
-        .region(region)
-        .build();
-    return utilities.generateAuthenticationToken((builder) ->
-        builder
-            .hostname(hostname)
-            .port(port)
-            .username(user)
-    );
+
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_FETCH_TOKEN, TelemetryTraceLevel.NESTED);
+    this.fetchTokenCounter.inc();
+
+    try {
+      final String user = PropertyDefinition.USER.getString(props);
+      final RdsUtilities utilities = RdsUtilities.builder()
+          .credentialsProvider(AwsCredentialsManager.getProvider(originalHostSpec, props))
+          .region(region)
+          .build();
+      return utilities.generateAuthenticationToken((builder) ->
+          builder
+              .hostname(hostname)
+              .port(port)
+              .username(user)
+      );
+    } catch (Exception ex) {
+      telemetryContext.setSuccess(false);
+      telemetryContext.setException(ex);
+      throw ex;
+    } finally {
+      telemetryContext.closeContext();
+    }
   }
 
   private String getCacheKey(

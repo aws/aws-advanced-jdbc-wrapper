@@ -31,10 +31,24 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
+import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
+import software.amazon.jdbc.plugin.AuroraHostListConnectionPlugin;
+import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
+import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
+import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
+import software.amazon.jdbc.plugin.IamAuthConnectionPlugin;
+import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
+import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
+import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 /**
@@ -44,6 +58,24 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
  * JDBC CONNECTION
  */
 public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
+
+  protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
+      new HashMap<Class<? extends ConnectionPlugin>, String>() {
+        {
+          put(ExecutionTimeConnectionPlugin.class, "plugin:executionTime");
+          put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
+          put(AuroraHostListConnectionPlugin.class, "plugin:auroraHostList");
+          put(LogQueryConnectionPlugin.class, "plugin:logQuery");
+          put(DataCacheConnectionPlugin.class, "plugin:dataCache");
+          put(HostMonitoringConnectionPlugin.class, "plugin:efm");
+          put(FailoverConnectionPlugin.class, "plugin:failover");
+          put(IamAuthConnectionPlugin.class, "plugin:iam");
+          put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
+          put(AuroraStaleDnsPlugin.class, "plugin:auroraStaleDns");
+          put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");
+          put(DefaultConnectionPlugin.class, "plugin:targetDriver");
+        }
+      };
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
   private static final String ALL_METHODS = "*";
@@ -62,14 +94,17 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final ConnectionProvider defaultConnProvider;
   protected final ConnectionWrapper connectionWrapper;
   protected PluginService pluginService;
+  protected TelemetryFactory telemetryFactory;
 
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
-  public ConnectionPluginManager(
-      final ConnectionProvider defaultConnProvider, final ConnectionWrapper connectionWrapper) {
+  public ConnectionPluginManager(final ConnectionProvider defaultConnProvider,
+      final ConnectionWrapper connectionWrapper,
+      final TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.connectionWrapper = connectionWrapper;
+    this.telemetryFactory = telemetryFactory;
   }
 
   /**
@@ -80,8 +115,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final Properties props,
       final ArrayList<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
-      final PluginService pluginService) {
-    this(defaultConnProvider, props, plugins, connectionWrapper);
+      final PluginService pluginService,
+      final TelemetryFactory telemetryFactory) {
+    this(defaultConnProvider, props, plugins, connectionWrapper, telemetryFactory);
     this.pluginService = pluginService;
   }
 
@@ -92,11 +128,13 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final ConnectionProvider defaultConnProvider,
       final Properties props,
       final ArrayList<ConnectionPlugin> plugins,
-      final ConnectionWrapper connectionWrapper) {
+      final ConnectionWrapper connectionWrapper,
+      final TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
     this.props = props;
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
+    this.telemetryFactory = telemetryFactory;
   }
 
   public void lock() {
@@ -126,6 +164,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
     this.props = props;
     this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
 
     ConnectionPluginChainBuilder pluginChainBuilder = new ConnectionPluginChainBuilder();
     this.plugins = pluginChainBuilder.getPlugins(
@@ -164,6 +203,19 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc);
   }
 
+
+  protected <T, E extends Exception> T executeWithTelemetry(
+      final @NonNull JdbcCallable<T, E> execution,
+      final @NonNull String pluginName) throws E {
+    final TelemetryContext context = telemetryFactory.openTelemetryContext(
+        pluginName, TelemetryTraceLevel.NESTED);
+    try {
+      return execution.call();
+    } finally {
+      context.closeContext();
+    }
+  }
+
   @Nullable
   protected <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
       final @NonNull String methodName) {
@@ -173,17 +225,21 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     for (int i = this.plugins.size() - 1; i >= 0; i--) {
       final ConnectionPlugin plugin = this.plugins.get(i);
       final Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+      final String pluginName = pluginNameByClass.getOrDefault(plugin.getClass(), plugin.getClass().getSimpleName());
       final boolean isSubscribed =
           pluginSubscribedMethods.contains(ALL_METHODS)
               || pluginSubscribedMethods.contains(methodName);
 
       if (isSubscribed) {
         if (pluginChainFunc == null) {
-          pluginChainFunc = (pipelineFunc, jdbcFunc) -> pipelineFunc.call(plugin, jdbcFunc);
+          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+              executeWithTelemetry(() -> pipelineFunc.call(plugin, jdbcFunc), pluginName);
         } else {
           final PluginChainJdbcCallable<T, E> finalPluginChainFunc = pluginChainFunc;
           pluginChainFunc = (pipelineFunc, jdbcFunc) ->
-              pipelineFunc.call(plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc));
+              executeWithTelemetry(() -> pipelineFunc.call(
+                  plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc)),
+                  pluginName);
         }
       }
     }
@@ -217,6 +273,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   public ConnectionWrapper getConnectionWrapper() {
     return this.connectionWrapper;
+  }
+
+  public TelemetryFactory getTelemetryFactory() {
+    return this.telemetryFactory;
   }
 
   public <T, E extends Exception> T execute(
@@ -274,6 +334,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final boolean isInitialConnection)
       throws SQLException {
 
+    TelemetryContext context = telemetryFactory.openTelemetryContext("connect", TelemetryTraceLevel.NESTED);
     try {
       return executeWithSubscribedPlugins(
           CONNECT_METHOD,
@@ -286,6 +347,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       throw e;
     } catch (final Exception e) {
       throw new SQLException(e);
+    } finally {
+      context.closeContext();
     }
   }
 
@@ -417,18 +480,23 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final Properties props,
       final HostListProviderService hostListProviderService)
       throws SQLException {
-
-    executeWithSubscribedPlugins(
-        INIT_HOST_PROVIDER_METHOD,
-        (PluginPipeline<Void, SQLException>)
-            (plugin, func) -> {
-              plugin.initHostProvider(
-                  driverProtocol, initialUrl, props, hostListProviderService, func);
-              return null;
-            },
-        () -> {
-          throw new SQLException("Shouldn't be called.");
-        });
+    TelemetryContext context = telemetryFactory.openTelemetryContext(
+        "initHostProvider", TelemetryTraceLevel.NESTED);
+    try {
+      executeWithSubscribedPlugins(
+          INIT_HOST_PROVIDER_METHOD,
+          (PluginPipeline<Void, SQLException>)
+              (plugin, func) -> {
+                plugin.initHostProvider(
+                    driverProtocol, initialUrl, props, hostListProviderService, func);
+                return null;
+              },
+          () -> {
+            throw new SQLException("Shouldn't be called.");
+          });
+    } finally {
+      context.closeContext();
+    }
   }
 
   public EnumSet<OldConnectionSuggestedAction> notifyConnectionChanged(
@@ -506,6 +574,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       }
     }
     return false;
+  }
+
+  public ConnectionProvider getDefaultConnProvider() {
+    return this.defaultConnProvider;
   }
 
   private interface PluginPipeline<T, E extends Exception> {

@@ -54,6 +54,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.JdbcRunnable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 import software.amazon.jdbc.wrapper.ArrayWrapper;
 import software.amazon.jdbc.wrapper.BlobWrapper;
 import software.amazon.jdbc.wrapper.CallableStatementWrapper;
@@ -180,8 +183,13 @@ public class WrapperUtils {
       final Object... jdbcMethodArgs) {
 
     pluginManager.lock();
+    TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
+    TelemetryContext context = null;
 
     try {
+      context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
+      context.setAttribute("jdbcCall", methodName);
+
       final T result =
           pluginManager.execute(
               resultClass,
@@ -191,14 +199,19 @@ public class WrapperUtils {
               jdbcMethodFunc,
               jdbcMethodArgs);
 
+      context.setSuccess(true);
+
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
       } catch (final InstantiationException e) {
+        context.setSuccess(false);
         throw new RuntimeException(e);
       }
-
     } finally {
       pluginManager.unlock();
+      if (context != null) {
+        context.closeContext();
+      }
     }
   }
 
@@ -213,8 +226,13 @@ public class WrapperUtils {
       throws E {
 
     pluginManager.lock();
+    TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
+    TelemetryContext context = null;
 
     try {
+      context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
+      context.setAttribute("jdbcCall", methodName);
+
       final T result =
           pluginManager.execute(resultClass,
               exceptionClass,
@@ -223,14 +241,20 @@ public class WrapperUtils {
               jdbcMethodFunc,
               jdbcMethodArgs);
 
+      context.setSuccess(true);
+
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
       } catch (final InstantiationException e) {
+        context.setSuccess(false);
         throw new RuntimeException(e);
       }
 
     } finally {
       pluginManager.unlock();
+      if (context != null) {
+        context.closeContext();
+      }
     }
   }
 
@@ -529,10 +553,11 @@ public class WrapperUtils {
         return (Connection) obj;
       } else if (obj instanceof Statement) {
         final Statement stmt = (Statement) obj;
-        return stmt.getConnection();
+        return !stmt.isClosed() ? stmt.getConnection() : null;
       } else if (obj instanceof ResultSet) {
         final ResultSet rs = (ResultSet) obj;
-        return rs.getStatement() != null ? rs.getStatement().getConnection() : null;
+        final Statement stmt = rs.getStatement();
+        return stmt != null && !stmt.isClosed() ? stmt.getConnection() : null;
       }
     } catch (final SQLException | UnsupportedOperationException e) {
       // Do nothing. The UnsupportedOperationException comes from ResultSets returned by
@@ -546,7 +571,7 @@ public class WrapperUtils {
    * Check if the throwable is an instance of the given exception and throw it as the required
    * exception class, otherwise throw it as a runtime exception.
    *
-   * @param exceptionClass The exception class the exception is exepected to be
+   * @param exceptionClass The exception class the exception is expected to be
    * @param exception      The exception that occurred while invoking the given method
    * @return an exception indicating the failure that occurred while invoking the given method
    */

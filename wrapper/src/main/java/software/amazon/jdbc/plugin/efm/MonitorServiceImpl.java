@@ -28,6 +28,8 @@ import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * This class handles the creation and clean up of monitoring threads to servers with one or more
@@ -49,6 +51,8 @@ public class MonitorServiceImpl implements MonitorService {
   final MonitorInitializer monitorInitializer;
   private Set<String> cachedMonitorNodeKeys = null;
   private Monitor cachedMonitor = null;
+  final TelemetryFactory telemetryFactory;
+  final TelemetryCounter abortedConnectionsCounter;
 
   public MonitorServiceImpl(final @NonNull PluginService pluginService) {
     this(
@@ -73,8 +77,9 @@ public class MonitorServiceImpl implements MonitorService {
       final PluginService pluginService,
       final MonitorInitializer monitorInitializer,
       final ExecutorServiceInitializer executorServiceInitializer) {
-
     this.pluginService = pluginService;
+    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.abortedConnectionsCounter = telemetryFactory.createCounter("efm.connections.aborted");
     this.monitorInitializer = monitorInitializer;
     this.threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
   }
@@ -113,7 +118,8 @@ public class MonitorServiceImpl implements MonitorService {
             connectionToAbort,
             failureDetectionTimeMillis,
             failureDetectionIntervalMillis,
-            failureDetectionCount);
+            failureDetectionCount,
+            abortedConnectionsCounter);
 
     monitor.startMonitoring(context);
 

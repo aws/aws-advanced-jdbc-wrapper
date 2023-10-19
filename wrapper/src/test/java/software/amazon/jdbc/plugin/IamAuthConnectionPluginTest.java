@@ -46,6 +46,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class IamAuthConnectionPluginTest {
 
@@ -69,8 +70,9 @@ class IamAuthConnectionPluginTest {
       .host("mysql.testdb.us-east-2.rds.amazonaws.com").build();
   private Properties props;
 
-  @Mock JdbcCallable<Connection, SQLException> mockLambda;
   @Mock PluginService mockPluginService;
+  @Mock TelemetryFactory mockTelemetryFactory;
+  @Mock JdbcCallable<Connection, SQLException> mockLambda;
   @Mock Dialect mockDialect;
 
   @BeforeEach
@@ -83,6 +85,7 @@ class IamAuthConnectionPluginTest {
     IamAuthConnectionPlugin.clearCache();
 
     when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
   }
 
   @BeforeAll
@@ -122,6 +125,7 @@ class IamAuthConnectionPluginTest {
   public void testPostgresConnectWithInvalidPortFallbacksToHostPort() throws SQLException {
     final String invalidIamDefaultPort = "0";
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, invalidIamDefaultPort);
+
 
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";

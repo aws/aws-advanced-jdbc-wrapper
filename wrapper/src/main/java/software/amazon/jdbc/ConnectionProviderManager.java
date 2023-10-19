@@ -134,6 +134,7 @@ public class ConnectionProviderManager {
    * @param role     the desired role of the host - either a writer or a reader
    * @param strategy the strategy that should be used to select a {@link HostSpec} from the host
    *                 list (eg "random")
+   * @param props    any properties that are required by the provided strategy to select a host
    * @return a {@link HostSpec} with the requested role
    * @throws SQLException                  if the available {@link ConnectionProvider} instances
    *                                       cannot find a host in the host list matching the
@@ -141,14 +142,14 @@ public class ConnectionProviderManager {
    * @throws UnsupportedOperationException if the available {@link ConnectionProvider} instances do
    *                                       not support the requested strategy
    */
-  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy, Properties props)
       throws SQLException, UnsupportedOperationException {
     HostSpec host = null;
     if (connProvider != null) {
       connProviderLock.readLock().lock();
       try {
         if (connProvider != null && connProvider.acceptsStrategy(role, strategy)) {
-          host = connProvider.getHostSpecByStrategy(hosts, role, strategy);
+          host = connProvider.getHostSpecByStrategy(hosts, role, strategy, props);
         }
       } catch (UnsupportedOperationException e) {
         // The custom provider does not support the provided strategy, ignore it and try with the default provider.
@@ -158,7 +159,7 @@ public class ConnectionProviderManager {
     }
 
     if (host == null) {
-      host = defaultProvider.getHostSpecByStrategy(hosts, role, strategy);
+      host = defaultProvider.getHostSpecByStrategy(hosts, role, strategy, props);
     }
 
     return host;

@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -44,6 +45,11 @@ import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.telemetry.GaugeCallable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
 class DefaultConnectionPluginTest {
 
@@ -55,12 +61,25 @@ class DefaultConnectionPluginTest {
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
   @Mock Connection conn;
   @Mock Connection oldConn;
+  @Mock private TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryContext mockTelemetryContext;
+  @Mock TelemetryCounter mockTelemetryCounter;
+  @Mock TelemetryGauge mockTelemetryGauge;
+
 
   private AutoCloseable closeable;
 
   @BeforeEach
   void setUp() {
     closeable = MockitoAnnotations.openMocks(this);
+
+    when(pluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
+    // noinspection unchecked
+    when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
+
     plugin = new DefaultConnectionPlugin(pluginService, connectionProvider, pluginManagerService);
   }
 

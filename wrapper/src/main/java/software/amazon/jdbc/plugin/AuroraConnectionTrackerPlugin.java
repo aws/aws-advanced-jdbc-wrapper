@@ -59,7 +59,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
   private boolean needUpdateCurrentWriter = false;
 
   AuroraConnectionTrackerPlugin(final PluginService pluginService, final Properties props) {
-    this(pluginService, props, new RdsUtils(), new OpenedConnectionTracker());
+    this(pluginService, props, new RdsUtils(), new OpenedConnectionTracker(pluginService));
   }
 
   AuroraConnectionTrackerPlugin(

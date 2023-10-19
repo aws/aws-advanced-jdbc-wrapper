@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 
 /**
  * Monitoring context for each connection. This contains each connection's criteria for whether a
@@ -32,6 +33,8 @@ public class MonitorConnectionContext {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorConnectionContext.class.getName());
   private static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
+
+  private final TelemetryCounter abortedConnectionsCounter;
 
   private final long failureDetectionIntervalMillis;
   private final long failureDetectionTimeMillis;
@@ -62,12 +65,14 @@ public class MonitorConnectionContext {
       final Connection connectionToAbort,
       final long failureDetectionTimeMillis,
       final long failureDetectionIntervalMillis,
-      final long failureDetectionCount) {
+      final long failureDetectionCount,
+      TelemetryCounter abortedConnectionsCounter) {
     this.monitor = monitor;
     this.connectionToAbort = connectionToAbort;
     this.failureDetectionTimeMillis = failureDetectionTimeMillis;
     this.failureDetectionIntervalMillis = failureDetectionIntervalMillis;
     this.failureDetectionCount = failureDetectionCount;
+    this.abortedConnectionsCounter = abortedConnectionsCounter;
   }
 
   void setStartMonitorTimeNano(final long startMonitorTimeNano) {
@@ -139,6 +144,8 @@ public class MonitorConnectionContext {
 
     try {
       this.connectionToAbort.abort(ABORT_EXECUTOR);
+      this.connectionToAbort.close();
+      this.abortedConnectionsCounter.inc();
     } catch (final SQLException sqlEx) {
       // ignore
       LOGGER.finest(

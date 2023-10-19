@@ -60,6 +60,11 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.benchmarks.testplugin.TestConnectionWrapper;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.telemetry.GaugeCallable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -83,6 +88,10 @@ public class PluginBenchmarks {
 
   @Mock private PluginService mockPluginService;
   @Mock private ConnectionPluginManager mockConnectionPluginManager;
+  @Mock private TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryContext mockTelemetryContext;
+  @Mock TelemetryCounter mockTelemetryCounter;
+  @Mock TelemetryGauge mockTelemetryGauge;
   @Mock private HostListProviderService mockHostListProviderService;
   @Mock private PluginManagerService mockPluginManagerService;
   @Mock ConnectionProvider mockConnectionProvider;
@@ -110,7 +119,12 @@ public class PluginBenchmarks {
     when(mockConnectionPluginManager.execute(
         any(), any(), any(), eq("Connection.createStatement"), any(), any()))
         .thenReturn(mockStatement);
-
+    when(mockConnectionPluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
+    // noinspection unchecked
+    when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
     when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
@@ -142,6 +156,7 @@ public class PluginBenchmarks {
         useExecutionTimePlugin(),
         CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService)) {
@@ -156,6 +171,7 @@ public class PluginBenchmarks {
         useAuroraHostListPlugin(),
         CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService)) {
@@ -170,6 +186,7 @@ public class PluginBenchmarks {
         useExecutionTimeAndAuroraHostListPlugins(),
         CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService)) {
@@ -184,6 +201,7 @@ public class PluginBenchmarks {
         useReadWriteSplittingPlugin(),
         CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService)) {
@@ -199,6 +217,7 @@ public class PluginBenchmarks {
         useAuroraHostListAndReadWriteSplittingPlugin(),
         PG_CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService)) {
@@ -216,6 +235,7 @@ public class PluginBenchmarks {
         useReadWriteSplittingPlugin(),
         CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService)) {
@@ -236,6 +256,7 @@ public class PluginBenchmarks {
         useAuroraHostListAndReadWriteSplittingPlugin(),
         PG_CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService)) {
@@ -252,6 +273,7 @@ public class PluginBenchmarks {
         useExecutionTimePlugin(),
         CONNECTION_STRING,
         mockConnectionPluginManager,
+        mockTelemetryFactory,
         mockPluginService,
         mockHostListProviderService,
         mockPluginManagerService);
@@ -267,9 +289,38 @@ public class PluginBenchmarks {
             useExecutionTimePlugin(),
             CONNECTION_STRING,
             mockConnectionPluginManager,
+            mockTelemetryFactory,
             mockPluginService,
             mockHostListProviderService,
             mockPluginManagerService);
+        Statement statement = wrapper.createStatement();
+        ResultSet resultSet = statement.executeQuery("some sql")) {
+      return resultSet;
+    }
+  }
+
+  @Benchmark
+  public ResultSet executeStatementWithTelemetryDisabled() throws SQLException {
+    try (
+        ConnectionWrapper wrapper = new ConnectionWrapper(
+            disabledTelemetry(),
+            CONNECTION_STRING,
+            mockConnectionProvider,
+            mockTelemetryFactory);
+        Statement statement = wrapper.createStatement();
+        ResultSet resultSet = statement.executeQuery("some sql")) {
+      return resultSet;
+    }
+  }
+
+  @Benchmark
+  public ResultSet executeStatementWithTelemetry() throws SQLException {
+    try (
+        ConnectionWrapper wrapper = new ConnectionWrapper(
+            useTelemetry(),
+            CONNECTION_STRING,
+            mockConnectionProvider,
+            mockTelemetryFactory);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;
@@ -303,6 +354,36 @@ public class PluginBenchmarks {
   Properties useAuroraHostListAndReadWriteSplittingPlugin() {
     final Properties properties = new Properties();
     properties.setProperty("wrapperPlugins", "auroraHostList,readWriteSplitting");
+    return properties;
+  }
+
+  Properties useReadWriteSplittingPluginWithReaderLoadBalancing() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "readWriteSplitting");
+    properties.setProperty("loadBalanceReadOnlyTraffic", "true");
+    return properties;
+  }
+
+  Properties useAuroraHostListAndReadWriteSplittingPluginWithReaderLoadBalancing() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "auroraHostList,readWriteSplitting");
+    properties.setProperty("loadBalanceReadOnlyTraffic", "true");
+    return properties;
+  }
+
+  Properties useTelemetry() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "dataCache,auroraHostList,efm");
+    properties.setProperty("enableTelemetry", "true");
+    properties.setProperty("telemetryMetricsBackend", "none");
+    properties.setProperty("telemetryTracesBackend", "none");
+    return properties;
+  }
+
+  Properties disabledTelemetry() {
+    final Properties properties = new Properties();
+    properties.setProperty("wrapperPlugins", "dataCache,auroraHostList,efm");
+    properties.setProperty("enableTelemetry", "false");
     return properties;
   }
 }

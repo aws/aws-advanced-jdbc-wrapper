@@ -16,11 +16,19 @@
 
 package software.amazon.jdbc.util;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -32,10 +40,14 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class WrapperUtilsTest {
 
   @Mock ConnectionPluginManager pluginManager;
+  @Mock TelemetryFactory mockTelemetryFactory;
+  @Mock TelemetryContext mockTelemetryContext;
   @Mock Object object;
   private AutoCloseable closeable;
 
@@ -70,6 +82,10 @@ public class WrapperUtilsTest {
         any(String.class),
         any(JdbcCallable.class),
         any(Object[].class));
+
+    when(pluginManager.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
   }
 
   @AfterEach
@@ -126,5 +142,20 @@ public class WrapperUtilsTest {
     for (CompletableFuture<Integer> future : futures) {
       future.join();
     }
+  }
+
+  @Test
+  void getConnectionFromSqlObjectChecksStatementNotClosed() throws Exception {
+    final Statement mockClosedStatement = mock(Statement.class);
+    when(mockClosedStatement.isClosed()).thenReturn(true);
+    when(mockClosedStatement.getConnection()).thenThrow(IllegalStateException.class);
+
+    final ResultSet mockResultSet = mock(ResultSet.class);
+    when(mockResultSet.getStatement()).thenReturn(mockClosedStatement);
+
+    final Connection stmtConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
+    assertNull(stmtConn);
+    final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
+    assertNull(rsConn);
   }
 }

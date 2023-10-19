@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.SQLLoginException;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
@@ -43,18 +44,21 @@ public class DriverConnectionProvider implements ConnectionProvider {
   private static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
-          put("random", new RandomHostSelector());
+          put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
+          put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
         }
       });
 
   private final java.sql.Driver driver;
   private final @NonNull TargetDriverDialect targetDriverDialect;
+  private final @NonNull String targetDriverClassName;
 
   public DriverConnectionProvider(
       final java.sql.Driver driver,
       final @NonNull TargetDriverDialect targetDriverDialect) {
     this.driver = driver;
     this.targetDriverDialect = targetDriverDialect;
+    this.targetDriverClassName = driver.getClass().getName();
   }
 
   /**
@@ -81,7 +85,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
   @Override
   public HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException {
     if (!acceptedStrategies.containsKey(strategy)) {
       throw new UnsupportedOperationException(
@@ -90,7 +94,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
               new Object[] {strategy, DriverConnectionProvider.class}));
     }
 
-    return acceptedStrategies.get(strategy).getHost(hosts, role);
+    return acceptedStrategies.get(strategy).getHost(hosts, role, props);
   }
 
   /**
@@ -138,5 +142,10 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     LOGGER.finest(() -> "Connecting to " + url);
     return this.driver.connect(url, props);
+  }
+
+  @Override
+  public String getTargetName() {
+    return this.targetDriverClassName;
   }
 }

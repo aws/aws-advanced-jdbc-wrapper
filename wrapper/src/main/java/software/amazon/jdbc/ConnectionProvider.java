@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 
 /**
@@ -59,12 +60,13 @@ public interface ConnectionProvider {
    * @param role     determines if the connection provider should return a writer or a reader
    * @param strategy the strategy determining how the {@link HostSpec} should be selected, e.g.,
    *                 random or round-robin
+   * @param props    any properties that are required by the provided strategy to select a host
    * @return the {@link HostSpec} selected using the specified strategy
    * @throws SQLException                  if an error occurred while returning the hosts
    * @throws UnsupportedOperationException if the strategy is unsupported by the provider
    */
   HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
+      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy, @Nullable Properties props)
       throws SQLException, UnsupportedOperationException;
 
   /**
@@ -96,4 +98,6 @@ public interface ConnectionProvider {
   @Deprecated
   Connection connect(@NonNull String url, @NonNull Properties props)
       throws SQLException; // TODO: this method is only called by tests/benchmarks and can likely be deprecated
+
+  String getTargetName();
 }

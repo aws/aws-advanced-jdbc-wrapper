@@ -21,8 +21,9 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.util.HikariCPSQLException;
@@ -42,10 +44,16 @@ import software.amazon.jdbc.util.StringUtils;
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {
 
-  private static final Logger LOGGER =
-      Logger.getLogger(HikariPooledConnectionProvider.class.getName());
+  private static final String thisClassName = HikariPooledConnectionProvider.class.getName();
+  private static final Logger LOGGER = Logger.getLogger(HikariPooledConnectionProvider.class.getName());
 
-  private static final String LEAST_CONNECTIONS_STRATEGY = "leastConnections";
+  private static final Map<String, HostSelector> acceptedStrategies =
+      Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
+        {
+          put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
+          put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
+        }
+      });
 
   private static final RdsUtils rdsUtils = new RdsUtils();
   private static SlidingExpirationCache<PoolKey, HikariDataSource> databasePools =
@@ -56,6 +64,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
   private final HikariPoolConfigurator poolConfigurator;
   private final HikariPoolMapping poolMapping;
+  private final LeastConnectionsHostSelector leastConnectionsHostSelector;
 
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
@@ -98,6 +107,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       HikariPoolConfigurator hikariPoolConfigurator, HikariPoolMapping mapping) {
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
   }
 
   /**
@@ -134,6 +144,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     this.poolMapping = mapping;
     poolExpirationCheckNanos = poolExpirationNanos;
     databasePools.setCleanupIntervalNanos(poolCleanupNanos);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
   }
 
   @Override
@@ -145,44 +156,28 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   @Override
   public boolean acceptsStrategy(@NonNull HostRole role, @NonNull String strategy) {
-    return LEAST_CONNECTIONS_STRATEGY.equals(strategy);
+    return acceptedStrategies.containsKey(strategy)
+        || LeastConnectionsHostSelector.STRATEGY_LEAST_CONNECTIONS.equals(strategy);
   }
 
   @Override
   public HostSpec getHostSpecByStrategy(
-      @NonNull List<HostSpec> hosts, @NonNull HostRole role, @NonNull String strategy)
-      throws SQLException {
-    if (!LEAST_CONNECTIONS_STRATEGY.equals(strategy)) {
+      @NonNull List<HostSpec> hosts,
+      @NonNull HostRole role,
+      @NonNull String strategy,
+      @Nullable Properties props) throws SQLException {
+    if (!acceptsStrategy(role, strategy)) {
       throw new UnsupportedOperationException(
           Messages.get(
               "ConnectionProvider.unsupportedHostSpecSelectorStrategy",
-              new Object[] {strategy, HikariPooledConnectionProvider.class}));
+              new Object[] {strategy, DataSourceConnectionProvider.class}));
     }
 
-    // Remove hosts with the wrong role
-    List<HostSpec> eligibleHosts = hosts.stream()
-        .filter(hostSpec -> role.equals(hostSpec.getRole()))
-        .sorted((hostSpec1, hostSpec2) ->
-            getNumConnections(hostSpec1) - getNumConnections(hostSpec2))
-        .collect(Collectors.toList());
-
-    if (eligibleHosts.size() == 0) {
-      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
+    if (LeastConnectionsHostSelector.STRATEGY_LEAST_CONNECTIONS.equals(strategy)) {
+      return this.leastConnectionsHostSelector.getHost(hosts, role, props);
+    } else {
+      return acceptedStrategies.get(strategy).getHost(hosts, role, props);
     }
-
-    return eligibleHosts.get(0);
-  }
-
-  private int getNumConnections(HostSpec hostSpec) {
-    int numConnections = 0;
-    final String url = hostSpec.getUrl();
-    for (Entry<PoolKey, HikariDataSource> entry : databasePools.getEntries().entrySet()) {
-      if (!url.equals(entry.getKey().url)) {
-        continue;
-      }
-      numConnections += entry.getValue().getHikariPoolMXBean().getActiveConnections();
-    }
-    return numConnections;
   }
 
   @Override
@@ -305,6 +300,11 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     return databasePools.getEntries().keySet();
   }
 
+  @Override
+  public String getTargetName() {
+    return thisClassName;
+  }
+
   /**
    * Logs information for every active connection pool.
    */
@@ -336,6 +336,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     public PoolKey(final @NonNull String url, final @NonNull String extraKey) {
       this.url = url;
       this.extraKey = extraKey;
+    }
+
+    public String getUrl() {
+      return this.url;
     }
 
     @Override

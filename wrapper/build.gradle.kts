@@ -27,44 +27,55 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.37.0")
-    compileOnly("software.amazon.awssdk:rds:2.20.49")
+    implementation("org.checkerframework:checker-qual:3.39.0")
+    compileOnly("software.amazon.awssdk:rds:2.20.158")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.20.131")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.20.154")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
-    compileOnly("mysql:mysql-connector-java:8.0.31")
-    compileOnly("org.postgresql:postgresql:42.5.0")
-    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.1.4")
+    compileOnly("mysql:mysql-connector-java:8.0.33")
+    compileOnly("org.postgresql:postgresql:42.6.0")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.2.0")
+    compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.osgi:org.osgi.core:4.3.0")
+    compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
+    compileOnly("io.opentelemetry:opentelemetry-api:1.31.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk:1.31.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.31.0")
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.9.0")
-    testImplementation("org.junit.platform:junit-platform-engine:1.9.3")
+
+    testImplementation("org.junit.platform:junit-platform-commons:1.10.0")
+    testImplementation("org.junit.platform:junit-platform-engine:1.10.0")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.10.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.0")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-    testImplementation("org.apache.commons:commons-dbcp2:2.9.0")
-    testImplementation("org.postgresql:postgresql:42.5.0")
-    testImplementation("mysql:mysql-connector-java:8.0.31")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.4")
+    testImplementation("org.apache.commons:commons-dbcp2:2.10.0")
+    testImplementation("org.postgresql:postgresql:42.6.0")
+    testImplementation("mysql:mysql-connector-java:8.0.33")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.2.0")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.20.49")
+    testImplementation("software.amazon.awssdk:rds:2.20.158")
     testImplementation("software.amazon.awssdk:ec2:2.20.105")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.20.131")
-    testImplementation("org.testcontainers:testcontainers:1.18.3")
-    testImplementation("org.testcontainers:mysql:1.18.3")
-    testImplementation("org.testcontainers:postgresql:1.18.3")
-    testImplementation("org.testcontainers:mariadb:1.18.3")
-    testImplementation("org.testcontainers:junit-jupiter:1.17.4")
-    testImplementation("org.testcontainers:toxiproxy:1.19.0")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.20.154")
+    testImplementation("org.testcontainers:testcontainers:1.19.0")
+    testImplementation("org.testcontainers:mysql:1.19.1")
+    testImplementation("org.testcontainers:postgresql:1.19.1")
+    testImplementation("org.testcontainers:mariadb:1.19.1")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.1")
+    testImplementation("org.testcontainers:toxiproxy:1.19.1")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
-    testImplementation("org.apache.poi:poi-ooxml:5.2.3")
-    testImplementation("org.slf4j:slf4j-simple:2.0.7")
+    testImplementation("org.apache.poi:poi-ooxml:5.2.4")
+    testImplementation("org.slf4j:slf4j-simple:2.0.9")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
+    testImplementation("io.opentelemetry:opentelemetry-api:1.31.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:1.31.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.31.0")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.31.0")
 }
 
 repositories {
@@ -297,6 +308,11 @@ tasks.register<Test>("test-all-aurora") {
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-graalvm", "true")
     }
 }
 
