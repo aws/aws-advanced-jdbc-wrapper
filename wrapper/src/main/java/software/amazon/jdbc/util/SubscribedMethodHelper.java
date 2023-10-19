@@ -50,4 +50,31 @@ public class SubscribedMethodHelper {
       "CallableStatement.executeUpdate",
       "CallableStatement.executeWithFlags"
   );
+
+  public static final List<String> METHODS_REQUIRING_UPDATED_TOPOLOGY = Arrays.asList(
+      "Connection.commit",
+      "Connection.connect",
+      "Connection.isValid",
+      "Connection.setAutoCommit",
+      "Connection.setReadOnly",
+      "Statement.execute",
+      "Statement.executeBatch",
+      "Statement.executeLargeBatch",
+      "Statement.executeLargeUpdate",
+      "Statement.executeQuery",
+      "Statement.executeUpdate",
+      "Statement.executeWithFlags",
+      "PreparedStatement.execute",
+      "PreparedStatement.executeBatch",
+      "PreparedStatement.executeLargeUpdate",
+      "PreparedStatement.executeQuery",
+      "PreparedStatement.executeUpdate",
+      "PreparedStatement.executeWithFlags",
+      "PreparedStatement.getParameterMetaData",
+      "CallableStatement.execute",
+      "CallableStatement.executeLargeUpdate",
+      "CallableStatement.executeQuery",
+      "CallableStatement.executeUpdate",
+      "CallableStatement.executeWithFlags"
+  );
 }
