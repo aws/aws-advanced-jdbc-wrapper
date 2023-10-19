@@ -36,7 +36,7 @@ dependencies {
     compileOnly("org.postgresql:postgresql:42.6.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.2.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
-    compileOnly("org.osgi:org.osgi.core:4.3.0")
+    compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
     compileOnly("io.opentelemetry:opentelemetry-api:1.31.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.31.0")
