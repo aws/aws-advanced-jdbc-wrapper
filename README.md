@@ -104,6 +104,10 @@ To find all the documentation and concrete examples on how to use the AWS JDBC D
 
 This driver currently does not support switchover in Amazon RDS Blue/Green Deployments. If you do execute a Blue/Green deployment with the driver, please ensure your application is coded to retry the database connection. Retry will allow the driver to re-establish a connection to an available database instance. Without a retry, the driver would not be able to identify an available database instance, after a switchover has happened between the blue and green environments. However, please note that even with your application coded to retry the database connection, you may still encounter other unexpected errors. Support for Amazon RDS Blue/Green Deployments is in the backlog, but we cannot comment on a timeline right now.
 
+#### Amazon Aurora Global Databases
+
+This driver currently does not support failover with Amazon Aurora Global Databases. While it is possible to connect to global databases, failing over to a secondary cluster will result in errors and there may be additional unforeseen errors when working with global databases. Support for Amazon Aurora Global Databases is in the backlog, but we cannot comment on a timeline right now.
+
 ## Examples
 
 | Description                                                                                                                                                                                                              |                                                                                                                                                                    Examples                                                                                                                                                                    |
