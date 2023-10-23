@@ -37,6 +37,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
 
 /**
@@ -393,7 +394,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       LOGGER.fine(
           () -> Messages.get(
               "ClusterAwareReaderFailoverHandler.attemptingReaderConnection",
-              new Object[] {this.newHost.getUrl(), initialConnectionProps}));
+              new Object[] {this.newHost.getUrl(), PropertyUtils.maskProperties(initialConnectionProps)}));
 
       try {
         final Properties copy = new Properties();
