@@ -61,7 +61,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:rds:2.21.4")
     testImplementation("software.amazon.awssdk:ec2:2.21.3")
     testImplementation("software.amazon.awssdk:secretsmanager:2.21.5")
-    testImplementation("org.testcontainers:testcontainers:1.19.0")
+    testImplementation("org.testcontainers:testcontainers:1.19.1")
     testImplementation("org.testcontainers:mysql:1.19.1")
     testImplementation("org.testcontainers:postgresql:1.19.1")
     testImplementation("org.testcontainers:mariadb:1.19.1")
