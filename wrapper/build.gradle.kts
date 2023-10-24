@@ -28,7 +28,7 @@ plugins {
 
 dependencies {
     implementation("org.checkerframework:checker-qual:3.39.0")
-    compileOnly("software.amazon.awssdk:rds:2.21.4")
+    compileOnly("software.amazon.awssdk:rds:2.21.6")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.21.5")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
@@ -58,7 +58,7 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.21.4")
+    testImplementation("software.amazon.awssdk:rds:2.21.6")
     testImplementation("software.amazon.awssdk:ec2:2.21.3")
     testImplementation("software.amazon.awssdk:secretsmanager:2.21.5")
     testImplementation("org.testcontainers:testcontainers:1.19.1")
