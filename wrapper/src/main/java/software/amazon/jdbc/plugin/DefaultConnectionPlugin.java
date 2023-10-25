@@ -173,6 +173,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       telemetryContext.closeContext();
     }
 
+    this.connProviderManager.initConnection(conn, driverProtocol, hostSpec, props);
+
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     this.pluginService.updateDialect(conn);
 
