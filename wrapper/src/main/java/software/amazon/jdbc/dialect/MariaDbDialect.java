@@ -21,6 +21,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MariaDBExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
@@ -75,5 +78,11 @@ public class MariaDbDialect implements Dialect {
 
   public HostListProviderSupplier getHostListProvider() {
     return ConnectionStringHostListProvider::new;
+  }
+
+  @Override
+  public void prepareConnectProperties(
+      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
+    // do nothing
   }
 }
