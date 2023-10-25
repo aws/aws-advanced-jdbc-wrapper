@@ -115,8 +115,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
       throws SQLException {
 
     final Properties copy = PropertyUtils.copyProperties(props);
-    final ConnectInfo connectInfo =
-        this.targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
+    dialect.prepareConnectProperties(copy, protocol, hostSpec);
+    final ConnectInfo connectInfo = this.targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(connectInfo.props, "\nwith properties: \n"));

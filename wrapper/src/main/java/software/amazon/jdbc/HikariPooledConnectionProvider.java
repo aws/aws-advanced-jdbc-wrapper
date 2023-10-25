@@ -36,6 +36,7 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SlidingExpirationCache;
@@ -188,13 +189,16 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       @NonNull Properties props)
       throws SQLException {
 
+    final Properties copy = PropertyUtils.copyProperties(props);
+    dialect.prepareConnectProperties(copy, protocol, hostSpec);
+
     final HikariDataSource ds = databasePools.computeIfAbsent(
-        new PoolKey(hostSpec.getUrl(), getPoolKey(hostSpec, props)),
-        (lambdaPoolKey) -> createHikariDataSource(protocol, hostSpec, props),
+        new PoolKey(hostSpec.getUrl(), getPoolKey(hostSpec, copy)),
+        (lambdaPoolKey) -> createHikariDataSource(protocol, hostSpec, copy),
         poolExpirationCheckNanos
     );
 
-    ds.setPassword(props.getProperty(PropertyDefinition.PASSWORD.name));
+    ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
     return ds.getConnection();
   }
