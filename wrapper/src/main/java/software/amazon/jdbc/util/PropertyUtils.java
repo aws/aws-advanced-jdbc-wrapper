@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.PropertyDefinition;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
@@ -124,6 +125,14 @@ public class PropertyUtils {
       copy.setProperty(entry.getKey().toString(), entry.getValue().toString());
     }
     return copy;
+  }
+
+  public static @NonNull Properties maskProperties(final Properties props) {
+    final Properties maskedProperties = copyProperties(props);
+    if (maskedProperties.containsKey(PropertyDefinition.PASSWORD.name)) {
+      maskedProperties.setProperty(PropertyDefinition.PASSWORD.name, "***");
+    }
+    return maskedProperties;
   }
 
   public static String logProperties(final Properties props, final String caption) {

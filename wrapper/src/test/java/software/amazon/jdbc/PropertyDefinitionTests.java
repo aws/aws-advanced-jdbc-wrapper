@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.util.PropertyUtils;
 
 public class PropertyDefinitionTests {
 
@@ -86,5 +87,17 @@ public class PropertyDefinitionTests {
     PropertyDefinition.removeAllExceptCredentials(props);
 
     assertTrue(props.isEmpty());
+  }
+
+  @Test
+  public void testMaskedProperties() {
+    final String someRandomPassword = "some_random_password";
+
+    final Properties properties = new Properties();
+    properties.setProperty(PropertyDefinition.PASSWORD.name, someRandomPassword);
+    assertEquals(someRandomPassword, properties.getProperty(PropertyDefinition.PASSWORD.name));
+
+    final Properties maskedProperties = PropertyUtils.maskProperties(properties);
+    assertEquals("***", maskedProperties.getProperty(PropertyDefinition.PASSWORD.name));
   }
 }
