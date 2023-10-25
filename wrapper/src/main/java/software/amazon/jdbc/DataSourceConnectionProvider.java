@@ -120,6 +120,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       throws SQLException {
 
     final Properties copy = PropertyUtils.copyProperties(props);
+    dialect.prepareConnectProperties(copy, protocol, hostSpec);
 
     Connection conn;
 
