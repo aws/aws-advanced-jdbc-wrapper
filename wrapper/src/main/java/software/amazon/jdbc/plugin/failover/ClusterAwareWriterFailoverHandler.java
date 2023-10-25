@@ -36,6 +36,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.Utils;
 
 /**
@@ -238,7 +239,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       LOGGER.fine(
           () -> Messages.get(
               "ClusterAwareWriterFailoverHandler.taskAAttemptReconnectToWriterInstance",
-              new Object[] {this.originalWriterHost.getUrl()}));
+              new Object[] {this.originalWriterHost.getUrl(), PropertyUtils.maskProperties(initialConnectionProps)}));
 
       Connection conn = null;
       List<HostSpec> latestTopology = null;
@@ -322,7 +323,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     }
 
     public WriterFailoverResult call() {
-      LOGGER.finer(Messages.get("ClusterAwareWriterFailoverHandler.taskBAttemptConnectionToNewWriterInstance"));
+      LOGGER.finer(
+          () -> Messages.get(
+              "ClusterAwareWriterFailoverHandler.taskBAttemptConnectionToNewWriterInstance",
+              new Object[] {PropertyUtils.maskProperties(initialConnectionProps)}));
 
       try {
         boolean success = false;
