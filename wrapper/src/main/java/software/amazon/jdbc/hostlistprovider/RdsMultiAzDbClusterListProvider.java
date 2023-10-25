@@ -69,7 +69,6 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
    * @throws SQLException if errors occurred while retrieving the topology.
    */
   protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
-
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -110,7 +109,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
    * @throws SQLException if errors occurred while retrieving the topology
    */
   private String processWriterNodeId(final ResultSet fetchWriterNodeResultSet) throws SQLException {
-    String writerNodeId = "";
+    String writerNodeId = null;
     while (fetchWriterNodeResultSet.next()) {
       writerNodeId = fetchWriterNodeResultSet.getString(fetchWriterNodeQueryHeader);
     }

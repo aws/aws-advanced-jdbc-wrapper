@@ -52,8 +52,7 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public List</* dialect code */ String> getDialectUpdateCandidates() {
-    return Collections.singletonList(
-        DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
+    return Collections.singletonList(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
   }
 
   @Override
