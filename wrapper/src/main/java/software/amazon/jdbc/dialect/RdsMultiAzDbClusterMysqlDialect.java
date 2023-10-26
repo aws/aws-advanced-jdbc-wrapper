@@ -29,7 +29,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String FETCH_WRITER_NODE_QUERY = "SHOW REPLICA STATUS";
 
-  private static final String FETCH_WRITER_NODE_QUERY_HEADER = "Source_Server_Id";
+  private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "Source_Server_Id";
 
   private static final String NODE_ID_QUERY = "SELECT @@server_id";
   private static final String IS_READER_QUERY = "SELECT @@read_only";
@@ -60,6 +60,6 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
         NODE_ID_QUERY,
         IS_READER_QUERY,
         FETCH_WRITER_NODE_QUERY,
-        FETCH_WRITER_NODE_QUERY_HEADER);
+        FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
   }
 }

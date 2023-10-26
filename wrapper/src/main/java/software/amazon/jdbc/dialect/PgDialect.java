@@ -35,7 +35,9 @@ import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 public class PgDialect implements Dialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.AURORA_PG, DialectCodes.RDS_MULTI_AZ_PG_CLUSTER, DialectCodes.RDS_PG);
+      DialectCodes.AURORA_PG,
+      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+      DialectCodes.RDS_PG);
 
   private static PgExceptionHandler pgExceptionHandler;
 
