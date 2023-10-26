@@ -31,7 +31,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:rds:2.21.7")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.21.5")
-    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.3")
     compileOnly("mysql:mysql-connector-java:8.0.33")
     compileOnly("org.postgresql:postgresql:42.6.0")
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.2.0")
@@ -70,7 +70,7 @@ dependencies {
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.2.4")
     testImplementation("org.slf4j:slf4j-simple:2.0.9")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
     testImplementation("io.opentelemetry:opentelemetry-api:1.31.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.31.0")
