@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +44,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.ConnectionProvider;
+import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
@@ -59,12 +63,16 @@ class DefaultConnectionPluginTest {
   @Mock ConnectionProvider connectionProvider;
   @Mock PluginManagerService pluginManagerService;
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
+  @Mock JdbcCallable<Connection, SQLException> mockConnectFunction;
   @Mock Connection conn;
   @Mock Connection oldConn;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TelemetryCounter mockTelemetryCounter;
   @Mock TelemetryGauge mockTelemetryGauge;
+  @Mock ConnectionProviderManager mockConnectionProviderManager;
+  @Mock ConnectionProvider mockConnectionProvider;
+  @Mock HostSpec mockHostSpec;
 
 
   private AutoCloseable closeable;
@@ -79,8 +87,11 @@ class DefaultConnectionPluginTest {
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     // noinspection unchecked
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
+    when(mockConnectionProviderManager.getConnectionProvider(anyString(), any(), any()))
+        .thenReturn(mockConnectionProvider);
 
-    plugin = new DefaultConnectionPlugin(pluginService, connectionProvider, pluginManagerService);
+    plugin = new DefaultConnectionPlugin(
+        pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);
   }
 
   @AfterEach
@@ -107,6 +118,13 @@ class DefaultConnectionPluginTest {
     when(this.pluginService.getCurrentConnection()).thenReturn(conn);
     plugin.execute(Void.class, SQLException.class, oldConn, "Connection.close", mockSqlFunction, new Object[]{});
     verify(pluginManagerService, never()).setInTransaction(anyBoolean());
+  }
+
+  @Test
+  void testConnect() throws SQLException {
+    plugin.connect("anyProtocol", mockHostSpec, new Properties(), true, mockConnectFunction);
+    verify(mockConnectionProvider, atLeastOnce()).connect(anyString(), any(), any(), any());
+    verify(mockConnectionProviderManager, atLeastOnce()).initConnection(any(), anyString(), any(), any());
   }
 
   private static Stream<Arguments> multiStatementQueries() {
