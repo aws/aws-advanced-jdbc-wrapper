@@ -67,6 +67,18 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final PluginService pluginService,
       final ConnectionProvider defaultConnProvider,
       final PluginManagerService pluginManagerService) {
+    this(pluginService,
+        defaultConnProvider,
+        pluginManagerService,
+        new ConnectionProviderManager(defaultConnProvider));
+  }
+
+  public DefaultConnectionPlugin(
+      final PluginService pluginService,
+      final ConnectionProvider defaultConnProvider,
+      final PluginManagerService pluginManagerService,
+      final ConnectionProviderManager connProviderManager) {
+
     if (pluginService == null) {
       throw new IllegalArgumentException("pluginService");
     }
@@ -79,7 +91,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
-    this.connProviderManager = new ConnectionProviderManager(defaultConnProvider);
+    this.connProviderManager = connProviderManager;
   }
 
   @Override
@@ -172,6 +184,8 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     } finally {
       telemetryContext.closeContext();
     }
+
+    this.connProviderManager.initConnection(conn, driverProtocol, hostSpec, props);
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
     this.pluginService.updateDialect(conn);
