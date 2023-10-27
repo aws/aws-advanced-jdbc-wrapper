@@ -33,6 +33,7 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.amazon.jdbc.plugin.FederatedAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
@@ -63,6 +64,7 @@ public class ConnectionPluginChainBuilder {
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
+          put("federatedAuth", FederatedAuthConnectionPluginFactory.class);
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
           put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
           put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
@@ -90,7 +92,8 @@ public class ConnectionPluginChainBuilder {
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(IamAuthConnectionPluginFactory.class, 900);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1000);
-          put(LogQueryConnectionPluginFactory.class, 1100);
+          put(FederatedAuthConnectionPluginFactory.class, 1100);
+          put(LogQueryConnectionPluginFactory.class, 1200);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);

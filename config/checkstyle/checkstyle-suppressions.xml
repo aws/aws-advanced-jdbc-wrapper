@@ -28,4 +28,8 @@
   <suppress files="[\\/]PgDataSourceHelper\.java" checks="IllegalImport"/>
   <suppress files="[\\/]test[\\/]" checks="IllegalImport"/>
   <suppress files="[\\/]ExtendedFormatter\.java" checks="Header"/>
+  <suppress files="[\\/]NonValidatingFactory\.java" checks="Header"/>
+  <suppress files="[\\/]WrappedFactory\.java" checks="Header"/>
+  <suppress files="[\\/]FederatedAuthConnectionPluginFactory\.java" checks="Header"/>
+  <suppress files="[\\/]FederatedAuthConnectionPlugin\.java" checks="Header"/>
 </suppressions>

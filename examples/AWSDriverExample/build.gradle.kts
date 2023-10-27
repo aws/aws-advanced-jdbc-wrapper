@@ -20,6 +20,7 @@ dependencies {
     implementation("mysql:mysql-connector-java:8.0.31")
     implementation("software.amazon.awssdk:rds:2.20.49")
     implementation("software.amazon.awssdk:secretsmanager:2.20.105")
+    implementation("software.amazon.awssdk:sts:2.21.6")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
