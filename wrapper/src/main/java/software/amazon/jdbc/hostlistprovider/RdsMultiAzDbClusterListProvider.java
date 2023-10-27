@@ -84,7 +84,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
     try {
       final Statement stmt = conn.createStatement();
       String writerNodeId = processWriterNodeId(stmt.executeQuery(this.fetchWriterNodeQuery));
-      if (writerNodeId.isEmpty()) {
+      if (writerNodeId == null) {
         final ResultSet nodeIdResultSet = stmt.executeQuery(this.nodeIdQuery);
         while (nodeIdResultSet.next()) {
           writerNodeId = nodeIdResultSet.getString(1);
@@ -110,7 +110,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
    */
   private String processWriterNodeId(final ResultSet fetchWriterNodeResultSet) throws SQLException {
     String writerNodeId = null;
-    while (fetchWriterNodeResultSet.next()) {
+    if (fetchWriterNodeResultSet.next()) {
       writerNodeId = fetchWriterNodeResultSet.getString(fetchWriterNodeQueryHeader);
     }
     return writerNodeId;
@@ -155,14 +155,8 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
     if (writerCount == 0) {
       LOGGER.severe(() -> Messages.get("RdsHostListProvider.invalidTopology"));
       hosts.clear();
-    } else if (writerCount == 1) {
-      hosts.add(writers.get(0));
     } else {
-      // Take the latest updated writer node as the current writer. All others will be ignored.
-      List<HostSpec> sortedWriters = writers.stream()
-          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime).reversed())
-          .collect(Collectors.toList());
-      hosts.add(sortedWriters.get(0));
+      hosts.add(writers.get(0));
     }
 
     return hosts;

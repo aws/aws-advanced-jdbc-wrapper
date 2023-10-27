@@ -21,7 +21,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Properties;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
+import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
@@ -61,5 +65,16 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
         IS_READER_QUERY,
         FETCH_WRITER_NODE_QUERY,
         FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+  }
+
+  @Override
+  public void prepareConnectProperties(
+      final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
+    final String connectionAttributes =
+        "_jdbc_wrapper_name:aws_jdbc_driver,_jdbc_wrapper_version:" + DriverInfo.DRIVER_VERSION;
+    connectProperties.setProperty("connectionAttributes",
+        connectProperties.getProperty("connectionAttributes") == null
+            ? connectionAttributes
+            : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);
   }
 }

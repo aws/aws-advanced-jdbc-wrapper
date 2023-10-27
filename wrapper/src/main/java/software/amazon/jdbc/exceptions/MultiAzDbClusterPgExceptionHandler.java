@@ -21,9 +21,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class MultiAzDbClusterPgExceptionHandler implements ExceptionHandler {
+public class MultiAzDbClusterPgExceptionHandler extends AbstractPgExceptionHandler {
 
-  public static final List<String> NETWORK_ERRORS = Arrays.asList(
+  // The following SQL States for Postgresql are considered as "communication" errors
+  private static final List<String> NETWORK_ERRORS = Arrays.asList(
       "28000", // 28000 for access denied during reboot, this should be considered as a temporary failure
       "53", // insufficient resources
       "57P01", // admin shutdown
@@ -36,63 +37,15 @@ public class MultiAzDbClusterPgExceptionHandler implements ExceptionHandler {
       "XX" // internal error (backend)
   );
 
-  public static final List<String> ACCESS_ERROR = Collections.singletonList(
-      "28P01"
-  );
+  private static final List<String> ACCESS_ERRORS = Collections.singletonList("28P01");
 
   @Override
-  public boolean isNetworkException(final Throwable throwable) {
-    Throwable exception = throwable;
-
-    while (exception != null) {
-      if (exception instanceof SQLException) {
-        return isNetworkException(((SQLException) exception).getSQLState());
-      }
-
-      exception = exception.getCause();
-    }
-
-    return false;
+  public List<String> getNetworkErrors() {
+    return NETWORK_ERRORS;
   }
 
   @Override
-  public boolean isNetworkException(final String sqlState) {
-    if (sqlState == null) {
-      return false;
-    }
-
-    for (final String pgSqlState : NETWORK_ERRORS) {
-      if (sqlState.startsWith(pgSqlState)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  @Override
-  public boolean isLoginException(final Throwable throwable) {
-    Throwable exception = throwable;
-
-    while (exception != null) {
-      if (exception instanceof SQLLoginException) {
-        return true;
-      }
-      if (exception instanceof SQLException) {
-        return isLoginException(((SQLException) exception).getSQLState());
-      }
-
-      exception = exception.getCause();
-    }
-
-    return false;
-  }
-
-  @Override
-  public boolean isLoginException(final String sqlState) {
-    if (sqlState == null) {
-      return false;
-    }
-    return ACCESS_ERROR.contains(sqlState);
+  public List<String> getAccessErrors() {
+    return ACCESS_ERRORS;
   }
 }
