@@ -105,7 +105,7 @@ In some cases it's necessary to configure a connection before a user application
 
 AWS JDBC Driver allows to specify a special function that can initialize a connection. It can be done with `ConnectionProviderManager.setConnectionInitFunc` method. `resetConnectionInitFunc` method is also available. 
 
-The initialization function is called for all connections, including pre-opened connections provided by internal connection pool (see [Using Read Write Splitting Plugin Internal Connection Pooling](./using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling)), and, thus, helping a user application to clean up connection session "contaminated" by previous use.
+The initialization function is called for all connections, including pre-opened connections provided by internal connection pools (see [Using Read Write Splitting Plugin and Internal Connection Pooling](./using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling)). This helps user applications clean up connection sessions that have been altered by previous operation, as returning a connection to a pool will reset the state and retrieving it will call the initialization function again.
 
 > :warning: Executing CPU and network intensive code in the initialization function may have a significant impact in the wrapper performance overall.
 
