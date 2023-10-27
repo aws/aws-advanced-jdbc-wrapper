@@ -109,7 +109,8 @@ The AWS JDBC Driver allows specifying a special function that can initialize a c
 
 The initialization function is called for all connections, including connections opened by the internal connection pools (see [Using Read Write Splitting Plugin and Internal Connection Pooling](./using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling)). This helps user applications clean up connection sessions that have been altered by previous operations, as returning a connection to a pool will reset the state and retrieving it will call the initialization function again.
 
-> :warning: Executing CPU and network intensive code in the initialization function may have a significant impact in the wrapper performance overall.
+> [!WARNING]\
+> Executing CPU and network intensive code in the initialization function may significantly impact the AWS JDBC Driver's overall performance.
 
 ```java
 ConnectionProviderManager.setConnectionInitFunc((connection, protocol, hostSpec, props) -> {
