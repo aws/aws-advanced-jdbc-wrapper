@@ -103,7 +103,7 @@ DriverConfigurationProfiles.addOrReplaceProfile(
 ### Executing Custom Code When Initializing a Connection
 Users may need to define a specific configuration for a connection that has just been opened by the driver before an application can use it. Not all target drivers provide this functionality, but some allow specifying a configuration parameter with SQL statements that are executed when a connection is established. Some cases may also require that additional conditions are checked in order to identify what initialization configuration is required for a particular connection.
 
-AWS JDBC Driver allows to specify a special function that can initialize a connection. It can be done with `ConnectionProviderManager.setConnectionInitFunc` method. `resetConnectionInitFunc` method is also available. 
+The AWS JDBC Driver allows specifying a special function that can initialize a connection. It can be done with `ConnectionProviderManager.setConnectionInitFunc` method. The `resetConnectionInitFunc` method is also available to remove the function.
 
 The initialization function is called for all connections, including pre-opened connections provided by internal connection pools (see [Using Read Write Splitting Plugin and Internal Connection Pooling](./using-plugins/UsingTheReadWriteSplittingPlugin.md#internal-connection-pooling)). This helps user applications clean up connection sessions that have been altered by previous operation, as returning a connection to a pool will reset the state and retrieving it will call the initialization function again.
 
