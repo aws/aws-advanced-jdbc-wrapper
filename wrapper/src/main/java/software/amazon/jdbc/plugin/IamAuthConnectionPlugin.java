@@ -36,6 +36,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -64,7 +65,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       "Overrides the host that is used to generate the IAM token");
 
   public static final AwsWrapperProperty IAM_DEFAULT_PORT = new AwsWrapperProperty(
-      "iamDefaultPort", null,
+      "iamDefaultPort", "-1",
       "Overrides default port that is used to generate the IAM token");
 
   public static final AwsWrapperProperty IAM_REGION = new AwsWrapperProperty(
@@ -115,12 +116,12 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       throw new SQLException(PropertyDefinition.USER.name + " is null or empty.");
     }
 
-    String host = hostSpec.getHost();
-    if (!StringUtils.isNullOrEmpty(IAM_HOST.getString(props))) {
-      host = IAM_HOST.getString(props);
-    }
+    String host = IamAuthUtils.getIamHost(IAM_HOST.getString(props), hostSpec);
 
-    int port = getPort(props, hostSpec);
+    int port = IamAuthUtils.getIamPort(
+        IAM_DEFAULT_PORT.getInteger(props),
+        hostSpec,
+        this.pluginService.getDialect().getDefaultPort());
 
     final String iamRegion = IAM_REGION.getString(props);
     final Region region = StringUtils.isNullOrEmpty(iamRegion)
@@ -261,26 +262,6 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     tokenCache.clear();
   }
 
-  private int getPort(Properties props, HostSpec hostSpec) {
-    if (!StringUtils.isNullOrEmpty(IAM_DEFAULT_PORT.getString(props))) {
-      int defaultPort = IAM_DEFAULT_PORT.getInteger(props);
-      if (defaultPort > 0) {
-        return defaultPort;
-      } else {
-        LOGGER.finest(
-            () -> Messages.get(
-                "IamAuthConnectionPlugin.invalidPort",
-                new Object[] {defaultPort}));
-      }
-    }
-
-    if (hostSpec.isPortSpecified()) {
-      return hostSpec.getPort();
-    } else {
-      return this.pluginService.getDialect().getDefaultPort();
-    }
-  }
-
   private Region getRdsRegion(final String hostname) throws SQLException {
 
     // Get Region
@@ -311,28 +292,5 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     return regionOptional.get();
-  }
-
-  static class TokenInfo {
-
-    private final String token;
-    private final Instant expiration;
-
-    public TokenInfo(final String token, final Instant expiration) {
-      this.token = token;
-      this.expiration = expiration;
-    }
-
-    public String getToken() {
-      return this.token;
-    }
-
-    public Instant getExpiration() {
-      return this.expiration;
-    }
-
-    public boolean isExpired() {
-      return Instant.now().isAfter(this.expiration);
-    }
   }
 }
