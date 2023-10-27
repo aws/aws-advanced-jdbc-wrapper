@@ -101,7 +101,7 @@ DriverConfigurationProfiles.addOrReplaceProfile(
 ```
 
 ### Executing Custom Code When Initializing a Connection
-In some cases it's necessary to configure a connection before a user application can use it. Some target drivers provides such functionality and allow to specify a configuration parameter with SQL statements that are executed when connection is established. However, not all drivers supports such functionality. Also, in some cases, additional conditions should be checked in order to identify what initialization is required for a particular connection.
+Users may need to define a specific configuration for a connection that has just been opened by the driver before an application can use it. Not all target drivers provide this functionality, but some allow specifying a configuration parameter with SQL statements that are executed when a connection is established. Some cases may also require that additional conditions are checked in order to identify what initialization configuration is required for a particular connection.
 
 AWS JDBC Driver allows to specify a special function that can initialize a connection. It can be done with `ConnectionProviderManager.setConnectionInitFunc` method. `resetConnectionInitFunc` method is also available. 
 
