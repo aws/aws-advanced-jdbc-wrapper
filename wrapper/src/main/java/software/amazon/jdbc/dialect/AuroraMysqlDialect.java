@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
@@ -51,7 +52,7 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public List</* dialect code */ String> getDialectUpdateCandidates() {
-    return null;
+    return Collections.singletonList(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
   }
 
   @Override

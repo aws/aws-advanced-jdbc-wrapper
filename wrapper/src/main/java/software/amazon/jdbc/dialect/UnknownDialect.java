@@ -31,6 +31,8 @@ public class UnknownDialect implements Dialect {
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.AURORA_PG,
       DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
       DialectCodes.RDS_PG,
       DialectCodes.RDS_MYSQL,
       DialectCodes.PG,

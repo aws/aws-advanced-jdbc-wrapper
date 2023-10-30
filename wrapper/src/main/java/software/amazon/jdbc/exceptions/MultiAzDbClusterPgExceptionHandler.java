@@ -16,13 +16,16 @@
 
 package software.amazon.jdbc.exceptions;
 
+import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-public class PgExceptionHandler extends AbstractPgExceptionHandler {
+public class MultiAzDbClusterPgExceptionHandler extends AbstractPgExceptionHandler {
 
   // The following SQL States for Postgresql are considered as "communication" errors
   private static final List<String> NETWORK_ERRORS = Arrays.asList(
+      "28000", // 28000 for access denied during reboot, this should be considered as a temporary failure
       "53", // insufficient resources
       "57P01", // admin shutdown
       "57P02", // crash shutdown
@@ -34,10 +37,7 @@ public class PgExceptionHandler extends AbstractPgExceptionHandler {
       "XX" // internal error (backend)
   );
 
-  private static final List<String> ACCESS_ERRORS = Arrays.asList(
-      "28P01",
-      "28000" // PAM authentication errors
-  );
+  private static final List<String> ACCESS_ERRORS = Collections.singletonList("28P01");
 
   @Override
   public List<String> getNetworkErrors() {
