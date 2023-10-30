@@ -118,7 +118,7 @@ public class AuroraConnectionTrackerPluginTest {
   }
 
   @Test
-  public void testInvalidateOpenedConnections() throws SQLException {
+  public void testInvalidateOpenedConnectionsWhenWriterHostNotChange() throws SQLException {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
     final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
         .build();
@@ -140,6 +140,48 @@ public class AuroraConnectionTrackerPluginTest {
         SQL_ARGS
     ));
 
+    assertEquals(expectedException, exception);
+    verify(mockTracker, never()).invalidateCurrentConnection(eq(originalHost), eq(mockConnection));
+    verify(mockTracker, never()).invalidateAllConnections(originalHost);
+  }
+
+  @Test
+  public void testInvalidateOpenedConnectionsWhenWriterHostChanged() throws SQLException {
+    final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
+    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
+        .build();
+    final HostSpec failoverTargetHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host2")
+        .build();
+    when(mockPluginService.getHosts())
+        .thenReturn(Collections.singletonList(originalHost))
+        .thenReturn(Collections.singletonList(failoverTargetHost));
+    when(mockSqlFunction.call())
+        .thenReturn(mockResultSet)
+        .thenThrow(expectedException);
+
+    final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
+        mockPluginService,
+        EMPTY_PROPERTIES,
+        mockRdsUtils,
+        mockTracker);
+
+    plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        Statement.class,
+        "Statement.executeQuery",
+        mockSqlFunction,
+        SQL_ARGS
+    );
+
+    final SQLException exception = assertThrows(FailoverSQLException.class, () -> plugin.execute(
+        ResultSet.class,
+        SQLException.class,
+        Statement.class,
+        "Statement.executeQuery",
+        mockSqlFunction,
+        SQL_ARGS
+    ));
     assertEquals(expectedException, exception);
     verify(mockTracker, never()).invalidateCurrentConnection(eq(originalHost), eq(mockConnection));
     verify(mockTracker).invalidateAllConnections(originalHost);

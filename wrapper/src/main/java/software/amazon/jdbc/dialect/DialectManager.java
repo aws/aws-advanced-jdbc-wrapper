@@ -27,9 +27,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
@@ -59,7 +57,9 @@ public class DialectManager implements DialectProvider {
           put(DialectCodes.PG, new PgDialect());
           put(DialectCodes.MARIADB, new MariaDbDialect());
           put(DialectCodes.RDS_MYSQL, new RdsMysqlDialect());
+          put(DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER, new RdsMultiAzDbClusterMysqlDialect());
           put(DialectCodes.RDS_PG, new RdsPgDialect());
+          put(DialectCodes.RDS_MULTI_AZ_PG_CLUSTER, new RdsMultiAzDbClusterPgDialect());
           put(DialectCodes.AURORA_MYSQL, new AuroraMysqlDialect());
           put(DialectCodes.AURORA_PG, new AuroraPgDialect());
           put(DialectCodes.UNKNOWN, new UnknownDialect());
@@ -144,6 +144,7 @@ public class DialectManager implements DialectProvider {
     if (driverProtocol.contains("mysql")) {
       RdsUrlType type = this.rdsHelper.identifyRdsType(host);
       if (type.isRdsCluster()) {
+        this.canUpdate = true;
         this.dialectCode = DialectCodes.AURORA_MYSQL;
         this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_MYSQL);
         return this.dialect;
@@ -165,6 +166,7 @@ public class DialectManager implements DialectProvider {
     if (driverProtocol.contains("postgresql")) {
       RdsUrlType type = this.rdsHelper.identifyRdsType(host);
       if (type.isRdsCluster()) {
+        this.canUpdate = true;
         this.dialectCode = DialectCodes.AURORA_PG;
         this.dialect = knownDialectsByCode.get(DialectCodes.AURORA_PG);
         return this.dialect;
