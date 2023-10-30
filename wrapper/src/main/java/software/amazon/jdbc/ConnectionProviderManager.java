@@ -16,10 +16,13 @@
 
 package software.amazon.jdbc;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 
 public class ConnectionProviderManager {
@@ -27,6 +30,8 @@ public class ConnectionProviderManager {
   private static final ReentrantReadWriteLock connProviderLock = new ReentrantReadWriteLock();
   private static ConnectionProvider connProvider = null;
   private final ConnectionProvider defaultProvider;
+
+  private static ConnectionInitFunc connectionInitFunc = null;
 
   /**
    * {@link ConnectionProviderManager} constructor.
@@ -192,5 +197,35 @@ public class ConnectionProviderManager {
         connProviderLock.writeLock().unlock();
       }
     }
+  }
+
+  public static void setConnectionInitFunc(final @NonNull ConnectionInitFunc func) {
+    connectionInitFunc = func;
+  }
+
+  public static void resetConnectionInitFunc() {
+    connectionInitFunc = null;
+  }
+
+  public void initConnection(
+      final @Nullable Connection connection,
+      final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props) throws SQLException {
+
+    final ConnectionInitFunc copy = connectionInitFunc;
+    if (copy == null) {
+      return;
+    }
+
+    copy.initConnection(connection, protocol, hostSpec, props);
+  }
+
+  public interface ConnectionInitFunc {
+    void initConnection(
+        final @Nullable Connection connection,
+        final @NonNull String protocol,
+        final @NonNull HostSpec hostSpec,
+        final @NonNull Properties props) throws SQLException;
   }
 }
