@@ -57,7 +57,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
         }
       });
   static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
-  private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60;
+  private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60 - 30;
 
   public static final AwsWrapperProperty IAM_HOST = new AwsWrapperProperty(
       "iamHost", null,
@@ -144,6 +144,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
               new Object[] {tokenInfo.getToken()}));
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
+      final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
       final String token = generateAuthenticationToken(
           hostSpec,
           props,
@@ -157,7 +158,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       PropertyDefinition.PASSWORD.set(props, token);
       tokenCache.put(
           cacheKey,
-          new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
+          new TokenInfo(token, tokenExpiry));
     }
 
     try {
@@ -176,6 +177,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       // Login unsuccessful with cached token
       // Try to generate a new token and try to connect again
 
+      final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
       final String token = generateAuthenticationToken(
           hostSpec,
           props,
@@ -189,7 +191,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       PropertyDefinition.PASSWORD.set(props, token);
       tokenCache.put(
           cacheKey,
-          new TokenInfo(token, Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS)));
+          new TokenInfo(token, tokenExpiry));
 
       return connectFunc.call();
 
