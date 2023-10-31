@@ -30,7 +30,7 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.39.0")
     compileOnly("software.amazon.awssdk:rds:2.21.10")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.21.10")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.21.11")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.15.3")
     compileOnly("mysql:mysql-connector-java:8.0.33")
     compileOnly("org.postgresql:postgresql:42.6.0")
@@ -51,7 +51,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
-    testImplementation("org.apache.commons:commons-dbcp2:2.10.0")
+    testImplementation("org.apache.commons:commons-dbcp2:2.11.0")
     testImplementation("org.postgresql:postgresql:42.6.0")
     testImplementation("mysql:mysql-connector-java:8.0.33")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.2.0")
@@ -60,7 +60,7 @@ dependencies {
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.21.10")
     testImplementation("software.amazon.awssdk:ec2:2.21.10")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.21.10")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.21.11")
     testImplementation("org.testcontainers:testcontainers:1.19.1")
     testImplementation("org.testcontainers:mysql:1.19.1")
     testImplementation("org.testcontainers:postgresql:1.19.1")
