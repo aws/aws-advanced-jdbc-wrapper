@@ -19,14 +19,11 @@ package software.amazon.jdbc.plugin.efm;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import software.amazon.jdbc.util.Messages;
@@ -36,13 +33,13 @@ import software.amazon.jdbc.util.Messages;
  * up of each monitoring thread.
  */
 public class MonitorThreadContainer {
+
   private static MonitorThreadContainer singleton = null;
-  private static final AtomicInteger CLASS_USAGE_COUNT = new AtomicInteger();
   private final Map<String, Monitor> monitorMap = new ConcurrentHashMap<>();
   private final Map<Monitor, Future<?>> tasksMap = new ConcurrentHashMap<>();
-  private final Queue<Monitor> availableMonitors = new ConcurrentLinkedDeque<>();
   private final ExecutorService threadPool;
   private static final ReentrantLock LOCK_OBJECT = new ReentrantLock();
+  private static final ReentrantLock MONITOR_LOCK_OBJECT = new ReentrantLock();
 
   /**
    * Create an instance of the {@link MonitorThreadContainer}.
@@ -54,15 +51,18 @@ public class MonitorThreadContainer {
   }
 
   static MonitorThreadContainer getInstance(final ExecutorServiceInitializer executorServiceInitializer) {
-    MonitorThreadContainer singletonToReturn;
+    MonitorThreadContainer singletonToReturn = singleton;
+
+    if (singletonToReturn != null) {
+      return singletonToReturn;
+    }
+
     LOCK_OBJECT.lock();
     try {
       if (singleton == null) {
         singleton = new MonitorThreadContainer(executorServiceInitializer);
-        CLASS_USAGE_COUNT.set(0);
       }
       singletonToReturn = singleton;
-      CLASS_USAGE_COUNT.getAndIncrement();
     } finally {
       LOCK_OBJECT.unlock();
     }
@@ -79,10 +79,9 @@ public class MonitorThreadContainer {
     }
     LOCK_OBJECT.lock();
     try {
-      if (singleton != null && CLASS_USAGE_COUNT.decrementAndGet() <= 0) {
+      if (singleton != null) {
         singleton.releaseResources();
         singleton = null;
-        CLASS_USAGE_COUNT.set(0);
       }
     } finally {
       LOCK_OBJECT.unlock();
@@ -101,10 +100,6 @@ public class MonitorThreadContainer {
     return tasksMap;
   }
 
-  public ExecutorService getThreadPool() {
-    return threadPool;
-  }
-
   Monitor getMonitor(final String node) {
     return monitorMap.get(node);
   }
@@ -114,42 +109,34 @@ public class MonitorThreadContainer {
       throw new IllegalArgumentException(Messages.get("MonitorThreadContainer.emptyNodeKeys"));
     }
 
-    Monitor monitor = null;
-    String anyNodeKey = null;
-    for (final String nodeKey : nodeKeys) {
-      monitor = monitorMap.get(nodeKey);
-      anyNodeKey = nodeKey;
-      if (monitor != null) {
-        break;
+    MONITOR_LOCK_OBJECT.lock();
+    try {
+
+      Monitor monitor = null;
+      String anyNodeKey = null;
+      for (final String nodeKey : nodeKeys) {
+        monitor = monitorMap.get(nodeKey);
+        anyNodeKey = nodeKey;
+        if (monitor != null) {
+          break;
+        }
       }
+
+      if (monitor == null) {
+        monitor = monitorMap.computeIfAbsent(
+            anyNodeKey,
+            k -> {
+              final Monitor newMonitor = monitorSupplier.get();
+              addTask(newMonitor);
+              return newMonitor;
+            });
+      }
+      populateMonitorMap(nodeKeys, monitor);
+      return monitor;
+
+    } finally {
+      MONITOR_LOCK_OBJECT.unlock();
     }
-
-    if (monitor == null) {
-      monitor = monitorMap.computeIfAbsent(
-          anyNodeKey,
-          k -> {
-            if (!availableMonitors.isEmpty()) {
-              final Monitor availableMonitor = availableMonitors.remove();
-              if (!availableMonitor.isStopped()) {
-                return availableMonitor;
-              }
-              tasksMap.computeIfPresent(
-                  availableMonitor,
-                  (key, v) -> {
-                    v.cancel(true);
-                    return null;
-                  });
-            }
-
-            final Monitor newMonitor = monitorSupplier.get();
-            addTask(newMonitor);
-
-            return newMonitor;
-          });
-    }
-
-    populateMonitorMap(nodeKeys, monitor);
-    return monitor;
   }
 
   private void populateMonitorMap(final Set<String> nodeKeys, final Monitor monitor) {
@@ -160,21 +147,6 @@ public class MonitorThreadContainer {
 
   void addTask(final Monitor monitor) {
     tasksMap.computeIfAbsent(monitor, k -> threadPool.submit(monitor));
-  }
-
-  /**
-   * Clear all references used by the given monitor. Put the monitor in to a queue waiting to be
-   * reused.
-   *
-   * @param monitor The monitor to reset.
-   */
-  public void resetResource(final Monitor monitor) {
-    if (monitor == null) {
-      return;
-    }
-
-    monitorMap.entrySet().removeIf(e -> e.getValue() == monitor);
-    availableMonitors.add(monitor);
   }
 
   /**
@@ -189,23 +161,34 @@ public class MonitorThreadContainer {
     }
 
     final List<Monitor> monitorList = Collections.singletonList(monitor);
-    monitorMap.values().removeAll(monitorList);
-    tasksMap.computeIfPresent(
-        monitor,
-        (k, v) -> {
-          v.cancel(true);
-          return null;
-        });
+
+    MONITOR_LOCK_OBJECT.lock();
+    try {
+      monitorMap.values().removeAll(monitorList);
+      tasksMap.computeIfPresent(
+          monitor,
+          (k, v) -> {
+            v.cancel(true);
+            return null;
+          });
+    } finally {
+      MONITOR_LOCK_OBJECT.unlock();
+    }
   }
 
-  private void releaseResources() {
-    monitorMap.clear();
-    tasksMap.values().stream()
-        .filter(val -> !val.isDone() && !val.isCancelled())
-        .forEach(val -> val.cancel(true));
+  public void releaseResources() {
+    MONITOR_LOCK_OBJECT.lock();
+    try {
+      monitorMap.clear();
+      tasksMap.values().stream()
+          .filter(val -> !val.isDone() && !val.isCancelled())
+          .forEach(val -> val.cancel(true));
 
-    if (threadPool != null) {
-      threadPool.shutdownNow();
+      if (threadPool != null) {
+        threadPool.shutdownNow();
+      }
+    } finally {
+      MONITOR_LOCK_OBJECT.unlock();
     }
   }
 }

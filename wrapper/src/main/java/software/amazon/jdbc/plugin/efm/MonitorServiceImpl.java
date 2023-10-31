@@ -16,8 +16,8 @@
 
 package software.amazon.jdbc.plugin.efm;
 
+import java.lang.ref.WeakReference;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.Set;
@@ -42,7 +42,7 @@ public class MonitorServiceImpl implements MonitorService {
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
           "monitorDisposalTime",
-          "60000",
+          "600000", // 10min
           "Interval in milliseconds for a monitor to be considered inactive and to be disposed.");
 
   private final PluginService pluginService;
@@ -50,7 +50,7 @@ public class MonitorServiceImpl implements MonitorService {
 
   final MonitorInitializer monitorInitializer;
   private Set<String> cachedMonitorNodeKeys = null;
-  private Monitor cachedMonitor = null;
+  private WeakReference<Monitor> cachedMonitor = null;
   final TelemetryFactory telemetryFactory;
   final TelemetryCounter abortedConnectionsCounter;
 
@@ -100,16 +100,15 @@ public class MonitorServiceImpl implements MonitorService {
           new Object[] {hostSpec}));
     }
 
-    final Monitor monitor;
-    if (this.cachedMonitor == null
+    Monitor monitor = this.cachedMonitor == null ? null : this.cachedMonitor.get();
+    if (monitor == null
+        || monitor.isStopped()
         || this.cachedMonitorNodeKeys == null
         || !this.cachedMonitorNodeKeys.equals(nodeKeys)) {
 
       monitor = getMonitor(nodeKeys, hostSpec, properties);
-      this.cachedMonitor = monitor;
+      this.cachedMonitor = new WeakReference<>(monitor);
       this.cachedMonitorNodeKeys = Collections.unmodifiableSet(nodeKeys);
-    } else {
-      monitor = this.cachedMonitor;
     }
 
     final MonitorConnectionContext context =
@@ -139,7 +138,6 @@ public class MonitorServiceImpl implements MonitorService {
       monitor = this.threadContainer.getMonitor(nodeKey);
       if (monitor != null) {
         monitor.clearContexts();
-        this.threadContainer.resetResource(monitor);
         return;
       }
     }
@@ -148,18 +146,6 @@ public class MonitorServiceImpl implements MonitorService {
   @Override
   public void releaseResources() {
     this.threadContainer = null;
-    MonitorThreadContainer.releaseInstance();
-  }
-
-  @Override
-  public void notifyUnused(final Monitor monitor) {
-    if (monitor == null) {
-      LOGGER.warning(() -> Messages.get("MonitorServiceImpl.nullMonitorParam"));
-      return;
-    }
-
-    // Remove monitor from the maps
-    this.threadContainer.releaseResource(monitor);
   }
 
   /**
@@ -172,7 +158,7 @@ public class MonitorServiceImpl implements MonitorService {
    */
   protected Monitor getMonitor(final Set<String> nodeKeys, final HostSpec hostSpec, final Properties properties) {
     return this.threadContainer.getOrCreateMonitor(
-        nodeKeys, () -> monitorInitializer.createMonitor(hostSpec, properties, this));
+        nodeKeys, () -> monitorInitializer.createMonitor(hostSpec, properties, this.threadContainer));
   }
 
   MonitorThreadContainer getThreadContainer() {
