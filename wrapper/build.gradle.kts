@@ -59,7 +59,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.21.10")
-    testImplementation("software.amazon.awssdk:ec2:2.21.10")
+    testImplementation("software.amazon.awssdk:ec2:2.21.11")
     testImplementation("software.amazon.awssdk:secretsmanager:2.21.11")
     testImplementation("org.testcontainers:testcontainers:1.19.1")
     testImplementation("org.testcontainers:mysql:1.19.1")
