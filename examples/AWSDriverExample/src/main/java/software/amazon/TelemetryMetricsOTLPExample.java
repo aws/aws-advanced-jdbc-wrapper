@@ -16,7 +16,6 @@
 
 package software.amazon;
 
-import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
@@ -47,39 +46,23 @@ public class TelemetryMetricsOTLPExample {
   private static final String SQL_DBLIST = "select datname from pg_database;";
   private static final String SQL_SLEEP = "select pg_sleep(20);";
 
-  private static OpenTelemetry openTelemetry;
-  private static OtlpGrpcSpanExporter spanExporter;
-  private static OtlpGrpcMetricExporter metricExporter;
-  private static SdkTracerProvider tracerProvider;
-  private static SdkMeterProvider meterProvider;
-
   public TelemetryMetricsOTLPExample() {
-    spanExporter = OtlpGrpcSpanExporter.builder().setEndpoint(System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")).build();
-    metricExporter = OtlpGrpcMetricExporter.builder().setEndpoint(System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")).build();
-
-    tracerProvider = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(spanExporter)).build();
-    meterProvider = SdkMeterProvider.builder()
-        .registerMetricReader(PeriodicMetricReader.builder(metricExporter).setInterval(15, TimeUnit.SECONDS).build())
-        .build();
-
-    openTelemetry = OpenTelemetrySdk.builder()
-        .setTracerProvider(tracerProvider)
-        .setMeterProvider(meterProvider)
-        .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-        .buildAndRegisterGlobal();
   }
 
   public static void main(String[] args) throws SQLException {
     // Initiating OpenTelemetry in the code
-    spanExporter = OtlpGrpcSpanExporter.builder().setEndpoint(System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")).build();
-    metricExporter = OtlpGrpcMetricExporter.builder().setEndpoint(System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")).build();
+    OtlpGrpcSpanExporter spanExporter =
+        OtlpGrpcSpanExporter.builder().setEndpoint(System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")).build();
+    OtlpGrpcMetricExporter metricExporter =
+        OtlpGrpcMetricExporter.builder().setEndpoint(System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")).build();
 
-    tracerProvider = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(spanExporter)).build();
-    meterProvider = SdkMeterProvider.builder()
+    SdkTracerProvider tracerProvider =
+        SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(spanExporter)).build();
+    SdkMeterProvider meterProvider = SdkMeterProvider.builder()
         .registerMetricReader(PeriodicMetricReader.builder(metricExporter).setInterval(15, TimeUnit.SECONDS).build())
         .build();
 
-    openTelemetry = OpenTelemetrySdk.builder()
+    OpenTelemetrySdk.builder()
         .setTracerProvider(tracerProvider)
         .setMeterProvider(meterProvider)
         .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
