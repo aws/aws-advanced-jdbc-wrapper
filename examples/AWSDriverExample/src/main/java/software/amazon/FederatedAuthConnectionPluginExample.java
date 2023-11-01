@@ -39,8 +39,8 @@ public class FederatedAuthConnectionPluginExample {
     properties.setProperty(FederatedAuthConnectionPlugin.IAM_ROLE_ARN.name, "arn:aws:iam::123456789012:role/adfs_example_iam_role");
     properties.setProperty(FederatedAuthConnectionPlugin.IAM_IDP_ARN.name, "arn:aws:iam::123456789012:saml-provider/adfs_example");
     properties.setProperty(FederatedAuthConnectionPlugin.IAM_REGION.name, "us-east-2");
-    properties.setProperty(FederatedAuthConnectionPlugin.FEDERATED_USER_NAME.name, "someFederatedUsername@teamatlas.example.com");
-    properties.setProperty(FederatedAuthConnectionPlugin.FEDERATED_USER_PASSWORD.name, "somePassword");
+    properties.setProperty(FederatedAuthConnectionPlugin.IDP_USER_NAME.name, "someFederatedUsername@teamatlas.example.com");
+    properties.setProperty(FederatedAuthConnectionPlugin.IDP_USER_PASSWORD.name, "somePassword");
     properties.setProperty(PropertyDefinition.USER.name, "someIamUser");
 
 

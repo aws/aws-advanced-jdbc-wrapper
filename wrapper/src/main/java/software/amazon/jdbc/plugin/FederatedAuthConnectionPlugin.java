@@ -67,9 +67,9 @@ public class FederatedAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   public static final AwsWrapperProperty IAM_REGION = new AwsWrapperProperty("iamRegion", null,
       "Overrides AWS region that is used to generate the IAM token");
-  public static AwsWrapperProperty FEDERATED_USER_NAME
-      = new AwsWrapperProperty("federatedUserName", null, "The federated user name");
-  public static AwsWrapperProperty FEDERATED_USER_PASSWORD = new AwsWrapperProperty("federatedUserPassword", null,
+  public static AwsWrapperProperty IDP_USER_NAME
+      = new AwsWrapperProperty("idpUserName", null, "The federated user name");
+  public static AwsWrapperProperty IDP_USER_PASSWORD = new AwsWrapperProperty("idpUserPassword", null,
       "The federated user password");
   public static final AwsWrapperProperty IAM_DEFAULT_PORT = new AwsWrapperProperty(
       "iamDefaultPort", null,
@@ -193,13 +193,13 @@ public class FederatedAuthConnectionPlugin extends AbstractConnectionPlugin {
         LOGGER.info(String.format("name: {0}", name));
 
         if (nameLower.contains("username")) {
-          parameters.add(new BasicNameValuePair(name, FEDERATED_USER_NAME.getString(props)));
+          parameters.add(new BasicNameValuePair(name, IDP_USER_NAME.getString(props)));
         } else if (nameLower.contains("authmethod")) {
           if (!value.isEmpty()) {
             parameters.add(new BasicNameValuePair(name, value));
           }
         } else if (nameLower.contains("password")) {
-          parameters.add(new BasicNameValuePair(name, FEDERATED_USER_PASSWORD.getString(props)));
+          parameters.add(new BasicNameValuePair(name, IDP_USER_PASSWORD.getString(props)));
         } else if (!name.isEmpty()) {
           parameters.add(new BasicNameValuePair(name, value));
         }
