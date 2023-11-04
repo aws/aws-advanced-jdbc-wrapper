@@ -27,7 +27,7 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
  * Suitable for the following AWS PG configurations.
  * - Regional Cluster
  */
-public class AuroraPgDialect extends PgDialect {
+public class AuroraPgDialect extends PgDialect implements AuroraDialect {
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
   private static final String extensionsSql =
@@ -93,5 +93,9 @@ public class AuroraPgDialect extends PgDialect {
         TOPOLOGY_QUERY,
         NODE_ID_QUERY,
         IS_READER_QUERY);
+  }
+
+  public String getNodeIdQuery() {
+    return NODE_ID_QUERY;
   }
 }

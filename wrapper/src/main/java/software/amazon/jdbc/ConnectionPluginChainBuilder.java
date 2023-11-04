@@ -36,6 +36,7 @@ import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.IamAuthConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
+import software.amazon.jdbc.plugin.ReadOnlyEndpointConnectionPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
@@ -72,6 +73,7 @@ public class ConnectionPluginChainBuilder {
           put("connectTime", ConnectTimeConnectionPluginFactory.class);
           put("dev", DeveloperConnectionPluginFactory.class);
           put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
+          put("readOnlyEndpoint", ReadOnlyEndpointConnectionPluginFactory.class);
         }
       };
 
@@ -85,12 +87,13 @@ public class ConnectionPluginChainBuilder {
         {
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(DataCacheConnectionPluginFactory.class, 200);
-          put(AuroraHostListConnectionPluginFactory.class, 300);
-          put(AuroraConnectionTrackerPluginFactory.class, 400);
-          put(AuroraStaleDnsPluginFactory.class, 500);
-          put(ReadWriteSplittingPluginFactory.class, 600);
-          put(FailoverConnectionPluginFactory.class, 700);
-          put(HostMonitoringConnectionPluginFactory.class, 800);
+          put(ReadOnlyEndpointConnectionPluginFactory.class, 300);
+          put(AuroraHostListConnectionPluginFactory.class, 400);
+          put(AuroraConnectionTrackerPluginFactory.class, 500);
+          put(AuroraStaleDnsPluginFactory.class, 600);
+          put(ReadWriteSplittingPluginFactory.class, 700);
+          put(FailoverConnectionPluginFactory.class, 800);
+          put(HostMonitoringConnectionPluginFactory.class, 900);
           put(FastestResponseStrategyPluginFactory.class, 900);
           put(IamAuthConnectionPluginFactory.class, 1000);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);

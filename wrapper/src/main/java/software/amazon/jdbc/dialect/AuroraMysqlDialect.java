@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
-public class AuroraMysqlDialect extends MysqlDialect {
+public class AuroraMysqlDialect extends MysqlDialect implements AuroraDialect {
 
   private static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
@@ -64,5 +64,9 @@ public class AuroraMysqlDialect extends MysqlDialect {
         TOPOLOGY_QUERY,
         NODE_ID_QUERY,
         IS_READER_QUERY);
+  }
+
+  public String getNodeIdQuery() {
+    return NODE_ID_QUERY;
   }
 }
