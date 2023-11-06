@@ -78,8 +78,8 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     props.setProperty("url", finalUrl);
 
     PropertyDefinition.removeAllExceptCredentials(props);
-
-    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
+    LOGGER.finest(() -> PropertyUtils.logProperties(PropertyUtils.maskProperties(props),
+        "Connecting with properties: \n"));
 
     if (!props.isEmpty()) {
       PropertyUtils.applyProperties(dataSource, props);
