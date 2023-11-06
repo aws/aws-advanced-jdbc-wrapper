@@ -119,7 +119,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
     final ConnectInfo connectInfo = this.targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
-        + PropertyUtils.logProperties(connectInfo.props, "\nwith properties: \n"));
+        + PropertyUtils.logProperties(PropertyUtils.maskProperties(connectInfo.props), "\nwith properties: \n"));
 
     Connection conn = this.driver.connect(connectInfo.url, connectInfo.props);
 
