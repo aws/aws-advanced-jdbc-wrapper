@@ -445,8 +445,8 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final HostSpec destHostSpec)
       throws SQLException {
 
-    final Connection from = this.pluginService.getCurrentConnection();
-    if (from == null || dest == null) {
+    final Connection src = this.pluginService.getCurrentConnection();
+    if (src == null || dest == null) {
       return;
     }
 
@@ -456,7 +456,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     if (callableCopy != null) {
       final boolean isHandled = callableCopy.transferSessionState(
           sessionState,
-          from,
+          src,
           this.pluginService.getCurrentHostSpec(),
           dest,
           destHostSpec);
@@ -469,7 +469,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     sessionState = this.pluginService.getCurrentConnectionState();
     sessionState.remove(SessionDirtyFlag.READONLY); // We don't want to change READONLY flag of the connection
     final SessionStateHelper helper = new SessionStateHelper();
-    helper.transferSessionState(sessionState, from, dest);
+    helper.transferSessionState(sessionState, src, dest);
   }
 
   private synchronized void switchToReaderConnection(final List<HostSpec> hosts)

@@ -180,6 +180,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         () -> {
           this.pluginService.getCurrentConnection().abort(executor);
           this.pluginManagerService.setInTransaction(false);
+          this.pluginService.resetCurrentConnectionStates();
         },
         executor);
   }
@@ -205,6 +206,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           this.pluginService.getCurrentConnection().close();
           this.openConnectionStacktrace = null;
           this.pluginManagerService.setInTransaction(false);
+          this.pluginService.resetCurrentConnectionStates();
         });
     this.releaseResources();
   }
@@ -218,9 +220,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         "Connection.commit",
         () -> {
           this.pluginService.getCurrentConnection().commit();
-          final boolean autoCommit = this.pluginService.getAutoCommit();
+          final boolean isInTransaction = this.pluginService.isInTransaction();
           this.pluginManagerService.setInTransaction(false);
-          if (!autoCommit
+          if (isInTransaction
               && this.pluginService.getCurrentConnectionState().contains(SessionDirtyFlag.AUTO_COMMIT)) {
             this.pluginService.resetCurrentConnectionState(SessionDirtyFlag.AUTO_COMMIT);
           }
@@ -682,9 +684,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         "Connection.rollback",
         () -> {
           this.pluginService.getCurrentConnection().rollback();
-          final boolean autoCommit = this.pluginService.getAutoCommit();
+          final boolean isInTransaction = this.pluginService.isInTransaction();
           this.pluginManagerService.setInTransaction(false);
-          if (!autoCommit
+          if (isInTransaction
               && this.pluginService.getCurrentConnectionState().contains(SessionDirtyFlag.AUTO_COMMIT)) {
             this.pluginService.resetCurrentConnectionState(SessionDirtyFlag.AUTO_COMMIT);
           }
@@ -717,11 +719,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginService.getCurrentConnection(),
         "Connection.setAutoCommit",
         () -> {
+          final boolean currentAutoCommit = this.pluginService.getAutoCommit();
           this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
-          if (this.pluginService.getAutoCommit() != autoCommit) {
+          this.pluginService.setAutoCommit(autoCommit);
+          if (currentAutoCommit != autoCommit) {
             this.pluginService.setCurrentConnectionState(SessionDirtyFlag.AUTO_COMMIT);
           }
-          this.pluginService.setAutoCommit(autoCommit);
         },
         autoCommit);
   }
