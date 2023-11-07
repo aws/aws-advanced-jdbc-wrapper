@@ -29,17 +29,17 @@ public interface SessionStateTransferCallable {
    * Transfers session state from one connection to another.
    *
    * @param sessionState Session state flags for from-connection
-   * @param from The connection to transfer state from
-   * @param fromHostSpec The connection {@link HostSpec} to transfer state from
-   * @param to   The connection to transfer state to
-   * @param toHostSpec The connection {@link HostSpec} to transfer state to
+   * @param src The source connection to transfer state from
+   * @param srcHostSpec The source connection {@link HostSpec}
+   * @param dest   The destination connection to transfer state to
+   * @param destHostSpec The destination connection {@link HostSpec}
    * @return true, if session state transfer is successful and no default logic should be executed after.
    *          False, if default logic should be executed.
    */
   boolean transferSessionState(
       final @NonNull EnumSet<SessionDirtyFlag> sessionState,
-      final @NonNull Connection from,
-      final @Nullable HostSpec fromHostSpec,
-      final @NonNull Connection to,
-      final @Nullable HostSpec toHostSpec) throws SQLException;
+      final @NonNull Connection src,
+      final @Nullable HostSpec srcHostSpec,
+      final @NonNull Connection dest,
+      final @Nullable HostSpec destHostSpec) throws SQLException;
 }

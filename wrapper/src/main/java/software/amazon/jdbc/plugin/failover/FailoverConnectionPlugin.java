@@ -560,23 +560,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Transfers basic session state from one connection to another.
+   * Transfers session state from one connection to another.
    *
-   * @param from The connection to transfer state from
-   * @param fromHostSpec The connection {@link HostSpec} to transfer state from
-   * @param to   The connection to transfer state to
-   * @param toHostSpec The connection {@link HostSpec} to transfer state to
+   * @param src The connection to transfer state from
+   * @param srcHostSpec The connection {@link HostSpec} to transfer state from
+   * @param dest   The connection to transfer state to
+   * @param destHostSpec The connection {@link HostSpec} to transfer state to
    * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
    *                      method is called during a distributed transaction, or this method is called during a
    *                      transaction
    */
   protected void transferSessionState(
-      final Connection from,
-      final HostSpec fromHostSpec,
-      final Connection to,
-      final HostSpec toHostSpec) throws SQLException {
+      final Connection src,
+      final HostSpec srcHostSpec,
+      final Connection dest,
+      final HostSpec destHostSpec) throws SQLException {
 
-    if (from == null || to == null) {
+    if (src == null || dest == null) {
       return;
     }
 
@@ -584,7 +584,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     SessionStateTransferCallable callableCopy = sessionStateTransferCallable;
     if (callableCopy != null) {
-      final boolean isHandled = callableCopy.transferSessionState(sessionState, from, fromHostSpec, to, toHostSpec);
+      final boolean isHandled = callableCopy.transferSessionState(sessionState, src, srcHostSpec, dest, destHostSpec);
       if (isHandled) {
         // Custom function has handled session transfer
         return;
@@ -594,19 +594,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     // Otherwise, lets run default logic.
     sessionState = this.pluginService.getCurrentConnectionState();
     final SessionStateHelper helper = new SessionStateHelper();
-    helper.transferSessionState(sessionState, from, to);
+    helper.transferSessionState(sessionState, src, dest);
   }
 
   /**
    * Restores partial session state from saved values to a connection.
    *
-   * @param to   The connection to transfer state to
+   * @param dest   The connection to transfer state to
    * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
    *                      method is called during a distributed transaction, or this method is called during a
    *                      transaction
    */
-  protected void restoreSessionState(final Connection to) throws SQLException {
-    if (to == null) {
+  protected void restoreSessionState(final Connection dest) throws SQLException {
+    if (dest == null) {
       return;
     }
 
@@ -614,7 +614,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (callableCopy != null) {
       final boolean isHandled = callableCopy.restoreSessionState(
           this.pluginService.getCurrentConnectionState(),
-          to,
+          dest,
           this.savedReadOnlyStatus,
           this.savedAutoCommitStatus
       );
@@ -626,7 +626,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     // Otherwise, lets run default logic.
     final SessionStateHelper helper = new SessionStateHelper();
-    helper.restoreSessionState(to, this.savedReadOnlyStatus, this.savedAutoCommitStatus);
+    helper.restoreSessionState(dest, this.savedReadOnlyStatus, this.savedAutoCommitStatus);
   }
 
   private <E extends Exception> void dealWithOriginalException(

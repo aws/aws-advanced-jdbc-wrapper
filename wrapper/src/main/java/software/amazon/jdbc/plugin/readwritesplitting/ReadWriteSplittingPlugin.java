@@ -435,15 +435,18 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
    * status. This method is only called when setReadOnly is being called; the read-only status
    * will be updated when the setReadOnly call continues down the plugin chain
    *
-   * @param to The connection to transfer state to
-   * @param toHostSpec The connection {@link HostSpec} to transfer state to
+   * @param dest The destination connection to transfer state to
+   * @param destHostSpec The destination connection {@link HostSpec}
    * @throws SQLException if a database access error occurs, this method is called on a closed
    *                      connection, or this method is called during a distributed transaction
    */
   protected void transferSessionStateOnReadWriteSplit(
-      final Connection to, final HostSpec toHostSpec) throws SQLException {
+      final Connection dest,
+      final HostSpec destHostSpec)
+      throws SQLException {
+
     final Connection from = this.pluginService.getCurrentConnection();
-    if (from == null || to == null) {
+    if (from == null || dest == null) {
       return;
     }
 
@@ -451,13 +454,13 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
     SessionStateTransferCallable callableCopy = sessionStateTransferCallable;
     if (callableCopy != null) {
-      final boolean result = callableCopy.transferSessionState(
+      final boolean isHandled = callableCopy.transferSessionState(
           sessionState,
           from,
           this.pluginService.getCurrentHostSpec(),
-          to,
-          toHostSpec);
-      if (result) {
+          dest,
+          destHostSpec);
+      if (isHandled) {
         // Custom function has handled session transfer
         return;
       }
@@ -466,7 +469,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     sessionState = this.pluginService.getCurrentConnectionState();
     sessionState.remove(SessionDirtyFlag.READONLY); // We don't want to change READONLY flag of the connection
     final SessionStateHelper helper = new SessionStateHelper();
-    helper.transferSessionState(sessionState, from, to);
+    helper.transferSessionState(sessionState, from, dest);
   }
 
   private synchronized void switchToReaderConnection(final List<HostSpec> hosts)

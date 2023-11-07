@@ -27,7 +27,7 @@ public interface RestoreSessionStateCallable {
    * Restores partial session state from saved values to a connection.
    *
    * @param sessionState Session state flags for from-connection
-   * @param to   The connection to transfer state to
+   * @param dest   The destination connection to transfer state to
    * @param readOnly ReadOnly flag to set to
    * @param autoCommit AutoCommit flag to set to
    * @return true, if session state is restored successful and no default logic should be executed after.
@@ -35,7 +35,7 @@ public interface RestoreSessionStateCallable {
    */
   boolean restoreSessionState(
       final @NonNull EnumSet<SessionDirtyFlag> sessionState,
-      final @NonNull Connection to,
+      final @NonNull Connection dest,
       final @Nullable Boolean readOnly,
       final @Nullable Boolean autoCommit)
       throws SQLException;

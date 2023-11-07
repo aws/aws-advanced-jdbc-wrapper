@@ -25,48 +25,48 @@ import java.util.concurrent.Executors;
 public class SessionStateHelper {
 
   /**
-   * Transfers basic session state from one connection to another.
+   * Transfers session state from source connection to destination connection.
    *
-   * @param sessionState Session state of from-connection
-   * @param from The connection to transfer state from
-   * @param to   The connection to transfer state to
+   * @param sessionState Session state of source connection
+   * @param src The source connection to transfer state from
+   * @param dest   The destination connection to transfer state to
    * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
    *                      method is called during a distributed transaction, or this method is called during a
    *                      transaction
    */
   public void transferSessionState(
       final EnumSet<SessionDirtyFlag> sessionState,
-      final Connection from,
-      final Connection to) throws SQLException {
+      final Connection src,
+      final Connection dest) throws SQLException {
 
-    if (from == null || to == null) {
+    if (src == null || dest == null) {
       return;
     }
 
     if (sessionState.contains(SessionDirtyFlag.READONLY)) {
-      to.setReadOnly(from.isReadOnly());
+      dest.setReadOnly(src.isReadOnly());
     }
     if (sessionState.contains(SessionDirtyFlag.AUTO_COMMIT)) {
-      to.setAutoCommit(from.getAutoCommit());
+      dest.setAutoCommit(src.getAutoCommit());
     }
     if (sessionState.contains(SessionDirtyFlag.TRANSACTION_ISOLATION)) {
-      to.setTransactionIsolation(from.getTransactionIsolation());
+      dest.setTransactionIsolation(src.getTransactionIsolation());
     }
     if (sessionState.contains(SessionDirtyFlag.CATALOG)) {
-      to.setCatalog(from.getCatalog());
+      dest.setCatalog(src.getCatalog());
     }
     if (sessionState.contains(SessionDirtyFlag.SCHEMA)) {
-      to.setSchema(from.getSchema());
+      dest.setSchema(src.getSchema());
     }
     if (sessionState.contains(SessionDirtyFlag.TYPE_MAP)) {
-      to.setTypeMap(from.getTypeMap());
+      dest.setTypeMap(src.getTypeMap());
     }
     if (sessionState.contains(SessionDirtyFlag.HOLDABILITY)) {
-      to.setHoldability(from.getHoldability());
+      dest.setHoldability(src.getHoldability());
     }
     if (sessionState.contains(SessionDirtyFlag.NETWORK_TIMEOUT)) {
       final ExecutorService executorService = Executors.newSingleThreadExecutor();
-      to.setNetworkTimeout(executorService, from.getNetworkTimeout());
+      dest.setNetworkTimeout(executorService, src.getNetworkTimeout());
       executorService.shutdown();
     }
   }
@@ -74,25 +74,25 @@ public class SessionStateHelper {
   /**
    * Restores partial session state from saved values to a connection.
    *
-   * @param to   The connection to transfer state to
+   * @param dest   The destination connection to transfer state to
    * @param readOnly ReadOnly flag to set to
    * @param autoCommit AutoCommit flag to set to
    * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
    *                      method is called during a distributed transaction, or this method is called during a
    *                      transaction
    */
-  public void restoreSessionState(final Connection to, final Boolean readOnly, final Boolean autoCommit)
+  public void restoreSessionState(final Connection dest, final Boolean readOnly, final Boolean autoCommit)
       throws SQLException {
 
-    if (to == null) {
+    if (dest == null) {
       return;
     }
 
     if (readOnly != null) {
-      to.setReadOnly(readOnly);
+      dest.setReadOnly(readOnly);
     }
     if (autoCommit != null) {
-      to.setAutoCommit(autoCommit);
+      dest.setAutoCommit(autoCommit);
     }
   }
 
