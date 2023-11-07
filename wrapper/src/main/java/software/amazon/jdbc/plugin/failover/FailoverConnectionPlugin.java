@@ -42,6 +42,10 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
+import software.amazon.jdbc.states.RestoreSessionStateCallable;
+import software.amazon.jdbc.states.SessionDirtyFlag;
+import software.amazon.jdbc.states.SessionStateHelper;
+import software.amazon.jdbc.states.SessionStateTransferCallable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -85,6 +89,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
   static final String METHOD_IS_CLOSED = "Connection.isClosed";
+
+  protected static SessionStateTransferCallable sessionStateTransferCallable;
+  protected static RestoreSessionStateCallable restoreSessionStateCallable;
+
   private final PluginService pluginService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
@@ -197,6 +205,22 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderTriggeredCounter = telemetryFactory.createCounter("readerFailover.triggered.count");
     this.failoverReaderSuccessCounter = telemetryFactory.createCounter("readerFailover.completed.success.count");
     this.failoverReaderFailedCounter = telemetryFactory.createCounter("readerFailover.completed.failed.count");
+  }
+
+  public static void setSessionStateTransferFunc(SessionStateTransferCallable callable) {
+    sessionStateTransferCallable = callable;
+  }
+
+  public static void resetSessionStateTransferFunc() {
+    sessionStateTransferCallable = null;
+  }
+
+  public static void setRestoreSessionStateFunc(RestoreSessionStateCallable callable) {
+    restoreSessionStateCallable = callable;
+  }
+
+  public static void resetRestoreSessionStateFunc() {
+    restoreSessionStateCallable = null;
   }
 
   @Override
@@ -521,9 +545,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    */
   private void switchCurrentConnectionTo(final HostSpec host, final Connection connection) throws SQLException {
     Connection currentConnection = this.pluginService.getCurrentConnection();
+    HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
 
     if (currentConnection != connection) {
-      transferSessionState(currentConnection, connection);
+      transferSessionState(currentConnection, currentHostSpec, connection, host);
       invalidateCurrentConnection();
     }
 
@@ -538,22 +563,38 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Transfers basic session state from one connection to another.
    *
    * @param from The connection to transfer state from
+   * @param fromHostSpec The connection {@link HostSpec} to transfer state from
    * @param to   The connection to transfer state to
+   * @param toHostSpec The connection {@link HostSpec} to transfer state to
    * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
    *                      method is called during a distributed transaction, or this method is called during a
    *                      transaction
    */
   protected void transferSessionState(
       final Connection from,
-      final Connection to) throws SQLException {
+      final HostSpec fromHostSpec,
+      final Connection to,
+      final HostSpec toHostSpec) throws SQLException {
 
     if (from == null || to == null) {
       return;
     }
 
-    to.setReadOnly(from.isReadOnly());
-    to.setAutoCommit(from.getAutoCommit());
-    to.setTransactionIsolation(from.getTransactionIsolation());
+    EnumSet<SessionDirtyFlag> sessionState = this.pluginService.getCurrentConnectionState();
+
+    SessionStateTransferCallable callableCopy = sessionStateTransferCallable;
+    if (callableCopy != null) {
+      final boolean isHandled = callableCopy.transferSessionState(sessionState, from, fromHostSpec, to, toHostSpec);
+      if (isHandled) {
+        // Custom function has handled session transfer
+        return;
+      }
+    }
+
+    // Otherwise, lets run default logic.
+    sessionState = this.pluginService.getCurrentConnectionState();
+    final SessionStateHelper helper = new SessionStateHelper();
+    helper.transferSessionState(sessionState, from, to);
   }
 
   /**
@@ -569,12 +610,23 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    if (savedReadOnlyStatus != null) {
-      to.setReadOnly(savedReadOnlyStatus);
+    final RestoreSessionStateCallable callableCopy = restoreSessionStateCallable;
+    if (callableCopy != null) {
+      final boolean isHandled = callableCopy.restoreSessionState(
+          this.pluginService.getCurrentConnectionState(),
+          to,
+          this.savedReadOnlyStatus,
+          this.savedAutoCommitStatus
+      );
+      if (isHandled) {
+        // Custom function has handled everything.
+        return;
+      }
     }
-    if (savedAutoCommitStatus != null) {
-      to.setAutoCommit(savedAutoCommitStatus);
-    }
+
+    // Otherwise, lets run default logic.
+    final SessionStateHelper helper = new SessionStateHelper();
+    helper.restoreSessionState(to, this.savedReadOnlyStatus, this.savedAutoCommitStatus);
   }
 
   private <E extends Exception> void dealWithOriginalException(

@@ -27,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
@@ -46,6 +47,18 @@ public interface PluginService extends ExceptionHandler {
       final @NonNull HostSpec hostSpec,
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
+
+  EnumSet<SessionDirtyFlag> getCurrentConnectionState();
+
+  void setCurrentConnectionState(SessionDirtyFlag flag);
+
+  void resetCurrentConnectionState(SessionDirtyFlag flag);
+
+  void resetCurrentConnectionStates();
+
+  boolean getAutoCommit();
+
+  void setAutoCommit(final boolean autoCommit);
 
   List<HostSpec> getHosts();
 

@@ -62,6 +62,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.DynamicHostListProvider;
+import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -111,6 +112,7 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.getCurrentHostSpec()).thenReturn(mockHostSpec);
     when(mockPluginService.connect(any(HostSpec.class), eq(properties))).thenReturn(mockConnection);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(mockPluginService.getCurrentConnectionState()).thenReturn(EnumSet.allOf(SessionDirtyFlag.class));
     when(mockReaderFailoverHandler.failover(any(), any())).thenReturn(mockReaderResult);
     when(mockWriterFailoverHandler.failover(any())).thenReturn(mockWriterResult);
 
@@ -197,10 +199,10 @@ class FailoverConnectionPluginTest {
   void test_syncSessionState_withNullConnections() throws SQLException {
     initializePlugin();
 
-    plugin.transferSessionState(null, mockConnection);
+    plugin.transferSessionState(null, null, mockConnection, null);
     verify(mockConnection, never()).getAutoCommit();
 
-    plugin.transferSessionState(mockConnection, null);
+    plugin.transferSessionState(mockConnection, null, null, null);
     verify(mockConnection, never()).getAutoCommit();
   }
 
@@ -214,7 +216,7 @@ class FailoverConnectionPluginTest {
 
     initializePlugin();
 
-    plugin.transferSessionState(mockConnection, mockConnection);
+    plugin.transferSessionState(mockConnection, null, mockConnection, null);
     verify(target).setReadOnly(eq(false));
     verify(target).getAutoCommit();
     verify(target).getTransactionIsolation();

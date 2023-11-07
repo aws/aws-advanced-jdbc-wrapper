@@ -43,6 +43,7 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
+import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -68,6 +69,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private final ExceptionManager exceptionManager;
   protected final DialectProvider dialectProvider;
   protected Dialect dialect;
+  protected EnumSet<SessionDirtyFlag> currentConnectionSessionState = EnumSet.noneOf(SessionDirtyFlag.class);
+  protected boolean isAutoCommit = false;
 
   public PluginServiceImpl(
       @NonNull final ConnectionPluginManager pluginManager,
@@ -568,4 +571,27 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.pluginManager.getDefaultConnProvider().getTargetName();
   }
 
+  public EnumSet<SessionDirtyFlag> getCurrentConnectionState() {
+    return this.currentConnectionSessionState.clone();
+  }
+
+  public void setCurrentConnectionState(SessionDirtyFlag flag) {
+    this.currentConnectionSessionState.add(flag);
+  }
+
+  public void resetCurrentConnectionState(SessionDirtyFlag flag) {
+    this.currentConnectionSessionState.remove(flag);
+  }
+
+  public void resetCurrentConnectionStates() {
+    this.currentConnectionSessionState.clear();
+  }
+
+  public boolean getAutoCommit() {
+    return this.isAutoCommit;
+  }
+
+  public void setAutoCommit(final boolean autoCommit) {
+    this.isAutoCommit = autoCommit;
+  }
 }
