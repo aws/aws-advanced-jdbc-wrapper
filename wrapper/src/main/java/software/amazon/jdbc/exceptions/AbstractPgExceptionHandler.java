@@ -30,7 +30,17 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
 
     while (exception != null) {
       if (exception instanceof SQLException) {
-        return isNetworkException(((SQLException) exception).getSQLState());
+        SQLException sqlException = (SQLException) exception;
+        if (isNetworkException(sqlException.getSQLState())) {
+          return true;
+        }
+
+        // 28000 for access denied during reboot, this should be considered as a temporary failure
+        if ("28000".equals(sqlException.getSQLState())
+            && (sqlException.getMessage() == null
+                || !sqlException.getMessage().contains("PAM authentication"))) {
+          return true;
+        }
       }
 
       exception = exception.getCause();
@@ -63,7 +73,17 @@ public abstract class AbstractPgExceptionHandler implements ExceptionHandler {
         return true;
       }
       if (exception instanceof SQLException) {
-        return isLoginException(((SQLException) exception).getSQLState());
+        SQLException sqlException = (SQLException) exception;
+        if (isLoginException(sqlException.getSQLState())) {
+          return true;
+        }
+
+        // 28000 for access denied during reboot, this should be considered as a temporary failure
+        if ("28000".equals(sqlException.getSQLState())
+          && sqlException.getMessage() != null
+          && sqlException.getMessage().contains("PAM authentication")) {
+          return true;
+        }
       }
 
       exception = exception.getCause();

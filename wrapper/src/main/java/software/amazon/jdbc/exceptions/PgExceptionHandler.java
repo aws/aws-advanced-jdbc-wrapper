@@ -34,10 +34,7 @@ public class PgExceptionHandler extends AbstractPgExceptionHandler {
       "XX" // internal error (backend)
   );
 
-  private static final List<String> ACCESS_ERRORS = Arrays.asList(
-      "28P01",
-      "28000" // PAM authentication errors
-  );
+  private static final List<String> ACCESS_ERRORS = Arrays.asList("28P01");
 
   @Override
   public List<String> getNetworkErrors() {
