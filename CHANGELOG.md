@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.3.0] - 2023-11-23
 ### :magic_wand: Added
-- Add fast switchover support for Amazon RDS Multi-AZ DB Clusters ([PR #690](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/690))
+- Fast switchover support for Amazon RDS Multi-AZ DB Clusters ([PR #690](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/690)).
 - Endpoint override for the AWS Secrets Manager plugin ([PR #707](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/707)).
 - Allow users to set up a lambda to initialize new connections ([PR #705](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/705)).
 - Introduced `Dialect.prepareConnectProperties` to allow dialect classes to modify connection properties when opening a new connection ([PR #704](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/704)).
