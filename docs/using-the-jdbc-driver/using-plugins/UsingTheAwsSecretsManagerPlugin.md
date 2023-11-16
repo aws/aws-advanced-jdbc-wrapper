@@ -12,10 +12,11 @@ The following properties are required for the AWS Secrets Manager Connection Plu
 
 > **Note:** To use this plugin, you will need to set the following AWS Secrets Manager specific parameters.
 
-| Parameter                | Value  |                         Required                         | Description                                             | Example     | Default Value |
-|--------------------------|:------:|:--------------------------------------------------------:|:--------------------------------------------------------|:------------|---------------|
-| `secretsManagerSecretId` | String |                           Yes                            | Set this value to be the secret name or the secret ARN. | `secretId`  | `null`        |
-| `secretsManagerRegion`   | String | Yes unless the `secretsManagerSecretId` is a Secret ARN. | Set this value to be the region your secret is in.      | `us-east-2` | `us-east-1`   |
+| Parameter                | Value  |                         Required                         | Description                                                                                                                                                                                                                      | Example                 | Default Value |
+|--------------------------|:------:|:--------------------------------------------------------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------|---------------|
+| `secretsManagerSecretId` | String |                           Yes                            | Set this value to be the secret name or the secret ARN.                                                                                                                                                                          | `secretId`              | `null`        |
+| `secretsManagerRegion`   | String | Yes unless the `secretsManagerSecretId` is a Secret ARN. | Set this value to be the region your secret is in.                                                                                                                                                                               | `us-east-2`             | `us-east-1`   |
+| `secretsManagerEndpoint` | String |                            No                            | Set this value to be the endpoint override to retrieve your secret from. This parameter value should be in the form of a URL, with a valid protocol (ex. `http://`) and domain (ex. `localhost`). A port number is not required. | `http://localhost:1234` | `null`        |
 
 *NOTE* A Secret ARN has the following format: `arn:aws:secretsmanager:<Region>:<AccountId>:secret:SecretName-6RandomCharacters`
 

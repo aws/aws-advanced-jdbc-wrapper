@@ -3,6 +3,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.3.0] - 2023-11-23
+### :magic_wand: Added
+- Fast switchover support for Amazon RDS Multi-AZ DB Clusters ([PR #690](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/690)).
+- Endpoint override for the AWS Secrets Manager plugin ([PR #707](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/707)).
+- Allow users to set up a lambda to initialize new connections ([PR #705](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/705)).
+- Introduced `Dialect.prepareConnectProperties` to allow dialect classes to modify connection properties when opening a new connection ([PR #704](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/704)).
+- Native telemetry support ([PR #617](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/617)).
+- Documentation on known limitations with global databases ([PR #695](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/695)).
+
+### :bug: Fixed
+- Continue monitoring if unhandled Exception is thrown ([PR #676](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/676)).
+- Password properties are now masked in logs ([PR #701](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/701) and [PR #723](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/723)).
+- Issue when getting a connection for a closed statement ([PR #682](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/682)).
+- Maven coordinates in README ([PR #681](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/681)).
+- Update topology for specific methods ([PR #683](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/683)).
+
+### :crab: Changed
+- Added buffer to IAM token expiry and moved token expiry time creation ([PR #706](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/706)).
+- Documentation on known limitations with Blue/Green deployments ([PR #680](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/680)).
+
 ## [2.2.5] - 2023-10-03
 ### :magic_wand: Added
 - Optional preservation of partial session state post failover ([PR #632](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/632)).
@@ -190,6 +210,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.3.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.4...2.3.0
 [2.2.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.4...2.2.5
 [2.2.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.3...2.2.4
 [2.2.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.2...2.2.3

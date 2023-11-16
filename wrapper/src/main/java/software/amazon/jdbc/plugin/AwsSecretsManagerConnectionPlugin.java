@@ -20,6 +20,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -34,6 +36,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
@@ -72,6 +75,9 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
       "secretsManagerRegion", "us-east-1",
       "The region of the secret to retrieve.");
+  public static final AwsWrapperProperty ENDPOINT_PROPERTY = new AwsWrapperProperty(
+      "secretsManagerEndpoint", null,
+      "The endpoint of the secret to retrieve.");
 
   protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
@@ -92,14 +98,30 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
   }
 
   public AwsSecretsManagerConnectionPlugin(final PluginService pluginService, final Properties props) {
-
     this(
         pluginService,
         props,
-        (hostSpec, region) -> SecretsManagerClient.builder()
-            .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
-            .region(region)
-            .build(),
+        (hostSpec, region) -> {
+          final String endpoint = ENDPOINT_PROPERTY.getString(props);
+          if (endpoint != null && !endpoint.isEmpty()) {
+            try {
+              final URI endpointURI = new URI(endpoint);
+              return SecretsManagerClient.builder()
+                  .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+                  .endpointOverride(endpointURI)
+                  .region(region)
+                  .build();
+            } catch (URISyntaxException e) {
+              throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
+                  new Object[] {e.getMessage()}));
+            }
+          } else {
+            return SecretsManagerClient.builder()
+                .credentialsProvider(AwsCredentialsManager.getProvider(hostSpec, props))
+                .region(region)
+                .build();
+          }
+        },
         (secretId) -> GetSecretValueRequest.builder()
             .secretId(secretId)
             .build()
@@ -252,6 +274,34 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
                   "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
           throw new SQLException(
               Messages.get("AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"), exception);
+        } catch (SdkClientException exception) {
+          LOGGER.log(
+              Level.WARNING,
+              exception,
+              () -> Messages.get(
+                  "AwsSecretsManagerConnectionPlugin.endpointOverrideInvalidConnection",
+                  new Object[] {exception.getMessage()}));
+          throw new SQLException(
+              Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideInvalidConnection",
+                  new Object[] {exception.getMessage()}), exception);
+        } catch (Exception exception) {
+          if (exception.getCause() != null && exception.getCause() instanceof URISyntaxException) {
+            LOGGER.log(
+                Level.WARNING,
+                exception,
+                () -> Messages.get(
+                    "AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
+                    new Object[] {exception.getCause().getMessage()}));
+            throw new RuntimeException(Messages.get("AwsSecretsManagerConnectionPlugin.endpointOverrideMisconfigured",
+                new Object[] {exception.getCause().getMessage()}));
+          }
+          LOGGER.log(
+              Level.WARNING,
+              exception,
+              () -> Messages.get(
+                  "AwsSecretsManagerConnectionPlugin.unhandledException",
+                  new Object[] {exception.getMessage()}));
+          throw new SQLException(exception);
         }
       }
       return fetched;

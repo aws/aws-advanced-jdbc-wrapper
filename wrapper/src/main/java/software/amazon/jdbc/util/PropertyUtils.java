@@ -19,16 +19,22 @@ package software.amazon.jdbc.util;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class PropertyUtils {
   private static final Logger LOGGER = Logger.getLogger(PropertyUtils.class.getName());
+  private static final Set<Object> SECRET_PROPERTIES = Collections.unmodifiableSet(
+      new HashSet<>(Collections.singletonList(PropertyDefinition.PASSWORD.name))
+  );
 
   public static void applyProperties(final Object target, final Properties properties) {
     if (target == null || properties == null) {
@@ -96,7 +102,8 @@ public class PropertyUtils {
       } else {
         writeMethod.invoke(target, propValue);
       }
-      LOGGER.finest(() -> String.format("Set property '%s' with value: %s", propName, propValue));
+      Object cleanPropValue = isSecretProperty(propName) ? "***" : propValue;
+      LOGGER.finest(() -> String.format("Set property '%s' with value: %s", propName, cleanPropValue));
 
     } catch (final InvocationTargetException ex) {
       LOGGER.warning(
@@ -125,6 +132,10 @@ public class PropertyUtils {
       copy.setProperty(entry.getKey().toString(), entry.getValue().toString());
     }
     return copy;
+  }
+
+  private static boolean isSecretProperty(final Object propertyKey) {
+    return SECRET_PROPERTIES.contains(propertyKey);
   }
 
   public static @NonNull Properties maskProperties(final Properties props) {
