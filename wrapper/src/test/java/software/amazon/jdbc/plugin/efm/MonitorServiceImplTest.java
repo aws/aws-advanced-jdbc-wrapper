@@ -72,6 +72,7 @@ class MonitorServiceImplTest {
   private Properties properties;
   private AutoCloseable closeable;
   private MonitorServiceImpl monitorService;
+  private MonitorThreadContainer threadContainer;
   private ArgumentCaptor<MonitorConnectionContext> contextCaptor;
 
   @BeforeEach
@@ -83,19 +84,21 @@ class MonitorServiceImplTest {
     when(pluginService.getTelemetryFactory()).thenReturn(telemetryFactory);
     when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(monitorInitializer.createMonitor(
-            any(HostSpec.class), any(Properties.class), any(MonitorService.class)))
+            any(HostSpec.class), any(Properties.class), any(MonitorThreadContainer.class)))
         .thenReturn(monitorA, monitorB);
 
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
 
     doReturn(task).when(executorService).submit(any(Monitor.class));
 
+    threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
     monitorService = new MonitorServiceImpl(pluginService, monitorInitializer, executorServiceInitializer);
   }
 
   @AfterEach
   void cleanUp() throws Exception {
     monitorService.releaseResources();
+    threadContainer.releaseResources();
     closeable.close();
   }
 
@@ -113,7 +116,6 @@ class MonitorServiceImplTest {
         FAILURE_DETECTION_COUNT);
 
     assertNotNull(contextCaptor.getValue());
-    verify(executorService).submit(eq(monitorA));
   }
 
   @Test
@@ -134,9 +136,6 @@ class MonitorServiceImplTest {
     }
 
     assertNotNull(contextCaptor.getValue());
-
-    // executorService should only be called once.
-    verify(executorService).submit(eq(monitorA));
   }
 
   @Test
@@ -223,7 +222,7 @@ class MonitorServiceImplTest {
     assertEquals(monitorOne, monitorOneSame);
 
     // Make sure createMonitor was called once
-    verify(monitorInitializer).createMonitor(eq(hostSpec), eq(properties), eq(monitorService));
+    verify(monitorInitializer).createMonitor(eq(hostSpec), eq(properties), eq(threadContainer));
   }
 
   @Test
@@ -271,7 +270,7 @@ class MonitorServiceImplTest {
     assertEquals(monitorOne, monitorOneDupeAgain);
 
     // Make sure createMonitor was called once
-    verify(monitorInitializer).createMonitor(eq(hostSpec), eq(properties), eq(monitorService));
+    verify(monitorInitializer).createMonitor(eq(hostSpec), eq(properties), eq(threadContainer));
   }
 
   @Test

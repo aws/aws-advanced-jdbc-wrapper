@@ -52,11 +52,4 @@ public interface MonitorService {
   void stopMonitoringForAllConnections(Set<String> nodeKeys);
 
   void releaseResources();
-
-  /**
-   * Handle unused {@link Monitor}.
-   *
-   * @param monitor The {@link Monitor} in idle.
-   */
-  void notifyUnused(Monitor monitor);
 }

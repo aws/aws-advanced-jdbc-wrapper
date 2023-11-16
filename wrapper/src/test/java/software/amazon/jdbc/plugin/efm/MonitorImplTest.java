@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -76,6 +75,7 @@ class MonitorImplTest {
 
   private AutoCloseable closeable;
   private MonitorImpl monitor;
+  private MonitorThreadContainer threadContainer;
 
   @BeforeEach
   void init() throws SQLException {
@@ -93,9 +93,9 @@ class MonitorImplTest {
     when(telemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(telemetryContext);
     when(telemetryFactory.createCounter(anyString())).thenReturn(telemetryCounter);
     when(executorServiceInitializer.createExecutorService()).thenReturn(executorService);
-    MonitorThreadContainer.getInstance(executorServiceInitializer);
+    threadContainer = MonitorThreadContainer.getInstance(executorServiceInitializer);
 
-    monitor = spy(new MonitorImpl(pluginService, hostSpec, properties, 0L, monitorService));
+    monitor = spy(new MonitorImpl(pluginService, hostSpec, properties, 0L, threadContainer));
   }
 
   @AfterEach
@@ -153,18 +153,8 @@ class MonitorImplTest {
 
   @Test
   void test_8_runWithoutContext() {
-    final MonitorThreadContainer container =
-        MonitorThreadContainer.getInstance(executorServiceInitializer);
-    final Map<String, Monitor> monitorMap = container.getMonitorMap();
-    final Map<Monitor, Future<?>> taskMap = container.getTasksMap();
-
-    doAnswer(
-        invocation -> {
-          container.releaseResource(invocation.getArgument(0));
-          return null;
-        })
-        .when(monitorService)
-        .notifyUnused(any(Monitor.class));
+    final Map<String, Monitor> monitorMap = threadContainer.getMonitorMap();
+    final Map<Monitor, Future<?>> taskMap = threadContainer.getTasksMap();
 
     // Put monitor into container map
     final String nodeKey = "monitorA";
@@ -185,18 +175,8 @@ class MonitorImplTest {
 
   @RepeatedTest(1000)
   void test_9_runWithContext() {
-    final MonitorThreadContainer container =
-        MonitorThreadContainer.getInstance(executorServiceInitializer);
-    final Map<String, Monitor> monitorMap = container.getMonitorMap();
-    final Map<Monitor, Future<?>> taskMap = container.getTasksMap();
-
-    doAnswer(
-        invocation -> {
-          container.releaseResource(invocation.getArgument(0));
-          return null;
-        })
-        .when(monitorService)
-        .notifyUnused(any(Monitor.class));
+    final Map<String, Monitor> monitorMap = threadContainer.getMonitorMap();
+    final Map<Monitor, Future<?>> taskMap = threadContainer.getTasksMap();
 
     // Put monitor into container map
     final String nodeKey = "monitorA";

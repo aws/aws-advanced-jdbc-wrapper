@@ -22,6 +22,7 @@ import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -63,7 +64,7 @@ public class MonitorImpl implements Monitor {
   private final TelemetryFactory telemetryFactory;
   private final Properties properties;
   private final HostSpec hostSpec;
-  private final MonitorService monitorService;
+  private final MonitorThreadContainer threadContainer;
   private final long monitorDisposalTimeMillis;
   private volatile long contextLastUsedTimestampNano;
   private volatile boolean stopped = false;
@@ -85,7 +86,7 @@ public class MonitorImpl implements Monitor {
    * @param monitorDisposalTimeMillis Time in milliseconds before stopping the monitoring thread
    *                                  where there are no active connection to the server this
    *                                  {@link MonitorImpl} instance is monitoring.
-   * @param monitorService            A reference to the {@link MonitorServiceImpl} implementation
+   * @param threadContainer           A reference to the {@link MonitorThreadContainer} implementation
    *                                  that initialized this class.
    */
   public MonitorImpl(
@@ -93,13 +94,13 @@ public class MonitorImpl implements Monitor {
       @NonNull final HostSpec hostSpec,
       @NonNull final Properties properties,
       final long monitorDisposalTimeMillis,
-      @NonNull final MonitorService monitorService) {
+      @NonNull final MonitorThreadContainer threadContainer) {
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.hostSpec = hostSpec;
     this.properties = properties;
     this.monitorDisposalTimeMillis = monitorDisposalTimeMillis;
-    this.monitorService = monitorService;
+    this.threadContainer = threadContainer;
 
     this.contextLastUsedTimestampNano = this.getCurrentTimeNano();
     this.contextsSizeGauge = telemetryFactory.createGauge("efm.activeContexts.queue.size",
@@ -143,6 +144,7 @@ public class MonitorImpl implements Monitor {
     this.telemetryContext = telemetryFactory.openTelemetryContext(
         "monitoring thread", TelemetryTraceLevel.TOP_LEVEL);
     telemetryContext.setAttribute("url", hostSpec.getUrl());
+
     try {
       this.stopped = false;
       while (true) {
@@ -152,6 +154,7 @@ public class MonitorImpl implements Monitor {
           MonitorConnectionContext newMonitorContext;
           MonitorConnectionContext firstAddedNewMonitorContext = null;
           final long currentTimeNano = this.getCurrentTimeNano();
+
           while ((newMonitorContext = this.newContexts.poll()) != null) {
             if (firstAddedNewMonitorContext == newMonitorContext) {
               // This context has already been processed.
@@ -179,8 +182,7 @@ public class MonitorImpl implements Monitor {
             final long statusCheckStartTimeNano = this.getCurrentTimeNano();
             this.contextLastUsedTimestampNano = statusCheckStartTimeNano;
 
-            final ConnectionStatus status =
-                checkConnectionStatus(this.nodeCheckTimeoutMillis);
+            final ConnectionStatus status = checkConnectionStatus(this.nodeCheckTimeoutMillis);
 
             long delayMillis = -1;
             MonitorConnectionContext monitorContext;
@@ -240,7 +242,7 @@ public class MonitorImpl implements Monitor {
           } else {
             if ((this.getCurrentTimeNano() - this.contextLastUsedTimestampNano)
                 >= TimeUnit.MILLISECONDS.toNanos(this.monitorDisposalTimeMillis)) {
-              monitorService.notifyUnused(this);
+              threadContainer.releaseResource(this);
               break;
             }
             TimeUnit.MILLISECONDS.sleep(THREAD_SLEEP_WHEN_INACTIVE_MILLIS);
@@ -250,10 +252,14 @@ public class MonitorImpl implements Monitor {
           throw intEx;
         } catch (final Exception ex) {
           // log and ignore
-          LOGGER.warning(
-              () -> Messages.get(
-                  "MonitorImpl.exceptionDuringMonitoringContinue",
-                  new Object[] {this.hostSpec.getHost(), ex.getMessage()}));
+          if (LOGGER.isLoggable(Level.WARNING)) {
+            LOGGER.log(
+                Level.WARNING,
+                Messages.get(
+                   "MonitorImpl.exceptionDuringMonitoringContinue",
+                    new Object[]{this.hostSpec.getHost()}),
+                ex); // We want to print full trace stack of the exception.
+          }
         }
       }
     } catch (final InterruptedException intEx) {
@@ -261,14 +267,19 @@ public class MonitorImpl implements Monitor {
       LOGGER.warning(
           () -> Messages.get(
               "MonitorImpl.interruptedExceptionDuringMonitoring",
-              new Object[] {this.hostSpec.getHost(), intEx.getMessage()}));
+              new Object[] {this.hostSpec.getHost()}));
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
-      LOGGER.warning(
-          () -> Messages.get(
-              "MonitorImpl.exceptionDuringMonitoringStop",
-              new Object[] {this.hostSpec.getHost(), ex.getMessage()}));
+      if (LOGGER.isLoggable(Level.WARNING)) {
+        LOGGER.log(
+            Level.WARNING,
+            Messages.get(
+                "MonitorImpl.exceptionDuringMonitoringStop",
+                new Object[]{this.hostSpec.getHost()}),
+            ex); // We want to print full trace stack of the exception.
+      }
     } finally {
+      this.stopped = true;
       if (this.monitoringConn != null) {
         try {
           this.monitoringConn.close();
@@ -279,7 +290,6 @@ public class MonitorImpl implements Monitor {
       if (telemetryContext != null) {
         this.telemetryContext.closeContext();
       }
-      this.stopped = true;
     }
   }
 

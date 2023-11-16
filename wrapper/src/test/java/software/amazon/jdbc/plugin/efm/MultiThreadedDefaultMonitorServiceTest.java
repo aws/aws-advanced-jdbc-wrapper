@@ -104,7 +104,7 @@ class MultiThreadedDefaultMonitorServiceTest {
     CONCURRENT_TEST_MAP.computeIfAbsent(testInfo.getDisplayName(), k -> new AtomicBoolean(false));
 
     when(monitorInitializer.createMonitor(
-            any(HostSpec.class), any(Properties.class), any(MonitorService.class)))
+            any(HostSpec.class), any(Properties.class), any(MonitorThreadContainer.class)))
         .thenReturn(monitor);
     when(executorServiceInitializer.createExecutorService()).thenReturn(service);
     doReturn(taskA).when(service).submit(any(Monitor.class));
@@ -158,7 +158,7 @@ class MultiThreadedDefaultMonitorServiceTest {
               && contexts.containsAll(capturedContexts)
               && capturedContexts.containsAll(contexts));
       verify(monitorInitializer, times(numConnections))
-          .createMonitor(eq(hostSpec), eq(properties), any(MonitorService.class));
+          .createMonitor(eq(hostSpec), eq(properties), any(MonitorThreadContainer.class));
     } finally {
       releaseResources(services);
     }
@@ -184,7 +184,7 @@ class MultiThreadedDefaultMonitorServiceTest {
               && capturedContexts.containsAll(contexts));
 
       verify(monitorInitializer)
-          .createMonitor(eq(hostSpec), eq(properties), any(MonitorService.class));
+          .createMonitor(eq(hostSpec), eq(properties), any(MonitorThreadContainer.class));
     } finally {
       releaseResources(services);
     }
