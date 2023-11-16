@@ -18,7 +18,7 @@ Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:mysql://cluster-
 
 The topology information is populated in Amazon RDS for PostgreSQL versions 13.12, 14.9, 15.4, or higher, starting from revision R2. Ensure you have a supported PostgreSQL version deployed.
 
-Per AWS documentation and [this blog post](https://aws.amazon.com/blogs/database/achieve-one-second-or-less-downtime-with-the-a[…]rapper-driver-when-upgrading-amazon-rds-multi-az-db-clusters/), the `rds_tools` extension must be manually installed using the following DDL before the topology information becomes available:
+Per AWS documentation and [this blog post](https://aws.amazon.com/blogs/database/achieve-one-second-or-less-downtime-with-the-advanced-jdbc-wrapper-driver-when-upgrading-amazon-rds-multi-az-db-clusters/), the `rds_tools` extension must be manually installed using the following DDL before the topology information becomes available:
 
 ```sql
 CREATE EXTENSION rds_tools;
@@ -41,7 +41,7 @@ For more details on the `failover` plugin configuration, refer to the [Failover 
 
 We have created many examples in the [examples](/examples) folder demonstrating how to use the driver.
 
-For additional information, you may also refer to [this AWS blog post](https://aws.amazon.com/blogs/database/achieve-one-second-or-less-downtime-with-the-a[…]rapper-driver-when-upgrading-amazon-rds-multi-az-db-clusters/).
+For additional information, you may also refer to [this AWS blog post](https://aws.amazon.com/blogs/database/achieve-one-second-or-less-downtime-with-the-advanced-jdbc-wrapper-driver-when-upgrading-amazon-rds-multi-az-db-clusters/).
 
 ## Limitations
 
