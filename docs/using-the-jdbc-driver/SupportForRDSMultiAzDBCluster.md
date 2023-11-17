@@ -46,9 +46,9 @@ For additional information, you may also refer to [this AWS blog post](https://a
 
 The following plugins have been tested and confirmed to work with Amazon RDS Multi-AZ DB Clusters:
 
-* auroraConnectionTracker
-* failover
-* efm
+* [Aurora Connection Tracker Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraConnectionTrackerPlugin.md)
+* [Failover Connection Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
+* [Host Monitoring Connection Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
 
 The compatibility of other plugins has not been tested at this time. They may function as expected or potentially result in unhandled behavior.
 Use at your own discretion.
