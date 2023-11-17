@@ -30,7 +30,6 @@ Then, prepare the connection with:
 Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:postgresql://cluster-writer-endpoint[:port]/database", props);
 ```
 
-
 ## Optimizing Switchover Time
 
 During minor version upgrades of RDS Multi-AZ DB clusters, the `failover` plugin switches the connection from the current writer to a newly upgraded reader. If minimizing downtime during switchover is critical to your application, consider adjusting the `failoverClusterTopologyRefreshRateMs` to a lower value such as 100ms, from the default 2000ms. However, be aware that this can potentially increase the workload on the database during the switchover.
