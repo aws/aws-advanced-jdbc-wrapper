@@ -58,6 +58,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
+import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.util.SqlState;
 
 public class ReadWriteSplittingPluginTest {
@@ -140,6 +141,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.connect(eq(readerHostSpec3), any(Properties.class)))
         .thenReturn(mockReaderConn3);
     when(this.mockPluginService.acceptsStrategy(any(), eq("random"))).thenReturn(true);
+    when(mockPluginService.getCurrentConnectionState()).thenReturn(EnumSet.allOf(SessionDirtyFlag.class));
     when(this.mockConnectFunc.call()).thenReturn(mockWriterConn);
     when(mockWriterConn.createStatement()).thenReturn(mockStatement);
     when(mockReaderConn1.createStatement()).thenReturn(mockStatement);

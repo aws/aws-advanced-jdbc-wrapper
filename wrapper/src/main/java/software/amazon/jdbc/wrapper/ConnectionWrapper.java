@@ -47,16 +47,12 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
-import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.dialect.DialectManager;
-import software.amazon.jdbc.dialect.DialectProvider;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
-import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
-import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class ConnectionWrapper implements Connection, CanReleaseResources {
@@ -184,6 +180,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         () -> {
           this.pluginService.getCurrentConnection().abort(executor);
           this.pluginManagerService.setInTransaction(false);
+          this.pluginService.resetCurrentConnectionStates();
         },
         executor);
   }
@@ -209,6 +206,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
           this.pluginService.getCurrentConnection().close();
           this.openConnectionStacktrace = null;
           this.pluginManagerService.setInTransaction(false);
+          this.pluginService.resetCurrentConnectionStates();
         });
     this.releaseResources();
   }
@@ -222,7 +220,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         "Connection.commit",
         () -> {
           this.pluginService.getCurrentConnection().commit();
+          final boolean isInTransaction = this.pluginService.isInTransaction();
           this.pluginManagerService.setInTransaction(false);
+          if (isInTransaction
+              && this.pluginService.getCurrentConnectionState().contains(SessionDirtyFlag.AUTO_COMMIT)) {
+            this.pluginService.resetCurrentConnectionState(SessionDirtyFlag.AUTO_COMMIT);
+          }
         });
   }
 
@@ -320,10 +323,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.createStatement",
-        () ->
-            this.pluginService
-                .getCurrentConnection()
-                .createStatement(resultSetType, resultSetConcurrency, resultSetHoldability),
+        () -> this.pluginService
+          .getCurrentConnection()
+          .createStatement(resultSetType, resultSetConcurrency, resultSetHoldability),
         resultSetType,
         resultSetConcurrency,
         resultSetHoldability);
@@ -352,6 +354,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         () -> {
           this.pluginService.getCurrentConnection().setReadOnly(readOnly);
           this.pluginManagerService.setReadOnly(readOnly);
+          this.pluginService.setCurrentConnectionState(SessionDirtyFlag.READONLY);
         },
         readOnly);
   }
@@ -681,7 +684,12 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         "Connection.rollback",
         () -> {
           this.pluginService.getCurrentConnection().rollback();
+          final boolean isInTransaction = this.pluginService.isInTransaction();
           this.pluginManagerService.setInTransaction(false);
+          if (isInTransaction
+              && this.pluginService.getCurrentConnectionState().contains(SessionDirtyFlag.AUTO_COMMIT)) {
+            this.pluginService.resetCurrentConnectionState(SessionDirtyFlag.AUTO_COMMIT);
+          }
         });
   }
 
@@ -710,7 +718,14 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setAutoCommit",
-        () -> this.pluginService.getCurrentConnection().setAutoCommit(autoCommit),
+        () -> {
+          final boolean currentAutoCommit = this.pluginService.getAutoCommit();
+          this.pluginService.getCurrentConnection().setAutoCommit(autoCommit);
+          this.pluginService.setAutoCommit(autoCommit);
+          if (currentAutoCommit != autoCommit) {
+            this.pluginService.setCurrentConnectionState(SessionDirtyFlag.AUTO_COMMIT);
+          }
+        },
         autoCommit);
   }
 
@@ -732,7 +747,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setCatalog",
-        () -> this.pluginService.getCurrentConnection().setCatalog(catalog),
+        () -> {
+          this.pluginService.getCurrentConnection().setCatalog(catalog);
+          this.pluginService.setCurrentConnectionState(SessionDirtyFlag.CATALOG);
+        },
         catalog);
   }
 
@@ -766,7 +784,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setHoldability",
-        () -> this.pluginService.getCurrentConnection().setHoldability(holdability),
+        () -> {
+          this.pluginService.getCurrentConnection().setHoldability(holdability);
+          this.pluginService.setCurrentConnectionState(SessionDirtyFlag.HOLDABILITY);
+        },
         holdability);
   }
 
@@ -777,7 +798,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setNetworkTimeout",
-        () -> this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds),
+        () -> {
+          this.pluginService.getCurrentConnection().setNetworkTimeout(executor, milliseconds);
+          this.pluginService.setCurrentConnectionState(SessionDirtyFlag.NETWORK_TIMEOUT);
+        },
         executor,
         milliseconds);
   }
@@ -812,7 +836,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setSchema",
-        () -> this.pluginService.getCurrentConnection().setSchema(schema),
+        () -> {
+          this.pluginService.getCurrentConnection().setSchema(schema);
+          this.pluginService.setCurrentConnectionState(SessionDirtyFlag.SCHEMA);
+        },
         schema);
   }
 
@@ -823,7 +850,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setTransactionIsolation",
-        () -> this.pluginService.getCurrentConnection().setTransactionIsolation(level),
+        () -> {
+          this.pluginService.getCurrentConnection().setTransactionIsolation(level);
+          this.pluginService.setCurrentConnectionState(SessionDirtyFlag.TRANSACTION_ISOLATION);
+        },
         level);
   }
 
@@ -834,7 +864,10 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.setTypeMap",
-        () -> this.pluginService.getCurrentConnection().setTypeMap(map),
+        () -> {
+          this.pluginService.getCurrentConnection().setTypeMap(map);
+          this.pluginService.setCurrentConnectionState(SessionDirtyFlag.TYPE_MAP);
+        },
         map);
   }
 

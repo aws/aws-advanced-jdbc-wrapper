@@ -69,6 +69,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 @Disabled
@@ -286,6 +287,36 @@ public class ConcurrencyTests {
         @NonNull HostSpec hostSpec, @Nullable ConnectionPlugin skipNotificationForThisPlugin)
         throws SQLException {
       return null;
+    }
+
+    @Override
+    public EnumSet<SessionDirtyFlag> getCurrentConnectionState() {
+      return EnumSet.noneOf(SessionDirtyFlag.class);
+    }
+
+    @Override
+    public void setCurrentConnectionState(SessionDirtyFlag flag) {
+
+    }
+
+    @Override
+    public void resetCurrentConnectionState(SessionDirtyFlag flag) {
+
+    }
+
+    @Override
+    public void resetCurrentConnectionStates() {
+
+    }
+
+    @Override
+    public boolean getAutoCommit() {
+      return false;
+    }
+
+    @Override
+    public void setAutoCommit(boolean autoCommit) {
+
     }
 
     @Override
