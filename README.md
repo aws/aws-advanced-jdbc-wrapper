@@ -31,7 +31,7 @@ Enhanced Failure Monitoring (EFM) is a feature available from the [Host Monitori
 
 ### Using the AWS JDBC Driver with RDS Multi-AZ DB Clusters
 The AWS JDBC Driver is also optimized for fast switchover on [AWS RDS Multi-AZ DB Clusters](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html).
-With the `failover` plugin, the downtime during certain DB cluster operations, such as engine minor version upgrade, can be reduced to one second or even less with finely tuned parameters. It supports both MySQL and PostgreSQL clusters.
+With the `failover` plugin, the downtime during certain DB cluster operations, such as engine minor version upgrades, can be reduced to one second or even less with finely tuned parameters. It supports both MySQL and PostgreSQL clusters.
 
 Visit [this page](./docs/using-the-jdbc-driver/SupportForRDSMultiAzDBCluster.md) for more details.
 
