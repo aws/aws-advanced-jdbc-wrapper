@@ -48,7 +48,9 @@ import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionDirtyFlag;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -67,13 +69,17 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected PluginManagerService pluginManagerService;
   protected String targetDriverProtocol; // TODO: consider moving to PluginService
   protected String originalUrl; // TODO: consider moving to PluginService
+  protected @Nullable ConfigurationProfile configurationProfile;
 
   protected @Nullable Throwable openConnectionStacktrace;
 
   public ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
-      @NonNull final ConnectionProvider connectionProvider,
+      @NonNull final ConnectionProvider defaultConnectionProvider,
+      @Nullable final ConnectionProvider effectiveConnectionProvider,
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @Nullable final ConfigurationProfile configurationProfile,
       @NonNull final TelemetryFactory telemetryFactory)
       throws SQLException {
 
@@ -83,10 +89,16 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     this.originalUrl = url;
     this.targetDriverProtocol = getProtocol(url);
+    this.configurationProfile = configurationProfile;
 
     final ConnectionPluginManager pluginManager =
-        new ConnectionPluginManager(connectionProvider, this, telemetryFactory);
-    final PluginServiceImpl pluginService = new PluginServiceImpl(pluginManager, props, url, this.targetDriverProtocol);
+        new ConnectionPluginManager(
+            defaultConnectionProvider,
+            effectiveConnectionProvider,
+            this,
+            telemetryFactory);
+    final PluginServiceImpl pluginService = new PluginServiceImpl(
+        pluginManager, props, url, this.targetDriverProtocol, targetDriverDialect, this.configurationProfile);
 
     init(props, pluginManager, telemetryFactory, pluginService, pluginService, pluginService);
 
@@ -127,7 +139,9 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     this.hostListProviderService = hostListProviderService;
     this.pluginManagerService = pluginManagerService;
 
-    this.pluginManager.init(this.pluginService, props, pluginManagerService);
+    this.pluginManager.init(
+        this.pluginService, props, pluginManagerService, this.configurationProfile);
+
     final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
     if (supplier != null) {
       final HostListProvider provider = supplier.getProvider(props, this.originalUrl, hostListProviderService);

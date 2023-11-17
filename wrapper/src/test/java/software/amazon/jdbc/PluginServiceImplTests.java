@@ -62,6 +62,9 @@ import software.amazon.jdbc.dialect.MysqlDialect;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class PluginServiceImplTests {
 
@@ -75,8 +78,10 @@ public class PluginServiceImplTests {
   @Mock Connection oldConnection;
   @Mock HostListProvider hostListProvider;
   @Mock DialectManager dialectManager;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
   @Mock Statement statement;
   @Mock ResultSet resultSet;
+  ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
 
   @Captor ArgumentCaptor<EnumSet<NodeChangeOptions>> argumentChanges;
   @Captor ArgumentCaptor<Map<String, EnumSet<NodeChangeOptions>>> argumentChangesMap;
@@ -104,12 +109,17 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
         .build();
-
-
 
     target.setCurrentConnection(newConnection,
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("new-host").build());
@@ -127,7 +137,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
         .build();
@@ -148,7 +165,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
         .build();
@@ -173,7 +197,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("old-host")
         .build();
@@ -195,7 +226,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("old-host").port(1000).role(HostRole.WRITER).availability(HostAvailability.AVAILABLE).build();
@@ -226,7 +264,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -257,7 +302,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec =
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -288,7 +340,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target =
         spy(new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.currentConnection = oldConnection;
     target.currentHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("old-host").port(1000).role(HostRole.READER).availability(HostAvailability.AVAILABLE).build();
@@ -311,7 +370,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hosts = new ArrayList<>();
     target.hostListProvider = hostListProvider;
 
@@ -337,7 +403,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hosts = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").build());
@@ -366,7 +439,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.WRITER).build());
     target.hostListProvider = hostListProvider;
@@ -395,7 +475,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).build());
     target.hostListProvider = hostListProvider;
@@ -413,7 +500,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
@@ -434,7 +528,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
@@ -462,7 +563,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
@@ -501,7 +609,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
 
     target.hosts = Arrays.asList(hostA, hostB);
 
@@ -538,7 +653,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
 
     target.hosts = Arrays.asList(hostA, hostB);
 
@@ -608,7 +730,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     assertNotEquals(expectedHostSpecs, newHostSpecs);
@@ -657,7 +786,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     assertNotEquals(expectedHostSpecs, newHostSpecs);
@@ -674,7 +810,14 @@ public class PluginServiceImplTests {
   void testIdentifyConnectionWithNoAliases() throws SQLException {
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     when(target.getHostListProvider()).thenReturn(hostListProvider);
 
     when(target.getDialect()).thenReturn(new MysqlDialect());
@@ -687,7 +830,14 @@ public class PluginServiceImplTests {
         .build();
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hostListProvider = hostListProvider;
     when(target.getHostListProvider()).thenReturn(hostListProvider);
     when(hostListProvider.identifyConnection(eq(newConnection))).thenReturn(expected);
@@ -707,7 +857,14 @@ public class PluginServiceImplTests {
 
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
 
     assertEquals(1, oneAlias.getAliases().size());
     target.fillAliases(newConnection, oneAlias);
@@ -721,7 +878,14 @@ public class PluginServiceImplTests {
     final HostSpec empty = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo").build();
     PluginServiceImpl target = spy(
         new PluginServiceImpl(
-            pluginManager, new ExceptionManager(), PROPERTIES, URL, DRIVER_PROTOCOL, dialectManager));
+            pluginManager,
+            new ExceptionManager(),
+            PROPERTIES,
+            URL,
+            DRIVER_PROTOCOL,
+            dialectManager,
+            mockTargetDriverDialect,
+            configurationProfile));
     target.hostListProvider = hostListProvider;
     when(target.getDialect()).thenReturn(dialect);
     when(resultSet.next()).thenReturn(true, false); // Result set contains 1 row.

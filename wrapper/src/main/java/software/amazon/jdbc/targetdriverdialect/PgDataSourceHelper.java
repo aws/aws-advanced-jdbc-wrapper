@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -55,6 +56,26 @@ public class PgDataSourceHelper {
 
     if (hostSpec.isPortSpecified()) {
       baseDataSource.setPortNumbers(new int[] { hostSpec.getPort() });
+    }
+
+    final Boolean tcpKeepAlive = PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
+    if (tcpKeepAlive != null) {
+      baseDataSource.setTcpKeepAlive(tcpKeepAlive);
+    }
+
+    final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    if (loginTimeout != null) {
+      baseDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
+    }
+
+    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    if (connectTimeout != null) {
+      baseDataSource.setConnectTimeout((int) TimeUnit.MILLISECONDS.toSeconds(connectTimeout));
+    }
+
+    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
+    if (socketTimeout != null) {
+      baseDataSource.setSocketTimeout((int) TimeUnit.MILLISECONDS.toSeconds(socketTimeout));
     }
 
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)

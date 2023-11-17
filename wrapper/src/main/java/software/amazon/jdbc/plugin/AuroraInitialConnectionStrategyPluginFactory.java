@@ -21,11 +21,9 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 
-@SuppressWarnings("deprecation")
-public class AuroraHostListConnectionPluginFactory implements ConnectionPluginFactory {
-
+public class AuroraInitialConnectionStrategyPluginFactory implements ConnectionPluginFactory {
   @Override
   public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new AuroraHostListConnectionPlugin(pluginService, props);
+    return new AuroraInitialConnectionStrategyPlugin(pluginService, props);
   }
 }

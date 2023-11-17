@@ -43,6 +43,7 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -57,6 +58,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
  * <p>THIS CLASS IS NOT MULTI-THREADING SAFE IT'S EXPECTED TO HAVE ONE INSTANCE OF THIS MANAGER PER
  * JDBC CONNECTION
  */
+@SuppressWarnings("deprecation")
 public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
@@ -91,7 +93,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
-  protected final ConnectionProvider defaultConnProvider;
+  protected final @NonNull ConnectionProvider defaultConnProvider;
+  protected final @Nullable ConnectionProvider effectiveConnProvider;
   protected final ConnectionWrapper connectionWrapper;
   protected PluginService pluginService;
   protected TelemetryFactory telemetryFactory;
@@ -99,10 +102,13 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
-  public ConnectionPluginManager(final ConnectionProvider defaultConnProvider,
-      final ConnectionWrapper connectionWrapper,
-      final TelemetryFactory telemetryFactory) {
+  public ConnectionPluginManager(
+      final @NonNull ConnectionProvider defaultConnProvider,
+      final @Nullable ConnectionProvider effectiveConnProvider,
+      final @NonNull ConnectionWrapper connectionWrapper,
+      final @NonNull TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
+    this.effectiveConnProvider = effectiveConnProvider;
     this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
   }
@@ -111,13 +117,14 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      final ConnectionProvider defaultConnProvider,
+      final @NonNull ConnectionProvider defaultConnProvider,
+      final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
       final ArrayList<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
       final PluginService pluginService,
       final TelemetryFactory telemetryFactory) {
-    this(defaultConnProvider, props, plugins, connectionWrapper, telemetryFactory);
+    this(defaultConnProvider, effectiveConnProvider, props, plugins, connectionWrapper, telemetryFactory);
     this.pluginService = pluginService;
   }
 
@@ -125,12 +132,14 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * This constructor is for testing purposes only.
    */
   ConnectionPluginManager(
-      final ConnectionProvider defaultConnProvider,
+      final @NonNull ConnectionProvider defaultConnProvider,
+      final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
       final ArrayList<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
       final TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
+    this.effectiveConnProvider = effectiveConnProvider;
     this.props = props;
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
@@ -156,10 +165,14 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * @param pluginService        a reference to a plugin service that plugin can use
    * @param props                the configuration of the connection
    * @param pluginManagerService a reference to a plugin manager service
+   * @param configurationProfile a profile configuration defined by the user
    * @throws SQLException if errors occurred during the execution
    */
   public void init(
-      final PluginService pluginService, final Properties props, final PluginManagerService pluginManagerService)
+      final PluginService pluginService,
+      final Properties props,
+      final PluginManagerService pluginManagerService,
+      @Nullable ConfigurationProfile configurationProfile)
       throws SQLException {
 
     this.props = props;
@@ -170,8 +183,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     this.plugins = pluginChainBuilder.getPlugins(
         this.pluginService,
         this.defaultConnProvider,
+        this.effectiveConnProvider,
         pluginManagerService,
-        props);
+        props,
+        configurationProfile);
   }
 
   protected <T, E extends Exception> T executeWithSubscribedPlugins(

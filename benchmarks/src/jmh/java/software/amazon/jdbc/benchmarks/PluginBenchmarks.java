@@ -65,6 +65,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 @State(Scope.Benchmark)
@@ -87,6 +88,7 @@ public class PluginBenchmarks {
       .host(TEST_HOST).port(TEST_PORT).build();
 
   @Mock private PluginService mockPluginService;
+  @Mock private Dialect mockDialect;
   @Mock private ConnectionPluginManager mockConnectionPluginManager;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock TelemetryContext mockTelemetryContext;
@@ -127,7 +129,11 @@ public class PluginBenchmarks {
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
     when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
         mockConnection);
-    when(mockConnectionProvider.connect(anyString(), any(Dialect.class), any(HostSpec.class),
+    when(mockConnectionProvider.connect(
+        anyString(),
+        any(Dialect.class),
+        any(TargetDriverDialect.class),
+        any(HostSpec.class),
         any(Properties.class))).thenReturn(mockConnection);
     when(mockConnection.createStatement()).thenReturn(mockStatement);
     when(mockStatement.executeQuery(anyString())).thenReturn(mockResultSet);
@@ -139,6 +145,7 @@ public class PluginBenchmarks {
     when(mockStatement.getConnection()).thenReturn(mockConnection);
     when(this.mockPluginService.acceptsStrategy(any(), eq("random"))).thenReturn(true);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
+    when(this.mockPluginService.getDialect()).thenReturn(mockDialect);
   }
 
   @TearDown(Level.Iteration)
@@ -302,11 +309,14 @@ public class PluginBenchmarks {
   @Benchmark
   public ResultSet executeStatementWithTelemetryDisabled() throws SQLException {
     try (
-        ConnectionWrapper wrapper = new ConnectionWrapper(
+        ConnectionWrapper wrapper = new TestConnectionWrapper(
             disabledTelemetry(),
             CONNECTION_STRING,
-            mockConnectionProvider,
-            mockTelemetryFactory);
+            mockConnectionPluginManager,
+            mockTelemetryFactory,
+            mockPluginService,
+            mockHostListProviderService,
+            mockPluginManagerService);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;
@@ -316,11 +326,14 @@ public class PluginBenchmarks {
   @Benchmark
   public ResultSet executeStatementWithTelemetry() throws SQLException {
     try (
-        ConnectionWrapper wrapper = new ConnectionWrapper(
+        ConnectionWrapper wrapper = new TestConnectionWrapper(
             useTelemetry(),
             CONNECTION_STRING,
-            mockConnectionProvider,
-            mockTelemetryFactory);
+            mockConnectionPluginManager,
+            mockTelemetryFactory,
+            mockPluginService,
+            mockHostListProviderService,
+            mockPluginManagerService);
         Statement statement = wrapper.createStatement();
         ResultSet resultSet = statement.executeQuery("some sql")) {
       return resultSet;

@@ -40,6 +40,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
+import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 import software.amazon.jdbc.wrapper.ResultSetWrapper;
@@ -74,8 +75,10 @@ public class DriverConfigurationProfileTests {
     props.setProperty(PropertyDefinition.PROFILE_NAME.name, "testProfile");
 
     DriverConfigurationProfiles.clear();
-    DriverConfigurationProfiles.addOrReplaceProfile(
-        "testProfile", Collections.singletonList(ExecutionTimeConnectionPluginFactory.class));
+    ConfigurationProfileBuilder.get()
+        .withName("testProfile")
+        .withPluginFactories(Collections.singletonList(ExecutionTimeConnectionPluginFactory.class))
+        .buildAndSet();
 
     Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
 

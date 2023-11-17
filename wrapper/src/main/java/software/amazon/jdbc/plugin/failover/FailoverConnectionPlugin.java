@@ -687,6 +687,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @throws SQLException if an error occurs
    */
   protected synchronized void failover(final HostSpec failedHost) throws SQLException {
+    this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
+
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {

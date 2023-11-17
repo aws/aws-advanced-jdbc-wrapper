@@ -28,6 +28,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.states.SessionDirtyFlag;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
@@ -164,6 +165,8 @@ public interface PluginService extends ExceptionHandler {
   Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException;
 
   Dialect getDialect();
+
+  TargetDriverDialect getTargetDriverDialect();
 
   void updateDialect(final @NonNull Connection connection) throws SQLException;
 
