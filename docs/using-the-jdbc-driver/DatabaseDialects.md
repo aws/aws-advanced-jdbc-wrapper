@@ -15,19 +15,19 @@ The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, an
 ### List of Available Dialect Codes
 Dialect codes specify what kind of database any connections will be made to.
 
-| Dialect Code Reference | Value          | Database                                                                                       |
-|------------------------|----------------|------------------------------------------------------------------------------------------------|
-| `AURORA_MYSQL`         | `aurora-mysql` | Aurora MySQL                                                                                   |
-| `RDS_MULTI_AZ_MYSQL_CLUSTER`        | `rds-multi-az-mysql-cluster`    | [Amazon RDS MySQL Multi-AZ DB Cluster Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html)                 |
-| `RDS_MYSQL`            | `rds-mysql`    | Amazon RDS MySQL                                                                               |
-| `MYSQL`                | `mysql`        | MySQL                                                                                          |
-| `AURORA_PG`            | `aurora-pg`    | Aurora PostgreSQL                                                                              |
-| `RDS_MULTI_AZ_PG_CLUSTER`        | `rds-multi-az-pg-cluster`    | [Amazon RDS PostgreSQL Multi-AZ DB Cluster Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html)                 |
-| `RDS_PG`               | `rds-pg`       | Amazon RDS PostgreSQL                                                                          |
-| `PG`                   | `pg`           | PostgreSQL                                                                                     |
-| `MARIADB`              | `mariadb`      | MariaDB                                                                                        |
-| `CUSTOM`               | `custom`       | See [custom dialects](#custom-dialects). This code is not required when using custom dialects. |
-| `UNKNOWN`              | `unknown`      | Unknown. Although this code is available, do not use it as it will result in errors.           |
+| Dialect Code Reference       | Value                        | Database                                                                                                                                           |
+| ---------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AURORA_MYSQL`               | `aurora-mysql`               | Aurora MySQL                                                                                                                                       |
+| `RDS_MULTI_AZ_MYSQL_CLUSTER` | `rds-multi-az-mysql-cluster` | [Amazon RDS MySQL Multi-AZ DB Cluster Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html)      |
+| `RDS_MYSQL`                  | `rds-mysql`                  | Amazon RDS MySQL                                                                                                                                   |
+| `MYSQL`                      | `mysql`                      | MySQL                                                                                                                                              |
+| `AURORA_PG`                  | `aurora-pg`                  | Aurora PostgreSQL                                                                                                                                  |
+| `RDS_MULTI_AZ_PG_CLUSTER`    | `rds-multi-az-pg-cluster`    | [Amazon RDS PostgreSQL Multi-AZ DB Cluster Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html) |
+| `RDS_PG`                     | `rds-pg`                     | Amazon RDS PostgreSQL                                                                                                                              |
+| `PG`                         | `pg`                         | PostgreSQL                                                                                                                                         |
+| `MARIADB`                    | `mariadb`                    | MariaDB                                                                                                                                            |
+| `CUSTOM`                     | `custom`                     | See [custom dialects](#custom-dialects). This code is not required when using custom dialects.                                                     |
+| `UNKNOWN`                    | `unknown`                    | Unknown. Although this code is available, do not use it as it will result in errors.                                                               |
 
 ## Custom Dialects
 If you are interested in using the AWS JDBC Driver but your desired database type is not currently supported, it is possible to create a custom dialect.
