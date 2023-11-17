@@ -16,9 +16,9 @@ Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:mysql://cluster-
 
 ### PostgreSQL
 
-The topology information is populated in Amazon RDS for PostgreSQL versions 13.12, 14.9, 15.4, or higher, starting from revision R2. Ensure you have a supported PostgreSQL version deployed.
+The topology information is populated in Amazon RDS for PostgreSQL versions 13.12, 14.9, 15.4, or higher, starting from revision R3. Ensure you have a supported PostgreSQL version deployed.
 
-Per AWS documentation and [this blog post](https://aws.amazon.com/blogs/database/achieve-one-second-or-less-downtime-with-the-advanced-jdbc-wrapper-driver-when-upgrading-amazon-rds-multi-az-db-clusters/), the `rds_tools` extension must be manually installed using the following DDL before the topology information becomes available:
+Per AWS documentation and [this blog post](https://aws.amazon.com/blogs/database/achieve-one-second-or-less-downtime-with-the-advanced-jdbc-wrapper-driver-when-upgrading-amazon-rds-multi-az-db-clusters/), the `rds_tools` extension must be manually installed using the following DDL before the topology information becomes available on target cluster:
 
 ```sql
 CREATE EXTENSION rds_tools;
