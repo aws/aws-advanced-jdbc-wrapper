@@ -8,7 +8,7 @@ The process of using the AWS JDBC Driver with RDS Multi-AZ DB Cluster is the sam
 
 ### MySQL
 
-To prepare the connection:
+Preparing a connection with MySQL in a Multi-AZ Cluster remains the same as before:
 
 ```java
 Connection conn = DriverManager.getConnection("jdbc:aws-wrapper:mysql://cluster-writer-endpoint[:port]/database", props);
