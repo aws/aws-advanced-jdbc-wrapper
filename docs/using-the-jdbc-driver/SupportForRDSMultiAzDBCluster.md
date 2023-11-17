@@ -45,7 +45,7 @@ For additional information, you may also refer to [this AWS blog post](https://a
 
 ## Limitations
 
-The following plugins have been tested and confirmed to work with Amazon RDS Multi-AZ DB Cluster:
+The following plugins have been tested and confirmed to work with Amazon RDS Multi-AZ DB Clusters:
 
 * auroraConnectionTracker
 * failover
