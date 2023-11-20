@@ -369,6 +369,24 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_setReadOnlyFalse_whenAllInstancesDown() throws SQLException {
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperReaderClusterUrl(), getProxiedProps())) {
+
+      // Kill all instances
+      ProxyHelper.disableAllConnectivity();
+
+      // setReadOnly(false) triggers switching reader connection to a new writer connection.
+      // Since connectivity to all instances are down, it's expected to get a network-bound exception
+      // while opening a new connection to a writer node.
+      final SQLException exception =
+          assertThrows(SQLException.class, () -> conn.setReadOnly(false));
+      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
+    }
+  }
+
+  @TestTemplate
   public void test_executeWithOldConnection() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), getProps())) {
 
