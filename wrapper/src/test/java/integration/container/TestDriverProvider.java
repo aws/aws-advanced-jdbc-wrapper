@@ -165,6 +165,10 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                       try {
                         instanceIDs = auroraUtil.getAuroraInstanceIds();
                       } catch (SQLException ex) {
+                        if ("28P01".equals(ex.getSQLState())) {
+                          // Authentication error for PG
+                          throw ex;
+                        }
                         instanceIDs = new ArrayList<>();
                       }
                     }
