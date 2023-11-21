@@ -47,14 +47,19 @@ The AWS JDBC Driver also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-j
 ## AWS Advanced JDBC Driver Parameters
 These parameters are applicable to any instance of the AWS JDBC Driver.
 
-| Parameter                       | Value     | Required | Description                                                                                                                                                                          | Default Value |
-|---------------------------------|-----------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `wrapperLogUnclosedConnections` | `Boolean` | No       | Allows the AWS JDBC Driver to track a point in the code where connection has been opened but not closed.                                                                             | `false`       |
-| `wrapperLoggerLevel`            | `String`  | No       | Logger level of the AWS JDBC Driver. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`. | `null`        |
-| `database`                      | `String`  | No       | Database name.                                                                                                                                                                       | `null`        |
-| `user`                          | `String`  | No       | Database username.                                                                                                                                                                   | `null`        |
-| `password`                      | `String`  | No       | Database password.                                                                                                                                                                   | `null`        |
-| `wrapperDialect`                | `String`  | No       | Please see [this page on database dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md), and whether you should include it.                                                     | `null`        |
+| Parameter                       | Value     | Required | Description                                                                                                                                                                                                                                                                                   | Default Value |
+|---------------------------------|-----------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `wrapperLogUnclosedConnections` | `Boolean` | No       | Allows the AWS JDBC Driver to track a point in the code where connection has been opened but not closed.                                                                                                                                                                                      | `false`       |
+| `wrapperLoggerLevel`            | `String`  | No       | Logger level of the AWS JDBC Driver. <br><br/>If it is used, it must be one of the following values: `OFF`, `SEVERE`, `WARNING`, `INFO`, `CONFIG`, `FINE`, `FINER`, `FINEST`, `ALL`.                                                                                                          | `null`        |
+| `database`                      | `String`  | No       | Database name.                                                                                                                                                                                                                                                                                | `null`        |
+| `user`                          | `String`  | No       | Database username.                                                                                                                                                                                                                                                                            | `null`        |
+| `password`                      | `String`  | No       | Database password.                                                                                                                                                                                                                                                                            | `null`        |
+| `wrapperDialect`                | `String`  | No       | Please see [this page on database dialects](/docs/using-the-jdbc-driver/DatabaseDialects.md), and whether you should include it.                                                                                                                                                              | `null`        |
+| `wrapperLogUnclosedConnections` | `Boolean` | No       | Allows the AWS JDBC Driver to capture a stacktrace for each connection that is opened. If the `finalize()` method is reached without the connection being closed, the stacktrace is printed to the log. This helps developers to detect and correct the source of potential connection leaks. | `false`       |
+| `loginTimeout`                  | `Integer` | No       | Login timeout in milliseconds.                                                                                                                                                                                                                                                                | `null`        |
+| `connectTimeout`                | `Integer` | No       | Socket connect timeout in milliseconds.                                                                                                                                                                                                                                                       | `null`        |
+| `socketTimeout`                 | `Integer` | No       | Socket timeout in milliseconds.                                                                                                                                                                                                                                                               | `null`        |
+| `tcpKeepAlive`                  | `Boolean` | No       | Enable or disable TCP keep-alive probe.                                                                                                                                                                                                                                                       | `false`       |
 
 ## Plugins
 The AWS JDBC Driver uses plugins to execute JDBC methods. You can think of a plugin as an extensible code module that adds extra logic around any JDBC method calls. The AWS JDBC Driver has a number of [built-in plugins](#list-of-available-plugins) available for use. 
@@ -63,10 +68,11 @@ Plugins are loaded and managed through the Connection Plugin Manager and may be 
 
 ### Connection Plugin Manager Parameters
 
-| Parameter            | Value    | Required | Description                                                                                                                                                                                          | Default Value                          |
-|----------------------|----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
-| `wrapperPlugins`     | `String` | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm`                                                                                                                     | `auroraConnectionTracker,failover,efm` | 
-| `wrapperProfileName` | `String` | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`                                 |
+| Parameter                    | Value     | Required | Description                                                                                                                                                                                          | Default Value                          |
+|------------------------------|-----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
+| `wrapperPlugins`             | `String`  | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm`                                                                                                                     | `auroraConnectionTracker,failover,efm` | 
+| `autoSortWrapperPluginOrder` | `Boolean` | No       | Allows the AWS JDBC Driver to sort connection plugins to prevent plugin misconfiguration. Allows a user to provide a custom plugin order if needed.                                                  | `true`                                 | 
+| `wrapperProfileName`         | `String`  | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`                                 |
 
 To use a built-in plugin, specify its relevant plugin code for the `wrapperPlugins`.
 The default value for `wrapperPlugins` is `auroraConnectionTracker,failover,efm`. These 3 plugins are enabled by default. To read more about these plugins, see the [List of Available Plugins](#list-of-available-plugins) section.
@@ -86,19 +92,45 @@ properties.setProperty("wrapperPlugins", "");
 The Wrapper behaves like the target driver when no plugins are used.
 
 ### Configuration Profiles
-An alternative way of loading plugins is to use a configuration profile. You can create custom configuration profiles that specify which plugins the AWS JDBC Driver should load. After creating the profile, set the [`wrapperProfileName`](#connection-plugin-manager-parameters) parameter to the name of the created profile.
-Although you can use this method of loading plugins, this method will most often be used by those who require custom plugins that cannot be loaded with the [`wrapperPlugins`](#connection-plugin-manager-parameters) parameter.
+An alternative way of loading plugins and providing configuration parameters is to use a configuration profile. You can create custom configuration profiles that specify which plugins the AWS JDBC Driver should load. After creating the profile, set the [`wrapperProfileName`](#connection-plugin-manager-parameters) parameter to the name of the created profile.
+This method of loading plugins will most often be used by those who require custom plugins that cannot be loaded with the [`wrapperPlugins`](#connection-plugin-manager-parameters) parameter, or by those who are using preset configurations.
+
+Besides a list of plugins to load and configuration properties, configuration profiles may also include the following items:
+- [Database Dialect](./using-the-jdbc-driver/DatabaseDialects.md#database-dialects)
+- [Target Driver Dialect](./using-the-jdbc-driver/TargetDriverDialects.md#target-driver-dialects)
+- a custom exception handler
+- a custom connection provider
+
 The following example creates and sets a configuration profile:
 
 ```java
-properties.setProperty("wrapperProfileName", "testProfile");
-DriverConfigurationProfiles.addOrReplaceProfile(
-    "testProfile",
-    Arrays.asList(
-        FailoverConnectionPluginFactory.class, 
+// Create a new configuration profile with name "testProfile"
+ConfigurationProfileBuilder.get()
+    .withName("testProfile")
+    .withPluginFactories(Arrays.asList(
+        FailoverConnectionPluginFactory.class,
         HostMonitoringConnectionPluginFactory.class,
-        CustomConnectionPluginFactory.class));
+        CustomConnectionPluginFactory.class))
+    .buildAndSet();
+
+// Use the configuration profile "testProfile"
+properties.setProperty("wrapperProfileName", "testProfile");
 ```
+
+Configuration profiles can be created based on other existing configuration profiles. Profile names are case sensitive and should be unique.
+
+```java
+// Create a new configuration profile with name "newProfile" based on "existingProfileName"
+ConfigurationProfileBuilder.from("existingProfileName")
+    .withName("newProfileName")
+    .withDialect(new CustomDatabaseDialect())
+.buildAndSet();
+
+// Delete configuration profile "testProfile"
+DriverConfigurationProfiles.remove("testProfile");
+```
+
+The AWS JDBC Driver team has gathered and analyzed various user scenarios to create commonly used configuration profiles, or presets, for users. These preset configuration profiles are optimized, profiled, verified and can be used right away. Users can create their own configuration profiles based on the built-in presets as shown above. More details could be found at the [Configuration Presets](./ConfigurationPresets.md) page. 
 
 ### Executing Custom Code When Initializing a Connection
 In some use cases you may need to define a specific configuration for a new driver connection before your application can use it. For instance:
