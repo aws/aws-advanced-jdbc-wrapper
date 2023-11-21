@@ -36,8 +36,10 @@ import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
+import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
@@ -106,8 +108,10 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
+    props.setProperty(
+        PropertyDefinition.SOCKET_TIMEOUT.name, String.valueOf(TimeUnit.SECONDS.toMillis(10)));
+    props.setProperty(
+        PropertyDefinition.CONNECT_TIMEOUT.name, String.valueOf(TimeUnit.SECONDS.toMillis(10)));
     return props;
   }
 
@@ -338,8 +342,13 @@ public class ReadWriteSplittingTests {
     }
   }
 
+  /**
+   * PG driver has check of internal readOnly flag and doesn't communicate to a DB server
+   * if there's no changes. Thus, network exception is not raised.
+   */
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  @DisableOnTestDriver(TestDriver.PG) // see comments above
   public void test_setReadOnlyFalse_allInstancesDown() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
@@ -353,6 +362,24 @@ public class ReadWriteSplittingTests {
       // Kill all instances
       ProxyHelper.disableAllConnectivity();
 
+      final SQLException exception =
+          assertThrows(SQLException.class, () -> conn.setReadOnly(false));
+      assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
+    }
+  }
+
+  @TestTemplate
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_setReadOnlyFalse_whenAllInstancesDown() throws SQLException {
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperReaderClusterUrl(), getProxiedProps())) {
+
+      // Kill all instances
+      ProxyHelper.disableAllConnectivity();
+
+      // setReadOnly(false) triggers switching reader connection to a new writer connection.
+      // Since connectivity to all instances are down, it's expected to get a network-bound exception
+      // while opening a new connection to a writer node.
       final SQLException exception =
           assertThrows(SQLException.class, () -> conn.setReadOnly(false));
       assertEquals(SqlState.CONNECTION_UNABLE_TO_CONNECT.getState(), exception.getSQLState());
