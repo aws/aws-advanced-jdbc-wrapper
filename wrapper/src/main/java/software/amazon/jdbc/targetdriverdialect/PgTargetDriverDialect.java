@@ -27,6 +27,7 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
@@ -101,7 +102,19 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to org.postgresql.ds.common.BaseDataSource
-    final PgDataSourceHelper helper = new PgDataSourceHelper();
+    final PgDriverHelper helper = new PgDriverHelper();
     helper.prepareDataSource(dataSource, hostSpec, props);
+  }
+
+  @Override
+  public boolean isDriverRegistered() throws SQLException {
+    final PgDriverHelper helper = new PgDriverHelper();
+    return helper.isDriverRegistered();
+  }
+
+  @Override
+  public void registerDriver() throws SQLException {
+    final PgDriverHelper helper = new PgDriverHelper();
+    helper.registerDriver();
   }
 }

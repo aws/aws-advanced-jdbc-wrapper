@@ -16,61 +16,80 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
-import com.mysql.cj.jdbc.MysqlDataSource;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.AwsWrapperProperty;
+import org.postgresql.ds.common.BaseDataSource;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
-import software.amazon.jdbc.util.StringUtils;
 
-public class MysqlConnectorJDataSourceHelper {
+public class PgDriverHelper {
 
   private static final Logger LOGGER =
-      Logger.getLogger(MysqlConnectorJDataSourceHelper.class.getName());
+      Logger.getLogger(PgDriverHelper.class.getName());
+
+  private static final String BASE_DS_CLASS_NAME =
+      org.postgresql.ds.common.BaseDataSource.class.getName();
 
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException {
 
-    if (!(dataSource instanceof MysqlDataSource)) {
+    if (!(dataSource instanceof BaseDataSource)) {
       throw new SQLException(Messages.get(
           "TargetDriverDialectManager.unexpectedClass",
-          new Object[] {"com.mysql.cj.jdbc.MysqlDataSource", dataSource.getClass().getName()}));
+          new Object[] { BASE_DS_CLASS_NAME, dataSource.getClass().getName() }));
     }
 
-    final MysqlDataSource baseDataSource = (MysqlDataSource) dataSource;
+    final BaseDataSource baseDataSource = (BaseDataSource) dataSource;
 
     baseDataSource.setDatabaseName(PropertyDefinition.DATABASE.getString(props));
     baseDataSource.setUser(PropertyDefinition.USER.getString(props));
     baseDataSource.setPassword(PropertyDefinition.PASSWORD.getString(props));
-    baseDataSource.setServerName(hostSpec.getHost());
+    baseDataSource.setServerNames(new String[] { hostSpec.getHost() });
 
     if (hostSpec.isPortSpecified()) {
-      baseDataSource.setPortNumber(hostSpec.getPort());
+      baseDataSource.setPortNumbers(new int[] { hostSpec.getPort() });
     }
 
-    Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    final Boolean tcpKeepAlive = PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
+    if (tcpKeepAlive != null) {
+      baseDataSource.setTcpKeepAlive(tcpKeepAlive);
+    }
+
+    final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
     if (loginTimeout != null) {
       baseDataSource.setLoginTimeout((int) TimeUnit.MILLISECONDS.toSeconds(loginTimeout));
     }
 
+    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    if (connectTimeout != null) {
+      baseDataSource.setConnectTimeout((int) TimeUnit.MILLISECONDS.toSeconds(connectTimeout));
+    }
+
+    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
+    if (socketTimeout != null) {
+      baseDataSource.setSocketTimeout((int) TimeUnit.MILLISECONDS.toSeconds(socketTimeout));
+    }
+
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and try to apply them to data source
-    PropertyDefinition.removeAllExcept(props,
-        PropertyDefinition.USER.name,
-        PropertyDefinition.PASSWORD.name,
-        PropertyDefinition.TCP_KEEP_ALIVE.name,
-        PropertyDefinition.SOCKET_TIMEOUT.name,
-        PropertyDefinition.CONNECT_TIMEOUT.name);
+    PropertyDefinition.removeAll(props);
 
     PropertyUtils.applyProperties(dataSource, props);
+  }
+
+  public boolean isDriverRegistered() throws SQLException {
+    return org.postgresql.Driver.isRegistered();
+  }
+
+  public void registerDriver() throws SQLException {
+    org.postgresql.Driver.register();
   }
 }

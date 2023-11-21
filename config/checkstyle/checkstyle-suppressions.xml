@@ -23,9 +23,9 @@
 <suppressions>
   <suppress files="[\\/]MySQLExceptionHandler\.java" checks="IllegalImport"/>
   <suppress files="[\\/]MysqlDialect\.java" checks="IllegalImport"/>
-  <suppress files="[\\/]MariadbDataSourceHelper\.java" checks="IllegalImport"/>
-  <suppress files="[\\/]MysqlConnectorJDataSourceHelper\.java" checks="IllegalImport"/>
-  <suppress files="[\\/]PgDataSourceHelper\.java" checks="IllegalImport"/>
+  <suppress files="[\\/]MariadbDriverHelper\.java" checks="IllegalImport"/>
+  <suppress files="[\\/]MysqlConnectorJDriverHelper\.java" checks="IllegalImport"/>
+  <suppress files="[\\/]PgDriverHelper\.java" checks="IllegalImport"/>
   <suppress files="[\\/]test[\\/]" checks="IllegalImport"/>
   <suppress files="[\\/]ExtendedFormatter\.java" checks="Header"/>
 </suppressions>

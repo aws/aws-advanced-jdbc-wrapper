@@ -26,6 +26,7 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -38,6 +39,10 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
   public static final AwsWrapperProperty TARGET_DRIVER_DIALECT = new AwsWrapperProperty(
       "wrapperTargetDriverDialect", "",
       "A unique identifier for the target driver dialect.");
+
+  public static final AwsWrapperProperty TARGET_DRIVER_AUTO_REGISTER = new AwsWrapperProperty(
+      "wrapperTargetDriverAutoRegister", "true",
+      "Allows to auto-register a target driver.");
 
   /**
    * Every Dialect implementation SHOULD BE stateless!!!
@@ -53,6 +58,19 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
           put(TargetDriverDialectCodes.GENERIC, new GenericTargetDriverDialect());
         }
       };
+
+  protected static final Map<String, TargetDriverDialect> defaultDialectsByProtocol =
+      new HashMap<String, TargetDriverDialect>() {
+        {
+          put("jdbc:postgresql://", new PgTargetDriverDialect());
+          put("jdbc:mysql://", new MysqlConnectorJTargetDriverDialect());
+          put("jdbc:mariadb://", new MariadbTargetDriverDialect());
+        }
+      };
+
+  static {
+    PropertyDefinition.registerPluginProperties(TargetDriverDialectManager.class);
+  }
 
   public static void setCustomDialect(final @NonNull TargetDriverDialect targetDriverDialect) {
     customDialect = targetDriverDialect;
@@ -120,5 +138,41 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
     LOGGER.finest(() -> Messages.get(
         "TargetDriverDialectManager.useDialect",
         new Object[] {dialectCode, targetDriverDialect}));
+  }
+
+  public boolean registerDriver(
+      final @NonNull String protocol,
+      final @NonNull Properties props) throws SQLException {
+
+    if (!TARGET_DRIVER_AUTO_REGISTER.getBoolean(props)) {
+      return false;
+    }
+
+    TargetDriverDialect targetDriverDialect = null;
+
+    String dialectCode = TARGET_DRIVER_DIALECT.getString(props);
+    if (!StringUtils.isNullOrEmpty(dialectCode)) {
+      targetDriverDialect = knownDialectsByCode.get(dialectCode);
+      if (targetDriverDialect == null) {
+        throw new SQLException(Messages.get(
+            "TargetDriverDialectManager.unknownDialectCode",
+            new Object[] {dialectCode}));
+      }
+    }
+
+    if (targetDriverDialect == null) {
+      targetDriverDialect = defaultDialectsByProtocol.get(protocol.toLowerCase());
+      if (targetDriverDialect == null) {
+        throw new SQLException(Messages.get(
+            "TargetDriverDialectManager.unknownProtocol",
+            new Object[] {protocol.toLowerCase()}));
+      }
+    }
+
+    if (!targetDriverDialect.isDriverRegistered()) {
+      targetDriverDialect.registerDriver();
+    }
+
+    return true;
   }
 }

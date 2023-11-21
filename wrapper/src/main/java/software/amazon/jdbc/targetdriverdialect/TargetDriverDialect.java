@@ -37,4 +37,7 @@ public interface TargetDriverDialect {
       final @NonNull String protocol,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException;
+
+  boolean isDriverRegistered() throws SQLException;
+  void registerDriver() throws SQLException;
 }

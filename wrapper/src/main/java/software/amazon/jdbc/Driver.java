@@ -30,6 +30,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
@@ -134,26 +135,7 @@ public class Driver implements java.sql.Driver {
     try {
       final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
 
-      java.sql.Driver driver;
-      try {
-        driver = DriverManager.getDriver(driverUrl);
-      } catch (SQLException e) {
-        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-            .stream()
-            .map(x -> x.getClass().getName())
-            .collect(Collectors.toList());
-        throw new SQLException(
-            Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), e);
-      }
-
-      if (driver == null) {
-        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-            .stream()
-            .map(x -> x.getClass().getName())
-            .collect(Collectors.toList());
-        LOGGER.severe(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}));
-        return null;
-      }
+      java.sql.Driver driver = this.getTargetDriver(driverUrl, props);
 
       final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
       if (!StringUtils.isNullOrEmpty(logLevelStr)) {
@@ -230,6 +212,47 @@ public class Driver implements java.sql.Driver {
     }
 
     return props;
+  }
+
+  private java.sql.Driver getTargetDriver(
+      final @NonNull String driverUrl,
+      final @NonNull Properties props)
+      throws SQLException {
+
+    final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
+    final String protocol = connectionUrlParser.getProtocol(driverUrl);
+
+    TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+    java.sql.Driver targetDriver = null;
+    SQLException lastException = null;
+
+    try {
+      targetDriver = DriverManager.getDriver(driverUrl);
+    } catch (SQLException e) {
+      lastException = e;
+    }
+
+    if (targetDriver == null) {
+      boolean triedToRegister = targetDriverDialectManager.registerDriver(protocol, props);
+      if (triedToRegister) {
+        try {
+          targetDriver = DriverManager.getDriver(driverUrl);
+        } catch (SQLException e) {
+          lastException = e;
+        }
+      }
+    }
+
+    if (targetDriver == null) {
+      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
+          .stream()
+          .map(x -> x.getClass().getName())
+          .collect(Collectors.toList());
+      throw new SQLException(
+          Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), lastException);
+    }
+
+    return targetDriver;
   }
 
   @Override
