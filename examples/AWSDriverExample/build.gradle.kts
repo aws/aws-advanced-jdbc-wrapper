@@ -20,7 +20,7 @@ dependencies {
     implementation("mysql:mysql-connector-java:8.0.33")
     implementation("software.amazon.awssdk:rds:2.21.11")
     implementation("software.amazon.awssdk:secretsmanager:2.21.21")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("io.opentelemetry:opentelemetry-api:1.32.0")
     implementation("io.opentelemetry:opentelemetry-sdk:1.31.0")
