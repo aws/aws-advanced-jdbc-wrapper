@@ -44,6 +44,7 @@ import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -215,7 +216,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
             configurationProfile,
             telemetryFactory);
       } else {
-        final java.sql.Driver targetDriver = this.getTargetDriver(finalUrl, props);
+        TargetDriverHelper helper = new TargetDriverHelper();
+        final java.sql.Driver targetDriver = helper.getTargetDriver(finalUrl, props);
 
         if (targetDriverDialect == null) {
           final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
@@ -258,49 +260,6 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
         targetDriverDialect,
         configurationProfile,
         telemetryFactory);
-  }
-
-  private java.sql.Driver getTargetDriver(
-      final @NonNull String driverUrl,
-      final @NonNull Properties props)
-      throws SQLException {
-
-    final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
-    final String protocol = connectionUrlParser.getProtocol(driverUrl);
-
-    TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-    java.sql.Driver targetDriver = null;
-    SQLException lastException = null;
-
-    try {
-      targetDriver = DriverManager.getDriver(driverUrl);
-    } catch (SQLException e) {
-      lastException = e;
-    }
-
-    if (targetDriver == null) {
-      boolean triedToRegister = targetDriverDialectManager.registerDriver(protocol, props);
-      if (triedToRegister) {
-        try {
-          targetDriver = DriverManager.getDriver(driverUrl);
-        } catch (SQLException e) {
-          lastException = e;
-        }
-      }
-    }
-
-    if (targetDriver == null) {
-      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-          .stream()
-          .map(x -> x.getClass().getName())
-          .collect(Collectors.toList());
-      throw new SQLException(
-          Messages.get(
-              "AwsWrapperDataSource.missingDriver",
-              new Object[] {driverUrl, registeredDrivers}), lastException);
-    }
-
-    return targetDriver;
   }
 
   public void setTargetDataSourceClassName(@Nullable final String dataSourceClassName) {

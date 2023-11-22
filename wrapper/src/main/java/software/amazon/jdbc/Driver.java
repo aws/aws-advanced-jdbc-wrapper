@@ -135,7 +135,8 @@ public class Driver implements java.sql.Driver {
     try {
       final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
 
-      java.sql.Driver driver = this.getTargetDriver(driverUrl, props);
+      TargetDriverHelper helper = new TargetDriverHelper();
+      java.sql.Driver driver = helper.getTargetDriver(driverUrl, props);
 
       final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
       if (!StringUtils.isNullOrEmpty(logLevelStr)) {
@@ -212,47 +213,6 @@ public class Driver implements java.sql.Driver {
     }
 
     return props;
-  }
-
-  private java.sql.Driver getTargetDriver(
-      final @NonNull String driverUrl,
-      final @NonNull Properties props)
-      throws SQLException {
-
-    final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
-    final String protocol = connectionUrlParser.getProtocol(driverUrl);
-
-    TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-    java.sql.Driver targetDriver = null;
-    SQLException lastException = null;
-
-    try {
-      targetDriver = DriverManager.getDriver(driverUrl);
-    } catch (SQLException e) {
-      lastException = e;
-    }
-
-    if (targetDriver == null) {
-      boolean triedToRegister = targetDriverDialectManager.registerDriver(protocol, props);
-      if (triedToRegister) {
-        try {
-          targetDriver = DriverManager.getDriver(driverUrl);
-        } catch (SQLException e) {
-          lastException = e;
-        }
-      }
-    }
-
-    if (targetDriver == null) {
-      final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-          .stream()
-          .map(x -> x.getClass().getName())
-          .collect(Collectors.toList());
-      throw new SQLException(
-          Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), lastException);
-    }
-
-    return targetDriver;
   }
 
   @Override

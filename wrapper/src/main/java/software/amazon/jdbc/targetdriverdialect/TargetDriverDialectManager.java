@@ -41,7 +41,7 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
       "A unique identifier for the target driver dialect.");
 
   public static final AwsWrapperProperty TARGET_DRIVER_AUTO_REGISTER = new AwsWrapperProperty(
-      "wrapperTargetDriverAutoRegister", "true",
+      "targetDriverAutoRegister", "true",
       "Allows to auto-register a target driver.");
 
   /**
