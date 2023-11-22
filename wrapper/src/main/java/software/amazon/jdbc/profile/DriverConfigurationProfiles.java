@@ -23,13 +23,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
@@ -38,7 +36,6 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
-import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 public class DriverConfigurationProfiles {
 
