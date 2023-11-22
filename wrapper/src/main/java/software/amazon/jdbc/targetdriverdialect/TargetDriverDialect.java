@@ -39,5 +39,6 @@ public interface TargetDriverDialect {
       final @NonNull Properties props) throws SQLException;
 
   boolean isDriverRegistered() throws SQLException;
+
   void registerDriver() throws SQLException;
 }
