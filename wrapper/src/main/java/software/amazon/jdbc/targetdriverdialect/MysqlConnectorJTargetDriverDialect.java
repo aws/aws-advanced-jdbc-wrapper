@@ -21,10 +21,8 @@ import java.sql.SQLException;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.util.StringUtils;
 
 public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDialect {
 
@@ -75,7 +73,19 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
 
     // The logic is isolated to a separated class since it uses
     // direct reference to com.mysql.cj.jdbc.MysqlDataSource
-    final MysqlConnectorJDataSourceHelper helper = new MysqlConnectorJDataSourceHelper();
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
     helper.prepareDataSource(dataSource, hostSpec, props);
+  }
+
+  @Override
+  public boolean isDriverRegistered() throws SQLException {
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    return helper.isDriverRegistered();
+  }
+
+  @Override
+  public void registerDriver() throws SQLException {
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    helper.registerDriver();
   }
 }

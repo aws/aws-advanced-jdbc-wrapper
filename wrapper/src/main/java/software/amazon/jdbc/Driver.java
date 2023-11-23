@@ -30,6 +30,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
@@ -134,26 +135,8 @@ public class Driver implements java.sql.Driver {
     try {
       final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
 
-      java.sql.Driver driver;
-      try {
-        driver = DriverManager.getDriver(driverUrl);
-      } catch (SQLException e) {
-        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-            .stream()
-            .map(x -> x.getClass().getName())
-            .collect(Collectors.toList());
-        throw new SQLException(
-            Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), e);
-      }
-
-      if (driver == null) {
-        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-            .stream()
-            .map(x -> x.getClass().getName())
-            .collect(Collectors.toList());
-        LOGGER.severe(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}));
-        return null;
-      }
+      TargetDriverHelper helper = new TargetDriverHelper();
+      java.sql.Driver driver = helper.getTargetDriver(driverUrl, props);
 
       final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
       if (!StringUtils.isNullOrEmpty(logLevelStr)) {

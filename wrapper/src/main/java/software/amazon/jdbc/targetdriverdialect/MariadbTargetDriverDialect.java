@@ -79,7 +79,19 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to org.mariadb.jdbc.MariaDbDataSource
-    final MariadbDataSourceHelper helper = new MariadbDataSourceHelper();
+    final MariadbDriverHelper helper = new MariadbDriverHelper();
     helper.prepareDataSource(dataSource, protocol, hostSpec, props);
+  }
+
+  @Override
+  public boolean isDriverRegistered() throws SQLException {
+    final MariadbDriverHelper helper = new MariadbDriverHelper();
+    return helper.isDriverRegistered();
+  }
+
+  @Override
+  public void registerDriver() throws SQLException {
+    final MariadbDriverHelper helper = new MariadbDriverHelper();
+    helper.registerDriver();
   }
 }

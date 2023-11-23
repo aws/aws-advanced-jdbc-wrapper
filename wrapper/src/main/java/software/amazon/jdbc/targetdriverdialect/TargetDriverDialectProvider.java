@@ -30,4 +30,8 @@ public interface TargetDriverDialectProvider {
   TargetDriverDialect getDialect(
       final @NonNull String dataSourceClass,
       final @NonNull Properties props) throws SQLException;
+
+  boolean registerDriver(
+      final @NonNull String protocol,
+      final @NonNull Properties props) throws SQLException;
 }

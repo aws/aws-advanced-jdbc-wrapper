@@ -51,6 +51,7 @@ import software.amazon.jdbc.dialect.HostListProviderSupplier;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -73,6 +74,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   protected @Nullable Throwable openConnectionStacktrace;
 
+  protected final ConnectionUrlParser connectionUrlParser = new ConnectionUrlParser();
+
   public ConnectionWrapper(
       @NonNull final Properties props,
       @NonNull final String url,
@@ -88,7 +91,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     }
 
     this.originalUrl = url;
-    this.targetDriverProtocol = getProtocol(url);
+    this.targetDriverProtocol = connectionUrlParser.getProtocol(url);
     this.configurationProfile = configurationProfile;
 
     final ConnectionPluginManager pluginManager =
@@ -164,17 +167,6 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
       this.pluginService.setCurrentConnection(conn, this.pluginService.getInitialConnectionHostSpec());
     }
-  }
-
-  protected String getProtocol(final String url) {
-    final int index = url.indexOf("//");
-    if (index < 0) {
-      throw new IllegalArgumentException(
-          Messages.get(
-              "ConnectionWrapper.protocolNotFound",
-              new Object[] {url}));
-    }
-    return url.substring(0, index + 2);
   }
 
   public void releaseResources() {

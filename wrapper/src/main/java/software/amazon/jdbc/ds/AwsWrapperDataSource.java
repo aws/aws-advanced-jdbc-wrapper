@@ -25,9 +25,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.Referenceable;
@@ -41,6 +44,7 @@ import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.TargetDriverHelper;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -60,6 +64,8 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 public class AwsWrapperDataSource implements DataSource, Referenceable, Serializable {
 
   private static final Logger LOGGER = Logger.getLogger(AwsWrapperDataSource.class.getName());
+
+  private static final String PROTOCOL_PREFIX = "jdbc:aws-wrapper:";
 
   private static final String SERVER_NAME = "serverName";
   private static final String SERVER_PORT = "serverPort";
@@ -123,7 +129,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
     try {
       // Identify the URL for connection.
       if (!StringUtils.isNullOrEmpty(this.jdbcUrl)) {
-        finalUrl = this.jdbcUrl;
+        finalUrl = this.jdbcUrl.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
+
         parsePropertiesFromUrl(this.jdbcUrl, props);
         setDatabasePropertyFromUrl(props);
 
@@ -209,12 +216,8 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
             configurationProfile,
             telemetryFactory);
       } else {
-        final java.sql.Driver targetDriver = DriverManager.getDriver(finalUrl);
-
-        if (targetDriver == null) {
-          throw new SQLException(Messages.get("AwsWrapperDataSource.missingDriver",
-              new Object[]{finalUrl}));
-        }
+        TargetDriverHelper helper = new TargetDriverHelper();
+        final java.sql.Driver targetDriver = helper.getTargetDriver(finalUrl, props);
 
         if (targetDriverDialect == null) {
           final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
@@ -426,7 +429,7 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       this.user = ConnectionUrlParser.parseUserFromUrl(jdbcUrl);
     }
 
-    if (!StringUtils.isNullOrEmpty(this.password)) {
+    if (StringUtils.isNullOrEmpty(this.password)) {
       this.password = ConnectionUrlParser.parsePasswordFromUrl(jdbcUrl);
     }
   }

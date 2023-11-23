@@ -26,6 +26,7 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class GenericTargetDriverDialect implements TargetDriverDialect {
@@ -86,4 +87,11 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     }
   }
 
+  public boolean isDriverRegistered() throws SQLException {
+    throw new SQLException(Messages.get("TargetDriverDialect.unsupported"));
+  }
+
+  public void registerDriver() throws SQLException {
+    throw new SQLException(Messages.get("TargetDriverDialect.unsupported"));
+  }
 }

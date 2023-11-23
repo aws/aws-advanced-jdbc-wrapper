@@ -197,4 +197,15 @@ public class ConnectionUrlParser {
     // Attempt to use the original value for connection.
     return url;
   }
+
+  public String getProtocol(final String url) {
+    final int index = url.indexOf("//");
+    if (index < 0) {
+      throw new IllegalArgumentException(
+          Messages.get(
+              "ConnectionUrlParser.protocolNotFound",
+              new Object[] {url}));
+    }
+    return url.substring(0, index + 2);
+  }
 }
