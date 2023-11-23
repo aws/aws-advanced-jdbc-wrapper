@@ -29,6 +29,14 @@ import software.amazon.jdbc.util.Messages;
 
 public class TargetDriverHelper {
 
+  /**
+   * The method returns a driver for specified url. If driver couldn't be found,
+   * the method tries to identify a driver that corresponds to an url and register it.
+   * Registration of the driver could be disabled by provided configuration properties.
+   * If driver couldn't be found and couldn't be registered, the method raises an exception.
+   *
+   * @throws SQLException when a driver couldn't be found.
+   */
   public java.sql.Driver getTargetDriver(
       final @NonNull String driverUrl,
       final @NonNull Properties props)
@@ -41,15 +49,19 @@ public class TargetDriverHelper {
     java.sql.Driver targetDriver = null;
     SQLException lastException = null;
 
+    // Try to get a driver that can handle this url.
     try {
       targetDriver = DriverManager.getDriver(driverUrl);
     } catch (SQLException e) {
       lastException = e;
     }
 
+    // If the driver isn't found, it's possible to register a driver that corresponds to the protocol
+    // and try again.
     if (targetDriver == null) {
       boolean triedToRegister = targetDriverDialectManager.registerDriver(protocol, props);
       if (triedToRegister) {
+        // There was an attempt to register a corresponding to the protocol driver. Try to find the driver again.
         try {
           targetDriver = DriverManager.getDriver(driverUrl);
         } catch (SQLException e) {
@@ -58,6 +70,7 @@ public class TargetDriverHelper {
       }
     }
 
+    // The driver is not found yet. Let's raise an exception.
     if (targetDriver == null) {
       final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
           .stream()

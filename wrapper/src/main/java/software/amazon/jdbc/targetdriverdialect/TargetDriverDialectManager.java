@@ -140,16 +140,29 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
         new Object[] {dialectCode, targetDriverDialect}));
   }
 
+  /**
+   * Tries to identify a driver corresponded to provided protocol and register it.
+   * Driver registration may be disabled by provided configuration properties.
+   *
+   * @param protocol The protocol to identify a corresponding driver for registration.
+   * @param props The properties
+   * @return True, if a corresponding driver was found and registered.
+   *        False, otherwise.
+   * @throws SQLException when user provided invalid target driver dialect code,
+   *        or when provided protocol is not recognized.
+   */
   public boolean registerDriver(
       final @NonNull String protocol,
       final @NonNull Properties props) throws SQLException {
 
     if (!TARGET_DRIVER_AUTO_REGISTER.getBoolean(props)) {
+      // Driver auto-registration isn't allowed.
       return false;
     }
 
     TargetDriverDialect targetDriverDialect = null;
 
+    // Try to get a target driver dialect provided by the user.
     String dialectCode = TARGET_DRIVER_DIALECT.getString(props);
     if (!StringUtils.isNullOrEmpty(dialectCode)) {
       targetDriverDialect = knownDialectsByCode.get(dialectCode);
@@ -160,6 +173,8 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
       }
     }
 
+    // Target driver dialect isn't found (or it's not provided by the user).
+    // Try to find a dialect by provided protocol.
     if (targetDriverDialect == null) {
       targetDriverDialect = defaultDialectsByProtocol.get(protocol.toLowerCase());
       if (targetDriverDialect == null) {
@@ -169,6 +184,7 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
       }
     }
 
+    // Check if a driver associated with found dialect is registered. Register it if needed.
     if (!targetDriverDialect.isDriverRegistered()) {
       targetDriverDialect.registerDriver();
     }
