@@ -252,9 +252,9 @@ public class MonitorImpl implements Monitor {
           throw intEx;
         } catch (final Exception ex) {
           // log and ignore
-          if (LOGGER.isLoggable(Level.WARNING)) {
+          if (LOGGER.isLoggable(Level.FINEST)) {
             LOGGER.log(
-                Level.WARNING,
+                Level.FINEST,
                 Messages.get(
                    "MonitorImpl.exceptionDuringMonitoringContinue",
                     new Object[]{this.hostSpec.getHost()}),
@@ -270,9 +270,9 @@ public class MonitorImpl implements Monitor {
               new Object[] {this.hostSpec.getHost()}));
     } catch (final Exception ex) {
       // this should not be reached; log and exit thread
-      if (LOGGER.isLoggable(Level.WARNING)) {
+      if (LOGGER.isLoggable(Level.FINEST)) {
         LOGGER.log(
-            Level.WARNING,
+            Level.FINEST,
             Messages.get(
                 "MonitorImpl.exceptionDuringMonitoringStop",
                 new Object[]{this.hostSpec.getHost()}),
