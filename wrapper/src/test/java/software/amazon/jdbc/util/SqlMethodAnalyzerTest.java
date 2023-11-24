@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.util;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -142,6 +144,20 @@ class SqlMethodAnalyzerTest {
   void testIsMethodClosingSqlObject(final String methodName, final boolean expected) {
     final boolean actual = sqlMethodAnalyzer.isMethodClosingSqlObject(methodName);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void testEmptySqlQueryDoesNotThrowIndexOutOfBoundsException() {
+    assertAll(
+        () -> assertDoesNotThrow(() -> sqlMethodAnalyzer.doesOpenTransaction(conn, "execute", new String[]{""}),
+            "doesOpenTransaction should handle an empty SQL query"),
+        () -> assertDoesNotThrow(() -> sqlMethodAnalyzer.doesCloseTransaction(conn, "execute", new String[]{""}),
+            "doesCloseTransaction should handle an empty SQL query"),
+        () -> assertDoesNotThrow(() -> sqlMethodAnalyzer.isStatementSettingAutoCommit("execute", new String[]{""}),
+            "isStatementSettingAutoCommit should handle an empty SQL query"),
+        () -> assertDoesNotThrow(() -> sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(new String[]{""}),
+            "getAutoCommitValueFromSqlStatement should handle an empty SQL query")
+    );
   }
 
   private static Stream<Arguments> openTransactionQueries() {
