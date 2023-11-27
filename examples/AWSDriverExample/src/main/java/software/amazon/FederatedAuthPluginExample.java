@@ -35,14 +35,13 @@ public class FederatedAuthPluginExample {
 
     // Enable the AWS Federated Authentication Connection Plugin.
     properties.setProperty(PropertyDefinition.PLUGINS.name, "federatedAuth");
-    properties.setProperty(FederatedAuthPlugin.IDP_NAME.name, "adfs");
     properties.setProperty(FederatedAuthPlugin.IDP_ENDPOINT.name, "ec2amaz-ab3cdef.example.com");
     properties.setProperty(FederatedAuthPlugin.IAM_ROLE_ARN.name, "arn:aws:iam::123456789012:role/adfs_example_iam_role");
     properties.setProperty(FederatedAuthPlugin.IAM_IDP_ARN.name, "arn:aws:iam::123456789012:saml-provider/adfs_example");
     properties.setProperty(FederatedAuthPlugin.IAM_REGION.name, "us-east-2");
     properties.setProperty(FederatedAuthPlugin.IDP_USERNAME.name, "someFederatedUsername@example.com");
     properties.setProperty(FederatedAuthPlugin.IDP_PASSWORD.name, "somePassword");
-    properties.setProperty(PropertyDefinition.USER.name, "someIamUser");
+    properties.setProperty(FederatedAuthPlugin.DB_USER.name, "someIamUser");
 
     // Try and make a connection:
     try (final Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);
