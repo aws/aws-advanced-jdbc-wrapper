@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 
+import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -93,5 +94,14 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   public void registerDriver() throws SQLException {
     throw new SQLException(Messages.get("TargetDriverDialect.unsupported"));
+  }
+
+  @Override
+  public boolean ping(@NonNull Connection connection) {
+    try {
+      return connection.isValid(10); // 10s
+    } catch (SQLException e) {
+      return false;
+    }
   }
 }

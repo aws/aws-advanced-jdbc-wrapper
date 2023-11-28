@@ -16,8 +16,11 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
+import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -87,5 +90,17 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   public void registerDriver() throws SQLException {
     final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
     helper.registerDriver();
+  }
+
+  @Override
+  public boolean ping(@NonNull Connection connection) {
+    try {
+      try (final Statement statement = connection.createStatement();
+          final ResultSet resultSet = statement.executeQuery("/* ping */ SELECT 1")) {
+        return true;
+      }
+    } catch (SQLException e) {
+      return false;
+    }
   }
 }

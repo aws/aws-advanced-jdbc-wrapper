@@ -43,6 +43,7 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
+import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
@@ -75,6 +76,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
           put(AuroraStaleDnsPlugin.class, "plugin:auroraStaleDns");
           put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");
+          put(FastestResponseStrategyPlugin.class, "plugin:fastestResponseStrategy");
           put(DefaultConnectionPlugin.class, "plugin:targetDriver");
         }
       };

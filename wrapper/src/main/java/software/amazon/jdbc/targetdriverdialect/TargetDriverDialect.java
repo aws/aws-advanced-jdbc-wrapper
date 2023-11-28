@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 import javax.sql.DataSource;
@@ -41,4 +42,15 @@ public interface TargetDriverDialect {
   boolean isDriverRegistered() throws SQLException;
 
   void registerDriver() throws SQLException;
+
+  /**
+   * Attempts to communicate to a database node in order to measure network latency.
+   * Some database protocols may not support the simplest "ping" packet. In this case,
+   * it's recommended to execute a simple connection validation, or the simplest SQL
+   * query like "SELECT 1".
+   *
+   * @param connection The database connection to a node to ping.
+   * @return True, if operation is succeeded. False, otherwise.
+   */
+  boolean ping(final @NonNull Connection connection);
 }

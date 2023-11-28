@@ -41,8 +41,8 @@ import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
+import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
 import software.amazon.jdbc.profile.ConfigurationProfile;
-import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -71,6 +71,7 @@ public class ConnectionPluginChainBuilder {
           put("driverMetaData", DriverMetaDataConnectionPluginFactory.class);
           put("connectTime", ConnectTimeConnectionPluginFactory.class);
           put("dev", DeveloperConnectionPluginFactory.class);
+          put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
         }
       };
 
@@ -90,9 +91,10 @@ public class ConnectionPluginChainBuilder {
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(FailoverConnectionPluginFactory.class, 700);
           put(HostMonitoringConnectionPluginFactory.class, 800);
-          put(IamAuthConnectionPluginFactory.class, 900);
-          put(AwsSecretsManagerConnectionPluginFactory.class, 1000);
-          put(LogQueryConnectionPluginFactory.class, 1100);
+          put(FastestResponseStrategyPluginFactory.class, 900);
+          put(IamAuthConnectionPluginFactory.class, 1000);
+          put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
+          put(LogQueryConnectionPluginFactory.class, 1200);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
