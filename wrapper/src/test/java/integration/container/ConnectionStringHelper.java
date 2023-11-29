@@ -204,7 +204,7 @@ public class ConnectionStringHelper {
         PropertyDefinition.TELEMETRY_METRICS_BACKEND.name,
         features.contains(TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED) ? "otlp" : "none");
 
-    DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
+    props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");
 
     return props;
   }

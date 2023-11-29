@@ -1,18 +1,12 @@
-name: Run Aurora Integration Tests
+name: Run Aurora Mysql Advanced Performance Tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
-  all-integration-tests:
-    name: 'Run Aurora integration tests'
+  aurora-mysql-performance-tests:
+    concurrency: AvancedPerformanceTests-Aurora
+    name: 'Run Aurora MySQL container advanced performance tests'
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
@@ -43,26 +37,19 @@ jobs:
           echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
-      - name: Run integration tests
+      - name: 'Run performance tests (OpenJDK)'
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-aurora
+          ./gradlew --no-parallel --no-daemon test-aurora-mysql-advanced-performance
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-      - name: 'Archive junit results'
+      - name: 'Archive Performance Results'
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: junit-report
-          path: ./wrapper/build/test-results
-          retention-days: 5
-      - name: 'Archive html summary report'
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: html-summary-report
-          path: ./wrapper/build/report
+          name: 'performance-results'
+          path: ./wrapper/build/reports/tests/
           retention-days: 5

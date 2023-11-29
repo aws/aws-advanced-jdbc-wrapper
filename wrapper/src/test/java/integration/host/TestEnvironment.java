@@ -819,7 +819,8 @@ public class TestEnvironment implements AutoCloseable {
       containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
       assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
-      containerHelper.runTest(this.testContainer, taskName);
+      TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
+      containerHelper.runTest(this.testContainer, taskName, config.includeTags, config.excludeTags);
     }
   }
 
@@ -834,7 +835,8 @@ public class TestEnvironment implements AutoCloseable {
       containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
       assertEquals(0, exitCode, "Hibernate ORM tests failed");
     } else {
-      containerHelper.debugTest(this.testContainer, taskName);
+      TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
+      containerHelper.debugTest(this.testContainer, taskName, config.includeTags, config.excludeTags);
     }
   }
 

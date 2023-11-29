@@ -57,11 +57,23 @@ public class OpenTelemetryFactory implements TelemetryFactory {
   }
 
   public TelemetryCounter createCounter(String name) {
+    if (name == null) {
+      throw new IllegalArgumentException("name");
+    }
+    if (name.length() > 63) {
+      name = name.substring(0, 63);
+    }
     meter = getOpenTelemetry().getMeter(INSTRUMENTATION_NAME);
     return new OpenTelemetryCounter(meter, name);
   }
 
   public TelemetryGauge createGauge(String name, GaugeCallable<Long> callback) {
+    if (name == null) {
+      throw new IllegalArgumentException("name");
+    }
+    if (name.length() > 63) {
+      name = name.substring(0, 63);
+    }
     meter = getOpenTelemetry().getMeter(INSTRUMENTATION_NAME);
     return new OpenTelemetryGauge(meter, name, callback);
   }

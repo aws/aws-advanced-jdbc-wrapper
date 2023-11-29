@@ -62,6 +62,7 @@ public class ConnectionPluginChainBuilder {
           put("logQuery", LogQueryConnectionPluginFactory.class);
           put("dataCache", DataCacheConnectionPluginFactory.class);
           put("efm", HostMonitoringConnectionPluginFactory.class);
+          put("efm2", software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class);
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
@@ -91,6 +92,7 @@ public class ConnectionPluginChainBuilder {
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(FailoverConnectionPluginFactory.class, 700);
           put(HostMonitoringConnectionPluginFactory.class, 800);
+          put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
           put(IamAuthConnectionPluginFactory.class, 1000);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);

@@ -18,8 +18,10 @@ package integration.host;
 
 public class TestEnvironmentConfiguration {
 
-  public boolean noDocker = Boolean.parseBoolean(System.getProperty("test-no-docker", "false"));
-  public boolean noAurora = Boolean.parseBoolean(System.getProperty("test-no-aurora", "false"));
+  public boolean noDocker =
+      Boolean.parseBoolean(System.getProperty("test-no-docker", "false"));
+  public boolean noAurora =
+      Boolean.parseBoolean(System.getProperty("test-no-aurora", "false"));
   public boolean noPerformance =
       Boolean.parseBoolean(System.getProperty("test-no-performance", "false"));
   public boolean noMysqlEngine =
@@ -36,14 +38,39 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-mariadb-driver", "false"));
   public boolean noFailover =
       Boolean.parseBoolean(System.getProperty("test-no-failover", "false"));
-  public boolean noIam = Boolean.parseBoolean(System.getProperty("test-no-iam", "false"));
+  public boolean noIam =
+      Boolean.parseBoolean(System.getProperty("test-no-iam", "false"));
   public boolean noSecretsManager =
       Boolean.parseBoolean(System.getProperty("test-no-secrets-manager", "false"));
-  public boolean noHikari = Boolean.parseBoolean(System.getProperty("test-no-hikari", "false"));
-  public boolean noGraalVm = Boolean.parseBoolean(System.getProperty("test-no-graalvm", "false"));
-  public boolean noOpenJdk = Boolean.parseBoolean(System.getProperty("test-no-openjdk", "false"));
-  public boolean testHibernateOnly = Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
-  public boolean testAutoscalingOnly = Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
+  public boolean noHikari =
+      Boolean.parseBoolean(System.getProperty("test-no-hikari", "false"));
+  public boolean noGraalVm =
+      Boolean.parseBoolean(System.getProperty("test-no-graalvm", "false"));
+  public boolean noOpenJdk =
+      Boolean.parseBoolean(System.getProperty("test-no-openjdk", "false"));
+  public boolean noOpenJdk8 =
+      Boolean.parseBoolean(System.getProperty("test-no-openjdk8", "false"));
+  public boolean noOpenJdk11 =
+      Boolean.parseBoolean(System.getProperty("test-no-openjdk11", "false"));
+  public boolean testHibernateOnly =
+      Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
+  public boolean testAutoscalingOnly =
+      Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
+
+  public boolean noInstances1 =
+      Boolean.parseBoolean(System.getProperty("test-no-instances-1", "false"));
+  public boolean noInstances2 =
+      Boolean.parseBoolean(System.getProperty("test-no-instances-2", "false"));
+  public boolean noInstances5 =
+      Boolean.parseBoolean(System.getProperty("test-no-instances-5", "false"));
+
+  public boolean noTracesTelemetry =
+      Boolean.parseBoolean(System.getProperty("test-no-traces-telemetry", "false"));
+  public boolean noMetricsTelemetry =
+      Boolean.parseBoolean(System.getProperty("test-no-metrics-telemetry", "false"));
+
+  public String includeTags = System.getProperty("test-include-tags");
+  public String excludeTags = System.getProperty("test-exclude-tags");
 
   public String auroraDbRegion = System.getenv("AURORA_DB_REGION");
 

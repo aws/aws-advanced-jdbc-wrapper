@@ -64,7 +64,16 @@ tasks.withType<Test> {
     classpath += fileTree("./libs") { include("*.jar") } + project.files("./test")
     outputs.upToDateWhen { false }
 
-    useJUnitPlatform()
+    useJUnitPlatform {
+        System.getProperty("test-include-tags")?.split(",")?.forEach { tag ->
+            includeTags(tag)
+            println("Include tests with tag: $tag")
+        }
+        System.getProperty("test-exclude-tags")?.split(",")?.forEach { tag ->
+            excludeTags(tag)
+            println("Exclude tests with tag: $tag")
+        }
+    }
 
     testLogging {
         events(PASSED, FAILED, SKIPPED)
