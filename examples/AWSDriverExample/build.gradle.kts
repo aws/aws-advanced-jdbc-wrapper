@@ -19,11 +19,11 @@ dependencies {
     implementation("org.postgresql:postgresql:42.6.0")
     implementation("mysql:mysql-connector-java:8.0.33")
     implementation("software.amazon.awssdk:rds:2.21.11")
-    implementation("software.amazon.awssdk:secretsmanager:2.21.21")
+    implementation("software.amazon.awssdk:secretsmanager:2.21.31")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("io.opentelemetry:opentelemetry-api:1.32.0")
-    implementation("io.opentelemetry:opentelemetry-sdk:1.31.0")
+    implementation("io.opentelemetry:opentelemetry-sdk:1.32.0")
     implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.32.0")
     implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
 }

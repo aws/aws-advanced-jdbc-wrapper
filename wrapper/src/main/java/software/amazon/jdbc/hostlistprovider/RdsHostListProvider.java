@@ -509,7 +509,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         : this.hostListProviderService.getCurrentConnection();
 
     final FetchTopologyResult results = getTopology(currentConnection, false);
-    LOGGER.finest(() -> Utils.logTopology(results.hosts));
+    LOGGER.finest(() -> Utils.logTopology(results.hosts, results.isCachedData ? "[From cache] " : ""));
 
     this.hostList = results.hosts;
     return Collections.unmodifiableList(hostList);
