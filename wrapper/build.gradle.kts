@@ -34,7 +34,7 @@ dependencies {
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.16.0")
     compileOnly("mysql:mysql-connector-java:8.0.33")
     compileOnly("org.postgresql:postgresql:42.6.0")
-    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.3.0")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.3.1")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
@@ -54,7 +54,7 @@ dependencies {
     testImplementation("org.apache.commons:commons-dbcp2:2.11.0")
     testImplementation("org.postgresql:postgresql:42.6.0")
     testImplementation("mysql:mysql-connector-java:8.0.33")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.3.0")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.3.1")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
