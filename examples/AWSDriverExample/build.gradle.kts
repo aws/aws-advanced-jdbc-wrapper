@@ -19,7 +19,7 @@ dependencies {
     implementation("org.postgresql:postgresql:42.6.0")
     implementation("mysql:mysql-connector-java:8.0.33")
     implementation("software.amazon.awssdk:rds:2.21.38")
-    implementation("software.amazon.awssdk:secretsmanager:2.21.38")
+    implementation("software.amazon.awssdk:secretsmanager:2.21.42")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("io.opentelemetry:opentelemetry-api:1.32.0")
