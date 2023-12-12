@@ -27,7 +27,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 
 public class ConnectionUrlParser {
 
@@ -90,23 +89,30 @@ public class ConnectionUrlParser {
 
   private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole,
       final HostSpecBuilder hostSpecBuilder) {
+    HostSpec hostSpec;
+    String hostId = rdsUtils.getRdsInstanceId(hostPortPair[0]);
+
     if (hostPortPair.length > 1) {
       final String[] port = hostPortPair[1].split("/");
       int portValue = parsePortAsInt(hostPortPair[1]);
       if (port.length > 1) {
         portValue = parsePortAsInt(port[0]);
       }
-      return hostSpecBuilder
+      hostSpec = hostSpecBuilder
           .host(hostPortPair[0])
           .port(portValue)
           .role(hostRole)
           .build();
+      hostSpec.setHostId(hostId);
+      return hostSpec;
     }
-    return hostSpecBuilder
+    hostSpec = hostSpecBuilder
         .host(hostPortPair[0])
         .port(HostSpec.NO_PORT)
         .role(hostRole)
         .build();
+    hostSpec.setHostId(hostId);
+    return hostSpec;
   }
 
   private static int parsePortAsInt(final String port) {
