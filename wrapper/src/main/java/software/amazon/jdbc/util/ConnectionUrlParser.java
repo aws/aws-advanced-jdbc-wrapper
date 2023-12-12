@@ -89,7 +89,6 @@ public class ConnectionUrlParser {
 
   private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole,
       final HostSpecBuilder hostSpecBuilder) {
-    HostSpec hostSpec;
     String hostId = rdsUtils.getRdsInstanceId(hostPortPair[0]);
 
     if (hostPortPair.length > 1) {
@@ -98,21 +97,19 @@ public class ConnectionUrlParser {
       if (port.length > 1) {
         portValue = parsePortAsInt(port[0]);
       }
-      hostSpec = hostSpecBuilder
+      return hostSpecBuilder
           .host(hostPortPair[0])
           .port(portValue)
+          .hostId(hostId)
           .role(hostRole)
           .build();
-      hostSpec.setHostId(hostId);
-      return hostSpec;
     }
-    hostSpec = hostSpecBuilder
+    return hostSpecBuilder
         .host(hostPortPair[0])
         .port(HostSpec.NO_PORT)
+        .hostId(hostId)
         .role(hostRole)
         .build();
-    hostSpec.setHostId(hostId);
-    return hostSpec;
   }
 
   private static int parsePortAsInt(final String port) {
