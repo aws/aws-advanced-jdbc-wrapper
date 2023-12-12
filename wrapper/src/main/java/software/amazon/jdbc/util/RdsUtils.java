@@ -18,6 +18,7 @@ package software.amazon.jdbc.util;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class RdsUtils {
 
@@ -141,6 +142,8 @@ public class RdsUtils {
       Pattern.compile(
           "^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)"
               + "::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$");
+
+  private static final String INSTANCE_GROUP = "instance";
   private static final String DNS_GROUP = "dns";
   private static final String DOMAIN_GROUP = "domain";
   private static final String REGION_GROUP = "region";
@@ -176,6 +179,21 @@ public class RdsUtils {
   public boolean isElbUrl(final String host) {
     return !StringUtils.isNullOrEmpty(host)
         && (ELB_PATTERN.matcher(host).find());
+  }
+
+  public @Nullable String getRdsInstanceId(final String host) {
+    if (StringUtils.isNullOrEmpty(host)) {
+      return null;
+    }
+    final Matcher matcher = AURORA_INSTANCE_PATTERN.matcher(host);
+    if (matcher.find()) {
+      return matcher.group(INSTANCE_GROUP);
+    }
+    final Matcher matcherChina = AURORA_CHINA_INSTANCE_PATTERN.matcher(host);
+    if (matcherChina.find()) {
+      return matcherChina.group(INSTANCE_GROUP);
+    }
+    return null;
   }
 
   public String getRdsInstanceHostPattern(final String host) {
