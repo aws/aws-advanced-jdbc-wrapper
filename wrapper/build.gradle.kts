@@ -75,7 +75,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-api:1.32.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.32.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.32.0")
-    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.32.0")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.33.0")
 }
 
 repositories {
