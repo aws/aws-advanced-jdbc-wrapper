@@ -21,10 +21,10 @@ import java.time.Instant;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
-import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 public class HostSpecBuilder {
   private String host;
+  private String hostId;
   private int port = HostSpec.NO_PORT;
   private HostAvailability availability = HostAvailability.AVAILABLE;
   private HostRole role = HostRole.WRITER;
@@ -39,6 +39,7 @@ public class HostSpecBuilder {
   public HostSpecBuilder(HostSpecBuilder hostSpecBuilder) {
     this.host = hostSpecBuilder.host;
     this.port = hostSpecBuilder.port;
+    this.hostId = hostSpecBuilder.hostId;
     this.availability = hostSpecBuilder.availability;
     this.role = hostSpecBuilder.role;
     this.weight = hostSpecBuilder.weight;
@@ -53,6 +54,11 @@ public class HostSpecBuilder {
 
   public HostSpecBuilder port(int port) {
     this.port = port;
+    return this;
+  }
+
+  public HostSpecBuilder hostId(String hostId) {
+    this.hostId = hostId;
     return this;
   }
 
@@ -84,8 +90,8 @@ public class HostSpecBuilder {
   public HostSpec build() {
     checkHostIsSet();
     setDefaultLastUpdateTime();
-    return new HostSpec(this.host, this.port, this.role, this.availability, this.weight, this.lastUpdateTime,
-        this.hostAvailabilityStrategy);
+    return new HostSpec(this.host, this.port, this.hostId, this.role, this.availability,
+        this.weight, this.lastUpdateTime, this.hostAvailabilityStrategy);
   }
 
   private void checkHostIsSet() {
