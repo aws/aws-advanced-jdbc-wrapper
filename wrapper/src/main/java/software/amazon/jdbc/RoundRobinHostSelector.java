@@ -107,27 +107,26 @@ public class RoundRobinHostSelector implements HostSelector {
       final @NonNull List<HostSpec> hosts,
       final @Nullable Properties props)
       throws SQLException {
-    final List<HostSpec> hostsMissingCacheEntry = new ArrayList<>();
     final List<HostSpec> hostsWithCacheEntry = new ArrayList<>();
     for (final HostSpec host : hosts) {
       if (roundRobinCache.get(host.getHost()) != null) {
         hostsWithCacheEntry.add(host);
-      } else {
-        hostsMissingCacheEntry.add(host);
       }
     }
 
-    if ((hostsMissingCacheEntry.isEmpty() && !hostsWithCacheEntry.isEmpty())) {
+    // If there is a host with an existing entry, update the cache entries for all hosts to point each to the same
+    // RoundRobinClusterInfo object. If there are no cache entries, create a new RoundRobinClusterInfo.
+    if (!hostsWithCacheEntry.isEmpty()) {
       for (final HostSpec host : hosts) {
         roundRobinCache.put(
             host.getHost(),
             roundRobinCache.get(hostsWithCacheEntry.get(0).getHost()),
             DEFAULT_ROUND_ROBIN_CACHE_EXPIRE_NANO);
       }
-    } else if (hostsWithCacheEntry.isEmpty()) {
+    } else {
       final RoundRobinClusterInfo roundRobinClusterInfo = new RoundRobinClusterInfo();
       updateCachePropertiesForRoundRobinClusterInfo(roundRobinClusterInfo, props);
-      for (final HostSpec host : hostsMissingCacheEntry) {
+      for (final HostSpec host : hosts) {
         roundRobinCache.put(
             host.getHost(),
             roundRobinClusterInfo,
