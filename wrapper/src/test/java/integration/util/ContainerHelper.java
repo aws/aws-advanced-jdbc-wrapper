@@ -26,6 +26,7 @@ import com.github.dockerjava.api.exception.DockerException;
 import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.TestInstanceInfo;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.testcontainers.DockerClientFactory;
@@ -89,25 +90,59 @@ public class ContainerHelper {
 
   public void runTest(GenericContainer<?> container, String task)
       throws IOException, InterruptedException {
+    runTest(container, task, null, null);
+  }
+
+  public void runTest(GenericContainer<?> container, String task, String includeTags, String excludeTags)
+      throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer(true);
     execInContainer(container, consumer, "printenv", "TEST_ENV_DESCRIPTION");
     execInContainer(container, consumer, "java", "-version");
-    Long exitCode =
-        execInContainer(container, consumer, "./gradlew", task, "--no-parallel", "--no-daemon");
+
+    ArrayList<String> commands = new ArrayList<>();
+    commands.add("./gradlew");
+    commands.add(task);
+    commands.add("--no-parallel");
+    commands.add("--no-daemon");
+    if (!StringUtils.isNullOrEmpty(includeTags)) {
+      commands.add(String.format("-Dtest-include-tags=%s", includeTags.replaceAll(" ", "")));
+    }
+    if (!StringUtils.isNullOrEmpty(excludeTags)) {
+      commands.add(String.format("-Dtest-exclude-tags=%s", excludeTags.replaceAll(" ", "")));
+    }
+
+    Long exitCode = execInContainer(container, consumer, commands.toArray(new String[0]));
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
   }
 
   public void debugTest(GenericContainer<?> container, String task)
       throws IOException, InterruptedException {
+    debugTest(container, task, null, null);
+  }
+
+  public void debugTest(GenericContainer<?> container, String task, String includeTags, String excludeTags)
+      throws IOException, InterruptedException {
     System.out.println("==== Container console feed ==== >>>>");
     Consumer<OutputFrame> consumer = new ConsoleConsumer();
     execInContainer(container, consumer, "printenv", "TEST_ENV_DESCRIPTION");
     execInContainer(container, consumer, "java", "-version");
-    Long exitCode =
-        execInContainer(
-            container, consumer, "./gradlew", task, "--debug-jvm", "--no-parallel", "--no-daemon");
+
+    ArrayList<String> commands = new ArrayList<>();
+    commands.add("./gradlew");
+    commands.add(task);
+    commands.add("--debug-jvm");
+    commands.add("--no-parallel");
+    commands.add("--no-daemon");
+    if (!StringUtils.isNullOrEmpty(includeTags)) {
+      commands.add(String.format("-Dtest-include-tags=%s", includeTags.replaceAll(" ", "")));
+    }
+    if (!StringUtils.isNullOrEmpty(excludeTags)) {
+      commands.add(String.format("-Dtest-exclude-tags=%s", excludeTags.replaceAll(" ", "")));
+    }
+
+    Long exitCode = execInContainer(container, consumer, commands.toArray(new String[0]));
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");
   }

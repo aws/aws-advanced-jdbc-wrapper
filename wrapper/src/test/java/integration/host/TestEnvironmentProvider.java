@@ -52,365 +52,106 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
     preCreateInfos.clear();
     ArrayList<TestTemplateInvocationContext> resultContextList = new ArrayList<>();
 
-    final boolean noDocker = Boolean.parseBoolean(System.getProperty("test-no-docker", "false"));
-    final boolean noAurora = Boolean.parseBoolean(System.getProperty("test-no-aurora", "false"));
-    final boolean noPerformance =
-        Boolean.parseBoolean(System.getProperty("test-no-performance", "false"));
-    final boolean noMysqlEngine =
-        Boolean.parseBoolean(System.getProperty("test-no-mysql-engine", "false"));
-    final boolean noMysqlDriver =
-        Boolean.parseBoolean(System.getProperty("test-no-mysql-driver", "false"));
-    final boolean noPgEngine =
-        Boolean.parseBoolean(System.getProperty("test-no-pg-engine", "false"));
-    final boolean noPgDriver =
-        Boolean.parseBoolean(System.getProperty("test-no-pg-driver", "false"));
-    final boolean noMariadbEngine =
-        Boolean.parseBoolean(System.getProperty("test-no-mariadb-engine", "false"));
-    final boolean noMariadbDriver =
-        Boolean.parseBoolean(System.getProperty("test-no-mariadb-driver", "false"));
-    final boolean noFailover =
-        Boolean.parseBoolean(System.getProperty("test-no-failover", "false"));
-    final boolean noIam = Boolean.parseBoolean(System.getProperty("test-no-iam", "false"));
-    final boolean noSecretsManager =
-        Boolean.parseBoolean(System.getProperty("test-no-secrets-manager", "false"));
-    final boolean noHikari = Boolean.parseBoolean(System.getProperty("test-no-hikari", "false"));
-    final boolean noGraalVm = Boolean.parseBoolean(System.getProperty("test-no-graalvm", "false"));
-    final boolean noOpenJdk = Boolean.parseBoolean(System.getProperty("test-no-openjdk", "false"));
-    final boolean testHibernateOnly = Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
-    final boolean testAutoscalingOnly = Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
-    final boolean noTracesTelemetry = Boolean.parseBoolean(System.getProperty("test-no-traces-telemetry", "false"));
-    final boolean noMetricsTelemetry = Boolean.parseBoolean(System.getProperty("test-no-metrics-telemetry", "false"));
+    TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
 
-    if (!noDocker) {
-      if (!noMysqlEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MYSQL,
-                    DatabaseInstances.SINGLE_INSTANCE,
-                    1,
-                    DatabaseEngineDeployment.DOCKER,
-                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
+    for (DatabaseEngineDeployment deployment : DatabaseEngineDeployment.values()) {
+      if (deployment == DatabaseEngineDeployment.DOCKER && config.noDocker) {
+        continue;
       }
-      if (!noPgEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.PG,
-                    DatabaseInstances.SINGLE_INSTANCE,
-                    1,
-                    DatabaseEngineDeployment.DOCKER,
-                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
+      if (deployment == DatabaseEngineDeployment.AURORA && config.noAurora) {
+        continue;
       }
-      if (!noMariadbEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MARIADB,
-                    DatabaseInstances.SINGLE_INSTANCE,
-                    1,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noMysqlEngine && !noGraalVm) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MYSQL,
-                    DatabaseInstances.SINGLE_INSTANCE,
-                    1,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.GRAALVM,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noPgEngine && !noGraalVm) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.PG,
-                    DatabaseInstances.SINGLE_INSTANCE,
-                    1,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.GRAALVM,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noMariadbEngine && !noGraalVm) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MARIADB,
-                    DatabaseInstances.SINGLE_INSTANCE,
-                    1,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.GRAALVM,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
+      if (deployment == DatabaseEngineDeployment.RDS) {
+        // Not in use.
+        continue;
       }
 
-      // multiple instances
+      for (DatabaseEngine engine : DatabaseEngine.values()) {
+        if (engine == DatabaseEngine.PG && config.noPgEngine) {
+          continue;
+        }
+        if (engine == DatabaseEngine.MYSQL && config.noMysqlEngine) {
+          continue;
+        }
+        if (engine == DatabaseEngine.MARIADB && config.noMariadbEngine) {
+          continue;
+        }
 
-      if (!noMysqlEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MYSQL,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.DOCKER,
-                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noPgEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.PG,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.DOCKER,
-                    testHibernateOnly ? TargetJvm.OPENJDK11 : TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noMariadbEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MARIADB,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noMysqlEngine && !noGraalVm) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MYSQL,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.GRAALVM,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noPgEngine && !noGraalVm) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.PG,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.GRAALVM,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-      if (!noMariadbEngine && !noGraalVm) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MARIADB,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.DOCKER,
-                    TargetJvm.GRAALVM,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED,
-                    // AWS credentials are required for XRay telemetry
-                    noTracesTelemetry && noMetricsTelemetry ? null : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED)));
-      }
-    }
+        for (DatabaseInstances instances : DatabaseInstances.values()) {
+          if (deployment == DatabaseEngineDeployment.DOCKER
+              && instances != DatabaseInstances.SINGLE_INSTANCE) {
+            continue;
+          }
 
-    if (!noAurora) {
-      if (!noMysqlEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MYSQL,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    5,
-                    DatabaseEngineDeployment.AURORA,
-                    TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                    TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                    noIam ? null : TestEnvironmentFeatures.IAM,
-                    noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)));
+          for (int numOfInstances : Arrays.asList(1, 2, 5)) {
+            if (instances == DatabaseInstances.SINGLE_INSTANCE && numOfInstances > 1) {
+              continue;
+            }
+            if (instances == DatabaseInstances.MULTI_INSTANCE && numOfInstances == 1) {
+              continue;
+            }
+            if (numOfInstances == 1 && config.noInstances1) {
+              continue;
+            }
+            if (numOfInstances == 2 && config.noInstances2) {
+              continue;
+            }
+            if (numOfInstances == 5 && config.noInstances5) {
+              continue;
+            }
 
-        // Tests for HIKARI, IAM, SECRETS_MANAGER and PERFORMANCE are covered by
-        // cluster configuration above, so it's safe to skip these tests for configurations below.
-        // The main goal of the following cluster configurations is to check failover.
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.MYSQL,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.AURORA,
-                    TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                    TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)));
-      }
-      if (!noPgEngine && !noOpenJdk) {
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.PG,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    5,
-                    DatabaseEngineDeployment.AURORA,
-                    TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                    TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                    noIam ? null : TestEnvironmentFeatures.IAM,
-                    noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
-                    noHikari ? null : TestEnvironmentFeatures.HIKARI,
-                    noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)));
+            for (TargetJvm jvm : TargetJvm.values()) {
+              if ((jvm == TargetJvm.OPENJDK8 || jvm == TargetJvm.OPENJDK11) && config.noOpenJdk) {
+                continue;
+              }
+              if (jvm == TargetJvm.OPENJDK8 && config.noOpenJdk8) {
+                continue;
+              }
+              if (jvm == TargetJvm.OPENJDK11 && config.noOpenJdk11) {
+                continue;
+              }
+              if (jvm != TargetJvm.OPENJDK11 && config.testHibernateOnly) {
+                // Run hibernate tests with OPENJDK11 only.
+                continue;
+              }
+              if (jvm == TargetJvm.GRAALVM && config.noGraalVm) {
+                continue;
+              }
 
-        // Tests for HIKARI, IAM, SECRETS_MANAGER and PERFORMANCE are covered by
-        // cluster configuration above, so it's safe to skip these tests for configurations below.
-        // The main goal of the following cluster configurations is to check failover.
-        resultContextList.add(
-            getEnvironment(
-                new TestEnvironmentRequest(
-                    DatabaseEngine.PG,
-                    DatabaseInstances.MULTI_INSTANCE,
-                    2,
-                    DatabaseEngineDeployment.AURORA,
-                    TargetJvm.OPENJDK8,
-                    TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
-                    noFailover ? null : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                    TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
-                    noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
-                    noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
-                    noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
-                    testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
-                    noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
-                    noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)));
+
+              resultContextList.add(
+                  getEnvironment(
+                      new TestEnvironmentRequest(
+                          engine,
+                          instances,
+                          instances == DatabaseInstances.SINGLE_INSTANCE ? 1 : numOfInstances,
+                          deployment,
+                          jvm,
+                          TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
+                          deployment == DatabaseEngineDeployment.DOCKER
+                              && config.noTracesTelemetry
+                              && config.noMetricsTelemetry
+                              ? null
+                              : TestEnvironmentFeatures.AWS_CREDENTIALS_ENABLED,
+                          deployment == DatabaseEngineDeployment.DOCKER || config.noFailover
+                              ? null
+                              : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
+                          deployment == DatabaseEngineDeployment.DOCKER || config.noIam
+                              ? null
+                              : TestEnvironmentFeatures.IAM,
+                          config.noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,
+                          config.noHikari ? null : TestEnvironmentFeatures.HIKARI,
+                          config.noPerformance ? null : TestEnvironmentFeatures.PERFORMANCE,
+                          config.noMysqlDriver ? TestEnvironmentFeatures.SKIP_MYSQL_DRIVER_TESTS : null,
+                          config.noPgDriver ? TestEnvironmentFeatures.SKIP_PG_DRIVER_TESTS : null,
+                          config.noMariadbDriver ? TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS : null,
+                          config.testHibernateOnly ? TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY : null,
+                          config.testAutoscalingOnly ? TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY : null,
+                          config.noTracesTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_TRACES_ENABLED,
+                          config.noMetricsTelemetry ? null : TestEnvironmentFeatures.TELEMETRY_METRICS_ENABLED)));
+            }
+          }
+        }
       }
     }
 
