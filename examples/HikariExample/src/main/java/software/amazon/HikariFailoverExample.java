@@ -50,6 +50,12 @@ public class HikariFailoverExample {
       ds.addDataSourceProperty("serverPort", "5432");
       ds.addDataSourceProperty("database", DATABASE_NAME);
 
+      // Alternatively, the AwsWrapperDataSource can be configured with a JDBC URL instead of individual properties as
+      // seen above.
+      ds.addDataSourceProperty(
+          "jdbcUrl",
+          "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres");
+
       // The failover plugin throws failover-related exceptions that need to be handled explicitly by HikariCP,
       // otherwise connections will be closed immediately after failover. Set `ExceptionOverrideClassName` to provide
       // a custom exception class.

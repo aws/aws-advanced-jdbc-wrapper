@@ -64,6 +64,9 @@ To use the AWS JDBC Driver with a connection pool, you must:
    ds.addDataSourceProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
    ds.addDataSourceProperty("serverPort", "5432");
    ds.addDataSourceProperty("database", "postgres");
+   
+   // Alternatively, the AwsWrapperDataSource can be configured with a JDBC URL instead of individual properties as seen above.
+   ds.addDataSourceProperty("jdbcUrl", "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres");
    ```
 
 4. Set the driver-specific datasource:
@@ -79,7 +82,7 @@ To use the AWS JDBC Driver with a connection pool, you must:
    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
    ```
 
-> **:warning:Note:** HikariCP supports either DataSource-based configuration or DriverManager-based configuration by specifying the `dataSourceClassName` or the `jdbcUrl`. When using the `AwsWrapperDataSource` you must specify the `dataSourceClassName`, therefore `HikariDataSource.setJdbcUrl` is not supported. For more information see HikariCP's [documentation](https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby).
+> **:warning:Note:** HikariCP supports either DataSource-based configuration or DriverManager-based configuration by specifying the `dataSourceClassName` or the `jdbcUrl`. When using the `AwsWrapperDataSource` you must specify the `dataSourceClassName`, and the  `HikariDataSource.setJdbcUrl` method should not be used. For more information see HikariCP's [documentation](https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby).
 
 ### Examples
 See [here](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java) for a simple AWS Driver Datasource example.
