@@ -25,6 +25,14 @@ public class OpenTelemetryFactory implements TelemetryFactory {
 
   private static final String INSTRUMENTATION_NAME = "aws-advanced-jdbc-wrapper";
 
+  /**
+   * Max allowed name length for counters and gauges.
+   *
+   * @see
+   * <a href="https://opentelemetry.io/docs/specs/otel/metrics/api/#:~:text=It%20can%20have%20a%20maximum%20length%20of%2063%20characters">More details</a>
+   */
+  private static final int NAME_MAX_LENGTH = 63;
+
   private static OpenTelemetry openTelemetry;
   private static Tracer tracer;
   private static Meter meter;
@@ -60,22 +68,19 @@ public class OpenTelemetryFactory implements TelemetryFactory {
     if (name == null) {
       throw new IllegalArgumentException("name");
     }
-    if (name.length() > 63) {
-      name = name.substring(0, 63);
-    }
     meter = getOpenTelemetry().getMeter(INSTRUMENTATION_NAME);
-    return new OpenTelemetryCounter(meter, name);
+    return new OpenTelemetryCounter(meter, trimName(name));
   }
 
   public TelemetryGauge createGauge(String name, GaugeCallable<Long> callback) {
     if (name == null) {
       throw new IllegalArgumentException("name");
     }
-    if (name.length() > 63) {
-      name = name.substring(0, 63);
-    }
     meter = getOpenTelemetry().getMeter(INSTRUMENTATION_NAME);
-    return new OpenTelemetryGauge(meter, name, callback);
+    return new OpenTelemetryGauge(meter, trimName(name), callback);
   }
 
+  private String trimName(final String name) {
+    return (name.length() > NAME_MAX_LENGTH) ? name.substring(0, NAME_MAX_LENGTH) : name;
+  }
 }

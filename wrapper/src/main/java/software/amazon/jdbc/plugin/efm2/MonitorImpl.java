@@ -21,6 +21,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -34,6 +35,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -110,20 +112,20 @@ public class MonitorImpl implements Monitor {
     this.failureDetectionCount = failureDetectionCount;
     this.abortedConnectionsCounter = abortedConnectionsCounter;
 
-    final String nodeId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
+    final String hostId = StringUtils.isNullOrEmpty(this.hostSpec.getHostId())
         ? this.hostSpec.getHost()
         : this.hostSpec.getHostId();
 
     this.newContextsSizeGauge = telemetryFactory.createGauge(
-        String.format("efm2.newContexts.size.%s", nodeId),
+        String.format("efm2.newContexts.size.%s", hostId),
         this::getActiveContextSize);
 
     this.activeContextsSizeGauge = telemetryFactory.createGauge(
-        String.format("efm2.activeContexts.size.%s", nodeId),
+        String.format("efm2.activeContexts.size.%s", hostId),
         () -> (long) this.activeContexts.size());
 
     this.nodeHealtyGauge = telemetryFactory.createGauge(
-        String.format("efm2.nodeHealthy.%s", nodeId),
+        String.format("efm2.nodeHealthy.%s", hostId),
         () -> this.nodeUnhealthy ? 0L : 1L);
 
     this.threadPool.submit(this::newContextRun); // task to handle new contexts
@@ -133,7 +135,7 @@ public class MonitorImpl implements Monitor {
 
   @Override
   public boolean canDispose() {
-    return this.activeContexts.size() == 0;
+    return this.activeContexts.isEmpty();
   }
 
   @Override
@@ -150,9 +152,7 @@ public class MonitorImpl implements Monitor {
   }
 
   protected long getActiveContextSize() {
-    return this.newContexts.values().stream()
-        .map(x -> (long) x.size())
-        .reduce(0L, Long::sum);
+    return this.newContexts.values().stream().mapToLong(java.util.Collection::size).sum();
   }
 
   @Override
@@ -197,7 +197,7 @@ public class MonitorImpl implements Monitor {
 
         final long currentTimeNano = this.getCurrentTimeNano();
 
-        ArrayList<Long> processedKeys = new ArrayList<>();
+        final ArrayList<Long> processedKeys = new ArrayList<>();
         this.newContexts.entrySet().stream()
             // Get entries with key (that is a time in nanos) less or equal than current time.
             .filter(entry -> entry.getKey() < currentTimeNano)
@@ -205,8 +205,8 @@ public class MonitorImpl implements Monitor {
               final Queue<WeakReference<MonitorConnectionContext>> queue = entry.getValue();
               processedKeys.add(entry.getKey());
               // Each value of found entry is a queue of monitoring contexts awaiting active monitoring.
-              // Add all contexts to a active monitoring contexts queue.
-              // Ignore contexts that already been disposed.
+              // Add all contexts to an active monitoring contexts queue.
+              // Ignore disposed contexts.
               WeakReference<MonitorConnectionContext> contextWeakRef;
               while ((contextWeakRef = queue.poll()) != null) {
                 MonitorConnectionContext context = contextWeakRef.get();
@@ -257,41 +257,39 @@ public class MonitorImpl implements Monitor {
         this.updateNodeHealthStatus(isValid, statusCheckStartTimeNano, statusCheckEndTimeNano);
 
         if (this.nodeUnhealthy) {
-          // Kill all connections.
-          WeakReference<MonitorConnectionContext> monitorContextWeakRef;
-          while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
-            if (this.stopped.get()) {
-              break;
-            }
-            MonitorConnectionContext monitorContext = monitorContextWeakRef.get();
-            if (monitorContext != null) {
-              monitorContext.setNodeUnhealthy(true);
-              final Connection connectionToAbort = monitorContext.getConnection();
-              monitorContext.setInactive();
-              if (connectionToAbort != null) {
-                this.abortConnection(connectionToAbort);
-                this.abortedConnectionsCounter.inc();
-              }
-            }
-          }
-        } else {
-          // Remove inactive contexts from the queue
-          ArrayList<WeakReference<MonitorConnectionContext>> tmpActiveContexts = new ArrayList<>();
-          WeakReference<MonitorConnectionContext> monitorContextWeakRef;
-          while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
-            if (this.stopped.get()) {
-              break;
-            }
-            MonitorConnectionContext monitorContext = monitorContextWeakRef.get();
-            if (monitorContext != null && monitorContext.isActive()) {
-              tmpActiveContexts.add(monitorContextWeakRef);
-            }
+          this.pluginService.setAvailability(this.hostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
+        }
+
+        final List<WeakReference<MonitorConnectionContext>> tmpActiveContexts = new ArrayList<>();
+        WeakReference<MonitorConnectionContext> monitorContextWeakRef;
+
+        while ((monitorContextWeakRef = this.activeContexts.poll()) != null) {
+          if (this.stopped.get()) {
+            break;
           }
 
-          // activeContexts is empty now and tmpActiveContexts contains all yet active contexts
-          // Add active contexts back to the queue.
-          this.activeContexts.addAll(tmpActiveContexts);
+          MonitorConnectionContext monitorContext = monitorContextWeakRef.get();
+          if (monitorContext == null) {
+            continue;
+          }
+
+          if (this.nodeUnhealthy) {
+            // Kill connection.
+            monitorContext.setNodeUnhealthy(true);
+            final Connection connectionToAbort = monitorContext.getConnection();
+            monitorContext.setInactive();
+            if (connectionToAbort != null) {
+              this.abortConnection(connectionToAbort);
+              this.abortedConnectionsCounter.inc();
+            }
+          } else if (monitorContext.isActive()) {
+            tmpActiveContexts.add(monitorContextWeakRef);
+          }
         }
+
+        // activeContexts is empty now and tmpActiveContexts contains all yet active contexts
+        // Add active contexts back to the queue.
+        this.activeContexts.addAll(tmpActiveContexts);
 
         TimeUnit.NANOSECONDS.sleep(this.failureDetectionIntervalNano);
       }
@@ -321,7 +319,7 @@ public class MonitorImpl implements Monitor {
   }
 
   /**
-   * Check the status of the monitored server by sending a ping.
+   * Check the status of the monitored server by establishing a connection and sending a ping.
    *
    * @return True, if the server is still alive.
    */

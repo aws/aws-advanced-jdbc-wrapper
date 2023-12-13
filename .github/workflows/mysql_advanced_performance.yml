@@ -5,7 +5,7 @@ on:
 
 jobs:
   aurora-mysql-performance-tests:
-    concurrency: AvancedPerformanceTests-Aurora
+    concurrency: AdvancedPerformanceTests-Aurora
     name: 'Run Aurora MySQL container advanced performance tests'
     runs-on: ubuntu-latest
     steps:

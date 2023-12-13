@@ -33,7 +33,7 @@ public class MonitorConnectionContext {
   /**
    * Constructor.
    *
-   * @param connectionToAbort              A reference to the connection associated with this context that will
+   * @param connectionToAbort A reference to the connection associated with this context that will be aborted.
    */
   public MonitorConnectionContext(final Connection connectionToAbort) {
     this.connectionToAbortRef = new AtomicReference<>(new WeakReference<>(connectionToAbort));

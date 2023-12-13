@@ -73,14 +73,20 @@ properties.setProperty("monitoring-socketTimeout", "10");
 >
 > Although using RDS Proxy endpoints with the AWS Advanced JDBC Driver with Enhanced Failure Monitoring doesn't cause any critical issues, we don't recommend this approach. The main reason is that RDS Proxy transparently re-routes requests to a single database instance. RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). Switching between different instances makes the Host Monitoring Connection Plugin useless in terms of instance health monitoring because the plugin will be unable to identify which instance it's connected to, and which one it's monitoring. This could result in false positive failure detections. At the same time, the plugin will still proactively monitor network connectivity to RDS Proxy endpoints and report outages back to a user application if they occur.
 
-# Host Monitoring Plugin v2
-This plugin is an alternative implementation of host health status monitoring and it's functionally equal to Host Monitoring Plugin described above. Both plugins share the same set of configuration parameters as mentioned above. `efm2` plugin could be used in any scenarios where `efm` plugin is mentioned. Since these two plugin are two different plugins, user may decide to use them together within a single connection. Such usage won't suppose to make any negative side effects. However, it's not recommended. It's recommended to use either `efm` plugin, or `efm2` plugin where it's needed. 
+# **Experimental** Host Monitoring Plugin v2
 
-`efm2` plugin is designed to address some of the issue that have been reported by multiple users:
-- Use of weak pointers to ease GC
+> [!WARNING] This plugin is experimental and users should test the plugin before using it in production environment.
+
+Host Monitoring Plugin v2, also known as `efm2`, is an alternative implementation of enhanced failure monitoring and it is functionally equal to the Host Monitoring Plugin described above. Both plugins share the same set of [configuration parameters](#enhanced-failure-monitoring-parameters). The `efm2` plugin is designed to be a drop-in replacement for the `efm` plugin.
+The `efm2` plugin can be used in any scenario where the `efm` plugin is mentioned.
+
+> [!NOTE] Since these two plugins are separate plugins, users may decide to use them together with a single connection. While this should not  have any negative side effects, it is not recommended. It is recommended to use either the `efm` plugin, or the `efm2` plugin where it's needed.
+ 
+
+The `efm2` plugin is designed to address [some of the issues](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/675) that have been reported by multiple users. The following changes have been made:
+- Used weak pointers to ease garbage collection
 - Split monitoring logic into two separate threads to increase overall monitoring stability
 - Reviewed locks for monitoring context
-- Stopping of idle monitoring threads is reviewed and redesigned
-- Overall, monitoring logic is reviewed and simplified
+- Reviewed and redesigned stopping of idle monitoring threads
+- Reviewed and simplified monitoring logic
 
->:warning: This plugin is experimental and should be verified before using it in production environment.

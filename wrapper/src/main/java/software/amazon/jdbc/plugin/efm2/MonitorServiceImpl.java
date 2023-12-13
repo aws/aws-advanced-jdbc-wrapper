@@ -107,7 +107,7 @@ public class MonitorServiceImpl implements MonitorService {
       final int failureDetectionIntervalMillis,
       final int failureDetectionCount) {
 
-    Monitor monitor = this.getMonitor(
+    final Monitor monitor = this.getMonitor(
         hostSpec,
         properties,
         failureDetectionTimeMillis,
