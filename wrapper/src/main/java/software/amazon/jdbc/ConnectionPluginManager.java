@@ -33,6 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPlugin;
+import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
@@ -79,6 +80,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");
           put(FastestResponseStrategyPlugin.class, "plugin:fastestResponseStrategy");
           put(DefaultConnectionPlugin.class, "plugin:targetDriver");
+          put(AuroraInitialConnectionStrategyPlugin.class, "plugin:initialConnection");
         }
       };
 
