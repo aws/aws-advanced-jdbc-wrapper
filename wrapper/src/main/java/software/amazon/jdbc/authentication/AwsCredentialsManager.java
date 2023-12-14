@@ -17,6 +17,7 @@
 package software.amazon.jdbc.authentication;
 
 import java.util.Properties;
+import java.util.concurrent.locks.ReentrantLock;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.jdbc.HostSpec;
@@ -25,24 +26,40 @@ import software.amazon.jdbc.util.Messages;
 public class AwsCredentialsManager {
   private static AwsCredentialsProviderHandler handler = null;
 
-  public static synchronized void setCustomHandler(final AwsCredentialsProviderHandler customHandler) {
-    handler = customHandler;
-  }
+  private static final ReentrantLock lock = new ReentrantLock();
 
-  public static synchronized void resetCustomHandler() {
-    handler = null;
-  }
-
-  public static synchronized AwsCredentialsProvider getProvider(
-      final HostSpec hostSpec,
-      final Properties props) {
-    final AwsCredentialsProvider provider =  handler != null
-        ? handler.getAwsCredentialsProvider(hostSpec, props)
-        : getDefaultProvider();
-    if (provider == null) {
-      throw new IllegalArgumentException(Messages.get("AwsCredentialsManager.nullProvider"));
+  public static void setCustomHandler(final AwsCredentialsProviderHandler customHandler) {
+    lock.lock();
+    try {
+      handler = customHandler;
+    } finally {
+      lock.unlock();
     }
-    return provider;
+  }
+
+  public static void resetCustomHandler() {
+    lock.lock();
+    try {
+      handler = null;
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  public static AwsCredentialsProvider getProvider(final HostSpec hostSpec, final Properties props) {
+    lock.lock();
+    try {
+      final AwsCredentialsProvider provider = handler != null
+          ? handler.getAwsCredentialsProvider(hostSpec, props)
+          : getDefaultProvider();
+
+      if (provider == null) {
+        throw new IllegalArgumentException(Messages.get("AwsCredentialsManager.nullProvider"));
+      }
+      return provider;
+    } finally {
+      lock.unlock();
+    }
   }
 
   private static AwsCredentialsProvider getDefaultProvider() {
