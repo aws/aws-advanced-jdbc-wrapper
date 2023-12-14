@@ -40,6 +40,7 @@ import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
+import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
@@ -67,6 +68,7 @@ public class ConnectionPluginChainBuilder {
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
+          put("federatedAuth", FederatedAuthPluginFactory.class);
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
           put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
           put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
@@ -99,7 +101,8 @@ public class ConnectionPluginChainBuilder {
           put(FastestResponseStrategyPluginFactory.class, 900);
           put(IamAuthConnectionPluginFactory.class, 1000);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
-          put(LogQueryConnectionPluginFactory.class, 1200);
+          put(FederatedAuthPluginFactory.class, 1200);
+          put(LogQueryConnectionPluginFactory.class, 1300);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);

@@ -28,7 +28,9 @@ plugins {
 
 dependencies {
     implementation("org.checkerframework:checker-qual:3.40.0")
+    compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.21.42")
+    compileOnly("software.amazon.awssdk:sts:2.21.42")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.21.43")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.16.0")
@@ -61,6 +63,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:rds:2.21.42")
     testImplementation("software.amazon.awssdk:ec2:2.21.12")
     testImplementation("software.amazon.awssdk:secretsmanager:2.21.43")
+    testImplementation("software.amazon.awssdk:sts:2.21.42")
     testImplementation("org.testcontainers:testcontainers:1.19.3")
     testImplementation("org.testcontainers:mysql:1.19.3")
     testImplementation("org.testcontainers:postgresql:1.19.3")
