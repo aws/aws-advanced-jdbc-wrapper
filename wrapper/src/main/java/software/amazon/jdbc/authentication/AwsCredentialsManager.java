@@ -18,10 +18,13 @@ package software.amazon.jdbc.authentication;
 
 import java.util.Properties;
 import java.util.concurrent.locks.ReentrantLock;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.StringUtils;
 
 public class AwsCredentialsManager {
   private static AwsCredentialsProviderHandler handler = null;
@@ -49,20 +52,25 @@ public class AwsCredentialsManager {
   public static AwsCredentialsProvider getProvider(final HostSpec hostSpec, final Properties props) {
     lock.lock();
     try {
-      final AwsCredentialsProvider provider = handler != null
-          ? handler.getAwsCredentialsProvider(hostSpec, props)
-          : getDefaultProvider();
+      AwsCredentialsProvider provider = handler == null
+          ? null
+          : handler.getAwsCredentialsProvider(hostSpec, props);
 
       if (provider == null) {
-        throw new IllegalArgumentException(Messages.get("AwsCredentialsManager.nullProvider"));
+        provider = getDefaultProvider(PropertyDefinition.AWS_PROFILE.getString(props));
       }
+
       return provider;
     } finally {
       lock.unlock();
     }
   }
 
-  private static AwsCredentialsProvider getDefaultProvider() {
-    return DefaultCredentialsProvider.create();
+  private static AwsCredentialsProvider getDefaultProvider(final @Nullable String awsProfileName) {
+    DefaultCredentialsProvider.Builder builder = DefaultCredentialsProvider.builder();
+    if (!StringUtils.isNullOrEmpty(awsProfileName)) {
+      builder.profileName(awsProfileName);
+    }
+    return builder.build();
   }
 }
