@@ -10,7 +10,8 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 In the case of AD FS, the user signs into the AD FS sign in page. This generates a SAML Assertion which acts as a security token. The user then passes the SAML Assertion to the SP when requesting access to resources. The SP verifies the SAML Assertion and grants access to the user. 
 
 ## Prerequisites
-> [!WARNING] To preserve compatibility with customers using the community driver, this plugin requires the [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) and the [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts) to be included separately in the classpath. The AWS Java SDK RDS and AWS Java SDK STS are runtime dependencies and must be resolved.
+> [!WARNING]
+> To preserve compatibility with customers using the community driver, this plugin requires the [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) and the [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts) to be included separately in the classpath. The AWS Java SDK RDS and AWS Java SDK STS are runtime dependencies and must be resolved.
 
 ## How to use the Federated Authentication Plugin with the AWS JDBC Driver 
 
