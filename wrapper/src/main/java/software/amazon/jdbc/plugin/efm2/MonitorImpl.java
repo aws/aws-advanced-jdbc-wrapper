@@ -52,7 +52,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 public class MonitorImpl implements Monitor {
 
   private static final Logger LOGGER = Logger.getLogger(MonitorImpl.class.getName());
-  private static final long THREAD_SLEEP_MILLIS = 1000;
+  private static final long THREAD_SLEEP_NANO = TimeUnit.SECONDS.toNanos(1);
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
   protected static final Executor ABORT_EXECUTOR = Executors.newSingleThreadExecutor();
@@ -135,7 +135,7 @@ public class MonitorImpl implements Monitor {
 
   @Override
   public boolean canDispose() {
-    return this.activeContexts.isEmpty();
+    return this.activeContexts.isEmpty() && this.newContexts.isEmpty();
   }
 
   @Override
@@ -246,7 +246,7 @@ public class MonitorImpl implements Monitor {
       while (!this.stopped.get()) {
 
         if (this.activeContexts.isEmpty()) {
-          TimeUnit.MILLISECONDS.sleep(THREAD_SLEEP_MILLIS);
+          TimeUnit.NANOSECONDS.sleep(THREAD_SLEEP_NANO);
           continue;
         }
 
@@ -291,7 +291,11 @@ public class MonitorImpl implements Monitor {
         // Add active contexts back to the queue.
         this.activeContexts.addAll(tmpActiveContexts);
 
-        TimeUnit.NANOSECONDS.sleep(this.failureDetectionIntervalNano);
+        long delayNano = this.failureDetectionIntervalNano - (statusCheckEndTimeNano - statusCheckStartTimeNano);
+        if (delayNano < THREAD_SLEEP_NANO) {
+          delayNano = THREAD_SLEEP_NANO;
+        }
+        TimeUnit.NANOSECONDS.sleep(delayNano);
       }
     } catch (final InterruptedException intEx) {
       // do nothing

@@ -40,9 +40,9 @@ dependencies {
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
-    compileOnly("io.opentelemetry:opentelemetry-api:1.32.0")
+    compileOnly("io.opentelemetry:opentelemetry-api:1.33.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.32.0")
-    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.32.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.33.0")
 
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.1")
@@ -50,7 +50,7 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.1")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.10.1")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
     testImplementation("org.apache.commons:commons-dbcp2:2.11.0")
@@ -61,7 +61,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.21.42")
-    testImplementation("software.amazon.awssdk:ec2:2.21.12")
+    testImplementation("software.amazon.awssdk:ec2:2.22.1")
     testImplementation("software.amazon.awssdk:secretsmanager:2.21.43")
     testImplementation("software.amazon.awssdk:sts:2.21.42")
     testImplementation("org.testcontainers:testcontainers:1.19.3")
@@ -75,9 +75,9 @@ dependencies {
     testImplementation("org.slf4j:slf4j-simple:2.0.9")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
-    testImplementation("io.opentelemetry:opentelemetry-api:1.32.0")
+    testImplementation("io.opentelemetry:opentelemetry-api:1.33.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.32.0")
-    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.32.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.33.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.33.0")
 }
 
