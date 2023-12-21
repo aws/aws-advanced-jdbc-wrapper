@@ -40,11 +40,29 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (final Statement stmt = connection.createStatement();
-         final ResultSet rs = stmt.executeQuery(TOPOLOGY_QUERY)) {
+    Statement stmt = null;
+    ResultSet rs = null;
+    try {
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(TOPOLOGY_QUERY);
       return rs.next();
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }

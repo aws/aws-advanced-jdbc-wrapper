@@ -57,8 +57,11 @@ public class MariaDbDialect implements Dialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (final Statement stmt = connection.createStatement();
-        final ResultSet rs = stmt.executeQuery(this.getServerVersionQuery())) {
+    Statement stmt = null;
+    ResultSet rs = null;
+    try {
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(this.getServerVersionQuery());
       while (rs.next()) {
         final String columnValue = rs.getString(1);
         if (columnValue != null && columnValue.toLowerCase().contains("mariadb")) {
@@ -67,6 +70,21 @@ public class MariaDbDialect implements Dialect {
       }
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }

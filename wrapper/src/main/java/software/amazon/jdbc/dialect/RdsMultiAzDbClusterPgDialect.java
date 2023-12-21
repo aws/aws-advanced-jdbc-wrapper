@@ -51,11 +51,29 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (final Statement stmt = connection.createStatement();
-         final ResultSet rs = stmt.executeQuery(FETCH_WRITER_NODE_QUERY)) {
+    Statement stmt = null;
+    ResultSet rs = null;
+    try {
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(FETCH_WRITER_NODE_QUERY);
       return rs.next();
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }
