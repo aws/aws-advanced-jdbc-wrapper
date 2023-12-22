@@ -29,11 +29,13 @@ The read/write splitting plugin is not currently supported for non-Aurora cluste
 
 ## Internal connection pooling
 
-> :warning: If internal connection pools are enabled, database passwords may not be verified with every connection request. The initial connection request for each database instance in the cluster will verify the password, but subsequent requests may return a cached pool connection without re-verifying the password. This behavior is inherent to the nature of connection pools in general and not a bug with the driver. `ConnectionProviderManager.releaseResources` can be called to close all pools and remove all cached pool connections. See [InternalConnectionPoolPasswordWarning.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/InternalConnectionPoolPasswordWarning.java) for more details.
+> [!WARNING]\
+> If internal connection pools are enabled, database passwords may not be verified with every connection request. The initial connection request for each database instance in the cluster will verify the password, but subsequent requests may return a cached pool connection without re-verifying the password. This behavior is inherent to the nature of connection pools in general and not a bug with the driver. `ConnectionProviderManager.releaseResources` can be called to close all pools and remove all cached pool connections. See [InternalConnectionPoolPasswordWarning.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/InternalConnectionPoolPasswordWarning.java) for more details.
 
 Whenever `setReadOnly(true)` is first called on a `Connection` object, the read/write plugin will internally open a new physical connection to a reader. After this first call, the physical reader connection will be cached for the given `Connection`. Future calls to `setReadOnly `on the same `Connection` object will not require opening a new physical connection. However, calling `setReadOnly(true)` for the first time on a new `Connection` object will require the plugin to establish another new physical connection to a reader. If your application frequently calls `setReadOnly`, you can enable internal connection pooling to improve performance. When enabled, the wrapper driver will maintain an internal connection pool for each instance in the cluster. This allows the read/write plugin to reuse connections that were established by `setReadOnly` calls on previous `Connection` objects.
 
-> Note: Initial connections to a cluster URL will not be pooled. The driver does not pool cluster URLs because it can be problematic to pool a URL that resolves to different instances over time. The main benefit of internal connection pools is when setReadOnly is called. When setReadOnly is called (regardless of the initial connection URL), an internal pool will be created for the writer/reader that the plugin switches to and connections for that instance can be reused in the future.
+> [!NOTE]\
+> Initial connections to a cluster URL will not be pooled. The driver does not pool cluster URLs because it can be problematic to pool a URL that resolves to different instances over time. The main benefit of internal connection pools is when setReadOnly is called. When setReadOnly is called (regardless of the initial connection URL), an internal pool will be created for the writer/reader that the plugin switches to and connections for that instance can be reused in the future.
 
 The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/HikariCP) to create and maintain its internal connection pools. The sample code [here](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) provides a useful example of how to enable this feature. The steps are as follows:
 
@@ -46,7 +48,8 @@ The wrapper driver currently uses [Hikari](https://github.com/brettwooldridge/Hi
 
 You can optionally pass in a `HikariPoolMapping` function as a second parameter to the `HikariPooledConnectionProvider`. This allows you to decide when new connection pools should be created by defining what is included in the pool map key. A new pool will be created each time a new connection is requested with a unique key. By default, a new pool will be created for each unique instance-user combination. If you would like to define a different key system, you should pass in a `HikariPoolMapping` function defining this logic. A simple example is show below. Please see [ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) for the full example.
 
-> :warning: If you do not include the username in your HikariPoolMapping function, connection pools may be shared between different users. As a result, an initial connection established with a privileged user may be returned to a connection request with a lower-privilege user without re-verifying credentials. This behavior is inherent to the nature of connection pools in general and not a bug with the driver. `ConnectionProviderManager.releaseResources` can be called to close all pools and remove all cached pool connections.
+> [!IMPORTANT]\
+> If you do not include the username in your HikariPoolMapping function, connection pools may be shared between different users. As a result, an initial connection established with a privileged user may be returned to a connection request with a lower-privilege user without re-verifying credentials. This behavior is inherent to the nature of connection pools in general and not a bug with the driver. `ConnectionProviderManager.releaseResources` can be called to close all pools and remove all cached pool connections.
 
 ```java
 props.setProperty("somePropertyValue", "1"); // used in getPoolKey
@@ -75,7 +78,8 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 
 5. When you are finished using all connections, call `ConnectionProviderManager.releaseResources`.
 
-> :warning: **Note:** You must call `ConnectionProviderManager.releaseResources` to close the internal connection pools when you are finished using all connections. Unless `ConnectionProviderManager.releaseResources` is called, the wrapper driver will keep the pools open so that they can be shared between connections.
+> [!IMPORTANT]\
+> You must call `ConnectionProviderManager.releaseResources` to close the internal connection pools when you are finished using all connections. Unless `ConnectionProviderManager.releaseResources` is called, the wrapper driver will keep the pools open so that they can be shared between connections.
 
 ## Example
 [ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure read/write splitting with the Aws Advanced JDBC Driver.
@@ -119,7 +123,8 @@ If your SQL workflow depends on session state attributes that are not mentioned 
 
 #### @Transactional(readOnly = True)
 
-> :warning: The use of read/write splitting with the annotation @Transactional(readOnly = True) is not recommended.
+> [!WARNING]\
+> The use of read/write splitting with the annotation @Transactional(readOnly = True) is not recommended.
 
 When a method with this annotation is hit, Spring calls conn.setReadOnly(true), executes the method, and then calls setReadOnly(false) to restore the connection's initial readOnly value. Consequently, every time the method is called, the plugin switches to the reader, executes the method, and then switches back to the writer. Although the reader connection will be cached after the first setReadOnly call, there is still some overhead when switching between the cached writer/reader connections. This constant switching is not an ideal use of the plugin because it is frequently incurring this overhead. The suggested approach for this scenario is to avoid loading the read/write splitting plugin and instead use the writer cluster URL for your write operations and the reader cluster URL for your read operations. By doing this you avoid the overhead of constantly switching between connections while still spreading load across the database instances in your cluster. 
 
