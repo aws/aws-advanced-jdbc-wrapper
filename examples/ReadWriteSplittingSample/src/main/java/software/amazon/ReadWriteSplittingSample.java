@@ -185,9 +185,8 @@ public class ReadWriteSplittingSample {
 
     try (Statement stmt = conn.createStatement()) {
       for (int i = 0; i < NUM_READS; i++) {
-        stmt.addBatch(selectSQL);
+        stmt.execute(selectSQL);
       }
-      stmt.executeBatch();
     }
 
     long duration = System.nanoTime() - start;
