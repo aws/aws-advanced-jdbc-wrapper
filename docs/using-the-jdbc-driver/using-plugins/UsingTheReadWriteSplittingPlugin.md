@@ -1,8 +1,8 @@
-## Read-Write Splitting Plugin
+# Read-Write Splitting Plugin
 
 The read-write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will establish a connection to a reader instance and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the boolean argument you supply to the `setReadOnly` method.
 
-### Loading the Read-Write Splitting Plugin
+## Loading the Read-Write Splitting Plugin
 
 The read-write splitting plugin is not loaded by default. To load the plugin, include it in the `wrapperPlugins` connection parameter. If you would like to load the read-write splitting plugin alongside the failover and host monitoring plugins, the read-write splitting plugin must be listed before these plugins in the plugin chain. If it is not, failover exceptions will not be properly processed by the plugin. See the example below to properly load the read-write splitting plugin with these plugins.
 
@@ -19,15 +19,15 @@ properties.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting");
 
 > The Aurora Host List Plugin is deprecated after version 2.2.3. To use the Read Write Splitting plugin without failover with versions 2.2.3 and earlier, add the Aurora Host List Plugin to the plugin list like so: `"auroraHostList,readWriteSplitting"`.
 
-### Supplying the connection string
+## Supplying the connection string
 
 When using the read-write splitting plugin against Aurora clusters, you do not have to supply multiple instance URLs in the connection string. Instead, supply just the URL for the initial instance to which you're connecting. You must also include either the failover plugin or the Aurora host list plugin in your plugin chain so that the driver knows to query Aurora for its topology. See the section on [loading the read-write splitting plugin](#loading-the-read-write-splitting-plugin) for more info.
 
-### Using the Read-Write Splitting Plugin against non-Aurora clusters
+## Using the Read-Write Splitting Plugin against non-Aurora clusters
 
 The read-write splitting plugin is not currently supported for non-Aurora clusters.
 
-### Internal connection pooling
+## Internal connection pooling
 
 > :warning: If internal connection pools are enabled, database passwords may not be verified with every connection request. The initial connection request for each database instance in the cluster will verify the password, but subsequent requests may return a cached pool connection without re-verifying the password. This behavior is inherent to the nature of connection pools in general and not a bug with the driver. `ConnectionProviderManager.releaseResources` can be called to close all pools and remove all cached pool connections. See [InternalConnectionPoolPasswordWarning.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/InternalConnectionPoolPasswordWarning.java) for more details.
 
@@ -77,10 +77,10 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 
 > :warning: **Note:** You must call `ConnectionProviderManager.releaseResources` to close the internal connection pools when you are finished using all connections. Unless `ConnectionProviderManager.releaseResources` is called, the wrapper driver will keep the pools open so that they can be shared between connections.
 
-### Example
+## Example
 [ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure read-write splitting with the Aws Advanced JDBC Driver.
 
-### Connection Strategies
+## Connection Strategies
 By default, the read-write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. To balance connections to reader instances more evenly, different connection strategies can be used. The following table describes the currently available connection strategies and any relevant configuration parameters for each strategy.
 
 To indicate which connection strategy to use, the `readerHostSelectorStrategy` configuration parameter can be set to one of the connection strategies in the table below. The following is an example of enabling the least connections strategy:
@@ -97,13 +97,13 @@ props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "
 |                     | `roundRobinHostWeightPairs`                           | This parameter value must be a `string` type comma separated list of database host-weight pairs in the format `<host>:<weight>`. The host represents the database instance name, and the weight represents how many connections should be directed to the host in one cycle through all available hosts. For example, the value `instance-1:1,instance-2:4` means that for every connection to `instance-1`, there will be four connections to `instance-2`. <br><br> **Note:** The `<weight>` value in the string must be an integer greater than or equal to 1. | `null`        |
 |                     | `roundRobinDefaultWeight`                             | This parameter value must be an integer value in the form of a `string`. This parameter represents the default weight for any hosts that have not been configured with the `roundRobinHostWeightPairs` parameter. For example, if a connection were already established and host weights were set with `roundRobinHostWeightPairs` but a new reader node was added to the database, the new reader node would use the default weight. <br><br> **Note:** This value must be an integer greater than or equal to 1.                                                | `1`           |
 
-### Limitations
+## Limitations
 
-#### General plugin limitations
+### General plugin limitations
 
 When a Statement or ResultSet is created, it is internally bound to the database connection established at that moment. There is no standard JDBC functionality to change the internal connection used by Statement or ResultSet objects. Consequently, even if the read-write plugin switches the internal connection, any Statements/ResultSets created before this will continue using the old database connection. This bypasses the desired functionality provided by the plugin. To prevent these scenarios, an exception will be thrown if your code uses any Statements/ResultSets created before a change in internal connection. To solve this problem, please ensure you create new Statement/ResultSet objects after switching between the writer/reader.
 
-#### Session state limitations
+### Session state limitations
 
 There are many session state attributes that can change during a session, and many ways to change them. Consequently, the read-write splitting plugin has limited support for transferring session state between connections. The following attributes will be automatically transferred when switching connections:
 
@@ -113,3 +113,14 @@ There are many session state attributes that can change during a session, and ma
 All other session state attributes will be lost when switching connections between the writer/reader.
 
 If your SQL workflow depends on session state attributes that are not mentioned above, you will need to re-configure those attributes each time that you switch between the writer/reader.
+
+
+### Spring limitations
+
+#### @Transactional(readOnly = True)
+
+We recommend that you do not use the read/write splitting plugin in conjunction with Spring's @Transactional(readOnly = True) annotation. When a method with this annotation is hit, Spring calls conn.setReadOnly(true), executes the method, and then calls setReadOnly(false) to restore the connection's initial readOnly value. Consequently, every time the method is called, the plugin switches to the reader, executes the method, and then switches back to the writer. Although the reader connection will be cached after the first setReadOnly call, there is still some overhead when switching between the cached writer/reader connections. This constant switching is not an ideal use of the plugin because it is frequently incurring this overhead. The suggested approach for this scenario is to avoid loading the read/write splitting plugin and instead use the writer cluster URL for your write operations and the reader cluster URL for your read operations. By doing this you avoid the overhead of constantly switching between connections while still spreading load across the database instances in your cluster. 
+
+#### Internal connection pools
+
+We recommend that you do not enable internal connection pools when using Spring. This is because Spring by default uses its own external connection pool. The use of both internal and external pools is not tested and may result in problematic behavior.
