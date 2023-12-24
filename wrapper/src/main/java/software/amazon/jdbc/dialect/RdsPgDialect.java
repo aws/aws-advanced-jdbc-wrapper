@@ -47,21 +47,37 @@ public class RdsPgDialect extends PgDialect {
     if (!super.isDialect(connection)) {
       return false;
     }
+    Statement stmt = null;
+    ResultSet rs = null;
 
     try {
-      try (final Statement stmt = connection.createStatement();
-          final ResultSet rs = stmt.executeQuery(extensionsSql)) {
-        while (rs.next()) {
-          final boolean rdsTools = rs.getBoolean("rds_tools");
-          final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-          LOGGER.finest(() -> String.format("rdsTools: %b, auroraUtils: %b", rdsTools, auroraUtils));
-          if (rdsTools && !auroraUtils) {
-            return true;
-          }
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(extensionsSql);
+      while (rs.next()) {
+        final boolean rdsTools = rs.getBoolean("rds_tools");
+        final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
+        LOGGER.finest(() -> String.format("rdsTools: %b, auroraUtils: %b", rdsTools, auroraUtils));
+        if (rdsTools && !auroraUtils) {
+          return true;
         }
       }
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }

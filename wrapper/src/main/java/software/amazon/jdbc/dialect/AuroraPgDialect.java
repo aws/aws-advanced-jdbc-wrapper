@@ -54,34 +54,67 @@ public class AuroraPgDialect extends PgDialect {
       return false;
     }
 
+    Statement stmt = null;
+    ResultSet rs = null;
     boolean hasExtensions = false;
     boolean hasTopology = false;
     try {
-      try (final Statement stmt = connection.createStatement();
-           final ResultSet rs = stmt.executeQuery(extensionsSql)) {
-        if (rs.next()) {
-          final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
-          LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
-          if (auroraUtils) {
-            hasExtensions = true;
-          }
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(extensionsSql);
+      if (rs.next()) {
+        final boolean auroraUtils = rs.getBoolean("aurora_stat_utils");
+        LOGGER.finest(() -> String.format("auroraUtils: %b", auroraUtils));
+        if (auroraUtils) {
+          hasExtensions = true;
         }
       }
-
-      try (final Statement stmt = connection.createStatement();
-           final ResultSet rs = stmt.executeQuery(topologySql)) {
-        if (rs.next()) {
-          LOGGER.finest(() -> "hasTopology: true");
-          hasTopology = true;
+    } catch (SQLException ex) {
+      // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
         }
       }
-
-      return hasExtensions && hasTopology;
-
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+    }
+    if (!hasExtensions) {
+      return false;
+    }
+    try {
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(topologySql);
+      if (rs.next()) {
+        LOGGER.finest(() -> "hasTopology: true");
+        hasTopology = true;
+      }
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
-    return false;
+    return hasExtensions && hasTopology;
   }
 
   @Override
