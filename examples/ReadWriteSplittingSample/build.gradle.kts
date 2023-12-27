@@ -15,16 +15,12 @@
  */
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
-    implementation("org.postgresql:postgresql:42.7.1")
+    implementation("org.postgresql:postgresql:42.6.0")
     implementation("mysql:mysql-connector-java:8.0.33")
-    implementation("software.amazon.awssdk:rds:2.21.42")
-    implementation("software.amazon.awssdk:secretsmanager:2.22.5")
-    implementation("software.amazon.awssdk:sts:2.21.42")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
+    implementation("com.zaxxer:HikariCP:4.0.3")
     implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("io.opentelemetry:opentelemetry-api:1.33.0")
-    implementation("io.opentelemetry:opentelemetry-sdk:1.32.0")
-    implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.33.0")
-    implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
+}
+
+tasks.withType<JavaExec> {
+    systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/main/logging.properties")
 }

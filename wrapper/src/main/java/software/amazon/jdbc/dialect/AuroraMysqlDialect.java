@@ -38,14 +38,32 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (final Statement stmt = connection.createStatement();
-        final ResultSet rs = stmt.executeQuery("SHOW VARIABLES LIKE 'aurora_version'")) {
+    Statement stmt = null;
+    ResultSet rs = null;
+    try {
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery("SHOW VARIABLES LIKE 'aurora_version'");
       if (rs.next()) {
         // If variable with such name is presented then it means it's an Aurora cluster
         return true;
       }
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }

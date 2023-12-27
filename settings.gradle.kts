@@ -26,7 +26,8 @@ include(
     "springwildfly",
     "springboothikariexample",
     "springtxfailover",
-    "vertxexample"
+    "vertxexample",
+    "readwritesample"
 )
 
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
@@ -38,6 +39,7 @@ project(":springwildfly").projectDir = file("examples/SpringWildflyExample/sprin
 project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
 project(":vertxexample").projectDir = file("examples/VertxExample")
+project(":readwritesample").projectDir = file("examples/ReadWriteSplittingSample")
 
 pluginManagement {
     plugins {
