@@ -113,7 +113,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   // (rather than a GUID or a value provided by the user).
   protected boolean isPrimaryClusterId;
 
-  protected boolean isInitialized = false;
+  protected volatile boolean isInitialized = false;
 
   static final Logger LOGGER = Logger.getLogger(RdsHostListProvider.class.getName());
 
