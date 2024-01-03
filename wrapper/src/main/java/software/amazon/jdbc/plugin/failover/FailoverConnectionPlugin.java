@@ -542,18 +542,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   /**
    * Synchronizes state from current connection, if any, is the new one.
    *
-   * @param newHost       The host that matches the given connection.
+   * @param newHostSpec   The host that matches the given connection.
    * @param newConnection The connection instance to switch to.
    * @throws SQLException if an error occurs
    */
-  private void transferSessionStateToNewConnection(final HostSpec newHost, final Connection newConnection)
+  private void transferSessionStateToNewConnection(final HostSpec newHostSpec, final Connection newConnection)
       throws SQLException {
 
     Connection currentConnection = this.pluginService.getCurrentConnection();
     HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
 
     if (currentConnection != newConnection) {
-      transferSessionState(currentConnection, currentHostSpec, newConnection, newHost);
+      transferSessionState(currentConnection, currentHostSpec, newConnection, newHostSpec);
     }
   }
 
