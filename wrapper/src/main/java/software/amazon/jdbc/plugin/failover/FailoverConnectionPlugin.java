@@ -482,13 +482,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   /**
    * Connects this dynamic failover connection proxy to the host pointed out by the given host
    * index.
+   * <p></p>
+   * The method assumes that current connection is not setup. If it's not true, a session state
+   * transfer from the current connection to a new one may be necessary. This should be handled by callee.
    *
    * @param host The host.
    * @throws SQLException if an error occurs
    */
   private void connectTo(final HostSpec host) throws SQLException {
     try {
-      switchCurrentConnectionTo(host, createConnectionForHost(host));
+      this.pluginService.setCurrentConnection(createConnectionForHost(host), host);
+
       LOGGER.fine(
           () -> Messages.get(
               "Failover.establishedConnection",
@@ -536,26 +540,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Replaces the previous underlying connection by the connection given. State from previous
-   * connection, if any, is synchronized with the new one.
+   * Synchronizes state from current connection, if any, is the new one.
    *
-   * @param host       The host that matches the given connection.
-   * @param connection The connection instance to switch to.
+   * @param newHost       The host that matches the given connection.
+   * @param newConnection The connection instance to switch to.
    * @throws SQLException if an error occurs
    */
-  private void switchCurrentConnectionTo(final HostSpec host, final Connection connection) throws SQLException {
+  private void transferSessionStateToNewConnection(final HostSpec newHost, final Connection newConnection)
+      throws SQLException {
+
     Connection currentConnection = this.pluginService.getCurrentConnection();
     HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
 
-    if (currentConnection != connection) {
-      transferSessionState(currentConnection, currentHostSpec, connection, host);
-      invalidateCurrentConnection();
-    }
-
-    this.pluginService.setCurrentConnection(connection, host);
-
-    if (this.pluginManagerService != null) {
-      this.pluginManagerService.setInTransaction(false);
+    if (currentConnection != newConnection) {
+      transferSessionState(currentConnection, currentHostSpec, newConnection, newHost);
     }
   }
 
@@ -744,7 +742,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       if (keepSessionStateOnFailover) {
         restoreSessionState(result.getConnection());
+        transferSessionStateToNewConnection(result.getHost(), result.getConnection());
       }
+      this.invalidateCurrentConnection();
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
 
       this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[]{}));
@@ -801,7 +801,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
       if (keepSessionStateOnFailover) {
         restoreSessionState(failoverResult.getNewConnection());
+        transferSessionStateToNewConnection(writerHostSpec, failoverResult.getNewConnection());
       }
+      this.invalidateCurrentConnection();
       this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
 
       LOGGER.fine(

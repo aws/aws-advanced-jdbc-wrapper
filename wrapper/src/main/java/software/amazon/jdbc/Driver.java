@@ -29,8 +29,6 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
@@ -112,7 +110,7 @@ public class Driver implements java.sql.Driver {
       PropertyDefinition.DATABASE.set(props, databaseName);
     }
 
-    LOGGER.finest(() -> PropertyUtils.logProperties(props, "DEBUG: Connecting with properties: \n"));
+    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
 
     final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
     ConfigurationProfile configurationProfile = null;

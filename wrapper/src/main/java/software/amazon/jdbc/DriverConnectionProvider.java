@@ -113,8 +113,7 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull Properties props)
       throws SQLException {
 
-    LOGGER.finest(() -> "DEBUG: Connecting with properties:\n"
-        + PropertyUtils.logProperties(props, ""));
+    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
 
     final Properties copy = PropertyUtils.copyProperties(props);
     dialect.prepareConnectProperties(copy, protocol, hostSpec);
