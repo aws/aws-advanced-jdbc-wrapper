@@ -68,6 +68,7 @@ import software.amazon.jdbc.exceptions.PgExceptionHandler;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -118,6 +119,8 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Mock TelemetryGauge mockTelemetryGauge;
   @Mock TargetDriverDialect mockTargetDriverDialect;
   ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
+
+  @Mock SessionStateService mockSessionStateService;
 
   @BeforeEach
   public void init() throws SQLException {
@@ -246,7 +249,8 @@ public class AwsSecretsManagerConnectionPluginTest {
             protocol,
             mockDialectManager,
             mockTargetDriverDialect,
-            configurationProfile),
+            configurationProfile,
+            mockSessionStateService),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -345,7 +349,8 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PG_PROTOCOL,
             mockDialectManager,
             mockTargetDriverDialect,
-            configurationProfile),
+            configurationProfile,
+            mockSessionStateService),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -386,7 +391,8 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_MYSQL_PROTOCOL,
             mockDialectManager,
             mockTargetDriverDialect,
-            configurationProfile),
+            configurationProfile,
+            mockSessionStateService),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);
@@ -426,7 +432,8 @@ public class AwsSecretsManagerConnectionPluginTest {
             TEST_PG_PROTOCOL,
             mockDialectManager,
             mockTargetDriverDialect,
-            configurationProfile),
+            configurationProfile,
+            mockSessionStateService),
         TEST_PROPS,
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest);

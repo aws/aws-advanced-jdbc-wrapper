@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc;
+package software.amazon.jdbc.states;
 
-public interface PluginManagerService {
+import java.sql.Connection;
+import java.sql.SQLException;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-  void setInTransaction(boolean inTransaction);
+public interface ResetSessionStateOnCloseCallable {
+  boolean apply(final @NonNull SessionState sessionState, final @NonNull Connection connectionToClose)
+      throws SQLException;
 }
