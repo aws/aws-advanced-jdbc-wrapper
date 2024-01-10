@@ -29,9 +29,12 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
+import software.amazon.jdbc.states.TransferSessionStateOnSwitchCallable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
@@ -51,6 +54,9 @@ public class Driver implements java.sql.Driver {
   private static final Logger PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
+
+  private static ResetSessionStateOnCloseCallable resetSessionStateOnCloseCallable = null;
+  private static TransferSessionStateOnSwitchCallable transferSessionStateOnSwitchCallable = null;
 
   static {
     try {
@@ -231,5 +237,29 @@ public class Driver implements java.sql.Driver {
   @Override
   public Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return PARENT_LOGGER;
+  }
+
+  public static void setResetSessionStateOnCloseFunc(final @NonNull ResetSessionStateOnCloseCallable func) {
+    resetSessionStateOnCloseCallable = func;
+  }
+
+  public static void resetResetSessionStateOnCloseFunc() {
+    resetSessionStateOnCloseCallable = null;
+  }
+
+  public static ResetSessionStateOnCloseCallable getResetSessionStateOnCloseFunc() {
+    return resetSessionStateOnCloseCallable;
+  }
+
+  public static void setTransferSessionStateOnSwitchFunc(final @NonNull TransferSessionStateOnSwitchCallable func) {
+    transferSessionStateOnSwitchCallable = func;
+  }
+
+  public static void resetTransferSessionStateOnSwitchFunc() {
+    transferSessionStateOnSwitchCallable = null;
+  }
+
+  public static TransferSessionStateOnSwitchCallable getTransferSessionStateOnSwitchFunc() {
+    return transferSessionStateOnSwitchCallable;
   }
 }

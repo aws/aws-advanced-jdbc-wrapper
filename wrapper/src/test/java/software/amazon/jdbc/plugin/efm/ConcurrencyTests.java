@@ -41,6 +41,7 @@ import java.util.Date;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -69,7 +70,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.states.SessionDirtyFlag;
+import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -258,6 +259,154 @@ public class ConcurrencyTests {
     executor.shutdownNow();
   }
 
+  public static class TestSessionStateService implements SessionStateService {
+
+    @Override
+    public Optional<Boolean> getAutoCommit() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setAutoCommit(boolean autoCommit) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineAutoCommit() throws SQLException {
+
+    }
+
+    @Override
+    public Optional<Boolean> getReadOnly() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setReadOnly(boolean readOnly) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineReadOnly() throws SQLException {
+
+    }
+
+    @Override
+    public Optional<String> getCatalog() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setCatalog(String catalog) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineCatalog() throws SQLException {
+
+    }
+
+    @Override
+    public Optional<Integer> getHoldability() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setHoldability(int holdability) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineHoldability() throws SQLException {
+
+    }
+
+    @Override
+    public Optional<Integer> getNetworkTimeout() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setNetworkTimeout(int milliseconds) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineNetworkTimeout() throws SQLException {
+
+    }
+
+    @Override
+    public Optional<String> getSchema() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setSchema(String schema) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineSchema() throws SQLException {
+
+    }
+
+    @Override
+    public Optional<Integer> getTransactionIsolation() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setTransactionIsolation(int level) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineTransactionIsolation() throws SQLException {
+
+    }
+
+    @Override
+    public Optional<Map<String, Class<?>>> getTypeMap() throws SQLException {
+      return Optional.empty();
+    }
+
+    @Override
+    public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineTypeMap() throws SQLException {
+
+    }
+
+    @Override
+    public void reset() {
+
+    }
+
+    @Override
+    public void begin() throws SQLException {
+
+    }
+
+    @Override
+    public void complete() {
+
+    }
+
+    @Override
+    public void applyCurrentSessionState(Connection newConnection) throws SQLException {
+
+    }
+
+    @Override
+    public void applyPristineSessionState(Connection connection) throws SQLException {
+
+    }
+  }
+
   public static class TestPluginService implements PluginService {
 
     private final HostSpec hostSpec;
@@ -292,36 +441,6 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public EnumSet<SessionDirtyFlag> getCurrentConnectionState() {
-      return EnumSet.noneOf(SessionDirtyFlag.class);
-    }
-
-    @Override
-    public void setCurrentConnectionState(SessionDirtyFlag flag) {
-
-    }
-
-    @Override
-    public void resetCurrentConnectionState(SessionDirtyFlag flag) {
-
-    }
-
-    @Override
-    public void resetCurrentConnectionStates() {
-
-    }
-
-    @Override
-    public boolean getAutoCommit() {
-      return false;
-    }
-
-    @Override
-    public void setAutoCommit(boolean autoCommit) {
-
-    }
-
-    @Override
     public List<HostSpec> getHosts() {
       return null;
     }
@@ -348,16 +467,6 @@ public class ConcurrencyTests {
 
     @Override
     public void setAvailability(Set<String> hostAliases, HostAvailability availability) {
-    }
-
-    @Override
-    public boolean isExplicitReadOnly() {
-      return false;
-    }
-
-    @Override
-    public boolean isReadOnly() {
-      return false;
     }
 
     @Override
@@ -404,6 +513,11 @@ public class ConcurrencyTests {
     @Override
     public String getTargetName() {
       return null;
+    }
+
+    @Override
+    public @NonNull SessionStateService getSessionStateService() {
+      return new TestSessionStateService();
     }
 
     @Override

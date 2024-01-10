@@ -16,18 +16,11 @@
 
 package software.amazon.jdbc.states;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-import java.util.EnumSet;
-
-public enum SessionDirtyFlag {
-  READONLY,
-  AUTO_COMMIT,
-  TRANSACTION_ISOLATION,
-  CATALOG,
-  NETWORK_TIMEOUT,
-  SCHEMA,
-  TYPE_MAP,
-  HOLDABILITY;
-
-  public static final EnumSet<SessionDirtyFlag> ALL = EnumSet.allOf(SessionDirtyFlag.class);
+public interface TransferSessionStateOnSwitchCallable {
+  boolean apply(final @NonNull SessionState sessionState, final @NonNull Connection newConnection)
+      throws SQLException;
 }

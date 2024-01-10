@@ -42,10 +42,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
-import software.amazon.jdbc.states.RestoreSessionStateCallable;
-import software.amazon.jdbc.states.SessionDirtyFlag;
-import software.amazon.jdbc.states.SessionStateHelper;
-import software.amazon.jdbc.states.SessionStateTransferCallable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -80,8 +76,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       });
 
-  private static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
-  private static final String METHOD_SET_AUTO_COMMIT = "Connection.setAutoCommit";
   private static final String METHOD_GET_AUTO_COMMIT = "Connection.getAutoCommit";
   private static final String METHOD_GET_CATALOG = "Connection.getCatalog";
   private static final String METHOD_GET_SCHEMA = "Connection.getSchema";
@@ -90,9 +84,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   static final String METHOD_CLOSE = "Connection.close";
   static final String METHOD_IS_CLOSED = "Connection.isClosed";
 
-  protected static SessionStateTransferCallable sessionStateTransferCallable;
-  protected static RestoreSessionStateCallable restoreSessionStateCallable;
-
   private final PluginService pluginService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
@@ -100,7 +91,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
   protected int failoverReaderConnectTimeoutMsSetting;
-  protected boolean keepSessionStateOnFailover;
   protected FailoverMode failoverMode;
   private boolean telemetryFailoverAdditionalTopTraceSetting;
 
@@ -116,8 +106,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private RdsUrlType rdsUrlType;
   private HostListProviderService hostListProviderService;
   private final AuroraStaleDnsHelper staleDnsHelper;
-  private Boolean savedReadOnlyStatus;
-  private Boolean savedAutoCommitStatus;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -156,11 +144,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty(
           "failoverMode", null,
           "Set node role to follow during failover.");
-
-  public static final AwsWrapperProperty KEEP_SESSION_STATE_ON_FAILOVER =
-      new AwsWrapperProperty(
-          "keepSessionStateOnFailover", "false",
-          "Allow connections to retain a partial previous session state after failover occurs.");
 
   public static final AwsWrapperProperty TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE =
       new AwsWrapperProperty(
@@ -207,22 +190,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderFailedCounter = telemetryFactory.createCounter("readerFailover.completed.failed.count");
   }
 
-  public static void setSessionStateTransferFunc(SessionStateTransferCallable callable) {
-    sessionStateTransferCallable = callable;
-  }
-
-  public static void resetSessionStateTransferFunc() {
-    sessionStateTransferCallable = null;
-  }
-
-  public static void setRestoreSessionStateFunc(RestoreSessionStateCallable callable) {
-    restoreSessionStateCallable = callable;
-  }
-
-  public static void resetRestoreSessionStateFunc() {
-    restoreSessionStateCallable = null;
-  }
-
   @Override
   public Set<String> getSubscribedMethods() {
     return subscribedMethods;
@@ -247,14 +214,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       } catch (final SQLException ex) {
         throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, ex);
       }
-    }
-
-    if (methodName.equals(METHOD_SET_READ_ONLY) && jdbcMethodArgs != null && jdbcMethodArgs.length > 0) {
-      this.savedReadOnlyStatus = (Boolean) jdbcMethodArgs[0];
-    }
-
-    if (methodName.equals(METHOD_SET_AUTO_COMMIT) && jdbcMethodArgs != null && jdbcMethodArgs.length > 0) {
-      this.savedAutoCommitStatus = (Boolean) jdbcMethodArgs[0];
     }
 
     T result = null;
@@ -402,7 +361,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(this.properties);
     this.failoverWriterReconnectIntervalMsSetting = FAILOVER_WRITER_RECONNECT_INTERVAL_MS.getInteger(this.properties);
     this.failoverReaderConnectTimeoutMsSetting = FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
-    this.keepSessionStateOnFailover = KEEP_SESSION_STATE_ON_FAILOVER.getBoolean(this.properties);
     this.telemetryFailoverAdditionalTopTraceSetting =
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
   }
@@ -461,6 +419,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @return true if the given method is allowed on closed connections
    */
   private boolean allowedOnClosedConnection(final String methodName) {
+    // TODO: consider to use target driver dialect
     return methodName.equals(METHOD_GET_AUTO_COMMIT)
         || methodName.equals(METHOD_GET_CATALOG)
         || methodName.equals(METHOD_GET_SCHEMA)
@@ -537,94 +496,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
     }
     return false;
-  }
-
-  /**
-   * Synchronizes state from current connection, if any, is the new one.
-   *
-   * @param newHostSpec   The host that matches the given connection.
-   * @param newConnection The connection instance to switch to.
-   * @throws SQLException if an error occurs
-   */
-  private void transferSessionStateToNewConnection(final HostSpec newHostSpec, final Connection newConnection)
-      throws SQLException {
-
-    Connection currentConnection = this.pluginService.getCurrentConnection();
-    HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
-
-    if (currentConnection != newConnection) {
-      transferSessionState(currentConnection, currentHostSpec, newConnection, newHostSpec);
-    }
-  }
-
-  /**
-   * Transfers session state from one connection to another.
-   *
-   * @param src The connection to transfer state from
-   * @param srcHostSpec The connection {@link HostSpec} to transfer state from
-   * @param dest   The connection to transfer state to
-   * @param destHostSpec The connection {@link HostSpec} to transfer state to
-   * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
-   *                      method is called during a distributed transaction, or this method is called during a
-   *                      transaction
-   */
-  protected void transferSessionState(
-      final Connection src,
-      final HostSpec srcHostSpec,
-      final Connection dest,
-      final HostSpec destHostSpec) throws SQLException {
-
-    if (src == null || dest == null) {
-      return;
-    }
-
-    EnumSet<SessionDirtyFlag> sessionState = this.pluginService.getCurrentConnectionState();
-
-    SessionStateTransferCallable callableCopy = sessionStateTransferCallable;
-    if (callableCopy != null) {
-      final boolean isHandled = callableCopy.transferSessionState(sessionState, src, srcHostSpec, dest, destHostSpec);
-      if (isHandled) {
-        // Custom function has handled session transfer
-        return;
-      }
-    }
-
-    // Otherwise, lets run default logic.
-    sessionState = this.pluginService.getCurrentConnectionState();
-    final SessionStateHelper helper = new SessionStateHelper();
-    helper.transferSessionState(sessionState, src, dest);
-  }
-
-  /**
-   * Restores partial session state from saved values to a connection.
-   *
-   * @param dest   The connection to transfer state to
-   * @throws SQLException if a database access error occurs, this method is called on a closed connection, this
-   *                      method is called during a distributed transaction, or this method is called during a
-   *                      transaction
-   */
-  protected void restoreSessionState(final Connection dest) throws SQLException {
-    if (dest == null) {
-      return;
-    }
-
-    final RestoreSessionStateCallable callableCopy = restoreSessionStateCallable;
-    if (callableCopy != null) {
-      final boolean isHandled = callableCopy.restoreSessionState(
-          this.pluginService.getCurrentConnectionState(),
-          dest,
-          this.savedReadOnlyStatus,
-          this.savedAutoCommitStatus
-      );
-      if (isHandled) {
-        // Custom function has handled everything.
-        return;
-      }
-    }
-
-    // Otherwise, lets run default logic.
-    final SessionStateHelper helper = new SessionStateHelper();
-    helper.restoreSessionState(dest, this.savedReadOnlyStatus, this.savedAutoCommitStatus);
   }
 
   private <E extends Exception> void dealWithOriginalException(
@@ -740,11 +611,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         return;
       }
 
-      if (keepSessionStateOnFailover) {
-        restoreSessionState(result.getConnection());
-        transferSessionStateToNewConnection(result.getHost(), result.getConnection());
-      }
-      this.invalidateCurrentConnection();
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
 
       this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[]{}));
@@ -799,11 +665,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       // successfully re-connected to a writer node
       final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
-      if (keepSessionStateOnFailover) {
-        restoreSessionState(failoverResult.getNewConnection());
-        transferSessionStateToNewConnection(writerHostSpec, failoverResult.getNewConnection());
-      }
-      this.invalidateCurrentConnection();
       this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
 
       LOGGER.fine(
@@ -921,12 +782,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     final Connection conn =
         this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
             driverProtocol, hostSpec, props, connectFunc);
-
-    if (this.keepSessionStateOnFailover) {
-      this.savedReadOnlyStatus = this.savedReadOnlyStatus == null ? conn.isReadOnly() : this.savedReadOnlyStatus;
-      this.savedAutoCommitStatus =
-          this.savedAutoCommitStatus == null ? conn.getAutoCommit() : this.savedAutoCommitStatus;
-    }
 
     if (isInitialConnection) {
       this.pluginService.refreshHostList(conn);

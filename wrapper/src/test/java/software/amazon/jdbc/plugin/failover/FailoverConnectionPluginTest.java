@@ -62,7 +62,6 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.DynamicHostListProvider;
-import software.amazon.jdbc.states.SessionDirtyFlag;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -112,7 +111,6 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.getCurrentHostSpec()).thenReturn(mockHostSpec);
     when(mockPluginService.connect(any(HostSpec.class), eq(properties))).thenReturn(mockConnection);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-    when(mockPluginService.getCurrentConnectionState()).thenReturn(EnumSet.allOf(SessionDirtyFlag.class));
     when(mockReaderFailoverHandler.failover(any(), any())).thenReturn(mockReaderResult);
     when(mockWriterFailoverHandler.failover(any())).thenReturn(mockWriterResult);
 
@@ -193,35 +191,6 @@ class FailoverConnectionPluginTest {
     } else {
       verify(mockPluginService, atLeastOnce()).refreshHostList();
     }
-  }
-
-  @Test
-  void test_syncSessionState_withNullConnections() throws SQLException {
-    initializePlugin();
-
-    plugin.transferSessionState(null, null, mockConnection, null);
-    verify(mockConnection, never()).getAutoCommit();
-
-    plugin.transferSessionState(mockConnection, null, null, null);
-    verify(mockConnection, never()).getAutoCommit();
-  }
-
-  @Test
-  void test_syncSessionState() throws SQLException {
-    final Connection target = mockConnection;
-    final Connection source = mockConnection;
-
-    when(target.getAutoCommit()).thenReturn(false);
-    when(target.getTransactionIsolation()).thenReturn(Connection.TRANSACTION_NONE);
-
-    initializePlugin();
-
-    plugin.transferSessionState(mockConnection, null, mockConnection, null);
-    verify(target).setReadOnly(eq(false));
-    verify(target).getAutoCommit();
-    verify(target).getTransactionIsolation();
-    verify(source).setAutoCommit(eq(false));
-    verify(source).setTransactionIsolation(eq(Connection.TRANSACTION_NONE));
   }
 
   @Test
