@@ -31,6 +31,10 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
 
+  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+      "SELECT 1 AS tmp FROM information_schema.tables WHERE"
+      + " table_schema = 'mysql' AND table_name = 'rds_topology'";
+
   private static final String FETCH_WRITER_NODE_QUERY = "SHOW REPLICA STATUS";
 
   private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "Source_Server_Id";
@@ -44,8 +48,18 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
     ResultSet rs = null;
     try {
       stmt = connection.createStatement();
-      rs = stmt.executeQuery(TOPOLOGY_QUERY);
-      return rs.next();
+      rs = stmt.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY);
+
+      if (rs.next()) {
+        rs.close();
+        stmt.close();
+
+        stmt = connection.createStatement();
+        rs = stmt.executeQuery(TOPOLOGY_QUERY);
+
+        return rs.next();
+      }
+      return false;
     } catch (final SQLException ex) {
       // ignore
     } finally {

@@ -66,7 +66,12 @@ public class DialectManager implements DialectProvider {
         }
       };
 
-  protected static final long ENDPOINT_CACHE_EXPIRATION = TimeUnit.MINUTES.toNanos(30);
+  /**
+   * In order to simplify dialect detection, there's an internal host-to-dialect cache.
+   * The cache contains host endpoints and identified dialect. Cache expiration time
+   * is defined by the variable below.
+   */
+  protected static final long ENDPOINT_CACHE_EXPIRATION = TimeUnit.HOURS.toNanos(24);
 
   // Map of host name, or url, by dialect code.
   protected static final CacheMap<String, String> knownEndpointDialects = new CacheMap<>();
