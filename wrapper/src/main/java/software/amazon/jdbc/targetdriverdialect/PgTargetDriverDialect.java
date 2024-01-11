@@ -22,9 +22,13 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
@@ -49,6 +53,47 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   }
 
   @Override
+  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props) throws SQLException {
+
+    final String databaseName =
+        PropertyDefinition.DATABASE.getString(props) != null
+            ? PropertyDefinition.DATABASE.getString(props)
+            : "";
+
+    final Boolean tcpKeepAlive = PropertyUtils.getBooleanPropertyValue(props, PropertyDefinition.TCP_KEEP_ALIVE);
+    final Integer loginTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.LOGIN_TIMEOUT);
+    final Integer connectTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.CONNECT_TIMEOUT);
+    final Integer socketTimeout = PropertyUtils.getIntegerPropertyValue(props, PropertyDefinition.SOCKET_TIMEOUT);
+
+    // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
+    // and use them to make a connection
+    PropertyDefinition.removeAllExceptCredentials(props);
+
+    if (tcpKeepAlive != null) {
+      props.setProperty("tcpKeepAlive", String.valueOf(tcpKeepAlive));
+    }
+
+    if (loginTimeout != null) {
+      props.setProperty("loginTimeout",
+          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(loginTimeout)));
+    }
+    if (connectTimeout != null) {
+      props.setProperty("connectTimeout",
+          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(connectTimeout)));
+    }
+    if (socketTimeout != null) {
+      props.setProperty("socketTimeout",
+          String.valueOf(TimeUnit.MILLISECONDS.toSeconds(socketTimeout)));
+    }
+
+    String urlBuilder = protocol + hostSpec.getUrl() + databaseName;
+
+    return new ConnectInfo(urlBuilder, props);
+  }
+
+  @Override
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
@@ -57,7 +102,19 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to org.postgresql.ds.common.BaseDataSource
-    final PgDataSourceHelper helper = new PgDataSourceHelper();
+    final PgDriverHelper helper = new PgDriverHelper();
     helper.prepareDataSource(dataSource, hostSpec, props);
+  }
+
+  @Override
+  public boolean isDriverRegistered() throws SQLException {
+    final PgDriverHelper helper = new PgDriverHelper();
+    return helper.isDriverRegistered();
+  }
+
+  @Override
+  public void registerDriver() throws SQLException {
+    final PgDriverHelper helper = new PgDriverHelper();
+    helper.registerDriver();
   }
 }

@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.states;
+package software.amazon.jdbc.plugin.efm2;
 
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginService;
 
-import java.util.EnumSet;
-
-public enum SessionDirtyFlag {
-  READONLY,
-  AUTO_COMMIT,
-  TRANSACTION_ISOLATION,
-  CATALOG,
-  NETWORK_TIMEOUT,
-  SCHEMA,
-  TYPE_MAP,
-  HOLDABILITY;
-
-  public static final EnumSet<SessionDirtyFlag> ALL = EnumSet.allOf(SessionDirtyFlag.class);
+/** Class initializing a {@link HostMonitoringConnectionPlugin}. */
+public class HostMonitoringConnectionPluginFactory implements ConnectionPluginFactory {
+  @Override
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+    return new HostMonitoringConnectionPlugin(pluginService, props);
+  }
 }

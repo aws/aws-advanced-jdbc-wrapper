@@ -18,13 +18,13 @@ package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static software.amazon.jdbc.PropertyDefinition.CONNECT_TIMEOUT;
 import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
 import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
 import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
 import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
 import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
@@ -58,10 +58,14 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -71,9 +75,12 @@ import software.amazon.jdbc.util.StringUtils;
   TestEnvironmentFeatures.PERFORMANCE,
   TestEnvironmentFeatures.FAILOVER_SUPPORTED
 })
+@Tag("advanced")
 public class AdvancedPerformanceTest {
 
   private static final Logger LOGGER = Logger.getLogger(AdvancedPerformanceTest.class.getName());
+
+  private static final String MONITORING_CONNECTION_PREFIX = "monitoring-";
 
   private static final int REPEAT_TIMES =
       StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
@@ -178,9 +185,11 @@ public class AdvancedPerformanceTest {
     } finally {
       doWritePerfDataToFile(
           String.format(
-              "./build/reports/tests/DbEngine_%s_Driver_%s_AdvancedPerformanceResults.xlsx",
+              "./build/reports/tests/AdvancedPerformanceResults_"
+              + "Db_%s_Driver_%s_Instances_%d.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver()),
+              TestEnvironment.getCurrent().getCurrentDriver(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()),
           perfDataList);
       perfDataList.clear();
     }
@@ -188,21 +197,21 @@ public class AdvancedPerformanceTest {
 
   private void doMeasurePerformance(int sleepDelayMillis) throws InterruptedException {
 
-    final AtomicLong downtime = new AtomicLong();
+    final AtomicLong downtimeNano = new AtomicLong();
     final CountDownLatch startLatch = new CountDownLatch(5);
     final CountDownLatch finishLatch = new CountDownLatch(5);
 
-    downtime.set(0);
+    downtimeNano.set(0);
 
     final Thread failoverThread =
-        getThread_Failover(sleepDelayMillis, downtime, startLatch, finishLatch);
+        getThread_Failover(sleepDelayMillis, downtimeNano, startLatch, finishLatch);
     final Thread pgThread =
-        getThread_DirectDriver(sleepDelayMillis, downtime, startLatch, finishLatch);
+        getThread_DirectDriver(sleepDelayMillis, downtimeNano, startLatch, finishLatch);
     final Thread wrapperEfmThread =
-        getThread_WrapperEfm(sleepDelayMillis, downtime, startLatch, finishLatch);
+        getThread_WrapperEfm(sleepDelayMillis, downtimeNano, startLatch, finishLatch);
     final Thread wrapperEfmFailoverThread =
-        getThread_WrapperEfmFailover(sleepDelayMillis, downtime, startLatch, finishLatch);
-    final Thread dnsThread = getThread_DNS(sleepDelayMillis, downtime, startLatch, finishLatch);
+        getThread_WrapperEfmFailover(sleepDelayMillis, downtimeNano, startLatch, finishLatch);
+    final Thread dnsThread = getThread_DNS(sleepDelayMillis, downtimeNano, startLatch, finishLatch);
 
     failoverThread.start();
     pgThread.start();
@@ -215,6 +224,8 @@ public class AdvancedPerformanceTest {
     finishLatch.await(5, TimeUnit.MINUTES); // wait for all threads to complete
 
     LOGGER.finest("Test is over.");
+
+    assertTrue(downtimeNano.get() > 0);
 
     failoverThread.interrupt();
     pgThread.interrupt();
@@ -269,7 +280,7 @@ public class AdvancedPerformanceTest {
 
   private Thread getThread_Failover(
       final int sleepDelayMillis,
-      final AtomicLong downtime,
+      final AtomicLong downtimeNano,
       final CountDownLatch startLatch,
       final CountDownLatch finishLatch) {
 
@@ -286,8 +297,8 @@ public class AdvancedPerformanceTest {
             LOGGER.finest("Trigger failover...");
 
             // trigger failover
-            auroraUtil.failoverClusterAndWaitUntilWriterChanged();
-            downtime.set(System.nanoTime());
+            failoverCluster();
+            downtimeNano.set(System.nanoTime());
             LOGGER.finest("Failover is started.");
 
           } catch (InterruptedException interruptedException) {
@@ -303,13 +314,13 @@ public class AdvancedPerformanceTest {
 
   private Thread getThread_DirectDriver(
       final int sleepDelayMillis,
-      final AtomicLong downtime,
+      final AtomicLong downtimeNano,
       final CountDownLatch startLatch,
       final CountDownLatch finishLatch) {
 
     return new Thread(
         () -> {
-          long failureTime = 0;
+          long failureTimeNano = 0;
           try {
             // DB_CONN_STR_PREFIX
             final Properties props = ConnectionStringHelper.getDefaultProperties();
@@ -345,7 +356,8 @@ public class AdvancedPerformanceTest {
             } catch (SQLException throwable) { // Catching executing query
               LOGGER.finest("DirectDriver thread exception: " + throwable);
               // Calculate and add detection time
-              failureTime = (System.nanoTime() - downtime.get());
+              assertTrue(downtimeNano.get() > 0);
+              failureTimeNano = System.nanoTime() - downtimeNano.get();
             }
 
           } catch (InterruptedException interruptedException) {
@@ -357,7 +369,8 @@ public class AdvancedPerformanceTest {
             data.paramFailoverDelayMillis = sleepDelayMillis;
             data.paramDriverName =
                 "DirectDriver - " + TestEnvironment.getCurrent().getCurrentDriver();
-            data.failureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTime);
+            data.failureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTimeNano);
+            LOGGER.finest("DirectDriver Collected data: " + data);
             perfDataList.add(data);
             LOGGER.finest(
                 "DirectDriver Failure detection time is " + data.failureDetectionTimeMillis + "ms");
@@ -370,18 +383,24 @@ public class AdvancedPerformanceTest {
 
   private Thread getThread_WrapperEfm(
       final int sleepDelayMillis,
-      final AtomicLong downtime,
+      final AtomicLong downtimeNano,
       final CountDownLatch startLatch,
       final CountDownLatch finishLatch) {
 
     return new Thread(
         () -> {
-          long failureTime = 0;
+          long failureTimeNano = 0;
           try {
             final Properties props = ConnectionStringHelper.getDefaultProperties();
-            DriverHelper.setMonitoringConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-            DriverHelper.setMonitoringSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
-            DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
+
+            props.setProperty(
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+            props.setProperty(
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
+            CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+
             FAILURE_DETECTION_TIME.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
             FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(EFM_FAILURE_DETECTION_INTERVAL_MS));
             FAILURE_DETECTION_COUNT.set(props, Integer.toString(EFM_FAILURE_DETECTION_COUNT));
@@ -419,7 +438,8 @@ public class AdvancedPerformanceTest {
               LOGGER.finest("WrapperEfm thread exception: " + throwable);
 
               // Calculate and add detection time
-              failureTime = (System.nanoTime() - downtime.get());
+              assertTrue(downtimeNano.get() > 0);
+              failureTimeNano = System.nanoTime() - downtimeNano.get();
             }
 
           } catch (InterruptedException interruptedException) {
@@ -432,7 +452,8 @@ public class AdvancedPerformanceTest {
             data.paramDriverName =
                 String.format(
                     "AWS Wrapper (%s, EFM)", TestEnvironment.getCurrent().getCurrentDriver());
-            data.failureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTime);
+            data.failureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTimeNano);
+            LOGGER.finest("WrapperEfm Collected data: " + data);
             perfDataList.add(data);
             LOGGER.finest(
                 "WrapperEfm Failure detection time is " + data.failureDetectionTimeMillis + "ms");
@@ -445,18 +466,24 @@ public class AdvancedPerformanceTest {
 
   private Thread getThread_WrapperEfmFailover(
       final int sleepDelayMillis,
-      final AtomicLong downtime,
+      final AtomicLong downtimeNano,
       final CountDownLatch startLatch,
       final CountDownLatch finishLatch) {
 
     return new Thread(
         () -> {
-          long failureTime = 0;
+          long failureTimeNano = 0;
           try {
             final Properties props = ConnectionStringHelper.getDefaultProperties();
-            DriverHelper.setMonitoringConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-            DriverHelper.setMonitoringSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
-            DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
+
+            props.setProperty(
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+                String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+            props.setProperty(
+                MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+                String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
+            CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+
             FAILURE_DETECTION_TIME.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
             FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(EFM_FAILURE_DETECTION_TIME_MS));
             FAILURE_DETECTION_COUNT.set(props, Integer.toString(EFM_FAILURE_DETECTION_COUNT));
@@ -495,7 +522,8 @@ public class AdvancedPerformanceTest {
               LOGGER.finest("WrapperEfmFailover thread exception: " + throwable);
               if (throwable instanceof FailoverSuccessSQLException) {
                 // Calculate and add detection time
-                failureTime = (System.nanoTime() - downtime.get());
+                assertTrue(downtimeNano.get() > 0);
+                failureTimeNano = System.nanoTime() - downtimeNano.get();
               }
             }
 
@@ -510,7 +538,8 @@ public class AdvancedPerformanceTest {
                 String.format(
                     "AWS Wrapper (%s, EFM, Failover)",
                     TestEnvironment.getCurrent().getCurrentDriver());
-            data.reconnectTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTime);
+            data.reconnectTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTimeNano);
+            LOGGER.finest("WrapperEfmFailover Collected data: " + data);
             perfDataList.add(data);
             LOGGER.finest(
                 "WrapperEfmFailover Reconnect time is " + data.reconnectTimeMillis + "ms");
@@ -523,13 +552,13 @@ public class AdvancedPerformanceTest {
 
   private Thread getThread_DNS(
       final int sleepDelayMillis,
-      final AtomicLong downtime,
+      final AtomicLong downtimeNano,
       final CountDownLatch startLatch,
       final CountDownLatch finishLatch) {
 
     return new Thread(
         () -> {
-          long failureTime = 0;
+          long failureTimeNano = 0;
           String currentClusterIpAddress;
 
           try {
@@ -571,7 +600,8 @@ public class AdvancedPerformanceTest {
 
             // DNS data has changed
             if (!clusterIpAddress.equals(currentClusterIpAddress)) {
-              failureTime = (System.nanoTime() - downtime.get());
+              assertTrue(downtimeNano.get() > 0);
+              failureTimeNano = System.nanoTime() - downtimeNano.get();
             }
 
           } catch (InterruptedException interruptedException) {
@@ -582,7 +612,8 @@ public class AdvancedPerformanceTest {
             PerfStat data = new PerfStat();
             data.paramFailoverDelayMillis = sleepDelayMillis;
             data.paramDriverName = "DNS";
-            data.dnsUpdateTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTime);
+            data.dnsUpdateTimeMillis = TimeUnit.NANOSECONDS.toMillis(failureTimeNano);
+            LOGGER.finest("DNS Collected data: " + data);
             perfDataList.add(data);
             LOGGER.finest("DNS Update time is " + data.dnsUpdateTimeMillis + "ms");
 
@@ -609,6 +640,12 @@ public class AdvancedPerformanceTest {
       fail("Can't connect to " + url);
     }
     return conn;
+  }
+
+  private void failoverCluster() throws InterruptedException {
+    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    String randomNode = auroraUtil.getRandomDBClusterReaderInstanceId(clusterId);
+    auroraUtil.failoverClusterToTarget(clusterId, randomNode);
   }
 
   private void ensureClusterHealthy() throws InterruptedException {
@@ -649,6 +686,8 @@ public class AdvancedPerformanceTest {
 
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
   }
 
   private static Stream<Arguments> generateParams() {
@@ -709,6 +748,18 @@ public class AdvancedPerformanceTest {
       cell.setCellValue(this.reconnectTimeMillis);
       cell = row.createCell(4);
       cell.setCellValue(this.dnsUpdateTimeMillis);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s [\nparamDriverName=%s,\nparamFailoverDelayMillis=%d,\n"
+              + "failureDetectionTimeMillis=%d,\nreconnectTimeMillis=%d,\ndnsUpdateTimeMillis=%d ]",
+          super.toString(),
+          this.paramDriverName,
+          this.paramFailoverDelayMillis,
+          this.failureDetectionTimeMillis,
+          this.reconnectTimeMillis,
+          this.dnsUpdateTimeMillis);
     }
   }
 }

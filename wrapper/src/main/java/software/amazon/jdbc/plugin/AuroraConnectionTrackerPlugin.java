@@ -115,27 +115,45 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
       final Object[] jdbcMethodArgs) throws E {
 
     final HostSpec currentHostSpec = this.pluginService.getCurrentHostSpec();
-    if (this.currentWriter == null || this.needUpdateCurrentWriter) {
-      this.currentWriter = this.getWriter(this.pluginService.getHosts());
-      this.needUpdateCurrentWriter = false;
-    }
+    this.rememberWriter();
 
     try {
       final T result = jdbcMethodFunc.call();
       if ((methodName.equals(METHOD_CLOSE) || methodName.equals(METHOD_ABORT))) {
         tracker.invalidateCurrentConnection(currentHostSpec, this.pluginService.getCurrentConnection());
+      } else if (this.needUpdateCurrentWriter) {
+        this.checkWriterChanged();
       }
       return result;
 
     } catch (final Exception e) {
       if (e instanceof FailoverSQLException) {
-        if (!Objects.equals(this.getWriter(this.pluginService.getHosts()), this.currentWriter)) {
-          tracker.invalidateAllConnections(this.currentWriter);
-          tracker.logOpenedConnections();
-          this.needUpdateCurrentWriter = true;
-        }
+        this.checkWriterChanged();
       }
       throw e;
+    }
+  }
+
+  private void checkWriterChanged() {
+    final HostSpec hostSpecAfterFailover = this.getWriter(this.pluginService.getHosts());
+
+    if (this.currentWriter == null) {
+      this.currentWriter = hostSpecAfterFailover;
+      this.needUpdateCurrentWriter = false;
+
+    } else if (!this.currentWriter.equals(hostSpecAfterFailover)) {
+      // the writer's changed
+      tracker.invalidateAllConnections(this.currentWriter);
+      tracker.logOpenedConnections();
+      this.currentWriter = hostSpecAfterFailover;
+      this.needUpdateCurrentWriter = false;
+    }
+  }
+
+  private void rememberWriter() {
+    if (this.currentWriter == null || this.needUpdateCurrentWriter) {
+      this.currentWriter = this.getWriter(this.pluginService.getHosts());
+      this.needUpdateCurrentWriter = false;
     }
   }
 

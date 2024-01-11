@@ -27,7 +27,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 
 public class ConnectionUrlParser {
 
@@ -90,6 +89,8 @@ public class ConnectionUrlParser {
 
   private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole,
       final HostSpecBuilder hostSpecBuilder) {
+    String hostId = rdsUtils.getRdsInstanceId(hostPortPair[0]);
+
     if (hostPortPair.length > 1) {
       final String[] port = hostPortPair[1].split("/");
       int portValue = parsePortAsInt(hostPortPair[1]);
@@ -99,12 +100,14 @@ public class ConnectionUrlParser {
       return hostSpecBuilder
           .host(hostPortPair[0])
           .port(portValue)
+          .hostId(hostId)
           .role(hostRole)
           .build();
     }
     return hostSpecBuilder
         .host(hostPortPair[0])
         .port(HostSpec.NO_PORT)
+        .hostId(hostId)
         .role(hostRole)
         .build();
   }
@@ -196,5 +199,16 @@ public class ConnectionUrlParser {
 
     // Attempt to use the original value for connection.
     return url;
+  }
+
+  public String getProtocol(final String url) {
+    final int index = url.indexOf("//");
+    if (index < 0) {
+      throw new IllegalArgumentException(
+          Messages.get(
+              "ConnectionUrlParser.protocolNotFound",
+              new Object[] {url}));
+    }
+    return url.substring(0, index + 2);
   }
 }

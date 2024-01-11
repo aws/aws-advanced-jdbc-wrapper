@@ -23,6 +23,7 @@ import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 
 /**
  * Implement this interface in order to handle the physical connection creation process.
@@ -74,6 +75,7 @@ public interface ConnectionProvider {
    *
    * @param protocol the connection protocol (example "jdbc:mysql://")
    * @param dialect  the database dialect
+   * @param targetDriverDialect the target driver dialect
    * @param hostSpec the HostSpec containing the host-port information for the host to connect to
    * @param props    the Properties to use for the connection
    * @return {@link Connection} resulting from the given connection information
@@ -82,13 +84,15 @@ public interface ConnectionProvider {
   Connection connect(
       @NonNull String protocol,
       @NonNull Dialect dialect,
+      @NonNull TargetDriverDialect targetDriverDialect,
       @NonNull HostSpec hostSpec,
       @NonNull Properties props)
       throws SQLException;
 
   /**
    * Called once per connection that needs to be created.
-   * This method is deprecated. Use {@link #connect(String, Dialect, HostSpec, Properties)} instead.
+   * This method is deprecated.
+   * Use {@link #connect(String, Dialect, TargetDriverDialect, HostSpec, Properties)} instead.
    *
    * @param url   the connection URL
    * @param props the Properties to use for the connection

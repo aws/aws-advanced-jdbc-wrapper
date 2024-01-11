@@ -25,8 +25,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
+import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
@@ -38,9 +40,11 @@ import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
+import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
-import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.StringUtils;
@@ -60,15 +64,19 @@ public class ConnectionPluginChainBuilder {
           put("logQuery", LogQueryConnectionPluginFactory.class);
           put("dataCache", DataCacheConnectionPluginFactory.class);
           put("efm", HostMonitoringConnectionPluginFactory.class);
+          put("efm2", software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class);
           put("failover", FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
+          put("federatedAuth", FederatedAuthPluginFactory.class);
           put("auroraStaleDns", AuroraStaleDnsPluginFactory.class);
           put("readWriteSplitting", ReadWriteSplittingPluginFactory.class);
           put("auroraConnectionTracker", AuroraConnectionTrackerPluginFactory.class);
           put("driverMetaData", DriverMetaDataConnectionPluginFactory.class);
           put("connectTime", ConnectTimeConnectionPluginFactory.class);
           put("dev", DeveloperConnectionPluginFactory.class);
+          put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
+          put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
         }
       };
 
@@ -83,14 +91,18 @@ public class ConnectionPluginChainBuilder {
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(DataCacheConnectionPluginFactory.class, 200);
           put(AuroraHostListConnectionPluginFactory.class, 300);
+          put(AuroraInitialConnectionStrategyPluginFactory.class, 390);
           put(AuroraConnectionTrackerPluginFactory.class, 400);
           put(AuroraStaleDnsPluginFactory.class, 500);
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(FailoverConnectionPluginFactory.class, 700);
           put(HostMonitoringConnectionPluginFactory.class, 800);
-          put(IamAuthConnectionPluginFactory.class, 900);
-          put(AwsSecretsManagerConnectionPluginFactory.class, 1000);
-          put(LogQueryConnectionPluginFactory.class, 1100);
+          put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
+          put(FastestResponseStrategyPluginFactory.class, 900);
+          put(IamAuthConnectionPluginFactory.class, 1000);
+          put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
+          put(FederatedAuthPluginFactory.class, 1200);
+          put(LogQueryConnectionPluginFactory.class, 1300);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
@@ -116,25 +128,17 @@ public class ConnectionPluginChainBuilder {
   public List<ConnectionPlugin> getPlugins(
       final PluginService pluginService,
       final ConnectionProvider defaultConnProvider,
+      final ConnectionProvider effectiveConnProvider,
       final PluginManagerService pluginManagerService,
-      final Properties props)
+      final Properties props,
+      @Nullable ConfigurationProfile configurationProfile)
       throws SQLException {
 
     List<ConnectionPlugin> plugins;
     List<Class<? extends ConnectionPluginFactory>> pluginFactories;
 
-    final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
-
-    if (profileName != null) {
-
-      if (!DriverConfigurationProfiles.contains(profileName)) {
-        throw new SQLException(
-            Messages.get(
-                "ConnectionPluginManager.configurationProfileNotFound",
-                new Object[] {profileName}));
-      }
-      pluginFactories = DriverConfigurationProfiles.getPluginFactories(profileName);
-
+    if (configurationProfile != null && configurationProfile.getPluginFactories() != null) {
+      pluginFactories = configurationProfile.getPluginFactories();
     } else {
 
       String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
@@ -194,8 +198,12 @@ public class ConnectionPluginChainBuilder {
     }
 
     // add default connection plugin to the tail
-    final ConnectionPlugin defaultPlugin =
-        new DefaultConnectionPlugin(pluginService, defaultConnProvider, pluginManagerService);
+    final ConnectionPlugin defaultPlugin = new DefaultConnectionPlugin(
+        pluginService,
+        defaultConnProvider,
+        effectiveConnProvider,
+        pluginManagerService);
+
     plugins.add(defaultPlugin);
 
     return plugins;

@@ -71,7 +71,6 @@ class DefaultConnectionPluginTest {
   @Mock TelemetryCounter mockTelemetryCounter;
   @Mock TelemetryGauge mockTelemetryGauge;
   @Mock ConnectionProviderManager mockConnectionProviderManager;
-  @Mock ConnectionProvider mockConnectionProvider;
   @Mock HostSpec mockHostSpec;
 
 
@@ -88,10 +87,10 @@ class DefaultConnectionPluginTest {
     // noinspection unchecked
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
     when(mockConnectionProviderManager.getConnectionProvider(anyString(), any(), any()))
-        .thenReturn(mockConnectionProvider);
+        .thenReturn(connectionProvider);
 
     plugin = new DefaultConnectionPlugin(
-        pluginService, connectionProvider, pluginManagerService, mockConnectionProviderManager);
+        pluginService, connectionProvider, null, pluginManagerService, mockConnectionProviderManager);
   }
 
   @AfterEach
@@ -123,7 +122,7 @@ class DefaultConnectionPluginTest {
   @Test
   void testConnect() throws SQLException {
     plugin.connect("anyProtocol", mockHostSpec, new Properties(), true, mockConnectFunction);
-    verify(mockConnectionProvider, atLeastOnce()).connect(anyString(), any(), any(), any());
+    verify(connectionProvider, atLeastOnce()).connect(anyString(), any(), any(), any(), any());
     verify(mockConnectionProviderManager, atLeastOnce()).initConnection(any(), anyString(), any(), any());
   }
 

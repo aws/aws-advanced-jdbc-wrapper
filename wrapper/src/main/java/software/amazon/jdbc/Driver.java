@@ -29,13 +29,18 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.profile.DriverConfigurationProfiles;
+import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
+import software.amazon.jdbc.states.TransferSessionStateOnSwitchCallable;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -49,6 +54,9 @@ public class Driver implements java.sql.Driver {
   private static final Logger PARENT_LOGGER = Logger.getLogger("software.amazon.jdbc");
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
+
+  private static ResetSessionStateOnCloseCallable resetSessionStateOnCloseCallable = null;
+  private static TransferSessionStateOnSwitchCallable transferSessionStateOnSwitchCallable = null;
 
   static {
     try {
@@ -100,41 +108,41 @@ public class Driver implements java.sql.Driver {
 
     LOGGER.finest("Opening connection to " + url);
 
+    ConnectionUrlParser.parsePropertiesFromUrl(url, info);
+    final Properties props = PropertyUtils.copyProperties(info);
+
     final String databaseName = ConnectionUrlParser.parseDatabaseFromUrl(url);
     if (!StringUtils.isNullOrEmpty(databaseName)) {
-      PropertyDefinition.DATABASE.set(info, databaseName);
+      PropertyDefinition.DATABASE.set(props, databaseName);
     }
-    ConnectionUrlParser.parsePropertiesFromUrl(url, info);
 
-    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(info);
+    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
+
+    final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
+    ConfigurationProfile configurationProfile = null;
+    if (!StringUtils.isNullOrEmpty(profileName)) {
+      configurationProfile = DriverConfigurationProfiles.getProfileConfiguration(profileName);
+      if (configurationProfile != null) {
+        PropertyUtils.addProperties(props, configurationProfile.getProperties());
+      } else {
+        throw new SQLException(
+            Messages.get(
+                "Driver.configurationProfileNotFound",
+                new Object[] {profileName}));
+      }
+    }
+
+    TelemetryFactory telemetryFactory = new DefaultTelemetryFactory(props);
     TelemetryContext context = telemetryFactory.openTelemetryContext(
         "software.amazon.jdbc.Driver.connect", TelemetryTraceLevel.TOP_LEVEL);
 
     try {
       final String driverUrl = url.replaceFirst(PROTOCOL_PREFIX, "jdbc:");
 
-      java.sql.Driver driver;
-      try {
-        driver = DriverManager.getDriver(driverUrl);
-      } catch (SQLException e) {
-        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-            .stream()
-            .map(x -> x.getClass().getName())
-            .collect(Collectors.toList());
-        throw new SQLException(
-            Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}), e);
-      }
+      TargetDriverHelper helper = new TargetDriverHelper();
+      java.sql.Driver driver = helper.getTargetDriver(driverUrl, props);
 
-      if (driver == null) {
-        final List<String> registeredDrivers = Collections.list(DriverManager.getDrivers())
-            .stream()
-            .map(x -> x.getClass().getName())
-            .collect(Collectors.toList());
-        LOGGER.severe(() -> Messages.get("Driver.missingDriver", new Object[] {driverUrl, registeredDrivers}));
-        return null;
-      }
-
-      final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(info);
+      final String logLevelStr = PropertyDefinition.LOGGER_LEVEL.getString(props);
       if (!StringUtils.isNullOrEmpty(logLevelStr)) {
         final Level logLevel = Level.parse(logLevelStr.toUpperCase());
         final Logger rootLogger = Logger.getLogger("");
@@ -149,12 +157,30 @@ public class Driver implements java.sql.Driver {
         PARENT_LOGGER.setLevel(logLevel);
       }
 
-      final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
-      final TargetDriverDialect targetDriverDialect = targetDriverDialectManager.getDialect(driver, info);
+      TargetDriverDialect targetDriverDialect = configurationProfile == null
+          ? null
+          : configurationProfile.getTargetDriverDialect();
 
-      final ConnectionProvider connectionProvider = new DriverConnectionProvider(driver, targetDriverDialect);
+      if (targetDriverDialect == null) {
+        final TargetDriverDialectManager targetDriverDialectManager = new TargetDriverDialectManager();
+        targetDriverDialect = targetDriverDialectManager.getDialect(driver, props);
+      }
 
-      return new ConnectionWrapper(info, driverUrl, connectionProvider, telemetryFactory);
+      final ConnectionProvider defaultConnectionProvider = new DriverConnectionProvider(driver);
+
+      ConnectionProvider effectiveConnectionProvider = null;
+      if (configurationProfile != null) {
+        effectiveConnectionProvider = configurationProfile.getConnectionProvider();
+      }
+
+      return new ConnectionWrapper(
+          props,
+          driverUrl,
+          defaultConnectionProvider,
+          effectiveConnectionProvider,
+          targetDriverDialect,
+          configurationProfile,
+          telemetryFactory);
 
     } catch (Exception ex) {
       context.setException(ex);
@@ -211,5 +237,29 @@ public class Driver implements java.sql.Driver {
   @Override
   public Logger getParentLogger() throws SQLFeatureNotSupportedException {
     return PARENT_LOGGER;
+  }
+
+  public static void setResetSessionStateOnCloseFunc(final @NonNull ResetSessionStateOnCloseCallable func) {
+    resetSessionStateOnCloseCallable = func;
+  }
+
+  public static void resetResetSessionStateOnCloseFunc() {
+    resetSessionStateOnCloseCallable = null;
+  }
+
+  public static ResetSessionStateOnCloseCallable getResetSessionStateOnCloseFunc() {
+    return resetSessionStateOnCloseCallable;
+  }
+
+  public static void setTransferSessionStateOnSwitchFunc(final @NonNull TransferSessionStateOnSwitchCallable func) {
+    transferSessionStateOnSwitchCallable = func;
+  }
+
+  public static void resetTransferSessionStateOnSwitchFunc() {
+    transferSessionStateOnSwitchCallable = null;
+  }
+
+  public static TransferSessionStateOnSwitchCallable getTransferSessionStateOnSwitchFunc() {
+    return transferSessionStateOnSwitchCallable;
   }
 }

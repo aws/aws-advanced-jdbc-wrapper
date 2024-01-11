@@ -72,3 +72,21 @@ properties.setProperty("monitoring-socketTimeout", "10");
 > We recommend you either disable the Host Monitoring Connection Plugin or avoid using RDS Proxy endpoints when the Host Monitoring Connection Plugin is active.
 >
 > Although using RDS Proxy endpoints with the AWS Advanced JDBC Driver with Enhanced Failure Monitoring doesn't cause any critical issues, we don't recommend this approach. The main reason is that RDS Proxy transparently re-routes requests to a single database instance. RDS Proxy decides which database instance is used based on many criteria (on a per-request basis). Switching between different instances makes the Host Monitoring Connection Plugin useless in terms of instance health monitoring because the plugin will be unable to identify which instance it's connected to, and which one it's monitoring. This could result in false positive failure detections. At the same time, the plugin will still proactively monitor network connectivity to RDS Proxy endpoints and report outages back to a user application if they occur.
+
+# **Experimental** Host Monitoring Plugin v2
+
+> [!WARNING] This plugin is experimental and users should test the plugin before using it in production environment.
+
+Host Monitoring Plugin v2, also known as `efm2`, is an alternative implementation of enhanced failure monitoring and it is functionally equal to the Host Monitoring Plugin described above. Both plugins share the same set of [configuration parameters](#enhanced-failure-monitoring-parameters). The `efm2` plugin is designed to be a drop-in replacement for the `efm` plugin.
+The `efm2` plugin can be used in any scenario where the `efm` plugin is mentioned.
+
+> [!NOTE] Since these two plugins are separate plugins, users may decide to use them together with a single connection. While this should not  have any negative side effects, it is not recommended. It is recommended to use either the `efm` plugin, or the `efm2` plugin where it's needed.
+ 
+
+The `efm2` plugin is designed to address [some of the issues](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/675) that have been reported by multiple users. The following changes have been made:
+- Used weak pointers to ease garbage collection
+- Split monitoring logic into two separate threads to increase overall monitoring stability
+- Reviewed locks for monitoring context
+- Reviewed and redesigned stopping of idle monitoring threads
+- Reviewed and simplified monitoring logic
+

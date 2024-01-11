@@ -22,7 +22,7 @@ plugins {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.postgresql:postgresql:42.6.0")
-    implementation("software.amazon.awssdk:rds:2.21.11")
+    implementation("org.postgresql:postgresql:42.7.1")
+    implementation("software.amazon.awssdk:rds:2.22.13")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }

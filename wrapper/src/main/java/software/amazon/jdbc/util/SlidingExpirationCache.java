@@ -24,11 +24,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 public class SlidingExpirationCache<K, V> {
-  private final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
-  private long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
-  private final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
-  private final ShouldDisposeFunc<V> shouldDisposeFunc;
-  private final ItemDisposalFunc<V> itemDisposalFunc;
+
+  protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
+  protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
+  protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
+  protected final ShouldDisposeFunc<V> shouldDisposeFunc;
+  protected final ItemDisposalFunc<V> itemDisposalFunc;
 
   /**
    * A cache that periodically cleans up expired entries. Fetching an expired entry marks that entry
@@ -57,6 +58,15 @@ public class SlidingExpirationCache<K, V> {
     this.itemDisposalFunc = itemDisposalFunc;
   }
 
+  public SlidingExpirationCache(
+      final ShouldDisposeFunc<V> shouldDisposeFunc,
+      final ItemDisposalFunc<V> itemDisposalFunc,
+      final long cleanupIntervalNanos) {
+    this.shouldDisposeFunc = shouldDisposeFunc;
+    this.itemDisposalFunc = itemDisposalFunc;
+    this.cleanupIntervalNanos = cleanupIntervalNanos;
+  }
+
   /**
    * In addition to performing the logic defined by {@link Map#computeIfAbsent}, cleans up expired
    * entries if we have hit cleanup time. If an expired entry is requested and we have not hit
@@ -83,6 +93,12 @@ public class SlidingExpirationCache<K, V> {
     return cacheItem.withExtendExpiration(itemExpirationNano).item;
   }
 
+  public V get(final K key, final long itemExpirationNano) {
+    cleanUp();
+    final CacheItem cacheItem = cache.get(key);
+    return cacheItem == null ? null : cacheItem.withExtendExpiration(itemExpirationNano).item;
+  }
+
   /**
    * Cleanup expired entries if we have hit the cleanup time, then remove and dispose the value
    * associated with the given key.
@@ -94,14 +110,14 @@ public class SlidingExpirationCache<K, V> {
     cleanUp();
   }
 
-  private void removeAndDispose(K key) {
+  protected void removeAndDispose(K key) {
     final CacheItem cacheItem = cache.remove(key);
     if (cacheItem != null && itemDisposalFunc != null) {
       itemDisposalFunc.dispose(cacheItem.item);
     }
   }
 
-  private void removeIfExpired(K key) {
+  protected void removeIfExpired(K key) {
     final CacheItem cacheItem = cache.get(key);
     if (cacheItem == null || cacheItem.shouldCleanup()) {
       removeAndDispose(key);
@@ -140,7 +156,7 @@ public class SlidingExpirationCache<K, V> {
     return this.cache.size();
   }
 
-  private void cleanUp() {
+  protected void cleanUp() {
     if (this.cleanupTimeNanos.get() > System.nanoTime()) {
       return;
     }

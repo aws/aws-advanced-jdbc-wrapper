@@ -24,9 +24,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class CacheMap<K, V> {
 
-  private final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
-  private final long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
-  private final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
+  protected final Map<K, CacheItem<V>> cache = new ConcurrentHashMap<>();
+  protected final long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
+  protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
 
   public CacheMap() {
   }
@@ -75,18 +75,25 @@ public class CacheMap<K, V> {
     return this.cache.size();
   }
 
-  private void cleanUp() {
+  protected void cleanUp() {
     if (this.cleanupTimeNanos.get() < System.nanoTime()) {
       this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
       cache.forEach((key, value) -> {
         if (value == null || value.isExpired()) {
           cache.remove(key);
+          if (value != null && value.item instanceof AutoCloseable) {
+            try {
+              ((AutoCloseable) value.item).close();
+            } catch (Exception e) {
+              // ignore
+            }
+          }
         }
       });
     }
   }
 
-  private static class CacheItem<V> {
+  static class CacheItem<V> {
     final V item;
     final long expirationTime;
 

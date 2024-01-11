@@ -21,6 +21,7 @@ import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 
+@SuppressWarnings("deprecation")
 public class AuroraHostListConnectionPluginFactory implements ConnectionPluginFactory {
 
   @Override

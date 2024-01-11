@@ -42,6 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
@@ -120,8 +121,16 @@ public class AuroraConnectionTrackerPluginTest {
   @Test
   public void testInvalidateOpenedConnectionsWhenWriterHostNotChange() throws SQLException {
     final FailoverSQLException expectedException = new FailoverSQLException("reason", "sqlstate");
-    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host")
+    final HostSpec originalHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("host")
+        .role(HostRole.WRITER)
         .build();
+    final HostSpec newHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("new-host")
+        .role(HostRole.WRITER)
+        .build();
+
+    // Host list changes during simulated failover
     when(mockPluginService.getHosts()).thenReturn(Collections.singletonList(originalHost));
     doThrow(expectedException).when(mockSqlFunction).call();
 

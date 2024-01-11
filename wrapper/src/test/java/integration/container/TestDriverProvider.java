@@ -54,10 +54,14 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
 import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
   private static final Logger LOGGER = Logger.getLogger(TestDriverProvider.class.getName());
+
+  private static final String POSTGRES_AUTH_ERROR_CODE = "28P01";
 
   @Override
   public boolean supportsTestTemplate(ExtensionContext context) {
@@ -165,6 +169,10 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                       try {
                         instanceIDs = auroraUtil.getAuroraInstanceIds();
                       } catch (SQLException ex) {
+                        if (POSTGRES_AUTH_ERROR_CODE.equals(ex.getSQLState())) {
+                          // This authentication error for PG is caused by test environment configuration.
+                          throw ex;
+                        }
                         instanceIDs = new ArrayList<>();
                       }
                     }
@@ -206,6 +214,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   TestPluginServiceImpl.clearHostAvailabilityCache();
                   DialectManager.resetEndpointCache();
                   TargetDriverDialectManager.resetCustomDialect();
+                  MonitorThreadContainer.releaseInstance();
+                  MonitorServiceImpl.clearCache();
                 }
                 if (tracesEnabled) {
                     AWSXRay.endSegment();

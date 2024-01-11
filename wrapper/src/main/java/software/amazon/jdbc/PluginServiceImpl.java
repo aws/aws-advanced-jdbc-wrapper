@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -39,11 +40,15 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
+import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
-import software.amazon.jdbc.states.SessionDirtyFlag;
+import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.states.SessionStateServiceImpl;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -65,19 +70,51 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
   private boolean isInTransaction;
-  private boolean explicitReadOnly;
   private final ExceptionManager exceptionManager;
+  protected final @Nullable ExceptionHandler exceptionHandler;
   protected final DialectProvider dialectProvider;
   protected Dialect dialect;
-  protected EnumSet<SessionDirtyFlag> currentConnectionSessionState = EnumSet.noneOf(SessionDirtyFlag.class);
-  protected boolean isAutoCommit = false;
+  protected TargetDriverDialect targetDriverDialect;
+  protected @Nullable final ConfigurationProfile configurationProfile;
+
+  protected final SessionStateService sessionStateService;
+
+  protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
 
   public PluginServiceImpl(
       @NonNull final ConnectionPluginManager pluginManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol) throws SQLException {
-    this(pluginManager, new ExceptionManager(), props, originalUrl, targetDriverProtocol,
+      @NonNull final String targetDriverProtocol,
+      @NonNull final TargetDriverDialect targetDriverDialect)
+      throws SQLException {
+
+    this(pluginManager,
+        new ExceptionManager(),
+        props,
+        originalUrl,
+        targetDriverProtocol,
+        null,
+        targetDriverDialect,
+        null,
+        null);
+  }
+
+  public PluginServiceImpl(
+      @NonNull final ConnectionPluginManager pluginManager,
+      @NonNull final Properties props,
+      @NonNull final String originalUrl,
+      @NonNull final String targetDriverProtocol,
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @Nullable final ConfigurationProfile configurationProfile) throws SQLException {
+    this(pluginManager,
+        new ExceptionManager(),
+        props,
+        originalUrl,
+        targetDriverProtocol,
+        null,
+        targetDriverDialect,
+        configurationProfile,
         null);
   }
 
@@ -86,15 +123,31 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       @NonNull final ExceptionManager exceptionManager,
       @NonNull final Properties props,
       @NonNull final String originalUrl,
-      final String targetDriverProtocol,
-      @Nullable final DialectProvider dialectProvider) throws SQLException {
+      @NonNull final String targetDriverProtocol,
+      @Nullable final DialectProvider dialectProvider,
+      @NonNull final TargetDriverDialect targetDriverDialect,
+      @Nullable final ConfigurationProfile configurationProfile,
+      @Nullable final SessionStateService sessionStateService) throws SQLException {
     this.pluginManager = pluginManager;
     this.props = props;
     this.originalUrl = originalUrl;
     this.driverProtocol = targetDriverProtocol;
+    this.configurationProfile = configurationProfile;
     this.exceptionManager = exceptionManager;
     this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
-    this.dialect = this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
+    this.targetDriverDialect = targetDriverDialect;
+
+    this.sessionStateService = sessionStateService != null
+        ? sessionStateService
+        : new SessionStateServiceImpl(this, this.props);
+
+    this.exceptionHandler = this.configurationProfile != null && this.configurationProfile.getExceptionHandler() != null
+        ? this.configurationProfile.getExceptionHandler()
+        : null;
+
+    this.dialect = this.configurationProfile != null && this.configurationProfile.getDialect() != null
+        ? this.configurationProfile.getDialect()
+        : this.dialectProvider.getDialect(this.driverProtocol, this.originalUrl, this.props);
   }
 
   @Override
@@ -175,54 +228,83 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public synchronized EnumSet<NodeChangeOptions> setCurrentConnection(
+  public EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec,
       @Nullable final ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException {
 
-    if (this.currentConnection == null) {
-      // setting up an initial connection
+    connectionSwitchLock.lock();
+    try {
 
-      this.currentConnection = connection;
-      this.currentHostSpec = hostSpec;
-
-      final EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);
-      this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
-
-      return changes;
-
-    } else {
-      // update an existing connection
-
-      final EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
-          connection, hostSpec);
-
-      if (!changes.isEmpty()) {
-
-        final Connection oldConnection = this.currentConnection;
+      if (this.currentConnection == null) {
+        // setting up an initial connection
 
         this.currentConnection = connection;
         this.currentHostSpec = hostSpec;
-        this.setInTransaction(false);
+        this.sessionStateService.reset();
 
-        final EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
-            changes, skipNotificationForThisPlugin);
+        final EnumSet<NodeChangeOptions> changes = EnumSet.of(NodeChangeOptions.INITIAL_CONNECTION);
+        this.pluginManager.notifyConnectionChanged(changes, skipNotificationForThisPlugin);
 
-        final boolean shouldCloseConnection =
-            changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
-                && !oldConnection.isClosed()
-                && !pluginOpinions.contains(OldConnectionSuggestedAction.PRESERVE);
+        return changes;
 
-        if (shouldCloseConnection) {
+      } else {
+        // update an existing connection
+
+        final EnumSet<NodeChangeOptions> changes = compare(this.currentConnection, this.currentHostSpec,
+            connection, hostSpec);
+
+        if (!changes.isEmpty()) {
+
+          final Connection oldConnection = this.currentConnection;
+          final boolean isInTransaction = this.isInTransaction;
+          this.sessionStateService.begin();
+
           try {
-            oldConnection.close();
-          } catch (final SQLException e) {
-            // Ignore any exception
+            this.currentConnection = connection;
+            this.currentHostSpec = hostSpec;
+
+            this.sessionStateService.applyCurrentSessionState(connection);
+            this.setInTransaction(false);
+
+            if (isInTransaction && PropertyDefinition.ROLLBACK_ON_SWITCH.getBoolean(this.props)) {
+              try {
+                oldConnection.rollback();
+              } catch (final SQLException e) {
+                // Ignore any exception
+              }
+            }
+
+            final EnumSet<OldConnectionSuggestedAction> pluginOpinions = this.pluginManager.notifyConnectionChanged(
+                changes, skipNotificationForThisPlugin);
+
+            final boolean shouldCloseConnection =
+                changes.contains(NodeChangeOptions.CONNECTION_OBJECT_CHANGED)
+                    && !oldConnection.isClosed()
+                    && !pluginOpinions.contains(OldConnectionSuggestedAction.PRESERVE);
+
+            if (shouldCloseConnection) {
+              try {
+                this.sessionStateService.applyPristineSessionState(oldConnection);
+              } catch (final SQLException e) {
+                // Ignore any exception
+              }
+
+              try {
+                oldConnection.close();
+              } catch (final SQLException e) {
+                // Ignore any exception
+              }
+            }
+          } finally {
+            this.sessionStateService.complete();
           }
         }
+        return changes;
       }
-      return changes;
+    } finally {
+      connectionSwitchLock.unlock();
     }
   }
 
@@ -322,23 +404,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public boolean isExplicitReadOnly() {
-    return this.explicitReadOnly;
-  }
-
-  @Override
-  public boolean isReadOnly() {
-    return isExplicitReadOnly() || (this.currentHostSpec != null && this.currentHostSpec.getRole() != HostRole.WRITER);
-  }
-
-  @Override
   public boolean isInTransaction() {
     return this.isInTransaction;
-  }
-
-  @Override
-  public void setReadOnly(final boolean readOnly) {
-    this.explicitReadOnly = readOnly;
   }
 
   @Override
@@ -478,28 +545,44 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public boolean isNetworkException(final Throwable throwable) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isNetworkException(throwable);
+    }
     return this.exceptionManager.isNetworkException(this.dialect, throwable);
   }
 
   @Override
   public boolean isNetworkException(final String sqlState) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isNetworkException(sqlState);
+    }
     return this.exceptionManager.isNetworkException(this.dialect, sqlState);
   }
 
   @Override
   public boolean isLoginException(final Throwable throwable) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isLoginException(throwable);
+    }
     return this.exceptionManager.isLoginException(this.dialect, throwable);
-
   }
 
   @Override
   public boolean isLoginException(final String sqlState) {
+    if (this.exceptionHandler != null) {
+      return this.exceptionHandler.isLoginException(sqlState);
+    }
     return this.exceptionManager.isLoginException(this.dialect, sqlState);
   }
 
   @Override
   public Dialect getDialect() {
     return this.dialect;
+  }
+
+  @Override
+  public TargetDriverDialect getTargetDriverDialect() {
+    return this.targetDriverDialect;
   }
 
   public void updateDialect(final @NonNull Connection connection) throws SQLException {
@@ -571,27 +654,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return this.pluginManager.getDefaultConnProvider().getTargetName();
   }
 
-  public EnumSet<SessionDirtyFlag> getCurrentConnectionState() {
-    return this.currentConnectionSessionState.clone();
-  }
-
-  public void setCurrentConnectionState(SessionDirtyFlag flag) {
-    this.currentConnectionSessionState.add(flag);
-  }
-
-  public void resetCurrentConnectionState(SessionDirtyFlag flag) {
-    this.currentConnectionSessionState.remove(flag);
-  }
-
-  public void resetCurrentConnectionStates() {
-    this.currentConnectionSessionState.clear();
-  }
-
-  public boolean getAutoCommit() {
-    return this.isAutoCommit;
-  }
-
-  public void setAutoCommit(final boolean autoCommit) {
-    this.isAutoCommit = autoCommit;
+  @Override
+  public @NonNull SessionStateService getSessionStateService() {
+    return this.sessionStateService;
   }
 }

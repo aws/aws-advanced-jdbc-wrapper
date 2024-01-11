@@ -16,12 +16,16 @@
 
 package software.amazon.jdbc.targetdriverdialect;
 
+import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PropertyDefinition;
 
 public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDialect {
 
@@ -41,6 +45,29 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   }
 
   @Override
+  public ConnectInfo prepareConnectInfo(final @NonNull String protocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props) throws SQLException {
+
+    final String databaseName =
+        PropertyDefinition.DATABASE.getString(props) != null
+            ? PropertyDefinition.DATABASE.getString(props)
+            : "";
+    String urlBuilder = protocol + hostSpec.getUrl() + databaseName;
+
+    // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
+    // and use them to make a connection
+    PropertyDefinition.removeAllExcept(props,
+        PropertyDefinition.USER.name,
+        PropertyDefinition.PASSWORD.name,
+        PropertyDefinition.TCP_KEEP_ALIVE.name,
+        PropertyDefinition.SOCKET_TIMEOUT.name,
+        PropertyDefinition.CONNECT_TIMEOUT.name);
+
+    return new ConnectInfo(urlBuilder, props);
+  }
+
+  @Override
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
       final @NonNull String protocol,
@@ -49,7 +76,31 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
 
     // The logic is isolated to a separated class since it uses
     // direct reference to com.mysql.cj.jdbc.MysqlDataSource
-    final MysqlConnectorJDataSourceHelper helper = new MysqlConnectorJDataSourceHelper();
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
     helper.prepareDataSource(dataSource, hostSpec, props);
+  }
+
+  @Override
+  public boolean isDriverRegistered() throws SQLException {
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    return helper.isDriverRegistered();
+  }
+
+  @Override
+  public void registerDriver() throws SQLException {
+    final MysqlConnectorJDriverHelper helper = new MysqlConnectorJDriverHelper();
+    helper.registerDriver();
+  }
+
+  @Override
+  public boolean ping(@NonNull Connection connection) {
+    try {
+      try (final Statement statement = connection.createStatement();
+          final ResultSet resultSet = statement.executeQuery("/* ping */ SELECT 1")) {
+        return true;
+      }
+    } catch (SQLException e) {
+      return false;
+    }
   }
 }

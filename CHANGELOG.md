@@ -3,6 +3,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.3.2] - 2023-12-18
+### :magic_wand: Added
+- [Federated Authentication Plugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFederatedAuthPlugin.md), which supports SAML authentication through ADFS ([PR #741](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/741)).
+- [**Experimental** Enhanced Host Monitoring Plugin v2](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md#experimental-host-monitoring-plugin-v2), which is a redesign of the original Enhanced Host Monitoring Plugin that addresses memory leaks and high CPU usage during monitoring sessions ([PR #764](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/764)).
+- Fastest Response Strategy Plugin, which implements a new autoscaling strategy ([PR #755](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/755)).
+- Plugin code for Aurora Initial Connection Strategy Plugin. This plugin returns an instance endpoint when connected using a cluster endpoint ([PR #784](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/784)).
+
+### :bug: Fixed
+- Use existing entries to update the round-robin cache ([PR #739](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/739)).
+
+### :crab: Changed
+- Updated HikariCP example to include configuring the datasource with a JDBC URL ([PR #749](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/749)).
+- Replaced the `sychronized` keyword with reentrant locks in AwsCredentialsManager ([PR #785](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/785)).
+- Set HostId in HostSpec when connecting using Aurora instance endpoints ([PR #782](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/782)).
+
+## [2.3.1] - 2023-11-29
+### :magic_wand: Added
+- User defined session state transfer functions ([PR #729](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/729)).
+- Documentation for using the driver with RDS Multi-AZ database clusters ([PR #740](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/740)).
+- [Configuration profiles](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#configuration-profiles) and [configuration presets](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/ConfigurationPresets.md) ([PR #711](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/711) and [PR #738](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/738)).
+
+### :bug: Fixed
+- Stopped monitoring threads causing out of memory errors ([PR #718](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/718)).
+- Automatically register a target driver in the class path to prevent `No suitable driver` SQL exceptions ([PR #748](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/748)).
+
+### :crab: Changed
+- Session state tracking to include additional state information ([PR #729](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/729)).
+- Log level for intentionally ignored exceptions to reduce the number of warnings ([PR #751](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/751)).
+
 ## [2.3.0] - 2023-11-23
 ### :magic_wand: Added
 - Fast switchover support for Amazon RDS Multi-AZ DB Clusters ([PR #690](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/690)).
@@ -172,7 +201,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### :crab: Changed
 - Lock initialization of `AuroraHostListProvider` ([PR #347](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/347)).
-- Optimized thread locks and expiring cache for the Enhanced Monitoring Plugin. ([PR #365](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/365)).
+- Optimized thread locks and expiring cache for the Enhanced Monitoring Plugin ([PR #365](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/365)).
 - Updated Hibernate sample code to reflect changes in the wrapper source code ([PR #368](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/368)).
 - Updated KnownLimitations.md to reflect that Amazon RDS Blue/Green Deployments are not supported. See [Amazon RDS Blue/Green Deployments](./docs/KnownLimitations.md#amazon-rds-blue-green-deployments).
 
@@ -210,7 +239,9 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
-[2.3.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.4...2.3.0
+[2.3.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.1...2.3.2
+[2.3.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.0...2.3.1
+[2.3.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.5...2.3.0
 [2.2.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.4...2.2.5
 [2.2.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.3...2.2.4
 [2.2.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.2.2...2.2.3

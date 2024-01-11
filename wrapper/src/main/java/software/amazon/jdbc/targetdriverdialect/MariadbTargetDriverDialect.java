@@ -56,7 +56,12 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
     // keep unknown properties (the ones that don't belong to AWS Wrapper Driver)
     // and use them to make a connection
     props.remove(PERMIT_MYSQL_SCHEME);
-    PropertyDefinition.removeAllExceptCredentials(props);
+    PropertyDefinition.removeAllExcept(props,
+        PropertyDefinition.USER.name,
+        PropertyDefinition.PASSWORD.name,
+        PropertyDefinition.TCP_KEEP_ALIVE.name,
+        PropertyDefinition.CONNECT_TIMEOUT.name,
+        PropertyDefinition.SOCKET_TIMEOUT.name);
 
     // "permitMysqlScheme" should be in Url rather than in properties.
     String urlBuilder = protocol + hostSpec.getUrl() + databaseName
@@ -74,7 +79,19 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
 
     // The logic is isolated to a separated class since it uses
     // direct reference to org.mariadb.jdbc.MariaDbDataSource
-    final MariadbDataSourceHelper helper = new MariadbDataSourceHelper();
+    final MariadbDriverHelper helper = new MariadbDriverHelper();
     helper.prepareDataSource(dataSource, protocol, hostSpec, props);
+  }
+
+  @Override
+  public boolean isDriverRegistered() throws SQLException {
+    final MariadbDriverHelper helper = new MariadbDriverHelper();
+    return helper.isDriverRegistered();
+  }
+
+  @Override
+  public void registerDriver() throws SQLException {
+    final MariadbDriverHelper helper = new MariadbDriverHelper();
+    helper.registerDriver();
   }
 }

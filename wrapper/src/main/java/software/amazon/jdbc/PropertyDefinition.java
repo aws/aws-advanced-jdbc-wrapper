@@ -101,6 +101,57 @@ public class PropertyDefinition {
               "OTLP", "NONE"
           });
 
+  public static final AwsWrapperProperty LOGIN_TIMEOUT =
+      new AwsWrapperProperty(
+          "loginTimeout", null, "Login timeout in msec.");
+
+  public static final AwsWrapperProperty CONNECT_TIMEOUT =
+      new AwsWrapperProperty(
+          "connectTimeout", null, "Socket connect timeout in msec.");
+  public static final AwsWrapperProperty SOCKET_TIMEOUT =
+      new AwsWrapperProperty(
+          "socketTimeout", null, "Socket timeout in msec.");
+
+  public static final AwsWrapperProperty TCP_KEEP_ALIVE =
+      new AwsWrapperProperty(
+          "tcpKeepAlive",
+          "false",
+          "Enable or disable TCP keep-alive probe.",
+          false,
+          new String[] {
+              "true", "false"
+          });
+
+  public static final AwsWrapperProperty TRANSFER_SESSION_STATE_ON_SWITCH =
+      new AwsWrapperProperty(
+          "transferSessionStateOnSwitch",
+          "true",
+          "Enables session state transfer to a new connection.",
+          false,
+          new String[] {
+              "true", "false"
+          });
+
+  public static final AwsWrapperProperty RESET_SESSION_STATE_ON_CLOSE =
+      new AwsWrapperProperty(
+          "resetSessionStateOnClose",
+          "true",
+          "Enables to reset connection session state before closing it.",
+          false,
+          new String[] {
+              "true", "false"
+          });
+
+  public static final AwsWrapperProperty ROLLBACK_ON_SWITCH =
+      new AwsWrapperProperty(
+          "rollbackOnSwitch",
+          "true",
+          "Enables to rollback a current transaction being in progress when switching to a new connection.",
+          false,
+          new String[] {
+              "true", "false"
+          });
+
   private static final Map<String, AwsWrapperProperty> PROPS_BY_NAME =
       new ConcurrentHashMap<>();
   private static final Set<String> KNOWN_PROPS_BY_PREFIX = ConcurrentHashMap.newKeySet();

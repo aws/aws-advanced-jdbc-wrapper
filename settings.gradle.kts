@@ -26,7 +26,8 @@ include(
     "springwildfly",
     "springboothikariexample",
     "springtxfailover",
-    "vertxexample"
+    "vertxexample",
+    "readwritesample"
 )
 
 project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
@@ -38,6 +39,7 @@ project(":springwildfly").projectDir = file("examples/SpringWildflyExample/sprin
 project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
 project(":vertxexample").projectDir = file("examples/VertxExample")
+project(":readwritesample").projectDir = file("examples/ReadWriteSplittingSample")
 
 pluginManagement {
     plugins {
@@ -45,7 +47,7 @@ pluginManagement {
         fun PluginDependenciesSpec.idv(id: String, key: String = id) = id(id) version key.v()
 
         id("biz.aQute.bnd.builder") version "6.4.0"
-        id("com.github.spotbugs") version "5.2.+"
+        id("com.github.spotbugs") version "6.0.+"
         id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
         id("com.github.vlsi.gradle-extensions") version "1.+"
         id("com.github.vlsi.stage-vote-release") version "1.+"

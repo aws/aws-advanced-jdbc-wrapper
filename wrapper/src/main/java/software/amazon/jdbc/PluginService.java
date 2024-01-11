@@ -27,7 +27,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.states.SessionDirtyFlag;
+import software.amazon.jdbc.states.SessionStateService;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
@@ -42,23 +43,24 @@ public interface PluginService extends ExceptionHandler {
   void setCurrentConnection(final @NonNull Connection connection, final @NonNull HostSpec hostSpec)
       throws SQLException;
 
+  /**
+   * Set a new internal connection. While setting a new connection, a notification may be sent to all plugins.
+   * See {@link ConnectionPlugin#notifyConnectionChanged(EnumSet)} for more details. A plugin mentioned
+   * in parameter skipNotificationForThisPlugin won't be receiving such notification.
+   *
+   * @param connection the new internal connection.
+   * @param hostSpec  the host details for a new internal connection.
+   * @param skipNotificationForThisPlugin A reference to a plugin that doesn't need to receive notification
+   *                                      about connection change. Usually, a plugin that initiates connection change
+   *                                      doesn't need to receive such notification and uses a pointer to
+   *                                      itself as a call parameter.
+   * @return a set of notification options about this connection switch.
+   */
   EnumSet<NodeChangeOptions> setCurrentConnection(
       final @NonNull Connection connection,
       final @NonNull HostSpec hostSpec,
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
-
-  EnumSet<SessionDirtyFlag> getCurrentConnectionState();
-
-  void setCurrentConnectionState(SessionDirtyFlag flag);
-
-  void resetCurrentConnectionState(SessionDirtyFlag flag);
-
-  void resetCurrentConnectionStates();
-
-  boolean getAutoCommit();
-
-  void setAutoCommit(final boolean autoCommit);
 
   List<HostSpec> getHosts();
 
@@ -109,10 +111,6 @@ public interface PluginService extends ExceptionHandler {
   HostRole getHostRole(Connection conn) throws SQLException;
 
   void setAvailability(Set<String> hostAliases, HostAvailability availability);
-
-  boolean isExplicitReadOnly();
-
-  boolean isReadOnly();
 
   boolean isInTransaction();
 
@@ -165,6 +163,8 @@ public interface PluginService extends ExceptionHandler {
 
   Dialect getDialect();
 
+  TargetDriverDialect getTargetDriverDialect();
+
   void updateDialect(final @NonNull Connection connection) throws SQLException;
 
   HostSpec identifyConnection(final Connection connection) throws SQLException;
@@ -183,4 +183,5 @@ public interface PluginService extends ExceptionHandler {
 
   String getTargetName();
 
+  @NonNull SessionStateService getSessionStateService();
 }

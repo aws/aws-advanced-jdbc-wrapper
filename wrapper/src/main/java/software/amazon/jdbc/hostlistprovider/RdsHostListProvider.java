@@ -113,7 +113,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   // (rather than a GUID or a value provided by the user).
   protected boolean isPrimaryClusterId;
 
-  protected boolean isInitialized = false;
+  protected volatile boolean isInitialized = false;
 
   static final Logger LOGGER = Logger.getLogger(RdsHostListProvider.class.getName());
 
@@ -509,7 +509,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         : this.hostListProviderService.getCurrentConnection();
 
     final FetchTopologyResult results = getTopology(currentConnection, false);
-    LOGGER.finest(() -> Utils.logTopology(results.hosts));
+    LOGGER.finest(() -> Utils.logTopology(results.hosts, results.isCachedData ? "[From cache] " : ""));
 
     this.hostList = results.hosts;
     return Collections.unmodifiableList(hostList);

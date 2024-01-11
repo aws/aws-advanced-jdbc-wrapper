@@ -47,6 +47,12 @@ public class HikariExample {
       ds.addDataSourceProperty("serverPort", "5432");
       ds.addDataSourceProperty("serverName", ENDPOINT);
 
+      // Alternatively, the AwsWrapperDataSource can be configured with a JDBC URL instead of individual properties as
+      // seen above.
+      ds.addDataSourceProperty(
+          "jdbcUrl",
+          "jdbc:aws-wrapper:postgresql://db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres");
+
       // Specify the driver-specific data source for AwsWrapperDataSource:
       ds.addDataSourceProperty("targetDataSourceClassName", "org.postgresql.ds.PGSimpleDataSource");
 

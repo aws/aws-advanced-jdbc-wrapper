@@ -111,7 +111,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertSame(result.getNewConnection(), mockConnection);
 
     final InOrder inOrder = Mockito.inOrder(mockPluginService);
-    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
     inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
@@ -153,7 +152,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertSame(result.getNewConnection(), mockWriterConnection);
 
     final InOrder inOrder = Mockito.inOrder(mockPluginService);
-    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
     inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
@@ -196,7 +194,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertSame(result.getNewConnection(), mockWriterConnection);
 
     final InOrder inOrder = Mockito.inOrder(mockPluginService);
-    inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
     inOrder.verify(mockPluginService).setAvailability(eq(writer.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
@@ -243,7 +240,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertEquals(3, result.getTopology().size());
     assertEquals("new-writer-host", result.getTopology().get(0).getHost());
 
-    verify(mockPluginService, times(1)).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
     verify(mockPluginService, times(1)).setAvailability(eq(newWriterHost.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
@@ -291,7 +287,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertEquals("new-writer-host", result.getTopology().get(0).getHost());
 
     verify(mockPluginService, atLeastOnce()).forceRefreshHostList(any(Connection.class));
-    verify(mockPluginService, times(1)).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
     verify(mockPluginService, times(1)).setAvailability(eq(newWriterHost.asAliases()), eq(HostAvailability.AVAILABLE));
   }
 
@@ -343,7 +338,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isNewHost());
 
     verify(mockPluginService, atLeastOnce()).forceRefreshHostList(any(Connection.class));
-    verify(mockPluginService, times(1)).setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
 
     // 5s is a max allowed failover timeout; add 1s for inaccurate measurements
     assertTrue(TimeUnit.NANOSECONDS.toMillis(durationNano) < 6000);
@@ -384,8 +378,6 @@ class ClusterAwareWriterFailoverHandlerTest {
     assertFalse(result.isConnected());
     assertFalse(result.isNewHost());
 
-    verify(mockPluginService, times(1))
-        .setAvailability(eq(writer.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
     verify(mockPluginService, atLeastOnce())
         .setAvailability(eq(newWriterHost.asAliases()), eq(HostAvailability.NOT_AVAILABLE));
   }
