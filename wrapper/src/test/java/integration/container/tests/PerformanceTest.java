@@ -17,13 +17,15 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.fail;
+import static software.amazon.jdbc.PropertyDefinition.CONNECT_TIMEOUT;
 import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
+import static software.amazon.jdbc.PropertyDefinition.SOCKET_TIMEOUT;
 import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT;
 import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_INTERVAL;
 import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAILURE_DETECTION_TIME;
 import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
-import integration.DriverHelper;
+import integration.DatabaseEngine;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
@@ -40,6 +42,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LongSummaryStatistics;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,10 +53,14 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 
@@ -67,6 +74,8 @@ import software.amazon.jdbc.util.StringUtils;
 public class PerformanceTest {
 
   private static final Logger LOGGER = Logger.getLogger(PerformanceTest.class.getName());
+
+  private static final String MONITORING_CONNECTION_PREFIX = "monitoring-";
 
   private static final int REPEAT_TIMES =
       StringUtils.isNullOrEmpty(System.getenv("REPEAT_TIMES"))
@@ -120,7 +129,20 @@ public class PerformanceTest {
   }
 
   @TestTemplate
+  @Tag("efm")
   public void test_FailureDetectionTime_EnhancedMonitoringEnabled() throws IOException {
+
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
+    test_FailureDetectionTime_EnhancedMonitoringEnabled("efm");
+
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
+    test_FailureDetectionTime_EnhancedMonitoringEnabled("efm2");
+  }
+
+  public void test_FailureDetectionTime_EnhancedMonitoringEnabled(final String efmPlugin)
+        throws IOException {
 
     enhancedFailureMonitoringPerfDataList.clear();
 
@@ -131,7 +153,7 @@ public class PerformanceTest {
             try {
               Object[] args = a.get();
               execute_FailureDetectionTime_EnhancedMonitoringEnabled(
-                  (int) args[0], (int) args[1], (int) args[2], (int) args[3]);
+                  efmPlugin, (int) args[0], (int) args[1], (int) args[2], (int) args[3]);
             } catch (SQLException ex) {
               throw new RuntimeException(ex);
             }
@@ -140,39 +162,63 @@ public class PerformanceTest {
     } finally {
       doWritePerfDataToFile(
           String.format(
-              "./build/reports/tests/"
-                + "DbEngine_%s_Driver_%s_"
-                + "FailureDetectionPerformanceResults_EnhancedMonitoringEnabled.xlsx",
+              "./build/reports/tests/EnhancedMonitoringOnly_"
+                + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver()),
+              TestEnvironment.getCurrent().getCurrentDriver(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
+              efmPlugin),
           enhancedFailureMonitoringPerfDataList);
       enhancedFailureMonitoringPerfDataList.clear();
     }
   }
 
   private void execute_FailureDetectionTime_EnhancedMonitoringEnabled(
-      int detectionTime, int detectionInterval, int detectionCount, int sleepDelayMillis)
+      final String efmPlugin,
+      int detectionTimeMillis,
+      int detectionIntervalMillis,
+      int detectionCount,
+      int sleepDelayMillis)
       throws SQLException {
+
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setMonitoringConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setMonitoringSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
+    props.setProperty(
+        MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+        String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+    props.setProperty(
+        MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+        String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
+    CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+
     // this performance test measures efm failure detection time after disconnecting the network
-    FAILURE_DETECTION_TIME.set(props, Integer.toString(detectionTime));
-    FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(detectionInterval));
+    FAILURE_DETECTION_TIME.set(props, Integer.toString(detectionTimeMillis));
+    FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(detectionIntervalMillis));
     FAILURE_DETECTION_COUNT.set(props, Integer.toString(detectionCount));
-    PLUGINS.set(props, "efm");
+    PLUGINS.set(props, efmPlugin);
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, data);
-    data.paramDetectionTime = detectionTime;
-    data.paramDetectionInterval = detectionInterval;
+    data.paramDetectionTime = detectionTimeMillis;
+    data.paramDetectionInterval = detectionIntervalMillis;
     data.paramDetectionCount = detectionCount;
     enhancedFailureMonitoringPerfDataList.add(data);
   }
 
   @TestTemplate
+  @Tag("efm")
+  @Tag("failover")
   public void test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled() throws IOException {
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
+    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("efm");
+
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
+    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("efm2");
+  }
+
+  public void test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(final String efmPlugin)
+      throws IOException {
 
     failoverWithEfmPerfDataList.clear();
 
@@ -183,7 +229,7 @@ public class PerformanceTest {
             try {
               Object[] args = a.get();
               execute_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(
-                  (int) args[0], (int) args[1], (int) args[2], (int) args[3]);
+                  efmPlugin, (int) args[0], (int) args[1], (int) args[2], (int) args[3]);
             } catch (SQLException ex) {
               throw new RuntimeException(ex);
             }
@@ -192,31 +238,40 @@ public class PerformanceTest {
     } finally {
       doWritePerfDataToFile(
           String.format(
-              "./build/reports/tests/"
-              + "DbEngine_%s_Driver_%s_"
-              + "FailureDetectionPerformanceResults_FailoverAndEnhancedMonitoringEnabled.xlsx",
+              "./build/reports/tests/FailoverWithEnhancedMonitoring_"
+              + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver()),
+              TestEnvironment.getCurrent().getCurrentDriver(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
+              efmPlugin),
           failoverWithEfmPerfDataList);
       failoverWithEfmPerfDataList.clear();
     }
   }
 
   private void execute_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(
-      int detectionTime, int detectionInterval, int detectionCount, int sleepDelayMillis)
+      final String efmPlugin,
+      int detectionTime,
+      int detectionInterval,
+      int detectionCount,
+      int sleepDelayMillis)
       throws SQLException {
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setMonitoringConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setMonitoringSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
+    props.setProperty(
+        MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
+        String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+    props.setProperty(
+        MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
+        String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
+    CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
 
     // this performance test measures failover and efm failure detection time after disconnecting
     // the network
     FAILURE_DETECTION_TIME.set(props, Integer.toString(detectionTime));
     FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(detectionInterval));
     FAILURE_DETECTION_COUNT.set(props, Integer.toString(detectionCount));
-    PLUGINS.set(props, "failover,efm");
+    PLUGINS.set(props, "failover," + efmPlugin);
     FAILOVER_TIMEOUT_MS.set(props, Integer.toString(PERF_FAILOVER_TIMEOUT_MS));
     props.setProperty(
         "clusterInstanceHostPattern",
@@ -236,6 +291,7 @@ public class PerformanceTest {
   }
 
   @TestTemplate
+  @Tag("failover")
   public void test_FailoverTime_SocketTimeout() throws IOException {
 
     failoverWithSocketTimeoutPerfDataList.clear();
@@ -255,9 +311,11 @@ public class PerformanceTest {
     } finally {
       doWritePerfDataToFile(
           String.format(
-              "./build/reports/tests/DbEngine_%s_Driver_%s_FailoverPerformanceResults_SocketTimeout.xlsx",
+              "./build/reports/tests/FailoverWithSocketTimeout_"
+              + "Db_%s_Driver_%s_Instances_%d.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver()),
+              TestEnvironment.getCurrent().getCurrentDriver(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()),
           failoverWithSocketTimeoutPerfDataList);
       failoverWithSocketTimeoutPerfDataList.clear();
     }
@@ -268,8 +326,8 @@ public class PerformanceTest {
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     // this performance test measures how socket timeout changes the overall failover time
-    DriverHelper.setSocketTimeout(props, socketTimeout, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
+    SOCKET_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(socketTimeout)));
+    CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
 
     // Loads just failover plugin; don't load Enhanced Failure Monitoring plugin
     props.setProperty("wrapperPlugins", "failover");
@@ -296,12 +354,11 @@ public class PerformanceTest {
       PerfStatBase data)
       throws SQLException {
 
-    final String QUERY = "SELECT pg_sleep(600)"; // 600s -> 10min
-    final AtomicLong downtime = new AtomicLong();
-    final List<Long> elapsedTimes = new ArrayList<>(repeatTimes);
+    final AtomicLong downtimeNanos = new AtomicLong();
+    final List<Long> elapsedTimeMillis = new ArrayList<>(repeatTimes);
 
     for (int i = 0; i < repeatTimes; i++) {
-      downtime.set(0);
+      downtimeNanos.set(0);
 
       // Thread to stop network
       final Thread thread =
@@ -317,7 +374,8 @@ public class PerformanceTest {
                           .getInstances()
                           .get(0)
                           .getInstanceId());
-                  downtime.set(System.nanoTime());
+                  downtimeNanos.set(System.nanoTime());
+                  LOGGER.finest("Network outages started.");
                 } catch (InterruptedException interruptedException) {
                   // Ignore, stop the thread
                 }
@@ -329,12 +387,16 @@ public class PerformanceTest {
         thread.start();
 
         // Execute long query
-        try (final ResultSet result = statement.executeQuery(QUERY)) {
+        try (final ResultSet result = statement.executeQuery(getQuerySql())) {
           fail("Sleep query finished, should not be possible with network downed.");
         } catch (SQLException ex) { // Catching executing query
           // Calculate and add detection time
-          final long failureTime = (System.nanoTime() - downtime.get());
-          elapsedTimes.add(failureTime);
+          if (downtimeNanos.get() == 0) {
+            LOGGER.warning("Network outages start time is undefined!");
+          } else {
+            final long failureTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - downtimeNanos.get());
+            elapsedTimeMillis.add(failureTimeMillis);
+          }
         }
 
       } finally {
@@ -349,15 +411,13 @@ public class PerformanceTest {
       }
     }
 
-    final long min = elapsedTimes.stream().min(Long::compare).orElse(0L);
-    final long max = elapsedTimes.stream().max(Long::compare).orElse(0L);
-    final long avg =
-        (long) elapsedTimes.stream().mapToLong(a -> a).summaryStatistics().getAverage();
+    final LongSummaryStatistics stats = elapsedTimeMillis.stream().mapToLong(a -> a).summaryStatistics();
 
     data.paramNetworkOutageDelayMillis = sleepDelayMillis;
-    data.minFailureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(min);
-    data.maxFailureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(max);
-    data.avgFailureDetectionTimeMillis = TimeUnit.NANOSECONDS.toMillis(avg);
+    data.minFailureDetectionTimeMillis = stats.getMin();
+    data.maxFailureDetectionTimeMillis = stats.getMax();
+    data.avgFailureDetectionTimeMillis = Math.round(stats.getAverage());
+    LOGGER.finest("Collected data: " + data);
   }
 
   private Connection openConnectionWithRetry(Properties props) {
@@ -390,8 +450,22 @@ public class PerformanceTest {
     return DriverManager.getConnection(url, props);
   }
 
+  private String getQuerySql() {
+    final DatabaseEngine databaseEngine =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    switch (databaseEngine) {
+      case PG:
+        return "SELECT pg_sleep(600)"; // 600s -> 10min
+      case MYSQL:
+      case MARIADB:
+        return "SELECT sleep(600)"; // 600s -> 10min
+      default:
+        throw new UnsupportedOperationException(databaseEngine.name());
+    }
+  }
+
   private Stream<Arguments> generateFailureDetectionTimeParams() {
-    // detectionTime, detectionInterval, detectionCount, sleepDelayMS
+    // detectionTimeMs, detectionIntervalMs, detectionCount, sleepDelayMs
     return Stream.of(
         // Defaults
         Arguments.of(30000, 5000, 3, 5000),
@@ -482,6 +556,20 @@ public class PerformanceTest {
       cell = row.createCell(6);
       cell.setCellValue(this.avgFailureDetectionTimeMillis);
     }
+
+    @Override
+    public String toString() {
+      return String.format("%s [\nparamDetectionTime=%d,\nparamDetectionInterval=%d,\nparamDetectionCount=%d,\n"
+          + "paramNetworkOutageDelayMillis=%d,\nmin=%d,\nmax=%d,\navg=%d ]",
+          super.toString(),
+          this.paramDetectionTime,
+          this.paramDetectionInterval,
+          this.paramDetectionCount,
+          this.paramNetworkOutageDelayMillis,
+          this.minFailureDetectionTimeMillis,
+          this.maxFailureDetectionTimeMillis,
+          this.avgFailureDetectionTimeMillis);
+    }
   }
 
   private static class PerfStatSocketTimeout extends PerfStatBase {
@@ -514,6 +602,18 @@ public class PerformanceTest {
       cell.setCellValue(this.maxFailureDetectionTimeMillis);
       cell = row.createCell(4);
       cell.setCellValue(this.avgFailureDetectionTimeMillis);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s [\nparamSocketTimeout=%d,\nparamNetworkOutageDelayMillis=%d,\n"
+              + "min=%d,\nmax=%d,\navg=%d ]",
+          super.toString(),
+          this.paramSocketTimeout,
+          this.paramNetworkOutageDelayMillis,
+          this.minFailureDetectionTimeMillis,
+          this.maxFailureDetectionTimeMillis,
+          this.avgFailureDetectionTimeMillis);
     }
   }
 }

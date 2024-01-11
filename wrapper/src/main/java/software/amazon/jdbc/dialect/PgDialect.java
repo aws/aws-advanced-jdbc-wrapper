@@ -66,15 +66,31 @@ public class PgDialect implements Dialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
+    Statement stmt = null;
+    ResultSet rs = null;
     try {
-      try (final Statement stmt = connection.createStatement();
-          final ResultSet rs = stmt.executeQuery("SELECT 1 FROM pg_proc LIMIT 1")) {
-        if (rs.next()) {
-          return true;
-        }
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery("SELECT 1 FROM pg_proc LIMIT 1");
+      if (rs.next()) {
+        return true;
       }
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }

@@ -40,9 +40,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
-import software.amazon.jdbc.states.SessionDirtyFlag;
-import software.amazon.jdbc.states.SessionStateHelper;
-import software.amazon.jdbc.states.SessionStateTransferCallable;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -63,9 +60,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       });
   static final String METHOD_SET_READ_ONLY = "Connection.setReadOnly";
   static final String METHOD_CLEAR_WARNINGS = "Connection.clearWarnings";
-
-  protected static SessionStateTransferCallable sessionStateTransferCallable;
-
 
   private final PluginService pluginService;
   private final Properties properties;
@@ -109,14 +103,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.hostListProviderService = hostListProviderService;
     this.writerConnection = writerConnection;
     this.readerConnection = readerConnection;
-  }
-
-  public static void setSessionStateTransferFunc(SessionStateTransferCallable callable) {
-    sessionStateTransferCallable = callable;
-  }
-
-  public static void resetSessionStateTransferFunc() {
-    sessionStateTransferCallable = null;
   }
 
   @Override
@@ -417,59 +403,16 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       final Connection newConnection,
       final HostSpec newConnectionHost)
       throws SQLException {
+
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     if (currentConnection == newConnection) {
       return;
     }
-
-    transferSessionStateOnReadWriteSplit(newConnection, newConnectionHost);
     this.pluginService.setCurrentConnection(newConnection, newConnectionHost);
     LOGGER.finest(() -> Messages.get(
         "ReadWriteSplittingPlugin.settingCurrentConnection",
         new Object[] {
             newConnectionHost.getUrl()}));
-  }
-
-  /**
-   * Transfers basic session state from one connection to another, except for the read-only
-   * status. This method is only called when setReadOnly is being called; the read-only status
-   * will be updated when the setReadOnly call continues down the plugin chain
-   *
-   * @param dest The destination connection to transfer state to
-   * @param destHostSpec The destination connection {@link HostSpec}
-   * @throws SQLException if a database access error occurs, this method is called on a closed
-   *                      connection, or this method is called during a distributed transaction
-   */
-  protected void transferSessionStateOnReadWriteSplit(
-      final Connection dest,
-      final HostSpec destHostSpec)
-      throws SQLException {
-
-    final Connection src = this.pluginService.getCurrentConnection();
-    if (src == null || dest == null) {
-      return;
-    }
-
-    EnumSet<SessionDirtyFlag> sessionState = this.pluginService.getCurrentConnectionState();
-
-    SessionStateTransferCallable callableCopy = sessionStateTransferCallable;
-    if (callableCopy != null) {
-      final boolean isHandled = callableCopy.transferSessionState(
-          sessionState,
-          src,
-          this.pluginService.getCurrentHostSpec(),
-          dest,
-          destHostSpec);
-      if (isHandled) {
-        // Custom function has handled session transfer
-        return;
-      }
-    }
-
-    sessionState = this.pluginService.getCurrentConnectionState();
-    sessionState.remove(SessionDirtyFlag.READONLY); // We don't want to change READONLY flag of the connection
-    final SessionStateHelper helper = new SessionStateHelper();
-    helper.transferSessionState(sessionState, src, dest);
   }
 
   private synchronized void switchToReaderConnection(final List<HostSpec> hosts)

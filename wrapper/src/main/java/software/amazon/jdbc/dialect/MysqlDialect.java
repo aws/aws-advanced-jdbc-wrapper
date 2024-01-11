@@ -62,8 +62,11 @@ public class MysqlDialect implements Dialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (final Statement stmt = connection.createStatement();
-        final ResultSet rs = stmt.executeQuery(this.getServerVersionQuery())) {
+    Statement stmt = null;
+    ResultSet rs = null;
+    try {
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(this.getServerVersionQuery());
       while (rs.next()) {
         final int columnCount = rs.getMetaData().getColumnCount();
         for (int i = 1; i <= columnCount; i++) {
@@ -75,6 +78,21 @@ public class MysqlDialect implements Dialect {
       }
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }

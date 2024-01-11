@@ -33,6 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.AuroraHostListConnectionPlugin;
+import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
@@ -71,6 +72,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(LogQueryConnectionPlugin.class, "plugin:logQuery");
           put(DataCacheConnectionPlugin.class, "plugin:dataCache");
           put(HostMonitoringConnectionPlugin.class, "plugin:efm");
+          put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.class, "plugin:efm2");
           put(FailoverConnectionPlugin.class, "plugin:failover");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
@@ -78,6 +80,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");
           put(FastestResponseStrategyPlugin.class, "plugin:fastestResponseStrategy");
           put(DefaultConnectionPlugin.class, "plugin:targetDriver");
+          put(AuroraInitialConnectionStrategyPlugin.class, "plugin:initialConnection");
         }
       };
 

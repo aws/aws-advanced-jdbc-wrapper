@@ -54,6 +54,8 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
 import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
+import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
@@ -212,6 +214,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   TestPluginServiceImpl.clearHostAvailabilityCache();
                   DialectManager.resetEndpointCache();
                   TargetDriverDialectManager.resetCustomDialect();
+                  MonitorThreadContainer.releaseInstance();
+                  MonitorServiceImpl.clearCache();
                 }
                 if (tracesEnabled) {
                     AWSXRay.endSegment();

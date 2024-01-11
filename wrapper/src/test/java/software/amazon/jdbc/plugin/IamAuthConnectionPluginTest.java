@@ -102,7 +102,7 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testPostgresConnectValidTokenInCache() throws SQLException {
     IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
@@ -114,7 +114,7 @@ class IamAuthConnectionPluginTest {
     props.setProperty(PropertyDefinition.USER.name, "mysqlUser");
     props.setProperty(PropertyDefinition.PASSWORD.name, "mysqlPassword");
     IamAuthConnectionPlugin.tokenCache.put(MYSQL_CACHE_KEY,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_MYSQL_PORT);
 
@@ -130,7 +130,7 @@ class IamAuthConnectionPluginTest {
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
   }
@@ -145,7 +145,7 @@ class IamAuthConnectionPluginTest {
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + DEFAULT_PG_PORT + ":postgresqlUser";
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
   }
@@ -153,7 +153,7 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testConnectExpiredTokenInCache() throws SQLException {
     IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().minusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().minusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 
@@ -171,7 +171,7 @@ class IamAuthConnectionPluginTest {
   public void testConnectWithSpecifiedPort() throws SQLException {
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:" + "postgresqlUser";
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
   }
@@ -183,7 +183,7 @@ class IamAuthConnectionPluginTest {
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + iamDefaultPort + ":postgresqlUser";
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
   }
@@ -194,7 +194,7 @@ class IamAuthConnectionPluginTest {
         "us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":" + "postgresqlUser";
     props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-west-1");
     IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewRegion,
-        new IamAuthConnectionPlugin.TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
+        new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
 

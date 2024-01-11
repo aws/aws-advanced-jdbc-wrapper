@@ -36,6 +36,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 class SqlMethodAnalyzerTest {
+  private static final String EXECUTE_METHOD = "execute";
+  private static final String EMPTY_SQL = "";
 
   @Mock Connection conn;
 
@@ -70,6 +72,11 @@ class SqlMethodAnalyzerTest {
     assertEquals(expected, actual);
   }
 
+  @Test
+  void testOpenTransactionWithEmptySqlDoesNotThrow() {
+    assertDoesNotThrow(() -> sqlMethodAnalyzer.doesOpenTransaction(conn, EXECUTE_METHOD, new String[]{EMPTY_SQL}));
+  }
+
   @ParameterizedTest
   @MethodSource("closeTransactionQueries")
   void testCloseTransaction(final String methodName, final String sql, final boolean expected) {
@@ -82,6 +89,11 @@ class SqlMethodAnalyzerTest {
 
     final boolean actual = sqlMethodAnalyzer.doesCloseTransaction(conn, methodName, args);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void testCloseTransactionWithEmptySqlDoesNotThrow() {
+    assertDoesNotThrow(() -> sqlMethodAnalyzer.doesCloseTransaction(conn, EXECUTE_METHOD, new String[]{EMPTY_SQL}));
   }
 
   @Test
@@ -125,6 +137,11 @@ class SqlMethodAnalyzerTest {
     assertEquals(expected, actual);
   }
 
+  @Test
+  void testIsStatementSettingAutoCommitWithEmptySqlDoesNotThrow() {
+    assertDoesNotThrow(() -> sqlMethodAnalyzer.isStatementSettingAutoCommit(EXECUTE_METHOD, new String[]{EMPTY_SQL}));
+  }
+
   @ParameterizedTest
   @MethodSource("getAutoCommitQueries")
   void testGetAutoCommit(final String sql, final Boolean expected) {
@@ -137,6 +154,11 @@ class SqlMethodAnalyzerTest {
 
     final Boolean actual = sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(args);
     assertEquals(expected, actual);
+  }
+
+  @Test
+  void testGetAutoCommitWithEmptySqlDoesNotThrow() {
+    assertDoesNotThrow(() -> sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(new String[]{EMPTY_SQL}));
   }
 
   @ParameterizedTest

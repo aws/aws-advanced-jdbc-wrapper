@@ -33,6 +33,10 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   private static final String TOPOLOGY_QUERY =
       "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
+  private static final String WRITER_NODE_FUNC_EXIST_QUERY =
+      "SELECT 1 AS tmp FROM information_schema.routines"
+          + " WHERE routine_schema='rds_tools' AND routine_name='multi_az_db_cluster_source_dbi_resource_id'";
+
   private static final String FETCH_WRITER_NODE_QUERY =
       "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
 
@@ -51,11 +55,39 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    try (final Statement stmt = connection.createStatement();
-         final ResultSet rs = stmt.executeQuery(FETCH_WRITER_NODE_QUERY)) {
-      return rs.next();
+    Statement stmt = null;
+    ResultSet rs = null;
+    try {
+      stmt = connection.createStatement();
+      rs = stmt.executeQuery(WRITER_NODE_FUNC_EXIST_QUERY);
+
+      if (rs.next()) {
+        rs.close();
+        stmt.close();
+
+        stmt = connection.createStatement();
+        rs = stmt.executeQuery(FETCH_WRITER_NODE_QUERY);
+
+        return rs.next();
+      }
+      return false;
     } catch (final SQLException ex) {
       // ignore
+    } finally {
+      if (stmt != null) {
+        try {
+          stmt.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
+      if (rs != null) {
+        try {
+          rs.close();
+        } catch (SQLException ex) {
+          // ignore
+        }
+      }
     }
     return false;
   }

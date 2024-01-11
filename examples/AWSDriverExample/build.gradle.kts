@@ -16,14 +16,15 @@
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
-    implementation("org.postgresql:postgresql:42.6.0")
+    implementation("org.postgresql:postgresql:42.7.1")
     implementation("mysql:mysql-connector-java:8.0.33")
-    implementation("software.amazon.awssdk:rds:2.21.38")
-    implementation("software.amazon.awssdk:secretsmanager:2.21.38")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.0")
+    implementation("software.amazon.awssdk:rds:2.22.13")
+    implementation("software.amazon.awssdk:secretsmanager:2.22.5")
+    implementation("software.amazon.awssdk:sts:2.22.13")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
     implementation(project(":aws-advanced-jdbc-wrapper"))
-    implementation("io.opentelemetry:opentelemetry-api:1.32.0")
-    implementation("io.opentelemetry:opentelemetry-sdk:1.32.0")
-    implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.32.0")
-    implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.14.0")
+    implementation("io.opentelemetry:opentelemetry-api:1.33.0")
+    implementation("io.opentelemetry:opentelemetry-sdk:1.33.0")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.33.0")
+    implementation("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
 }

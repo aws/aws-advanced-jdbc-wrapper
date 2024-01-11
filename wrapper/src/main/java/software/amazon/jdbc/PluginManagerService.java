@@ -18,7 +18,5 @@ package software.amazon.jdbc;
 
 public interface PluginManagerService {
 
-  void setReadOnly(boolean readOnly);
-
   void setInTransaction(boolean inTransaction);
 }

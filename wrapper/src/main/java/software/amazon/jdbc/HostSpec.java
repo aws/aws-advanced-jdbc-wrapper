@@ -46,15 +46,31 @@ public class HostSpec {
   protected Timestamp lastUpdateTime;
   protected HostAvailabilityStrategy hostAvailabilityStrategy;
 
-  private HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
+  private HostSpec(
+      final String host,
+      final int port,
+      final String hostId,
+      final HostRole role,
+      final HostAvailability availability,
       final HostAvailabilityStrategy hostAvailabilityStrategy) {
-    this(host, port, role, availability, DEFAULT_WEIGHT, Timestamp.from(Instant.now()), hostAvailabilityStrategy);
+
+    this(host, port, hostId, role, availability, DEFAULT_WEIGHT,
+        Timestamp.from(Instant.now()), hostAvailabilityStrategy);
   }
 
-  HostSpec(final String host, final int port, final HostRole role, final HostAvailability availability,
-       final long weight, final Timestamp lastUpdateTime, final HostAvailabilityStrategy hostAvailabilityStrategy) {
+  HostSpec(
+      final String host,
+      final int port,
+      final String hostId,
+      final HostRole role,
+      final HostAvailability availability,
+      final long weight,
+      final Timestamp lastUpdateTime,
+      final HostAvailabilityStrategy hostAvailabilityStrategy) {
+
     this.host = host;
     this.port = port;
+    this.hostId = hostId;
     this.availability = availability;
     this.role = role;
     this.allAliases.add(this.asAlias());
@@ -70,7 +86,7 @@ public class HostSpec {
    * @param role     the role of this host (writer or reader).
    */
   public HostSpec(final HostSpec copyHost, final HostRole role) {
-    this(copyHost.getHost(), copyHost.getPort(), role, copyHost.getAvailability(),
+    this(copyHost.getHost(), copyHost.getPort(), copyHost.getHostId(), role, copyHost.getAvailability(),
         copyHost.getHostAvailabilityStrategy());
   }
 

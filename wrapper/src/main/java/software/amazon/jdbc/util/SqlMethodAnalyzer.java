@@ -47,7 +47,11 @@ public class SqlMethodAnalyzer {
   }
 
   private String getFirstSqlStatement(final String sql) {
-    String statement = parseMultiStatementQueries(sql).get(0);
+    List<String> statementList = parseMultiStatementQueries(sql);
+    if (statementList.isEmpty()) {
+      return sql;
+    }
+    String statement = statementList.get(0);
     statement = statement.toUpperCase();
     statement = statement.replaceAll("\\s*/\\*(.*?)\\*/\\s*", " ").trim();
     return statement;
