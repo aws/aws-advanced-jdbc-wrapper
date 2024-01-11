@@ -16,11 +16,8 @@
 
 package software.amazon.jdbc.util;
 
-import static java.util.Collections.singletonList;
-
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -58,14 +55,14 @@ public class SqlMethodAnalyzer {
 
   private List<String> parseMultiStatementQueries(String query) {
     if (StringUtils.isNullOrEmpty(query)) {
-      return singletonList("");
+      return Collections.singletonList("");
     }
 
     query = query.replaceAll("\\s+", " ");
 
     // Check to see if string only has blank spaces.
     if (query.trim().isEmpty()) {
-      return singletonList("");
+      return Collections.singletonList("");
     }
 
     return Arrays.stream(query.split(";")).collect(Collectors.toList());
