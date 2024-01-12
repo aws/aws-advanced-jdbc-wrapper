@@ -30,7 +30,7 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.42.0")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.22.13")
-    compileOnly("software.amazon.awssdk:sts:2.23.3")
+    compileOnly("software.amazon.awssdk:sts:2.22.13")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.23.3")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.16.1")
@@ -43,7 +43,6 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-api:1.33.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.33.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.34.1")
-
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.1")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.1")
@@ -215,14 +214,6 @@ tasks.jar {
             Require-Capability: osgi.ee;filter:="(&(|(osgi.ee=J2SE)(osgi.ee=JavaSE))(version>=1.8))"
             """
         )
-    }
-
-    doFirst {
-        mkdir("${buildDir}/META-INF/services/")
-        val driverFile = File("${buildDir}/META-INF/services/java.sql.Driver")
-        if (driverFile.createNewFile()) {
-            driverFile.writeText("software.amazon.jdbc.Driver")
-        }
     }
 }
 
