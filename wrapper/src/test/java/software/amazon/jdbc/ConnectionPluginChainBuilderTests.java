@@ -37,7 +37,7 @@ import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin;
-import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -69,7 +69,7 @@ public class ConnectionPluginChainBuilderTests {
   public void testSortPlugins() throws SQLException {
     ConnectionPluginChainBuilder builder = new ConnectionPluginChainBuilder();
     Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "iam,efm,failover");
+    props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover");
 
     List<ConnectionPlugin> result = builder.getPlugins(
         mockPluginService,
@@ -91,7 +91,7 @@ public class ConnectionPluginChainBuilderTests {
   public void testPreservePluginOrder() throws SQLException {
     ConnectionPluginChainBuilder builder = new ConnectionPluginChainBuilder();
     Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "iam,efm,failover");
+    props.put(PropertyDefinition.PLUGINS.name, "iam,efm2,failover");
     props.put(PropertyDefinition.AUTO_SORT_PLUGIN_ORDER.name, "false");
 
     List<ConnectionPlugin> result = builder.getPlugins(
@@ -114,7 +114,7 @@ public class ConnectionPluginChainBuilderTests {
   public void testSortPluginsWithStickToPrior() throws SQLException {
     ConnectionPluginChainBuilder builder = new ConnectionPluginChainBuilder();
     Properties props = new Properties();
-    props.put(PropertyDefinition.PLUGINS.name, "dev,iam,executionTime,connectTime,efm,failover");
+    props.put(PropertyDefinition.PLUGINS.name, "dev,iam,executionTime,connectTime,efm2,failover");
 
     List<ConnectionPlugin> result = builder.getPlugins(
         mockPluginService,

@@ -42,8 +42,8 @@ public class ReadWriteSplittingMySQLExample {
 
     final Properties props = new Properties();
 
-    // Enable readWriteSplitting, failover, and efm plugins and set properties
-    props.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
+    // Enable readWriteSplitting, failover, and efm2 plugins and set properties
+    props.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm2");
     props.setProperty(PropertyDefinition.USER.name, USERNAME);
     props.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 

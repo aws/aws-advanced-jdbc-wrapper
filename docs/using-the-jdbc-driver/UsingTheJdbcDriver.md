@@ -73,12 +73,12 @@ Plugins are loaded and managed through the Connection Plugin Manager and may be 
 
 | Parameter                         | Value     | Required | Description                                                                                                                                                                                          | Default Value                          |
 |-----------------------------------|-----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
-| `wrapperPlugins`                  | `String`  | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm`                                                                                                                     | `auroraConnectionTracker,failover,efm` | 
+| `wrapperPlugins`                  | `String`  | No       | Comma separated list of connection plugin codes. <br><br>Example: `failover,efm2`                                                                                                                    | `auroraConnectionTracker,failover,efm` | 
 | `autoSortWrapperPluginOrder`      | `Boolean` | No       | Allows the AWS JDBC Driver to sort connection plugins to prevent plugin misconfiguration. Allows a user to provide a custom plugin order if needed.                                                  | `true`                                 | 
 | `wrapperProfileName`              | `String`  | No       | Driver configuration profile name. Instead of listing plugin codes with `wrapperPlugins`, the driver profile can be set with this parameter. <br><br> Example: See [below](#configuration-profiles). | `null`                                 |
 
 To use a built-in plugin, specify its relevant plugin code for the `wrapperPlugins`.
-The default value for `wrapperPlugins` is `auroraConnectionTracker,failover,efm`. These 3 plugins are enabled by default. To read more about these plugins, see the [List of Available Plugins](#list-of-available-plugins) section.
+The default value for `wrapperPlugins` is `auroraConnectionTracker,failover,efm2`. These 3 plugins are enabled by default. To read more about these plugins, see the [List of Available Plugins](#list-of-available-plugins) section.
 To override the default plugins, simply provide a new value for `wrapperPlugins`.
 For instance, to use the [IAM Authentication Connection Plugin](./using-plugins/UsingTheIamAuthenticationPlugin.md) and the [Failover Connection Plugin](./using-plugins/UsingTheFailoverPlugin.md):
 
