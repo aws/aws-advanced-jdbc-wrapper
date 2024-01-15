@@ -27,7 +27,7 @@ plugins {
 }
 
 dependencies {
-    implementation("org.checkerframework:checker-qual:3.40.0")
+    implementation("org.checkerframework:checker-qual:3.42.0")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.22.13")
     compileOnly("software.amazon.awssdk:sts:2.22.13")
