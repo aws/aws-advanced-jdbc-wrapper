@@ -98,32 +98,37 @@ public class RdsUtils {
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-)?"
-              + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com\\.cn)",
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
+              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_CHINA_INSTANCE_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
-              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com\\.cn)",
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
+              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern AURORA_CHINA_CLUSTER_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
-              + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com\\.cn)",
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
+              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
   private static final Pattern AURORA_CHINA_CUSTOM_CLUSTER_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>cluster-custom-)+"
-              + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)\\.amazonaws\\.com\\.cn)",
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
+              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
   private static final Pattern AURORA_CHINA_PROXY_DNS_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>proxy-)+"
-              + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-])+\\.amazonaws\\.com\\.cn)",
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
+              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
 
   private static final Pattern ELB_PATTERN =
@@ -223,7 +228,7 @@ public class RdsUtils {
     }
     final Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
     if (chinaMatcher.find()) {
-      return chinaMatcher.group(REGION_GROUP);
+      return chinaMatcher.group(REGION_GROUP).replaceAll("rds", "").replaceAll("\\.", "");
     }
     final Matcher elbMatcher = ELB_PATTERN.matcher(host);
     if (elbMatcher.find()) {
