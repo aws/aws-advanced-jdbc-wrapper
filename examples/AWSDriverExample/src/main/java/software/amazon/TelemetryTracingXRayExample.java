@@ -45,7 +45,7 @@ public class TelemetryTracingXRayExample {
 
     // Properties
     final Properties properties = new Properties();
-    properties.setProperty(PropertyDefinition.PLUGINS.name, "dataCache, efm, failover");
+    properties.setProperty(PropertyDefinition.PLUGINS.name, "dataCache,efm2,failover");
     properties.setProperty(PropertyDefinition.USER.name, USERNAME);
     properties.setProperty(PropertyDefinition.PASSWORD.name, PASSWORD);
 

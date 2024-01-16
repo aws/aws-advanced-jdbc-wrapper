@@ -38,7 +38,7 @@ public class DriverMetaDataConnectionPluginExample {
     final Properties properties = new Properties();
     properties.setProperty("user", USERNAME);
     properties.setProperty("password", PASSWORD);
-    PropertyDefinition.PLUGINS.set(properties, "driverMetaData,failover,efm");
+    PropertyDefinition.PLUGINS.set(properties, "driverMetaData,failover,efm2");
 
     // DriverMetaDataConnectionPlugin Settings
     // Override the return value of DatabaseMetaData#getDriverName to "PostgreSQL JDBC Driver"

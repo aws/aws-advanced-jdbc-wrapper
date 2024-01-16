@@ -79,7 +79,7 @@ spring:
     driver-class-name: software.amazon.jdbc.Driver
     hikari:
       data-source-properties:
-        wrapperPlugins: failover,efm
+        wrapperPlugins: failover,efm2
         wrapperDialect: aurora-pg
       exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
 ```
@@ -95,7 +95,7 @@ spring:
     driver-class-name: software.amazon.jdbc.Driver
     hikari:
       data-source-properties:
-        wrapperPlugins: failover,efm
+        wrapperPlugins: failover,efm2
         wrapperDialect: aurora-pg
       exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
       max-lifetime: 840000

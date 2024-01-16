@@ -123,7 +123,7 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm2");
     return props;
   }
 

@@ -47,7 +47,7 @@ import software.amazon.jdbc.mock.TestPluginTwo;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
-import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;

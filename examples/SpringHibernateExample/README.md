@@ -149,7 +149,7 @@ Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
         driver-class-name: software.amazon.jdbc.Driver
         hikari:
           data-source-properties:
-            wrapperPlugins: iam,failover,efm
+            wrapperPlugins: iam,failover,efm2
             iamRegion: us-east-2
             iamExpiration: 1320
           exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException

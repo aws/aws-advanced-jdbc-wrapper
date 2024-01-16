@@ -386,7 +386,7 @@ public class PluginBenchmarks {
 
   Properties useTelemetry() {
     final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "dataCache,auroraHostList,efm");
+    properties.setProperty("wrapperPlugins", "dataCache,auroraHostList,efm2");
     properties.setProperty("enableTelemetry", "true");
     properties.setProperty("telemetryMetricsBackend", "none");
     properties.setProperty("telemetryTracesBackend", "none");
@@ -395,7 +395,7 @@ public class PluginBenchmarks {
 
   Properties disabledTelemetry() {
     final Properties properties = new Properties();
-    properties.setProperty("wrapperPlugins", "dataCache,auroraHostList,efm");
+    properties.setProperty("wrapperPlugins", "dataCache,auroraHostList,efm2");
     properties.setProperty("enableTelemetry", "false");
     return properties;
   }
