@@ -42,11 +42,11 @@ public class SessionStateField<T> {
   }
 
   public void setValue(final T value) {
-    this.value = Optional.of(value);
+    this.value = Optional.ofNullable(value);
   }
 
   public void setPristineValue(final T value) {
-    this.pristineValue = Optional.of(value);
+    this.pristineValue = Optional.ofNullable(value);
   }
 
   public void resetValue() {
@@ -88,5 +88,12 @@ public class SessionStateField<T> {
 
     // it's inconclusive if the current value is the same as pristine value, so we need to take the safest path.
     return true;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%s -> %s",
+        pristineValue.isPresent() ? pristineValue.get() : "(blank)",
+        value.isPresent() ? value.get() : "(blank)");
   }
 }

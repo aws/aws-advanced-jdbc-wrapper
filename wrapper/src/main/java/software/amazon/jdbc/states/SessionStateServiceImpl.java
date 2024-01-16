@@ -23,12 +23,15 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 
 public class SessionStateServiceImpl implements SessionStateService {
+
+  private static final Logger LOGGER = Logger.getLogger(SessionStateServiceImpl.class.getName());
 
   protected SessionState sessionState;
   protected SessionState copySessionState;
@@ -66,6 +69,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.autoCommit.setValue(autoCommit);
+    this.logCurrentState();
   }
 
   @Override
@@ -78,6 +82,20 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.autoCommit.setPristineValue(this.pluginService.getCurrentConnection().getAutoCommit());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineAutoCommit(final boolean autoCommit) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+
+    if (this.sessionState.autoCommit.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.autoCommit.setPristineValue(autoCommit);
+    this.logCurrentState();
   }
 
   @Override
@@ -91,6 +109,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.readOnly.setValue(readOnly);
+    this.logCurrentState();
   }
 
   @Override
@@ -102,6 +121,19 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.readOnly.setPristineValue(this.pluginService.getCurrentConnection().isReadOnly());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineReadOnly(final boolean readOnly) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    if (this.sessionState.readOnly.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.readOnly.setPristineValue(readOnly);
+    this.logCurrentState();
   }
 
   @Override
@@ -115,6 +147,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.catalog.setValue(catalog);
+    this.logCurrentState();
   }
 
   @Override
@@ -126,6 +159,19 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.catalog.setPristineValue(this.pluginService.getCurrentConnection().getCatalog());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineCatalog(final String catalog) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    if (this.sessionState.catalog.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.catalog.setPristineValue(catalog);
+    this.logCurrentState();
   }
 
   @Override
@@ -139,6 +185,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.holdability.setValue(holdability);
+    this.logCurrentState();
   }
 
   @Override
@@ -150,6 +197,19 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.holdability.setPristineValue(this.pluginService.getCurrentConnection().getHoldability());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineHoldability(final int holdability) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    if (this.sessionState.holdability.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.holdability.setPristineValue(holdability);
+    this.logCurrentState();
   }
 
   @Override
@@ -163,6 +223,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.networkTimeout.setValue(milliseconds);
+    this.logCurrentState();
   }
 
   @Override
@@ -174,6 +235,19 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.networkTimeout.setPristineValue(this.pluginService.getCurrentConnection().getNetworkTimeout());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineNetworkTimeout(final int milliseconds) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    if (this.sessionState.networkTimeout.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.networkTimeout.setPristineValue(milliseconds);
+    this.logCurrentState();
   }
 
   @Override
@@ -187,6 +261,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.schema.setValue(schema);
+    this.logCurrentState();
   }
 
   @Override
@@ -198,6 +273,19 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.schema.setPristineValue(this.pluginService.getCurrentConnection().getSchema());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineSchema(final String schema) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    if (this.sessionState.schema.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.schema.setPristineValue(schema);
+    this.logCurrentState();
   }
 
   @Override
@@ -211,6 +299,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.transactionIsolation.setValue(level);
+    this.logCurrentState();
   }
 
   @Override
@@ -223,6 +312,19 @@ public class SessionStateServiceImpl implements SessionStateService {
     }
     this.sessionState.transactionIsolation.setPristineValue(
         this.pluginService.getCurrentConnection().getTransactionIsolation());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineTransactionIsolation(final int level) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    if (this.sessionState.transactionIsolation.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.transactionIsolation.setPristineValue(level);
+    this.logCurrentState();
   }
 
   @Override
@@ -236,6 +338,7 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.typeMap.setValue(map);
+    this.logCurrentState();
   }
 
   @Override
@@ -247,6 +350,19 @@ public class SessionStateServiceImpl implements SessionStateService {
       return;
     }
     this.sessionState.typeMap.setPristineValue(this.pluginService.getCurrentConnection().getTypeMap());
+    this.logCurrentState();
+  }
+
+  @Override
+  public void setupPristineTypeMap(final Map<String, Class<?>> map) throws SQLException {
+    if (!this.resetStateEnabledSetting()) {
+      return;
+    }
+    if (this.sessionState.typeMap.getPristineValue().isPresent()) {
+      return;
+    }
+    this.sessionState.typeMap.setPristineValue(map);
+    this.logCurrentState();
   }
 
   @Override
@@ -263,6 +379,8 @@ public class SessionStateServiceImpl implements SessionStateService {
 
   @Override
   public void begin() throws SQLException {
+    this.logCurrentState();
+
     if (!this.transferStateEnabledSetting() && !this.resetStateEnabledSetting()) {
       return;
     }
@@ -436,5 +554,9 @@ public class SessionStateServiceImpl implements SessionStateService {
         // Ignore any exception
       }
     }
+  }
+
+  public void logCurrentState() {
+    LOGGER.finest(() -> "Current session state:\n" + this.sessionState);
   }
 }

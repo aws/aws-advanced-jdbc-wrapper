@@ -28,6 +28,8 @@ public class ConfigurationProfilePresetCodes {
   // Presets family D, E ,F - internal connection pool
   // Presets family G, H, I - external connection pool
 
+  // Presets family SF_D, SF_E ,SF_F - internal connection pool; optimized for Spring Framework / Spring Boot
+
   public static final String A0 = "A0"; // Normal
   public static final String A1 = "A1"; // Easy
   public static final String A2 = "A2"; // Aggressive
@@ -51,6 +53,14 @@ public class ConfigurationProfilePresetCodes {
 
   public static final String I0 = "I0"; // Normal
   public static final String I1 = "I1"; // Aggressive
+
+  public static final String SF_D0 = "SF_D0"; // Normal
+  public static final String SF_D1 = "SF_D1"; // Easy
+
+  public static final String SF_E = "SF_E"; // Normal
+
+  public static final String SF_F0 = "SF_F0"; // Normal
+  public static final String SF_F1 = "SF_F1"; // Aggressive
 
   private static final Set<String> KNOWN_PRESETS = ConcurrentHashMap.newKeySet();
 
