@@ -30,7 +30,17 @@ public class RdsMysqlDialect extends MysqlDialect {
 
   @Override
   public boolean isDialect(final Connection connection) {
-    if (!super.isDialect(connection)) {
+    if (super.isDialect(connection)) {
+      // MysqlDialect and RdsMysqlDialect use the same server version query to determine the dialect.
+      // The `SHOW VARIABLES LIKE 'version_comment'` either outputs
+      // | Variable_name   | value                        |
+      // |-----------------|------------------------------|
+      // | version_comment | MySQL Community Server (GPL) |
+      // for community Mysql, or
+      // | Variable_name   | value               |
+      // |-----------------|---------------------|
+      // | version_comment | Source distribution |
+      // for RDS MySQL. If super.idDialect returns true there is no need to check for RdsMysqlDialect.
       return false;
     }
     Statement stmt = null;
