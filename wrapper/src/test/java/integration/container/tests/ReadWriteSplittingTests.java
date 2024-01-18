@@ -244,9 +244,7 @@ public class ReadWriteSplittingTests {
 
       final Statement stmt = conn.createStatement();
       conn.setAutoCommit(false);
-      stmt.executeQuery(
-          // TODO: can we replace it with something less database specific?
-          "SELECT COUNT(*) FROM information_schema.tables");
+      stmt.executeQuery("SELECT 1");
 
       final SQLException exception =
           assertThrows(SQLException.class, () -> conn.setReadOnly(false));
