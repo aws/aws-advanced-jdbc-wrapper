@@ -262,6 +262,7 @@ public class RdsUtilsTests {
     RdsUtils target = new RdsUtils();
 
     // Expected to return true with correct cluster paths
+    //
     assertTrue(target.isRdsDns(extraRdsChinaPath));
     assertFalse(target.isRdsDns(missingCnChinaPath));
     assertFalse(target.isRdsDns(missingRegionChinaPath));
