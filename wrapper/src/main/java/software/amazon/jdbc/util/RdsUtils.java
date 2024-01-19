@@ -228,7 +228,7 @@ public class RdsUtils {
     }
     final Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
     if (chinaMatcher.find()) {
-      // Using replaceAll to strip 'rds.' and '.rds' since it is now captured in the region group for the China patterns.
+      // Using replaceAll to strip 'rds.' and '.rds' since it is captured in the region group.
       return chinaMatcher.group(REGION_GROUP).replaceAll("rds", "").replaceAll("\\.", "");
     }
     final Matcher elbMatcher = ELB_PATTERN.matcher(host);
