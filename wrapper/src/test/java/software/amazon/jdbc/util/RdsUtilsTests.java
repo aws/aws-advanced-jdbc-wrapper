@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 public class RdsUtilsTests {
 
-  private static RdsUtils target;
+  private RdsUtils target;
   private static final String usEastRegionCluster =
       "database-test-name.cluster-XYZ.us-east-2.rds.amazonaws.com";
   private static final String usEastRegionClusterReadOnly =
