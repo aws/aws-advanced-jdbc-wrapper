@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :crab: Changed
 - Session state tracking and transfer redesign ([PR #821](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/821)).
 - Improve Multi-AZ cluster detection ([PR #824](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/824)).
-- Use EFM v2 by default ([PR #825](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/825)). 
+- Enhanced Host Monitoring Plugin (EFM) v2 plugin is now a default plugin. The original EFM plugin can still be used by specifying `efm` in the `wrapperPlugins` parameter ([PR #825](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/825)). 
 - Update China endpoint patterns ([PR #832](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/832)).
 
 ## [2.3.2] - 2023-12-18
