@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -54,18 +55,8 @@ public class WrapperUtilsTest {
   @BeforeEach
   @SuppressWarnings("unchecked")
   void init() {
-    final ReentrantLock pluginManagerLock = new ReentrantLock();
     final ReentrantLock testLock = new ReentrantLock();
     closeable = MockitoAnnotations.openMocks(this);
-
-    doAnswer(invocation -> {
-      pluginManagerLock.lock();
-      return null;
-    }).when(pluginManager).lock();
-    doAnswer(invocation -> {
-      pluginManagerLock.unlock();
-      return null;
-    }).when(pluginManager).unlock();
 
     doAnswer(invocation -> {
       boolean lockIsFree = testLock.tryLock();
@@ -79,7 +70,7 @@ public class WrapperUtilsTest {
         any(Class.class),
         any(Class.class),
         any(Object.class),
-        any(String.class),
+        argThat(methodName -> !AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)),
         any(JdbcCallable.class),
         any(Object[].class));
 
@@ -93,23 +84,39 @@ public class WrapperUtilsTest {
     closeable.close();
   }
 
+  Integer callCancelExecuteWithPlugins() {
+    return callExecuteWithPlugins("Statement.cancel");
+  }
+
   Integer callExecuteWithPlugins() {
+    return callExecuteWithPlugins("methodName");
+  }
+
+  Integer callExecuteWithPlugins(String methodName) {
     return WrapperUtils.executeWithPlugins(
         Integer.class,
         pluginManager,
         object,
-        "methodName",
+        methodName,
         () -> 1);
   }
 
+  Integer callCancelExecuteWithPluginsWithException() {
+    return callExecuteWithPluginsWithException("Statement.cancel");
+  }
+
   Integer callExecuteWithPluginsWithException() {
+    return callExecuteWithPluginsWithException("methodName");
+  }
+
+  Integer callExecuteWithPluginsWithException(String methodName) {
     try {
       return WrapperUtils.executeWithPlugins(
           Integer.class,
           SQLException.class,
           pluginManager,
           object,
-          "methodName",
+          methodName,
           () -> 1);
     } catch (SQLException e) {
       fail();
@@ -142,6 +149,22 @@ public class WrapperUtilsTest {
     for (CompletableFuture<Integer> future : futures) {
       future.join();
     }
+  }
+
+  @Test
+  void testCancelStatementIsNotBlockedExecute() {
+    CompletableFuture.allOf(
+        CompletableFuture.supplyAsync(this::callExecuteWithPlugins),
+        CompletableFuture.supplyAsync(this::callCancelExecuteWithPlugins)
+    ).join();
+  }
+
+  @Test
+  void testCancelStatementIsNotBlockedExecuteWithException() {
+    CompletableFuture.allOf(
+        CompletableFuture.supplyAsync(this::callExecuteWithPluginsWithException),
+        CompletableFuture.supplyAsync(this::callCancelExecuteWithPluginsWithException)
+    ).join();
   }
 
   @Test
