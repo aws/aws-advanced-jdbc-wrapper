@@ -215,6 +215,14 @@ tasks.jar {
             """
         )
     }
+
+    doFirst {
+        mkdir("${buildDir}/META-INF/services/")
+        val driverFile = File("${buildDir}/META-INF/services/java.sql.Driver")
+        if (driverFile.createNewFile()) {
+            driverFile.writeText("software.amazon.jdbc.Driver")
+        }
+    }
 }
 
 junitHtmlReport {
