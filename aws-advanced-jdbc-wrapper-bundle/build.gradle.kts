@@ -31,7 +31,9 @@ dependencies {
 
 tasks.shadowJar {
 
+    archiveBaseName.set("aws-advanced-jdbc-wrapper")
     archiveClassifier.set("bundle-federated-auth")
+    destinationDirectory.set(project(":aws-advanced-jdbc-wrapper").buildDir.resolve("libs"))
 
     mergeServiceFiles("META-INF")
 
