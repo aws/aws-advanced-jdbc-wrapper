@@ -30,6 +30,7 @@ jobs:
       - name: 'Build Driver'
         run: |
           ./gradlew --no-parallel --no-daemon -x test build
+          ./gradlew --no-parallel --no-daemon -x test shadowJar
       - name: 'Set Version Env Variable'
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: 'Get Release Details'
