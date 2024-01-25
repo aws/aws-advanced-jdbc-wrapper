@@ -39,6 +39,8 @@ Then, the following command adds the AWS JDBC Driver to the CLASSPATH:
 export CLASSPATH=$CLASSPATH:/home/userx/libs/aws-advanced-jdbc-wrapper-2.3.3.jar
 ```
 
+> **Note**: There is also a JAR suffixed with `-bundle-federated-auth`. It is an Uber JAR that contains the AWS JDBC Driver as well as all the dependencies needed to run the Federated Authentication Plugin. **Our general recommendation is to use the `aws-advanced-jdbc-wrapper-2.3.3.jar` for use cases unrelated to complex Federated Authentication environments**. To learn more, please check out the [Federated Authentication Plugin](./using-the-jdbc-driver/using-plugins/UsingTheFederatedAuthPlugin.md#bundled-uber-jar). 
+
 ### As a Maven Dependency
 
 You can use [Maven's dependency management](https://search.maven.org/search?q=g:software.amazon.jdbc) to obtain the AWS JDBC Driver by adding the following configuration to the application's Project Object Model (POM) file:
