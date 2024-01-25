@@ -67,8 +67,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   protected HostListProviderService hostListProviderService;
 
   protected PluginManagerService pluginManagerService;
-  protected String targetDriverProtocol; // TODO: consider moving to PluginService
-  protected String originalUrl; // TODO: consider moving to PluginService
+  protected String targetDriverProtocol;
+  protected String originalUrl;
   protected @Nullable ConfigurationProfile configurationProfile;
 
   protected @Nullable Throwable openConnectionStacktrace;

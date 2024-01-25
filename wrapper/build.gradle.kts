@@ -30,7 +30,7 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.42.0")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.22.13")
-    compileOnly("software.amazon.awssdk:sts:2.23.3")
+    compileOnly("software.amazon.awssdk:sts:2.23.7")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.23.3")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.16.1")
@@ -40,10 +40,9 @@ dependencies {
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
-    compileOnly("io.opentelemetry:opentelemetry-api:1.33.0")
-    compileOnly("io.opentelemetry:opentelemetry-sdk:1.33.0")
+    compileOnly("io.opentelemetry:opentelemetry-api:1.34.1")
+    compileOnly("io.opentelemetry:opentelemetry-sdk:1.34.1")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.34.1")
-
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.1")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.1")
@@ -61,9 +60,9 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.22.13")
-    testImplementation("software.amazon.awssdk:ec2:2.23.3")
+    testImplementation("software.amazon.awssdk:ec2:2.23.8")
     testImplementation("software.amazon.awssdk:secretsmanager:2.23.3")
-    testImplementation("software.amazon.awssdk:sts:2.23.3")
+    testImplementation("software.amazon.awssdk:sts:2.23.7")
     testImplementation("org.testcontainers:testcontainers:1.19.3")
     testImplementation("org.testcontainers:mysql:1.19.3")
     testImplementation("org.testcontainers:postgresql:1.19.3")
@@ -75,10 +74,10 @@ dependencies {
     testImplementation("org.slf4j:slf4j-simple:2.0.9")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
-    testImplementation("io.opentelemetry:opentelemetry-api:1.33.0")
-    testImplementation("io.opentelemetry:opentelemetry-sdk:1.33.0")
+    testImplementation("io.opentelemetry:opentelemetry-api:1.34.1")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:1.34.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.34.1")
-    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.33.0")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.34.1")
 }
 
 repositories {

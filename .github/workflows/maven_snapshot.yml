@@ -23,6 +23,7 @@ jobs:
       - name: 'Build Driver'
         run: |
           ./gradlew --no-parallel --no-daemon -x test build
+          ./gradlew --no-parallel --no-daemon -x test shadowJar
       - name: "Decode Key Ring"
         run: |
           echo "${{secrets.GPG_SECRET_KEY_FILE}}" > ~/.gradle/secring.gpg.b64
