@@ -18,6 +18,7 @@ package software.amazon.jdbc.util;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -111,8 +112,8 @@ public class RdsUtils {
           "^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)"
               + "::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$");
 
-  private static final Map<String, Matcher> cachedPatterns = new HashMap<>();
-  private static final Map<String, String> cachedDnsPatterns = new HashMap<>();
+  private static final Map<String, Matcher> cachedPatterns = new ConcurrentHashMap<>();
+  private static final Map<String, String> cachedDnsPatterns = new ConcurrentHashMap<>();
 
   private static final String INSTANCE_GROUP = "instance";
   private static final String DNS_GROUP = "dns";
