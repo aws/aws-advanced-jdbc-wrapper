@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.util;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -72,28 +71,10 @@ public class RdsUtils {
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com(\\.cn)?)",
           Pattern.CASE_INSENSITIVE);
 
-  private static final Pattern AURORA_INSTANCE_PATTERN =
-      Pattern.compile(
-          "(?<instance>.+)\\.(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com(\\.cn)?)",
-          Pattern.CASE_INSENSITIVE);
-
   private static final Pattern AURORA_CLUSTER_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
-              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com(\\.cn)?)",
-          Pattern.CASE_INSENSITIVE);
-  private static final Pattern AURORA_CUSTOM_CLUSTER_PATTERN =
-      Pattern.compile(
-          "(?<instance>.+)\\."
-              + "(?<dns>cluster-custom-)+"
-              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com(\\.cn)?)",
-          Pattern.CASE_INSENSITIVE);
-
-  private static final Pattern AURORA_PROXY_DNS_PATTERN =
-      Pattern.compile(
-          "(?<instance>.+)\\."
-              + "(?<dns>proxy-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)\\.rds\\.amazonaws\\.com(\\.cn)?)",
           Pattern.CASE_INSENSITIVE);
 
@@ -105,31 +86,10 @@ public class RdsUtils {
               + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
 
-  private static final Pattern AURORA_CHINA_INSTANCE_PATTERN =
-      Pattern.compile(
-          "(?<instance>.+)\\."
-              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
-              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
-          Pattern.CASE_INSENSITIVE);
-
   private static final Pattern AURORA_CHINA_CLUSTER_PATTERN =
       Pattern.compile(
           "(?<instance>.+)\\."
               + "(?<dns>cluster-|cluster-ro-)+"
-              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
-              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
-          Pattern.CASE_INSENSITIVE);
-  private static final Pattern AURORA_CHINA_CUSTOM_CLUSTER_PATTERN =
-      Pattern.compile(
-          "(?<instance>.+)\\."
-              + "(?<dns>cluster-custom-)+"
-              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
-              + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
-          Pattern.CASE_INSENSITIVE);
-  private static final Pattern AURORA_CHINA_PROXY_DNS_PATTERN =
-      Pattern.compile(
-          "(?<instance>.+)\\."
-              + "(?<dns>proxy-)+"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>rds\\.[a-zA-Z0-9\\-]+|"
               + "[a-zA-Z0-9\\-]+\\.rds)\\.amazonaws\\.com\\.cn)",
           Pattern.CASE_INSENSITIVE);
@@ -170,12 +130,13 @@ public class RdsUtils {
   }
 
   public boolean isRdsDns(final String host) {
-    final boolean found = cacheFoundPattern(host, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN);
-    if (found) {
-      cachedDnsPatterns.put(host, cachedPatterns.get(host).group(DNS_GROUP));
+    final Matcher matcher = cacheMatcher(host, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN);
+    final String group = getRegexGroup(matcher, DNS_GROUP);
+    if (group != null) {
+      cachedDnsPatterns.put(host, group);
     }
 
-    return found;
+    return matcher != null;
   }
 
   public boolean isRdsInstance(final String host) {
@@ -187,20 +148,14 @@ public class RdsUtils {
     return dnsGroup != null && dnsGroup.startsWith("proxy-");
   }
 
-  public boolean isElbUrl(final String host) {
-    return !StringUtils.isNullOrEmpty(host)
-        && (ELB_PATTERN.matcher(host).find());
-  }
-
   public @Nullable String getRdsInstanceId(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
     }
 
-    cacheFoundPattern(host, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN);
-    final Matcher matcher = cachedPatterns.get(host);
-    if (matcher.group(DNS_GROUP) == null) {
-      return matcher.group(INSTANCE_GROUP);
+    final Matcher matcher = cacheMatcher(host, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN);
+    if (getRegexGroup(matcher, DNS_GROUP) == null) {
+      return getRegexGroup(matcher, INSTANCE_GROUP);
     }
 
     return null;
@@ -211,15 +166,9 @@ public class RdsUtils {
       return "?";
     }
 
-    final Matcher matcher = AURORA_DNS_PATTERN.matcher(host);
-    if (matcher.find()) {
-      return "?." + matcher.group(DOMAIN_GROUP);
-    }
-    final Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
-    if (chinaMatcher.find()) {
-      return "?." + chinaMatcher.group(DOMAIN_GROUP);
-    }
-    return "?";
+    final Matcher matcher = cacheMatcher(host, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN);
+    final String group = getRegexGroup(matcher, DOMAIN_GROUP);
+    return group == null ? "?" : "?." + group;
   }
 
   public String getRdsRegion(final String host) {
@@ -227,18 +176,16 @@ public class RdsUtils {
       return null;
     }
 
-    final Matcher matcher = AURORA_DNS_PATTERN.matcher(host);
-    if (matcher.find()) {
-      return matcher.group(REGION_GROUP);
+    final Matcher matcher = cacheMatcher(host, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN);
+    final String group = getRegexGroup(matcher, REGION_GROUP);
+    if (group != null) {
+      // Using replaceAll to strip 'rds' in case it is a China endpoint.
+      return group.replaceAll("rds", "").replaceAll("\\.", "");
     }
-    final Matcher chinaMatcher = AURORA_CHINA_DNS_PATTERN.matcher(host);
-    if (chinaMatcher.find()) {
-      // Using replaceAll to strip 'rds.' and '.rds' since it is captured in the region group.
-      return chinaMatcher.group(REGION_GROUP).replaceAll("rds", "").replaceAll("\\.", "");
-    }
+
     final Matcher elbMatcher = ELB_PATTERN.matcher(host);
     if (elbMatcher.find()) {
-      return elbMatcher.group(REGION_GROUP);
+      return getRegexGroup(elbMatcher, REGION_GROUP);
     }
     return null;
   }
@@ -304,20 +251,32 @@ public class RdsUtils {
     }
   }
 
-  private boolean cacheFoundPattern(final String host, Pattern... patterns) {
-    Matcher matcher;
+  private Matcher cacheMatcher(final String host, Pattern... patterns) {
+    Matcher matcher = null;
     for (Pattern pattern : patterns) {
-      if (cachedPatterns.get(host) != null) {
-        return true;
+      matcher = cachedPatterns.get(host);
+      if (matcher != null) {
+        return matcher;
       }
       matcher = pattern.matcher(host);
       if (matcher.find()) {
         cachedPatterns.put(host, matcher);
-        return true;
+        return matcher;
       }
     }
+    return null;
+  }
 
-    return false;
+  private String getRegexGroup(Matcher matcher, String groupName) {
+    if (matcher == null) {
+      return null;
+    }
+
+    try {
+      return matcher.group(groupName);
+    } catch (IllegalStateException e) {
+      return null;
+    }
   }
 
   private String getDnsGroup(final String host) {
@@ -325,10 +284,8 @@ public class RdsUtils {
       return null;
     }
     return cachedDnsPatterns.computeIfAbsent(host, (k) -> {
-      if (cacheFoundPattern(k, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN)) {
-        return cachedPatterns.get(k).group(DNS_GROUP);
-      }
-      return null;
+      final Matcher matcher = cacheMatcher(k, AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN);
+      return getRegexGroup(matcher, DNS_GROUP);
     });
   }
 
