@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
@@ -57,7 +58,8 @@ public class RoundRobinHostSelector implements HostSelector {
       final @NonNull HostRole role,
       final @Nullable Properties props) throws SQLException {
     final List<HostSpec> eligibleHosts = hosts.stream()
-        .filter(hostSpec -> role.equals(hostSpec.getRole()))
+        .filter(hostSpec ->
+            role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
         .sorted(Comparator.comparing(HostSpec::getHost))
         .collect(Collectors.toList());
 

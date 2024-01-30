@@ -23,6 +23,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
 
 public class RandomHostSelector implements HostSelector {
@@ -35,7 +36,9 @@ public class RandomHostSelector implements HostSelector {
       @NonNull final HostRole role,
       @Nullable final Properties props) throws SQLException {
     final List<HostSpec> eligibleHosts = hosts.stream()
-        .filter(hostSpec -> role.equals(hostSpec.getRole())).collect(Collectors.toList());
+        .filter(hostSpec ->
+            role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+        .collect(Collectors.toList());
     if (eligibleHosts.size() == 0) {
       throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
     }
