@@ -99,8 +99,8 @@ class AdfsCredentialsProviderFactoryTest {
   @Test
   void test() throws IOException, SQLException {
     String correctSamlAssertion = IOUtils.toString(
-        this.getClass().getClassLoader().getResourceAsStream("federated_auth/saml-assertion.txt"), "UTF-8").replace("\n", "");
-
+        this.getClass().getClassLoader().getResourceAsStream("federated_auth/saml-assertion.txt"),
+        "UTF-8").replace("\n", "");
     String samlAssertion = this.adfsCredentialsProviderFactory.getSamlAssertion(props);
     assertEquals(correctSamlAssertion, samlAssertion);
 
