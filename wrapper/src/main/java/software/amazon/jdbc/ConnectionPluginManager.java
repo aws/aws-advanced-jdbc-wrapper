@@ -32,7 +32,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPlugin;
-import software.amazon.jdbc.plugin.AuroraHostListConnectionPlugin;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
@@ -60,7 +59,6 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
  * <p>THIS CLASS IS NOT MULTI-THREADING SAFE IT'S EXPECTED TO HAVE ONE INSTANCE OF THIS MANAGER PER
  * JDBC CONNECTION
  */
-@SuppressWarnings("deprecation")
 public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
@@ -68,7 +66,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         {
           put(ExecutionTimeConnectionPlugin.class, "plugin:executionTime");
           put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
-          put(AuroraHostListConnectionPlugin.class, "plugin:auroraHostList");
           put(LogQueryConnectionPlugin.class, "plugin:logQuery");
           put(DataCacheConnectionPlugin.class, "plugin:dataCache");
           put(HostMonitoringConnectionPlugin.class, "plugin:efm");
