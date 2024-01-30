@@ -79,18 +79,18 @@ class AdfsCredentialsProviderFactoryTest {
     when(mockStatusLine.getStatusCode()).thenReturn(200);
     when(mockHttpGetSignInPageResponse.getEntity()).thenReturn(mockSignInPageHttpEntity);
 
-    String signinPageHtml = IOUtils.toString(
+    final String signinPageHtml = IOUtils.toString(
         this.getClass().getClassLoader().getResourceAsStream("federated_auth/adfs-sign-in-page.html"), "UTF-8");
-    InputStream signInPageHtmlInputStream = new ByteArrayInputStream(signinPageHtml.getBytes());
+    final InputStream signInPageHtmlInputStream = new ByteArrayInputStream(signinPageHtml.getBytes());
     when(mockSignInPageHttpEntity.getContent()).thenReturn(signInPageHtmlInputStream);
 
     when(mockHttpClient.execute(any(HttpPost.class))).thenReturn(mockHttpPostSignInResponse);
     when(mockHttpPostSignInResponse.getStatusLine()).thenReturn(mockStatusLine);
     when(mockHttpPostSignInResponse.getEntity()).thenReturn(mockSamlHttpEntity);
 
-    String adfsSamlHtml = IOUtils.toString(
+    final String adfsSamlHtml = IOUtils.toString(
         this.getClass().getClassLoader().getResourceAsStream("federated_auth/adfs-saml.html"), "UTF-8");
-    InputStream samlHtmlInputStream = new ByteArrayInputStream(adfsSamlHtml.getBytes());
+    final InputStream samlHtmlInputStream = new ByteArrayInputStream(adfsSamlHtml.getBytes());
     when(mockSamlHttpEntity.getContent()).thenReturn(samlHtmlInputStream);
 
     this.adfsCredentialsProviderFactory = new AdfsCredentialsProviderFactory(mockPluginService, mockHttpClientSupplier);
@@ -98,13 +98,17 @@ class AdfsCredentialsProviderFactoryTest {
 
   @Test
   void test() throws IOException, SQLException {
-    this.adfsCredentialsProviderFactory.getSamlAssertion(props);
+    final String correctSamlAssertion = IOUtils.toString(
+        this.getClass().getClassLoader().getResourceAsStream("federated_auth/saml-assertion.txt"),
+        "UTF-8").replace("\n", "");
+    final String samlAssertion = this.adfsCredentialsProviderFactory.getSamlAssertion(props);
+    assertEquals(correctSamlAssertion, samlAssertion);
 
-    ArgumentCaptor<HttpPost> httpPostArgumentCaptor = ArgumentCaptor.forClass(HttpPost.class);
+    final ArgumentCaptor<HttpPost> httpPostArgumentCaptor = ArgumentCaptor.forClass(HttpPost.class);
     verify(mockHttpClient, times(2)).execute(httpPostArgumentCaptor.capture());
-    HttpPost actualHttpPost = httpPostArgumentCaptor.getValue();
-    String content = EntityUtils.toString(actualHttpPost.getEntity());
-    String[] params = content.split("&");
+    final HttpPost actualHttpPost = httpPostArgumentCaptor.getValue();
+    final String content = EntityUtils.toString(actualHttpPost.getEntity());
+    final String[] params = content.split("&");
     assertEquals("UserName=" + USERNAME.replace("@", "%40"), params[0]);
     assertEquals("Password=" + PASSWORD, params[1]);
     assertEquals("Kmsi=true", params[2]);

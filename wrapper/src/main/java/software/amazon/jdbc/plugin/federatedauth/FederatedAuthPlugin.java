@@ -87,7 +87,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
   public static final AwsWrapperProperty SSL_INSECURE = new AwsWrapperProperty("sslInsecure", "true",
       "Whether or not the SSL session is to be secure and the sever's certificates will be verified");
   public static AwsWrapperProperty
-      IDP_NAME = new AwsWrapperProperty("idpName", null, "The name of the Identity Provider implementation used");
+      IDP_NAME = new AwsWrapperProperty("idpName", "adfs", "The name of the Identity Provider implementation used");
   public static final AwsWrapperProperty DB_USER =
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
   protected static final Pattern SAML_RESPONSE_PATTERN = Pattern.compile("SAMLResponse\\W+value=\"(?<saml>[^\"]+)\"");
