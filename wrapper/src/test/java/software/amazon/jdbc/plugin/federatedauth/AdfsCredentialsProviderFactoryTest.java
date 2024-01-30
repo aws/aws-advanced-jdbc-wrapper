@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.function.Supplier;
@@ -98,7 +99,11 @@ class AdfsCredentialsProviderFactoryTest {
 
   @Test
   void test() throws IOException, SQLException {
-    this.adfsCredentialsProviderFactory.getSamlAssertion(props);
+    String correctSamlAssertion = IOUtils.toString(
+        this.getClass().getClassLoader().getResourceAsStream("federated_auth/saml-assertion.txt"), "UTF-8").replace("\n", "");
+
+    String samlAssertion = this.adfsCredentialsProviderFactory.getSamlAssertion(props);
+    assertEquals(correctSamlAssertion, samlAssertion);
 
     ArgumentCaptor<HttpPost> httpPostArgumentCaptor = ArgumentCaptor.forClass(HttpPost.class);
     verify(mockHttpClient, times(2)).execute(httpPostArgumentCaptor.capture());
