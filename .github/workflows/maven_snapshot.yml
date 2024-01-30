@@ -30,7 +30,7 @@ jobs:
           base64 -d ~/.gradle/secring.gpg.b64 > ~/.gradle/secring.gpg
       - name: 'Install GPG Secret Key'
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v5
+        uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
