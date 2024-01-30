@@ -58,7 +58,7 @@ public class AwsIamAuthenticationDatasourceExample {
       Properties targetDataSourceProps = new Properties();
 
       // Enable the IAM authentication plugin along with failover and host monitoring plugins.
-      targetDataSourceProps.setProperty("wrapperPlugins", "iam,failover,efm");
+      targetDataSourceProps.setProperty("wrapperPlugins", "iam,failover,efm2");
 
       ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 

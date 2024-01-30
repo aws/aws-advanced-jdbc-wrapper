@@ -6,7 +6,7 @@ spring:
     driver-class-name: software.amazon.jdbc.Driver
     hikari:
       data-source-properties:
-        wrapperPlugins: failover,efm
+        wrapperPlugins: failover,efm2
         wrapperDialect: aurora-pg
       max-lifetime: 840000
       minimum-idle: 20

@@ -123,7 +123,7 @@ public class ReadWriteSplittingTests {
 
   protected static Properties getPropsWithFailover() {
     final Properties props = getDefaultPropsNoPlugins();
-    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm");
+    PropertyDefinition.PLUGINS.set(props, "readWriteSplitting,failover,efm2");
     return props;
   }
 
@@ -244,9 +244,7 @@ public class ReadWriteSplittingTests {
 
       final Statement stmt = conn.createStatement();
       conn.setAutoCommit(false);
-      stmt.executeQuery(
-          // TODO: can we replace it with something less database specific?
-          "SELECT COUNT(*) FROM information_schema.tables");
+      stmt.executeQuery("SELECT 1");
 
       final SQLException exception =
           assertThrows(SQLException.class, () -> conn.setReadOnly(false));

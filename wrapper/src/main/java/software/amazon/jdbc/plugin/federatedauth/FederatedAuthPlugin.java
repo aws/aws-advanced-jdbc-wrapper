@@ -128,7 +128,11 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
     try {
       Class.forName("software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest");
     } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(Messages.get("FederatedAuthPlugin.javaStsSdkNotInClasspath"));
+      try {
+        Class.forName("shaded.software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest");
+      } catch (final ClassNotFoundException e2) {
+        throw new RuntimeException(Messages.get("FederatedAuthPlugin.javaStsSdkNotInClasspath"));
+      }
     }
     this.pluginService = pluginService;
     this.credentialsProviderFactory = credentialsProviderFactory;

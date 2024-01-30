@@ -4,7 +4,7 @@ In this tutorial, you will set up a Spring Boot application using Hikari and the
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
->    - AWS JDBC Driver 2.3.2
+>    - AWS JDBC Driver 2.3.3
 >    - Postgresql 42.5.4
 >    - Java 8
 
@@ -79,7 +79,7 @@ spring:
     driver-class-name: software.amazon.jdbc.Driver
     hikari:
       data-source-properties:
-        wrapperPlugins: failover,efm
+        wrapperPlugins: failover,efm2
         wrapperDialect: aurora-pg
       exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
 ```
@@ -95,7 +95,7 @@ spring:
     driver-class-name: software.amazon.jdbc.Driver
     hikari:
       data-source-properties:
-        wrapperPlugins: failover,efm
+        wrapperPlugins: failover,efm2
         wrapperDialect: aurora-pg
       exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException
       max-lifetime: 840000

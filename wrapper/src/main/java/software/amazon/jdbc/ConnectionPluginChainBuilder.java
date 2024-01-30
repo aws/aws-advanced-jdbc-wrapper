@@ -109,7 +109,7 @@ public class ConnectionPluginChainBuilder {
         }
       };
 
-  protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover,efm";
+  protected static final String DEFAULT_PLUGINS = "auroraConnectionTracker,failover,efm2";
 
   /*
    Internal class used for plugin factory sorting. It holds a reference to a plugin

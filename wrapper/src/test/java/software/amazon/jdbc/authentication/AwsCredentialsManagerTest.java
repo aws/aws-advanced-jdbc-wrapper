@@ -86,7 +86,6 @@ class AwsCredentialsManagerTest {
   @Test
   public void testNullProvider() {
     AwsCredentialsManager.setCustomHandler(((hostSpec, props) -> null));
-    assertThrows(IllegalArgumentException.class,
-        () -> AwsCredentialsManager.getProvider(mockHostSpec, mockProps));
+    assertTrue(AwsCredentialsManager.getProvider(mockHostSpec, mockProps) instanceof DefaultCredentialsProvider);
   }
 }

@@ -21,9 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -201,6 +203,34 @@ class MonitorImplTest {
 
     // Run monitor
     // Should end by itself once thread above stops monitoring 'contextWithShortInterval'
+    monitor.run();
+
+    // After running monitor should be out of the map
+    assertNull(monitorMap.get(nodeKey));
+    assertNull(taskMap.get(monitor));
+
+    // Clean-up
+    MonitorThreadContainer.releaseInstance();
+  }
+
+  @Test
+  void test_10_ensureStoppedMonitorIsRemovedFromMap() throws InterruptedException {
+    when(contextWithShortInterval.isActiveContext()).thenReturn(true);
+    when(contextWithShortInterval.getExpectedActiveMonitoringStartTimeNano()).thenReturn(999999999999999L);
+    doThrow(new InterruptedException("Test")).when(monitor).sleep(anyLong());
+    monitor.activeContexts.add(contextWithShortInterval);
+    final Map<String, Monitor> monitorMap = threadContainer.getMonitorMap();
+    final Map<Monitor, Future<?>> taskMap = threadContainer.getTasksMap();
+
+    // Put monitor into container map
+    final String nodeKey = "monitorA";
+    monitorMap.put(nodeKey, monitor);
+    taskMap.put(monitor, futureResult);
+
+    // Put context
+    monitor.startMonitoring(contextWithShortInterval);
+
+    // Run monitor
     monitor.run();
 
     // After running monitor should be out of the map

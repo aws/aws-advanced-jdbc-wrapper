@@ -5,7 +5,7 @@ In this tutorial, you will set up a Spring Boot and Hibernate application with t
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.1
 >    - Hibernate
->    - AWS JDBC Driver 2.3.2
+>    - AWS JDBC Driver 2.3.3
 >    - Postgresql 42.5.4
 >    - Gradle 7
 >    - Java 11
@@ -149,7 +149,7 @@ Configure Spring to use the AWS Advanced JDBC Driver as the default datasource.
         driver-class-name: software.amazon.jdbc.Driver
         hikari:
           data-source-properties:
-            wrapperPlugins: iam,failover,efm
+            wrapperPlugins: iam,failover,efm2
             iamRegion: us-east-2
             iamExpiration: 1320
           exception-override-class-name: software.amazon.jdbc.util.HikariCPSQLException

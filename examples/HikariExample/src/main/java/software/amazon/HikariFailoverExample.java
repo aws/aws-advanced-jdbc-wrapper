@@ -70,7 +70,7 @@ public class HikariFailoverExample {
       // targetDataSourceProps.setProperty("ssl", "true");
 
       // Enable the failover and host monitoring connection plugins.
-      targetDataSourceProps.setProperty("wrapperPlugins", "failover,efm");
+      targetDataSourceProps.setProperty("wrapperPlugins", "failover,efm2");
 
       ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 

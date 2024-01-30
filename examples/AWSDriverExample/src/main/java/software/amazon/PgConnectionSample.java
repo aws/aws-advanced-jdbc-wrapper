@@ -35,7 +35,7 @@ public class PgConnectionSample {
   //         + "?user=username"
   //         + "&password=password"
   //         + "&loginTimeout=100"
-  //         + "&wrapperPlugins=failover,efm"
+  //         + "&wrapperPlugins=failover,efm2"
   //         + "&wrapperLogUnclosedConnections=true";
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
@@ -49,7 +49,7 @@ public class PgConnectionSample {
     properties.setProperty("loginTimeout", "100");
 
     // Configuring connection properties for the JDBC Wrapper.
-    properties.setProperty("wrapperPlugins", "failover,efm");
+    properties.setProperty("wrapperPlugins", "failover,efm2");
     properties.setProperty("wrapperLogUnclosedConnections", "true");
 
     try (Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);

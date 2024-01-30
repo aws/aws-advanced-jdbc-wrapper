@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -29,7 +30,11 @@ import software.amazon.jdbc.exceptions.MariaDBExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
 
 public class MariaDbDialect implements Dialect {
-
+  private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.RDS_MYSQL,
+      DialectCodes.MYSQL);
   private static MariaDBExceptionHandler mariaDBExceptionHandler;
 
   @Override
@@ -91,7 +96,7 @@ public class MariaDbDialect implements Dialect {
 
   @Override
   public List<String> getDialectUpdateCandidates() {
-    return null;
+    return dialectUpdateCandidates;
   }
 
   public HostListProviderSupplier getHostListProvider() {

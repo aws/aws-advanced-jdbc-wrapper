@@ -58,7 +58,7 @@ public class MonitorImpl implements Monitor {
   private static final long MIN_CONNECTION_CHECK_TIMEOUT_MILLIS = 3000;
   private static final String MONITORING_PROPERTY_PREFIX = "monitoring-";
 
-  private final Queue<MonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
+  final Queue<MonitorConnectionContext> activeContexts = new ConcurrentLinkedQueue<>();
   private final Queue<MonitorConnectionContext> newContexts = new ConcurrentLinkedQueue<>();
   private final PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
@@ -237,7 +237,7 @@ public class MonitorImpl implements Monitor {
               this.nodeCheckTimeoutMillis = delayMillis;
             }
 
-            TimeUnit.MILLISECONDS.sleep(delayMillis);
+            this.sleep(delayMillis);
 
           } else {
             if ((this.getCurrentTimeNano() - this.contextLastUsedTimestampNano)
@@ -245,7 +245,7 @@ public class MonitorImpl implements Monitor {
               threadContainer.releaseResource(this);
               break;
             }
-            TimeUnit.MILLISECONDS.sleep(THREAD_SLEEP_WHEN_INACTIVE_MILLIS);
+            this.sleep(THREAD_SLEEP_WHEN_INACTIVE_MILLIS);
           }
 
         } catch (final InterruptedException intEx) {
@@ -279,6 +279,7 @@ public class MonitorImpl implements Monitor {
             ex); // We want to print full trace stack of the exception.
       }
     } finally {
+      threadContainer.releaseResource(this);
       this.stopped = true;
       if (this.monitoringConn != null) {
         try {
@@ -353,5 +354,12 @@ public class MonitorImpl implements Monitor {
   @Override
   public boolean isStopped() {
     return this.stopped;
+  }
+
+  /**
+   * Used to help with testing.
+   */
+  protected void sleep(long duration) throws InterruptedException {
+    TimeUnit.MILLISECONDS.sleep(duration);
   }
 }

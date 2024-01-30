@@ -88,7 +88,7 @@ public class ReadWriteSplittingSpringJdbcTemplateMySQLExample {
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(
-        PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm");
+        PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,efm2");
 
     ds.setUser(USERNAME);
     ds.setPassword(PASSWORD);
@@ -118,7 +118,7 @@ public class ReadWriteSplittingSpringJdbcTemplateMySQLExample {
 
     Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name,
-        "readWriteSplitting,failover,efm");
+        "readWriteSplitting,failover,efm2");
 
     ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
 
