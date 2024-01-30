@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 50
       - name: 'Get changed files'
@@ -42,7 +42,7 @@ jobs:
         run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
       - name: 'Set up JDK 8'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
           java-version: 8
@@ -56,7 +56,7 @@ jobs:
         run: ./gradlew jacocoTestReport
       - name: 'Archive test results'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: 'junit-report'
           path: ./wrapper/build/reports/tests/test/
