@@ -57,6 +57,7 @@ import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
+import software.amazon.jdbc.util.RdsUtils;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
   private static final Logger LOGGER = Logger.getLogger(TestDriverProvider.class.getName());
@@ -216,6 +217,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   TargetDriverDialectManager.resetCustomDialect();
                   MonitorThreadContainer.releaseInstance();
                   MonitorServiceImpl.clearCache();
+                  software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
+                  RdsUtils.clearCache();
                 }
                 if (tracesEnabled) {
                     AWSXRay.endSegment();
