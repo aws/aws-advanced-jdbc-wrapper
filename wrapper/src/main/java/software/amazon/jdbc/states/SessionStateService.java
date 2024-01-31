@@ -30,12 +30,16 @@ public interface SessionStateService {
 
   void setupPristineAutoCommit() throws SQLException;
 
+  void setupPristineAutoCommit(final boolean autoCommit) throws SQLException;
+
   // read-only
   Optional<Boolean> getReadOnly() throws SQLException;
 
   void setReadOnly(boolean readOnly) throws SQLException;
 
   void setupPristineReadOnly() throws SQLException;
+
+  void setupPristineReadOnly(final boolean readOnly) throws SQLException;
 
   // catalog
 
@@ -45,6 +49,8 @@ public interface SessionStateService {
 
   void setupPristineCatalog() throws SQLException;
 
+  void setupPristineCatalog(final String catalog) throws SQLException;
+
   // holdability
 
   Optional<Integer> getHoldability() throws SQLException;
@@ -52,6 +58,8 @@ public interface SessionStateService {
   void setHoldability(final int holdability) throws SQLException;
 
   void setupPristineHoldability() throws SQLException;
+
+  void setupPristineHoldability(final int holdability) throws SQLException;
 
   // network timeout
 
@@ -61,6 +69,8 @@ public interface SessionStateService {
 
   void setupPristineNetworkTimeout() throws SQLException;
 
+  void setupPristineNetworkTimeout(final int milliseconds) throws SQLException;
+
   // schema
 
   Optional<String> getSchema() throws SQLException;
@@ -68,6 +78,8 @@ public interface SessionStateService {
   void setSchema(final String schema) throws SQLException;
 
   void setupPristineSchema() throws SQLException;
+
+  void setupPristineSchema(final String schema) throws SQLException;
 
   // transaction isolation
 
@@ -77,6 +89,8 @@ public interface SessionStateService {
 
   void setupPristineTransactionIsolation() throws SQLException;
 
+  void setupPristineTransactionIsolation(final int level) throws SQLException;
+
   // type map
 
   Optional<Map<String, Class<?>>> getTypeMap() throws SQLException;
@@ -84,6 +98,8 @@ public interface SessionStateService {
   void setTypeMap(final Map<String, Class<?>> map) throws SQLException;
 
   void setupPristineTypeMap() throws SQLException;
+
+  void setupPristineTypeMap(final Map<String, Class<?>> map) throws SQLException;
 
   void reset();
 

@@ -378,7 +378,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.getCatalog",
-        () -> this.pluginService.getCurrentConnection().getCatalog());
+        () -> {
+          final String catalog = this.pluginService.getCurrentConnection().getCatalog();
+          this.pluginService.getSessionStateService().setupPristineCatalog(catalog);
+          return catalog;
+        });
   }
 
   @Override
@@ -412,7 +416,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.getHoldability",
-        () -> this.pluginService.getCurrentConnection().getHoldability());
+        () -> {
+          final int holdability = this.pluginService.getCurrentConnection().getHoldability();
+          this.pluginService.getSessionStateService().setupPristineHoldability(holdability);
+          return holdability;
+        });
   }
 
   @Override
@@ -434,7 +442,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.getNetworkTimeout",
-        () -> this.pluginService.getCurrentConnection().getNetworkTimeout());
+        () -> {
+          final int milliseconds = this.pluginService.getCurrentConnection().getNetworkTimeout();
+          this.pluginService.getSessionStateService().setupPristineNetworkTimeout(milliseconds);
+          return milliseconds;
+        });
   }
 
   @Override
@@ -445,7 +457,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.getSchema",
-        () -> this.pluginService.getCurrentConnection().getSchema());
+        () -> {
+          final String schema = this.pluginService.getCurrentConnection().getSchema();
+          this.pluginService.getSessionStateService().setupPristineSchema(schema);
+          return schema;
+        });
   }
 
   @Override
@@ -457,7 +473,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.getTransactionIsolation",
-        () -> this.pluginService.getCurrentConnection().getTransactionIsolation());
+        () -> {
+          final int level = this.pluginService.getCurrentConnection().getTransactionIsolation();
+          this.pluginService.getSessionStateService().setupPristineTransactionIsolation(level);
+          return level;
+        });
   }
 
   @Override
@@ -470,7 +490,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.getTypeMap",
-        () -> this.pluginService.getCurrentConnection().getTypeMap());
+        () -> {
+          final Map<String, Class<?>> map = this.pluginService.getCurrentConnection().getTypeMap();
+          this.pluginService.getSessionStateService().setupPristineTypeMap(map);
+          return map;
+        });
   }
 
   @Override
@@ -503,7 +527,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.isReadOnly",
-        () -> this.pluginService.getCurrentConnection().isReadOnly());
+        () -> {
+          final boolean isReadOnly = this.pluginService.getCurrentConnection().isReadOnly();
+          this.pluginService.getSessionStateService().setupPristineReadOnly(isReadOnly);
+          return isReadOnly;
+        });
   }
 
   @Override
@@ -744,7 +772,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
         this.pluginManager,
         this.pluginService.getCurrentConnection(),
         "Connection.getAutoCommit",
-        () -> this.pluginService.getCurrentConnection().getAutoCommit());
+        () -> {
+          final boolean autoCommit = this.pluginService.getCurrentConnection().getAutoCommit();
+          this.pluginService.getSessionStateService().setupPristineAutoCommit(autoCommit);
+          return autoCommit;
+        });
   }
 
   @Override

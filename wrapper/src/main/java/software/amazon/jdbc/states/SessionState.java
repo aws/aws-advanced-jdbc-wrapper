@@ -49,4 +49,18 @@ public class SessionState {
 
     return newSessionState;
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("autoCommit: " + autoCommit + "\n");
+    sb.append("readOnly: " + readOnly + "\n");
+    sb.append("catalog: " + catalog + "\n");
+    sb.append("schema: " + schema + "\n");
+    sb.append("holdability: " + holdability + "\n");
+    sb.append("networkTimeout: " + networkTimeout + "\n");
+    sb.append("transactionIsolation: " + transactionIsolation + "\n");
+    sb.append("typeMap: " + typeMap + "\n");
+    return sb.toString();
+  }
 }

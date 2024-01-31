@@ -1,0 +1,181 @@
+Cluster failover has been manually triggered during executing sleepQuery() in BookService.getNumOfBooksTransactional()
+Exception stacktraces have been reduced for sake of readability.
+-------------------------------
+
+
+12:15:20 p.m.: Executing ':springhibernateonedatasource:SpringHibernateBalancedReaderOneDataSourceExampleApplication.main()'...
+
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:inspectClassesForKotlinIC UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+> Task :buildSrc:assemble UP-TO-DATE
+> Task :buildSrc:compileTestKotlin NO-SOURCE
+> Task :buildSrc:pluginUnderTestMetadata UP-TO-DATE
+> Task :buildSrc:compileTestJava NO-SOURCE
+> Task :buildSrc:compileTestGroovy NO-SOURCE
+> Task :buildSrc:processTestResources NO-SOURCE
+> Task :buildSrc:testClasses UP-TO-DATE
+> Task :buildSrc:test NO-SOURCE
+> Task :buildSrc:validatePlugins UP-TO-DATE
+> Task :buildSrc:check UP-TO-DATE
+> Task :buildSrc:build UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:preprocessVersion UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:compileJava UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:processResources UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:classes UP-TO-DATE
+> Task :aws-advanced-jdbc-wrapper:jar UP-TO-DATE
+> Task :springhibernateonedatasource:preprocessVersion UP-TO-DATE
+> Task :springhibernateonedatasource:compileJava
+> Task :springhibernateonedatasource:processResources
+> Task :springhibernateonedatasource:classes
+
+> Task :springhibernateonedatasource:SpringHibernateBalancedReaderOneDataSourceExampleApplication.main()
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v2.7.0)
+
+2024-01-24 12:15:23.440  INFO 2468 --- [           main] cedReaderOneDataSourceExampleApplication : Starting SpringHibernateBalancedReaderOneDataSourceExampleApplication using Java 1.8.0_402 on Test-Workstation with PID 2468 (C:\Users\testUser\IdeaProjects\aws-advanced-jdbc-wrapper\examples\SpringHibernateBalancedReaderOneDataSourceExample\build\classes\java\main started by testUser in C:\Users\testUser\IdeaProjects\aws-advanced-jdbc-wrapper)
+2024-01-24 12:15:23.443 DEBUG 2468 --- [           main] cedReaderOneDataSourceExampleApplication : Running with Spring Boot v2.7.0, Spring v5.3.20
+2024-01-24 12:15:23.443  INFO 2468 --- [           main] cedReaderOneDataSourceExampleApplication : The following 1 profile is active: "development"
+2024-01-24 12:15:23.499  WARN 2468 --- [           main] o.s.b.c.config.ConfigDataEnvironment     : Property 'spring.profiles' imported from location 'class path resource [application.yml]' is invalid and should be replaced with 'spring.config.activate.on-profile' [origin: class path resource [application.yml] - 29:13]
+2024-01-24 12:15:23.499  WARN 2468 --- [           main] o.s.b.c.config.ConfigDataEnvironment     : Property 'spring.profiles' imported from location 'class path resource [application.yml]' is invalid and should be replaced with 'spring.config.activate.on-profile' [origin: class path resource [application.yml] - 18:13]
+2024-01-24 12:15:23.779  INFO 2468 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2024-01-24 12:15:23.793  INFO 2468 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 6 ms. Found 0 JPA repository interfaces.
+2024-01-24 12:15:23.796  INFO 2468 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2024-01-24 12:15:23.824  INFO 2468 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 27 ms. Found 1 JPA repository interfaces.
+2024-01-24 12:15:24.248  INFO 2468 --- [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2024-01-24 12:15:24.296  INFO 2468 --- [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 5.6.9.Final
+2024-01-24 12:15:24.467  INFO 2468 --- [           main] o.hibernate.annotations.common.Version   : HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2024-01-24 12:15:26.849  INFO 2468 --- [           main] org.hibernate.dialect.Dialect            : HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+2024-01-24 12:15:27.563  INFO 2468 --- [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2024-01-24 12:15:27.573  INFO 2468 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2024-01-24 12:15:27.995  INFO 2468 --- [           main] cedReaderOneDataSourceExampleApplication : Started SpringHibernateBalancedReaderOneDataSourceExampleApplication in 4.963 seconds (JVM running for 5.328)
+2024-01-24 12:15:27.997  INFO 2468 --- [           main] cedReaderOneDataSourceExampleApplication : Iteration: 1
+2024-01-24 12:15:28.018  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2024-01-24 12:15:28.028  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2024-01-24 12:15:29.001 DEBUG 2468 --- [           main] example.data.BookService                 : >>> start updateBookAvailabilityTransactional
+2024-01-24 12:15:29.127 DEBUG 2468 --- [           main] example.data.BookService                 : Current node: test-cluster-instance-4
+2024-01-24 12:15:29.205 DEBUG 2468 --- [           main] example.data.BookService                 : Current sessionId: 2385
+2024-01-24 12:15:29.410  INFO 2468 --- [           main] example.data.BookService                 : books: [Example [id=100, title='A Tale of Two Cities', quantity=1], Example [id=148, title='The Little Prince', quantity=1]]
+2024-01-24 12:15:29.410  INFO 2468 --- [           main] example.data.BookService                 : Book 'A Tale of Two Cities' new quantity: 2
+2024-01-24 12:15:29.410  INFO 2468 --- [           main] example.data.BookService                 : Book 'The Little Prince' new quantity: 2
+2024-01-24 12:15:29.618  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Starting...
+2024-01-24 12:15:29.618  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Start completed.
+2024-01-24 12:15:30.449 DEBUG 2468 --- [           main] example.data.BookService                 : >>> start getNumOfBooksTransactional
+2024-01-24 12:15:30.526 DEBUG 2468 --- [           main] example.data.BookService                 : *Current node: test-cluster-instance-3
+2024-01-24 12:15:30.603 DEBUG 2468 --- [           main] example.data.BookService                 : *Current sessionId: 1003
+2024-01-24 12:15:30.679 DEBUG 2468 --- [           main] example.data.BookService                 : before sleepQuery
+
+---> Cluster failover has been manually triggered around 2024-01-24 12:15:40
+
+2024-01-24 12:16:01.466  WARN 2468 --- [           main] com.zaxxer.hikari.pool.ProxyConnection   : HikariPool-2 - Connection org.postgresql.jdbc.PgConnection@15d236fd marked as broken because of SQLSTATE(08006), ErrorCode(0)
+
+org.postgresql.util.PSQLException: An I/O error occurred while sending to the backend.
+...
+	at example.data.BookService.getNumOfBooksTransactional(BookService.java:102) ~[main/:na]
+...
+	at example.spring.SpringHibernateBalancedReaderOneDataSourceExampleApplication.main(SpringHibernateBalancedReaderOneDataSourceExampleApplication.java:109) ~[main/:na]
+Caused by: java.io.EOFException: null
+	at org.postgresql.core.PGStream.receiveChar(PGStream.java:467) ~[postgresql-42.7.1.jar:42.7.1]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2154) ~[postgresql-42.7.1.jar:42.7.1]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:367) ~[postgresql-42.7.1.jar:42.7.1]
+	... 120 common frames omitted
+
+2024-01-24 12:16:02.182 ERROR 2468 --- [           main] s.a.j.p.f.FailoverConnectionPlugin       : The active SQL connection has changed due to a connection failure. Please re-configure session state if required.
+2024-01-24 12:16:02.183  WARN 2468 --- [           main] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 0, SQLState: 08S02
+2024-01-24 12:16:02.183 ERROR 2468 --- [           main] o.h.engine.jdbc.spi.SqlExceptionHelper   : The active SQL connection has changed due to a connection failure. Please re-configure session state if required.
+2024-01-24 12:16:03.689  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Starting...
+2024-01-24 12:16:03.689  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Start completed.
+2024-01-24 12:16:04.471 DEBUG 2468 --- [           main] example.data.BookService                 : >>> start getNumOfBooksTransactional
+2024-01-24 12:16:04.548 DEBUG 2468 --- [           main] example.data.BookService                 : *Current node: test-cluster-instance-5
+2024-01-24 12:16:04.622 DEBUG 2468 --- [           main] example.data.BookService                 : *Current sessionId: 1013
+2024-01-24 12:16:04.697 DEBUG 2468 --- [           main] example.data.BookService                 : before sleepQuery
+2024-01-24 12:16:12.389  WARN 2468 --- [           main] com.zaxxer.hikari.pool.ProxyConnection   : HikariPool-3 - Connection org.postgresql.jdbc.PgConnection@404ced67 marked as broken because of SQLSTATE(08006), ErrorCode(0)
+
+org.postgresql.util.PSQLException: An I/O error occurred while sending to the backend.
+...
+	at com.sun.proxy.$Proxy87.sleepQuery(Unknown Source) ~[na:na]
+	at example.data.BookService.getNumOfBooksTransactional(BookService.java:102) ~[main/:na]
+...
+	at example.spring.SpringHibernateBalancedReaderOneDataSourceExampleApplication.main(SpringHibernateBalancedReaderOneDataSourceExampleApplication.java:109) ~[main/:na]
+Caused by: java.io.EOFException: null
+	at org.postgresql.core.PGStream.receiveChar(PGStream.java:467) ~[postgresql-42.7.1.jar:42.7.1]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2154) ~[postgresql-42.7.1.jar:42.7.1]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:367) ~[postgresql-42.7.1.jar:42.7.1]
+	... 120 common frames omitted
+
+2024-01-24 12:16:18.539 ERROR 2468 --- [           main] s.a.j.p.f.FailoverConnectionPlugin       : The active SQL connection has changed due to a connection failure. Please re-configure session state if required.
+2024-01-24 12:16:18.540  WARN 2468 --- [           main] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 0, SQLState: 08S02
+2024-01-24 12:16:18.540 ERROR 2468 --- [           main] o.h.engine.jdbc.spi.SqlExceptionHelper   : The active SQL connection has changed due to a connection failure. Please re-configure session state if required.
+2024-01-24 12:16:19.543  WARN 2468 --- [           main] com.zaxxer.hikari.pool.PoolBase          : HikariPool-2 - Failed to validate connection org.postgresql.jdbc.PgConnection@76a362a4 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2024-01-24 12:16:19.544  WARN 2468 --- [           main] com.zaxxer.hikari.pool.PoolBase          : HikariPool-2 - Failed to validate connection org.postgresql.jdbc.PgConnection@5627cb29 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2024-01-24 12:16:20.277  WARN 2468 --- [           main] com.zaxxer.hikari.pool.PoolBase          : HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@4d4c1ba9 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2024-01-24 12:16:20.908 DEBUG 2468 --- [           main] example.data.BookService                 : >>> start getNumOfBooksTransactional
+2024-01-24 12:16:21.014 DEBUG 2468 --- [           main] example.data.BookService                 : *Current node: test-cluster-instance-4
+2024-01-24 12:16:21.093 DEBUG 2468 --- [           main] example.data.BookService                 : *Current sessionId: 566
+2024-01-24 12:16:21.172 DEBUG 2468 --- [           main] example.data.BookService                 : before sleepQuery
+2024-01-24 12:18:21.331 DEBUG 2468 --- [           main] example.data.BookService                 : after sleepQuery
+2024-01-24 12:18:21.484 DEBUG 2468 --- [           main] example.data.BookService                 : *Current node: test-cluster-instance-4
+2024-01-24 12:18:21.562 DEBUG 2468 --- [           main] example.data.BookService                 : *Current sessionId: 566
+2024-01-24 12:18:21.562 DEBUG 2468 --- [           main] example.data.BookService                 : <<< end getNumOfBooksTransactional
+2024-01-24 12:18:21.645  INFO 2468 --- [           main] example.data.BookService                 : Number of books: 2
+2024-01-24 12:18:21.664  WARN 2468 --- [           main] com.zaxxer.hikari.pool.ProxyConnection   : HikariPool-1 - Connection org.postgresql.jdbc.PgConnection@1c3b6963 marked as broken because of SQLSTATE(08003), ErrorCode(0)
+
+org.postgresql.util.PSQLException: This connection has been closed.
+...
+	at com.sun.proxy.$Proxy87.getNodeId(Unknown Source) ~[na:na]
+	at example.data.BookService.updateBookAvailabilityTransactional(BookService.java:80) ~[main/:na]
+...
+	at example.spring.SpringHibernateBalancedReaderOneDataSourceExampleApplication.main(SpringHibernateBalancedReaderOneDataSourceExampleApplication.java:109) ~[main/:na]
+
+2024-01-24 12:18:21.665  WARN 2468 --- [           main] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 0, SQLState: 08003
+2024-01-24 12:18:21.665 ERROR 2468 --- [           main] o.h.engine.jdbc.spi.SqlExceptionHelper   : This connection has been closed.
+2024-01-24 12:18:21.667 ERROR 2468 --- [           main] o.s.t.i.TransactionInterceptor           : Application exception overridden by rollback exception
+
+example.spring.ShouldRetryTransactionException: Transaction should be re-tried.; nested exception is javax.persistence.PersistenceException: org.hibernate.exception.JDBCConnectionException: could not prepare statement
+	at example.spring.Config$1.translateExceptionIfPossible(Config.java:119) ~[main/:na]
+...
+Caused by: javax.persistence.PersistenceException: org.hibernate.exception.JDBCConnectionException: could not prepare statement
+	... 34 common frames omitted
+Caused by: org.hibernate.exception.JDBCConnectionException: could not prepare statement
+	... 54 common frames omitted
+Caused by: org.postgresql.util.PSQLException: This connection has been closed.
+	... 69 common frames omitted
+
+2024-01-24 12:18:22.887 DEBUG 2468 --- [           main] example.data.BookService                 : >>> start updateBookAvailabilityTransactional
+2024-01-24 12:18:22.967 DEBUG 2468 --- [           main] example.data.BookService                 : Current node: test-cluster-instance-3
+2024-01-24 12:18:23.039 DEBUG 2468 --- [           main] example.data.BookService                 : Current sessionId: 576
+2024-01-24 12:18:23.114  INFO 2468 --- [           main] example.data.BookService                 : books: [Example [id=100, title='A Tale of Two Cities', quantity=1], Example [id=148, title='The Little Prince', quantity=1]]
+2024-01-24 12:18:23.114  INFO 2468 --- [           main] example.data.BookService                 : Book 'A Tale of Two Cities' new quantity: 2
+2024-01-24 12:18:23.114  INFO 2468 --- [           main] example.data.BookService                 : Book 'The Little Prince' new quantity: 2
+2024-01-24 12:18:23.334  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Starting...
+2024-01-24 12:18:23.334  INFO 2468 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Start completed.
+2024-01-24 12:18:24.463 DEBUG 2468 --- [           main] example.data.BookService                 : >>> start getNumOfBooksTransactional
+2024-01-24 12:18:24.540 DEBUG 2468 --- [           main] example.data.BookService                 : *Current node: test-cluster-instance-1
+2024-01-24 12:18:24.616 DEBUG 2468 --- [           main] example.data.BookService                 : *Current sessionId: 582
+2024-01-24 12:18:24.693 DEBUG 2468 --- [           main] example.data.BookService                 : before sleepQuery
+2024-01-24 12:18:58.895  WARN 2468 --- [l-3 housekeeper] com.zaxxer.hikari.pool.PoolBase          : HikariPool-3 - Failed to validate connection org.postgresql.jdbc.PgConnection@5e817cb7 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2024-01-24 12:19:00.321  WARN 2468 --- [l-3 housekeeper] com.zaxxer.hikari.pool.PoolBase          : HikariPool-3 - Failed to validate connection org.postgresql.jdbc.PgConnection@117b932c (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2024-01-24 12:20:24.874 DEBUG 2468 --- [           main] example.data.BookService                 : after sleepQuery
+2024-01-24 12:20:25.028 DEBUG 2468 --- [           main] example.data.BookService                 : *Current node: test-cluster-instance-1
+2024-01-24 12:20:25.144 DEBUG 2468 --- [           main] example.data.BookService                 : *Current sessionId: 582
+2024-01-24 12:20:25.144 DEBUG 2468 --- [           main] example.data.BookService                 : <<< end getNumOfBooksTransactional
+2024-01-24 12:20:25.231  INFO 2468 --- [           main] example.data.BookService                 : Number of books: 2
+2024-01-24 12:20:25.461 DEBUG 2468 --- [           main] example.data.BookService                 : Current node: test-cluster-instance-3
+2024-01-24 12:20:25.536 DEBUG 2468 --- [           main] example.data.BookService                 : Current sessionId: 576
+2024-01-24 12:20:25.536 DEBUG 2468 --- [           main] example.data.BookService                 : <<< end updateBookAvailabilityTransactional
+2024-01-24 12:20:25.613 DEBUG 2468 --- [           main] cedReaderOneDataSourceExampleApplication : Failed transactions: 0
+
+BUILD SUCCESSFUL in 5m 4s
+14 actionable tasks: 3 executed, 11 up-to-date
+12:20:25 p.m.: Execution finished ':springhibernateonedatasource:SpringHibernateBalancedReaderOneDataSourceExampleApplication.main()'.

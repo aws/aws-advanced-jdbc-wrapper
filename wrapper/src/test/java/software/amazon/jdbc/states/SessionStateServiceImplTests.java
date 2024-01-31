@@ -83,7 +83,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getReadOnly());
     sessionStateService.setupPristineReadOnly();
     sessionStateService.setReadOnly(value);
-    assertEquals(Optional.of(value), sessionStateService.getReadOnly());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getReadOnly());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -104,7 +104,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getAutoCommit());
     sessionStateService.setupPristineAutoCommit();
     sessionStateService.setAutoCommit(value);
-    assertEquals(Optional.of(value), sessionStateService.getAutoCommit());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getAutoCommit());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -125,7 +125,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getCatalog());
     sessionStateService.setupPristineCatalog();
     sessionStateService.setCatalog(value);
-    assertEquals(Optional.of(value), sessionStateService.getCatalog());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getCatalog());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -146,7 +146,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getSchema());
     sessionStateService.setupPristineSchema();
     sessionStateService.setSchema(value);
-    assertEquals(Optional.of(value), sessionStateService.getSchema());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getSchema());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -167,7 +167,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getHoldability());
     sessionStateService.setupPristineHoldability();
     sessionStateService.setHoldability(value);
-    assertEquals(Optional.of(value), sessionStateService.getHoldability());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getHoldability());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -188,7 +188,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getNetworkTimeout());
     sessionStateService.setupPristineNetworkTimeout();
     sessionStateService.setNetworkTimeout(value);
-    assertEquals(Optional.of(value), sessionStateService.getNetworkTimeout());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getNetworkTimeout());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -209,7 +209,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getTransactionIsolation());
     sessionStateService.setupPristineTransactionIsolation();
     sessionStateService.setTransactionIsolation(value);
-    assertEquals(Optional.of(value), sessionStateService.getTransactionIsolation());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getTransactionIsolation());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -231,7 +231,7 @@ public class SessionStateServiceImplTests {
     assertEquals(Optional.empty(), sessionStateService.getTypeMap());
     sessionStateService.setupPristineTypeMap();
     sessionStateService.setTypeMap(value);
-    assertEquals(Optional.of(value), sessionStateService.getTypeMap());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getTypeMap());
 
     sessionStateService.begin();
     sessionStateService.applyPristineSessionState(mockNewConnection);
@@ -249,7 +249,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.isReadOnly()).thenReturn(pristineValue);
     when(mockNewConnection.isReadOnly()).thenReturn(pristineValue);
     sessionStateService.setReadOnly(value);
-    assertEquals(Optional.of(value), sessionStateService.getReadOnly());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getReadOnly());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);
@@ -265,7 +265,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.getAutoCommit()).thenReturn(pristineValue);
     when(mockNewConnection.getAutoCommit()).thenReturn(pristineValue);
     sessionStateService.setAutoCommit(value);
-    assertEquals(Optional.of(value), sessionStateService.getAutoCommit());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getAutoCommit());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);
@@ -281,7 +281,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.getCatalog()).thenReturn(pristineValue);
     when(mockNewConnection.getCatalog()).thenReturn(pristineValue);
     sessionStateService.setCatalog(value);
-    assertEquals(Optional.of(value), sessionStateService.getCatalog());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getCatalog());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);
@@ -297,7 +297,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.getSchema()).thenReturn(pristineValue);
     when(mockNewConnection.getSchema()).thenReturn(pristineValue);
     sessionStateService.setSchema(value);
-    assertEquals(Optional.of(value), sessionStateService.getSchema());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getSchema());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);
@@ -313,7 +313,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.getHoldability()).thenReturn(pristineValue);
     when(mockNewConnection.getHoldability()).thenReturn(pristineValue);
     sessionStateService.setHoldability(value);
-    assertEquals(Optional.of(value), sessionStateService.getHoldability());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getHoldability());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);
@@ -329,7 +329,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.getNetworkTimeout()).thenReturn(pristineValue);
     when(mockNewConnection.getNetworkTimeout()).thenReturn(pristineValue);
     sessionStateService.setNetworkTimeout(value);
-    assertEquals(Optional.of(value), sessionStateService.getNetworkTimeout());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getNetworkTimeout());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);
@@ -345,7 +345,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.getTransactionIsolation()).thenReturn(pristineValue);
     when(mockNewConnection.getTransactionIsolation()).thenReturn(pristineValue);
     sessionStateService.setTransactionIsolation(value);
-    assertEquals(Optional.of(value), sessionStateService.getTransactionIsolation());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getTransactionIsolation());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);
@@ -364,7 +364,7 @@ public class SessionStateServiceImplTests {
     when(mockConnection.getTypeMap()).thenReturn(pristineValue);
     when(mockNewConnection.getTypeMap()).thenReturn(pristineValue);
     sessionStateService.setTypeMap(value);
-    assertEquals(Optional.of(value), sessionStateService.getTypeMap());
+    assertEquals(Optional.ofNullable(value), sessionStateService.getTypeMap());
 
     sessionStateService.begin();
     sessionStateService.applyCurrentSessionState(mockNewConnection);

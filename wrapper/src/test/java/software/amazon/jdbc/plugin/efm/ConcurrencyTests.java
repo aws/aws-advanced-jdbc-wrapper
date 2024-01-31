@@ -277,6 +277,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public void setupPristineAutoCommit(boolean autoCommit) throws SQLException {
+
+    }
+
+    @Override
     public Optional<Boolean> getReadOnly() throws SQLException {
       return Optional.empty();
     }
@@ -288,6 +293,11 @@ public class ConcurrencyTests {
 
     @Override
     public void setupPristineReadOnly() throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineReadOnly(boolean readOnly) throws SQLException {
 
     }
 
@@ -307,6 +317,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public void setupPristineCatalog(String catalog) throws SQLException {
+
+    }
+
+    @Override
     public Optional<Integer> getHoldability() throws SQLException {
       return Optional.empty();
     }
@@ -318,6 +333,11 @@ public class ConcurrencyTests {
 
     @Override
     public void setupPristineHoldability() throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineHoldability(int holdability) throws SQLException {
 
     }
 
@@ -337,6 +357,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public void setupPristineNetworkTimeout(int milliseconds) throws SQLException {
+
+    }
+
+    @Override
     public Optional<String> getSchema() throws SQLException {
       return Optional.empty();
     }
@@ -348,6 +373,11 @@ public class ConcurrencyTests {
 
     @Override
     public void setupPristineSchema() throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineSchema(String schema) throws SQLException {
 
     }
 
@@ -367,6 +397,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public void setupPristineTransactionIsolation(int level) throws SQLException {
+
+    }
+
+    @Override
     public Optional<Map<String, Class<?>>> getTypeMap() throws SQLException {
       return Optional.empty();
     }
@@ -378,6 +413,11 @@ public class ConcurrencyTests {
 
     @Override
     public void setupPristineTypeMap() throws SQLException {
+
+    }
+
+    @Override
+    public void setupPristineTypeMap(Map<String, Class<?>> map) throws SQLException {
 
     }
 
