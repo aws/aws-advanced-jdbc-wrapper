@@ -157,24 +157,6 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
     return conn;
   }
 
-  /**
-   * Called once per connection that needs to be created.
-   *
-   * @param url The connection URL
-   * @param props The Properties to use for the connection
-   * @return {@link Connection} resulting from the given connection information
-   * @throws SQLException if an error occurs
-   */
-  @Override
-  @Deprecated
-  public Connection connect(final @NonNull String url, final @NonNull Properties props) throws SQLException {
-    final Properties copy = PropertyUtils.copyProperties(props);
-    copy.setProperty("url", url);
-    PropertyDefinition.removeAllExceptCredentials(copy);
-    PropertyUtils.applyProperties(this.dataSource, copy);
-    return this.dataSource.getConnection();
-  }
-
   private DataSource createDataSource() throws SQLException {
     try {
       return WrapperUtils.createInstance(this.dataSource.getClass(), DataSource.class, null);

@@ -113,7 +113,6 @@ public class PluginBenchmarks {
   }
 
   @Setup(Level.Iteration)
-  @SuppressWarnings("deprecation")
   public void setUpIteration() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
     when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean()))
@@ -127,8 +126,6 @@ public class PluginBenchmarks {
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);
     // noinspection unchecked
     when(mockTelemetryFactory.createGauge(anyString(), any(GaugeCallable.class))).thenReturn(mockTelemetryGauge);
-    when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
-        mockConnection);
     when(mockConnectionProvider.connect(
         anyString(),
         any(Dialect.class),

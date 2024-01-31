@@ -2,7 +2,8 @@
 *.class
 build/
 .gradle/
-/.idea
+**/.idea
+**/build
 
 # Log file
 *.log

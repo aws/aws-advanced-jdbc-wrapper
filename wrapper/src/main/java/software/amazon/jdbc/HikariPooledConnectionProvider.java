@@ -21,11 +21,9 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -38,7 +36,6 @@ import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.HikariCPSQLException;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -204,13 +201,6 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     ds.setPassword(copy.getProperty(PropertyDefinition.PASSWORD.name));
 
     return ds.getConnection();
-  }
-
-  @Override
-  @Deprecated
-  public Connection connect(@NonNull String url, @NonNull Properties props) throws SQLException {
-    // This method is only called by tests/benchmarks
-    return null;
   }
 
   // The pool key should always be retrieved using this method, because the username

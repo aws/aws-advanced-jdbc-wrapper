@@ -64,7 +64,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.benchmarks.testplugin.BenchmarkPluginFactory;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -117,13 +116,10 @@ public class ConnectionPluginManagerBenchmarks {
     new Runner(opt).run();
   }
 
-  @SuppressWarnings("deprecation")
   @Setup(Level.Iteration)
   public void setUpIteration() throws Exception {
     closeable = openMocks(this);
 
-    when(mockConnectionProvider.connect(anyString(), any(Properties.class))).thenReturn(
-        mockConnection);
     when(mockConnectionProvider.connect(
         anyString(),
         any(Dialect.class),

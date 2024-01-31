@@ -27,7 +27,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory;
-import software.amazon.jdbc.plugin.AuroraHostListConnectionPluginFactory;
 import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
@@ -60,7 +59,6 @@ public class ConnectionPluginChainBuilder {
       new HashMap<String, Class<? extends ConnectionPluginFactory>>() {
         {
           put("executionTime", ExecutionTimeConnectionPluginFactory.class);
-          put("auroraHostList", AuroraHostListConnectionPluginFactory.class);
           put("logQuery", LogQueryConnectionPluginFactory.class);
           put("dataCache", DataCacheConnectionPluginFactory.class);
           put("efm", HostMonitoringConnectionPluginFactory.class);
@@ -90,7 +88,6 @@ public class ConnectionPluginChainBuilder {
         {
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(DataCacheConnectionPluginFactory.class, 200);
-          put(AuroraHostListConnectionPluginFactory.class, 300);
           put(AuroraInitialConnectionStrategyPluginFactory.class, 390);
           put(AuroraConnectionTrackerPluginFactory.class, 400);
           put(AuroraStaleDnsPluginFactory.class, 500);
