@@ -42,7 +42,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
-import software.amazon.jdbc.plugin.IamAuthConnectionPlugin;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
