@@ -35,10 +35,10 @@ import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.plugin.ConnectTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
-import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPlugin;
 import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
