@@ -258,6 +258,13 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       final String user = PropertyDefinition.USER.getString(props);
+      if (StringUtils.isNullOrEmpty(user)) {
+        throw new RuntimeException(
+            Messages.get(
+                "IamAuthConnectionPlugin.missingRequiredConfigParameter",
+                new Object[] {PropertyDefinition.USER.name}));
+      }
+
       final AwsCredentialsProvider credentialsProvider = AwsCredentialsManager.getProvider(originalHostSpec, props);
       return this.iamTokenUtility.generateAuthenticationToken(credentialsProvider, region, hostname, port, user);
 
