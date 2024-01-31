@@ -130,21 +130,6 @@ public class DriverConnectionProvider implements ConnectionProvider {
     return conn;
   }
 
-  /**
-   * Called once per connection that needs to be created.
-   *
-   * @param url The connection URL
-   * @param props The Properties to use for the connection
-   * @return {@link Connection} resulting from the given connection information
-   * @throws SQLException if an error occurs
-   */
-  @Deprecated
-  public Connection connect(@NonNull final String url, @NonNull final Properties props) throws SQLException {
-
-    LOGGER.finest(() -> "Connecting to " + url);
-    return this.driver.connect(url, props);
-  }
-
   @Override
   public String getTargetName() {
     return this.targetDriverClassName;
