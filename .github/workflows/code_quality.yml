@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: 'Get changed files'
@@ -36,4 +36,6 @@ jobs:
         run: echo "ONLY_DOCS=false" >> $GITHUB_OUTPUT
       - name: 'Qodana Scan'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
-        uses: JetBrains/qodana-action@v2022.2.1
+        uses: JetBrains/qodana-action@v2023.3.1
+        with:
+          use-caches: false
