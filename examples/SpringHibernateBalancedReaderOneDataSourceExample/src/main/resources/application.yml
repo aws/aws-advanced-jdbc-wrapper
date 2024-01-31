@@ -1,0 +1,36 @@
+spring:
+  profiles.active: development
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+logging:
+  level:
+    software:
+      amazon:
+        jdbc: INFO
+        jdbc.states: INFO
+    example: TRACE
+
+---
+spring:
+  config.active.on-profile: development
+  datasource:
+    load-balanced-writer-and-reader-datasource:
+      url: jdbc:aws-wrapper:postgresql://test-cluster.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/postgres?wrapperProfileName=F0&readerHostSelectorStrategy=roundRobin
+      username: dev_user
+      password: dev_password
+      driver-class-name: software.amazon.jdbc.Driver
+      type: org.springframework.jdbc.datasource.SimpleDriverDataSource
+
+---
+spring:
+  config.active.on-profile: production
+  datasource:
+    load-balanced-writer-and-reader-datasource:
+      url: jdbc:aws-wrapper:postgresql://production-cluster:5432/postgres?wrapperProfileName=F0&readerHostSelectorStrategy=roundRobin
+      username: prod_user
+      password: prod_password
+      driver-class-name: software.amazon.jdbc.Driver
+      type: org.springframework.jdbc.datasource.SimpleDriverDataSource

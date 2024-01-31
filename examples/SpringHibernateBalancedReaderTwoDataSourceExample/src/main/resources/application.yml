@@ -1,0 +1,48 @@
+spring:
+  profiles.active: development
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+logging:
+  level:
+    software:
+      amazon:
+        jdbc: INFO
+        jdbc.states: INFO
+    example: TRACE
+
+---
+spring:
+  config.activate.on-profile: development
+  datasource:
+    writer-datasource:
+      url: jdbc:aws-wrapper:postgresql://test-cluster.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/test_db?wrapperProfileName=SF_F0
+      username: dev_user
+      password: dev_password
+      driver-class-name: software.amazon.jdbc.Driver
+      type: org.springframework.jdbc.datasource.SimpleDriverDataSource
+    load-balanced-reader-datasource:
+      url: jdbc:aws-wrapper:postgresql://test-cluster.cluster-ro-XYZ.us-east-2.rds.amazonaws.com:5432/test_db?wrapperProfileName=SF_F0&readerInitialConnectionHostSelectorStrategy=roundRobin
+      username: dev_user
+      password: dev_password
+      driver-class-name: software.amazon.jdbc.Driver
+      type: org.springframework.jdbc.datasource.SimpleDriverDataSource
+
+---
+spring:
+  config.activate.on-profile: production
+  datasource:
+    writer-datasource:
+      url: jdbc:aws-wrapper:postgresql://production-cluster:5432/postgres?wrapperProfileName=SF_F0
+      username: prod_user
+      password: prod_password
+      driver-class-name: software.amazon.jdbc.Driver
+      type: org.springframework.jdbc.datasource.SimpleDriverDataSource
+    load-balanced-reader-datasource:
+      url: jdbc:aws-wrapper:postgresql://production-ro-cluster:5432/postgres?wrapperProfileName=SF_F0&readerInitialConnectionHostSelectorStrategy=roundRobin
+      username: prod_user
+      password: prod_password
+      driver-class-name: software.amazon.jdbc.Driver
+      type: org.springframework.jdbc.datasource.SimpleDriverDataSource

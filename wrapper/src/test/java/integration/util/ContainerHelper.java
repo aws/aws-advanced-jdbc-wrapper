@@ -329,6 +329,7 @@ public class ContainerHelper {
         .withDatabaseName(testDbName)
         .withPassword(password)
         .withUsername(username)
+        .withEnv("MYSQL_ROOT_PASSWORD", password)
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/config/standard-mysql-grant-root.sql"),
             "/docker-entrypoint-initdb.d/standard-mysql-grant-root.sql")

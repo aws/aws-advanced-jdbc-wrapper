@@ -24,6 +24,8 @@ include(
     "hikari",
     "driverexample",
     "springhibernate",
+    "springhibernateonedatasource",
+    "springhibernatetwodatasource",
     "springwildfly",
     "springboothikariexample",
     "springtxfailover",
@@ -37,6 +39,8 @@ project(":hibernate").projectDir = file("examples/HibernateExample")
 project(":hikari").projectDir = file("examples/HikariExample")
 project(":driverexample").projectDir = file("examples/AWSDriverExample")
 project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
+project(":springhibernateonedatasource").projectDir = file("examples/SpringHibernateBalancedReaderOneDataSourceExample")
+project(":springhibernatetwodatasource").projectDir = file("examples/SpringHibernateBalancedReaderTwoDataSourceExample")
 project(":springwildfly").projectDir = file("examples/SpringWildflyExample/spring")
 project(":springboothikariexample").projectDir = file("examples/SpringBootHikariExample")
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
