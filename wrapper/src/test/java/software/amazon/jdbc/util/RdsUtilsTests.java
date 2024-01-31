@@ -72,6 +72,7 @@ public class RdsUtilsTests {
 
   @BeforeEach
   public void setupTests() {
+    RdsUtils.clearCache();
     target = new RdsUtils();
   }
 
