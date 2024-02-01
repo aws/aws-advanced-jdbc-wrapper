@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.iam;
 
 import java.util.Properties;
 import software.amazon.jdbc.ConnectionPlugin;

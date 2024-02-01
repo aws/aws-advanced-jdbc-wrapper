@@ -16,6 +16,7 @@
 
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.DriverHelper;
@@ -40,9 +41,18 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
-import software.amazon.jdbc.plugin.IamAuthConnectionPlugin;
+import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.plugin.iam.LightRdsUtility;
+import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -234,6 +244,37 @@ public class AwsIamIntegrationTest {
     try (final Connection conn = ds.getConnection()) {
       assertTrue(conn.isValid(10));
     }
+  }
+
+  @TestTemplate
+  void test_TokenGenerators() {
+
+    final HostAvailabilityStrategy mockHostAvailabilityStrategy = Mockito.mock(HostAvailabilityStrategy.class);
+
+    final Properties awsIamProp =
+        initAwsIamProps(TestEnvironment.getCurrent().getInfo().getIamUsername(), "<anything>");
+
+    final HostSpec hostSpec = new HostSpecBuilder(mockHostAvailabilityStrategy)
+        .host(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())
+        .build();
+
+    final AwsCredentialsProvider credentialsProvider = AwsCredentialsManager.getProvider(hostSpec, awsIamProp);
+
+    final String regularToken = new RegularRdsUtility().generateAuthenticationToken(
+        credentialsProvider,
+        Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion()),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getIamUsername());
+
+    final String lightToken = new LightRdsUtility().generateAuthenticationToken(
+        credentialsProvider,
+        Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion()),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
+        TestEnvironment.getCurrent().getInfo().getIamUsername());
+
+    assertEquals(regularToken, lightToken);
   }
 
   protected Properties initAwsIamProps(String user, String password) {
