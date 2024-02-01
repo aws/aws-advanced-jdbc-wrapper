@@ -106,7 +106,6 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       // RegularRdsUtility requires AWS Java SDK RDS v2.x to be presented in classpath.
       Class.forName("software.amazon.awssdk.services.rds.RdsUtilities");
     } catch (final ClassNotFoundException e) {
-      ClassNotFoundException lastException = e;
       // If SDK RDS isn't presented, try to check required dependency for LightRdsUtility.
       try {
         // LightRdsUtility requires "software.amazon.awssdk.auth"
@@ -116,14 +115,9 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
         // Required libraries are presented. Use lighter version of RDS utility.
         iamTokenUtility = new LightRdsUtility();
-        lastException = null;
 
       } catch (final ClassNotFoundException ex) {
         throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.javaSdkNotInClasspath"), ex);
-      }
-
-      if (lastException != null) {
-        throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.javaSdkNotInClasspath"), lastException);
       }
     }
   }
