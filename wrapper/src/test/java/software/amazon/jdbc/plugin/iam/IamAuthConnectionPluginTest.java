@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.iam;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -46,6 +46,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 class IamAuthConnectionPluginTest {

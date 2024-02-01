@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc.plugin.iam;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -28,14 +28,16 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsUtilities;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
@@ -87,11 +89,37 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   private final TelemetryGauge cacheSizeGauge;
   private final TelemetryCounter fetchTokenCounter;
 
+  private IamTokenUtility iamTokenUtility = new RegularRdsUtility();
+
   public IamAuthConnectionPlugin(final @NonNull PluginService pluginService) {
+
+    this.checkRequiredDependencies();
+
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size", () -> (long) tokenCache.size());
     this.fetchTokenCounter = telemetryFactory.createCounter("iam.fetchToken.count");
+  }
+
+  private void checkRequiredDependencies() {
+    try {
+      // RegularRdsUtility requires AWS Java SDK RDS v2.x to be presented in classpath.
+      Class.forName("software.amazon.awssdk.services.rds.RdsUtilities");
+    } catch (final ClassNotFoundException e) {
+      // If SDK RDS isn't presented, try to check required dependency for LightRdsUtility.
+      try {
+        // LightRdsUtility requires "software.amazon.awssdk.auth"
+        // and "software.amazon.awssdk.http-client-spi" libraries.
+        Class.forName("software.amazon.awssdk.http.SdkHttpFullRequest");
+        Class.forName("software.amazon.awssdk.auth.signer.params.Aws4PresignerParams");
+
+        // Required libraries are presented. Use lighter version of RDS utility.
+        iamTokenUtility = new LightRdsUtility();
+
+      } catch (final ClassNotFoundException ex) {
+        throw new RuntimeException(Messages.get("IamAuthConnectionPlugin.javaSdkNotInClasspath"), ex);
+      }
+    }
   }
 
   @Override
@@ -230,16 +258,16 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       final String user = PropertyDefinition.USER.getString(props);
-      final RdsUtilities utilities = RdsUtilities.builder()
-          .credentialsProvider(AwsCredentialsManager.getProvider(originalHostSpec, props))
-          .region(region)
-          .build();
-      return utilities.generateAuthenticationToken((builder) ->
-          builder
-              .hostname(hostname)
-              .port(port)
-              .username(user)
-      );
+      if (StringUtils.isNullOrEmpty(user)) {
+        throw new RuntimeException(
+            Messages.get(
+                "IamAuthConnectionPlugin.missingRequiredConfigParameter",
+                new Object[] {PropertyDefinition.USER.name}));
+      }
+
+      final AwsCredentialsProvider credentialsProvider = AwsCredentialsManager.getProvider(originalHostSpec, props);
+      return this.iamTokenUtility.generateAuthenticationToken(credentialsProvider, region, hostname, port, user);
+
     } catch (Exception ex) {
       telemetryContext.setSuccess(false);
       telemetryContext.setException(ex);
