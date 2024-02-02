@@ -18,6 +18,9 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Driver;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -93,5 +96,18 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   public void registerDriver() throws SQLException {
     final MariadbDriverHelper helper = new MariadbDriverHelper();
     helper.registerDriver();
+  }
+
+  @Override
+  public List<String> getAllowedOnConnectionMethodNames() {
+    return Arrays.asList(
+        METHOD_GET_METADATA,
+        METHOD_IS_READ_ONLY,
+        METHOD_GET_AUTO_COMMIT,
+        METHOD_GET_HOLDABILITY,
+        METHOD_GET_CLIENT_INFO,
+        METHOD_GET_NETWORK_TIME,
+        METHOD_GET_TYPE_MAP
+    );
   }
 }

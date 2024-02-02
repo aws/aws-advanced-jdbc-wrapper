@@ -21,6 +21,9 @@ import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -102,5 +105,10 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public List<String> getAllowedOnConnectionMethodNames() {
+    return Collections.emptyList();
   }
 }

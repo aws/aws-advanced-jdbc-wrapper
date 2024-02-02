@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.awssdk.services.rds.endpoints.internal.Value.Bool;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -42,6 +43,9 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
+import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.MariadbTargetDriverDialect;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -420,10 +424,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    */
   private boolean allowedOnClosedConnection(final String methodName) {
     // TODO: consider to use target driver dialect
-    return methodName.equals(METHOD_GET_AUTO_COMMIT)
-        || methodName.equals(METHOD_GET_CATALOG)
-        || methodName.equals(METHOD_GET_SCHEMA)
-        || methodName.equals(METHOD_GET_TRANSACTION_ISOLATION);
+    TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
+    return dialect.getAllowedOnConnectionMethodNames().contains(methodName);
   }
 
   /**

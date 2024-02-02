@@ -21,6 +21,8 @@ import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -34,6 +36,25 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   private static final Logger LOGGER =
       Logger.getLogger(GenericTargetDriverDialect.class.getName());
+  public static final String METHOD_GET_AUTO_COMMIT = "Connection.getAutoCommit";
+  public static final String METHOD_GET_CATALOG = "Connection.getCatalog";
+  public static final String METHOD_GET_SCHEMA = "Connection.getSchema";
+  public static final String METHOD_GET_TRANSACTION_ISOLATION = "Connection.getTransactionIsolation";
+  public static final String METHOD_GET_NETWORK_TIME = "Connection.getNetworkTimeout";
+  public static final String METHOD_GET_METADATA = "Connection.getMetaData";
+  public static final String METHOD_IS_READ_ONLY = "Connection.isReadOnly";
+  public static final String METHOD_GET_HOLDABILITY = "Connection.getHoldability";
+  public static final String METHOD_GET_CLIENT_INFO = "Connection.getClientInfo";
+  public static final String METHOD_GET_TYPE_MAP = "Connection.getTypeMap";
+  public static final String METHOD_CLEAR_WARNINGS = "Statement.clearWarnings";
+  public static final String METHOD_GET_CONNECTION = "Statement.getConnection";
+  public static final String METHOD_GET_FETCH_DIRECTION = "Statement.getFetchDirection";
+  public static final String METHOD_GET_FETCH_SIZE = "Statement.getFetchSize";
+  public static final String METHOD_GET_MAX_FIELD_SIZE = "Statement.getMaxFieldSize";
+  public static final String METHOD_GET_RESULT_HOLDABILITY = "Statement.getResultSetHoldability";
+  public static final String METHOD_GET_RESULT_SET_TYPE = "Statement.getResultSetType";
+  public static final String METHOD_IS_CLOSED = "Statement.isClosed";
+  public static final String METHOD_CLOSE_ON_COMPLETION = "Statement.isCloseOnCompletion";
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -103,5 +124,11 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public List<String> getAllowedOnConnectionMethodNames() {
+    return Arrays.asList(METHOD_GET_SCHEMA, METHOD_GET_CATALOG,
+        METHOD_GET_AUTO_COMMIT, METHOD_GET_TRANSACTION_ISOLATION);
   }
 }

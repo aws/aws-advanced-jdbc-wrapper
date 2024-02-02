@@ -19,10 +19,13 @@ package software.amazon.jdbc.targetdriverdialect;
 import java.sql.Driver;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -116,5 +119,10 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   public void registerDriver() throws SQLException {
     final PgDriverHelper helper = new PgDriverHelper();
     helper.registerDriver();
+  }
+
+  @Override
+  public List<String> getAllowedOnConnectionMethodNames() {
+    return Collections.emptyList();
   }
 }
