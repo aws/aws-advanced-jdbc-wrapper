@@ -20,6 +20,7 @@ import java.sql.Driver;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +28,6 @@ import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class PgTargetDriverDialect extends GenericTargetDriverDialect {
@@ -116,5 +116,52 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   public void registerDriver() throws SQLException {
     final PgDriverHelper helper = new PgDriverHelper();
     helper.registerDriver();
+  }
+
+  @Override
+  public List<String> getAllowedOnConnectionMethodNames() {
+    return Arrays.asList(
+        CONN_IS_CLOSED,
+        STATEMENT_CLEAR_WARNINGS,
+        STATEMENT_GET_CONNECTION,
+        STATEMENT_GET_FETCH_DIRECTION,
+        STATEMENT_GET_FETCH_SIZE,
+        STATEMENT_GET_MAX_FIELD_SIZE,
+        STATEMENT_GET_RESULT_SET_HOLDABILITY,
+        STATEMENT_GET_RESULT_SET_TYPE,
+        STATEMENT_IS_CLOSED,
+        STATEMENT_IS_CLOSE_ON_COMPLETION,
+        STATEMENT_CLEAR_BATCH,
+        STATEMENT_CLOSE_ON_COMPLETION,
+        STATEMENT_GET_LARGE_MAX_ROWS,
+        STATEMENT_GET_GENERATED_KEYS,
+        STATEMENT_GET_MAX_ROWS,
+        STATEMENT_GET_MORE_RESULTS,
+        STATEMENT_GET_QUERY_TIMEOUT,
+        STATEMENT_GET_RESULT_SET,
+        STATEMENT_GET_RESULT_SET_CONCURRENCY,
+        STATEMENT_GET_UPDATE_COUNT,
+        STATEMENT_GET_WARNINGS,
+        STATEMENT_ADD_BATCH,
+        CALL_GET_ARRAY,
+        CALL_GET_BIG_DECIMAL,
+        CALL_GET_BOOLEAN,
+        CALL_GET_BYTE,
+        CALL_GET_BYTES,
+        CALL_GET_DATE,
+        CALL_GET_DOUBLE,
+        CALL_GET_FLOAT,
+        CALL_GET_INT,
+        CALL_GET_LONG,
+        CALL_GET_OBJECT,
+        CALL_GET_SHORT,
+        CALL_GET_SQLXML,
+        CALL_GET_TIME,
+        CALL_GET_STRING,
+        CALL_GET_TIMESTAMP,
+        CALL_WAS_NULL,
+        PREP_ADD_BATCH,
+        PREP_CLEAR_PARAMS
+    );
   }
 }

@@ -18,6 +18,7 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -53,4 +54,6 @@ public interface TargetDriverDialect {
    * @return True, if operation is succeeded. False, otherwise.
    */
   boolean ping(final @NonNull Connection connection);
+
+  List<String> getAllowedOnConnectionMethodNames();
 }

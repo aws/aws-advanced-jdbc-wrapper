@@ -21,6 +21,8 @@ import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -102,5 +104,28 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public List<String> getAllowedOnConnectionMethodNames() {
+    return Arrays.asList(
+        CONN_GET_CATALOG,
+        CONN_IS_READ_ONLY,
+        CONN_GET_AUTO_COMMIT,
+        CONN_GET_HOLDABILITY,
+        CONN_GET_CLIENT_INFO,
+        CONN_GET_NETWORK_TIMEOUT,
+        CONN_GET_TYPE_MAP,
+        CONN_CREATE_CLOB,
+        CONN_CREATE_BLOB,
+        CONN_CREATE_NCLOB,
+        CONN_IS_CLOSED,
+        CONN_SET_HOLDABILITY,
+        STATEMENT_GET_CONNECTION,
+        STATEMENT_GET_FETCH_DIRECTION,
+        STATEMENT_GET_RESULT_SET_HOLDABILITY,
+        STATEMENT_IS_CLOSED,
+        STATEMENT_GET_LARGE_MAX_ROWS
+    );
   }
 }
