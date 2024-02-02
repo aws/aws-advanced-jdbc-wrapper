@@ -79,9 +79,6 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 > [!IMPORTANT]\
 > You must call `ConnectionProviderManager.releaseResources` to close the internal connection pools when you are finished using all connections. Unless `ConnectionProviderManager.releaseResources` is called, the wrapper driver will keep the pools open so that they can be shared between connections.
 
-## Example
-[ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure read/write splitting with the Aws Advanced JDBC Driver.
-
 ## Reader Selection Strategies
 By default, the read/write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. To balance connections to reader instances more evenly, different selection strategies can be used. The following table describes the currently available selection strategies and any relevant configuration parameters for each strategy.
 
@@ -105,16 +102,9 @@ props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "
 
 When a Statement or ResultSet is created, it is internally bound to the database connection established at that moment. There is no standard JDBC functionality to change the internal connection used by Statement or ResultSet objects. Consequently, even if the read/write plugin switches the internal connection, any Statements/ResultSets created before this will continue using the old database connection. This bypasses the desired functionality provided by the plugin. To prevent these scenarios, an exception will be thrown if your code uses any Statements/ResultSets created before a change in internal connection. To solve this problem, please ensure you create new Statement/ResultSet objects after switching between the writer/reader.
 
-### Session state limitations
+### Session state
 
-There are many session state attributes that can change during a session, and many ways to change them. Consequently, the read/write splitting plugin has limited support for transferring session state between connections. The following attributes will be automatically transferred when switching connections:
-
-- autocommit value
-- transaction isolation level
-
-All other session state attributes will be lost when switching connections between the writer/reader.
-
-If your SQL workflow depends on session state attributes that are not mentioned above, you will need to re-configure those attributes each time that you switch between the writer/reader.
+The plugin supports session state transfer when switching connection. All attributes mentioned in [Session State](../SessionState.md) are automatically transferred to a new connection. 
 
 
 ### Limitations when using Spring Boot/Framework
@@ -122,10 +112,21 @@ If your SQL workflow depends on session state attributes that are not mentioned 
 #### @Transactional(readOnly = True)
 
 > [!WARNING]\
-> The use of read/write splitting with the annotation @Transactional(readOnly = True) is not recommended.
+> The use of read/write splitting with the annotation @Transactional(readOnly = True) is **not** recommended for any configurations except a configuration with internal connection pool. Other configurations will cause a significant performance degradation.
 
 When a method with this annotation is hit, Spring calls conn.setReadOnly(true), executes the method, and then calls setReadOnly(false) to restore the connection's initial readOnly value. Consequently, every time the method is called, the plugin switches to the reader, executes the method, and then switches back to the writer. Although the reader connection will be cached after the first setReadOnly call, there is still some overhead when switching between the cached writer/reader connections. This constant switching is not an ideal use of the plugin because it is frequently incurring this overhead. The suggested approach for this scenario is to avoid loading the read/write splitting plugin and instead use the writer cluster URL for your write operations and the reader cluster URL for your read operations. By doing this you avoid the overhead of constantly switching between connections while still spreading load across the database instances in your cluster. 
 
 #### Internal connection pools
 
-We recommend that you do not enable internal connection pools when using Spring. This is because Spring by default uses its own external connection pool. The use of both internal and external pools is not tested and may result in problematic behavior.
+We recommend that you do not enable internal connection pools when using Spring with default datasource configuration. This is because Spring by default uses its own external connection pool. The use of both internal and external pools is not tested and may result in problematic behavior. A Spring application should enable internal connection pool only. That's a recommended configuration.
+
+Spring application is encouraged to use configuration profiles and presets optimized for Spring applications. More details are available at [Configuration Presets](../ConfigurationPresets.md).
+
+
+## Example
+[ReadWriteSplittingPostgresExample.java](../../../examples/AWSDriverExample/src/main/java/software/amazon/ReadWriteSplittingPostgresExample.java) demonstrates how to enable and configure read/write splitting with the Aws Advanced JDBC Driver.
+
+[SpringHibernateBalancedReaderOneDataSourceExample](../../../examples/SpringHibernateBalancedReaderOneDataSourceExample/README.md) demonstrates how to enable and configure read/write splitting with the Aws Advanced JDBC Driver. This example application uses a configuration with internal connection pool and provides a load-balanced reader connection according to a specified reader selection strategy. `Read/Write Splitting Plugin` and `@Transactional(readOnly = True)` play in collaboration in this example.
+
+[SpringHibernateBalancedReaderTwoDataSourceExample](../../../examples/SpringHibernateBalancedReaderTwoDataSourceExample/README.md) demonstrates how to enable and configure read/write splitting with the Aws Advanced JDBC Driver. This example application uses a configuration with two Spring datasources where each of them uses internal connection pool. The example application provides a load-balanced reader connection according to a specified reader selection strategy. The example application doesn't use `Read/Write Splitting Plugin`. Switching between writer datasource and reader datasource occurs with the help of `@WithLoadBalancedReaderDataSource` annotation. 
+

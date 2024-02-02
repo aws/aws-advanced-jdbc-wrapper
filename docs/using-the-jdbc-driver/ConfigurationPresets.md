@@ -35,6 +35,8 @@ Configuration Presets are optimized for 3 main user scenarios. They are:
 
 Some preset names may include a number, like `A0`, `A1`, `A2`, `D0`, `D1`, etc. Usually, the number represent sensitivity or timing variations for the same preset. For example, `A0` is optimized for normal network outage sensitivity and normal response time, while `A1` is less sensitive. Please take into account that more aggressive presets tend to cause more false positive failure detections. More details can be found in this file: [ConfigurationProfilePresetCodes.java](./../../wrapper/src/main/java/software/amazon/jdbc/profile/ConfigurationProfilePresetCodes.java) 
 
+Configuration presets starting with `SF_` prefix correspond to the same presets with no such prefix. These `SF_` presets are optimized for Spring Framework/Boot applications and don't use [Read/Write Splitting Plugin](./using-plugins/UsingTheReadWriteSplittingPlugin.md). More details are available at [Read/Write Splitting Plugin Example](./using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md#example). `SF_` presets are not shown on diagram below. Check their corresponding presets instead.
+
 Choosing the right configuration preset for your application can be a challenging task. Many presets could potentially fit the needs of your application. Various user application requirements and goals are presented in the following table and organized to help you identify the most suitable presets for your application.
 
 PDF version of the following table can be found [here](./../files/configuration-profile-presets.pdf).
