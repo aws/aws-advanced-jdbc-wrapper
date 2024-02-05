@@ -123,6 +123,6 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
   @Override
   public List<String> getAllowedOnConnectionMethodNames() {
-    return Collections.emptyList();
+    return super.getAllowedOnConnectionMethodNames();
   }
 }

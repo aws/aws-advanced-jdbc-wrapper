@@ -109,6 +109,6 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
 
   @Override
   public List<String> getAllowedOnConnectionMethodNames() {
-    return Collections.emptyList();
+    return super.getAllowedOnConnectionMethodNames();
   }
 }

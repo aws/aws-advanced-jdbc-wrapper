@@ -128,7 +128,10 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   @Override
   public List<String> getAllowedOnConnectionMethodNames() {
-    return Arrays.asList(METHOD_GET_SCHEMA, METHOD_GET_CATALOG,
-        METHOD_GET_AUTO_COMMIT, METHOD_GET_TRANSACTION_ISOLATION);
+    return Arrays.asList(
+        METHOD_GET_SCHEMA,
+        METHOD_GET_CATALOG,
+        METHOD_GET_AUTO_COMMIT,
+        METHOD_GET_TRANSACTION_ISOLATION);
   }
 }
