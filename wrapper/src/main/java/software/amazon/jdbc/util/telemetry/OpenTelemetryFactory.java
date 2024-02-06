@@ -33,21 +33,11 @@ public class OpenTelemetryFactory implements TelemetryFactory {
    */
   private static final int NAME_MAX_LENGTH = 63;
 
-  private static OpenTelemetry openTelemetry;
   private static Tracer tracer;
   private static Meter meter;
 
-  private static final Object mutex = new Object();
-
   private static OpenTelemetry getOpenTelemetry() {
-    if (openTelemetry == null) {
-      synchronized (mutex) {
-        if (openTelemetry == null) {
-          openTelemetry = GlobalOpenTelemetry.get();
-        }
-      }
-    }
-    return openTelemetry;
+    return GlobalOpenTelemetry.get();
   }
 
   public TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel) {

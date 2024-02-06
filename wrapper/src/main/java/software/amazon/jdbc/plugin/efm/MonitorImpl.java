@@ -73,7 +73,6 @@ public class MonitorImpl implements Monitor {
 
   private final TelemetryGauge contextsSizeGauge;
   private final TelemetryCounter nodeInvalidCounter;
-  private TelemetryContext telemetryContext;
 
   /**
    * Store the monitoring configuration for a connection.
@@ -141,9 +140,10 @@ public class MonitorImpl implements Monitor {
 
   @Override
   public void run() {
-    this.telemetryContext = telemetryFactory.openTelemetryContext(
-        "monitoring thread", TelemetryTraceLevel.TOP_LEVEL);
-    telemetryContext.setAttribute("url", hostSpec.getUrl());
+
+    LOGGER.finest(() -> Messages.get(
+        "MonitorImpl.startMonitoringThread",
+        new Object[]{this.hostSpec.getHost()}));
 
     try {
       this.stopped = false;
@@ -288,10 +288,11 @@ public class MonitorImpl implements Monitor {
           // ignore
         }
       }
-      if (telemetryContext != null) {
-        this.telemetryContext.closeContext();
-      }
     }
+
+    LOGGER.finest(() -> Messages.get(
+        "MonitorImpl.stopMonitoringThread",
+        new Object[]{this.hostSpec.getHost()}));
   }
 
   /**
@@ -305,7 +306,9 @@ public class MonitorImpl implements Monitor {
    */
   ConnectionStatus checkConnectionStatus(final long shortestFailureDetectionIntervalMillis) {
     TelemetryContext connectContext = telemetryFactory.openTelemetryContext(
-        "connection status check", TelemetryTraceLevel.NESTED);
+        "connection status check", TelemetryTraceLevel.FORCE_TOP_LEVEL);
+    connectContext.setAttribute("url", hostSpec.getHost());
+
     long startNano = this.getCurrentTimeNano();
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
