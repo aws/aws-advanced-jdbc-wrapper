@@ -120,7 +120,7 @@ When a method with this annotation is hit, Spring calls conn.setReadOnly(true), 
 
 If you want to use the driver's internal connection pooling, we recommend that you explicitly disable external connection pools (provided by Spring). You need to check the `spring.datasource.type` property to ensure that any external connection pooling is disabled. This is necessary because Spring uses datasource auto-detection by default, and it may enable external connection pooling. Using internal and external pools at the same time has not been tested and may result in problematic behaviour. The recommended configuration for a Spring application should either enable internal connection pooling or external connection pooling, but not both at once.
 
-Spring applications are encouraged to use configuration profiles and presets optimized for Spring applications. More details are available at [Configuration Presets](../ConfigurationPresets.md).
+Spring applications are encouraged to use configuration profiles and presets optimized specifically for Spring applications. More details are available at [Configuration Presets](../ConfigurationPresets.md).
 
 
 ## Example
