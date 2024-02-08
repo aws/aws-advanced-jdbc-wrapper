@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,6 +44,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
+import software.amazon.jdbc.util.AsynchronousMethodsHelper;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
 import software.amazon.jdbc.util.WrapperUtils;
@@ -91,8 +91,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
-  private final ReentrantLock lock = new ReentrantLock();
-
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
   protected final @NonNull ConnectionProvider defaultConnProvider;
@@ -146,14 +144,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
-  }
-
-  public void lock() {
-    lock.lock();
-  }
-
-  public void unlock() {
-    lock.unlock();
   }
 
   /**
@@ -305,13 +295,17 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final Object[] jdbcMethodArgs)
       throws E {
 
-    final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-    if (conn != null && conn != this.pluginService.getCurrentConnection()
-        && !sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
-      final SQLException e =
-          new SQLException(Messages.get("ConnectionPluginManager.methodInvokedAgainstOldConnection",
-              new Object[] {methodInvokeOn}));
-      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
+    // The target driver may block on Statement.getConnection().
+    if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
+      final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+      if (conn != null
+          && conn != this.pluginService.getCurrentConnection()
+          && !sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
+        throw WrapperUtils.wrapExceptionIfNeeded(
+            exceptionClass,
+            new SQLException(
+                Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[] {methodInvokeOn})));
+      }
     }
 
     return executeWithSubscribedPlugins(

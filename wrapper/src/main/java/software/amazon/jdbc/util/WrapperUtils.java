@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
@@ -83,6 +84,8 @@ public class WrapperUtils {
       new ConcurrentHashMap<>();
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
+
+  private static final ReentrantLock lock = new ReentrantLock();
 
   private static final Map<Class<?>, Class<?>> availableWrappers =
       new HashMap<Class<?>, Class<?>>() {
@@ -182,7 +185,9 @@ public class WrapperUtils {
       final JdbcCallable<T, RuntimeException> jdbcMethodFunc,
       final Object... jdbcMethodArgs) {
 
-    pluginManager.lock();
+    if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
+      lock.lock();
+    }
     TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
     TelemetryContext context = null;
 
@@ -208,7 +213,9 @@ public class WrapperUtils {
         throw new RuntimeException(e);
       }
     } finally {
-      pluginManager.unlock();
+      if (lock.isHeldByCurrentThread()) {
+        lock.unlock();
+      }
       if (context != null) {
         context.closeContext();
       }
@@ -225,7 +232,9 @@ public class WrapperUtils {
       final Object... jdbcMethodArgs)
       throws E {
 
-    pluginManager.lock();
+    if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
+      lock.lock();
+    }
     TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
     TelemetryContext context = null;
 
@@ -251,7 +260,9 @@ public class WrapperUtils {
       }
 
     } finally {
-      pluginManager.unlock();
+      if (lock.isHeldByCurrentThread()) {
+        lock.unlock();
+      }
       if (context != null) {
         context.closeContext();
       }
