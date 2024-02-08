@@ -404,7 +404,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     } else {
       // Take the latest updated writer node as the current writer. All others will be ignored.
       List<HostSpec> sortedWriters = writers.stream()
-          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime).reversed())
+          .sorted(Comparator.comparing(HostSpec::getLastUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
           .collect(Collectors.toList());
       hosts.add(sortedWriters.get(0));
     }

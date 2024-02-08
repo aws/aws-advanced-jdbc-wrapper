@@ -89,7 +89,6 @@ public class HostSpecBuilder {
 
   public HostSpec build() {
     checkHostIsSet();
-    setDefaultLastUpdateTime();
     return new HostSpec(this.host, this.port, this.hostId, this.role, this.availability,
         this.weight, this.lastUpdateTime, this.hostAvailabilityStrategy);
   }
@@ -97,12 +96,6 @@ public class HostSpecBuilder {
   private void checkHostIsSet() {
     if (this.host == null) {
       throw new IllegalArgumentException("host parameter must be set.");
-    }
-  }
-
-  private void setDefaultLastUpdateTime() {
-    if (this.lastUpdateTime == null) {
-      this.lastUpdateTime = Timestamp.from(Instant.now());
     }
   }
 }
