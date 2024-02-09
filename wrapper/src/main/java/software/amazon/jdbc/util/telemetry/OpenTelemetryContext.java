@@ -76,6 +76,7 @@ public class OpenTelemetryContext implements TelemetryContext {
               TelemetryConst.PARENT_TRACE_ANNOTATION,
               span.getSpanContext().getTraceId());
         }
+        this.setAttribute(TelemetryConst.TRACE_NAME_ANNOTATION, name);
         scope = span.makeCurrent();
         LOGGER.finest(() -> String.format(
             "[OTLP] Telemetry '%s' trace ID: %s", name, span.getSpanContext().getTraceId()));
@@ -191,7 +192,7 @@ public class OpenTelemetryContext implements TelemetryContext {
 
     Map<AttributeKey<?>, Object> attributes = readableSpan.toSpanData().getAttributes().asMap();
     for (Map.Entry<AttributeKey<?>, Object> entry : attributes.entrySet()) {
-      if (entry.getValue() != null && entry.getKey().getKey() != TelemetryConst.TRACE_NAME_ANNOTATION) {
+      if (entry.getValue() != null && !TelemetryConst.TRACE_NAME_ANNOTATION.equals(entry.getKey().getKey())) {
         copy.setAttribute(entry.getKey().getKey(), entry.getValue().toString());
       }
     }

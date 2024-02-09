@@ -47,6 +47,7 @@ public class XRayTelemetryContext implements TelemetryContext {
         if (parentEntity != null) {
           this.setAttribute(TelemetryConst.PARENT_TRACE_ANNOTATION, parentEntity.getTraceId().toString());
         }
+        this.setAttribute(TelemetryConst.TRACE_NAME_ANNOTATION, name);
         LOGGER.finest(() -> String.format("[XRay] Telemetry '%s' trace ID: %s", name, this.traceEntity.getTraceId()));
         break;
 
@@ -107,7 +108,7 @@ public class XRayTelemetryContext implements TelemetryContext {
 
     Map<String, Object> annotations = telemetryContext.traceEntity.getAnnotations();
     for (Map.Entry<String, Object> entry : annotations.entrySet()) {
-      if (entry.getValue() != null && entry.getKey() != TelemetryConst.TRACE_NAME_ANNOTATION) {
+      if (entry.getValue() != null && !TelemetryConst.TRACE_NAME_ANNOTATION.equals(entry.getKey())) {
         copy.setAttribute(entry.getKey(), entry.getValue().toString());
       }
     }
