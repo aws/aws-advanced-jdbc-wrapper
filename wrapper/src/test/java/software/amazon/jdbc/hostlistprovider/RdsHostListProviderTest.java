@@ -578,4 +578,65 @@ class RdsHostListProviderTest {
         expectedLastUpdatedTimeStampRounded,
         result.hosts.get(0).getLastUpdateTime().toString().substring(0, 16));
   }
+
+  @Test
+  void testGetTpology_returnsLatestWriter() throws SQLException {
+    rdsHostListProvider = Mockito.spy(
+        getRdsHostListProvider(mockHostListProviderService, "jdbc:someprotocol://url"));
+    rdsHostListProvider.isInitialized = true;
+
+    HostSpec expectedWriterHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("expectedWriterHost")
+        .role(HostRole.WRITER)
+        .lastUpdateTime(Timestamp.valueOf("3000-01-01 00:00:00"))
+        .build();
+
+    HostSpec unexpectedWriterHost0 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("unexpectedWriterHost0")
+        .role(HostRole.WRITER)
+        .lastUpdateTime(Timestamp.valueOf("1000-01-01 00:00:00"))
+        .build();
+
+    HostSpec unexpectedWriterHost1 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("unexpectedWriterHost1")
+        .role(HostRole.WRITER)
+        .lastUpdateTime(Timestamp.valueOf("2000-01-01 00:00:00"))
+        .build();
+
+    HostSpec unexpectedWriterHostWithNullLastUpdateTime0 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("unexpectedWriterHostWithNullLastUpdateTime0")
+        .role(HostRole.WRITER)
+        .lastUpdateTime(null)
+        .build();
+
+    HostSpec unexpectedWriterHostWithNullLastUpdateTime1 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("unexpectedWriterHostWithNullLastUpdateTime1")
+        .role(HostRole.WRITER)
+        .lastUpdateTime(null)
+        .build();
+
+    when(mockResultSet.next()).thenReturn(true, true, true, true, true, false);
+
+    when(mockResultSet.getString(1)).thenReturn(
+        unexpectedWriterHostWithNullLastUpdateTime0.getHost(),
+        unexpectedWriterHost0.getHost(),
+        expectedWriterHost.getHost(),
+        unexpectedWriterHost1.getHost(),
+        unexpectedWriterHostWithNullLastUpdateTime1.getHost());
+    when(mockResultSet.getBoolean(2)).thenReturn(true, true, true, true, true);
+    when(mockResultSet.getFloat(3)).thenReturn((float) 0, (float) 0, (float) 0, (float) 0, (float) 0);
+    when(mockResultSet.getFloat(4)).thenReturn((float) 0, (float) 0, (float) 0, (float) 0, (float) 0);
+    when(mockResultSet.getTimestamp(5)).thenReturn(
+        unexpectedWriterHostWithNullLastUpdateTime0.getLastUpdateTime(),
+        unexpectedWriterHost0.getLastUpdateTime(),
+        expectedWriterHost.getLastUpdateTime(),
+        unexpectedWriterHost1.getLastUpdateTime(),
+        unexpectedWriterHostWithNullLastUpdateTime1.getLastUpdateTime()
+    );
+
+    final FetchTopologyResult result = rdsHostListProvider.getTopology(mockConnection, true);
+    verify(rdsHostListProvider, atMostOnce()).queryForTopology(mockConnection);
+
+    assertEquals(expectedWriterHost.getHost(), result.hosts.get(0).getHost());
+  }
 }
