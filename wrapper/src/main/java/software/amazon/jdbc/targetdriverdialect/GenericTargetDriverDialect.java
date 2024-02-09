@@ -21,9 +21,10 @@ import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -172,11 +173,14 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   }
 
   @Override
-  public List<String> getAllowedOnConnectionMethodNames() {
-    return Arrays.asList(
-        CONN_GET_SCHEMA,
-        CONN_GET_CATALOG,
-        CONN_GET_AUTO_COMMIT,
-        CONN_GET_TRANSACTION_ISOLATION);
+  public Set<String> getAllowedOnConnectionMethodNames() {
+    return Collections.unmodifiableSet(new HashSet<String>() {
+      {
+        add(CONN_GET_SCHEMA);
+        add(CONN_GET_CATALOG);
+        add(CONN_GET_AUTO_COMMIT);
+        add(CONN_GET_TRANSACTION_ISOLATION);
+      }
+    });
   }
 }
