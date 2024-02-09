@@ -29,7 +29,6 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.awssdk.services.rds.endpoints.internal.Value.Bool;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -43,8 +42,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
-import software.amazon.jdbc.targetdriverdialect.GenericTargetDriverDialect;
-import software.amazon.jdbc.targetdriverdialect.MariadbTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
@@ -80,10 +77,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       });
 
-  private static final String METHOD_GET_AUTO_COMMIT = "Connection.getAutoCommit";
-  private static final String METHOD_GET_CATALOG = "Connection.getCatalog";
-  private static final String METHOD_GET_SCHEMA = "Connection.getSchema";
-  private static final String METHOD_GET_TRANSACTION_ISOLATION = "Connection.getTransactionIsolation";
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
   static final String METHOD_IS_CLOSED = "Connection.isClosed";
@@ -212,7 +205,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    if (!allowedOnClosedConnection(methodName) && this.isClosed) {
+    if (this.isClosed && !allowedOnClosedConnection(methodName)) {
       try {
         invalidInvocationOnClosedConnection();
       } catch (final SQLException ex) {
@@ -423,7 +416,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @return true if the given method is allowed on closed connections
    */
   private boolean allowedOnClosedConnection(final String methodName) {
-    // TODO: consider to use target driver dialect
     TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
     if (dialect == null) {
       return false;
