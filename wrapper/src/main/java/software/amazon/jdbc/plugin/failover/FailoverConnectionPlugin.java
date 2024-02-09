@@ -212,7 +212,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    if (this.isClosed && !allowedOnClosedConnection(methodName)) {
+    if (!allowedOnClosedConnection(methodName) && this.isClosed) {
       try {
         invalidInvocationOnClosedConnection();
       } catch (final SQLException ex) {
@@ -425,6 +425,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private boolean allowedOnClosedConnection(final String methodName) {
     // TODO: consider to use target driver dialect
     TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
+    if (dialect == null) {
+      return false;
+    }
     return dialect.getAllowedOnConnectionMethodNames().contains(methodName);
   }
 
