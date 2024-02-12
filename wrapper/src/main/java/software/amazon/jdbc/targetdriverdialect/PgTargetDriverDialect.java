@@ -122,7 +122,7 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   public Set<String> getAllowedOnConnectionMethodNames() {
     return Collections.unmodifiableSet(new HashSet<String>() {
       {
-        addAll(COMMON_CLOSED_METHODS);
+        addAll(ALLOWED_ON_CLOSED_METHODS);
         add(STATEMENT_CLEAR_WARNINGS);
         add(STATEMENT_GET_FETCH_SIZE);
         add(STATEMENT_GET_MAX_FIELD_SIZE);

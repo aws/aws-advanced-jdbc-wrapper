@@ -39,6 +39,14 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   private static final Logger LOGGER =
       Logger.getLogger(GenericTargetDriverDialect.class.getName());
+  public static final List<String> ALLOWED_ON_CLOSED_METHODS = Arrays.asList(
+      "Connection.isClosed",
+      "Statement.getConnection",
+      "Statement.getFetchDirection",
+      "Statement.getResultSetHoldability",
+      "Statement.isClosed",
+      "Statement.getLargeMaxRows"
+  );
   public static final String CONN_GET_AUTO_COMMIT = "Connection.getAutoCommit";
   public static final String CONN_GET_CATALOG = "Connection.getCatalog";
   public static final String CONN_GET_SCHEMA = "Connection.getSchema";
@@ -96,14 +104,6 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   public static final String CALL_WAS_NULL = "CallableStatement.wasNull";
   public static final String PREP_ADD_BATCH = "PreparedStatement.addBatch";
   public static final String PREP_CLEAR_PARAMS = "PreparedStatement.clearParameters";
-  public static final List<String> COMMON_CLOSED_METHODS = Arrays.asList(
-      "Connection.isClosed",
-      "Statement.getConnection",
-      "Statement.getFetchDirection",
-      "Statement.getResultSetHoldability",
-      "Statement.isClosed",
-      "Statement.getLargeMaxRows"
-  );
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -179,7 +179,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   public Set<String> getAllowedOnConnectionMethodNames() {
     return Collections.unmodifiableSet(new HashSet<String>() {
       {
-        addAll(COMMON_CLOSED_METHODS);
+        addAll(ALLOWED_ON_CLOSED_METHODS);
       }
     });
   }

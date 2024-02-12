@@ -102,7 +102,7 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   public Set<String> getAllowedOnConnectionMethodNames() {
     return Collections.unmodifiableSet(new HashSet<String>() {
       {
-        addAll(COMMON_CLOSED_METHODS);
+        addAll(ALLOWED_ON_CLOSED_METHODS);
         add(CONN_GET_CATALOG);
         add(CONN_GET_METADATA);
         add(CONN_IS_READ_ONLY);
