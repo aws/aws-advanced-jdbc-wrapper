@@ -21,8 +21,10 @@ import static software.amazon.jdbc.util.ConnectionUrlBuilder.buildUrl;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -40,7 +42,6 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   public static final String CONN_GET_AUTO_COMMIT = "Connection.getAutoCommit";
   public static final String CONN_GET_CATALOG = "Connection.getCatalog";
   public static final String CONN_GET_SCHEMA = "Connection.getSchema";
-  public static final String CONN_GET_TRANSACTION_ISOLATION = "Connection.getTransactionIsolation";
   public static final String CONN_GET_NETWORK_TIMEOUT = "Connection.getNetworkTimeout";
   public static final String CONN_GET_METADATA = "Connection.getMetaData";
   public static final String CONN_IS_READ_ONLY = "Connection.isReadOnly";
@@ -50,22 +51,16 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   public static final String CONN_CREATE_CLOB = "Connection.createClob";
   public static final String CONN_CREATE_BLOB = "Connection.createBlob";
   public static final String CONN_CREATE_NCLOB = "Connection.createNClob";
-  public static final String CONN_IS_CLOSED = "Connection.isClosed";
   public static final String CONN_CLEAR_WARNINGS = "Connection.clearWarnings";
   public static final String CONN_SET_HOLDABILITY = "Connection.setHoldability";
   public static final String CONN_SET_SCHEMA = "Connection.setSchema";
   public static final String STATEMENT_CLEAR_WARNINGS = "Statement.clearWarnings";
-  public static final String STATEMENT_GET_CONNECTION = "Statement.getConnection";
-  public static final String STATEMENT_GET_FETCH_DIRECTION = "Statement.getFetchDirection";
   public static final String STATEMENT_GET_FETCH_SIZE = "Statement.getFetchSize";
   public static final String STATEMENT_GET_MAX_FIELD_SIZE = "Statement.getMaxFieldSize";
-  public static final String STATEMENT_GET_RESULT_SET_HOLDABILITY = "Statement.getResultSetHoldability";
   public static final String STATEMENT_GET_RESULT_SET_TYPE = "Statement.getResultSetType";
-  public static final String STATEMENT_IS_CLOSED = "Statement.isClosed";
   public static final String STATEMENT_IS_CLOSE_ON_COMPLETION = "Statement.isCloseOnCompletion";
   public static final String STATEMENT_CLEAR_BATCH = "Statement.clearBatch";
   public static final String STATEMENT_CLOSE_ON_COMPLETION = "Statement.closeOnCompletion";
-  public static final String STATEMENT_GET_LARGE_MAX_ROWS = "Statement.getLargeMaxRows";
   public static final String STATEMENT_GET_GENERATED_KEYS = "Statement.getGeneratedKeys";
   public static final String STATEMENT_GET_MAX_ROWS = "Statement.getMaxRows";
   public static final String STATEMENT_GET_MORE_RESULTS = "Statement.getMoreResults";
@@ -101,6 +96,14 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   public static final String CALL_WAS_NULL = "CallableStatement.wasNull";
   public static final String PREP_ADD_BATCH = "PreparedStatement.addBatch";
   public static final String PREP_CLEAR_PARAMS = "PreparedStatement.clearParameters";
+  public static final List<String> COMMON_CLOSED_METHODS = Arrays.asList(
+      "Connection.isClosed",
+      "Statement.getConnection",
+      "Statement.getFetchDirection",
+      "Statement.getResultSetHoldability",
+      "Statement.isClosed",
+      "Statement.getLargeMaxRows"
+  );
 
   @Override
   public boolean isDialect(Driver driver) {
@@ -176,10 +179,7 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
   public Set<String> getAllowedOnConnectionMethodNames() {
     return Collections.unmodifiableSet(new HashSet<String>() {
       {
-        add(CONN_GET_SCHEMA);
-        add(CONN_GET_CATALOG);
-        add(CONN_GET_AUTO_COMMIT);
-        add(CONN_GET_TRANSACTION_ISOLATION);
+        addAll(COMMON_CLOSED_METHODS);
       }
     });
   }

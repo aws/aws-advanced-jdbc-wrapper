@@ -102,6 +102,7 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   public Set<String> getAllowedOnConnectionMethodNames() {
     return Collections.unmodifiableSet(new HashSet<String>() {
       {
+        addAll(COMMON_CLOSED_METHODS);
         add(CONN_GET_CATALOG);
         add(CONN_GET_METADATA);
         add(CONN_IS_READ_ONLY);
@@ -114,22 +115,16 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
         add(CONN_CREATE_CLOB);
         add(CONN_CREATE_BLOB);
         add(CONN_CREATE_NCLOB);
-        add(CONN_IS_CLOSED);
         add(CONN_CLEAR_WARNINGS);
         add(CONN_SET_HOLDABILITY);
         add(CONN_SET_SCHEMA);
         add(STATEMENT_CLEAR_WARNINGS);
-        add(STATEMENT_GET_CONNECTION);
-        add(STATEMENT_GET_FETCH_DIRECTION);
         add(STATEMENT_GET_FETCH_SIZE);
         add(STATEMENT_GET_MAX_FIELD_SIZE);
-        add(STATEMENT_GET_RESULT_SET_HOLDABILITY);
         add(STATEMENT_GET_RESULT_SET_TYPE);
-        add(STATEMENT_IS_CLOSED);
         add(STATEMENT_IS_CLOSE_ON_COMPLETION);
         add(STATEMENT_CLEAR_BATCH);
         add(STATEMENT_CLOSE_ON_COMPLETION);
-        add(STATEMENT_GET_LARGE_MAX_ROWS);
         add(STATEMENT_GET_GENERATED_KEYS);
         add(STATEMENT_GET_MAX_ROWS);
         add(STATEMENT_GET_MORE_RESULTS);

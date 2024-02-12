@@ -111,6 +111,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
   public Set<String> getAllowedOnConnectionMethodNames() {
     return Collections.unmodifiableSet(new HashSet<String>() {
       {
+        addAll(COMMON_CLOSED_METHODS);
         add(CONN_GET_CATALOG);
         add(CONN_IS_READ_ONLY);
         add(CONN_GET_AUTO_COMMIT);
@@ -121,13 +122,7 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
         add(CONN_CREATE_CLOB);
         add(CONN_CREATE_BLOB);
         add(CONN_CREATE_NCLOB);
-        add(CONN_IS_CLOSED);
         add(CONN_SET_HOLDABILITY);
-        add(STATEMENT_GET_CONNECTION);
-        add(STATEMENT_GET_FETCH_DIRECTION);
-        add(STATEMENT_GET_RESULT_SET_HOLDABILITY);
-        add(STATEMENT_IS_CLOSED);
-        add(STATEMENT_GET_LARGE_MAX_ROWS);
       }
     });
   }

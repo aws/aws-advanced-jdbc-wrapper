@@ -122,19 +122,14 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   public Set<String> getAllowedOnConnectionMethodNames() {
     return Collections.unmodifiableSet(new HashSet<String>() {
       {
-        add(CONN_IS_CLOSED);
+        addAll(COMMON_CLOSED_METHODS);
         add(STATEMENT_CLEAR_WARNINGS);
-        add(STATEMENT_GET_CONNECTION);
-        add(STATEMENT_GET_FETCH_DIRECTION);
         add(STATEMENT_GET_FETCH_SIZE);
         add(STATEMENT_GET_MAX_FIELD_SIZE);
-        add(STATEMENT_GET_RESULT_SET_HOLDABILITY);
         add(STATEMENT_GET_RESULT_SET_TYPE);
-        add(STATEMENT_IS_CLOSED);
         add(STATEMENT_IS_CLOSE_ON_COMPLETION);
         add(STATEMENT_CLEAR_BATCH);
         add(STATEMENT_CLOSE_ON_COMPLETION);
-        add(STATEMENT_GET_LARGE_MAX_ROWS);
         add(STATEMENT_GET_GENERATED_KEYS);
         add(STATEMENT_GET_MAX_ROWS);
         add(STATEMENT_GET_MORE_RESULTS);
