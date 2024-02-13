@@ -21,8 +21,11 @@ buildscript {
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import org.apache.tools.ant.filters.ReplaceTokens
 
+apply plugin: 'java-library'
+
 apply from: rootProject.file( 'gradle/module.gradle' )
 apply from: rootProject.file( 'gradle/databases.gradle' )
+apply from: rootProject.file( 'gradle/javadoc.gradle' )
 
 apply plugin: 'java-library'
 apply plugin: 'biz.aQute.bnd.builder'
@@ -394,7 +397,12 @@ task sourcesJar(type: Jar) {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Javadoc
 
-apply from: rootProject.file( 'gradle/javadoc.gradle' )
+tasks.named( "javadoc", Javadoc ) {
+    configure( options ) {
+        windowTitle = "Hibernate Javadocs ($project.name)"
+        docTitle = "Hibernate Javadocs ($project.name : $project.version)"
+    }
+}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // IDE
