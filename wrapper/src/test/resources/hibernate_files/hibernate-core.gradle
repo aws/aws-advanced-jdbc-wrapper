@@ -10,12 +10,15 @@ plugins {
     id 'org.hibernate.build.xjc-jakarta'
 }
 
+repositories {
+    gradlePluginPortal()
+}
+
 description = 'Hibernate\'s core ORM functionality'
 
 apply from: rootProject.file( 'gradle/published-java-module.gradle' )
 apply plugin: 'org.hibernate.orm.antlr'
 apply plugin: 'org.hibernate.matrix-test'
-
 
 configurations {
     tests {
@@ -45,6 +48,7 @@ dependencies {
     compileOnly jakartaLibs.jsonbApi
     compileOnly libs.jackson
     compileOnly libs.jacksonXml
+    compileOnly dbLibs.postgresql
 
     testImplementation project(':hibernate-testing')
     testImplementation project(':hibernate-ant')
@@ -62,14 +66,15 @@ dependencies {
     }
     testImplementation "joda-time:joda-time:2.3"
     testImplementation files('/app/libs/aws-advanced-jdbc-wrapper-2.3.3.jar')
-    testImplementation dbLibs.postgresql
-    testImplementation dbLibs.mysql
     testImplementation dbLibs.h2
 
     testRuntimeOnly libs.byteBuddy
     testRuntimeOnly testLibs.weld
     testRuntimeOnly testLibs.wildFlyTxnClient
+    testRuntimeOnly jakartaLibs.jsonb
     testRuntimeOnly libs.jackson
+    testRuntimeOnly libs.jacksonXml
+    testRuntimeOnly libs.jacksonJsr310
 
     testAnnotationProcessor project( ':hibernate-jpamodelgen' )
 
@@ -105,10 +110,8 @@ sourceSets {
         }
     }
 
-    // resources inherently exclude sources
     test {
         resources {
-            srcDir 'src/test/java'
             srcDir 'src/test/resources'
             srcDir 'src/test/bundles'
         }
@@ -240,13 +243,16 @@ tasks.withType( Test.class ).each { test ->
     test.jvmArgs( ['--add-opens', 'java.base/java.security=ALL-UNNAMED'] )
     test.jvmArgs( ['--add-opens', 'java.base/java.lang=ALL-UNNAMED'] )
 
+    //Avoid Log4J2 classloader leaks:
+    test.jvmArgs( ['-Dlog4j2.disableJmx=true'] )
+
     test.beforeTest { descriptor ->
         //println "Starting test: " + descriptor
     }
 }
 
 // Tests with records
-if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolchainEnabled ) {
+if ( jdkVersions.test.release.asInt() >= 17 && jdkVersions.explicit ) {
 
     // Add a new source set, which contains tests that can run on JDK17+
     sourceSets {
@@ -256,7 +262,7 @@ if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolch
             }
             // Refer to the main test resources to avoid processing variables twice
             resources {
-                srcDir 'target/resources/test'
+                srcDirs tasks.processTestResources
             }
         }
     }
@@ -264,7 +270,7 @@ if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolch
     // For the new source set, we need to configure the source and target version to 17
     compileTestJava17Java {
         javaCompiler = javaToolchains.compilerFor {
-            languageVersion = gradle.ext.javaVersions.test.compiler
+            languageVersion = jdkVersions.test.compiler
         }
         sourceCompatibility = 17
         targetCompatibility = 17
@@ -275,6 +281,7 @@ if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolch
     // The source set gets a custom configuration which extends the normal test implementation config
     configurations {
         testJava17Implementation.extendsFrom(testImplementation, testRuntimeOnly)
+        testJava17CompileOnly.extendsFrom(testCompileOnly)
     }
 
     // Add the output from src/main/java as dependency
@@ -287,14 +294,14 @@ if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolch
     // We execute the Java 17 tests in a custom test task
     task testJava17(type: Test) {
         javaLauncher = javaToolchains.launcherFor {
-            languageVersion = gradle.ext.javaVersions.test.launcher
+            languageVersion = jdkVersions.test.launcher
         }
         useJUnitPlatform()
         testClassesDirs = sourceSets.testJava17.output.classesDirs
         classpath = sourceSets.testJava17.runtimeClasspath
 
-        if ( gradle.ext.javaVersions.test.launcher.asInt() >= 19 ) {
-            logger.warn( "The version of Java bytecode that will be tested is not supported by Bytebuddy by default. " +
+        if ( jdkVersions.test.launcher.asInt() >= 19 ) {
+            logger.warn( "The version of Java bytecode that will be tested is not supported by Byte Buddy by default. " +
                     " Setting 'net.bytebuddy.experimental=true'." )
             systemProperty 'net.bytebuddy.experimental', true
         }
@@ -305,9 +312,13 @@ if ( gradle.ext.javaVersions.test.release.asInt() >= 17 && gradle.ext.javaToolch
     check.dependsOn testJava17
 }
 
-javadoc {
+tasks.named( "javadoc", Javadoc ) {
     configure(options) {
-        overview = 'src/main/javadoc/overview.html'
-        stylesheetFile = new File(projectDir, 'src/main/javadoc/stylesheet.css')
+        overview = rootProject.file( "shared/javadoc/overview.html" )
     }
 }
+
+tasks.sourcesJar.dependsOn ':hibernate-core:generateGraphParser'
+tasks.sourcesJar.dependsOn ':hibernate-core:generateHqlParser'
+tasks.sourcesJar.dependsOn ':hibernate-core:generateSqlScriptParser'
+tasks.sourcesJar.dependsOn ':hibernate-core:generateOrderingParser'

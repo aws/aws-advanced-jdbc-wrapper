@@ -24,6 +24,7 @@ plugins {
     id("com.github.vlsi.gradle-extensions")
     id("com.github.vlsi.ide")
     id("com.kncept.junit.reporter")
+    id("org.checkerframework") version "0.6.34"
 }
 
 dependencies {

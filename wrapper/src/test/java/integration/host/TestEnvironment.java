@@ -68,7 +68,7 @@ public class TestEnvironment implements AutoCloseable {
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
   protected static final int PROXY_CONTROL_PORT = 8474;
   protected static final int PROXY_PORT = 8666;
-  private static final String HIBERNATE_VERSION = "6.2.0.CR2";
+  private static final String HIBERNATE_VERSION = "6.2.22";
 
   private static final TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
   private static final boolean USE_OTLP_CONTAINER_FOR_TRACES = true;

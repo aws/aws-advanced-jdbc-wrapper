@@ -19,6 +19,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent.*
 
 plugins {
     java
+    id("org.checkerframework") version "0.6.34"
 }
 
 repositories {
