@@ -42,6 +42,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -76,10 +77,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
       });
 
-  private static final String METHOD_GET_AUTO_COMMIT = "Connection.getAutoCommit";
-  private static final String METHOD_GET_CATALOG = "Connection.getCatalog";
-  private static final String METHOD_GET_SCHEMA = "Connection.getSchema";
-  private static final String METHOD_GET_TRANSACTION_ISOLATION = "Connection.getTransactionIsolation";
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
   static final String METHOD_IS_CLOSED = "Connection.isClosed";
@@ -419,11 +416,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @return true if the given method is allowed on closed connections
    */
   private boolean allowedOnClosedConnection(final String methodName) {
-    // TODO: consider to use target driver dialect
-    return methodName.equals(METHOD_GET_AUTO_COMMIT)
-        || methodName.equals(METHOD_GET_CATALOG)
-        || methodName.equals(METHOD_GET_SCHEMA)
-        || methodName.equals(METHOD_GET_TRANSACTION_ISOLATION);
+    TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
+    return dialect.getAllowedOnConnectionMethodNames().contains(methodName);
   }
 
   /**

@@ -21,7 +21,10 @@ import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -102,5 +105,25 @@ public class MysqlConnectorJTargetDriverDialect extends GenericTargetDriverDiale
     } catch (SQLException e) {
       return false;
     }
+  }
+
+  @Override
+  public Set<String> getAllowedOnConnectionMethodNames() {
+    return Collections.unmodifiableSet(new HashSet<String>() {
+      {
+        addAll(ALLOWED_ON_CLOSED_METHODS);
+        add(CONN_GET_CATALOG);
+        add(CONN_IS_READ_ONLY);
+        add(CONN_GET_AUTO_COMMIT);
+        add(CONN_GET_HOLDABILITY);
+        add(CONN_GET_CLIENT_INFO);
+        add(CONN_GET_NETWORK_TIMEOUT);
+        add(CONN_GET_TYPE_MAP);
+        add(CONN_CREATE_CLOB);
+        add(CONN_CREATE_BLOB);
+        add(CONN_CREATE_NCLOB);
+        add(CONN_SET_HOLDABILITY);
+      }
+    });
   }
 }

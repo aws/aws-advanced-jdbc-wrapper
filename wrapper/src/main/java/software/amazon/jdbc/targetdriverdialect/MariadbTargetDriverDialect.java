@@ -18,7 +18,10 @@ package software.amazon.jdbc.targetdriverdialect;
 
 import java.sql.Driver;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
@@ -93,5 +96,69 @@ public class MariadbTargetDriverDialect extends GenericTargetDriverDialect {
   public void registerDriver() throws SQLException {
     final MariadbDriverHelper helper = new MariadbDriverHelper();
     helper.registerDriver();
+  }
+
+  @Override
+  public Set<String> getAllowedOnConnectionMethodNames() {
+    return Collections.unmodifiableSet(new HashSet<String>() {
+      {
+        addAll(ALLOWED_ON_CLOSED_METHODS);
+        add(CONN_GET_CATALOG);
+        add(CONN_GET_METADATA);
+        add(CONN_IS_READ_ONLY);
+        add(CONN_GET_SCHEMA);
+        add(CONN_GET_AUTO_COMMIT);
+        add(CONN_GET_HOLDABILITY);
+        add(CONN_GET_CLIENT_INFO);
+        add(CONN_GET_NETWORK_TIMEOUT);
+        add(CONN_GET_TYPE_MAP);
+        add(CONN_CREATE_CLOB);
+        add(CONN_CREATE_BLOB);
+        add(CONN_CREATE_NCLOB);
+        add(CONN_CLEAR_WARNINGS);
+        add(CONN_SET_HOLDABILITY);
+        add(CONN_SET_SCHEMA);
+        add(STATEMENT_CLEAR_WARNINGS);
+        add(STATEMENT_GET_FETCH_SIZE);
+        add(STATEMENT_GET_MAX_FIELD_SIZE);
+        add(STATEMENT_GET_RESULT_SET_TYPE);
+        add(STATEMENT_IS_CLOSE_ON_COMPLETION);
+        add(STATEMENT_CLEAR_BATCH);
+        add(STATEMENT_CLOSE_ON_COMPLETION);
+        add(STATEMENT_GET_GENERATED_KEYS);
+        add(STATEMENT_GET_MAX_ROWS);
+        add(STATEMENT_GET_MORE_RESULTS);
+        add(STATEMENT_GET_QUERY_TIMEOUT);
+        add(STATEMENT_GET_RESULT_SET);
+        add(STATEMENT_GET_RESULT_SET_CONCURRENCY);
+        add(STATEMENT_GET_UPDATE_COUNT);
+        add(STATEMENT_ADD_BATCH);
+        add(CALL_GET_ARRAY);
+        add(CALL_GET_BIG_DECIMAL);
+        add(CALL_GET_BLOB);
+        add(CALL_GET_BOOLEAN);
+        add(CALL_GET_BYTE);
+        add(CALL_GET_BYTES);
+        add(CALL_GET_CHARACTER_STREAM);
+        add(CALL_GET_CLOB);
+        add(CALL_GET_DATE);
+        add(CALL_GET_DOUBLE);
+        add(CALL_GET_FLOAT);
+        add(CALL_GET_INT);
+        add(CALL_GET_LONG);
+        add(CALL_GET_N_CHAR);
+        add(CALL_GET_N_CLOB);
+        add(CALL_GET_N_STRING);
+        add(CALL_GET_OBJECT);
+        add(CALL_GET_SHORT);
+        add(CALL_GET_TIME);
+        add(CALL_GET_STRING);
+        add(CALL_GET_TIMESTAMP);
+        add(CALL_GET_URL);
+        add(CALL_WAS_NULL);
+        add(PREP_ADD_BATCH);
+        add(PREP_CLEAR_PARAMS);
+      }
+    });
   }
 }
