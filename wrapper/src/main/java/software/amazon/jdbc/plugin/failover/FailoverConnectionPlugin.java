@@ -417,9 +417,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    */
   private boolean allowedOnClosedConnection(final String methodName) {
     TargetDriverDialect dialect = this.pluginService.getTargetDriverDialect();
-    if (dialect == null) {
-      return false;
-    }
     return dialect.getAllowedOnConnectionMethodNames().contains(methodName);
   }
 
