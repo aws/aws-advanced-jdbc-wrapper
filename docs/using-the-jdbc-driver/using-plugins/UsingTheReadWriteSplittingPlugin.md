@@ -1,6 +1,6 @@
 # Read/Write Splitting Plugin
 
-The read/write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will connect to a reader instance according to a [reader selection strategy](#reader-selection-strategies) and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the boolean argument you supply to the `setReadOnly` method.
+The read/write splitting plugin adds functionality to switch between writer/reader instances via calls to the `Connection#setReadOnly` method. Upon calling `setReadOnly(true)`, the plugin will connect to a reader instance according to a [reader selection strategy](../ReaderSelectionStrategies.md) and direct subsequent queries to this instance. Future calls to `setReadOnly` will switch between the established writer and reader connections according to the boolean argument you supply to the `setReadOnly` method.
 
 ## Loading the Read/Write Splitting Plugin
 
@@ -70,7 +70,7 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 
 2. Call `ConnectionProviderManager.setConnectionProvider`, passing in the `HikariPooledConnectionProvider` you created in step 1.
 
-3. By default, the read/write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. If you would like the plugin to select a reader based on a different selection strategy, please see the [Reader Selection Strategies](#reader-selection-strategies) section for more information.
+3. By default, the read/write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. If you would like the plugin to select a reader based on a different selection strategy, please see the [Reader Selection Strategies](../ReaderSelectionStrategies.md) section for more information.
 
 4. Continue as normal: create connections and use them as needed.
 
@@ -78,23 +78,6 @@ private static String getPoolKey(HostSpec hostSpec, Properties props) {
 
 > [!IMPORTANT]\
 > You must call `ConnectionProviderManager.releaseResources` to close the internal connection pools when you are finished using all connections. Unless `ConnectionProviderManager.releaseResources` is called, the wrapper driver will keep the pools open so that they can be shared between connections.
-
-## Reader Selection Strategies
-By default, the read/write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. To balance connections to reader instances more evenly, different selection strategies can be used. The following table describes the currently available selection strategies and any relevant configuration parameters for each strategy.
-
-To indicate which selection strategy to use, the `readerHostSelectorStrategy` configuration parameter can be set to one of the selection strategies in the table below. The following is an example of enabling the least connections strategy:
-
-```java
-props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "leastConnections");
-```
-
-| Reader Selection Strategy | Configuration Parameter                               | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default Value |
-|---------------------------|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `random`                  | This strategy does not have configuration parameters. | The random strategy is the default selection strategy. When switching to a reader connection, the reader instance will be chosen randomly from the available database instances.                                                                                                                                                                                                                                                                                                                                                                                  | N/A           |
-| `leastConnections`        | This strategy does not have configuration parameters. | The least connections strategy will select reader instances based on which database instance has the least number of currently active connections. Note that this strategy is only available when internal connection pools are enabled - if you set the connection property without enabling internal pools, an exception will be thrown.                                                                                                                                                                                                                        | N/A           |
-| `roundRobin`              | See the following rows for configuration parameters.  | The round robin strategy will select a reader instance by taking turns with all available database instances in a cycle. A slight addition to the round robin strategy is the weighted round robin strategy, where more connections will be passed to reader instances based on user specified connection properties.                                                                                                                                                                                                                                             | N/A           |
-|                           | `roundRobinHostWeightPairs`                           | This parameter value must be a `string` type comma separated list of database host-weight pairs in the format `<host>:<weight>`. The host represents the database instance name, and the weight represents how many connections should be directed to the host in one cycle through all available hosts. For example, the value `instance-1:1,instance-2:4` means that for every connection to `instance-1`, there will be four connections to `instance-2`. <br><br> **Note:** The `<weight>` value in the string must be an integer greater than or equal to 1. | `null`        |
-|                           | `roundRobinDefaultWeight`                             | This parameter value must be an integer value in the form of a `string`. This parameter represents the default weight for any hosts that have not been configured with the `roundRobinHostWeightPairs` parameter. For example, if a connection were already established and host weights were set with `roundRobinHostWeightPairs` but a new reader node was added to the database, the new reader node would use the default weight. <br><br> **Note:** This value must be an integer greater than or equal to 1.                                                | `1`           |
 
 ## Limitations
 
