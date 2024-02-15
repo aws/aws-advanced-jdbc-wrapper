@@ -1,11 +1,5 @@
 ## Reader Selection Strategies
-By default, the read/write plugin randomly selects a reader instance the first time that `setReadOnly(true)` is called. To balance connections to reader instances more evenly, different selection strategies can be used. The following table describes the currently available selection strategies and any relevant configuration parameters for each strategy.
-
-To indicate which selection strategy to use, the `readerHostSelectorStrategy` configuration parameter can be set to one of the selection strategies in the table below. The following is an example of enabling the least connections strategy:
-
-```java
-props.setProperty(ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.name, "leastConnections");
-```
+To balance connections to reader instances more evenly, different selection strategies can be used. The following table describes the currently available selection strategies and any relevant configuration parameters for each strategy.
 
 | Reader Selection Strategy | Configuration Parameter                               | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default Value |
 |---------------------------|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
