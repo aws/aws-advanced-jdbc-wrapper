@@ -46,14 +46,14 @@ jobs:
         run: |
           ./gradlew --no-parallel --no-daemon test-all-docker
       - name: 'Archive junit results'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
         uses: actions/upload-artifact@v4
         with:
           name: junit-report
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
-        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
+        if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
         uses: actions/upload-artifact@v4
         with:
           name: html-summary-report
