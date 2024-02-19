@@ -23,6 +23,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.retry:spring-retry")
     implementation("org.postgresql:postgresql:42.7.1")
-    implementation("software.amazon.awssdk:rds:2.22.13")
+    implementation("software.amazon.awssdk:rds:2.24.6")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
