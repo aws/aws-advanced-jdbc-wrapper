@@ -32,7 +32,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:rds:2.24.6")
     compileOnly("software.amazon.awssdk:auth:2.24.6") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.22.13") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:sts:2.23.13")
+    compileOnly("software.amazon.awssdk:sts:2.24.10")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.24.1")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.16.1")
@@ -66,7 +66,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:http-client-spi:2.22.13") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.24.10")
     testImplementation("software.amazon.awssdk:secretsmanager:2.24.1")
-    testImplementation("software.amazon.awssdk:sts:2.23.13")
+    testImplementation("software.amazon.awssdk:sts:2.24.10")
     testImplementation("org.testcontainers:testcontainers:1.19.5")
     testImplementation("org.testcontainers:mysql:1.19.5")
     testImplementation("org.testcontainers:postgresql:1.19.5")
