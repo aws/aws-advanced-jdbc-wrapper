@@ -30,7 +30,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
-  private static final String TOPOLOGY_QUERY =
+  public static final String TOPOLOGY_QUERY =
       "SELECT id, endpoint, port FROM rds_tools.show_topology('aws_jdbc_driver-" + DriverInfo.DRIVER_VERSION + "')";
 
   private static final String WRITER_NODE_FUNC_EXIST_QUERY =

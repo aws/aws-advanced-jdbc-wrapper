@@ -29,7 +29,7 @@ import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
-  private static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
+  public static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
 
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"

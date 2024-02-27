@@ -37,7 +37,7 @@ public class AuroraPgDialect extends PgDialect {
 
   private static final String topologySql = "SELECT 1 FROM aurora_replica_status() LIMIT 1";
 
-  private static final String TOPOLOGY_QUERY =
+  public static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0), LAST_UPDATE_TIMESTAMP "
           + "FROM aurora_replica_status() "

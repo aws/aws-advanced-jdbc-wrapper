@@ -26,7 +26,7 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 
 public class AuroraMysqlDialect extends MysqlDialect {
 
-  private static final String TOPOLOGY_QUERY =
+  public static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
           + "CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP "
           + "FROM information_schema.replica_host_status "
