@@ -202,13 +202,12 @@ public class TopologyQueryTests {
     int cols = rs.getMetaData().getColumnCount();
     List<String> columnTypes = new ArrayList<>();
     List<String> expectedTypes = Arrays.asList(
-        "VARCHAR",
-        "VARCHAR",
-        "BIGINT"
+        "text",
+        "text",
+        "int4"
     );
     for (int i = 1; i <= cols; i++) {
       columnTypes.add(rs.getMetaData().getColumnTypeName(i));
-      LOGGER.fine(rs.getMetaData().getColumnTypeName(i));
     }
     assertEquals(columnTypes, expectedTypes);
     conn.close();
