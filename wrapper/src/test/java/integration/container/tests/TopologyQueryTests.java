@@ -26,36 +26,39 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
-import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.MethodOrderer.MethodName;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import software.amazon.awssdk.regions.Region;
+import software.amazon.jdbc.dialect.AuroraMysqlDialect;
+import software.amazon.jdbc.dialect.AuroraPgDialect;
+import software.amazon.jdbc.dialect.RdsMultiAzDbClusterMysqlDialect;
+import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
 
-@TestMethodOrder(MethodOrderer.MethodName.class)
+@TestMethodOrder(MethodName.class)
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 public class TopologyQueryTests {
   private static final Logger LOGGER = Logger.getLogger(BasicConnectivityTests.class.getName());
-  private static final String CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://atlas-postgres-2-instance-4.czygpppufgy4.us-east-2.rds.amazonaws.com:5432/test";
-  protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  public void testConnection(TestDriver testDriver) throws SQLException {
+  public void auroraTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
@@ -80,15 +83,134 @@ public class TopologyQueryTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
+    String query = null;
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
+      query = AuroraPgDialect.TOPOLOGY_QUERY;
+    } else {
+      query = AuroraMysqlDialect.TOPOLOGY_QUERY;
+    }
+
     final Connection conn = DriverManager.getConnection(url, props);
     assertTrue(conn.isValid(5));
-//     List<String> res = auroraUtil.getAuroraInstanceIds();
     Statement stmt = conn.createStatement();
-    stmt.executeQuery("select 1");
+    stmt.executeQuery(query);
     ResultSet rs = stmt.getResultSet();
-    rs.next();
-    assertEquals(1, rs.getInt(1));
+    int cols = rs.getMetaData().getColumnCount();
+    List<String> columnTypes = new ArrayList<>();
+    List<String> expectedTypes = Arrays.asList(
+        "VARCHAR",
+        "BIGINT",
+        "DOUBLE",
+        "DOUBLE",
+        "DATETIME"
+    );
+    for (int i = 1; i <= cols; i++) {
+      columnTypes.add(rs.getMetaData().getColumnTypeName(i));
+    }
+    assertEquals(columnTypes, expectedTypes);
+    conn.close();
+  }
 
+  @TestTemplate
+  @ExtendWith(TestDriverProvider.class)
+  public void auroraTestTimestamp(TestDriver testDriver) throws SQLException, ParseException {
+    LOGGER.info(testDriver.toString());
+
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+
+    String url =
+        ConnectionStringHelper.getWrapperUrl(
+            testDriver,
+            TestEnvironment.getCurrent()
+                .getInfo()
+                .getDatabaseInfo()
+                .getInstances()
+                .get(0)
+                .getHost(),
+            TestEnvironment.getCurrent()
+                .getInfo()
+                .getDatabaseInfo()
+                .getInstances()
+                .get(0)
+                .getPort(),
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    LOGGER.finest("Connecting to " + url);
+
+    String query = null;
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
+      query = AuroraPgDialect.TOPOLOGY_QUERY;
+    } else {
+      query = AuroraMysqlDialect.TOPOLOGY_QUERY;
+    }
+
+    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
+    final Connection conn = DriverManager.getConnection(url, props);
+    assertTrue(conn.isValid(5));
+    Statement stmt = conn.createStatement();
+    stmt.executeQuery(query);
+    ResultSet rs = stmt.getResultSet();
+
+    while (rs.next()) {
+      format.parse(rs.getString("LAST_UPDATE_TIMESTAMP"));
+    }
+
+    conn.close();
+  }
+
+  @TestTemplate
+  @ExtendWith(TestDriverProvider.class)
+  public void rdsTestTypes(TestDriver testDriver) throws SQLException {
+    LOGGER.info(testDriver.toString());
+
+    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
+    DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+    DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+
+    String url =
+        ConnectionStringHelper.getWrapperUrl(
+            testDriver,
+            TestEnvironment.getCurrent()
+                .getInfo()
+                .getDatabaseInfo()
+                .getInstances()
+                .get(0)
+                .getHost(),
+            TestEnvironment.getCurrent()
+                .getInfo()
+                .getDatabaseInfo()
+                .getInstances()
+                .get(0)
+                .getPort(),
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    LOGGER.finest("Connecting to " + url);
+
+    String query = null;
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
+      query = RdsMultiAzDbClusterPgDialect.TOPOLOGY_QUERY;
+    } else {
+      query = RdsMultiAzDbClusterMysqlDialect.TOPOLOGY_QUERY;
+    }
+
+    final Connection conn = DriverManager.getConnection(url, props);
+    assertTrue(conn.isValid(5));
+    Statement stmt = conn.createStatement();
+    stmt.executeQuery(query);
+    ResultSet rs = stmt.getResultSet();
+    int cols = rs.getMetaData().getColumnCount();
+    List<String> columnTypes = new ArrayList<>();
+    List<String> expectedTypes = Arrays.asList(
+        "VARCHAR",
+        "VARCHAR",
+        "BIGINT"
+    );
+    for (int i = 1; i <= cols; i++) {
+      columnTypes.add(rs.getMetaData().getColumnTypeName(i));
+      LOGGER.fine(rs.getMetaData().getColumnTypeName(i));
+    }
+    assertEquals(columnTypes, expectedTypes);
     conn.close();
   }
 }
