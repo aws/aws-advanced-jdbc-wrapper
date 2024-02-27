@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.MethodName;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -162,6 +163,8 @@ public class TopologyQueryTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
+  @Disabled
+  // Disabled due to RDS integration tests not being supported yet
   public void rdsTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
@@ -186,12 +189,22 @@ public class TopologyQueryTests {
                 .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
-
+    List<String> expectedTypes;
     String query = null;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
       query = RdsMultiAzDbClusterPgDialect.TOPOLOGY_QUERY;
+      expectedTypes = Arrays.asList(
+          "text",
+          "text",
+          "int4"
+      );
     } else {
       query = RdsMultiAzDbClusterMysqlDialect.TOPOLOGY_QUERY;
+      expectedTypes = Arrays.asList(
+          "INT",
+          "VARCHAR",
+          "INT"
+      );
     }
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -201,11 +214,7 @@ public class TopologyQueryTests {
     ResultSet rs = stmt.getResultSet();
     int cols = rs.getMetaData().getColumnCount();
     List<String> columnTypes = new ArrayList<>();
-    List<String> expectedTypes = Arrays.asList(
-        "text",
-        "text",
-        "int4"
-    );
+
     for (int i = 1; i <= cols; i++) {
       columnTypes.add(rs.getMetaData().getColumnTypeName(i));
     }
