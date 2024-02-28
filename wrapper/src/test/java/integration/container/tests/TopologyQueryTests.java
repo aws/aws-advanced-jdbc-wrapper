@@ -172,7 +172,7 @@ public class TopologyQueryTests {
 
     Date date;
     while (rs.next()) {
-      date = format.parse(rs.getString("LAST_UPDATE_TIMESTAMP"));
+      date = format.parse(rs.getString(5));
       assertNotNull(date);
     }
 
