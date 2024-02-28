@@ -19,6 +19,7 @@ package integration.container.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.MethodName;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.dialect.AuroraMysqlDialect;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
@@ -61,6 +63,12 @@ public class TopologyQueryTests {
   @ExtendWith(TestDriverProvider.class)
   public void auroraTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
+
+    // Topology queries fail on docker containers, can't test topology
+    if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+        == DatabaseEngineDeployment.DOCKER) {
+      return;
+    }
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
@@ -117,6 +125,12 @@ public class TopologyQueryTests {
   public void auroraTestTimestamp(TestDriver testDriver) throws SQLException, ParseException {
     LOGGER.info(testDriver.toString());
 
+    // Topology queries fail on docker containers, can't test topology
+    if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+        == DatabaseEngineDeployment.DOCKER) {
+      return;
+    }
+
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
@@ -167,6 +181,12 @@ public class TopologyQueryTests {
   // Disabled due to RDS integration tests not being supported yet
   public void rdsTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
+
+    // Topology queries fail on docker containers, can't test topology
+    if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+        == DatabaseEngineDeployment.DOCKER) {
+      return;
+    }
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
