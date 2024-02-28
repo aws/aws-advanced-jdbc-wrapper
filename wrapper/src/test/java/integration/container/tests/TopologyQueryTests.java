@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.DatabaseEngineDeployment;
@@ -36,6 +37,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +66,7 @@ public class TopologyQueryTests {
   public void auroraTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
-    // Topology queries fail on docker containers, can't test topology
+    // Topology queries fail on docker containers, can't test topology for them
     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
         == DatabaseEngineDeployment.DOCKER) {
       return;
@@ -125,7 +127,7 @@ public class TopologyQueryTests {
   public void auroraTestTimestamp(TestDriver testDriver) throws SQLException, ParseException {
     LOGGER.info(testDriver.toString());
 
-    // Topology queries fail on docker containers, can't test topology
+    // Topology queries fail on docker containers, can't test topology for them
     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
         == DatabaseEngineDeployment.DOCKER) {
       return;
@@ -168,8 +170,10 @@ public class TopologyQueryTests {
     stmt.executeQuery(query);
     ResultSet rs = stmt.getResultSet();
 
+    Date date;
     while (rs.next()) {
-      format.parse(rs.getString("LAST_UPDATE_TIMESTAMP"));
+      date = format.parse(rs.getString("LAST_UPDATE_TIMESTAMP"));
+      assertNotNull(date);
     }
 
     conn.close();
@@ -182,7 +186,7 @@ public class TopologyQueryTests {
   public void rdsTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
-    // Topology queries fail on docker containers, can't test topology
+    // Topology queries fail on docker containers, can't test topology for them
     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
         == DatabaseEngineDeployment.DOCKER) {
       return;
