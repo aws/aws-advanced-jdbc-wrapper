@@ -67,8 +67,11 @@ public class TopologyQueryTests {
     LOGGER.info(testDriver.toString());
 
     // Topology queries fail on docker containers, can't test topology for them
+    // Also skip RDS, this is for Aurora
     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.DOCKER) {
+        == DatabaseEngineDeployment.DOCKER
+        || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+        == DatabaseEngineDeployment.RDS) {
       return;
     }
 
@@ -128,8 +131,11 @@ public class TopologyQueryTests {
     LOGGER.info(testDriver.toString());
 
     // Topology queries fail on docker containers, can't test topology for them
+    // Also skip RDS, this is for Aurora
     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.DOCKER) {
+        == DatabaseEngineDeployment.DOCKER
+        || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+        == DatabaseEngineDeployment.RDS) {
       return;
     }
 
@@ -188,7 +194,9 @@ public class TopologyQueryTests {
 
     // Topology queries fail on docker containers, can't test topology for them
     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.DOCKER) {
+        == DatabaseEngineDeployment.DOCKER
+        || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+        == DatabaseEngineDeployment.AURORA) {
       return;
     }
 
