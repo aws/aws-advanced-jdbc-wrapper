@@ -69,14 +69,6 @@ public class TopologyQueryTests {
   public void auroraTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
     List<String> expectedTypes;
-    // Topology queries fail on docker containers, can't test topology for them
-    // Also skip RDS, this is for Aurora
-//     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-//         == DatabaseEngineDeployment.DOCKER
-//         || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-//         == DatabaseEngineDeployment.RDS) {
-//       return;
-//     }
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
@@ -137,82 +129,11 @@ public class TopologyQueryTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
-  public void auroraTestTimestamp(TestDriver testDriver) throws SQLException, ParseException {
-    LOGGER.info(testDriver.toString());
-
-    // Topology queries fail on docker containers, can't test topology for them
-    // Also skip RDS, this is for Aurora
-//     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-//         == DatabaseEngineDeployment.DOCKER
-//         || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-//         == DatabaseEngineDeployment.RDS) {
-//       return;
-//     }
-
-    final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
-    DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
-
-    String url =
-        ConnectionStringHelper.getWrapperUrl(
-            testDriver,
-            TestEnvironment.getCurrent()
-                .getInfo()
-                .getDatabaseInfo()
-                .getInstances()
-                .get(0)
-                .getHost(),
-            TestEnvironment.getCurrent()
-                .getInfo()
-                .getDatabaseInfo()
-                .getInstances()
-                .get(0)
-                .getPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
-    LOGGER.finest("Connecting to " + url);
-
-    String query = null;
-    SimpleDateFormat format;
-    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
-      query = AuroraPgDialect.TOPOLOGY_QUERY;
-      format = new SimpleDateFormat("yyy-MM-dd HH:mm:ssX");
-      format.setTimeZone(TimeZone.getTimeZone("GMT"));
-    } else {
-      query = AuroraMysqlDialect.TOPOLOGY_QUERY;
-      format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
-    }
-
-    final Connection conn = DriverManager.getConnection(url, props);
-    assertTrue(conn.isValid(5));
-    Statement stmt = conn.createStatement();
-    stmt.executeQuery(query);
-    ResultSet rs = stmt.getResultSet();
-
-    Date date;
-    while (rs.next()) {
-      date = format.parse(rs.getString(5));
-      assertNotNull(date);
-    }
-
-    conn.close();
-  }
-
-  @TestTemplate
-  @ExtendWith(TestDriverProvider.class)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.RDS)
   @Disabled
   // TODO: Disabled due to RDS integration tests not being supported yet
   public void rdsTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
-
-    // Topology queries fail on docker containers, can't test topology for them
-//     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-//         == DatabaseEngineDeployment.DOCKER
-//         || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-//         == DatabaseEngineDeployment.AURORA) {
-//       return;
-//     }
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
