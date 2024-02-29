@@ -80,6 +80,9 @@ import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRespons
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
+import software.amazon.awssdk.services.rds.model.ModifyDbInstanceRequest;
+import software.amazon.awssdk.services.rds.model.ModifyDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
 import software.amazon.jdbc.util.StringUtils;
@@ -957,5 +960,19 @@ public class AuroraTestUtility {
       return versions.dbEngineVersions().get(0).engineVersion();
     }
     throw new RuntimeException("Failed to find LTS version");
+  }
+
+  public static void updateInstance(RdsClient client, String dbInstanceIdentifier, String caCertificateIdentifier) {
+    try {
+      ModifyDbInstanceRequest modifyDbInstanceRequest = ModifyDbInstanceRequest.builder()
+          .dbInstanceIdentifier(dbInstanceIdentifier)
+          .publiclyAccessible(true)
+          .applyImmediately(true)
+          .caCertificateIdentifier("rds-ca-rsa4096-g1")
+          .build();
+      ModifyDbInstanceResponse modifyDbInstanceResponse = client.modifyDBInstance(modifyDbInstanceRequest);
+    } catch (RdsException e) {
+      LOGGER.finer(e.getLocalizedMessage());
+    }
   }
 }

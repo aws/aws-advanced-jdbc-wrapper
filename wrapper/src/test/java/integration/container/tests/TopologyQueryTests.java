@@ -30,6 +30,7 @@ import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
+import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -49,8 +50,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.MethodName;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.jdbc.dialect.AuroraMysqlDialect;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.RdsMultiAzDbClusterMysqlDialect;
@@ -156,6 +158,15 @@ public class TopologyQueryTests {
                 .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
+
+    String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    Region region = Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+    String caCertificateIdentifier = TestEnvironment.getCurrent().getInfo().getAuroraRegion();
+    RdsClient client = RdsClient.builder()
+        .region(region)
+        .build();
+    AuroraTestUtility.updateInstance(client, dbInstanceIdentifier, caCertificateIdentifier);
+    client.close();
 
     String query = null;
     SimpleDateFormat format;
