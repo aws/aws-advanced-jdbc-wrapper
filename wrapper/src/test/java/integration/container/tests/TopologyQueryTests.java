@@ -161,13 +161,13 @@ public class TopologyQueryTests {
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
-                .get(0)
+                .get(1)
                 .getHost(),
             TestEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
-                .get(0)
+                .get(1)
                 .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
@@ -207,12 +207,12 @@ public class TopologyQueryTests {
     LOGGER.info(testDriver.toString());
 
     // Topology queries fail on docker containers, can't test topology for them
-    if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.DOCKER
-        || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.AURORA) {
-      return;
-    }
+//     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+//         == DatabaseEngineDeployment.DOCKER
+//         || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+//         == DatabaseEngineDeployment.AURORA) {
+//       return;
+//     }
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
