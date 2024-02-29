@@ -962,14 +962,13 @@ public class AuroraTestUtility {
     throw new RuntimeException("Failed to find LTS version");
   }
 
-  public static void updateInstance(RdsClient client, String dbInstanceIdentifier, String masterUserPassword) {
+  public static void updateInstance(RdsClient client, String dbInstanceIdentifier) {
     try {
       ModifyDbInstanceRequest modifyDbInstanceRequest = ModifyDbInstanceRequest.builder()
           .dbInstanceIdentifier(dbInstanceIdentifier)
           .publiclyAccessible(true)
           .applyImmediately(true)
           .caCertificateIdentifier("rds-ca-rsa4096-g1")
-          .masterUserPassword(masterUserPassword)
           .build();
       client.modifyDBInstance(modifyDbInstanceRequest);
     } catch (RdsException e) {

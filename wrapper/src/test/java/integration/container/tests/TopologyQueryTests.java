@@ -167,15 +167,11 @@ public class TopologyQueryTests {
     Region region = Region.of(TestEnvironment.getCurrent()
         .getInfo()
         .getAuroraRegion());
-    String masterUserPassword = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getPassword();
 
     RdsClient client = RdsClient.builder()
         .region(region)
         .build();
-    AuroraTestUtility.updateInstance(client, dbInstanceIdentifier, masterUserPassword);
+    AuroraTestUtility.updateInstance(client, dbInstanceIdentifier);
     client.close();
 
     String query = null;
@@ -195,13 +191,15 @@ public class TopologyQueryTests {
     stmt.executeQuery(query);
     ResultSet rs = stmt.getResultSet();
 
-    Date date;
+    Date date = null;
     // Skip the first row, empty timestamp
-    rs.next();
     while (rs.next()) {
-      date = format.parse(rs.getString(5));
-      assertNotNull(date);
+      if (rs.getString(5) != null) {
+        date = format.parse(rs.getString(5));
+        assertNotNull(date);
+      }
     }
+    assertNotNull(date);
 
     conn.close();
   }
