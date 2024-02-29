@@ -28,6 +28,7 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -40,6 +41,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.Disabled;
@@ -59,21 +61,22 @@ import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 public class TopologyQueryTests {
-  private static final Logger LOGGER = Logger.getLogger(BasicConnectivityTests.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(TopologyQueryTests.class.getName());
 
   @TestTemplate
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @ExtendWith(TestDriverProvider.class)
   public void auroraTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
-
+    List<String> expectedTypes;
     // Topology queries fail on docker containers, can't test topology for them
     // Also skip RDS, this is for Aurora
-    if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.DOCKER
-        || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.RDS) {
-      return;
-    }
+//     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+//         == DatabaseEngineDeployment.DOCKER
+//         || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+//         == DatabaseEngineDeployment.RDS) {
+//       return;
+//     }
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
@@ -100,8 +103,22 @@ public class TopologyQueryTests {
     String query = null;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
       query = AuroraPgDialect.TOPOLOGY_QUERY;
+      expectedTypes = Arrays.asList(
+          "text",
+          "bool",
+          "float4",
+          "float4",
+          "timestamptz"
+      );
     } else {
       query = AuroraMysqlDialect.TOPOLOGY_QUERY;
+      expectedTypes = Arrays.asList(
+          "VARCHAR",
+          "BIGINT",
+          "DOUBLE",
+          "DOUBLE",
+          "DATETIME"
+      );
     }
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -111,33 +128,27 @@ public class TopologyQueryTests {
     ResultSet rs = stmt.getResultSet();
     int cols = rs.getMetaData().getColumnCount();
     List<String> columnTypes = new ArrayList<>();
-    List<String> expectedTypes = Arrays.asList(
-        "VARCHAR",
-        "BIGINT",
-        "DOUBLE",
-        "DOUBLE",
-        "DATETIME"
-    );
     for (int i = 1; i <= cols; i++) {
       columnTypes.add(rs.getMetaData().getColumnTypeName(i));
     }
-    assertEquals(columnTypes, expectedTypes);
+    assertEquals(expectedTypes, columnTypes);
     conn.close();
   }
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   public void auroraTestTimestamp(TestDriver testDriver) throws SQLException, ParseException {
     LOGGER.info(testDriver.toString());
 
     // Topology queries fail on docker containers, can't test topology for them
     // Also skip RDS, this is for Aurora
-    if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.DOCKER
-        || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-        == DatabaseEngineDeployment.RDS) {
-      return;
-    }
+//     if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+//         == DatabaseEngineDeployment.DOCKER
+//         || TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+//         == DatabaseEngineDeployment.RDS) {
+//       return;
+//     }
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
@@ -162,13 +173,15 @@ public class TopologyQueryTests {
     LOGGER.finest("Connecting to " + url);
 
     String query = null;
+    SimpleDateFormat format;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
       query = AuroraPgDialect.TOPOLOGY_QUERY;
+      format = new SimpleDateFormat("yyy-MM-dd HH:mm:ssX");
+      format.setTimeZone(TimeZone.getTimeZone("GMT"));
     } else {
       query = AuroraMysqlDialect.TOPOLOGY_QUERY;
+      format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
     }
-
-    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     final Connection conn = DriverManager.getConnection(url, props);
     assertTrue(conn.isValid(5));
@@ -187,8 +200,9 @@ public class TopologyQueryTests {
 
   @TestTemplate
   @ExtendWith(TestDriverProvider.class)
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.RDS)
   @Disabled
-  // Disabled due to RDS integration tests not being supported yet
+  // TODO: Disabled due to RDS integration tests not being supported yet
   public void rdsTestTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
@@ -250,7 +264,7 @@ public class TopologyQueryTests {
     for (int i = 1; i <= cols; i++) {
       columnTypes.add(rs.getMetaData().getColumnTypeName(i));
     }
-    assertEquals(columnTypes, expectedTypes);
+    assertEquals(expectedTypes, columnTypes);
     conn.close();
   }
 }
