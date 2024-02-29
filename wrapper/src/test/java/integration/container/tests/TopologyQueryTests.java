@@ -159,7 +159,7 @@ public class TopologyQueryTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
-    String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getInstanceId();
     Region region = Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
     String caCertificateIdentifier = TestEnvironment.getCurrent().getInfo().getAuroraRegion();
     RdsClient client = RdsClient.builder()
