@@ -161,13 +161,13 @@ public class TopologyQueryTests {
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
-                .get(1)
+                .get(0)
                 .getHost(),
             TestEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
-                .get(1)
+                .get(0)
                 .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
