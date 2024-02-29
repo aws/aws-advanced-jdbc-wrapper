@@ -159,13 +159,23 @@ public class TopologyQueryTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
-    String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0).getInstanceId();
-    Region region = Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
-    String caCertificateIdentifier = TestEnvironment.getCurrent().getInfo().getAuroraRegion();
+    String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo()
+        .getDatabaseInfo()
+        .getInstances()
+        .get(0)
+        .getInstanceId();
+    Region region = Region.of(TestEnvironment.getCurrent()
+        .getInfo()
+        .getAuroraRegion());
+    String masterUserPassword = TestEnvironment.getCurrent()
+        .getInfo()
+        .getDatabaseInfo()
+        .getPassword();
+
     RdsClient client = RdsClient.builder()
         .region(region)
         .build();
-    AuroraTestUtility.updateInstance(client, dbInstanceIdentifier, caCertificateIdentifier);
+    AuroraTestUtility.updateInstance(client, dbInstanceIdentifier, masterUserPassword);
     client.close();
 
     String query = null;
@@ -186,6 +196,8 @@ public class TopologyQueryTests {
     ResultSet rs = stmt.getResultSet();
 
     Date date;
+    // Skip the first row, empty timestamp
+    rs.next();
     while (rs.next()) {
       date = format.parse(rs.getString(5));
       assertNotNull(date);
