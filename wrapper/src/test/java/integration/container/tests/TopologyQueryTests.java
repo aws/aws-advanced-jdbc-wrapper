@@ -212,7 +212,7 @@ public class TopologyQueryTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.RDS)
   @Disabled
   // TODO: Disabled due to RDS integration tests not being supported yet
-  public void testRdsTypes(TestDriver testDriver) throws SQLException {
+  public void testRdsMultiAzTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
