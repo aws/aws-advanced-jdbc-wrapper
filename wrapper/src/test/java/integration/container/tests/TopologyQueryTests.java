@@ -98,7 +98,7 @@ public class TopologyQueryTests {
 
     String query = null;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
-      query = AuroraPgDialect.TOPOLOGY_QUERY;
+      query = AuroraPgDialect.getTopologyQuery();
       expectedTypes = Arrays.asList(
           "text",
           "bool",
@@ -107,7 +107,7 @@ public class TopologyQueryTests {
           "timestamptz"
       );
     } else {
-      query = AuroraMysqlDialect.TOPOLOGY_QUERY;
+      query = AuroraMysqlDialect.getTopologyQuery();
       expectedTypes = Arrays.asList(
           "VARCHAR",
           "BIGINT",
@@ -181,11 +181,11 @@ public class TopologyQueryTests {
     String query = null;
     SimpleDateFormat format;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
-      query = AuroraPgDialect.TOPOLOGY_QUERY;
+      query = AuroraPgDialect.getTopologyQuery();
       format = new SimpleDateFormat("yyy-MM-dd HH:mm:ssX");
       format.setTimeZone(TimeZone.getTimeZone("GMT"));
     } else {
-      query = AuroraMysqlDialect.TOPOLOGY_QUERY;
+      query = AuroraMysqlDialect.getTopologyQuery();
       format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
     }
 
@@ -239,14 +239,14 @@ public class TopologyQueryTests {
     List<String> expectedTypes;
     String query = null;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
-      query = RdsMultiAzDbClusterPgDialect.TOPOLOGY_QUERY;
+      query = RdsMultiAzDbClusterPgDialect.getTopologyQuery();
       expectedTypes = Arrays.asList(
           "text",
           "text",
           "int4"
       );
     } else {
-      query = RdsMultiAzDbClusterMysqlDialect.TOPOLOGY_QUERY;
+      query = RdsMultiAzDbClusterMysqlDialect.getTopologyQuery();
       expectedTypes = Arrays.asList(
           "VARCHAR",
           "VARCHAR",
