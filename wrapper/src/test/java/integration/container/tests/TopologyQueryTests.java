@@ -65,7 +65,7 @@ import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 public class TopologyQueryTests {
   private static final Logger LOGGER = Logger.getLogger(TopologyQueryTests.class.getName());
-  private AuroraTestUtility util = new AuroraTestUtility();
+  private final AuroraTestUtility util = new AuroraTestUtility();
 
   @TestTemplate
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
