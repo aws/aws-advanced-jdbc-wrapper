@@ -81,7 +81,6 @@ import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.awssdk.services.rds.model.ModifyDbInstanceRequest;
-import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
 import software.amazon.jdbc.util.StringUtils;
