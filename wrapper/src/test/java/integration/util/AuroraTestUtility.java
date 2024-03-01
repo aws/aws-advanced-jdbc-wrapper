@@ -961,7 +961,8 @@ public class AuroraTestUtility {
     throw new RuntimeException("Failed to find LTS version");
   }
 
-  public void updateInstanceCertificateIdentifier(String dbInstanceIdentifier, String certificateIdentifier) {
+  public void updateInstanceCertificateIdentifier(
+      String dbInstanceIdentifier, String certificateIdentifier) {
     try {
       ModifyDbInstanceRequest modifyDbInstanceRequest = ModifyDbInstanceRequest.builder()
           .dbInstanceIdentifier(dbInstanceIdentifier)
@@ -970,8 +971,9 @@ public class AuroraTestUtility {
           .caCertificateIdentifier(certificateIdentifier)
           .build();
       rdsClient.modifyDBInstance(modifyDbInstanceRequest);
-    } catch (RdsException e) {
-      LOGGER.finer(e.getLocalizedMessage());
+    } catch (Exception e) {
+      LOGGER.finest("Error updating certificate identifier on "
+          + dbInstanceIdentifier + ": " + e.getMessage());
     }
   }
 }
