@@ -211,7 +211,7 @@ public class TopologyQueryTests {
   @ExtendWith(TestDriverProvider.class)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.RDS)
   @Disabled
-  // TODO: Disabled due to RDS integration tests not being supported yet
+  // TODO: Disabled due to RdsMultiAz integration tests not being supported yet
   public void testRdsMultiAzTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
