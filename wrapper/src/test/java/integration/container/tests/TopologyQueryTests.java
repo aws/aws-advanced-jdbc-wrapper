@@ -161,7 +161,6 @@ public class TopologyQueryTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
-    // Update cluster to get non-null timestamp
     String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo()
         .getDatabaseInfo()
         .getInstances()
