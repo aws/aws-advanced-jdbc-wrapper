@@ -65,11 +65,12 @@ import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 public class TopologyQueryTests {
   private static final Logger LOGGER = Logger.getLogger(TopologyQueryTests.class.getName());
+  private AuroraTestUtility util = new AuroraTestUtility();
 
   @TestTemplate
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @ExtendWith(TestDriverProvider.class)
-  public void auroraTestTypes(TestDriver testDriver) throws SQLException {
+  public void testAuroraTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
     List<String> expectedTypes;
 
@@ -134,7 +135,7 @@ public class TopologyQueryTests {
   @ExtendWith(TestDriverProvider.class)
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnNumOfInstances(min = 2)
-  public void auroraTestTimestamp(TestDriver testDriver) throws SQLException, ParseException {
+  public void testAuroraTimestamp(TestDriver testDriver) throws SQLException, ParseException {
     LOGGER.info(testDriver.toString());
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
@@ -159,6 +160,7 @@ public class TopologyQueryTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
+    // Update cluster to get non-null timestamp
     String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo()
         .getDatabaseInfo()
         .getInstances()
@@ -171,7 +173,8 @@ public class TopologyQueryTests {
     RdsClient client = RdsClient.builder()
         .region(region)
         .build();
-    AuroraTestUtility.updateInstance(client, dbInstanceIdentifier);
+    util.updateInstanceCertificateIdentifier(
+        dbInstanceIdentifier, "rds-ca-rsa4096-g1");
     client.close();
 
     String query = null;
@@ -192,7 +195,6 @@ public class TopologyQueryTests {
     ResultSet rs = stmt.getResultSet();
 
     Date date = null;
-    // Skip the first row, empty timestamp
     while (rs.next()) {
       if (rs.getString(5) != null) {
         date = format.parse(rs.getString(5));
@@ -209,7 +211,7 @@ public class TopologyQueryTests {
   @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.RDS)
   @Disabled
   // TODO: Disabled due to RDS integration tests not being supported yet
-  public void rdsTestTypes(TestDriver testDriver) throws SQLException {
+  public void testRdsTypes(TestDriver testDriver) throws SQLException {
     LOGGER.info(testDriver.toString());
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
@@ -245,7 +247,7 @@ public class TopologyQueryTests {
     } else {
       query = RdsMultiAzDbClusterMysqlDialect.TOPOLOGY_QUERY;
       expectedTypes = Arrays.asList(
-          "INT",
+          "VARCHAR",
           "VARCHAR",
           "INT"
       );
