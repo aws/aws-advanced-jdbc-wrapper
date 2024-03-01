@@ -142,6 +142,7 @@ public class TopologyQueryTests {
     DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
 
+    // Get second instance since first one has null timestamps
     String url =
         ConnectionStringHelper.getWrapperUrl(
             testDriver,
@@ -173,6 +174,7 @@ public class TopologyQueryTests {
     RdsClient client = RdsClient.builder()
         .region(region)
         .build();
+    // Update the cluster to force timestamp to appear
     util.updateInstanceCertificateIdentifier(
         dbInstanceIdentifier, "rds-ca-rsa4096-g1");
     client.close();
