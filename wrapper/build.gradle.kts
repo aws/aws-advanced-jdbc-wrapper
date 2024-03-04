@@ -43,7 +43,7 @@ dependencies {
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
     compileOnly("io.opentelemetry:opentelemetry-api:1.35.0")
-    compileOnly("io.opentelemetry:opentelemetry-sdk:1.34.1")
+    compileOnly("io.opentelemetry:opentelemetry-sdk:1.35.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.35.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.1")
@@ -79,7 +79,7 @@ dependencies {
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
     testImplementation("io.opentelemetry:opentelemetry-api:1.35.0")
-    testImplementation("io.opentelemetry:opentelemetry-sdk:1.34.1")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:1.35.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.35.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.35.0")
 }
