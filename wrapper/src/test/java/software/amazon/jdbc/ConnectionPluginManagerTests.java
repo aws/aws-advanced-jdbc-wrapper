@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,6 +34,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,11 +58,14 @@ import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.wrapper.ConnectionWrapper;
 
 public class ConnectionPluginManagerTests {
+
+  private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManagerTests.class.getName());
 
   @Mock JdbcCallable<Void, SQLException> mockSqlFunction;
   @Mock ConnectionProvider mockConnectionProvider;
@@ -511,5 +521,123 @@ public class ConnectionPluginManagerTests {
     assertEquals(2, target.plugins.size());
     assertEquals(LogQueryConnectionPlugin.class, target.plugins.get(0).getClass());
     assertEquals(DefaultConnectionPlugin.class, target.plugins.get(1).getClass());
+  }
+
+  @Test
+  public void testTwoConnectionsDoNotBlockOneAnother() throws Exception {
+
+    final Properties testProperties = new Properties();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    testPlugins.add(new TestPluginOne(new ArrayList<>()));
+
+    final ConnectionProvider mockConnectionProvider1 = Mockito.mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper1 = Mockito.mock(ConnectionWrapper.class);
+    final PluginService mockPluginService1 = Mockito.mock(PluginService.class);
+    final TelemetryFactory mockTelemetryFactory1 = Mockito.mock(TelemetryFactory.class);
+    final Object object1 = new Object();
+    when(mockPluginService1.getTelemetryFactory()).thenReturn(mockTelemetryFactory1);
+    when(mockTelemetryFactory1.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory1.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+
+    final ConnectionPluginManager pluginManager1 =
+        new ConnectionPluginManager(mockConnectionProvider1,
+            null, testProperties, testPlugins, mockConnectionWrapper1,
+            mockPluginService1, mockTelemetryFactory1);
+
+    final ConnectionProvider mockConnectionProvider2 = Mockito.mock(ConnectionProvider.class);
+    final ConnectionWrapper mockConnectionWrapper2 = Mockito.mock(ConnectionWrapper.class);
+    final PluginService mockPluginService2 = Mockito.mock(PluginService.class);
+    final TelemetryFactory mockTelemetryFactory2 = Mockito.mock(TelemetryFactory.class);
+    final Object object2 = new Object();
+    when(mockPluginService2.getTelemetryFactory()).thenReturn(mockTelemetryFactory2);
+    when(mockTelemetryFactory2.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
+    when(mockTelemetryFactory2.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+
+    final ConnectionPluginManager pluginManager2 =
+        new ConnectionPluginManager(mockConnectionProvider2,
+            null, testProperties, testPlugins, mockConnectionWrapper2,
+            mockPluginService2, mockTelemetryFactory2);
+
+    // Imaginary database resource is considered "locked" when latch is 0
+    final CountDownLatch waitForDbResourceLocked = new CountDownLatch(1);
+    final ReentrantLock dbResourceLock = new ReentrantLock();
+    final CountDownLatch waitForReleaseDbResourceToProceed = new CountDownLatch(1);
+    final AtomicBoolean dbResourceReleased = new AtomicBoolean(false);
+    final AtomicBoolean acquireDbResourceLockSuccessful = new AtomicBoolean(false);
+
+    CompletableFuture.allOf(
+
+        // Thread 1
+        CompletableFuture.runAsync(() -> {
+
+          LOGGER.info("thread-1: started");
+
+          WrapperUtils.executeWithPlugins(
+              Integer.class,
+              pluginManager1,
+              object1,
+              "lock-db-resource-from-thread-1",
+              () -> {
+                dbResourceLock.lock();
+                waitForDbResourceLocked.countDown();
+                LOGGER.info("thread-1: locked");
+                return 1;
+              });
+
+          LOGGER.info("thread-1: waiting for thread-2");
+          try {
+            waitForReleaseDbResourceToProceed.await();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          LOGGER.info("thread-1: continue");
+
+          WrapperUtils.executeWithPlugins(
+              Integer.class,
+              pluginManager1,
+              object1,
+              "release-db-resource-from-thread-1",
+              () -> {
+                dbResourceLock.unlock();
+                dbResourceReleased.set(true);
+                LOGGER.info("thread-1: unlocked");
+                return 1;
+              });
+          LOGGER.info("thread-1: completed");
+        }),
+
+        // Thread 2
+        CompletableFuture.runAsync(() -> {
+
+          LOGGER.info("thread-2: started");
+          LOGGER.info("thread-2: waiting for thread-1");
+          try {
+            waitForDbResourceLocked.await();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          LOGGER.info("thread-2: continue");
+
+          WrapperUtils.executeWithPlugins(
+              Integer.class,
+              pluginManager2,
+              object2,
+              "lock-db-resource-from-thread-2",
+              () -> {
+                waitForReleaseDbResourceToProceed.countDown();
+                LOGGER.info("thread-2: try to acquire a lock");
+                try {
+                  acquireDbResourceLockSuccessful.set(dbResourceLock.tryLock(5, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                  throw new RuntimeException(e);
+                }
+                return 1;
+              });
+          LOGGER.info("thread-2: completed");
+        })
+    ).join();
+
+    assertTrue(dbResourceReleased.get());
+    assertTrue(acquireDbResourceLockSuccessful.get());
   }
 }
