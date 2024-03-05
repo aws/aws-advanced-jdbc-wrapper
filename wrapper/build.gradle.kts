@@ -64,7 +64,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:rds:2.24.10")
     testImplementation("software.amazon.awssdk:auth:2.24.10") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.22.13") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.24.10")
+    testImplementation("software.amazon.awssdk:ec2:2.25.2")
     testImplementation("software.amazon.awssdk:secretsmanager:2.24.1")
     testImplementation("software.amazon.awssdk:sts:2.24.10")
     testImplementation("org.testcontainers:testcontainers:1.19.5")
