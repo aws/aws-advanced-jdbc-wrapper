@@ -939,8 +939,8 @@ public class AuroraTestUtility {
     return res;
   }
 
-  public String getLatestVersion(List<String> versions) {
-    return Collections.max(versions);
+  public String getLatestVersion(String engine) {
+    return Collections.max(getEngineVersions(engine));
   }
 
   public String getLTSVersion(String engine) {

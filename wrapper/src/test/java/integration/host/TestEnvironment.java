@@ -66,6 +66,8 @@ public class TestEnvironment implements AutoCloseable {
   private static final String TELEMETRY_XRAY_CONTAINER_NAME = "xray-daemon";
   private static final String TELEMETRY_OTLP_CONTAINER_NAME = "otlp-daemon";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
+  private static final String AURORA_MYSQL_ENGINE_NAME = "aurora-mysql";
+  private static final String AURORA_PG_ENGINE_NAME = "aurora-postgresql";
   protected static final int PROXY_CONTROL_PORT = 8474;
   protected static final int PROXY_PORT = 8666;
   private static final String HIBERNATE_VERSION = "6.2.0.CR2";
@@ -393,7 +395,8 @@ public class TestEnvironment implements AutoCloseable {
         String engineVersion = getAuroraDbEngineVersion(env, env.info.getRequest());
         String instanceClass = getAuroraInstanceClass(env.info.getRequest());
 
-        LOGGER.info("Aurora Db engine version: " + engineVersion);
+        LOGGER.finer(
+            "Using " + engine + " " + engineVersion);
 
         env.auroraClusterDomain =
             env.auroraUtil.createCluster(
@@ -478,15 +481,25 @@ public class TestEnvironment implements AutoCloseable {
       TestEnvironmentRequest request) {
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        if (config.auroraMySqlDbEngineVersion == null) {
-          return env.auroraUtil.getLTSVersion("aurora-mysql");
+        if (config.auroraMySqlDbEngineVersion == null
+            || config.auroraPgDbEngineVersion.equals("lts")) {
+          return env.auroraUtil.getLTSVersion(AURORA_MYSQL_ENGINE_NAME);
+        } else if (config.auroraMySqlDbEngineVersion.equals("latest")) {
+          return env.auroraUtil.getLatestVersion(AURORA_MYSQL_ENGINE_NAME);
         }
+        // User specified version
         return config.auroraMySqlDbEngineVersion;
+
       case PG:
-        if (config.auroraPgDbEngineVersion == null) {
-          return env.auroraUtil.getLTSVersion("aurora-postgresql");
+        if (config.auroraPgDbEngineVersion == null
+            || config.auroraPgDbEngineVersion.equals("lts")) {
+          return env.auroraUtil.getLTSVersion(AURORA_PG_ENGINE_NAME);
+        } else if (config.auroraPgDbEngineVersion.equals("latest")) {
+          return env.auroraUtil.getLatestVersion(AURORA_PG_ENGINE_NAME);
         }
+        // User specified version
         return config.auroraPgDbEngineVersion;
+
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
