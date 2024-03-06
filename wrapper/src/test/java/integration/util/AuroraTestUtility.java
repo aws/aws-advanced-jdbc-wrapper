@@ -973,6 +973,7 @@ public class AuroraTestUtility {
     } catch (Exception e) {
       LOGGER.finest("Error updating certificate identifier on "
           + dbInstanceIdentifier + ": " + e.getMessage());
+      throw e;
     }
   }
 }

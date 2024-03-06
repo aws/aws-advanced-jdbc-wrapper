@@ -16,6 +16,7 @@
 
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -174,8 +175,9 @@ public class TopologyQueryTests {
         .region(region)
         .build();
     // Update the cluster to force timestamp to appear
-    util.updateInstanceCertificateIdentifier(
-        dbInstanceIdentifier, "rds-ca-rsa4096-g1");
+    assertDoesNotThrow(() -> util.updateInstanceCertificateIdentifier(
+        dbInstanceIdentifier, "rds-ca-rsa4096-g1"));
+
     client.close();
 
     String query = null;
