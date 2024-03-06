@@ -78,6 +78,10 @@ public class TestEnvironmentConfiguration {
   public String auroraClusterName = System.getenv("AURORA_CLUSTER_NAME"); // "cluster-mysql"
   public String auroraClusterDomain =
       System.getenv("AURORA_CLUSTER_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
+  public String auroraMySqlDbEngineVersion =
+      System.getenv("AURORA_MYSQL_DB_ENGINE_VERSION");
+  public String auroraPgDbEngineVersion =
+      System.getenv("AURORA_PG_ENGINE_VERSION");
 
   public String dbName = System.getenv("DB_DATABASE_NAME");
   public String dbUsername = System.getenv("DB_USERNAME");

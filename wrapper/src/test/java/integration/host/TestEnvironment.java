@@ -390,7 +390,7 @@ public class TestEnvironment implements AutoCloseable {
 
       try {
         String engine = getAuroraDbEngine(env.info.getRequest());
-        String engineVersion = getAuroraDbEngineVersion(env.info.getRequest());
+        String engineVersion = getAuroraDbEngineVersion(env, env.info.getRequest());
         String instanceClass = getAuroraInstanceClass(env.info.getRequest());
 
         env.auroraClusterDomain =
@@ -471,12 +471,20 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static String getAuroraDbEngineVersion(TestEnvironmentRequest request) {
+  private static String getAuroraDbEngineVersion(
+      TestEnvironment env,
+      TestEnvironmentRequest request) {
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        return "8.0.mysql_aurora.3.03.0";
+        if (config.auroraMySqlDbEngineVersion == null) {
+          return env.auroraUtil.getLTSVersion("aurora-mysql");
+        }
+        return config.auroraMySqlDbEngineVersion;
       case PG:
-        return "15.2";
+        if (config.auroraPgDbEngineVersion == null) {
+          return env.auroraUtil.getLTSVersion("aurora-postgresql");
+        }
+        return config.auroraPgDbEngineVersion;
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
