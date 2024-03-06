@@ -393,6 +393,8 @@ public class TestEnvironment implements AutoCloseable {
         String engineVersion = getAuroraDbEngineVersion(env, env.info.getRequest());
         String instanceClass = getAuroraInstanceClass(env.info.getRequest());
 
+        LOGGER.finer("Aurora Db engine version: " + engineVersion);
+
         env.auroraClusterDomain =
             env.auroraUtil.createCluster(
                 env.info.getDatabaseInfo().getUsername(),
