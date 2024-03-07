@@ -486,9 +486,10 @@ public class TestEnvironment implements AutoCloseable {
           return env.auroraUtil.getLTSVersion(AURORA_MYSQL_ENGINE_NAME);
         } else if (config.auroraMySqlDbEngineVersion.equals("latest")) {
           return env.auroraUtil.getLatestVersion(AURORA_MYSQL_ENGINE_NAME);
+        } else {
+          // System property specified
+          return config.auroraMySqlDbEngineVersion;
         }
-        // User specified version
-        return config.auroraMySqlDbEngineVersion;
 
       case PG:
         if (config.auroraPgDbEngineVersion == null
@@ -496,9 +497,10 @@ public class TestEnvironment implements AutoCloseable {
           return env.auroraUtil.getLTSVersion(AURORA_PG_ENGINE_NAME);
         } else if (config.auroraPgDbEngineVersion.equals("latest")) {
           return env.auroraUtil.getLatestVersion(AURORA_PG_ENGINE_NAME);
+        } else {
+          // System property specified
+          return config.auroraPgDbEngineVersion;
         }
-        // User specified version
-        return config.auroraPgDbEngineVersion;
 
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
