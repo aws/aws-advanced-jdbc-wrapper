@@ -102,7 +102,7 @@ dependencies {
 	implementation("org.springframework.retry:spring-retry:1.3.4")
 	implementation("org.springframework:spring-aspects:5.3.29")
 	implementation("org.postgresql:postgresql:42.5.4")
-	implementation("software.amazon.awssdk:rds:2.20.49")
+	implementation("software.amazon.awssdk:rds:2.25.2")
 	implementation("software.amazon.jdbc:aws-advanced-jdbc-wrapper:latest")
 }
 ```
