@@ -52,8 +52,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-          AURORA_MYSQL_DB_ENGINE_VERSION: "broken"
-          AURORA_PG_ENGINE_VERSION: "broken"
+          AURORA_MYSQL_DB_ENGINE_VERSION: "latest"
+          AURORA_PG_ENGINE_VERSION: "latest"
       - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@v4
@@ -110,8 +110,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-          AURORA_MYSQL_DB_ENGINE_VERSION: "123"
-          AURORA_PG_ENGINE_VERSION: "123"
+          AURORA_MYSQL_DB_ENGINE_VERSION: "lts"
+          AURORA_PG_ENGINE_VERSION: "lts"
       - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@v4
