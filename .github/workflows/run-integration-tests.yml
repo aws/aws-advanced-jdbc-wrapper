@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   all-integration-tests-latest:
-    name: 'Run Aurora integration tests with latest version'
+    name: 'Run Aurora integration tests with latest'
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
@@ -58,19 +58,19 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-report
-          path: ./wrapper/build/test-results-latest
+          name: junit-report-latest
+          path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: html-summary-report-latest
-          path: ./wrapper/build/report-latest
+          name: html-summary-latest
+          path: ./wrapper/build/report
           retention-days: 5
 
   all-integration-tests-lts:
-    name: 'Run Aurora integration tests with LTS version'
+    name: 'Run Aurora integration tests with LTS'
     runs-on: ubuntu-latest
     steps:
       - name: 'Clone repository'
@@ -116,13 +116,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-report
-          path: ./wrapper/build/test-results-lts
+          name: junit-report-lts
+          path: ./wrapper/build/test-results
           retention-days: 5
       - name: 'Archive html summary report'
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: html-summary-report-lts
-          path: ./wrapper/build/report-lts
+          name: html-summary-lts
+          path: ./wrapper/build/report
           retention-days: 5
