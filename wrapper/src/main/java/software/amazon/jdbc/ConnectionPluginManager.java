@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -91,6 +92,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
+
+  private final ReentrantLock lock = new ReentrantLock();
+
   protected Properties props = new Properties();
   protected List<ConnectionPlugin> plugins;
   protected final @NonNull ConnectionProvider defaultConnProvider;
@@ -144,6 +148,18 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
+  }
+
+  public void lock() {
+    lock.lock();
+  }
+
+  public void unlock() {
+    lock.unlock();
+  }
+
+  public boolean isHeldByCurrentThread() {
+    return lock.isHeldByCurrentThread();
   }
 
   /**

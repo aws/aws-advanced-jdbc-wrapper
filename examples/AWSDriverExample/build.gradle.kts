@@ -18,9 +18,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     implementation("org.postgresql:postgresql:42.7.2")
     implementation("mysql:mysql-connector-java:8.0.33")
-    implementation("software.amazon.awssdk:rds:2.24.10")
-    implementation("software.amazon.awssdk:secretsmanager:2.24.1")
-    implementation("software.amazon.awssdk:sts:2.24.10")
+    implementation("software.amazon.awssdk:rds:2.25.2")
+    implementation("software.amazon.awssdk:secretsmanager:2.25.2")
+    implementation("software.amazon.awssdk:sts:2.25.2")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("io.opentelemetry:opentelemetry-api:1.35.0")

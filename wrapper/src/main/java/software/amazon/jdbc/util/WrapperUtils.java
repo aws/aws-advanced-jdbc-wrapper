@@ -85,8 +85,6 @@ public class WrapperUtils {
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
       new ConcurrentHashMap<>();
 
-  private static final ReentrantLock lock = new ReentrantLock();
-
   private static final Map<Class<?>, Class<?>> availableWrappers =
       new HashMap<Class<?>, Class<?>>() {
         {
@@ -186,7 +184,7 @@ public class WrapperUtils {
       final Object... jdbcMethodArgs) {
 
     if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
-      lock.lock();
+      pluginManager.lock();
     }
     TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
     TelemetryContext context = null;
@@ -213,8 +211,8 @@ public class WrapperUtils {
         throw new RuntimeException(e);
       }
     } finally {
-      if (lock.isHeldByCurrentThread()) {
-        lock.unlock();
+      if (pluginManager.isHeldByCurrentThread()) {
+        pluginManager.unlock();
       }
       if (context != null) {
         context.closeContext();
@@ -233,7 +231,7 @@ public class WrapperUtils {
       throws E {
 
     if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
-      lock.lock();
+      pluginManager.lock();
     }
     TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
     TelemetryContext context = null;
@@ -260,8 +258,8 @@ public class WrapperUtils {
       }
 
     } finally {
-      if (lock.isHeldByCurrentThread()) {
-        lock.unlock();
+      if (pluginManager.isHeldByCurrentThread()) {
+        pluginManager.unlock();
       }
       if (context != null) {
         context.closeContext();

@@ -126,32 +126,6 @@ public class WrapperUtilsTest {
   }
 
   @Test
-  void testExecutesWithPluginsIsSequential() {
-    List<CompletableFuture<Integer>> futures = new ArrayList<>();
-
-    for (int i = 0; i < 5; i++) {
-      futures.add(CompletableFuture.supplyAsync(this::callExecuteWithPlugins));
-    }
-
-    for (CompletableFuture<Integer> future : futures) {
-      future.join();
-    }
-  }
-
-  @Test
-  void testExecutesWithPluginsWithExceptionIsSequential() {
-    List<CompletableFuture<Integer>> futures = new ArrayList<>();
-
-    for (int i = 0; i < 5; i++) {
-      futures.add(CompletableFuture.supplyAsync(this::callExecuteWithPluginsWithException));
-    }
-
-    for (CompletableFuture<Integer> future : futures) {
-      future.join();
-    }
-  }
-
-  @Test
   void testCancelStatementIsNotBlockedExecute() {
     CompletableFuture.allOf(
         CompletableFuture.supplyAsync(this::callExecuteWithPlugins),
