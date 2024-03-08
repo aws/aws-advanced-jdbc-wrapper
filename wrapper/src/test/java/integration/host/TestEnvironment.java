@@ -45,7 +45,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.ToxiproxyContainer;
@@ -66,8 +65,6 @@ public class TestEnvironment implements AutoCloseable {
   private static final String TELEMETRY_XRAY_CONTAINER_NAME = "xray-daemon";
   private static final String TELEMETRY_OTLP_CONTAINER_NAME = "otlp-daemon";
   private static final String PROXIED_DOMAIN_NAME_SUFFIX = ".proxied";
-  private static final String AURORA_MYSQL_ENGINE_NAME = "aurora-mysql";
-  private static final String AURORA_PG_ENGINE_NAME = "aurora-postgresql";
   protected static final int PROXY_CONTROL_PORT = 8474;
   protected static final int PROXY_PORT = 8666;
   private static final String HIBERNATE_VERSION = "6.2.0.CR2";
@@ -479,31 +476,34 @@ public class TestEnvironment implements AutoCloseable {
   private static String getAuroraDbEngineVersion(
       TestEnvironment env,
       TestEnvironmentRequest request) {
+    String engineName;
+    String systemPropertyVersion;
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        if (config.auroraMySqlDbEngineVersion == null
-            || config.auroraPgDbEngineVersion.equals("lts")) {
-          return env.auroraUtil.getLTSVersion(AURORA_MYSQL_ENGINE_NAME);
-        } else if (config.auroraMySqlDbEngineVersion.equals("latest")) {
-          return env.auroraUtil.getLatestVersion(AURORA_MYSQL_ENGINE_NAME);
-        } else {
-          // System property specified
-          return config.auroraMySqlDbEngineVersion;
-        }
-
+        engineName = "aurora-mysql";
+        systemPropertyVersion = config.auroraMySqlDbEngineVersion;
+        break;
       case PG:
-        if (config.auroraPgDbEngineVersion == null
-            || config.auroraPgDbEngineVersion.equals("lts")) {
-          return env.auroraUtil.getLTSVersion(AURORA_PG_ENGINE_NAME);
-        } else if (config.auroraPgDbEngineVersion.equals("latest")) {
-          return env.auroraUtil.getLatestVersion(AURORA_PG_ENGINE_NAME);
-        } else {
-          // System property specified
-          return config.auroraPgDbEngineVersion;
-        }
-
+        engineName = "aurora-postgresql";
+        systemPropertyVersion = config.auroraPgDbEngineVersion;
+        break;
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
+    }
+    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion);
+  }
+
+  private static String findAuroraDbEngineVersion(
+      TestEnvironment env,
+      String engineName,
+      String systemPropertyVersion
+  ) {
+    if (systemPropertyVersion == null || systemPropertyVersion.equals("lts")) {
+      return env.auroraUtil.getLTSVersion(engineName);
+    } else if (systemPropertyVersion.equals("latest")) {
+      return env.auroraUtil.getLatestVersion(engineName);
+    } else {
+      return systemPropertyVersion;
     }
   }
 
