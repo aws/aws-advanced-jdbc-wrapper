@@ -39,6 +39,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -940,13 +941,20 @@ public class AuroraTestUtility {
   }
 
   public String getLatestVersion(String engine) {
-    return Collections.max(getEngineVersions(engine));
+    return getEngineVersions(engine)
+        .stream()
+        .sorted()
+        .reduce((first, last) -> last)
+        .orElse(null);
   }
 
   public String getLTSVersion(String engine) {
     final DescribeDbEngineVersionsResponse versions = rdsClient.describeDBEngineVersions(
         DescribeDbEngineVersionsRequest.builder().defaultOnly(true).engine(engine).build()
     );
-    return versions.dbEngineVersions().get(0).engineVersion();
+    if (!versions.dbEngineVersions().isEmpty()) {
+      return versions.dbEngineVersions().get(0).engineVersion();
+    }
+    throw new RuntimeException("Failed to find LTS version");
   }
 }

@@ -78,6 +78,9 @@ public class TestEnvironmentConfiguration {
   public String auroraClusterName = System.getenv("AURORA_CLUSTER_NAME"); // "cluster-mysql"
   public String auroraClusterDomain =
       System.getenv("AURORA_CLUSTER_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
+
+  // Expected values: "latest", "lts", or engine version, for example, "15.4"
+  // If left as empty, will use LTS version
   public String auroraMySqlDbEngineVersion =
       System.getenv("AURORA_MYSQL_DB_ENGINE_VERSION");
   public String auroraPgDbEngineVersion =

@@ -476,34 +476,28 @@ public class TestEnvironment implements AutoCloseable {
   private static String getAuroraDbEngineVersion(
       TestEnvironment env,
       TestEnvironmentRequest request) {
-    String engineName;
-    String systemPropertyVersion;
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        engineName = "aurora-mysql";
-        systemPropertyVersion = config.auroraMySqlDbEngineVersion;
-        break;
+        if (config.auroraMySqlDbEngineVersion == null
+            || config.auroraMySqlDbEngineVersion.equals("lts")) {
+          return env.auroraUtil.getLTSVersion("aurora-mysql");
+        } else if (config.auroraMySqlDbEngineVersion.equals("latest")) {
+          return env.auroraUtil.getLatestVersion("aurora-mysql");
+        } else {
+          return config.auroraMySqlDbEngineVersion;
+        }
+
       case PG:
-        engineName = "aurora-postgresql";
-        systemPropertyVersion = config.auroraPgDbEngineVersion;
-        break;
+        if (config.auroraPgDbEngineVersion == null
+            || config.auroraPgDbEngineVersion.equals("lts")) {
+          return env.auroraUtil.getLTSVersion("aurora-postgresql");
+        } else if (config.auroraPgDbEngineVersion.equals("latest")) {
+          return env.auroraUtil.getLatestVersion("aurora-postgresql");
+        } else {
+          return config.auroraPgDbEngineVersion;
+        }
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
-    }
-    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion);
-  }
-
-  private static String findAuroraDbEngineVersion(
-      TestEnvironment env,
-      String engineName,
-      String systemPropertyVersion
-  ) {
-    if (systemPropertyVersion == null || systemPropertyVersion.equals("lts")) {
-      return env.auroraUtil.getLTSVersion(engineName);
-    } else if (systemPropertyVersion.equals("latest")) {
-      return env.auroraUtil.getLatestVersion(engineName);
-    } else {
-      return systemPropertyVersion;
     }
   }
 
