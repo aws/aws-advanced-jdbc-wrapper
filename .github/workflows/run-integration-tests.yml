@@ -65,7 +65,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: html-summary-latest
+          name: html-summary-report-latest
           path: ./wrapper/build/report
           retention-days: 5
 
@@ -123,6 +123,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: html-summary-lts
+          name: html-summary-report-latest
           path: ./wrapper/build/report
           retention-days: 5
