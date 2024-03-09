@@ -476,28 +476,37 @@ public class TestEnvironment implements AutoCloseable {
   private static String getAuroraDbEngineVersion(
       TestEnvironment env,
       TestEnvironmentRequest request) {
+    String engineName;
+    String systemPropertyVersion;
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        if (config.auroraMySqlDbEngineVersion == null
-            || config.auroraMySqlDbEngineVersion.equals("lts")) {
-          return env.auroraUtil.getLTSVersion("aurora-mysql");
-        } else if (config.auroraMySqlDbEngineVersion.equals("latest")) {
-          return env.auroraUtil.getLatestVersion("aurora-mysql");
-        } else {
-          return config.auroraMySqlDbEngineVersion;
-        }
-
+        engineName = "aurora-mysql";
+        systemPropertyVersion = config.auroraMySqlDbEngineVersion;
+        break;
       case PG:
-        if (config.auroraPgDbEngineVersion == null
-            || config.auroraPgDbEngineVersion.equals("lts")) {
-          return env.auroraUtil.getLTSVersion("aurora-postgresql");
-        } else if (config.auroraPgDbEngineVersion.equals("latest")) {
-          return env.auroraUtil.getLatestVersion("aurora-postgresql");
-        } else {
-          return config.auroraPgDbEngineVersion;
-        }
+        engineName = "aurora-postgresql";
+        systemPropertyVersion = config.auroraPgDbEngineVersion;
+        break;
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
+    }
+    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion);
+  }
+
+  private static String findAuroraDbEngineVersion(
+      TestEnvironment env,
+      String engineName,
+      String systemPropertyVersion) {
+    if (systemPropertyVersion == null) {
+      return env.auroraUtil.getLTSVersion(engineName);
+    }
+    switch (systemPropertyVersion) {
+      case "lts":
+        return env.auroraUtil.getLTSVersion(engineName);
+      case "latest":
+        return env.auroraUtil.getLatestVersion(engineName);
+      default:
+        return systemPropertyVersion;
     }
   }
 
