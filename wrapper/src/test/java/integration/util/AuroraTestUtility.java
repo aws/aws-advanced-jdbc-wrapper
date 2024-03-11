@@ -41,6 +41,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -943,8 +944,8 @@ public class AuroraTestUtility {
   public String getLatestVersion(String engine) {
     return getEngineVersions(engine)
         .stream()
-        .sorted()
-        .reduce((first, last) -> last)
+        .sorted(Comparator.reverseOrder())
+        .findFirst()
         .orElse(null);
   }
 

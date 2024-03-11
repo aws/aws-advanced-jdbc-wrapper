@@ -389,7 +389,7 @@ public class TestEnvironment implements AutoCloseable {
 
       try {
         String engine = getAuroraDbEngine(env.info.getRequest());
-        String engineVersion = getAuroraDbEngineVersion(env, env.info.getRequest());
+        String engineVersion = getAuroraDbEngineVersion(env);
         String instanceClass = getAuroraInstanceClass(env.info.getRequest());
 
         LOGGER.finer(
@@ -473,11 +473,10 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static String getAuroraDbEngineVersion(
-      TestEnvironment env,
-      TestEnvironmentRequest request) {
+  private static String getAuroraDbEngineVersion(TestEnvironment env) {
     String engineName;
     String systemPropertyVersion;
+    TestEnvironmentRequest request = env.info.getRequest();
     switch (request.getDatabaseEngine()) {
       case MYSQL:
         engineName = "aurora-mysql";
@@ -490,7 +489,7 @@ public class TestEnvironment implements AutoCloseable {
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
-    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion);
+    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion.toLowerCase());
   }
 
   private static String findAuroraDbEngineVersion(
