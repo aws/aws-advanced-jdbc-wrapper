@@ -24,7 +24,7 @@ repositories {
 }
 
 dependencies {
-    implementation("software.amazon.awssdk:rds:2.25.2")
+    implementation("software.amazon.awssdk:rds:2.25.7")
     implementation("software.amazon.awssdk:sts:2.25.2")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
