@@ -115,27 +115,7 @@ public class ConnectionStringHostListProvider implements StaticHostListProvider 
 
   @Override
   public HostSpec identifyConnection(Connection connection) throws SQLException {
-    try (final Statement stmt = connection.createStatement();
-        final ResultSet resultSet = stmt.executeQuery(this.hostListProviderService.getDialect().getHostAliasQuery())) {
-      if (resultSet.next()) {
-        final String instance = resultSet.getString(1);
-
-        final List<HostSpec> topology = this.refresh(connection);
-
-        if (topology == null) {
-          return null;
-        }
-
-        return topology
-            .stream()
-            .filter(host -> Objects.equals(instance, host.getHostId()))
-            .findAny()
-            .orElse(null);
-      }
-    } catch (final SQLException e) {
-      throw new SQLException(Messages.get("ConnectionStringHostListProvider.errorIdentifyConnection"), e);
-    }
-
-    throw new SQLException(Messages.get("ConnectionStringHostListProvider.errorIdentifyConnection"));
+    throw new UnsupportedOperationException(
+        Messages.get("ConnectionStringHostListProvider.unsupportedIdentifyConnection"));
   }
 }
