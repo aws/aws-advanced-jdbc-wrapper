@@ -39,6 +39,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -65,12 +68,15 @@ import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
+import software.amazon.awssdk.services.rds.model.DBEngineVersion;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRequest;
+import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
@@ -922,5 +928,34 @@ public class AuroraTestUtility {
           throw new UnsupportedOperationException(databaseEngine.toString());
       }
     }
+  }
+
+  public List<String> getEngineVersions(String engine) {
+    final List<String> res = new ArrayList<>();
+    final DescribeDbEngineVersionsResponse versions = rdsClient.describeDBEngineVersions(
+        DescribeDbEngineVersionsRequest.builder().engine(engine).build()
+    );
+    for (DBEngineVersion version : versions.dbEngineVersions()) {
+      res.add(version.engineVersion());
+    }
+    return res;
+  }
+
+  public String getLatestVersion(String engine) {
+    return getEngineVersions(engine)
+        .stream()
+        .sorted(Comparator.reverseOrder())
+        .findFirst()
+        .orElse(null);
+  }
+
+  public String getLTSVersion(String engine) {
+    final DescribeDbEngineVersionsResponse versions = rdsClient.describeDBEngineVersions(
+        DescribeDbEngineVersionsRequest.builder().defaultOnly(true).engine(engine).build()
+    );
+    if (!versions.dbEngineVersions().isEmpty()) {
+      return versions.dbEngineVersions().get(0).engineVersion();
+    }
+    throw new RuntimeException("Failed to find LTS version");
   }
 }

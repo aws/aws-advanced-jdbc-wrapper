@@ -46,6 +46,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
+          AURORA_MYSQL_DB_ENGINE_VERSION: "lts"
+          AURORA_PG_ENGINE_VERSION: "lts"
       - name: 'Archive Performance Results'
         if: always()
         uses: actions/upload-artifact@v4
