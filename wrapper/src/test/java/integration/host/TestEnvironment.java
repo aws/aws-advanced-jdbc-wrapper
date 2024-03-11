@@ -389,7 +389,12 @@ public class TestEnvironment implements AutoCloseable {
 
       try {
         String engine = getAuroraDbEngine(env.info.getRequest());
+
         String engineVersion = getAuroraDbEngineVersion(env);
+        if (StringUtils.isNullOrEmpty(engineVersion)) {
+          throw new RuntimeException("Failed to get engine version.");
+        }
+
         String instanceClass = getAuroraInstanceClass(env.info.getRequest());
 
         LOGGER.finer(
