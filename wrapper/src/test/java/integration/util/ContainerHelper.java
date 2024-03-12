@@ -222,7 +222,9 @@ public class ContainerHelper {
                     builder
                         .from(testContainerImageName)
                         .run("mkdir", "app")
-                        .run("microdnf", "install", "findutils")
+                        .run(testContainerImageName.contains("graalvm")
+                            ? "microdnf install findutils"
+                            : "echo Skipping findutils installation")
                         .workDir("/app")
                         .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
                         .expose(5005) // Exposing ports for debugger to be attached
