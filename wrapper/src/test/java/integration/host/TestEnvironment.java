@@ -669,7 +669,6 @@ public class TestEnvironment implements AutoCloseable {
                   getContainerBaseImageName(env.info.getRequest()),
                   builder -> builder
                       .run("apk", "add", "git")
-                      .run("apk", "add", "findutils")
                       .run("git", "clone", "--depth", "1", "--branch", HIBERNATE_VERSION,
                           "https://github.com/hibernate/hibernate-orm.git", "/app/hibernate-orm"))
               .withCopyFileToContainer(MountableFile.forHostPath(
