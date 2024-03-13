@@ -3,13 +3,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [2.3.5] - ???
+## [2.3.5] - 2024-03-14
 
 ### :magic_wand: Added
 - Sample code configuring the AWS JDBC Driver with DBCP ([PR #930](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/930)).
 
 ### :crab: Changed
 - Fix issue with deadlock while using prepared transactions and PostgreSQL Explicit Locking ([PR #918](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/918)).
+- Removed `ConnectionStringHostListProvider#identifyConnection` since it is not used ([PR #920](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/920)).
 
 ## [2.3.4] - 2024-03-01
 ### :magic_wand: Added
@@ -291,6 +292,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.3.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.4...2.3.5
 [2.3.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.3...2.3.4
 [2.3.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.2...2.3.3
 [2.3.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.1...2.3.2
