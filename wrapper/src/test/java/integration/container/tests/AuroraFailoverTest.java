@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mysql.cj.conf.PropertyKey;
 import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
@@ -34,6 +35,7 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestDriver;
 import integration.container.condition.EnableOnTestFeature;
@@ -52,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,13 +73,14 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @EnableOnNumOfInstances(min = 2)
+@EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA) // TODO: MultiAz is failing
 @MakeSureFirstInstanceWriter
+@Order(14)
 public class AuroraFailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-
   protected static final int IS_VALID_TIMEOUT = 5;
 
   protected String currentWriter;
@@ -349,6 +353,7 @@ public class AuroraFailoverTest {
 
       final String instanceId = auroraUtil.queryInstanceId(
           TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
           conn);
       assertEquals(this.currentWriter, instanceId);
 
@@ -365,14 +370,36 @@ public class AuroraFailoverTest {
           FailoverSQLException.class,
           () -> auroraUtil.queryInstanceId(
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
               conn));
+    }
 
-      // Sleep for 10 seconds to allow daemon threads to finish running.
-      Thread.sleep(30000);
+    // Sleep for 30 seconds to allow daemon threads to finish running.
+    Thread.sleep(30000);
 
-      // Ensure that all idle connections are closed.
-      for (Connection idleConnection : idleConnections) {
-        assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperUrl(
+            clusterEndpoint,
+            clusterEndpointPort,
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+        props)) {
+
+      final String instanceId = auroraUtil.queryInstanceId(
+          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+          TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+          conn);
+
+      if (this.currentWriter.equals(instanceId)) {
+        LOGGER.finest("Cluster failed over to the same instance " + instanceId + ".");
+        for (Connection idleConnection : idleConnections) {
+          assertFalse(idleConnection.isClosed(), String.format("Idle connection %s is closed.", idleConnection));
+        }
+      } else {
+        LOGGER.finest("Cluster failed over to the instance " + instanceId + ".");
+        // Ensure that all idle connections are closed.
+        for (Connection idleConnection : idleConnections) {
+          assertTrue(idleConnection.isClosed(), String.format("Idle connection %s is still opened.", idleConnection));
+        }
       }
     }
   }

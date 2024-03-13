@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,6 +62,7 @@ import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+@Order(3)
 // MariaDb driver has no configuration parameters to force using 'mysql_clear_password'
 // authentication that is essential for IAM. A proper user name and IAM token are passed to MariaDb
 // driver however 'mysql_native_password' authentication is chosen by default.
@@ -262,14 +264,14 @@ public class AwsIamIntegrationTest {
 
     final String regularToken = new RegularRdsUtility().generateAuthenticationToken(
         credentialsProvider,
-        Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion()),
+        Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getIamUsername());
 
     final String lightToken = new LightRdsUtility().generateAuthenticationToken(
         credentialsProvider,
-        Region.of(TestEnvironment.getCurrent().getInfo().getAuroraRegion()),
+        Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterReadOnlyEndpointPort(),
         TestEnvironment.getCurrent().getInfo().getIamUsername());
@@ -282,7 +284,7 @@ public class AwsIamIntegrationTest {
     props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
     props.setProperty(
         IamAuthConnectionPlugin.IAM_REGION.name,
-        TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+        TestEnvironment.getCurrent().getInfo().getRegion());
     props.setProperty(PropertyDefinition.USER.name, user);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
     DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);

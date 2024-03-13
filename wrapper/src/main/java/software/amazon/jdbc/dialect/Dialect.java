@@ -17,11 +17,13 @@
 package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
+import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 
 public interface Dialect {
   int getDefaultPort();
@@ -40,4 +42,6 @@ public interface Dialect {
 
   void prepareConnectProperties(
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec);
+
+  EnumSet<FailoverRestriction> getFailoverRestrictions();
 }

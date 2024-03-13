@@ -20,11 +20,13 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
+import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
@@ -41,6 +43,9 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final String NODE_ID_QUERY = "SELECT @@server_id";
   private static final String IS_READER_QUERY = "SELECT @@read_only";
+
+  private static final EnumSet<FailoverRestriction> TASK_A_RESTRICTIONS =
+      EnumSet.of(FailoverRestriction.DISABLE_TASK_A);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -108,5 +113,10 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
         connectProperties.getProperty("connectionAttributes") == null
             ? connectionAttributes
             : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);
+  }
+
+  @Override
+  public EnumSet<FailoverRestriction> getFailoverRestrictions() {
+    return TASK_A_RESTRICTIONS;
   }
 }

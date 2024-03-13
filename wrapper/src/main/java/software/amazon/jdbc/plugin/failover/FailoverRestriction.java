@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-package integration;
+package software.amazon.jdbc.plugin.failover;
 
-public enum DatabaseEngineDeployment {
-  DOCKER,
-  RDS,
-  RDS_MULTI_AZ,
-  AURORA
+public enum FailoverRestriction {
+  DISABLE_TASK_A
 }

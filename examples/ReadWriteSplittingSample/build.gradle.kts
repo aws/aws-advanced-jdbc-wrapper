@@ -22,5 +22,5 @@ dependencies {
 }
 
 tasks.withType<JavaExec> {
-    systemProperty("java.util.logging.config.file", "${project.buildDir}/resources/main/logging.properties")
+    systemProperty("java.util.logging.config.file", "${project.layout.buildDirectory.get()}/resources/main/logging.properties")
 }

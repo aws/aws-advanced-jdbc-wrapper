@@ -19,6 +19,7 @@ package integration;
 import com.mysql.cj.conf.PropertyKey;
 import integration.container.TestDriver;
 import integration.container.TestEnvironment;
+import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -336,6 +337,17 @@ public class DriverHelper {
     }
   }
 
+  public static void registerDriver(DatabaseEngine engine) {
+    try {
+      Class.forName(DriverHelper.getDriverClassname(engine));
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException(
+          "Driver not found: "
+              + DriverHelper.getDriverClassname(engine),
+          e);
+    }
+  }
+
   public static void registerDriver(TestDriver testDriver) throws SQLException {
     try {
       Driver d = (Driver) Class.forName(getDriverClassname(testDriver)).newInstance();
@@ -362,5 +374,16 @@ public class DriverHelper {
           }
           return sb.toString();
         });
+  }
+
+  public static Connection getDriverConnection(TestEnvironmentInfo info) throws SQLException {
+    final String url =
+        String.format(
+            "%s%s:%d/%s",
+            DriverHelper.getDriverProtocol(info.getRequest().getDatabaseEngine()),
+            info.getDatabaseInfo().getClusterEndpoint(),
+            info.getDatabaseInfo().getClusterEndpointPort(),
+            info.getDatabaseInfo().getDefaultDbName());
+    return DriverManager.getConnection(url, info.getDatabaseInfo().getUsername(), info.getDatabaseInfo().getPassword());
   }
 }
