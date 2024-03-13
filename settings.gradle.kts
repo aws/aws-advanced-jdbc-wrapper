@@ -22,6 +22,7 @@ include(
     "benchmarks",
     "hibernate",
     "hikari",
+    "dbcp",
     "driverexample",
     "springhibernate",
     "springhibernateonedatasource",
@@ -37,6 +38,7 @@ project(":aws-advanced-jdbc-wrapper").projectDir = file("wrapper")
 project(":aws-advanced-jdbc-wrapper-bundle").projectDir = file("aws-advanced-jdbc-wrapper-bundle")
 project(":hibernate").projectDir = file("examples/HibernateExample")
 project(":hikari").projectDir = file("examples/HikariExample")
+project(":dbcp").projectDir = file("examples/DBCPExample")
 project(":driverexample").projectDir = file("examples/AWSDriverExample")
 project(":springhibernate").projectDir = file("examples/SpringHibernateExample")
 project(":springhibernateonedatasource").projectDir = file("examples/SpringHibernateBalancedReaderOneDataSourceExample")
