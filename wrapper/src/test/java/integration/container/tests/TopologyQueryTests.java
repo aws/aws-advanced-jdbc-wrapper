@@ -52,8 +52,6 @@ import org.junit.jupiter.api.MethodOrderer.MethodName;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.jdbc.dialect.AuroraMysqlDialect;
 import software.amazon.jdbc.dialect.AuroraPgDialect;
 import software.amazon.jdbc.dialect.RdsMultiAzDbClusterMysqlDialect;
@@ -167,18 +165,9 @@ public class TopologyQueryTests {
         .getInstances()
         .get(0)
         .getInstanceId();
-    Region region = Region.of(TestEnvironment.getCurrent()
-        .getInfo()
-        .getAuroraRegion());
-
-    RdsClient client = RdsClient.builder()
-        .region(region)
-        .build();
     // Update the cluster to force timestamp to appear
     assertDoesNotThrow(() -> util.updateInstanceCertificateIdentifier(
         dbInstanceIdentifier, "rds-ca-rsa4096-g1"));
-
-    client.close();
 
     String query = null;
     SimpleDateFormat format;
