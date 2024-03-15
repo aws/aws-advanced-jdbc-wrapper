@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.3.6] - ?
+
+### :crab: Changed
+- Changed log level of `Failover.startWriterFailover` and `Failover.establishedConnection` to info ([PR #922](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/922))
+
 ## [2.3.5] - 2024-03-14
 
 ### :magic_wand: Added
