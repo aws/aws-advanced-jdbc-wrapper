@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.3.6] - ?
 
 ### :crab: Changed
-- Changed log level of `Failover.startWriterFailover` and `Failover.establishedConnection` to info ([PR #922](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/922))
+- Log level of `Failover.startWriterFailover` and `Failover.establishedConnection` from `fine` to `info` for better visibility of failover-related logs ([Issue #890](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/890)).
 
 ## [2.3.5] - 2024-03-14
 
