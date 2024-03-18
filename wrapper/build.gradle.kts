@@ -46,7 +46,7 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.35.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.35.0")
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.10.1")
+    testImplementation("org.junit.platform:junit-platform-commons:1.10.2")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.1")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.2")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.10.2")
