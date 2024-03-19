@@ -1,7 +1,14 @@
 # Aurora Initial Connection Strategy Plugin
 The AWS Advanced JDBC Driver allows the user to configure their initial connection strategy using this plugin. With this plugin enabled, the initial connection will be chosen based on the configured strategy. The time between retries and timeouts for these initial connections can also be configured.
 <br><br>
-During failover, the cluster elects another instance. DNS is updated, but it takes time (40–60s). While DNS is updating, if a user tries to connect to the endpoint, it gets connected to an old node. This plugin is used to replace the old endpoint with a current endpoint. Changing the initial connection strategy would change which endpoint is chosen to replace the old one in this scenario.
+When a user uses cluster endpoints,
+then the instance for a new connection is resolved by DNS.
+During failover, the cluster elects another instance.
+DNS is updated, but it takes time (up to 40–60s).
+While DNS is updating, if a user tries to connect to the endpoint, it gets connected to an old node.
+This plugin is used to replace the old endpoint with a current endpoint while DNS is still updating.
+Changing the initial connection strategy would change
+which endpoint is chosen to replace the old one in this scenario.
 
 ## Enabling the Aurora Initial Connection Strategy Plugin
 
