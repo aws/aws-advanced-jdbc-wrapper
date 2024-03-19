@@ -32,8 +32,10 @@ dependencies {
     implementation("com.igormaznitsa:jcp:7.0.5")
 }
 
-kotlin {
-    jvmToolchain(8)
+java {
+    toolchain {
+        implementation = JvmImplementation.J9
+    }
 }
 
 tasks {
