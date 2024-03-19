@@ -35,6 +35,7 @@ dependencies {
 java {
     toolchain {
         implementation = JvmImplementation.J9
+        languageVersion.set(JavaLanguageVersion.of(8))
     }
 }
 
