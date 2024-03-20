@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     `kotlin-dsl`
     java
+    id("java-library")
 }
 
 repositories {
@@ -35,7 +36,6 @@ dependencies {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
-        vendor = JvmVendorSpec.AMAZON
     }
 }
 
