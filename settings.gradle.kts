@@ -63,6 +63,6 @@ pluginManagement {
         id("me.champeau.jmh") version "0.+"
         id("org.checkerframework") version "0.+"
         id("com.kncept.junit.reporter") version "2.1.0"
-        id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+//        id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
     }
 }
