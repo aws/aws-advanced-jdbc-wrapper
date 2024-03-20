@@ -32,6 +32,12 @@ dependencies {
     implementation("com.igormaznitsa:jcp:7.0.5")
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
+}
+
 tasks {
     compileJava {
         sourceCompatibility = "1.8"
