@@ -54,6 +54,7 @@ pluginManagement {
         fun String.v() = extra["$this.version"].toString()
         fun PluginDependenciesSpec.idv(id: String, key: String = id) = id(id) version key.v()
 
+        id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
         id("biz.aQute.bnd.builder") version "6.4.0"
         id("com.github.spotbugs") version "6.0.+"
         id("com.diffplug.spotless") version "6.13.0" // 6.13.0 is the last version that is compatible with Java 8
@@ -63,6 +64,5 @@ pluginManagement {
         id("me.champeau.jmh") version "0.+"
         id("org.checkerframework") version "0.+"
         id("com.kncept.junit.reporter") version "2.1.0"
-        id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
     }
 }
