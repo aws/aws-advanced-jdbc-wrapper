@@ -185,9 +185,9 @@ else {
 
     // Configure version of Java tools
     java {
-//        toolchain {
-//            languageVersion = gradle.ext.javaVersions.main.compiler
-//        }
+        toolchain {
+            languageVersion = gradle.ext.javaVersions.main.compiler
+        }
     }
     tasks.compileTestJava {
         javaCompiler = javaToolchains.compilerFor {

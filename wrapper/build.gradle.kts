@@ -99,9 +99,9 @@ tasks.test {
 java {
     withJavadocJar()
     withSourcesJar()
-//    toolchain {
-//        languageVersion.set(JavaLanguageVersion.of(8))
-//    }
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
 }
 
 tasks.named("sourcesJar") {
