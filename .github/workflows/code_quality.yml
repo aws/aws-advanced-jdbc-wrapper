@@ -30,6 +30,8 @@ jobs:
               - '**/docs/**'
               - '**/*.jpg'
               - '**/*.png'
+          args: >
+            --property=idea.suppressed.plugins.id=com.intellij.gradle
       - name: 'Check changed files'
         id: changed-files
         if: ${{steps.changed-files-specific.outputs.doc_only_changed == 'false' && steps.changed-files-specific.outputs.doc_only_modified == 'false'}}
