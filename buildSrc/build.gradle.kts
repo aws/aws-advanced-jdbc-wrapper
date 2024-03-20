@@ -35,7 +35,7 @@ dependencies {
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
-        vendor.set(JvmVendorSpec.AMAZON)
+        vendor = JvmVendorSpec.AMAZON
     }
 }
 
