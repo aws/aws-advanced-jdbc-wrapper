@@ -21,7 +21,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     `kotlin-dsl`
     java
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 }
 
 repositories {
