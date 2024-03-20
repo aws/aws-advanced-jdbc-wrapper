@@ -33,10 +33,6 @@ dependencies {
     implementation("com.igormaznitsa:jcp:7.0.5")
 }
 
-kotlin {
-    jvmToolchain(17)
-}
-
 tasks {
     compileJava {
         sourceCompatibility = "1.8"
