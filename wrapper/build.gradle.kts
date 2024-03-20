@@ -101,6 +101,8 @@ java {
     withSourcesJar()
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(8))
+        implementation = JvmImplementation.J9
+        vendor = JvmVendorSpec.AMAZON
     }
 }
 
