@@ -99,6 +99,11 @@ tasks.test {
 java {
     withJavadocJar()
     withSourcesJar()
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(8))
+        }
+    }
 }
 
 tasks.named("sourcesJar") {
