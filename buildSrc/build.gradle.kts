@@ -39,6 +39,10 @@ java {
     }
 }
 
+kotlin {
+    jvmToolchain(8)
+}
+
 tasks {
     compileJava {
         sourceCompatibility = "1.8"
