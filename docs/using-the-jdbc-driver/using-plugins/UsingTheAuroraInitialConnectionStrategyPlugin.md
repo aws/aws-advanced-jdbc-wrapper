@@ -24,5 +24,5 @@ properties.setProperty("wrapperPlugins", "initialConnection");
 Configuring the plugin using the connection parameters:
 
 ```java
-properties.setProperty("openConnectionRetryTimeoutMs", 30000);
+properties.setProperty("openConnectionRetryTimeoutMs", 40000);
 ```
