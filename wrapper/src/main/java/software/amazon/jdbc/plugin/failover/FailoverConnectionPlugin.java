@@ -610,7 +610,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[]{}));
       updateTopology(true);
 
-      LOGGER.fine(
+      LOGGER.info(
           () -> Messages.get(
               "Failover.establishedConnection",
               new Object[]{this.pluginService.getCurrentHostSpec()}));
@@ -642,7 +642,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverWriterTriggeredCounter.inc();
 
     try {
-      LOGGER.fine(() -> Messages.get("Failover.startWriterFailover"));
+      LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
       final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
