@@ -106,6 +106,16 @@ java {
     }
 }
 
+tasks.named("sourcesJar") {
+    dependsOn("preprocessVersion")
+}
+
+tasks.named("jacocoTestCoverageVerification") {
+    dependsOn("preprocessVersion")
+    dependsOn("compileJava")
+    dependsOn("processResources")
+}
+
 checkstyle {
     // Checkstyle versions 7.x, 8.x, and 9.x are supported by JRE version 8 and above.
     toolVersion = "9.3"

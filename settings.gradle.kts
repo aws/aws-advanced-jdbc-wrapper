@@ -65,3 +65,7 @@ pluginManagement {
         id("com.kncept.junit.reporter") version "2.1.0"
     }
 }
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0" // Does not get imported correctly in pluginManagement
+}
