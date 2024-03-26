@@ -110,7 +110,7 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
             : connectProperties.getProperty("connectionAttributes") + "," + connectionAttributes);
   }
 
-  public static String getTopologyQuery() {
+  public String getTopologyQuery() {
     return TOPOLOGY_QUERY;
   }
 }

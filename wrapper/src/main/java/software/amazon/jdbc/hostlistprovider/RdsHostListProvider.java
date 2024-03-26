@@ -423,6 +423,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     // According to the topology query the result set
     // should contain 4 columns: node ID, 1/0 (writer/reader), CPU utilization, node lag in time.
     String hostName = resultSet.getString(1);
+    hostName = hostName == null ? "?" : hostName;
     final boolean isWriter = resultSet.getBoolean(2);
     final float cpuUtilization = resultSet.getFloat(3);
     final float nodeLag = resultSet.getFloat(4);
@@ -439,8 +440,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     return createHost(hostName, isWriter, weight, lastUpdateTime);
   }
 
-  private HostSpec createHost(String host, final boolean isWriter, final long weight, final Timestamp lastUpdateTime) {
-    host = host == null ? "?" : host;
+  private HostSpec createHost(String host, final boolean isWriter, final long weight, final @Nullable Timestamp lastUpdateTime) {
     final String endpoint = getHostEndpoint(host);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
         ? this.clusterInstanceTemplate.getPort()
