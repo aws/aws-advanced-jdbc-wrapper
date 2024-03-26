@@ -440,7 +440,11 @@ public class RdsHostListProvider implements DynamicHostListProvider {
     return createHost(hostName, isWriter, weight, lastUpdateTime);
   }
 
-  private HostSpec createHost(String host, final boolean isWriter, final long weight, final @Nullable Timestamp lastUpdateTime) {
+  private HostSpec createHost(
+      String host,
+      final boolean isWriter,
+      final long weight,
+      final @Nullable Timestamp lastUpdateTime) {
     final String endpoint = getHostEndpoint(host);
     final int port = this.clusterInstanceTemplate.isPortSpecified()
         ? this.clusterInstanceTemplate.getPort()
