@@ -66,7 +66,6 @@ import software.amazon.jdbc.dialect.RdsMultiAzDbClusterPgDialect;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 public class TopologyQueryTests {
   private static final Logger LOGGER = Logger.getLogger(TopologyQueryTests.class.getName());
-  private final AuroraTestUtility util = new AuroraTestUtility();
   private String query = null;
 
   @TestTemplate
@@ -174,15 +173,6 @@ public class TopologyQueryTests {
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
       props.setProperty("permitMysqlScheme", "1");
     }
-
-    String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getInstanceId();
-    // Update the cluster to force timestamp to appear
-//     assertDoesNotThrow(() -> util.updateInstanceCertificateIdentifier(
-//         dbInstanceIdentifier, "rds-ca-rsa4096-g1"));
 
     SimpleDateFormat format;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
