@@ -18,7 +18,7 @@
     - [Driver Metadata Connection Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheDriverMetadataConnectionPlugin.md)
     - [Read Write Splitting Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheReadWriteSplittingPlugin.md)
     - [Federated Authentication Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheFederatedAuthPlugin.md)
-    - [Aurora Initial Connection Strategy](/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
+    - [Aurora Initial Connection Strategy Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
   - [Host Availability Strategy](/docs/using-the-jdbc-driver/HostAvailabilityStrategy.md)
 - [Development Guide](./development-guide/DevelopmentGuide.md)
   - [Setup](./development-guide/DevelopmentGuide.md#setup)
