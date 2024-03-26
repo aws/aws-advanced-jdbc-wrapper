@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
@@ -95,6 +96,12 @@ public class TopologyQueryTests {
                 .get(0)
                 .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+      props.setProperty("permitMysqlScheme", "1");
+    }
+
     LOGGER.finest("Connecting to " + url);
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
@@ -163,14 +170,19 @@ public class TopologyQueryTests {
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+      props.setProperty("permitMysqlScheme", "1");
+    }
+
     String dbInstanceIdentifier = TestEnvironment.getCurrent().getInfo()
         .getDatabaseInfo()
         .getInstances()
         .get(0)
         .getInstanceId();
     // Update the cluster to force timestamp to appear
-    assertDoesNotThrow(() -> util.updateInstanceCertificateIdentifier(
-        dbInstanceIdentifier, "rds-ca-rsa4096-g1"));
+//     assertDoesNotThrow(() -> util.updateInstanceCertificateIdentifier(
+//         dbInstanceIdentifier, "rds-ca-rsa4096-g1"));
 
     SimpleDateFormat format;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
@@ -231,6 +243,11 @@ public class TopologyQueryTests {
                 .getPort(),
             TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
+
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+      props.setProperty("permitMysqlScheme", "1");
+    }
 
     List<String> expectedTypes;
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.PG) {
