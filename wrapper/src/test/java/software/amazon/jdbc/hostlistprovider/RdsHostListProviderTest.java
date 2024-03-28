@@ -473,7 +473,8 @@ class RdsHostListProviderTest {
 
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
-    when(rdsHostListProvider.refresh(eq(mockConnection))).thenReturn(null);
+    doReturn(null).when(rdsHostListProvider).refresh(mockConnection);
+    doReturn(null).when(rdsHostListProvider).forceRefresh(mockConnection);
 
     assertNull(rdsHostListProvider.identifyConnection(mockConnection));
   }
@@ -492,7 +493,8 @@ class RdsHostListProviderTest {
         "jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
-    when(rdsHostListProvider.refresh(eq(mockConnection))).thenReturn(cachedTopology);
+    doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
+    doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh(mockConnection);
 
     assertNull(rdsHostListProvider.identifyConnection(mockConnection));
   }
@@ -512,7 +514,8 @@ class RdsHostListProviderTest {
         "jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-a-1");
-    when(rdsHostListProvider.refresh()).thenReturn(cachedTopology);
+    doReturn(cachedTopology).when(rdsHostListProvider).refresh(mockConnection);
+    doReturn(cachedTopology).when(rdsHostListProvider).forceRefresh(mockConnection);
 
     final HostSpec actual = rdsHostListProvider.identifyConnection(mockConnection);
     assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", actual.getHost());

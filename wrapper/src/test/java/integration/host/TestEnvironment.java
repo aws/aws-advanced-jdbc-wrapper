@@ -494,17 +494,18 @@ public class TestEnvironment implements AutoCloseable {
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
-    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion.toLowerCase());
+    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion);
   }
 
   private static String findAuroraDbEngineVersion(
       TestEnvironment env,
       String engineName,
       String systemPropertyVersion) {
-    if (systemPropertyVersion == null) {
+
+    if (StringUtils.isNullOrEmpty(systemPropertyVersion)) {
       return env.auroraUtil.getLTSVersion(engineName);
     }
-    switch (systemPropertyVersion) {
+    switch (systemPropertyVersion.toLowerCase()) {
       case "lts":
         return env.auroraUtil.getLTSVersion(engineName);
       case "latest":

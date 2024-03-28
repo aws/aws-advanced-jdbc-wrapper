@@ -141,7 +141,7 @@ public class RdsUtils {
   }
 
   public boolean isRdsInstance(final String host) {
-    return getDnsGroup(host) == null;
+    return getDnsGroup(host) == null && isRdsDns(host);
   }
 
   public boolean isRdsProxyDns(final String host) {
