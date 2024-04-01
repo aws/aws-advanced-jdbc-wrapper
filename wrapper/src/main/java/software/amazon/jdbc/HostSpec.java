@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
+import software.amazon.jdbc.util.StringUtils;
 
 /**
  * An object representing connection info for a given host. Modifiable fields are thread-safe to support sharing this
@@ -150,8 +151,10 @@ public class HostSpec {
     }
 
     Arrays.asList(alias).forEach(x -> {
-      this.aliases.add(x);
-      this.allAliases.add(x);
+      if (!StringUtils.isNullOrEmpty(x)) {
+        this.aliases.add(x);
+        this.allAliases.add(x);
+      }
     });
   }
 
@@ -160,8 +163,10 @@ public class HostSpec {
       return;
     }
     Arrays.asList(alias).forEach(x -> {
-      this.aliases.remove(x);
-      this.allAliases.remove(x);
+      if (!StringUtils.isNullOrEmpty(x)) {
+        this.aliases.remove(x);
+        this.allAliases.remove(x);
+      }
     });
   }
 

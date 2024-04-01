@@ -648,17 +648,38 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       if (resultSet.next()) {
         final String instanceName = resultSet.getString(1);
 
-        final List<HostSpec> topology = this.refresh();
+        List<HostSpec> topology = this.refresh(connection);
+
+        boolean isForcedRefresh = false;
+        if (topology == null) {
+          topology = this.forceRefresh(connection);
+          isForcedRefresh = true;
+        }
 
         if (topology == null) {
           return null;
         }
 
-        return topology
+        HostSpec foundHost = topology
             .stream()
             .filter(host -> Objects.equals(instanceName, host.getHostId()))
             .findAny()
             .orElse(null);
+
+        if (foundHost == null && !isForcedRefresh) {
+          topology = this.forceRefresh(connection);
+          if (topology == null) {
+            return null;
+          }
+
+          foundHost = topology
+              .stream()
+              .filter(host -> Objects.equals(instanceName, host.getHostId()))
+              .findAny()
+              .orElse(null);
+        }
+
+        return foundHost;
       }
     } catch (final SQLException e) {
       throw new SQLException(Messages.get("RdsHostListProvider.errorIdentifyConnection"), e);

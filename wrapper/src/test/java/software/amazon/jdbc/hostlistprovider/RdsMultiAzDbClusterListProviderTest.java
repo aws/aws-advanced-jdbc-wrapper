@@ -46,6 +46,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -454,7 +455,8 @@ class RdsMultiAzDbClusterListProviderTest {
 
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
-    when(rdsMazDbClusterHostListProvider.refresh(eq(mockConnection))).thenReturn(null);
+    doReturn(null).when(rdsMazDbClusterHostListProvider).refresh(mockConnection);
+    doReturn(null).when(rdsMazDbClusterHostListProvider).forceRefresh(mockConnection);
 
     assertNull(rdsMazDbClusterHostListProvider.identifyConnection(mockConnection));
   }
@@ -473,7 +475,8 @@ class RdsMultiAzDbClusterListProviderTest {
         "jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-1");
-    when(rdsMazDbClusterHostListProvider.refresh(eq(mockConnection))).thenReturn(cachedTopology);
+    doReturn(cachedTopology).when(rdsMazDbClusterHostListProvider).refresh(mockConnection);
+    doReturn(cachedTopology).when(rdsMazDbClusterHostListProvider).forceRefresh(mockConnection);
 
     assertNull(rdsMazDbClusterHostListProvider.identifyConnection(mockConnection));
   }
@@ -482,10 +485,10 @@ class RdsMultiAzDbClusterListProviderTest {
   void testIdentifyConnectionHostInTopology() throws SQLException {
     final HostSpec expectedHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("instance-a-1.xyz.us-east-2.rds.amazonaws.com")
+        .hostId("instance-a-1")
         .port(HostSpec.NO_PORT)
         .role(HostRole.WRITER)
         .build();
-    expectedHost.setHostId("instance-a-1");
     final List<HostSpec> cachedTopology = Collections.singletonList(expectedHost);
 
     rdsMazDbClusterHostListProvider = Mockito.spy(getRdsMazDbClusterHostListProvider(
@@ -493,7 +496,8 @@ class RdsMultiAzDbClusterListProviderTest {
         "jdbc:someprotocol://url"));
     when(mockResultSet.next()).thenReturn(true);
     when(mockResultSet.getString(eq(1))).thenReturn("instance-a-1");
-    when(rdsMazDbClusterHostListProvider.refresh()).thenReturn(cachedTopology);
+    doReturn(cachedTopology).when(rdsMazDbClusterHostListProvider).refresh(mockConnection);
+    doReturn(cachedTopology).when(rdsMazDbClusterHostListProvider).forceRefresh(mockConnection);
 
     final HostSpec actual = rdsMazDbClusterHostListProvider.identifyConnection(mockConnection);
     assertEquals("instance-a-1.xyz.us-east-2.rds.amazonaws.com", actual.getHost());
