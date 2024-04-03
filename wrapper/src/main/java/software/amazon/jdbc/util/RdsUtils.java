@@ -166,6 +166,21 @@ public class RdsUtils {
           ".*(?<prefix>-green-[0-9a-z]{6})\\..*",
           Pattern.CASE_INSENSITIVE);
 
+  private static final Pattern BG_GREEN_HOSTID_PATTERN =
+      Pattern.compile(
+          "(.*)-green-[0-9a-z]{6}",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern BG_OLD_HOST_PATTERN =
+      Pattern.compile(
+          ".*(?<prefix>-old1)\\..*",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern BG_PREFIX_HOST_PATTERN =
+      Pattern.compile(
+          ".*(?<prefix>-(green-[0-9a-z]{6}|old1))\\..*",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Map<String, Matcher> cachedPatterns = new ConcurrentHashMap<>();
   private static final Map<String, String> cachedDnsPatterns = new ConcurrentHashMap<>();
 
@@ -367,13 +382,27 @@ public class RdsUtils {
     return !StringUtils.isNullOrEmpty(preparedHost) && BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches();
   }
 
+  public boolean isOldInstance(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    return !StringUtils.isNullOrEmpty(preparedHost) && BG_OLD_HOST_PATTERN.matcher(preparedHost).matches();
+  }
+
+  public boolean isNoPrefixInstance(final String host) {
+    final String preparedHost = getPreparedHost(host);
+    return !StringUtils.isNullOrEmpty(preparedHost) && !BG_GREEN_HOST_PATTERN.matcher(preparedHost).matches();
+  }
+
   public String removeGreenInstancePrefix(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return host;
     }
     final Matcher matcher = BG_GREEN_HOST_PATTERN.matcher(getPreparedHost(host));
     if (!matcher.matches()) {
-      return host;
+      final Matcher hostIdMatcher = BG_GREEN_HOSTID_PATTERN.matcher(getPreparedHost(host));
+      if (!hostIdMatcher.matches()) {
+        return host;
+      }
+      return hostIdMatcher.group(1);
     }
     final String prefix = matcher.group("prefix");
     if (StringUtils.isNullOrEmpty(prefix)) {

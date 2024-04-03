@@ -454,6 +454,8 @@ public class RdsUtilsTests {
   @Test
   public void testGreenInstanceHostName() {
     assertFalse(target.isGreenInstance("test-instance"));
+    assertFalse(target.isGreenInstance("test-instance-green-12345"));
+    assertFalse(target.isGreenInstance("test-instance-green-123456"));
     assertFalse(target.isGreenInstance("test-instance.domain.com"));
     assertFalse(target.isGreenInstance("test-instance-green.domain.com"));
     assertFalse(target.isGreenInstance("test-instance-green-1.domain.com"));
@@ -467,9 +469,26 @@ public class RdsUtilsTests {
   }
 
   @Test
+  public void testNoPrefixInstanceHostName() {
+    assertTrue(target.isNoPrefixInstance("test-instance"));
+    assertTrue(target.isNoPrefixInstance("test-instance.domain.com"));
+    assertTrue(target.isNoPrefixInstance("test-instance-green.domain.com"));
+    assertTrue(target.isNoPrefixInstance("test-instance-green-1.domain.com"));
+    assertTrue(target.isNoPrefixInstance("test-instance-green-12345.domain.com"));
+    assertFalse(target.isNoPrefixInstance("test-instance-green-abcdef.domain.com"));
+    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-.domain.com"));
+    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-12345.domain.com"));
+    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-12345-green.domain.com"));
+    assertTrue(target.isNoPrefixInstance("test-instance-green-abcdef-12345-green-00000.domain.com"));
+    assertFalse(target.isNoPrefixInstance("test-instance-green-abcdef-12345-green-000000.domain.com"));
+  }
+
+  @Test
   public void testRemoveGreenInstancePrefix() {
     assertNull(target.removeGreenInstancePrefix(null));
     assertEquals("", target.removeGreenInstancePrefix(""));
+    assertEquals("test-instance",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef"));
     assertEquals("test-instance",
         target.removeGreenInstancePrefix("test-instance"));
     assertEquals("test-instance.domain.com",
@@ -478,8 +497,12 @@ public class RdsUtilsTests {
         target.removeGreenInstancePrefix("test-instance-green.domain.com"));
     assertEquals("test-instance-green-1.domain.com",
         target.removeGreenInstancePrefix("test-instance-green-1.domain.com"));
+    assertEquals("test-instance-green-1234.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-1234.domain.com"));
     assertEquals("test-instance-green-12345.domain.com",
         target.removeGreenInstancePrefix("test-instance-green-12345.domain.com"));
+    assertEquals("test-instance.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-123456.domain.com"));
     assertEquals("test-instance.domain.com",
         target.removeGreenInstancePrefix("test-instance-green-abcdef.domain.com"));
     assertEquals("test-instance-green-abcdef-.domain.com",
@@ -488,6 +511,8 @@ public class RdsUtilsTests {
         target.removeGreenInstancePrefix("test-instance-green-abcdef-12345.domain.com"));
     assertEquals("test-instance-green-abcdef-12345-green.domain.com",
         target.removeGreenInstancePrefix("test-instance-green-abcdef-12345-green.domain.com"));
+    assertEquals("test-instance-green-abcdef-12345-green-0000.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef-12345-green-0000.domain.com"));
     assertEquals("test-instance-green-abcdef-12345-green-00000.domain.com",
         target.removeGreenInstancePrefix("test-instance-green-abcdef-12345-green-00000.domain.com"));
     assertEquals("test-instance-green-abcdef-12345.domain.com",

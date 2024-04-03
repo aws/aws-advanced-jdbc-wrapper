@@ -26,7 +26,7 @@ import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
-public class AuroraMysqlDialect extends MysqlDialect {
+public class AuroraMysqlDialect extends MysqlDialect implements SupportBlueGreen {
 
   private static final String TOPOLOGY_QUERY =
       "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, "
@@ -41,6 +41,13 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   private static final String NODE_ID_QUERY = "SELECT @@aurora_server_id";
   private static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
+
+  private static final String BG_STATUS_QUERY =
+      "SELECT * FROM mysql.rds_topology";
+
+  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+      "SELECT 1 AS tmp FROM information_schema.tables WHERE"
+          + " table_schema = 'mysql' AND table_name = 'rds_topology'";
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -105,5 +112,23 @@ public class AuroraMysqlDialect extends MysqlDialect {
           IS_READER_QUERY);
     };
   }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public boolean isStatusAvailable(final Connection connection) {
+    try {
+      try (Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+        return rs.next();
+      }
+    } catch (SQLException ex) {
+      return false;
+    }
+  }
+
 }
 

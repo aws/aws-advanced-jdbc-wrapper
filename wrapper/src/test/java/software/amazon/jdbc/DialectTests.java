@@ -112,7 +112,7 @@ public class DialectTests {
   @Test
   void testRdsMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
-    when(successResultSet.next()).thenReturn(true, false, true, false);
+    when(successResultSet.next()).thenReturn(true, false, true, true);
     when(successResultSet.getString(1)).thenReturn("Source distribution");
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
@@ -158,7 +158,10 @@ public class DialectTests {
   @Test
   void testRdsTazMysqlIsDialectSuccess() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(successResultSet);
-    when(successResultSet.next()).thenReturn(true);
+    when(successResultSet.next()).thenReturn(true, true, true);
+    when(successResultSet.getString(2)).thenReturn("any-ip-address");
+    when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
+    when(mockResultSetMetaData.getColumnCount()).thenReturn(2);
     assertTrue(rdsTazMysqlDialect.isDialect(mockConnection));
   }
 

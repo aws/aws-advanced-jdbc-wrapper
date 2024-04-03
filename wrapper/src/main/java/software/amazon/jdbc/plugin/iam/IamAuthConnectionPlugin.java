@@ -144,7 +144,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     final TokenInfo tokenInfo = IamAuthCacheHolder.tokenCache.get(cacheKey);
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
-    if (isCachedToken) {
+    if (isCachedToken && tokenExpirationSec > 0) {
       LOGGER.finest(
           () -> Messages.get(
               "AuthenticationToken.useCachedToken",
