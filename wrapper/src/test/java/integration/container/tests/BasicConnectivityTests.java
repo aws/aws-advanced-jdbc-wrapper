@@ -75,7 +75,7 @@ public class BasicConnectivityTests {
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
 
     String url =
-        ConnectionStringHelper.getUrlWithPlugins(
+        ConnectionStringHelper.getUrl(
             testDriver,
             TestEnvironment.getCurrent()
                 .getInfo()
@@ -89,7 +89,7 @@ public class BasicConnectivityTests {
                 .getInstances()
                 .get(0)
                 .getPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(), "");
+            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -157,11 +157,11 @@ public class BasicConnectivityTests {
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
 
     String url =
-        ConnectionStringHelper.getUrlWithPlugins(
+        ConnectionStringHelper.getUrl(
             testDriver,
             instanceInfo.getHost(),
             instanceInfo.getPort(),
-            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), "");
+            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
