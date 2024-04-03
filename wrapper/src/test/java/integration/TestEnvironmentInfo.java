@@ -36,6 +36,8 @@ public class TestEnvironmentInfo {
   private TestTelemetryInfo tracesTelemetryInfo;
   private TestTelemetryInfo metricsTelemetryInfo;
 
+  private String blueGreenDeploymentId;
+
   public TestDatabaseInfo getDatabaseInfo() {
     return this.databaseInfo;
   }
@@ -146,5 +148,11 @@ public class TestEnvironmentInfo {
 
   public void setIamUsername(String iamUsername) {
     this.iamUsername = iamUsername;
+  }
+
+  public String getBlueGreenDeploymentId() { return this.blueGreenDeploymentId; }
+
+  public void setBlueGreenDeploymentId(final String blueGreenDeploymentId) {
+    this.blueGreenDeploymentId = blueGreenDeploymentId;
   }
 }

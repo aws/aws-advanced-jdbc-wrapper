@@ -27,9 +27,8 @@ import java.util.List;
 public class RdsMysqlDialect extends MysqlDialect {
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
-      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
-      DialectCodes.AURORA_MYSQL
-  );
+      DialectCodes.AURORA_MYSQL,
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER);
 
   @Override
   public boolean isDialect(final Connection connection) {

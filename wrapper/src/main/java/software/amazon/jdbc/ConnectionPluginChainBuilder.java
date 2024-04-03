@@ -36,6 +36,7 @@ import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPluginFactory;
+import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
@@ -82,6 +83,7 @@ public class ConnectionPluginChainBuilder {
           put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
           put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
           put("limitless", LimitlessConnectionPluginFactory.class);
+          put("bg", BlueGreenConnectionPluginFactory.class);
         }
       };
 
@@ -110,6 +112,7 @@ public class ConnectionPluginChainBuilder {
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
           put(FederatedAuthPluginFactory.class, 1200);
           put(LogQueryConnectionPluginFactory.class, 1300);
+          put(BlueGreenConnectionPluginFactory.class, 1400);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);

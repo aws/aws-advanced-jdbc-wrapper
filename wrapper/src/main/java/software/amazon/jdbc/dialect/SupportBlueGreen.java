@@ -14,23 +14,12 @@
  * limitations under the License.
  */
 
-package integration;
+package software.amazon.jdbc.dialect;
 
-public enum TestEnvironmentFeatures {
-  IAM,
-  SECRETS_MANAGER,
-  FAILOVER_SUPPORTED,
-  NETWORK_OUTAGES_ENABLED,
-  AWS_CREDENTIALS_ENABLED,
-  PERFORMANCE,
-  HIKARI,
-  SKIP_MYSQL_DRIVER_TESTS,
-  SKIP_PG_DRIVER_TESTS,
-  SKIP_MARIADB_DRIVER_TESTS,
-  RUN_HIBERNATE_TESTS_ONLY,
-  RUN_AUTOSCALING_TESTS_ONLY,
-  TELEMETRY_TRACES_ENABLED,
-  TELEMETRY_METRICS_ENABLED,
+import java.sql.Connection;
 
-  BLUE_GREEN_DEPLOYMENT
+public interface SupportBlueGreen {
+  String getBlueGreenStatusQuery();
+
+  boolean isStatusAvailable(final Connection connection);
 }

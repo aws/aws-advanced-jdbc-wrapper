@@ -42,6 +42,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.dialect.DialectProvider;
 import software.amazon.jdbc.dialect.HostListProviderSupplier;
+import software.amazon.jdbc.dialect.SupportBlueGreen;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
@@ -63,6 +64,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
+
+  protected static final CacheMap<String, Object> statusesExpiringCache = new CacheMap<>();
+  protected static final long DEFAULT_STATUS_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
+
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
@@ -432,6 +437,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       return;
     }
 
+    if (!this.dialect.supportAvailability(hostAliases)) {
+      return;
+    }
+
     final List<HostSpec> hostsToChange = this.getAllHosts().stream()
         .filter((host) -> hostAliases.contains(host.asAlias())
             || host.getAliases().stream().anyMatch(hostAliases::contains))
@@ -716,6 +725,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     final HostListProviderSupplier supplier = this.dialect.getHostListProvider();
     this.setHostListProvider(supplier.getProvider(props, this.originalUrl, this, this));
+    this.refreshHostList(connection);
   }
 
   @Override
@@ -789,5 +799,29 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   public static void clearCache() {
     hostAvailabilityExpiringCache.clear();
+  }
+
+  public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound) {
+    final String cacheKey = this.getStatusCacheKey(clazz, clusterBound);
+    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
+    if (status == null) {
+      statusesExpiringCache.remove(cacheKey);
+      LOGGER.finest(String.format("remove status, size: %d", statusesExpiringCache.size()));
+    } else {
+      statusesExpiringCache.put(cacheKey, status, DEFAULT_STATUS_CACHE_EXPIRE_NANO);
+      LOGGER.finest(String.format("set status, size: %d", statusesExpiringCache.size()));
+    }
+  }
+
+  public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
+    final String cacheKey = this.getStatusCacheKey(clazz, clusterBound);
+    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
+    return clazz.cast(statusesExpiringCache.get(cacheKey));
+  }
+
+  protected <T> String getStatusCacheKey(final Class<T> clazz, final boolean clusterBound) {
+    return clusterBound
+        ? String.format("%s::%s", this.hostListProvider.getClusterId(), clazz.getName())
+        : clazz.getName();
   }
 }

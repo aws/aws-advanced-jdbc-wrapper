@@ -23,6 +23,7 @@ import java.sql.Statement;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
@@ -30,10 +31,14 @@ import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHost
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.RdsUtils;
 
-public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
+public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements SupportBlueGreen {
 
   private static final String TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
+
+  private static final String BG_STATUS_QUERY =
+      "SELECT id, endpoint, port, blue_green_deployment FROM mysql.rds_topology";
 
   private static final String TOPOLOGY_TABLE_EXIST_QUERY =
       "SELECT 1 AS tmp FROM information_schema.tables WHERE"
@@ -49,6 +54,8 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   private static final EnumSet<FailoverRestriction> RDS_MULTI_AZ_RESTRICTIONS =
       EnumSet.of(FailoverRestriction.DISABLE_TASK_A, FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+
+  protected final RdsUtils rdsUtils = new RdsUtils();
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -140,5 +147,31 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   @Override
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
     return RDS_MULTI_AZ_RESTRICTIONS;
+  }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public boolean isStatusAvailable(final Connection connection) {
+    try {
+      try (Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+        return rs.next();
+      }
+    } catch (SQLException ex) {
+      return false;
+    }
+  }
+
+  @Override
+  public boolean supportAvailability(final @NonNull Set<String> hostAliases) {
+    return hostAliases.stream()
+        .filter(this.rdsUtils::isGreenInstance)
+        .map(x -> false)
+        .findAny()
+        .orElse(true);
   }
 }
