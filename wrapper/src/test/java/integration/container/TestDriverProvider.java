@@ -166,11 +166,11 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   }
                   if (!success) {
                     fail("Cluster "
-                        + TestEnvironment.getCurrent().getInfo().getAuroraClusterName()
+                        + TestEnvironment.getCurrent().getInfo().getRdsDbName()
                         + " is not healthy.");
                   }
                   LOGGER.finest("Cluster "
-                      + TestEnvironment.getCurrent().getInfo().getAuroraClusterName()
+                      + TestEnvironment.getCurrent().getInfo().getRdsDbName()
                       + " is healthy.");
                 }
 
@@ -225,7 +225,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     final TestEnvironmentRequest testRequest = testInfo.getRequest();
 
     final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
-    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName());
 
     auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(3));
 
@@ -256,7 +256,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       assertTrue(instanceIDs.size() > 0);
       assertTrue(
           auroraUtil.isDBInstanceWriter(
-              testInfo.getAuroraClusterName(),
+              testInfo.getRdsDbName(),
               instanceIDs.get(0)));
       String currentWriter = instanceIDs.get(0);
 
@@ -299,7 +299,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
         .map(TestInstanceInfo::getInstanceId)
         .collect(Collectors.toList());
 
-    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName());
 
     // Instances should have one of the following statuses to allow reboot a cluster.
     for (String instanceId : instanceIDs) {
@@ -307,9 +307,9 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
           "available", "storage-optimization",
           "incompatible-credentials", "incompatible-parameters", "unavailable");
     }
-    auroraUtil.rebootCluster(testInfo.getAuroraClusterName());
-    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName(), "rebooting");
-    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.rebootCluster(testInfo.getRdsDbName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName(), "rebooting");
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName());
     auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(10));
   }
 
@@ -322,13 +322,13 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
         .map(TestInstanceInfo::getInstanceId)
         .collect(Collectors.toList());
 
-    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName());
 
     for (String instanceId : instanceIDs) {
       auroraUtil.rebootInstance(instanceId);
     }
 
-    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+    auroraUtil.waitUntilClusterHasRightState(testInfo.getRdsDbName());
 
     for (String instanceId : instanceIDs) {
       auroraUtil.waitUntilInstanceHasRightState(instanceId);

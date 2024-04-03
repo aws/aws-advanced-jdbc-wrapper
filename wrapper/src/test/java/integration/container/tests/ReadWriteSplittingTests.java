@@ -81,15 +81,20 @@ import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SqlState;
+import software.amazon.jdbc.util.StringUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
-@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
+@EnableOnDatabaseEngineDeployment({
+    DatabaseEngineDeployment.AURORA,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @MakeSureFirstInstanceWriter
 @Order(12)
 public class ReadWriteSplittingTests {
@@ -844,8 +849,10 @@ public class ReadWriteSplittingTests {
         DatabaseEngine engine = info.getRequest().getDatabaseEngine();
         if (DatabaseEngine.MYSQL.equals(engine)) {
           String db = info.getDatabaseInfo().getDefaultDbName();
-          // MySQL needs this extra command to allow the limited user access to the database
-          stmt.execute("GRANT ALL PRIVILEGES ON " + db + ".* to " + limitedUserName);
+          if (!StringUtils.isNullOrEmpty(db)) {
+            // MySQL needs this extra command to allow the limited user access to the database
+            stmt.execute("GRANT ALL PRIVILEGES ON " + db + ".* to " + limitedUserName);
+          }
         }
       }
 

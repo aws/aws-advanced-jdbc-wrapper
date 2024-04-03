@@ -30,6 +30,8 @@ import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHost
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
+import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 
 public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
@@ -50,41 +52,36 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   private static final EnumSet<FailoverRestriction> RDS_MULTI_AZ_RESTRICTIONS =
       EnumSet.of(FailoverRestriction.DISABLE_TASK_A, FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
 
+  protected final RdsUtils rdsUtils = new RdsUtils();
+
   @Override
   public boolean isDialect(final Connection connection) {
-    Statement stmt = null;
-    ResultSet rs = null;
     try {
-      stmt = connection.createStatement();
-      rs = stmt.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY);
-
-      if (rs.next()) {
-        rs.close();
-        stmt.close();
-
-        stmt = connection.createStatement();
-        rs = stmt.executeQuery(TOPOLOGY_QUERY);
-
-        return rs.next();
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
       }
-      return false;
+
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery(TOPOLOGY_QUERY)) {
+        if (!rs.next()) {
+          return false;
+        }
+      }
+
+      try (Statement stmt = connection.createStatement();
+          ResultSet rs = stmt.executeQuery("SHOW VARIABLES LIKE 'report_host'")) {
+        if (!rs.next()) {
+          return false;
+        }
+        final String reportHost = rs.getString(2); // get variable value; expected value is IP address
+        return !StringUtils.isNullOrEmpty(reportHost);
+      }
+
     } catch (final SQLException ex) {
       // ignore
-    } finally {
-      if (rs != null) {
-        try {
-          rs.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException ex) {
-          // ignore
-        }
-      }
     }
     return false;
   }
