@@ -14,23 +14,18 @@
  * limitations under the License.
  */
 
-package integration;
+package software.amazon.jdbc.plugin.bluegreen;
 
-public enum TestEnvironmentFeatures {
-  IAM,
-  SECRETS_MANAGER,
-  FAILOVER_SUPPORTED,
-  NETWORK_OUTAGES_ENABLED,
-  AWS_CREDENTIALS_ENABLED,
-  PERFORMANCE,
-  HIKARI,
-  SKIP_MYSQL_DRIVER_TESTS,
-  SKIP_PG_DRIVER_TESTS,
-  SKIP_MARIADB_DRIVER_TESTS,
-  RUN_HIBERNATE_TESTS_ONLY,
-  RUN_AUTOSCALING_TESTS_ONLY,
-  TELEMETRY_TRACES_ENABLED,
-  TELEMETRY_METRICS_ENABLED,
+import java.util.Properties;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 
-  BLUE_GREEN_DEPLOYMENT
+public class BlueGreenConnectionPluginFactory implements ConnectionPluginFactory {
+
+  @Override
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+    return new BlueGreenConnectionPlugin(pluginService, props);
+  }
 }

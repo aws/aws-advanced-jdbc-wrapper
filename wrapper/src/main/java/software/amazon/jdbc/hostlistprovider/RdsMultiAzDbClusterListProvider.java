@@ -183,13 +183,14 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
         ? this.clusterInstanceTemplate.getPort()
         : queryPort;
     final boolean isWriter = hostId.equals(writerNodeId);
+    final boolean isGreenNode = this.rdsHelper.isGreenInstance(hostName);
 
     final HostSpec hostSpec = this.hostListProviderService.getHostSpecBuilder()
         .host(endpoint)
         .hostId(hostId)
         .port(port)
         .role(isWriter ? HostRole.WRITER : HostRole.READER)
-        .availability(HostAvailability.AVAILABLE)
+        .availability(isGreenNode ? HostAvailability.NOT_AVAILABLE : HostAvailability.AVAILABLE)
         .weight(0)
         .lastUpdateTime(Timestamp.from(Instant.now()))
         .build();

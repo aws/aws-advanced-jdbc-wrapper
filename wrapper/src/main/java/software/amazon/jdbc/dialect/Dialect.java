@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
@@ -44,4 +45,6 @@ public interface Dialect {
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec);
 
   EnumSet<FailoverRestriction> getFailoverRestrictions();
+
+  boolean supportAvailability(final @NonNull Set<String> hostAliases);
 }

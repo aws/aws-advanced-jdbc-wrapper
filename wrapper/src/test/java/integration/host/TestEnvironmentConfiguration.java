@@ -22,8 +22,10 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-docker", "false"));
   public boolean noAurora =
       Boolean.parseBoolean(System.getProperty("test-no-aurora", "false"));
-  public boolean noMultiAz =
-      Boolean.parseBoolean(System.getProperty("test-no-multi-az", "false"));
+  public boolean noMultiAzCluster =
+      Boolean.parseBoolean(System.getProperty("test-no-multi-az-cluster", "false"));
+  public boolean noMultiAzInstance =
+      Boolean.parseBoolean(System.getProperty("test-no-multi-az-instance", "false"));
   public boolean noPerformance =
       Boolean.parseBoolean(System.getProperty("test-no-performance", "false"));
   public boolean noMysqlEngine =
@@ -72,6 +74,10 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-traces-telemetry", "false"));
   public boolean noMetricsTelemetry =
       Boolean.parseBoolean(System.getProperty("test-no-metrics-telemetry", "false"));
+  public boolean noBlueGreen =
+      Boolean.parseBoolean(System.getProperty("test-no-bg", "false"));
+  public boolean testBlueGreenOnly =
+      Boolean.parseBoolean(System.getProperty("test-bg-only", "false"));
 
   public String includeTags = System.getProperty("test-include-tags");
   public String excludeTags = System.getProperty("test-exclude-tags");
@@ -82,6 +88,10 @@ public class TestEnvironmentConfiguration {
   public String rdsClusterName = System.getenv("RDS_CLUSTER_NAME"); // "cluster-mysql"
   public String rdsClusterDomain =
       System.getenv("RDS_CLUSTER_DOMAIN"); // "XYZ.us-west-2.rds.amazonaws.com"
+
+  public boolean reuseRdsInstance = Boolean.parseBoolean(System.getenv("REUSE_RDS_INSTANCE"));
+  public String rdsInstanceName = System.getenv("RDS_INSTANCE_NAME"); // "instance-name"
+
   public String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"
 

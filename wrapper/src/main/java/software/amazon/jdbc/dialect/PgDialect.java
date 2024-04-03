@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
@@ -119,5 +120,10 @@ public class PgDialect implements Dialect {
   @Override
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
     return NO_RESTRICTIONS;
+  }
+
+  @Override
+  public boolean supportAvailability(@NonNull Set<String> hostAliases) {
+    return true;
   }
 }

@@ -85,7 +85,10 @@ import software.amazon.jdbc.util.SqlState;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnNumOfInstances(min = 2)
-@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
+@EnableOnDatabaseEngineDeployment({
+    DatabaseEngineDeployment.AURORA,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER,
+    DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,

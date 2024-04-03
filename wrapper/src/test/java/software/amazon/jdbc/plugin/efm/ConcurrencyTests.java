@@ -674,6 +674,16 @@ public class ConcurrencyTests {
     public Properties getProperties() {
       return null;
     }
+
+    @Override
+    public <T> void setStatus(final Class<T> clazz, final @NonNull T status, final boolean clusterBound) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
+      throw new UnsupportedOperationException();
+    }
   }
 
   public static class TestConnection implements Connection {

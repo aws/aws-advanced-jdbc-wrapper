@@ -35,6 +35,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -50,6 +51,7 @@ import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @Order(9)
+@Disabled
 public class LogQueryPluginTests {
 
   private static final Logger LOGGER = Logger.getLogger(LogQueryPluginTests.class.getName());

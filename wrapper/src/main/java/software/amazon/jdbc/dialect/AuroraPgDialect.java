@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
+import software.amazon.jdbc.util.DriverInfo;
 
 /**
  * Suitable for the following AWS PG configurations.
