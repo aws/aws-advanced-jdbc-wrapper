@@ -387,13 +387,28 @@ public class DriverHelper {
   }
 
   public static Connection getDriverConnection(TestEnvironmentInfo info) throws SQLException {
-    final String url =
-        String.format(
+    String url;
+    switch (info.getRequest().getDatabaseEngineDeployment()) {
+      case AURORA:
+      case RDS_MULTI_AZ_CLUSTER:
+        url = String.format(
             "%s%s:%d/%s",
             DriverHelper.getDriverProtocol(info.getRequest().getDatabaseEngine()),
             info.getDatabaseInfo().getClusterEndpoint(),
             info.getDatabaseInfo().getClusterEndpointPort(),
             info.getDatabaseInfo().getDefaultDbName());
+        break;
+      case RDS_MULTI_AZ_INSTANCE:
+        url = String.format(
+            "%s%s:%d/%s",
+            DriverHelper.getDriverProtocol(info.getRequest().getDatabaseEngine()),
+            info.getDatabaseInfo().getInstances().get(0).getHost(),
+            info.getDatabaseInfo().getInstances().get(0).getPort(),
+            info.getDatabaseInfo().getDefaultDbName());
+        break;
+      default:
+        throw new UnsupportedOperationException(info.getRequest().getDatabaseEngineDeployment().toString());
+    }
     return DriverManager.getConnection(url, info.getDatabaseInfo().getUsername(), info.getDatabaseInfo().getPassword());
   }
 }

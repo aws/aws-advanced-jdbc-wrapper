@@ -497,6 +497,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public String getOriginalUrl() {
+      return null;
+    }
+
+    @Override
     public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     }
 
@@ -673,6 +678,30 @@ public class ConcurrencyTests {
     @Override
     public Properties getProperties() {
       return null;
+    }
+
+    @Override
+    public <T> void setStatus(final Class<T> clazz, final @NonNull T status, final boolean clusterBound) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
+      throw new UnsupportedOperationException();
+    }
+
+    public <T> T getStatus(final @NonNull Class<T> clazz, String key) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isPluginInUse(Class<? extends ConnectionPlugin> pluginClazz) {
+      return false;
     }
   }
 
