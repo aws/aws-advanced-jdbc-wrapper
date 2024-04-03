@@ -49,10 +49,7 @@ public class TestInstanceInfo {
   }
 
   public String getUrl() {
-    String url = host + ":" + port;
-    if (!url.endsWith("/")) {
-      url += "/";
-    }
+    String url = host + ":" + port + "/";
     return url;
   }
 }

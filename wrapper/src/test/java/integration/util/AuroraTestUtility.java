@@ -16,6 +16,7 @@
 
 package integration.util;
 
+import static integration.DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -24,6 +25,7 @@ import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestDatabaseInfo;
+import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
@@ -44,6 +46,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -82,24 +87,51 @@ import software.amazon.awssdk.services.ec2.model.IpPermission;
 import software.amazon.awssdk.services.ec2.model.IpRange;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.RdsClientBuilder;
+import software.amazon.awssdk.services.rds.model.ApplyMethod;
+import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
+import software.amazon.awssdk.services.rds.model.BlueGreenDeploymentNotFoundException;
+import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentRequest;
+import software.amazon.awssdk.services.rds.model.CreateBlueGreenDeploymentResponse;
+import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupRequest;
+import software.amazon.awssdk.services.rds.model.CreateDbClusterParameterGroupResponse;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
+import software.amazon.awssdk.services.rds.model.CreateDbInstanceResponse;
 import software.amazon.awssdk.services.rds.model.DBCluster;
 import software.amazon.awssdk.services.rds.model.DBClusterMember;
 import software.amazon.awssdk.services.rds.model.DBEngineVersion;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.awssdk.services.rds.model.DbClusterNotFoundException;
+import software.amazon.awssdk.services.rds.model.DbInstanceNotFoundException;
+import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentRequest;
+import software.amazon.awssdk.services.rds.model.DeleteBlueGreenDeploymentResponse;
+import software.amazon.awssdk.services.rds.model.DeleteDbClusterParameterGroupRequest;
 import software.amazon.awssdk.services.rds.model.DeleteDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.DeleteDbInstanceRequest;
+import software.amazon.awssdk.services.rds.model.DeleteDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.DescribeBlueGreenDeploymentsResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbClustersResponse;
 import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbEngineVersionsResponse;
+import software.amazon.awssdk.services.rds.model.DescribeDbInstancesRequest;
 import software.amazon.awssdk.services.rds.model.DescribeDbInstancesResponse;
 import software.amazon.awssdk.services.rds.model.FailoverDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.Filter;
+import software.amazon.awssdk.services.rds.model.InvalidDbClusterStateException;
+import software.amazon.awssdk.services.rds.model.InvalidDbInstanceStateException;
+import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupRequest;
+import software.amazon.awssdk.services.rds.model.ModifyDbClusterParameterGroupResponse;
+import software.amazon.awssdk.services.rds.model.Parameter;
+import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterRequest;
+import software.amazon.awssdk.services.rds.model.PromoteReadReplicaDbClusterResponse;
+import software.amazon.awssdk.services.rds.model.PromoteReadReplicaRequest;
+import software.amazon.awssdk.services.rds.model.PromoteReadReplicaResponse;
+import software.amazon.awssdk.services.rds.model.RdsException;
 import software.amazon.awssdk.services.rds.model.RebootDbClusterResponse;
 import software.amazon.awssdk.services.rds.model.RebootDbInstanceResponse;
+import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentRequest;
+import software.amazon.awssdk.services.rds.model.SwitchoverBlueGreenDeploymentResponse;
 import software.amazon.awssdk.services.rds.model.Tag;
 import software.amazon.awssdk.services.rds.waiters.RdsWaiter;
 import software.amazon.jdbc.util.RdsUtils;
@@ -116,6 +148,7 @@ public class AuroraTestUtility {
   private static final String DEFAULT_SECURITY_GROUP = "default";
   private static final String DEFAULT_STORAGE_TYPE = "io1";
   private static final int DEFAULT_IOPS = 1000;
+  private static final int DEFAULT_ALLOCATED_STORAGE = 100;
   private static final int MULTI_AZ_SIZE = 3;
   private static final Random rand = new Random();
 
@@ -218,13 +251,15 @@ public class AuroraTestUtility {
       String engine,
       String instanceClass,
       String version,
+      @Nullable String clusterParameterGroupName,
       int numInstances)
       throws InterruptedException {
 
     switch (deployment) {
       case AURORA:
         createAuroraCluster(
-            username, password, dbName, identifier, region, engine, instanceClass, version, numInstances);
+            username, password, dbName, identifier, region, engine, instanceClass,
+            version, clusterParameterGroupName, numInstances);
         break;
       case RDS_MULTI_AZ_CLUSTER:
         if (numInstances != MULTI_AZ_SIZE) {
@@ -232,13 +267,88 @@ public class AuroraTestUtility {
               "A multi-az cluster with " + numInstances + " instances was requested, but multi-az clusters must have "
                   + MULTI_AZ_SIZE + " instances.");
         }
-
         createMultiAzCluster(
             username, password, dbName, identifier, region, engine, instanceClass, version);
         break;
       default:
         throw new UnsupportedOperationException(deployment.toString());
     }
+  }
+
+  public String createMultiAzInstance(
+      String username,
+      String password,
+      String dbName,
+      String identifier,
+      DatabaseEngineDeployment deployment,
+      String engine,
+      String instanceClass,
+      String version,
+      ArrayList<TestInstanceInfo> instances) {
+
+    if (deployment != RDS_MULTI_AZ_INSTANCE) {
+      throw new UnsupportedOperationException(deployment.toString());
+    }
+
+    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
+    final Tag testRunnerTag = Tag.builder()
+        .key("created-by").value("test-runner")
+        .key("env").value("test-runner")
+        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
+        .build();
+
+    CreateDbInstanceResponse response = rdsClient.createDBInstance(CreateDbInstanceRequest.builder()
+        .dbInstanceIdentifier(identifier)
+        .publiclyAccessible(true)
+        .dbName(dbName)
+        .masterUsername(username)
+        .masterUserPassword(password)
+        .enableIAMDatabaseAuthentication(true)
+        .multiAZ(true)
+        .engine(engine)
+        .engineVersion(version)
+        .dbInstanceClass(instanceClass)
+        .enablePerformanceInsights(false)
+        .backupRetentionPeriod(1)
+        .storageEncrypted(true)
+        .storageType(DEFAULT_STORAGE_TYPE)
+        .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
+        .iops(DEFAULT_IOPS)
+        .tags(testRunnerTag)
+        .build());
+
+    // Wait for all instances to be up
+    final RdsWaiter waiter = rdsClient.waiter();
+    WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
+        waiter.waitUntilDBInstanceAvailable(
+            (requestBuilder) ->
+                requestBuilder.filters(
+                    Filter.builder().name("db-instance-id").values(identifier).build()),
+            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(60)));
+
+    if (waiterResponse.matched().exception().isPresent()) {
+      deleteMultiAzInstance(identifier, false);
+      throw new RuntimeException(
+          "Unable to start AWS RDS Instance after waiting for 30 minutes");
+    }
+
+    DescribeDbInstancesResponse dbInstancesResult = waiterResponse.matched().response().orElse(null);
+    if (dbInstancesResult == null) {
+      throw new RuntimeException("Unable to get instance details.");
+    }
+
+    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
+    final String rdsDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
+
+    for (DBInstance instance : dbInstancesResult.dbInstances()) {
+      instances.add(
+          new TestInstanceInfo(
+              instance.dbInstanceIdentifier(),
+              instance.endpoint().address(),
+              instance.endpoint().port()));
+    }
+
+    return rdsDomainPrefix;
   }
 
   /**
@@ -268,9 +378,15 @@ public class AuroraTestUtility {
       String engine,
       String instanceClass,
       String version,
+      @Nullable String clusterParameterGroupName,
       int numInstances)
       throws InterruptedException {
-    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
+    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
+    final Tag testRunnerTag = Tag.builder()
+        .key("created-by").value("test-runner")
+        .key("env").value("test-runner")
+        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
+        .build();
     final CreateDbClusterRequest dbClusterRequest =
         CreateDbClusterRequest.builder()
             .dbClusterIdentifier(identifier)
@@ -283,6 +399,7 @@ public class AuroraTestUtility {
             .engineVersion(version)
             .storageEncrypted(true)
             .tags(testRunnerTag)
+            .dbClusterParameterGroupName(clusterParameterGroupName)
             .build();
 
     rdsClient.createDBCluster(dbClusterRequest);
@@ -312,7 +429,7 @@ public class AuroraTestUtility {
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
-      deleteCluster(identifier, DatabaseEngineDeployment.AURORA);
+      deleteCluster(identifier, DatabaseEngineDeployment.AURORA, false);
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
@@ -344,7 +461,12 @@ public class AuroraTestUtility {
       String instanceClass,
       String version)
       throws InterruptedException {
-    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
+    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
+    final Tag testRunnerTag = Tag.builder()
+        .key("created-by").value("test-runner")
+        .key("env").value("test-runner")
+        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
+        .build();
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
             .dbClusterIdentifier(identifier)
@@ -358,10 +480,8 @@ public class AuroraTestUtility {
             .enablePerformanceInsights(false)
             .backupRetentionPeriod(1)
             .storageEncrypted(true)
-            .tags(testRunnerTag);
-
-    clusterBuilder =
-        clusterBuilder.allocatedStorage(100)
+            .tags(testRunnerTag)
+            .allocatedStorage(DEFAULT_ALLOCATED_STORAGE)
             .dbClusterInstanceClass(instanceClass)
             .storageType(DEFAULT_STORAGE_TYPE)
             .iops(DEFAULT_IOPS);
@@ -378,7 +498,7 @@ public class AuroraTestUtility {
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
-      deleteCluster(identifier, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER);
+      deleteCluster(identifier, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER, false);
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
@@ -393,12 +513,17 @@ public class AuroraTestUtility {
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
   public TestInstanceInfo createInstance(String instanceClass, String instanceId) throws InterruptedException {
-    final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
+    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
+    final Tag testRunnerTag = Tag.builder()
+        .key("created-by").value("test-runner")
+        .key("env").value("test-runner")
+        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
+        .build();
     final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
 
     rdsClient.createDBInstance(
         CreateDbInstanceRequest.builder()
-            .dbClusterIdentifier(info.getAuroraClusterName())
+            .dbClusterIdentifier(info.getRdsDbName())
             .dbInstanceIdentifier(instanceId)
             .dbInstanceClass(instanceClass)
             .engine(info.getDatabaseEngine())
@@ -474,6 +599,42 @@ public class AuroraTestUtility {
           "Instance deletion timeout for " + instanceToDelete.getInstanceId()
               + ". The instance was not deleted within 5 minutes");
     }
+  }
+
+  public void createCustomClusterParameterGroup(String groupName, String engine, String engineVersion) {
+    CreateDbClusterParameterGroupResponse response = rdsClient.createDBClusterParameterGroup(
+                CreateDbClusterParameterGroupRequest.builder()
+                .dbClusterParameterGroupName(groupName)
+                .description("Test custom cluster parameter group for BGD.")
+                .dbParameterGroupFamily(this.getAuroraParameterGroupFamily(engine, engineVersion))
+                .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException("Error creating custom cluster parameter group. " + response.sdkHttpResponse());
+    }
+
+    ModifyDbClusterParameterGroupResponse response2 = rdsClient.modifyDBClusterParameterGroup(
+        ModifyDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .parameters(Parameter.builder()
+                .parameterName("binlog_format")
+                .parameterValue("ROW")
+                .applyMethod(ApplyMethod.PENDING_REBOOT)
+                .build())
+            .build()
+    );
+
+    if (!response2.sdkHttpResponse().isSuccessful()) {
+      throw new RuntimeException("Error updating parameter. " + response2.sdkHttpResponse());
+    }
+  }
+
+  public void deleteCustomClusterParameterGroup(String groupName) {
+    rdsClient.deleteDBClusterParameterGroup(
+        DeleteDbClusterParameterGroupRequest.builder()
+            .dbClusterParameterGroupName(groupName)
+            .build()
+    );
   }
 
   /**
@@ -571,14 +732,15 @@ public class AuroraTestUtility {
    *
    * @param identifier the cluster identifier for the cluster to delete
    * @param deployment the engine deployment for the cluster to delete
+   * @param waitForCompletion if true, wait for cluster completely deleted
    */
-  public void deleteCluster(String identifier, DatabaseEngineDeployment deployment) {
+  public void deleteCluster(String identifier, DatabaseEngineDeployment deployment, boolean waitForCompletion) {
     switch (deployment) {
       case AURORA:
-        this.deleteAuroraCluster(identifier);
+        this.deleteAuroraCluster(identifier, waitForCompletion);
         break;
       case RDS_MULTI_AZ_CLUSTER:
-        this.deleteMultiAzCluster(identifier);
+        this.deleteMultiAzCluster(identifier, waitForCompletion);
         break;
       default:
         throw new UnsupportedOperationException(deployment.toString());
@@ -589,8 +751,9 @@ public class AuroraTestUtility {
    * Deletes the specified Aurora cluster and removes the current IP address from the default security group.
    *
    * @param identifier the cluster identifier for the cluster to delete
+   * @param waitForCompletion if true, wait for cluster completely deleted
    */
-  public void deleteAuroraCluster(String identifier) {
+  public void deleteAuroraCluster(String identifier, boolean waitForCompletion) {
     List<DBClusterMember> members = getDBCluster(identifier).dbClusterMembers();
 
     // Tear down instances
@@ -602,7 +765,8 @@ public class AuroraTestUtility {
                 .skipFinalSnapshot(true)
                 .build());
       } catch (Exception ex) {
-        LOGGER.finest("Error deleting instance '" + member.dbInstanceIdentifier() + "': " + ex.getMessage());
+        LOGGER.finest("Error deleting instance '"
+            + member.dbInstanceIdentifier() + "' of Aurora cluster: " + ex.getMessage());
         // Ignore this error and continue with other instances
       }
     }
@@ -620,8 +784,27 @@ public class AuroraTestUtility {
 
       } catch (DbClusterNotFoundException ex) {
         // ignore
+        return;
+      } catch (InvalidDbClusterStateException ex) {
+        throw new RuntimeException("Error deleting db cluster " + identifier, ex);
       } catch (Exception ex) {
         LOGGER.warning("Error deleting db cluster " + identifier + ": " + ex);
+        return;
+      }
+    }
+
+    if (waitForCompletion) {
+      final RdsWaiter waiter = rdsClient.waiter();
+      WaiterResponse<DescribeDbClustersResponse> waiterResponse =
+          waiter.waitUntilDBClusterDeleted(
+              (requestBuilder) ->
+                  requestBuilder.filters(
+                      Filter.builder().name("db-cluster-id").values(identifier).build()),
+              (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(60)));
+
+      if (waiterResponse.matched().exception().isPresent()) {
+        throw new RuntimeException(
+            "Unable to delete AWS Aurora Cluster after waiting for 60 minutes");
       }
     }
   }
@@ -630,9 +813,9 @@ public class AuroraTestUtility {
    * Deletes the specified multi-az cluster and removes the current IP address from the default security group.
    *
    * @param identifier the cluster identifier for the cluster to delete
+   * @param waitForCompletion if true, wait for cluster completely deleted
    */
-  public void deleteMultiAzCluster(String identifier) {
-    // deleteDBinstance requests are not necessary to delete a multi-az cluster.
+  public void deleteMultiAzCluster(String identifier, boolean waitForCompletion) {
     // Tear down cluster
     int remainingAttempts = 5;
     while (--remainingAttempts > 0) {
@@ -646,8 +829,143 @@ public class AuroraTestUtility {
 
       } catch (DbClusterNotFoundException ex) {
         // ignore
+        return;
       } catch (Exception ex) {
         LOGGER.warning("Error deleting db cluster " + identifier + ": " + ex);
+        return;
+      }
+    }
+
+    if (waitForCompletion) {
+      final RdsWaiter waiter = rdsClient.waiter();
+      WaiterResponse<DescribeDbClustersResponse> waiterResponse =
+          waiter.waitUntilDBClusterDeleted(
+              (requestBuilder) ->
+                  requestBuilder.filters(
+                      Filter.builder().name("db-cluster-id").values(identifier).build()),
+              (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(60)));
+
+      if (waiterResponse.matched().exception().isPresent()) {
+        throw new RuntimeException(
+            "Unable to delete RDS MultiAz Cluster after waiting for 60 minutes");
+      }
+    }
+  }
+
+  public void deleteMultiAzInstance(final String identifier, boolean waitForCompletion) {
+    // Tear down MultiAz Instance
+    int remainingAttempts = 5;
+    while (--remainingAttempts > 0) {
+      try {
+        DeleteDbInstanceResponse response = rdsClient.deleteDBInstance(
+            builder -> builder.skipFinalSnapshot(true).dbInstanceIdentifier(identifier).build());
+        if (response.sdkHttpResponse().isSuccessful()) {
+          break;
+        }
+        TimeUnit.SECONDS.sleep(30);
+
+      } catch (InvalidDbInstanceStateException invalidDbInstanceStateException) {
+        // Instance is already being deleted.
+        // ignore it
+        LOGGER.finest("MultiAz Instance " + identifier + " is already being deleted. "
+            + invalidDbInstanceStateException);
+        break;
+      } catch (DbInstanceNotFoundException ex) {
+        // ignore
+        LOGGER.warning("Error deleting db MultiAz Instance " + identifier + ". Instance not found: " + ex);
+        break;
+      } catch (Exception ex) {
+        LOGGER.warning("Error deleting db MultiAz Instance " + identifier + ": " + ex);
+      }
+    }
+
+    if (waitForCompletion) {
+      final RdsWaiter waiter = rdsClient.waiter();
+      WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
+          waiter.waitUntilDBInstanceDeleted(
+              (requestBuilder) ->
+                  requestBuilder.filters(
+                      Filter.builder().name("db-instance-id").values(identifier).build()),
+              (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(60)));
+
+      if (waiterResponse.matched().exception().isPresent()) {
+        throw new RuntimeException(
+            "Unable to delete RDS MultiAz Instance after waiting for 60 minutes");
+      }
+    }
+  }
+
+  public void promoteClusterToStandalone(String clusterArn) {
+    if (StringUtils.isNullOrEmpty(clusterArn)) {
+      return;
+    }
+
+    DBCluster clusterInfo = getClusterByArn(clusterArn);
+
+    if (clusterInfo == null || StringUtils.isNullOrEmpty(clusterInfo.replicationSourceIdentifier())) {
+      return;
+    }
+
+    PromoteReadReplicaDbClusterResponse response = rdsClient.promoteReadReplicaDBCluster(
+        PromoteReadReplicaDbClusterRequest.builder().dbClusterIdentifier(clusterInfo.dbClusterIdentifier()).build());
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      LOGGER.warning("Error promoting DB cluster to standalone cluster: "
+          + response.sdkHttpResponse().statusCode()
+          + " "
+          + response.sdkHttpResponse().statusText().orElse("<null>"));
+    }
+  }
+
+  public void promoteInstanceToStandalone(String instanceArn) {
+    if (StringUtils.isNullOrEmpty(instanceArn)) {
+      return;
+    }
+
+    DBInstance instanceInfo = getRdsInstanceInfoByArn(instanceArn);
+
+    if (instanceInfo == null || StringUtils.isNullOrEmpty(instanceInfo.readReplicaSourceDBInstanceIdentifier())) {
+      return;
+    }
+
+    PromoteReadReplicaResponse response = rdsClient.promoteReadReplica(
+        PromoteReadReplicaRequest.builder().dbInstanceIdentifier(instanceInfo.dbInstanceIdentifier()).build());
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      LOGGER.warning("Error promoting DB instance to standalone instance: "
+          + response.sdkHttpResponse().statusCode()
+          + " "
+          + response.sdkHttpResponse().statusText().orElse("<null>"));
+    }
+  }
+
+  public void deleteClusterUntilDeleted(String clusterArn, DatabaseEngineDeployment deployment) {
+    if (StringUtils.isNullOrEmpty(clusterArn)) {
+      return;
+    }
+
+    DBCluster clusterInfo = getClusterByArn(clusterArn);
+    if (clusterInfo == null) {
+      return;
+    }
+
+    LOGGER.finest("Deleting Aurora cluster " + clusterArn);
+
+    long endTimeNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(30);
+    while (endTimeNano > System.nanoTime()) {
+      try {
+        deleteCluster(clusterInfo.dbClusterIdentifier(), deployment, true);
+
+        // No errors. It seems that the cluster is deleted.
+        LOGGER.finest("Deleted Aurora cluster " + clusterArn);
+        return;
+
+      } catch (Exception ex) {
+        // There's an error deleting cluster. Keep trying.
+        try {
+          TimeUnit.MINUTES.sleep(1);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        }
       }
     }
   }
@@ -663,6 +981,17 @@ public class AuroraTestUtility {
     return true;
   }
 
+  public boolean doesInstanceExist(final String instanceId) {
+    final DescribeDbInstancesRequest request =
+        DescribeDbInstancesRequest.builder().dbInstanceIdentifier(instanceId).build();
+    try {
+      DescribeDbInstancesResponse response = rdsClient.describeDBInstances(request);
+      return response.sdkHttpResponse().isSuccessful();
+    } catch (DbInstanceNotFoundException ex) {
+      return false;
+    }
+  }
+
   public DBCluster getClusterInfo(final String clusterId) {
     final DescribeDbClustersRequest request =
         DescribeDbClustersRequest.builder().dbClusterIdentifier(clusterId).build();
@@ -672,6 +1001,43 @@ public class AuroraTestUtility {
     }
 
     return response.dbClusters().get(0);
+  }
+
+  public DBCluster getClusterByArn(final String clusterArn) {
+    final DescribeDbClustersRequest request =
+        DescribeDbClustersRequest.builder()
+            .filters(Filter.builder().name("db-cluster-id").values(clusterArn).build())
+            .build();
+    final DescribeDbClustersResponse response = rdsClient.describeDBClusters(request);
+    if (!response.hasDbClusters()) {
+      return null;
+    }
+
+    return response.dbClusters().get(0);
+  }
+
+  public DBInstance getRdsInstanceInfo(final String instanceId) {
+    final DescribeDbInstancesRequest request =
+        DescribeDbInstancesRequest.builder().dbInstanceIdentifier(instanceId).build();
+    final DescribeDbInstancesResponse response = rdsClient.describeDBInstances(request);
+    if (!response.hasDbInstances()) {
+      throw new RuntimeException("RDS Instance " + instanceId + " not found.");
+    }
+
+    return response.dbInstances().get(0);
+  }
+
+  public DBInstance getRdsInstanceInfoByArn(final String instanceArn) {
+    final DescribeDbInstancesRequest request =
+        DescribeDbInstancesRequest.builder().filters(
+            Filter.builder().name("db-instance-id").values(instanceArn).build())
+            .build();
+    final DescribeDbInstancesResponse response = rdsClient.describeDBInstances(request);
+    if (!response.hasDbInstances()) {
+      return null;
+    }
+
+    return response.dbInstances().get(0);
   }
 
   public DatabaseEngine getClusterEngine(final DBCluster cluster) {
@@ -690,12 +1056,40 @@ public class AuroraTestUtility {
   public String getDbInstanceClass(TestEnvironmentRequest request) {
     switch (request.getDatabaseEngineDeployment()) {
       case AURORA:
-        return "db.r5.large";
+        return request.getFeatures().contains(TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT)
+            ? "db.r7g.2xlarge"
+            : "db.r5.large";
       case RDS:
+      case RDS_MULTI_AZ_INSTANCE:
       case RDS_MULTI_AZ_CLUSTER:
         return "db.m5d.large";
       default:
-        throw new NotImplementedException(request.getDatabaseEngine().toString());
+        throw new NotImplementedException(request.getDatabaseEngineDeployment().toString());
+    }
+  }
+
+  public DatabaseEngine getRdsInstanceEngine(final DBInstance instance) {
+    switch (instance.engine()) {
+      case "postgres":
+        return DatabaseEngine.PG;
+      case "mysql":
+        return DatabaseEngine.MYSQL;
+      default:
+        throw new UnsupportedOperationException(instance.engine());
+    }
+  }
+
+  public String getAuroraParameterGroupFamily(String engine, String engineVersion) {
+    switch (engine) {
+      case "aurora-postgresql":
+        return "aurora-postgresql14";
+      case "aurora-mysql":
+        if (StringUtils.isNullOrEmpty(engineVersion) || engineVersion.contains("8.0")) {
+          return "aurora-mysql8.0";
+        }
+        return "aurora-mysql5.7";
+      default:
+        throw new UnsupportedOperationException(engine);
     }
   }
 
@@ -742,6 +1136,8 @@ public class AuroraTestUtility {
       try {
         dbClustersResult = rdsClient.describeDBClusters((builder) -> builder.dbClusterIdentifier(clusterId));
         break;
+      } catch (DbClusterNotFoundException ex) {
+        return null;
       } catch (SdkClientException sdkClientException) {
         if (remainingTries == 0) {
           throw sdkClientException;
@@ -767,6 +1163,13 @@ public class AuroraTestUtility {
       } catch (SdkClientException sdkClientException) {
         if (remainingTries == 0) {
           throw sdkClientException;
+        }
+
+        try {
+          TimeUnit.SECONDS.sleep(30);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(ex);
         }
       }
     }
@@ -860,6 +1263,23 @@ public class AuroraTestUtility {
             throw new UnsupportedOperationException(databaseEngine.toString());
         }
         break;
+      case RDS_MULTI_AZ_INSTANCE:
+        switch (databaseEngine) {
+          case MYSQL:
+
+            retrieveTopologySql =
+                "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as SERVER_ID FROM mysql.rds_topology";
+            break;
+          case PG:
+            retrieveTopologySql =
+                "SELECT SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint)) as SERVER_ID"
+                    + " FROM rds_tools.show_topology()";
+
+            break;
+          default:
+            throw new UnsupportedOperationException(databaseEngine.toString());
+        }
+        break;
       default:
         throw new UnsupportedOperationException(deployment.toString());
     }
@@ -897,7 +1317,7 @@ public class AuroraTestUtility {
 
   public Boolean isDBInstanceWriter(String instanceId) {
     return isDBInstanceWriter(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), instanceId);
+        TestEnvironment.getCurrent().getInfo().getRdsDbName(), instanceId);
   }
 
   public Boolean isDBInstanceWriter(String clusterId, String instanceId) {
@@ -1057,7 +1477,7 @@ public class AuroraTestUtility {
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
-    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    String clusterId = TestEnvironment.getCurrent().getInfo().getRdsDbName();
     failoverClusterToATargetAndWaitUntilWriterChanged(
         clusterId,
         getDBClusterWriterInstanceId(clusterId),
@@ -1067,7 +1487,7 @@ public class AuroraTestUtility {
   public void failoverClusterToATargetAndWaitUntilWriterChanged(String initialWriterId, String targetWriterId)
       throws InterruptedException {
     failoverClusterToATargetAndWaitUntilWriterChanged(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
+        TestEnvironment.getCurrent().getInfo().getRdsDbName(),
         initialWriterId,
         targetWriterId);
   }
@@ -1078,6 +1498,11 @@ public class AuroraTestUtility {
 
     DatabaseEngineDeployment deployment =
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+
+    if (deployment == RDS_MULTI_AZ_INSTANCE) {
+      throw new RuntimeException("Failover isn't supported for " + deployment);
+    }
+
     if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
       LOGGER.finest(String.format("failover from: %s", initialWriterId));
     } else {
@@ -1345,7 +1770,7 @@ public class AuroraTestUtility {
 
   public String getDBClusterWriterInstanceId() {
     return getDBClusterWriterInstanceId(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
+        TestEnvironment.getCurrent().getInfo().getRdsDbName());
   }
 
   public String getDBClusterWriterInstanceId(String clusterId) {
@@ -1372,6 +1797,7 @@ public class AuroraTestUtility {
             throw new UnsupportedOperationException(databaseEngine.toString());
         }
       case RDS_MULTI_AZ_CLUSTER:
+      case RDS_MULTI_AZ_INSTANCE:
         switch (databaseEngine) {
           case MYSQL:
             return "SELECT SUBSTRING_INDEX(endpoint, '.', 1) as id FROM mysql.rds_topology WHERE id=@@server_id";
@@ -1449,13 +1875,22 @@ public class AuroraTestUtility {
           stmt.execute("DROP USER IF EXISTS " + dbUser + ";");
           stmt.execute(
               "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';");
-          stmt.execute("GRANT ALL PRIVILEGES ON " + databaseName + ".* TO '" + dbUser + "'@'%';");
+          if (!StringUtils.isNullOrEmpty(databaseName)) {
+            //stmt.execute("GRANT ALL PRIVILEGES ON " + databaseName + ".* TO '" + dbUser + "'@'%';");
+            stmt.execute("GRANT ALL PRIVILEGES ON *.* TO '" + dbUser + "'@'%';");
+          }
+
+          // BG switchover status needs it.
+          stmt.execute("GRANT SELECT ON mysql.* TO '" + dbUser + "'@'%';");
           break;
         case PG:
           stmt.execute("DROP USER IF EXISTS " + dbUser + ";");
           stmt.execute("CREATE USER " + dbUser + ";");
           stmt.execute("GRANT rds_iam TO " + dbUser + ";");
           stmt.execute("GRANT ALL PRIVILEGES ON DATABASE " + databaseName + " TO " + dbUser + ";");
+
+          // BG switchover status needs it.
+          stmt.execute("GRANT SELECT ON rds_tools.* TO " + dbUser + ";"); //TODO: verify we need it
           break;
         default:
           throw new UnsupportedOperationException(databaseEngine.toString());
@@ -1524,6 +1959,197 @@ public class AuroraTestUtility {
       throw new RuntimeException("Task is cancelled after " + timeoutMs + " ms.");
     } finally {
       executorService.shutdownNow();
+    }
+  }
+
+  public String createBlueGreenDeployment(String name, String sourceArn) {
+
+    final String blueGreenName = "bgd-" + name;
+
+    DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
+    final Tag testRunnerTag = Tag.builder()
+        .key("created-by").value("test-runner")
+        .key("env").value("test-runner")
+        .key("created").value(formatter.format(ZonedDateTime.now().toLocalDateTime()))
+        .build();
+
+    CreateBlueGreenDeploymentResponse response = null;
+    int count = 10;
+    while (response == null && count-- > 0) {
+      try {
+        response = rdsClient.createBlueGreenDeployment(
+            CreateBlueGreenDeploymentRequest.builder()
+                .blueGreenDeploymentName(blueGreenName)
+                .source(sourceArn)
+                .tags(testRunnerTag)
+                .build());
+      } catch (RdsException ex) {
+        if (ex.statusCode() != 500 || count == 0) {
+          throw ex;
+        }
+
+        LOGGER.finest("Can't send createBlueGreenDeployment request. Wait 1min and try again.");
+
+        try {
+          TimeUnit.MINUTES.sleep(1);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(e);
+        }
+      }
+    }
+
+    if (response == null) {
+      throw new RuntimeException("Can't send createBlueGreenDeployment request.");
+    }
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      LOGGER.finest(String.format("createBlueGreenDeployment response: %d, %s",
+          response.sdkHttpResponse().statusCode(),
+          response.sdkHttpResponse().statusText()));
+      throw new RuntimeException(response.sdkHttpResponse().statusText().orElse("Unspecified error."));
+    } else {
+      LOGGER.finest("createBlueGreenDeployment request is sent");
+    }
+
+    String blueGreenId = response.blueGreenDeployment().blueGreenDeploymentIdentifier();
+
+    BlueGreenDeployment blueGreenDeployment = getBlueGreenDeployment(blueGreenId);
+    long end = System.nanoTime() + TimeUnit.MINUTES.toNanos(60);
+    while ((blueGreenDeployment == null || !blueGreenDeployment.status().equalsIgnoreCase("available"))
+        && System.nanoTime() < end) {
+      try {
+        TimeUnit.SECONDS.sleep(30);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      blueGreenDeployment = getBlueGreenDeployment(blueGreenId);
+    }
+
+    if (blueGreenDeployment == null || !blueGreenDeployment.status().equalsIgnoreCase("available")) {
+      throw new RuntimeException("BlueGreen Deployment " + blueGreenId + " isn't available.");
+    }
+
+    return blueGreenId;
+  }
+
+  public void waitUntilBlueGreenDeploymentHasRightState(String blueGreenId, String... allowedStatuses) {
+
+    String status = getBlueGreenDeployment(blueGreenId).status();
+    LOGGER.finest("BGD status: " + status + ", waiting for status: " + String.join(", ", allowedStatuses));
+    final Set<String> allowedStatusSet = Arrays.stream(allowedStatuses)
+        .map(String::toLowerCase)
+        .collect(Collectors.toSet());
+    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+    while (!allowedStatusSet.contains(status.toLowerCase()) && waitTillNanoTime > System.nanoTime()) {
+      try {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      } catch (InterruptedException ex) {
+        throw new RuntimeException(ex);
+      }
+      String tmpStatus = getBlueGreenDeployment(blueGreenId).status();
+      if (!tmpStatus.equalsIgnoreCase(status)) {
+        LOGGER.finest("BGD status (waiting): " + tmpStatus);
+      }
+      status = tmpStatus;
+    }
+    LOGGER.finest("BGD status (after wait): " + status);
+
+    if (!allowedStatusSet.contains(status.toLowerCase())) {
+      throw new RuntimeException("BlueGreen Deployment " + blueGreenId + " has wrong status.");
+    }
+  }
+
+  public void switchoverBlueGreenDeployment(String blueGreenId) {
+    SwitchoverBlueGreenDeploymentResponse response = rdsClient.switchoverBlueGreenDeployment(
+        SwitchoverBlueGreenDeploymentRequest.builder()
+            .blueGreenDeploymentIdentifier(blueGreenId)
+            .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      LOGGER.finest(String.format("switchoverBlueGreenDeployment response: %d, %s",
+          response.sdkHttpResponse().statusCode(),
+          response.sdkHttpResponse().statusText()));
+      throw new RuntimeException(response.sdkHttpResponse().statusText().orElse("Unspecified error."));
+    } else {
+      LOGGER.finest("switchoverBlueGreenDeployment request is sent");
+    }
+  }
+
+  public boolean doesBlueGreenDeploymentExist(String blueGreenId) {
+    try {
+      DescribeBlueGreenDeploymentsResponse response = rdsClient.describeBlueGreenDeployments(
+          builder -> builder.blueGreenDeploymentIdentifier(blueGreenId));
+      return response.blueGreenDeployments() != null && !response.blueGreenDeployments().isEmpty();
+    } catch (BlueGreenDeploymentNotFoundException ex) {
+      LOGGER.finest("blueGreenDeployments not found");
+      return false;
+    }
+  }
+
+  public BlueGreenDeployment getBlueGreenDeployment(String blueGreenId) {
+    try {
+      DescribeBlueGreenDeploymentsResponse response = rdsClient.describeBlueGreenDeployments(
+          builder -> builder.blueGreenDeploymentIdentifier(blueGreenId));
+      if (response.hasBlueGreenDeployments()) {
+        return response.blueGreenDeployments().get(0);
+      }
+      return null;
+    } catch (BlueGreenDeploymentNotFoundException ex) {
+      return null;
+    }
+  }
+
+  public BlueGreenDeployment getBlueGreenDeploymentBySource(String sourceArn) {
+    try {
+      DescribeBlueGreenDeploymentsResponse response = rdsClient.describeBlueGreenDeployments(
+          builder -> builder.filters(f -> f.name("source").values(sourceArn)));
+      if (!response.blueGreenDeployments().isEmpty()) {
+        return response.blueGreenDeployments().get(0);
+      }
+      return null;
+    } catch (BlueGreenDeploymentNotFoundException ex) {
+      return null;
+    }
+  }
+
+  public void deleteBlueGreenDeployment(String blueGreenId, boolean waitForCompletion) {
+
+    if (!doesBlueGreenDeploymentExist(blueGreenId)) {
+      return;
+    }
+
+    waitUntilBlueGreenDeploymentHasRightState(blueGreenId, "available", "switchover_completed");
+
+    DeleteBlueGreenDeploymentResponse response = rdsClient.deleteBlueGreenDeployment(
+        DeleteBlueGreenDeploymentRequest.builder()
+            .blueGreenDeploymentIdentifier(blueGreenId)
+            .build());
+
+    if (!response.sdkHttpResponse().isSuccessful()) {
+      LOGGER.finest(String.format("deleteBlueGreenDeployment response: %d, %s",
+          response.sdkHttpResponse().statusCode(),
+          response.sdkHttpResponse().statusText()));
+      throw new RuntimeException(response.sdkHttpResponse().statusText().orElse("Unspecified error."));
+    } else {
+      LOGGER.finest("deleteBlueGreenDeployment request is sent");
+    }
+
+    if (waitForCompletion) {
+      long endTimeNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(30);
+      while (doesBlueGreenDeploymentExist(blueGreenId) && endTimeNano > System.nanoTime()) {
+        try {
+          TimeUnit.MINUTES.sleep(1);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+      }
+
+      if (doesBlueGreenDeploymentExist(blueGreenId)) {
+        throw new RuntimeException(
+            "Unable to delete Blue/Green Deployment after waiting for 30 minutes");
+      }
     }
   }
 }

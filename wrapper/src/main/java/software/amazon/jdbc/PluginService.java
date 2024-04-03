@@ -80,6 +80,8 @@ public interface PluginService extends ExceptionHandler {
 
   HostSpec getInitialConnectionHostSpec();
 
+  String getOriginalUrl();
+
   /**
    * Set the collection of hosts that should be allowed and/or blocked for connections.
    *
@@ -249,4 +251,14 @@ public interface PluginService extends ExceptionHandler {
   @NonNull SessionStateService getSessionStateService();
 
   <T> T getPlugin(final Class<T> pluginClazz);
+
+  <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound);
+
+  <T> void setStatus(final Class<T> clazz, final @Nullable T status, final String key);
+
+  <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound);
+
+  <T> T getStatus(final @NonNull Class<T> clazz, final String key);
+
+  boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);
 }

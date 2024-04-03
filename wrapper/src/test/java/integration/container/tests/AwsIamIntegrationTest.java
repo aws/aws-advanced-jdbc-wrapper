@@ -64,7 +64,8 @@ import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
-    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
+    TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY,
+    TestEnvironmentFeatures.BLUE_GREEN_DEPLOYMENT})
 @Order(3)
 // MariaDb driver has no configuration parameters to force using 'mysql_clear_password'
 // authentication that is essential for IAM. A proper user name and IAM token are passed to MariaDb
