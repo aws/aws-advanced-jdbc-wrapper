@@ -55,11 +55,11 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
   private final CredentialsProviderFactory credentialsProviderFactory;
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60 - 30;
   private static final int DEFAULT_HTTP_TIMEOUT_MILLIS = 60000;
+
   public static final AwsWrapperProperty IDP_ENDPOINT = new AwsWrapperProperty("idpEndpoint", null,
       "The hosting URL of the Identity Provider");
-
   public static final AwsWrapperProperty APP_ID = new AwsWrapperProperty("appId", null,
-      "The application ID");
+      "The ID of the AWS application configured on Okta");
   public static final AwsWrapperProperty IAM_ROLE_ARN =
       new AwsWrapperProperty("iamRoleArn", null, "The ARN of the IAM Role that is to be assumed.");
   public static final AwsWrapperProperty IAM_IDP_ARN =

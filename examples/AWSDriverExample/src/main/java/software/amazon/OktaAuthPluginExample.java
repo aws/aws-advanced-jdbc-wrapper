@@ -37,7 +37,6 @@ public class OktaAuthPluginExample {
     // Enable the Okta Authentication Connection Plugin.
     properties.setProperty(PropertyDefinition.PLUGINS.name, "okta");
     properties.setProperty(OktaAuthPlugin.IDP_ENDPOINT.name, "123456789.okta.com");
-    properties.setProperty(OktaAuthPlugin.IDP_NAME.name, "okta");
     properties.setProperty(OktaAuthPlugin.APP_ID.name, "abc12345678");
     properties.setProperty(OktaAuthPlugin.IAM_ROLE_ARN.name, "arn:aws:iam::123456789:role/OktaAccessRole");
     properties.setProperty(OktaAuthPlugin.IAM_IDP_ARN.name, "arn:aws:iam::123456789:saml-provider/OktaSAMLIdp");
