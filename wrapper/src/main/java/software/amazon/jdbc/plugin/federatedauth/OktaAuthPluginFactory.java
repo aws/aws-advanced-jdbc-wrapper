@@ -24,25 +24,25 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.StringUtils;
 
-public class FederatedAuthPluginFactory implements ConnectionPluginFactory {
+public class OktaAuthPluginFactory implements ConnectionPluginFactory {
 
   @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new FederatedAuthPlugin(pluginService, getCredentialsProviderFactory(pluginService, props));
+  public ConnectionPlugin getInstance(PluginService pluginService, Properties props) {
+    return new OktaAuthPlugin(pluginService, getCredentialsProviderFactory(pluginService, props));
   }
 
   private CredentialsProviderFactory getCredentialsProviderFactory(final PluginService pluginService,
       final Properties props) {
     final String idpName = FederatedAuthPlugin.IDP_NAME.getString(props);
-    if (StringUtils.isNullOrEmpty(idpName) || AdfsCredentialsProviderFactory.IDP_NAME.equalsIgnoreCase(idpName)) {
-      return new AdfsCredentialsProviderFactory(
+    if (StringUtils.isNullOrEmpty(idpName) || "okta".equalsIgnoreCase(idpName)) {
+      return new OktaCredentialsProviderFactory(
           pluginService,
           () -> {
             try {
               return new HttpClientFactory().getCloseableHttpClient(
-                  FederatedAuthPlugin.HTTP_CLIENT_SOCKET_TIMEOUT.getInteger(props),
-                  FederatedAuthPlugin.HTTP_CLIENT_CONNECT_TIMEOUT.getInteger(props),
-                  FederatedAuthPlugin.SSL_INSECURE.getBoolean(props));
+                  OktaAuthPlugin.HTTP_CLIENT_SOCKET_TIMEOUT.getInteger(props),
+                  OktaAuthPlugin.HTTP_CLIENT_CONNECT_TIMEOUT.getInteger(props),
+                  OktaAuthPlugin.SSL_INSECURE.getBoolean(props));
             } catch (GeneralSecurityException e) {
               throw new RuntimeException(
                   Messages.get("CredentialsProviderFactory.failedToInitializeHttpClient"), e);

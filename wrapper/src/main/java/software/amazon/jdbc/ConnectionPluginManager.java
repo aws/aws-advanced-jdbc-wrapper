@@ -40,6 +40,8 @@ import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
+import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
+import software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
@@ -74,6 +76,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(FailoverConnectionPlugin.class, "plugin:failover");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
+          put(FederatedAuthPlugin.class, "plugin:okta");
+          put(OktaAuthPlugin.class, "plugin:okta");
           put(AuroraStaleDnsPlugin.class, "plugin:auroraStaleDns");
           put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");
           put(FastestResponseStrategyPlugin.class, "plugin:fastestResponseStrategy");

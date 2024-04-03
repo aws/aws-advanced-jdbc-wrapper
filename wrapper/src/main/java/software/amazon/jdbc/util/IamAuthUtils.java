@@ -16,9 +16,26 @@
 
 package software.amazon.jdbc.util;
 
+import java.sql.SQLException;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.logging.Logger;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.plugin.iam.IamTokenUtility;
+import software.amazon.jdbc.plugin.iam.LightRdsUtility;
+import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
+import software.amazon.jdbc.util.telemetry.TelemetryContext;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class IamAuthUtils {
+
+  private static final Logger LOGGER = Logger.getLogger(IamAuthUtils.class.getName());
+  private static final String TELEMETRY_FETCH_TOKEN = "fetch authentication token";
+
   public static String getIamHost(final String iamHost, final HostSpec hostSpec) {
     if (!StringUtils.isNullOrEmpty(iamHost)) {
       return iamHost;
@@ -33,6 +50,100 @@ public class IamAuthUtils {
       return hostSpec.getPort();
     } else {
       return dialectDefaultPort;
+    }
+  }
+
+  public static Region getRegion(
+      final RdsUtils rdsUtils,
+      final String iamRegion,
+      final String hostname,
+      final Properties props) throws SQLException {
+    if (!StringUtils.isNullOrEmpty(iamRegion)) {
+      return Region.of(iamRegion);
+    }
+
+    // Fallback to using host
+    // Get Region
+    final String rdsRegion = rdsUtils.getRdsRegion(hostname);
+
+    if (StringUtils.isNullOrEmpty(rdsRegion)) {
+      // Does not match Amazon's Hostname, throw exception
+      final String exceptionMessage = Messages.get(
+          "Authentication.unsupportedHostname",
+          new Object[] {hostname});
+
+      LOGGER.fine(exceptionMessage);
+      throw new SQLException(exceptionMessage);
+    }
+
+    // Check Region
+    final Optional<Region> regionOptional = Region.regions().stream()
+        .filter(r -> r.id().equalsIgnoreCase(rdsRegion))
+        .findFirst();
+
+    if (!regionOptional.isPresent()) {
+      final String exceptionMessage = Messages.get(
+          "AwsSdk.unsupportedRegion",
+          new Object[] {rdsRegion});
+
+      LOGGER.fine(exceptionMessage);
+      throw new SQLException(exceptionMessage);
+    }
+
+    return regionOptional.get();
+  }
+
+  public static String getCacheKey(
+      final String user,
+      final String hostname,
+      final int port,
+      final Region region) {
+
+    return String.format("%s:%s:%d:%s", region, hostname, port, user);
+  }
+
+  public static IamTokenUtility getTokenUtility() {
+    try {
+      // RegularRdsUtility requires AWS Java SDK RDS v2.x to be presented in classpath.
+      Class.forName("software.amazon.awssdk.services.rds.RdsUtilities");
+      return new RegularRdsUtility();
+    } catch (final ClassNotFoundException e) {
+      // If Java SDK for RDS isn't presented, try to check the required dependency for LightRdsUtility.
+      try {
+        // LightRdsUtility requires "software.amazon.awssdk.auth"
+        // and "software.amazon.awssdk.http-client-spi" libraries.
+        Class.forName("software.amazon.awssdk.http.SdkHttpFullRequest");
+        Class.forName("software.amazon.awssdk.auth.signer.params.Aws4PresignerParams");
+
+        // Required libraries are presented. Use a lighter version of RDS utility.
+        return new LightRdsUtility();
+
+      } catch (final ClassNotFoundException ex) {
+        throw new RuntimeException(Messages.get("AuthenticationToken.javaSdkNotInClasspath"), ex);
+      }
+    }
+  }
+
+  public static String generateAuthenticationToken(
+      final IamTokenUtility tokenUtils,
+      final PluginService pluginService,
+      final String user,
+      final String hostname,
+      final int port,
+      final Region region,
+      final AwsCredentialsProvider awsCredentialsProvider) {
+    final TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
+    final TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_FETCH_TOKEN, TelemetryTraceLevel.NESTED);
+
+    try {
+      return tokenUtils.generateAuthenticationToken(awsCredentialsProvider, region, hostname, port, user);
+    } catch (final Exception e) {
+      telemetryContext.setSuccess(false);
+      telemetryContext.setException(e);
+      throw e;
+    } finally {
+      telemetryContext.closeContext();
     }
   }
 }
