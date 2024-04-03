@@ -135,8 +135,9 @@ public class DialectDetectionTests {
   void testUpdateDialectMysqlToRds() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(successResultSet);
+    when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(successResultSet);
     when(successResultSet.getString(1)).thenReturn("Source distribution");
-    when(successResultSet.next()).thenReturn(true, false, true, false);
+    when(successResultSet.next()).thenReturn(true, false, true, true);
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(failResultSet.next()).thenReturn(false);
     when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
@@ -238,8 +239,9 @@ public class DialectDetectionTests {
   void testUpdateDialectMariaToMysqlRds() throws SQLException {
     when(mockStatement.executeQuery(any())).thenReturn(failResultSet);
     when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'version_comment'")).thenReturn(successResultSet);
+    when(mockStatement.executeQuery("SHOW VARIABLES LIKE 'report_host'")).thenReturn(successResultSet);
     when(successResultSet.getString(1)).thenReturn("Source distribution");
-    when(successResultSet.next()).thenReturn(true, false, true, false);
+    when(successResultSet.next()).thenReturn(true, false, true, true);
     when(successResultSet.getMetaData()).thenReturn(mockResultSetMetaData);
     when(failResultSet.next()).thenReturn(false);
     when(mockResultSetMetaData.getColumnCount()).thenReturn(1);
