@@ -112,8 +112,9 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
       final IamTokenUtility tokenUtils) {
     try {
       Class.forName("software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest");
+      Class.forName("org.jsoup.nodes.Document");
     } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(Messages.get("SamlAuthPlugin.javaStsSdkNotInClasspath"));
+      throw new RuntimeException(Messages.get("OktaAuthPlugin.requiredDependenciesMissing"));
     }
 
     this.pluginService = pluginService;

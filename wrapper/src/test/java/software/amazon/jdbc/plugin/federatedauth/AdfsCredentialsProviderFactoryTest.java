@@ -64,11 +64,11 @@ class AdfsCredentialsProviderFactoryTest {
   @Mock private HttpEntity mockSamlHttpEntity;
   private AdfsCredentialsProviderFactory adfsCredentialsProviderFactory;
   private Properties props;
-  private AutoCloseable closable;
+  private AutoCloseable closeable;
 
   @BeforeEach
   public void init() throws IOException {
-    closable = MockitoAnnotations.openMocks(this);
+    closeable = MockitoAnnotations.openMocks(this);
 
     this.props = new Properties();
     this.props.setProperty(FederatedAuthPlugin.IDP_ENDPOINT.name, "ec2amaz-ab3cdef.example.com");
@@ -101,7 +101,7 @@ class AdfsCredentialsProviderFactoryTest {
 
   @AfterEach
   void cleanUp() throws Exception {
-    closable.close();
+    closeable.close();
   }
 
   @Test

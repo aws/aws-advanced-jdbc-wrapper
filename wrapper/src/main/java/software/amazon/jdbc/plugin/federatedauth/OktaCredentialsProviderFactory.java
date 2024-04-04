@@ -77,13 +77,6 @@ public class OktaCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
   public OktaCredentialsProviderFactory(final PluginService pluginService,
       final Supplier<CloseableHttpClient> httpClientSupplier) {
-    try {
-      Class.forName("software.amazon.awssdk.services.sts.model.AssumeRoleWithSamlRequest");
-      Class.forName("org.jsoup.nodes.Document");
-    } catch (final ClassNotFoundException e) {
-      throw new RuntimeException(Messages.get("OktaAuthPlugin.requiredDependenciesMissing"));
-    }
-
     this.pluginService = pluginService;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
     this.httpClientSupplier = httpClientSupplier;
