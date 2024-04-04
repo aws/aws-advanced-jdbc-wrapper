@@ -44,7 +44,7 @@ dependencies {
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
     compileOnly("io.opentelemetry:opentelemetry-api:1.36.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.35.0")
-    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.35.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.36.0")
     compileOnly("org.jsoup:jsoup:1.17.2")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.2")
@@ -81,7 +81,7 @@ dependencies {
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.15.0")
     testImplementation("io.opentelemetry:opentelemetry-api:1.36.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.35.0")
-    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.35.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.36.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.36.0")
     testImplementation("org.jsoup:jsoup:1.17.2")
 }
