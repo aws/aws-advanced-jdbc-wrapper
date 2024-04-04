@@ -76,7 +76,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(FailoverConnectionPlugin.class, "plugin:failover");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
-          put(FederatedAuthPlugin.class, "plugin:okta");
+          put(FederatedAuthPlugin.class, "plugin:federatedAuth");
           put(OktaAuthPlugin.class, "plugin:okta");
           put(AuroraStaleDnsPlugin.class, "plugin:auroraStaleDns");
           put(ReadWriteSplittingPlugin.class, "plugin:readWriteSplitting");

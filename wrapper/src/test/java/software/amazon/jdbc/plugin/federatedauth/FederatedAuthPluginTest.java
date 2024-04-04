@@ -170,7 +170,7 @@ class FederatedAuthPluginTest {
     props.setProperty(FederatedAuthPlugin.IAM_DEFAULT_PORT.name, String.valueOf(expectedPort));
     props.setProperty(FederatedAuthPlugin.IAM_REGION.name, expectedRegion.toString());
 
-    final String key = "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + String.valueOf(expectedPort) + ":iamUser";
+    final String key = "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + expectedPort + ":iamUser";
     FederatedAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
 
     FederatedAuthPlugin plugin =
