@@ -219,7 +219,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
     } catch (final Exception exception) {
       LOGGER.warning(
           () -> Messages.get(
-              "FederatedAuthPlugin.unhandledException",
+              "SamlAuthPlugin.unhandledException",
               new Object[] {exception}));
       throw new SQLException(exception);
     }

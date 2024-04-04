@@ -85,8 +85,6 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
       "The connect timeout value in milliseconds for the HttpClient used by the OktaAuthPlugin");
   public static final AwsWrapperProperty SSL_INSECURE = new AwsWrapperProperty("sslInsecure", "true",
       "Whether or not the SSL session is to be secure and the sever's certificates will be verified");
-  public static AwsWrapperProperty
-      IDP_NAME = new AwsWrapperProperty("idpName", "okta", "The name of the Identity Provider implementation used");
   public static final AwsWrapperProperty DB_USER =
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
 
@@ -194,7 +192,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
     } catch (final Exception exception) {
       LOGGER.warning(
           () -> Messages.get(
-              "FederatedAuthPlugin.unhandledException",
+              "SamlAuthPlugin.unhandledException",
               new Object[] {exception}));
       throw new SQLException(exception);
     }
