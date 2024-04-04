@@ -50,12 +50,12 @@ public class LightRdsUtility implements IamTokenUtility {
 
     // The following code is inspired by software.amazon.awssdk.services.rds.DefaultRdsUtilities,
     // method generateAuthenticationToken(GenerateAuthenticationTokenRequest request).
-    // Update this code when original method changes.
+    // Update this code when the original method changes.
 
     final Clock clock = Clock.systemUTC();
     final Aws4Signer signer = Aws4Signer.create();
 
-    SdkHttpFullRequest httpRequest = SdkHttpFullRequest.builder()
+    final SdkHttpFullRequest httpRequest = SdkHttpFullRequest.builder()
         .method(SdkHttpMethod.GET)
         .protocol("https")
         .host(hostname)
@@ -65,12 +65,12 @@ public class LightRdsUtility implements IamTokenUtility {
         .putRawQueryParameter("Action", "connect")
         .build();
 
-    Instant expirationTime = Instant.now(clock).plus(EXPIRATION_DURATION);
+    final Instant expirationTime = Instant.now(clock).plus(EXPIRATION_DURATION);
 
     final AwsCredentials credentials = CredentialUtils.toCredentials(
         CompletableFutureUtils.joinLikeSync(credentialsProvider.resolveIdentity()));
 
-    Aws4PresignerParams presignRequest = Aws4PresignerParams.builder()
+    final Aws4PresignerParams presignRequest = Aws4PresignerParams.builder()
         .signingClockOverride(clock)
         .expirationTime(expirationTime)
         .awsCredentials(credentials)
@@ -78,13 +78,13 @@ public class LightRdsUtility implements IamTokenUtility {
         .signingRegion(region)
         .build();
 
-    SdkHttpFullRequest fullRequest = signer.presign(httpRequest, presignRequest);
-    String signedUrl = fullRequest.getUri().toString();
+    final SdkHttpFullRequest fullRequest = signer.presign(httpRequest, presignRequest);
+    final String signedUrl = fullRequest.getUri().toString();
 
     // Format should be:
     // <hostname>>:<port>>/?Action=connect&DBUser=<username>>&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expi...
     // Note: This must be the real RDS hostname, not proxy or tunnels
-    String result = StringUtils.replacePrefixIgnoreCase(signedUrl, "https://", "");
+    final String result = StringUtils.replacePrefixIgnoreCase(signedUrl, "https://", "");
     LOGGER.finest(() -> "Generated RDS authentication token with expiration of " + expirationTime);
     return result;
   }

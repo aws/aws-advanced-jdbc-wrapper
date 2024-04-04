@@ -16,7 +16,7 @@
 
 package software.amazon.jdbc.plugin.federatedauth;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -26,15 +26,18 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.function.Supplier;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -61,10 +64,11 @@ class AdfsCredentialsProviderFactoryTest {
   @Mock private HttpEntity mockSamlHttpEntity;
   private AdfsCredentialsProviderFactory adfsCredentialsProviderFactory;
   private Properties props;
+  private AutoCloseable closeable;
 
   @BeforeEach
   public void init() throws IOException {
-    MockitoAnnotations.openMocks(this);
+    closeable = MockitoAnnotations.openMocks(this);
 
     this.props = new Properties();
     this.props.setProperty(FederatedAuthPlugin.IDP_ENDPOINT.name, "ec2amaz-ab3cdef.example.com");
@@ -74,7 +78,6 @@ class AdfsCredentialsProviderFactoryTest {
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(any(), any())).thenReturn(mockTelemetryContext);
     when(mockHttpClientSupplier.get()).thenReturn(mockHttpClient);
-    when(mockHttpClient.execute(any(HttpGet.class))).thenReturn(mockHttpGetSignInPageResponse);
     when(mockHttpGetSignInPageResponse.getStatusLine()).thenReturn(mockStatusLine);
     when(mockStatusLine.getStatusCode()).thenReturn(200);
     when(mockHttpGetSignInPageResponse.getEntity()).thenReturn(mockSignInPageHttpEntity);
@@ -96,19 +99,28 @@ class AdfsCredentialsProviderFactoryTest {
     this.adfsCredentialsProviderFactory = new AdfsCredentialsProviderFactory(mockPluginService, mockHttpClientSupplier);
   }
 
+  @AfterEach
+  void cleanUp() throws Exception {
+    closeable.close();
+  }
+
   @Test
   void test() throws IOException, SQLException {
+    when(mockHttpClient.execute(any(HttpUriRequest.class))).thenReturn(
+        mockHttpGetSignInPageResponse,
+        mockHttpPostSignInResponse);
     final String correctSamlAssertion = IOUtils.toString(
-        this.getClass().getClassLoader().getResourceAsStream("federated_auth/saml-assertion.txt"),
-        "UTF-8")
+            Objects.requireNonNull(
+                this.getClass().getClassLoader().getResourceAsStream("federated_auth/saml-assertion.txt")),
+            "UTF-8")
         .replace("\n", "")
         .replace("\r", "");
     final String samlAssertion = this.adfsCredentialsProviderFactory.getSamlAssertion(props);
     assertEquals(correctSamlAssertion, samlAssertion);
 
-    final ArgumentCaptor<HttpPost> httpPostArgumentCaptor = ArgumentCaptor.forClass(HttpPost.class);
+    final ArgumentCaptor<HttpUriRequest> httpPostArgumentCaptor = ArgumentCaptor.forClass(HttpUriRequest.class);
     verify(mockHttpClient, times(2)).execute(httpPostArgumentCaptor.capture());
-    final HttpPost actualHttpPost = httpPostArgumentCaptor.getValue();
+    final HttpEntityEnclosingRequest actualHttpPost = (HttpEntityEnclosingRequest) httpPostArgumentCaptor.getValue();
     final String content = EntityUtils.toString(actualHttpPost.getEntity());
     final String[] params = content.split("&");
     assertEquals("UserName=" + USERNAME.replace("@", "%40"), params[0]);

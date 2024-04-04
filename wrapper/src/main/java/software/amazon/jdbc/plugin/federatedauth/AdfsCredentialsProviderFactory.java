@@ -34,6 +34,8 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
@@ -67,6 +69,7 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
   @Override
   String getSamlAssertion(final @NonNull Properties props) throws SQLException {
     this.telemetryContext = telemetryFactory.openTelemetryContext(TELEMETRY_FETCH_SAML, TelemetryTraceLevel.NESTED);
+
     try (final CloseableHttpClient httpClient = httpClientSupplier.get()) {
       String uri = getSignInPageUrl(props);
       final String signInPageBody = getSignInPageBody(httpClient, uri);
@@ -87,7 +90,7 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       // return SAML Response value
       return matcher.group(FederatedAuthPlugin.SAML_RESPONSE_PATTERN_GROUP);
     } catch (final IOException e) {
-      LOGGER.severe(Messages.get("AdfsCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
+      LOGGER.severe(Messages.get("SAMLCredentialsProviderFactory.getSamlAssertionFailed", new Object[] {e}));
       this.telemetryContext.setSuccess(false);
       this.telemetryContext.setException(e);
       throw new SQLException(e);
@@ -98,9 +101,8 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
 
   private String getSignInPageBody(final CloseableHttpClient httpClient, final String uri) throws IOException {
     LOGGER.finest(Messages.get("AdfsCredentialsProviderFactory.signOnPageUrl", new Object[] {uri}));
-    validateUrl(uri);
-    final HttpGet get = new HttpGet(uri);
-    try (final CloseableHttpResponse resp = httpClient.execute(get)) {
+    SamlUtils.validateUrl(uri);
+    try (final CloseableHttpResponse resp = httpClient.execute(new HttpGet(uri))) {
       final StatusLine statusLine = resp.getStatusLine();
       // Check HTTP Status Code is 2xx Success
       if (statusLine.getStatusCode() / 100 != 2) {
@@ -117,10 +119,14 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
   private String getFormActionBody(final CloseableHttpClient httpClient, final String uri,
       final List<NameValuePair> params) throws IOException {
     LOGGER.finest(Messages.get("AdfsCredentialsProviderFactory.signOnPagePostActionUrl", new Object[] {uri}));
-    validateUrl(uri);
-    final HttpPost post = new HttpPost(uri);
-    post.setEntity(new UrlEncodedFormEntity(params));
-    try (final CloseableHttpResponse resp = httpClient.execute(post)) {
+    SamlUtils.validateUrl(uri);
+
+    final HttpUriRequest request = RequestBuilder
+        .post()
+        .setUri(uri)
+        .setEntity(new UrlEncodedFormEntity(params))
+        .build();
+    try (final CloseableHttpResponse resp = httpClient.execute(request)) {
       final StatusLine statusLine = resp.getStatusLine();
       // Check HTTP Status Code is 2xx Success
       if (statusLine.getStatusCode() / 100 != 2) {
@@ -232,21 +238,5 @@ public class AdfsCredentialsProviderFactory extends SamlCredentialsProviderFacto
       return escapeHtmlEntity(m.group(1));
     }
     return null;
-  }
-
-  private void validateUrl(final String paramString) throws IOException {
-
-    final URI authorizeRequestUrl = URI.create(paramString);
-    final String errorMessage = Messages.get("AdfsCredentialsProviderFactory.invalidHttpsUrl",
-        new Object[] {paramString});
-
-    if (!authorizeRequestUrl.toURL().getProtocol().equalsIgnoreCase("https")) {
-      throw new IOException(errorMessage);
-    }
-
-    final Matcher matcher = FederatedAuthPlugin.HTTPS_URL_PATTERN.matcher(paramString);
-    if (!matcher.find()) {
-      throw new IOException(errorMessage);
-    }
   }
 }

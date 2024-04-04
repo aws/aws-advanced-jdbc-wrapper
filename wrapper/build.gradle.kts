@@ -45,6 +45,7 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-api:1.36.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.35.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.35.0")
+    compileOnly("org.jsoup:jsoup:1.17.2")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.2")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.1")
@@ -82,6 +83,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.35.0")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.35.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.36.0")
+    testImplementation("org.jsoup:jsoup:1.17.2")
 }
 
 repositories {
@@ -165,10 +167,10 @@ tasks.withType<JacocoCoverageVerification> {
         classDirectories.setFrom(files(classDirectories.files.map {
             fileTree(it).apply {
                 exclude(
-                        "software/amazon/jdbc/wrapper/*",
-                        "software/amazon/jdbc/util/*",
-                        "software/amazon/jdbc/profile/*",
-                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                    "software/amazon/jdbc/wrapper/*",
+                    "software/amazon/jdbc/util/*",
+                    "software/amazon/jdbc/profile/*",
+                    "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
                 )
             }
         }))
@@ -180,10 +182,10 @@ tasks.withType<JacocoReport> {
         classDirectories.setFrom(files(classDirectories.files.map {
             fileTree(it).apply {
                 exclude(
-                        "software/amazon/jdbc/wrapper/*",
-                        "software/amazon/jdbc/util/*",
-                        "software/amazon/jdbc/profile/*",
-                        "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
+                    "software/amazon/jdbc/wrapper/*",
+                    "software/amazon/jdbc/util/*",
+                    "software/amazon/jdbc/profile/*",
+                    "software/amazon/jdbc/plugin/DataCacheConnectionPlugin*"
                 )
             }
         }))
@@ -258,7 +260,8 @@ tasks.withType<Test> {
     System.getProperties().forEach {
         if (it.key.toString().startsWith("test-no-")
             || it.key.toString() == "test-include-tags"
-            || it.key.toString() == "test-exclude-tags") {
+            || it.key.toString() == "test-exclude-tags"
+        ) {
             systemProperty(it.key.toString(), it.value.toString())
         }
     }

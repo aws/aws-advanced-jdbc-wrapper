@@ -27,16 +27,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.identity.spi.AwsCredentialsIdentity;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -47,13 +43,12 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
-import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
-class FederatedAuthPluginTest {
+class OktaAuthPluginTest {
 
   private static final int DEFAULT_PORT = 1234;
   private static final String DRIVER_PROTOCOL = "jdbc:postgresql:";
@@ -73,18 +68,17 @@ class FederatedAuthPluginTest {
   @Mock private AwsCredentialsProvider mockAwsCredentialsProvider;
   @Mock private RdsUtils mockRdsUtils;
   @Mock private IamTokenUtility mockIamTokenUtils;
-  @Mock private CompletableFuture completableFuture;
-  @Mock private AwsCredentialsIdentity mockAwsCredentialsIdentity;
+
   private Properties props;
   private AutoCloseable closeable;
 
   @BeforeEach
-  public void init() throws ExecutionException, InterruptedException, SQLException {
+  void setUp() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     props = new Properties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "federatedAuth");
-    props.setProperty(FederatedAuthPlugin.DB_USER.name, DB_USER);
-    FederatedAuthPlugin.clearCache();
+    props.setProperty(PropertyDefinition.PLUGINS.name, "okta");
+    props.setProperty(OktaAuthPlugin.DB_USER.name, DB_USER);
+    OktaAuthPlugin.clearCache();
 
     when(mockRdsUtils.getRdsRegion(anyString())).thenReturn("us-east-2");
     when(mockIamTokenUtils.generateAuthenticationToken(
@@ -100,22 +94,20 @@ class FederatedAuthPluginTest {
     when(mockTelemetryFactory.openTelemetryContext(any(), any())).thenReturn(mockTelemetryContext);
     when(mockCredentialsProviderFactory.getAwsCredentialsProvider(any(), any(), any()))
         .thenReturn(mockAwsCredentialsProvider);
-    when(mockAwsCredentialsProvider.resolveIdentity()).thenReturn(completableFuture);
-    when(completableFuture.get()).thenReturn(mockAwsCredentialsIdentity);
   }
 
   @AfterEach
-  public void cleanUp() throws Exception {
+  void tearDown() throws Exception {
     closeable.close();
   }
 
   @Test
   void testCachedToken() throws SQLException {
-    FederatedAuthPlugin plugin =
-        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory);
+    final OktaAuthPlugin plugin =
+        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    FederatedAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
+    OktaAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -125,14 +117,14 @@ class FederatedAuthPluginTest {
 
   @Test
   void testExpiredCachedToken() throws SQLException {
-    FederatedAuthPlugin spyPlugin = Mockito.spy(
-        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
+    final OktaAuthPlugin spyPlugin =
+        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
-    String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    String someExpiredToken = "someExpiredToken";
-    TokenInfo expiredTokenInfo = new TokenInfo(
+    final String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
+    final String someExpiredToken = "someExpiredToken";
+    final TokenInfo expiredTokenInfo = new TokenInfo(
         someExpiredToken, Instant.now().minusMillis(300000));
-    FederatedAuthPlugin.tokenCache.put(key, expiredTokenInfo);
+    OktaAuthPlugin.tokenCache.put(key, expiredTokenInfo);
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(mockAwsCredentialsProvider,
@@ -146,8 +138,8 @@ class FederatedAuthPluginTest {
 
   @Test
   void testNoCachedToken() throws SQLException {
-    FederatedAuthPlugin spyPlugin = Mockito.spy(
-        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
+    final OktaAuthPlugin spyPlugin =
+        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(
@@ -166,15 +158,15 @@ class FederatedAuthPluginTest {
     final int expectedPort = 9876;
     final Region expectedRegion = Region.US_WEST_2;
 
-    props.setProperty(FederatedAuthPlugin.IAM_HOST.name, expectedHost);
-    props.setProperty(FederatedAuthPlugin.IAM_DEFAULT_PORT.name, String.valueOf(expectedPort));
-    props.setProperty(FederatedAuthPlugin.IAM_REGION.name, expectedRegion.toString());
+    props.setProperty(OktaAuthPlugin.IAM_HOST.name, expectedHost);
+    props.setProperty(OktaAuthPlugin.IAM_DEFAULT_PORT.name, String.valueOf(expectedPort));
+    props.setProperty(OktaAuthPlugin.IAM_REGION.name, expectedRegion.toString());
 
     final String key = "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + expectedPort + ":iamUser";
-    FederatedAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
+    OktaAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
 
-    FederatedAuthPlugin plugin =
-        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+    OktaAuthPlugin plugin =
+        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -184,22 +176,22 @@ class FederatedAuthPluginTest {
 
   @Test
   void testIdpCredentialsFallback() throws SQLException {
-    String expectedUser = "expectedUser";
-    String expectedPassword = "expectedPassword";
+    final String expectedUser = "expectedUser";
+    final String expectedPassword = "expectedPassword";
     PropertyDefinition.USER.set(props, expectedUser);
     PropertyDefinition.PASSWORD.set(props, expectedPassword);
 
-    FederatedAuthPlugin plugin =
-        new FederatedAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
+    final OktaAuthPlugin plugin =
+        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
-    String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    FederatedAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
+    final String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
+    OktaAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
     assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
-    assertEquals(expectedUser, FederatedAuthPlugin.IDP_USERNAME.getString(props));
-    assertEquals(expectedPassword, FederatedAuthPlugin.IDP_PASSWORD.getString(props));
+    assertEquals(expectedUser, OktaAuthPlugin.IDP_USERNAME.getString(props));
+    assertEquals(expectedPassword, OktaAuthPlugin.IDP_PASSWORD.getString(props));
   }
 }

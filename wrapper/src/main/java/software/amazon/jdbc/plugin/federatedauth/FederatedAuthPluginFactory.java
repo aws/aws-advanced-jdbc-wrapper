@@ -45,11 +45,11 @@ public class FederatedAuthPluginFactory implements ConnectionPluginFactory {
                   FederatedAuthPlugin.SSL_INSECURE.getBoolean(props));
             } catch (GeneralSecurityException e) {
               throw new RuntimeException(
-                  Messages.get("FederatedAuthPluginFactory.failedToInitializeHttpClient"), e);
+                  Messages.get("CredentialsProviderFactory.failedToInitializeHttpClient"), e);
             }
           });
     }
-    throw new IllegalArgumentException(Messages.get("FederatedAuthPluginFactory.unsupportedIdp",
+    throw new IllegalArgumentException(Messages.get("CredentialsProviderFactory.unsupportedIdp",
         new Object[] {idpName}));
   }
 }
