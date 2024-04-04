@@ -33,6 +33,7 @@ import software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory;
+import software.amazon.jdbc.plugin.EndpointConnectionPluginFactory;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory;
 import software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory;
 import software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory;
@@ -77,6 +78,7 @@ public class ConnectionPluginChainBuilder {
           put("dev", DeveloperConnectionPluginFactory.class);
           put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
           put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
+          put("endpoint", EndpointConnectionPluginFactory.class);
         }
       };
 
@@ -88,6 +90,7 @@ public class ConnectionPluginChainBuilder {
   protected static final Map<Class<? extends ConnectionPluginFactory>, Integer> pluginWeightByPluginFactory =
       new HashMap<Class<? extends ConnectionPluginFactory>, Integer>() {
         {
+          put(EndpointConnectionPluginFactory.class, 90);
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(DataCacheConnectionPluginFactory.class, 200);
           put(AuroraInitialConnectionStrategyPluginFactory.class, 390);

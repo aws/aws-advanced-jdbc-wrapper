@@ -36,8 +36,8 @@ public class DatasourceExample {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     // Configure basic data source information:
-    ds.setServerName("db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
-    ds.setDatabase("employees");
+    ds.setServerName("scratch");
+    ds.setDatabase("postgres");
     ds.setServerPort("5432");
 
     // Configure the driver-specific and AWS JDBC Driver properties (optional):
@@ -48,9 +48,10 @@ public class DatasourceExample {
     // targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
     // targetDataSourceProps.setProperty("database", "employees");
     // targetDataSourceProps.setProperty("serverPort", "5432");
+    targetDataSourceProps.setProperty("wrapperPlugins", "endpoint");
 
     // Configure any driver-specific properties:
-    targetDataSourceProps.setProperty("ssl", "true");
+//     targetDataSourceProps.setProperty("ssl", "true");
 
     // Configure any AWS JDBC Driver properties:
     targetDataSourceProps.setProperty("wrapperLoggerLevel", "ALL");
@@ -60,7 +61,7 @@ public class DatasourceExample {
     // Try and make a connection:
     try (final Connection conn = ds.getConnection(USER, PASSWORD);
         final Statement statement = conn.createStatement();
-        final ResultSet rs = statement.executeQuery("SELECT * FROM employees")) {
+        final ResultSet rs = statement.executeQuery("SELECT * from aurora_db_instance_identifier()")) {
       System.out.println(Util.getResult(rs));
     }
   }
