@@ -26,6 +26,7 @@ import static software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin.FAI
 import static software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS;
 
 import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
@@ -37,6 +38,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -97,8 +99,7 @@ public class AdvancedPerformanceTest {
 
   private static final ConcurrentLinkedQueue<PerfStat> perfDataList = new ConcurrentLinkedQueue<>();
 
-  protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 
   private static void doWritePerfDataToFile(
       String fileName, ConcurrentLinkedQueue<PerfStat> dataList) throws IOException {

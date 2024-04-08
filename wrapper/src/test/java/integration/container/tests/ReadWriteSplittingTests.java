@@ -47,6 +47,7 @@ import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
+import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -85,9 +86,7 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 public class ReadWriteSplittingTests {
-
-  protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
 
   protected static Properties getProxiedPropsWithFailover() {

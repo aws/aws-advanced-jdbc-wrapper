@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import software.amazon.jdbc.util.StringUtils;
 
 public class TestEnvironment {
@@ -260,7 +259,7 @@ public class TestEnvironment {
         disabledByFeature = features.contains(TestEnvironmentFeatures.SKIP_MARIADB_DRIVER_TESTS);
         break;
       default:
-        throw new NotImplementedException(testDriver.toString());
+        throw new UnsupportedOperationException(testDriver.toString());
     }
 
     if (disabledByFeature || !driverCompatibleToDatabaseEngine) {

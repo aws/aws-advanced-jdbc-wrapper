@@ -280,6 +280,9 @@ public class AwsIamIntegrationTest {
   protected Properties initAwsIamProps(String user, String password) {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "iam");
+    props.setProperty(
+        IamAuthConnectionPlugin.IAM_REGION.name,
+        TestEnvironment.getCurrent().getInfo().getAuroraRegion());
     props.setProperty(PropertyDefinition.USER.name, user);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
     DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
