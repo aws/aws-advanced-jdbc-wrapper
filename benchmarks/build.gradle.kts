@@ -25,7 +25,7 @@ dependencies {
     implementation("org.mariadb.jdbc:mariadb-java-client:3.3.3")
     implementation("com.zaxxer:HikariCP:4.0.3")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
