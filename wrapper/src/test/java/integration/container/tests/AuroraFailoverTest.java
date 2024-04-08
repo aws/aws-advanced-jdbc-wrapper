@@ -23,21 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mysql.cj.conf.PropertyKey;
-import integration.DatabaseEngine;
-import integration.DriverHelper;
-import integration.TestEnvironmentFeatures;
-import integration.TestInstanceInfo;
-import integration.container.ConnectionStringHelper;
-import integration.container.ProxyHelper;
-import integration.container.TestDriver;
-import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
-import integration.container.condition.DisableOnTestFeature;
-import integration.container.condition.EnableOnNumOfInstances;
-import integration.container.condition.EnableOnTestDriver;
-import integration.container.condition.EnableOnTestFeature;
-import integration.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.AuroraTestUtility;
+import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -53,6 +39,22 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import integration.DatabaseEngine;
+import integration.DriverHelper;
+import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
+import integration.TestInstanceInfo;
+import integration.container.ConnectionStringHelper;
+import integration.container.ProxyHelper;
+import integration.container.TestDriver;
+import integration.container.TestDriverProvider;
+import integration.container.TestEnvironment;
+import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnNumOfInstances;
+import integration.container.condition.EnableOnTestDriver;
+import integration.container.condition.EnableOnTestFeature;
+import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.AuroraTestUtility;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
@@ -73,8 +75,17 @@ public class AuroraFailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());
 
-  protected static final AuroraTestUtility auroraUtil =
-      new AuroraTestUtility(TestEnvironment.getCurrent().getInfo().getAuroraRegion());
+  protected static final AuroraTestUtility auroraUtil;
+
+  static {
+    try {
+      final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
+      auroraUtil = new AuroraTestUtility(info.getAuroraRegion(), info.getRdsEndpoint());
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   protected static final int IS_VALID_TIMEOUT = 5;
 
   protected String currentWriter;

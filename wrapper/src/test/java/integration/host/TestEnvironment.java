@@ -35,6 +35,7 @@ import integration.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -82,6 +83,7 @@ public class TestEnvironment implements AutoCloseable {
   private boolean reuseAuroraDbCluster;
   private String auroraClusterName; // "cluster-mysql"
   private String auroraClusterDomain; // "XYZ.us-west-2.rds.amazonaws.com"
+  private String rdsEndpoint; // "https://rds-int.amazon.com"
 
   private String awsAccessKeyId;
   private String awsSecretAccessKey;
@@ -103,7 +105,7 @@ public class TestEnvironment implements AutoCloseable {
     this.info.setRequest(request);
   }
 
-  public static TestEnvironment build(TestEnvironmentRequest request) throws IOException {
+  public static TestEnvironment build(TestEnvironmentRequest request) throws IOException, URISyntaxException {
     LOGGER.finest("Building test env: " + request.getEnvPreCreateIndex());
     preCreateEnvironment(request.getEnvPreCreateIndex());
 
@@ -155,7 +157,7 @@ public class TestEnvironment implements AutoCloseable {
     return env;
   }
 
-  private static TestEnvironment createAuroraEnvironment(TestEnvironmentRequest request) {
+  private static TestEnvironment createAuroraEnvironment(TestEnvironmentRequest request) throws URISyntaxException {
 
     EnvPreCreateInfo preCreateInfo =
         TestEnvironmentProvider.preCreateInfos.get(request.getEnvPreCreateIndex());
@@ -302,7 +304,7 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createAuroraDbCluster(TestEnvironment env) {
+  private static void createAuroraDbCluster(TestEnvironment env) throws URISyntaxException {
 
     switch (env.info.getRequest().getDatabaseInstances()) {
       case SINGLE_INSTANCE:
@@ -328,7 +330,7 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createAuroraDbCluster(TestEnvironment env, int numOfInstances) {
+  private static void createAuroraDbCluster(TestEnvironment env, int numOfInstances) throws URISyntaxException {
 
     env.info.setAuroraRegion(
         !StringUtils.isNullOrEmpty(config.auroraDbRegion)
@@ -340,6 +342,8 @@ public class TestEnvironment implements AutoCloseable {
             && Boolean.parseBoolean(config.reuseAuroraCluster);
     env.auroraClusterName = config.auroraClusterName; // "cluster-mysql"
     env.auroraClusterDomain = config.auroraClusterDomain; // "XYZ.us-west-2.rds.amazonaws.com"
+    env.rdsEndpoint = config.rdsEndpoint; // "XYZ.us-west-2.rds.amazonaws.com"
+    env.info.setRdsEndpoint(env.rdsEndpoint);
 
     if (StringUtils.isNullOrEmpty(env.auroraClusterDomain)) {
       throw new RuntimeException("Environment variable AURORA_CLUSTER_DOMAIN is required.");
@@ -348,6 +352,7 @@ public class TestEnvironment implements AutoCloseable {
     env.auroraUtil =
         new AuroraTestUtility(
             env.info.getAuroraRegion(),
+            env.rdsEndpoint,
             env.awsAccessKeyId,
             env.awsSecretAccessKey,
             env.awsSessionToken);

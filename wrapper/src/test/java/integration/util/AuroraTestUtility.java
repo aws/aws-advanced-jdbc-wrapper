@@ -30,6 +30,8 @@ import integration.container.TestEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -61,9 +63,11 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
+import software.amazon.awssdk.services.ec2.Ec2ClientBuilder;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.rds.RdsClient;
+import software.amazon.awssdk.services.rds.RdsClientBuilder;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
 import software.amazon.awssdk.services.rds.model.CreateDbInstanceRequest;
 import software.amazon.awssdk.services.rds.model.DBCluster;
@@ -111,39 +115,17 @@ public class AuroraTestUtility {
 
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
 
-  /**
-   * Initializes an AmazonRDS & AmazonEC2 client. RDS client used to create/destroy clusters & instances. EC2 client
-   * used to add/remove IP from security group.
-   */
-  public AuroraTestUtility() {
-    this(Region.US_EAST_1, DefaultCredentialsProvider.create());
-  }
-
-  /**
-   * Initializes an AmazonRDS & AmazonEC2 client.
-   *
-   * @param region define AWS Regions, refer to
-   *               <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions, Availability Zones, and Local Zones</a>
-   */
-  public AuroraTestUtility(Region region) {
-    this(region, DefaultCredentialsProvider.create());
-  }
-
-  /**
-   * Initializes an AmazonRDS & AmazonEC2 client.
-   *
-   * @param region define AWS Regions, refer to
-   *               <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions, Availability Zones, and Local Zones</a>
-   */
-  public AuroraTestUtility(String region) {
-    this(getRegionInternal(region), DefaultCredentialsProvider.create());
+  public AuroraTestUtility(String region, String endpoint) throws URISyntaxException {
+    this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
   }
 
   public AuroraTestUtility(
-      String region, String awsAccessKeyId, String awsSecretAccessKey, String awsSessionToken) {
+      String region, String rdsEndpoint, String awsAccessKeyId, String awsSecretAccessKey, String awsSessionToken)
+      throws URISyntaxException {
 
     this(
         getRegionInternal(region),
+        rdsEndpoint,
         StaticCredentialsProvider.create(
             StringUtils.isNullOrEmpty(awsSessionToken)
                 ? AwsBasicCredentials.create(awsAccessKeyId, awsSecretAccessKey)
@@ -154,17 +136,27 @@ public class AuroraTestUtility {
    * Initializes an AmazonRDS & AmazonEC2 client.
    *
    * @param region              define AWS Regions, refer to
-   *                            <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions, Availability Zones, and Local Zones</a>
+   *                            <a
+   *                            href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions,
+   *                            Availability Zones, and Local Zones</a>
    * @param credentialsProvider Specific AWS credential provider
    */
-  public AuroraTestUtility(Region region, AwsCredentialsProvider credentialsProvider) {
+  public AuroraTestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider)
+      throws URISyntaxException {
     dbRegion = region;
+    final RdsClientBuilder rdsClientBuilder = RdsClient.builder()
+        .region(dbRegion)
+        .credentialsProvider(credentialsProvider);
 
-    rdsClient =
-        RdsClient.builder().region(dbRegion).credentialsProvider(credentialsProvider).build();
+    if (!StringUtils.isNullOrEmpty(rdsEndpoint)) {
+      rdsClientBuilder.endpointOverride(new URI(rdsEndpoint));
+    }
 
-    ec2Client =
-        Ec2Client.builder().region(dbRegion).credentialsProvider(credentialsProvider).build();
+    rdsClient = rdsClientBuilder.build();
+    ec2Client = Ec2Client.builder()
+        .region(dbRegion)
+        .credentialsProvider(credentialsProvider)
+        .build();
   }
 
   protected static Region getRegionInternal(String rdsRegion) {
@@ -602,8 +594,8 @@ public class AuroraTestUtility {
     ArrayList<String> auroraInstances = new ArrayList<>();
 
     try (final Connection conn = DriverManager.getConnection(connectionUrl, userName, password);
-         final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
+        final Statement stmt = conn.createStatement();
+        final ResultSet resultSet = stmt.executeQuery(retrieveTopologySql)) {
       while (resultSet.next()) {
         // Get Instance endpoints
         final String hostEndpoint = resultSet.getString("SERVER_ID");

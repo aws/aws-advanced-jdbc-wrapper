@@ -22,8 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.logging.Logger;
 
 public class SlidingExpirationCache<K, V> {
+
+  private static final Logger LOGGER =
+      Logger.getLogger(SlidingExpirationCache.class.getName());
 
   protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
   protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
@@ -225,6 +229,7 @@ public class SlidingExpirationCache<K, V> {
      *     false.
      */
     boolean shouldCleanup() {
+      LOGGER.finest("shouldCleanup: " + expirationTimeNano);
       if (shouldDisposeFunc != null) {
         return System.nanoTime() > expirationTimeNano && shouldDisposeFunc.shouldDispose(this.item);
       }

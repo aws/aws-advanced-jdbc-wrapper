@@ -146,7 +146,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 }
 
                 if (testRequest.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
-                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getAuroraRegion());
+                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getAuroraRegion(), testInfo.getRdsEndpoint());
                   auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
                   boolean makeSureFirstInstanceWriter =
@@ -161,7 +161,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     // Wait up to 5min
                     long startTimeNano = System.nanoTime();
                     while ((instanceIDs.size() != testRequest.getNumOfInstances()
-                        || instanceIDs.size() == 0
+                        || instanceIDs.isEmpty()
                         || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
                         && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
 
