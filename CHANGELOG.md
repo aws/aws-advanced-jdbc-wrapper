@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.3.6] - ?
 
+### :magic_wand: Added
+- Documentation:
+  - Aurora Initial Connection Strategy Plugin. See [UsingTheAuroraInitialConnectionStrategyPlugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
+
 ### :crab: Changed
 - Log level of `Failover.startWriterFailover` and `Failover.establishedConnection` from `fine` to `info` for better visibility of failover-related logs ([Issue #890](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/890)).
 
