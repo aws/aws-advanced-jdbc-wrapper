@@ -33,8 +33,11 @@ public class PgDriverHelper {
   private static final Logger LOGGER =
       Logger.getLogger(PgDriverHelper.class.getName());
 
-  private static final String BASE_DS_CLASS_NAME =
-      org.postgresql.ds.common.BaseDataSource.class.getName();
+  private static final String DS_CLASS_NAME =
+      org.postgresql.ds.PGSimpleDataSource.class.getName();
+
+  private static final String DS_POOLED_CLASS_NAME =
+      org.postgresql.ds.PGConnectionPoolDataSource.class.getName();
 
   public void prepareDataSource(
       final @NonNull DataSource dataSource,
@@ -44,7 +47,7 @@ public class PgDriverHelper {
     if (!(dataSource instanceof BaseDataSource)) {
       throw new SQLException(Messages.get(
           "TargetDriverDialectManager.unexpectedClass",
-          new Object[] { BASE_DS_CLASS_NAME, dataSource.getClass().getName() }));
+          new Object[] {DS_CLASS_NAME + ", " + DS_POOLED_CLASS_NAME, dataSource.getClass().getName() }));
     }
 
     final BaseDataSource baseDataSource = (BaseDataSource) dataSource;
