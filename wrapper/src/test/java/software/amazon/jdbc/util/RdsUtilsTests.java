@@ -252,4 +252,49 @@ public class RdsUtilsTests {
     assertFalse(target.isRdsDns(missingCnChinaPath));
     assertFalse(target.isRdsDns(missingRegionChinaPath));
   }
+
+  @Test
+  public void testGreenInstanceHostName() {
+    assertFalse(target.isGreenInstance("test-instance"));
+    assertFalse(target.isGreenInstance("test-instance.domain.com"));
+    assertFalse(target.isGreenInstance("test-instance-green.domain.com"));
+    assertFalse(target.isGreenInstance("test-instance-green-1.domain.com"));
+    assertFalse(target.isGreenInstance("test-instance-green-12345.domain.com"));
+    assertTrue(target.isGreenInstance("test-instance-green-abcdef.domain.com"));
+    assertFalse(target.isGreenInstance("test-instance-green-abcdef-.domain.com"));
+    assertFalse(target.isGreenInstance("test-instance-green-abcdef-12345.domain.com"));
+    assertFalse(target.isGreenInstance("test-instance-green-abcdef-12345-green.domain.com"));
+    assertFalse(target.isGreenInstance("test-instance-green-abcdef-12345-green-00000.domain.com"));
+    assertTrue(target.isGreenInstance("test-instance-green-abcdef-12345-green-000000.domain.com"));
+  }
+
+  @Test
+  public void testRemoveGreenInstancePrefix() {
+    assertNull(target.removeGreenInstancePrefix(null));
+    assertEquals("", target.removeGreenInstancePrefix(""));
+    assertEquals("test-instance",
+        target.removeGreenInstancePrefix("test-instance"));
+    assertEquals("test-instance.domain.com",
+        target.removeGreenInstancePrefix("test-instance.domain.com"));
+    assertEquals("test-instance-green.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green.domain.com"));
+    assertEquals("test-instance-green-1.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-1.domain.com"));
+    assertEquals("test-instance-green-12345.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-12345.domain.com"));
+    assertEquals("test-instance.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef.domain.com"));
+    assertEquals("test-instance-green-abcdef-.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef-.domain.com"));
+    assertEquals("test-instance-green-abcdef-12345.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef-12345.domain.com"));
+    assertEquals("test-instance-green-abcdef-12345-green.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef-12345-green.domain.com"));
+    assertEquals("test-instance-green-abcdef-12345-green-00000.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef-12345-green-00000.domain.com"));
+    assertEquals("test-instance-green-abcdef-12345.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-abcdef-12345-green-000000.domain.com"));
+    assertEquals("test-instance-green-123456.domain.com",
+        target.removeGreenInstancePrefix("test-instance-green-123456-green-123456.domain.com"));
+  }
 }

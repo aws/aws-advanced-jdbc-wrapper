@@ -47,6 +47,17 @@ public class HostSpecBuilder {
     this.hostAvailabilityStrategy = hostSpecBuilder.hostAvailabilityStrategy;
   }
 
+  public HostSpecBuilder copyFrom(final HostSpec hostSpec) {
+    this.host = hostSpec.host;
+    this.hostId = hostSpec.hostId;
+    this.role = hostSpec.role;
+    this.port = hostSpec.port;
+    this.availability = hostSpec.availability;
+    this.lastUpdateTime = hostSpec.lastUpdateTime;
+    this.weight = hostSpec.weight;
+    return this;
+  }
+
   public HostSpecBuilder host(String host) {
     this.host = host;
     return this;

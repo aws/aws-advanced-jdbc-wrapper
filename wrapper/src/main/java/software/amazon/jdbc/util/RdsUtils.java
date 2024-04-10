@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.util;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -111,6 +110,11 @@ public class RdsUtils {
       Pattern.compile(
           "^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)"
               + "::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$");
+
+  private static final Pattern BG_GREEN_HOST_PATTERN =
+      Pattern.compile(
+          ".*(?<prefix>-green-[0-9a-z]{6})\\..*",
+          Pattern.CASE_INSENSITIVE);
 
   private static final Map<String, Matcher> cachedPatterns = new ConcurrentHashMap<>();
   private static final Map<String, String> cachedDnsPatterns = new ConcurrentHashMap<>();
@@ -222,7 +226,8 @@ public class RdsUtils {
   }
 
   public boolean isIPv6(final String ip) {
-    return !StringUtils.isNullOrEmpty(ip) && IP_V6.matcher(ip).matches() || IP_V6_COMPRESSED.matcher(ip).matches();
+    return !StringUtils.isNullOrEmpty(ip)
+        && (IP_V6.matcher(ip).matches() || IP_V6_COMPRESSED.matcher(ip).matches());
   }
 
   public boolean isDnsPatternValid(final String pattern) {
@@ -250,6 +255,25 @@ public class RdsUtils {
       // ELB URLs will also be classified as other
       return RdsUrlType.OTHER;
     }
+  }
+
+  public boolean isGreenInstance(final String host) {
+    return !StringUtils.isNullOrEmpty(host) && BG_GREEN_HOST_PATTERN.matcher(host).matches();
+  }
+
+  public String removeGreenInstancePrefix(final String host) {
+    if (StringUtils.isNullOrEmpty(host)) {
+      return host;
+    }
+    final Matcher matcher = BG_GREEN_HOST_PATTERN.matcher(host);
+    if (!matcher.matches()) {
+      return host;
+    }
+    final String prefix = matcher.group("prefix");
+    if (StringUtils.isNullOrEmpty(prefix)) {
+      return host;
+    }
+    return host.replace(prefix + ".", ".");
   }
 
   private Matcher cacheMatcher(final String host, Pattern... patterns) {

@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -32,6 +34,7 @@ import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.RdsUtils;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -51,6 +54,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
   private final java.sql.Driver driver;
   private final @NonNull String targetDriverClassName;
+
+  private final RdsUtils rdsUtils = new RdsUtils();
 
   public DriverConnectionProvider(final java.sql.Driver driver) {
     this.driver = driver;
@@ -117,12 +122,71 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
     final Properties copy = PropertyUtils.copyProperties(props);
     dialect.prepareConnectProperties(copy, protocol, hostSpec);
+
     final ConnectInfo connectInfo = targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
         + PropertyUtils.logProperties(PropertyUtils.maskProperties(connectInfo.props), "\nwith properties: \n"));
 
-    Connection conn = this.driver.connect(connectInfo.url, connectInfo.props);
+    Connection conn;
+    try {
+      conn = this.driver.connect(connectInfo.url, connectInfo.props);
+
+    } catch (Throwable throwable) {
+
+      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props)) {
+        throw throwable;
+      }
+
+      UnknownHostException unknownHostException = null;
+      int maxDepth = 100;
+      Throwable loopThrowable = throwable;
+      while (--maxDepth > 0 && loopThrowable != null) {
+        if (loopThrowable instanceof UnknownHostException) {
+          unknownHostException = (UnknownHostException) loopThrowable;
+          break;
+        }
+        loopThrowable = loopThrowable.getCause();
+      }
+
+      if (unknownHostException == null) {
+        throw throwable;
+      }
+
+      if (!this.rdsUtils.isRdsDns(hostSpec.getHost()) || !this.rdsUtils.isGreenInstance(hostSpec.getHost())) {
+        throw throwable;
+      }
+
+      // check DNS for such green host name
+      InetAddress resolvedAddress = null;
+      try {
+        resolvedAddress = InetAddress.getByName(hostSpec.getHost());
+      } catch (UnknownHostException tmp) {
+        // do nothing
+      }
+
+      if (resolvedAddress != null) {
+        // Green node DNS exists
+        throw throwable;
+      }
+
+      // Green node DNS doesn't exist. Try to replace it with corresponding node name and connect again.
+
+      final String originalHost = hostSpec.getHost();
+      final String fixedHost = this.rdsUtils.removeGreenInstancePrefix(hostSpec.getHost());
+      final HostSpec connectionHostSpec = new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy())
+          .copyFrom(hostSpec)
+          .host(fixedHost)
+          .build();
+
+      final ConnectInfo fixedConnectInfo = targetDriverDialect.prepareConnectInfo(protocol, connectionHostSpec, copy);
+
+      LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
+          + " after correcting the hostname from " + originalHost
+          + PropertyUtils.logProperties(PropertyUtils.maskProperties(fixedConnectInfo.props), "\nwith properties: \n"));
+
+      conn = this.driver.connect(fixedConnectInfo.url, fixedConnectInfo.props);
+    }
 
     if (conn == null) {
       throw new SQLLoginException(Messages.get("ConnectionProvider.noConnection"));

@@ -104,3 +104,8 @@ public class HikariCPSQLException implements SQLExceptionOverride {
     }
 }
 ```
+
+### Blue/Green Deployments
+Although the AWS Advanced JDBC Driver is not compatible with [AWS Blue/Green Deployments](https://docs.aws.amazon.com/whitepapers/latest/overview-deployment-options/bluegreen-deployments.html) and doesn't officially support them, the Failover Plugin has been validated for clusters with Blue/Green Deployments. While general basic connectivity to `Blue` and `Green` clusters
+is always in place, some failover cases are not fully supported. The team is aware of these cases and working on them to bring
+AWS Blue/Green Deployment support at full scale. Meanwhile, users may consider using the configuration parameter [`enableGreenNodeReplacement`](../UsingTheJdbcDriver.md, which allows the driver to replace `Green` DNS endpoints when they become unavailable after Blue/Green switchover is completed.

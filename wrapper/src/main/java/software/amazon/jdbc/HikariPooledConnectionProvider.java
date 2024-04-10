@@ -18,6 +18,8 @@ package software.amazon.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -190,11 +192,37 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       throws SQLException {
 
     final Properties copy = PropertyUtils.copyProperties(props);
-    dialect.prepareConnectProperties(copy, protocol, hostSpec);
+    HostSpec connectionHostSpec = hostSpec;
+
+    if (PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props)
+        && this.rdsUtils.isRdsDns(hostSpec.getHost())
+        && this.rdsUtils.isGreenInstance(hostSpec.getHost())) {
+
+      // check DNS for such green host name
+      InetAddress resolvedAddress = null;
+      try {
+        resolvedAddress = InetAddress.getByName(hostSpec.getHost());
+      } catch (UnknownHostException tmp) {
+        // do nothing
+      }
+
+      if (resolvedAddress == null) {
+        // Green node DNS doesn't exist
+
+        final String fixedHost = this.rdsUtils.removeGreenInstancePrefix(hostSpec.getHost());
+        connectionHostSpec = new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy())
+            .copyFrom(hostSpec)
+            .host(fixedHost)
+            .build();
+      }
+    }
+
+    final HostSpec finalHostSpec = connectionHostSpec;
+    dialect.prepareConnectProperties(copy, protocol, finalHostSpec);
 
     final HikariDataSource ds = databasePools.computeIfAbsent(
-        new PoolKey(hostSpec.getUrl(), getPoolKey(hostSpec, copy)),
-        (lambdaPoolKey) -> createHikariDataSource(protocol, hostSpec, copy, targetDriverDialect),
+        new PoolKey(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
+        (lambdaPoolKey) -> createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
         poolExpirationCheckNanos
     );
 
