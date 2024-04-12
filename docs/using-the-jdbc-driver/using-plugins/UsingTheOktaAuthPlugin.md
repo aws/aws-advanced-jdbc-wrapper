@@ -9,7 +9,6 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 In the case of AD FS, the user signs into the AD FS sign in page. This generates a SAML Assertion which acts as a security token. The user then passes the SAML Assertion to the SP when requesting access to resources. The SP verifies the SAML Assertion and grants access to the user.
 
 ## Prerequisites
-> [!WARNING]
 - This plugin requires the following runtime dependencies to be registered separately in the classpath:
   - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
   - [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
