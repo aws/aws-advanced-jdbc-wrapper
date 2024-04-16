@@ -341,12 +341,12 @@ public class ReadWriteSplittingTests {
   }
 
   /**
-   * PG driver has check of internal readOnly flag and doesn't communicate to a DB server
-   * if there's no changes. Thus, network exception is not raised.
+   * PG driver and MariaDB driver have a check for internal readOnly flag and don't communicate to a DB server
+   * if there are no changes. Thus, network exception is not raised.
    */
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  @DisableOnTestDriver(TestDriver.PG) // see comments above
+  @DisableOnTestDriver({TestDriver.PG, TestDriver.MARIADB}) // see comments above
   public void test_setReadOnlyFalse_allInstancesDown() throws SQLException {
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getProxyWrapperUrl(), getProxiedProps())) {
