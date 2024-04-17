@@ -41,4 +41,6 @@ public interface HostListProvider {
   HostRole getHostRole(Connection connection) throws SQLException;
 
   HostSpec identifyConnection(Connection connection) throws SQLException;
+
+  String getClusterId() throws UnsupportedOperationException;
 }

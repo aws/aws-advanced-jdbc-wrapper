@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -124,6 +125,11 @@ public class TestPluginOne implements ConnectionPlugin {
         .host("host").port(1234).role(role).build();
     this.calls.add(this.getClass().getSimpleName() + ":after getHostSpecByStrategy");
     return result;
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) {
+    return getHostSpecByStrategy(role, strategy);
   }
 
   @Override

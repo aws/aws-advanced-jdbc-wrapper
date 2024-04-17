@@ -88,6 +88,11 @@ public class BenchmarkPlugin implements ConnectionPlugin, CanReleaseResources {
   }
 
   @Override
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) {
+    return getHostSpecByStrategy(role, strategy);
+  }
+
+  @Override
   public void initHostProvider(String driverProtocol, String initialUrl, Properties props,
       HostListProviderService hostListProviderService,
       JdbcCallable<Void, SQLException> initHostProviderFunc) {

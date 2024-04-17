@@ -207,4 +207,9 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
     final String host = this.clusterInstanceTemplate.getHost();
     return host.replace("?", nodeName);
   }
+
+  @Override
+  public String getClusterId() throws UnsupportedOperationException {
+    throw new UnsupportedOperationException("RdsMultiAzDbClusterListProvider does not support `getClusterId` method.");
+  }
 }

@@ -197,6 +197,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) throws SQLException {
+    return this.pluginManager.getHostSpecByStrategy(hosts, role, strategy);
+  }
+
+  @Override
   public HostRole getHostRole(Connection conn) throws SQLException {
     return this.hostListProvider.getHostRole(conn);
   }

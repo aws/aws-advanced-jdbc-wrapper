@@ -39,6 +39,7 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 /**
  * This class is a basic implementation of {@link ConnectionProvider} interface. It creates and
@@ -51,6 +52,7 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
   private static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
+          put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
           put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
           put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
         }
