@@ -23,6 +23,10 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -74,15 +78,21 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           "3",
           "Number of failed connection checks before considering database node unhealthy.");
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
-
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
   private final @NonNull PluginService pluginService;
   private MonitorService monitorService;
+  private Future<MonitorService> monitorServiceFuture;
   private final RdsUtils rdsHelper;
   private HostSpec monitoringHostSpec;
+
+  private final Set<String> subscribedMethods;
+
+  protected final boolean isEnabled;
+  protected final int failureDetectionTimeMillis;
+  protected final int failureDetectionIntervalMillis;
+  protected final int failureDetectionCount;
+
 
   static {
     PropertyDefinition.registerPluginProperties(HostMonitoringConnectionPlugin.class);
@@ -119,6 +129,23 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;
+    this.isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
+    this.failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
+    this.failureDetectionIntervalMillis =
+        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
+    this.failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
+
+    final HashSet<String> methods = new HashSet<>();
+    if (this.isEnabled) {
+      methods.add("connect");
+      methods.add("forceConnect");
+      methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames());
+    }
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
+
+    // Initialize it asynchronously.
+    final ExecutorService initExecutorService = Executors.newSingleThreadExecutor();
+    this.monitorServiceFuture = initExecutorService.submit(this.monitorServiceSupplier::get);
   }
 
   @Override
@@ -140,17 +167,10 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final Object[] jdbcMethodArgs)
       throws E {
 
-    // update config settings since they may change
-    final boolean isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
-
-    if (!isEnabled || !SubscribedMethodHelper.NETWORK_BOUND_METHODS.contains(methodName)) {
+    if (!isEnabled || !this.subscribedMethods.contains(methodName)) {
+      // In this case the plugin isn't subscribed to any methods, and we shouldn't reach this code.
       return jdbcMethodFunc.call();
     }
-
-    final int failureDetectionTimeMillis = FAILURE_DETECTION_TIME.getInteger(this.properties);
-    final int failureDetectionIntervalMillis =
-        FAILURE_DETECTION_INTERVAL.getInteger(this.properties);
-    final int failureDetectionCount = FAILURE_DETECTION_COUNT.getInteger(this.properties);
 
     initMonitorService();
 
@@ -192,7 +212,17 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
   private void initMonitorService() {
     if (this.monitorService == null) {
-      this.monitorService = this.monitorServiceSupplier.get();
+      if (this.monitorServiceFuture == null) {
+        this.monitorService = this.monitorServiceSupplier.get();
+      } else {
+        try {
+          this.monitorService = this.monitorServiceFuture.get();
+        } catch (InterruptedException | ExecutionException e) {
+          // Async initialization failed. Let's try to init synchronously.
+          this.monitorService = this.monitorServiceSupplier.get();
+        }
+        this.monitorServiceFuture = null;
+      }
     }
   }
 

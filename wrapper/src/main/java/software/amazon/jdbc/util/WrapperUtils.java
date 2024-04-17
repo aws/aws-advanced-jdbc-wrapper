@@ -16,8 +16,12 @@
 
 package software.amazon.jdbc.util;
 
+import java.io.InputStream;
+import java.io.Reader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -41,6 +45,7 @@ import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -48,9 +53,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
@@ -83,6 +88,9 @@ public class WrapperUtils {
   private static final ConcurrentMap<Class<?>, Class<?>[]> getImplementedInterfacesCache =
       new ConcurrentHashMap<>();
   private static final ConcurrentMap<Class<?>, Boolean> isJdbcInterfaceCache =
+      new ConcurrentHashMap<>();
+
+  private static final ConcurrentMap<Class<?>, WrapperClassHolder> classToWrapperCache =
       new ConcurrentHashMap<>();
 
   private static final Map<Class<?>, Class<?>> availableWrappers =
@@ -186,12 +194,15 @@ public class WrapperUtils {
     if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
       pluginManager.lock();
     }
-    TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
+    final boolean isTelemetryEnabled = pluginManager.getTelemetryFactory().isEnabled();
     TelemetryContext context = null;
-
-    try {
+    if (isTelemetryEnabled) {
+      TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
       context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
       context.setAttribute("jdbcCall", methodName);
+    }
+
+    try {
 
       final T result =
           pluginManager.execute(
@@ -202,19 +213,23 @@ public class WrapperUtils {
               jdbcMethodFunc,
               jdbcMethodArgs);
 
-      context.setSuccess(true);
+      if (isTelemetryEnabled) {
+        context.setSuccess(true);
+      }
 
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
       } catch (final InstantiationException e) {
-        context.setSuccess(false);
+        if (isTelemetryEnabled) {
+          context.setSuccess(false);
+        }
         throw new RuntimeException(e);
       }
     } finally {
       if (pluginManager.isHeldByCurrentThread()) {
         pluginManager.unlock();
       }
-      if (context != null) {
+      if (isTelemetryEnabled && context != null) {
         context.closeContext();
       }
     }
@@ -233,13 +248,15 @@ public class WrapperUtils {
     if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
       pluginManager.lock();
     }
-    TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
+    final boolean isTelemetryEnabled = pluginManager.getTelemetryFactory().isEnabled();
     TelemetryContext context = null;
-
-    try {
+    if (isTelemetryEnabled) {
+      TelemetryFactory telemetryFactory = pluginManager.getTelemetryFactory();
       context = telemetryFactory.openTelemetryContext(methodName, TelemetryTraceLevel.TOP_LEVEL);
       context.setAttribute("jdbcCall", methodName);
+    }
 
+    try {
       final T result =
           pluginManager.execute(resultClass,
               exceptionClass,
@@ -248,12 +265,16 @@ public class WrapperUtils {
               jdbcMethodFunc,
               jdbcMethodArgs);
 
-      context.setSuccess(true);
+      if (isTelemetryEnabled) {
+        context.setSuccess(true);
+      }
 
       try {
         return wrapWithProxyIfNeeded(resultClass, result, pluginManager);
       } catch (final InstantiationException e) {
-        context.setSuccess(false);
+        if (isTelemetryEnabled) {
+          context.setSuccess(false);
+        }
         throw new RuntimeException(e);
       }
 
@@ -261,7 +282,7 @@ public class WrapperUtils {
       if (pluginManager.isHeldByCurrentThread()) {
         pluginManager.unlock();
       }
-      if (context != null) {
+      if (isTelemetryEnabled && context != null) {
         context.closeContext();
       }
     }
@@ -275,8 +296,17 @@ public class WrapperUtils {
       return null;
     }
 
+    final Class<?> toProxyClass = toProxy.getClass();
+
     // Exceptional case
-    if (toProxy instanceof RowId || toProxy instanceof SQLXML) {
+    if (toProxy instanceof RowId || toProxy instanceof SQLXML
+        || toProxyClass == Boolean.class || toProxyClass == String.class
+        || toProxyClass == Float.class || toProxyClass == Integer.class
+        || toProxyClass == BigDecimal.class || toProxyClass == InputStream.class
+        || toProxyClass == Double.class || toProxyClass == Date.class
+        || toProxyClass == Long.class || toProxy instanceof Reader
+        || toProxyClass == Object.class || toProxyClass == Short.class
+        || toProxyClass == Timer.class || toProxyClass == URL.class) {
       return toProxy;
     }
 
@@ -295,18 +325,25 @@ public class WrapperUtils {
           pluginManager);
     }
 
-    for (final Class<?> iface : toProxy.getClass().getInterfaces()) {
-      if (isJdbcInterface(iface)) {
-        wrapperClass = availableWrappers.get(iface);
-        if (wrapperClass != null) {
-          return createInstance(
-              wrapperClass,
-              resultClass,
-              new Class<?>[] {iface, ConnectionPluginManager.class},
-              toProxy,
-              pluginManager);
+    final WrapperClassHolder wrapperClassHolder = classToWrapperCache.computeIfAbsent(toProxy.getClass(), (clazz) -> {
+      for (final Class<?> iface : clazz.getInterfaces()) {
+        if (isJdbcInterface(iface)) {
+          final Class<?> availableWrapperClass = availableWrappers.get(iface);
+          if (availableWrapperClass != null) {
+            return new WrapperClassHolder(availableWrapperClass, iface);
+          }
         }
       }
+      return new WrapperClassHolder(null, null);
+    });
+
+    if (wrapperClassHolder != null && wrapperClassHolder.wrapperClass != null) {
+      return createInstance(
+          wrapperClassHolder.wrapperClass,
+          resultClass,
+          new Class<?>[] {wrapperClassHolder.iface, ConnectionPluginManager.class},
+          toProxy,
+          pluginManager);
     }
 
     if (isJdbcInterface(toProxy.getClass())) {
@@ -603,5 +640,15 @@ public class WrapperUtils {
     }
 
     return exceptionClass.cast(result);
+  }
+
+  public static class WrapperClassHolder {
+    public final Class<?> wrapperClass;
+    public final Class<?> iface;
+
+    public WrapperClassHolder(Class<?> wrapperClass, Class<?> iface) {
+      this.wrapperClass = wrapperClass;
+      this.iface = iface;
+    }
   }
 }

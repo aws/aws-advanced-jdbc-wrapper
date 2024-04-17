@@ -39,14 +39,47 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   private static final Logger LOGGER =
       Logger.getLogger(GenericTargetDriverDialect.class.getName());
-  public static final List<String> ALLOWED_ON_CLOSED_METHODS = Arrays.asList(
+  public static final Set<String> ALLOWED_ON_CLOSED_METHODS = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
       "Connection.isClosed",
       "Statement.getConnection",
       "Statement.getFetchDirection",
       "Statement.getResultSetHoldability",
       "Statement.isClosed",
       "Statement.getLargeMaxRows"
-  );
+  )));
+
+  private static final Set<String> NETWORK_BOUND_METHODS = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+        "Connection.commit",
+        "Connection.connect",
+        "Connection.isValid",
+        "Connection.rollback",
+        "Connection.sendQueryCancel",
+        "Connection.setAutoCommit",
+        "Connection.setReadOnly",
+        "Statement.cancel",
+        "Statement.execute",
+        "Statement.executeBatch",
+        "Statement.executeLargeBatch",
+        "Statement.executeLargeUpdate",
+        "Statement.executeQuery",
+        "Statement.executeUpdate",
+        "Statement.executeWithFlags",
+        "PreparedStatement.execute",
+        "PreparedStatement.executeBatch",
+        "PreparedStatement.executeLargeUpdate",
+        "PreparedStatement.executeQuery",
+        "PreparedStatement.executeUpdate",
+        "PreparedStatement.executeWithFlags",
+        "PreparedStatement.getParameterMetaData",
+        "CallableStatement.execute",
+        "CallableStatement.executeLargeUpdate",
+        "CallableStatement.executeQuery",
+        "CallableStatement.executeUpdate",
+        "CallableStatement.executeWithFlags"
+      )));
+
   public static final String CONN_GET_AUTO_COMMIT = "Connection.getAutoCommit";
   public static final String CONN_GET_CATALOG = "Connection.getCatalog";
   public static final String CONN_GET_SCHEMA = "Connection.getSchema";
@@ -177,10 +210,11 @@ public class GenericTargetDriverDialect implements TargetDriverDialect {
 
   @Override
   public Set<String> getAllowedOnConnectionMethodNames() {
-    return Collections.unmodifiableSet(new HashSet<String>() {
-      {
-        addAll(ALLOWED_ON_CLOSED_METHODS);
-      }
-    });
+    return ALLOWED_ON_CLOSED_METHODS;
+  }
+
+  @Override
+  public Set<String> getNetworkBoundMethodNames() {
+    return NETWORK_BOUND_METHODS;
   }
 }

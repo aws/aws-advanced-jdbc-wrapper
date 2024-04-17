@@ -18,9 +18,13 @@ package software.amazon.jdbc.util.telemetry;
 
 public class NullTelemetryFactory implements TelemetryFactory {
 
+  private static final TelemetryContext TELEMETRY_CONTEXT = new NullTelemetryContext(null);
+  private static final NullTelemetryCounter NULL_TELEMETRY_COUNTER = new NullTelemetryCounter(null);
+  private static final NullTelemetryGauge NULL_TELEMETRY_GAUGE = new NullTelemetryGauge(null);
+
   @Override
   public TelemetryContext openTelemetryContext(String name, TelemetryTraceLevel traceLevel) {
-    return new NullTelemetryContext(name);
+    return TELEMETRY_CONTEXT;
   }
 
   @Override
@@ -30,11 +34,15 @@ public class NullTelemetryFactory implements TelemetryFactory {
 
   @Override
   public TelemetryCounter createCounter(String name) {
-    return new NullTelemetryCounter(name);
+    return NULL_TELEMETRY_COUNTER;
   }
 
   @Override
   public TelemetryGauge createGauge(String name, GaugeCallable<Long> callback) {
-    return new NullTelemetryGauge(name);
+    return NULL_TELEMETRY_GAUGE;
+  }
+
+  public boolean isEnabled() {
+    return false;
   }
 }

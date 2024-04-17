@@ -62,6 +62,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.DynamicHostListProvider;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.SqlState;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
@@ -91,6 +92,7 @@ class FailoverConnectionPluginTest {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TelemetryCounter mockTelemetryCounter;
   @Mock TelemetryGauge mockTelemetryGauge;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
 
   private final Properties properties = new Properties();
   private FailoverConnectionPlugin plugin;
@@ -113,6 +115,8 @@ class FailoverConnectionPluginTest {
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockReaderFailoverHandler.failover(any(), any())).thenReturn(mockReaderResult);
     when(mockWriterFailoverHandler.failover(any())).thenReturn(mockWriterResult);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getNetworkBoundMethodNames()).thenReturn(new HashSet<>());
 
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);

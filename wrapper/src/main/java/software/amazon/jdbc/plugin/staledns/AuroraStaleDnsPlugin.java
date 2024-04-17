@@ -51,17 +51,7 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraStaleDnsPlugin.class.getName());
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-          add("initHostProvider");
-          add("connect");
-          add("forceConnect");
-          add("notifyNodeListChanged");
-        }
-      });
-
+  private final Set<String> subscribedMethods;
   private final PluginService pluginService;
   private final AuroraStaleDnsHelper helper;
   private HostListProviderService hostListProviderService;
@@ -69,6 +59,14 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
   public AuroraStaleDnsPlugin(final PluginService pluginService, final Properties properties) {
     this.pluginService = pluginService;
     this.helper = new AuroraStaleDnsHelper(this.pluginService);
+
+    final HashSet<String> methods = new HashSet<>();
+    methods.add("initHostProvider");
+    methods.add("connect");
+    methods.add("forceConnect");
+    methods.add("notifyNodeListChanged");
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames());
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override

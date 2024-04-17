@@ -18,10 +18,7 @@ package software.amazon.jdbc.util.telemetry;
 
 public class NullTelemetryContext implements TelemetryContext {
 
-  private final String name;
-
   public NullTelemetryContext(String name) {
-    this.name = name;
   }
 
   @Override
@@ -38,7 +35,7 @@ public class NullTelemetryContext implements TelemetryContext {
 
   @Override
   public String getName() {
-    return name;
+    return null;
   }
 
   @Override

@@ -76,15 +76,16 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
           "3",
           "Number of failed connection checks before considering database node unhealthy.");
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<>(Collections.singletonList("*")));
-
   protected @NonNull Properties properties;
   private final @NonNull Supplier<MonitorService> monitorServiceSupplier;
   private final @NonNull PluginService pluginService;
   private MonitorService monitorService;
   private final RdsUtils rdsHelper;
   private HostSpec monitoringHostSpec;
+  protected final boolean isEnabled;
+  private final Set<String> subscribedMethods;
+
+
 
   static {
     PropertyDefinition.registerPluginProperties(HostMonitoringConnectionPlugin.class);
@@ -121,6 +122,15 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
     this.properties = properties;
     this.monitorServiceSupplier = monitorServiceSupplier;
     this.rdsHelper = rdsHelper;
+    this.isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
+
+    final HashSet<String> methods = new HashSet<>();
+    if (this.isEnabled) {
+      methods.add("connect");
+      methods.add("forceConnect");
+      methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames());
+    }
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override
@@ -142,10 +152,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
       final Object[] jdbcMethodArgs)
       throws E {
 
-    // update config settings since they may change
-    final boolean isEnabled = FAILURE_DETECTION_ENABLED.getBoolean(this.properties);
-
-    if (!isEnabled || !SubscribedMethodHelper.NETWORK_BOUND_METHODS.contains(methodName)) {
+    if (!isEnabled || !this.subscribedMethods.contains(methodName)) {
+      // In this case the plugin isn't subscribed to any methods, and we shouldn't reach this code.
       return jdbcMethodFunc.call();
     }
 

@@ -88,6 +88,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.properties = properties;
     this.readerSelectorStrategy = READER_HOST_SELECTOR_STRATEGY.getString(properties);
     this.connProviderManager = new ConnectionProviderManager(pluginService.getConnectionProvider());
+    this.pluginService.setRequiredMaintainTransactionContext(true);
   }
 
   /**

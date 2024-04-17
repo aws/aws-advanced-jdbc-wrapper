@@ -60,6 +60,7 @@ import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -87,6 +88,7 @@ class HostMonitoringConnectionPluginTest {
   @Mock MonitorConnectionContext context;
   @Mock MonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
+  @Mock TargetDriverDialect targetDriverDialect;
   private HostMonitoringConnectionPlugin plugin;
   private AutoCloseable closeable;
 
@@ -144,6 +146,9 @@ class HostMonitoringConnectionPluginTest {
     when(connection.createStatement()).thenReturn(statement);
     when(statement.executeQuery(any())).thenReturn(resultSet);
     when(rdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
+    when(pluginService.getTargetDriverDialect()).thenReturn(targetDriverDialect);
+    when(targetDriverDialect.getNetworkBoundMethodNames()).thenReturn(
+        new HashSet<>(Arrays.asList(MONITOR_METHOD_NAME)));
 
     properties.put("failureDetectionEnabled", Boolean.TRUE.toString());
     properties.put("failureDetectionTime", String.valueOf(FAILURE_DETECTION_TIME));

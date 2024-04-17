@@ -184,4 +184,8 @@ public interface PluginService extends ExceptionHandler {
   String getTargetName();
 
   @NonNull SessionStateService getSessionStateService();
+
+  void setRequiredMaintainTransactionContext(final boolean required);
+
+  boolean isRequiredMaintainTransactionContext();
 }

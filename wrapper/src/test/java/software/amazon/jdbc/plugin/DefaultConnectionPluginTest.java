@@ -81,6 +81,7 @@ class DefaultConnectionPluginTest {
     closeable = MockitoAnnotations.openMocks(this);
 
     when(pluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
+    when(pluginService.isRequiredMaintainTransactionContext()).thenReturn(true);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.createCounter(anyString())).thenReturn(mockTelemetryCounter);

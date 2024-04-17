@@ -17,64 +17,37 @@
 package software.amazon.jdbc.util;
 
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class SubscribedMethodHelper {
 
-  public static final List<String> NETWORK_BOUND_METHODS = Arrays.asList(
-      "Connection.commit",
-      "Connection.connect",
-      "Connection.isValid",
-      "Connection.rollback",
-      "Connection.sendQueryCancel",
-      "Connection.setAutoCommit",
-      "Connection.setReadOnly",
-      "Statement.cancel",
-      "Statement.execute",
-      "Statement.executeBatch",
-      "Statement.executeLargeBatch",
-      "Statement.executeLargeUpdate",
-      "Statement.executeQuery",
-      "Statement.executeUpdate",
-      "Statement.executeWithFlags",
-      "PreparedStatement.execute",
-      "PreparedStatement.executeBatch",
-      "PreparedStatement.executeLargeUpdate",
-      "PreparedStatement.executeQuery",
-      "PreparedStatement.executeUpdate",
-      "PreparedStatement.executeWithFlags",
-      "PreparedStatement.getParameterMetaData",
-      "CallableStatement.execute",
-      "CallableStatement.executeLargeUpdate",
-      "CallableStatement.executeQuery",
-      "CallableStatement.executeUpdate",
-      "CallableStatement.executeWithFlags"
-  );
-
-  public static final List<String> METHODS_REQUIRING_UPDATED_TOPOLOGY = Arrays.asList(
-      "Connection.commit",
-      "Connection.connect",
-      "Connection.isValid",
-      "Connection.setAutoCommit",
-      "Connection.setReadOnly",
-      "Statement.execute",
-      "Statement.executeBatch",
-      "Statement.executeLargeBatch",
-      "Statement.executeLargeUpdate",
-      "Statement.executeQuery",
-      "Statement.executeUpdate",
-      "Statement.executeWithFlags",
-      "PreparedStatement.execute",
-      "PreparedStatement.executeBatch",
-      "PreparedStatement.executeLargeUpdate",
-      "PreparedStatement.executeQuery",
-      "PreparedStatement.executeUpdate",
-      "PreparedStatement.executeWithFlags",
-      "PreparedStatement.getParameterMetaData",
-      "CallableStatement.execute",
-      "CallableStatement.executeLargeUpdate",
-      "CallableStatement.executeQuery",
-      "CallableStatement.executeUpdate",
-      "CallableStatement.executeWithFlags"
-  );
+  public static final Set<String> METHODS_REQUIRING_UPDATED_TOPOLOGY = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+        "Connection.commit",
+        "Connection.connect",
+        "Connection.isValid",
+        "Connection.setAutoCommit",
+        "Connection.setReadOnly",
+        "Statement.execute",
+        "Statement.executeBatch",
+        "Statement.executeLargeBatch",
+        "Statement.executeLargeUpdate",
+        "Statement.executeQuery",
+        "Statement.executeUpdate",
+        "Statement.executeWithFlags",
+        "PreparedStatement.execute",
+        "PreparedStatement.executeBatch",
+        "PreparedStatement.executeLargeUpdate",
+        "PreparedStatement.executeQuery",
+        "PreparedStatement.executeUpdate",
+        "PreparedStatement.executeWithFlags",
+        "PreparedStatement.getParameterMetaData",
+        "CallableStatement.execute",
+        "CallableStatement.executeLargeUpdate",
+        "CallableStatement.executeQuery",
+        "CallableStatement.executeUpdate",
+        "CallableStatement.executeWithFlags"
+      )));
 }

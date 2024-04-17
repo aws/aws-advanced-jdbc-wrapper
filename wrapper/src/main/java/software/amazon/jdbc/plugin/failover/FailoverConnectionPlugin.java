@@ -65,21 +65,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private static final String TELEMETRY_WRITER_FAILOVER = "failover to writer node";
   private static final String TELEMETRY_READER_FAILOVER = "failover to replica";
 
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-          add("initHostProvider");
-          add("connect");
-          add("forceConnect");
-          add("notifyConnectionChanged");
-          add("notifyNodeListChanged");
-        }
-      });
-
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
   static final String METHOD_IS_CLOSED = "Connection.isClosed";
+
+  private final Set<String> subscribedMethods;
 
   private final PluginService pluginService;
   protected final Properties properties;
@@ -147,12 +137,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "telemetryFailoverAdditionalTopTrace", "false",
           "Post an additional top-level trace for failover process.");
 
-  private final TelemetryCounter failoverWriterTriggeredCounter;
-  private final TelemetryCounter failoverWriterSuccessCounter;
-  private final TelemetryCounter failoverWriterFailedCounter;
-  private final TelemetryCounter failoverReaderTriggeredCounter;
-  private final TelemetryCounter failoverReaderSuccessCounter;
-  private final TelemetryCounter failoverReaderFailedCounter;
+  private TelemetryCounter failoverWriterTriggeredCounter = null;
+  private TelemetryCounter failoverWriterSuccessCounter = null;
+  private TelemetryCounter failoverWriterFailedCounter = null;
+  private TelemetryCounter failoverReaderTriggeredCounter = null;
+  private TelemetryCounter failoverReaderSuccessCounter = null;
+  private TelemetryCounter failoverReaderFailedCounter = null;
+
+  private final boolean isTelemetryEnabled;
 
   static {
     PropertyDefinition.registerPluginProperties(FailoverConnectionPlugin.class);
@@ -178,13 +170,30 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     this.staleDnsHelper = new AuroraStaleDnsHelper(this.pluginService);
 
+    final HashSet<String> methods = new HashSet<>();
+    if (this.enableFailoverSetting) {
+      methods.add("initHostProvider");
+      methods.add("connect");
+      methods.add("forceConnect");
+      methods.add("notifyConnectionChanged");
+      methods.add("notifyNodeListChanged");
+      methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames());
+    }
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
+
+
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.failoverWriterTriggeredCounter = telemetryFactory.createCounter("writerFailover.triggered.count");
-    this.failoverWriterSuccessCounter = telemetryFactory.createCounter("writerFailover.completed.success.count");
-    this.failoverWriterFailedCounter = telemetryFactory.createCounter("writerFailover.completed.failed.count");
-    this.failoverReaderTriggeredCounter = telemetryFactory.createCounter("readerFailover.triggered.count");
-    this.failoverReaderSuccessCounter = telemetryFactory.createCounter("readerFailover.completed.success.count");
-    this.failoverReaderFailedCounter = telemetryFactory.createCounter("readerFailover.completed.failed.count");
+    this.isTelemetryEnabled = telemetryFactory.isEnabled();
+    if (this.isTelemetryEnabled) {
+      this.failoverWriterTriggeredCounter = telemetryFactory.createCounter("writerFailover.triggered.count");
+      this.failoverWriterSuccessCounter = telemetryFactory.createCounter("writerFailover.completed.success.count");
+      this.failoverWriterFailedCounter = telemetryFactory.createCounter("writerFailover.completed.failed.count");
+      this.failoverReaderTriggeredCounter = telemetryFactory.createCounter("readerFailover.triggered.count");
+      this.failoverReaderSuccessCounter = telemetryFactory.createCounter("readerFailover.completed.success.count");
+      this.failoverReaderFailedCounter = telemetryFactory.createCounter("readerFailover.completed.failed.count");
+    }
+
+    this.pluginService.setRequiredMaintainTransactionContext(true);
   }
 
   @Override
@@ -576,10 +585,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
-    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-        TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
-    this.failoverReaderTriggeredCounter.inc();
+    TelemetryFactory telemetryFactory = null;
+    TelemetryContext telemetryContext = null;
+    if (this.isTelemetryEnabled) {
+      telemetryFactory = this.pluginService.getTelemetryFactory();
+      telemetryContext = telemetryFactory.openTelemetryContext(
+          TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
+      this.failoverReaderTriggeredCounter.inc();
+    }
 
     try {
       LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
@@ -601,7 +614,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (result == null || !result.isConnected()) {
         // "Unable to establish SQL connection to reader instance"
         processFailoverFailure(Messages.get("Failover.unableToConnectToReader"));
-        this.failoverReaderFailedCounter.inc();
+        if (this.isTelemetryEnabled) {
+          this.failoverReaderFailedCounter.inc();
+        }
         return;
       }
 
@@ -615,31 +630,43 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               "Failover.establishedConnection",
               new Object[]{this.pluginService.getCurrentHostSpec()}));
 
-      this.failoverReaderSuccessCounter.inc();
+      if (this.isTelemetryEnabled) {
+        this.failoverReaderSuccessCounter.inc();
+      }
 
     } catch (FailoverSuccessSQLException ex) {
-      telemetryContext.setSuccess(true);
-      telemetryContext.setException(ex);
-      this.failoverReaderSuccessCounter.inc();
+      if (this.isTelemetryEnabled) {
+        telemetryContext.setSuccess(true);
+        telemetryContext.setException(ex);
+        this.failoverReaderSuccessCounter.inc();
+      }
       throw ex;
     } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
-      this.failoverReaderFailedCounter.inc();
+      if (this.isTelemetryEnabled) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(ex);
+        this.failoverReaderFailedCounter.inc();
+      }
       throw ex;
     } finally {
-      telemetryContext.closeContext();
-      if (this.telemetryFailoverAdditionalTopTraceSetting) {
-        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+      if (this.isTelemetryEnabled) {
+        telemetryContext.closeContext();
+        if (this.telemetryFailoverAdditionalTopTraceSetting) {
+          telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+        }
       }
     }
   }
 
   protected void failoverWriter() throws SQLException {
-    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-        TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
-    this.failoverWriterTriggeredCounter.inc();
+    TelemetryFactory telemetryFactory = null;
+    TelemetryContext telemetryContext = null;
+    if (this.isTelemetryEnabled) {
+      telemetryFactory = this.pluginService.getTelemetryFactory();
+      telemetryContext = telemetryFactory.openTelemetryContext(
+          TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
+      this.failoverWriterTriggeredCounter.inc();
+    }
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
@@ -653,7 +680,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (failoverResult == null || !failoverResult.isConnected()) {
         // "Unable to establish SQL connection to writer node"
         processFailoverFailure(Messages.get("Failover.unableToConnectToWriter"));
-        this.failoverWriterFailedCounter.inc();
+        if (this.isTelemetryEnabled) {
+          this.failoverWriterFailedCounter.inc();
+        }
         return;
       }
 
@@ -668,21 +697,29 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       this.pluginService.refreshHostList();
 
-      this.failoverWriterSuccessCounter.inc();
+      if (this.isTelemetryEnabled) {
+        this.failoverWriterSuccessCounter.inc();
+      }
     } catch (FailoverSuccessSQLException ex) {
-      telemetryContext.setSuccess(true);
-      telemetryContext.setException(ex);
-      this.failoverWriterSuccessCounter.inc();
+      if (this.isTelemetryEnabled) {
+        telemetryContext.setSuccess(true);
+        telemetryContext.setException(ex);
+        this.failoverWriterSuccessCounter.inc();
+      }
       throw ex;
     } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
-      this.failoverWriterFailedCounter.inc();
+      if (this.isTelemetryEnabled) {
+        telemetryContext.setSuccess(false);
+        telemetryContext.setException(ex);
+        this.failoverWriterFailedCounter.inc();
+      }
       throw ex;
     } finally {
-      telemetryContext.closeContext();
-      if (this.telemetryFailoverAdditionalTopTraceSetting) {
-        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+      if (this.isTelemetryEnabled) {
+        telemetryContext.closeContext();
+        if (this.telemetryFailoverAdditionalTopTraceSetting) {
+          telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+        }
       }
     }
   }

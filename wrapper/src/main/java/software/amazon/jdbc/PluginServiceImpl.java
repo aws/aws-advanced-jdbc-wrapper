@@ -80,6 +80,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected final SessionStateService sessionStateService;
 
   protected final ReentrantLock connectionSwitchLock = new ReentrantLock();
+  protected boolean isRequiredMaintainTransactionContext = false;
 
   public PluginServiceImpl(
       @NonNull final ConnectionPluginManager pluginManager,
@@ -657,5 +658,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public @NonNull SessionStateService getSessionStateService() {
     return this.sessionStateService;
+  }
+
+  @Override
+  public void setRequiredMaintainTransactionContext(final boolean required) {
+    this.isRequiredMaintainTransactionContext = required;
+  }
+
+  @Override
+  public boolean isRequiredMaintainTransactionContext() {
+    return this.isRequiredMaintainTransactionContext;
   }
 }

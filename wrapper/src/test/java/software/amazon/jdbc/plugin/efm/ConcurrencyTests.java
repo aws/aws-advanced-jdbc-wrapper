@@ -561,6 +561,15 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public void setRequiredMaintainTransactionContext(boolean required) {
+    }
+
+    @Override
+    public boolean isRequiredMaintainTransactionContext() {
+      return false;
+    }
+
+    @Override
     public boolean isNetworkException(Throwable throwable) {
       return false;
     }

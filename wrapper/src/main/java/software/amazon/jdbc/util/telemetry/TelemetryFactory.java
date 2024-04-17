@@ -26,4 +26,6 @@ public interface TelemetryFactory {
 
   TelemetryGauge createGauge(String name, GaugeCallable<Long> callback);
 
+  boolean isEnabled();
+
 }

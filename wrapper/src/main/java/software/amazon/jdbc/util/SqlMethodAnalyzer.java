@@ -20,14 +20,48 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SqlMethodAnalyzer {
 
+  private static final Set<String> CLOSING_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          "Connection.close",
+          "Connection.abort",
+          "Statement.close",
+          "CallableStatement.close",
+          "PreparedStatement.close",
+          "ResultSet.close"
+      )));
+
+  private static final Set<String> EXECUTE_SQL_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          "Statement.execute",
+          "Statement.executeQuery",
+          "Statement.executeUpdate",
+          "CallableStatement.execute",
+          "CallableStatement.executeQuery",
+          "CallableStatement.executeUpdate",
+          "PreparedStatement.execute",
+          "PreparedStatement.executeQuery",
+          "PreparedStatement.executeUpdate"
+      )));
+
+  private static final Set<String> CLOSE_TRANSACTION_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          "Connection.commit",
+          "Connection.rollback",
+          "Connection.close",
+          "Connection.abort"
+      )));
+
   public boolean doesOpenTransaction(final Connection conn, final String methodName,
       final Object[] args) {
-    if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
+    if (!(EXECUTE_SQL_METHOD_NAMES.contains(methodName) && args != null && args.length >= 1)) {
       return false;
     }
 
@@ -74,8 +108,7 @@ public class SqlMethodAnalyzer {
 
   public boolean doesCloseTransaction(final Connection conn, final String methodName,
       final Object[] args) {
-    if (methodName.equals("Connection.commit") || methodName.equals("Connection.rollback")
-        || methodName.equals("Connection.close") || methodName.equals("Connection.abort")) {
+    if (CLOSE_TRANSACTION_METHOD_NAMES.contains(methodName)) {
       return true;
     }
 
@@ -111,7 +144,11 @@ public class SqlMethodAnalyzer {
   }
 
   public boolean isStatementSettingAutoCommit(final String methodName, final Object[] args) {
-    if (!(methodName.contains("execute") && args != null && args.length >= 1)) {
+    if (args == null || args.length < 1) {
+      return false;
+    }
+
+    if (!EXECUTE_SQL_METHOD_NAMES.contains(methodName)) {
       return false;
     }
 
@@ -123,7 +160,7 @@ public class SqlMethodAnalyzer {
       final Object[] jdbcMethodArgs) {
     final boolean isStatementSettingAutoCommit = isStatementSettingAutoCommit(
         methodName, jdbcMethodArgs);
-    if (!methodName.contains("setAutoCommit") && !isStatementSettingAutoCommit) {
+    if (!isStatementSettingAutoCommit && !"Connection.setAutoCommit".equals(methodName)) {
       return false;
     }
 
@@ -135,7 +172,7 @@ public class SqlMethodAnalyzer {
       return false;
     }
 
-    if (methodName.contains("setAutoCommit") && jdbcMethodArgs.length > 0) {
+    if ("Connection.setAutoCommit".equals(methodName) && jdbcMethodArgs.length > 0) {
       newAutoCommitVal = (Boolean) jdbcMethodArgs[0];
     } else if (isStatementSettingAutoCommit) {
       newAutoCommitVal = getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
@@ -181,6 +218,6 @@ public class SqlMethodAnalyzer {
   }
 
   public boolean isMethodClosingSqlObject(final String methodName) {
-    return methodName.endsWith(".close") || methodName.endsWith(".abort");
+    return CLOSING_METHOD_NAMES.contains(methodName);
   }
 }
