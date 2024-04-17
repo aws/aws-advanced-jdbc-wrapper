@@ -15,6 +15,8 @@ import software.amazon.jdbc.util.Messages;
 
 public class HighestWeightHostSelector implements HostSelector {
 
+  public static final String STRATEGY_HIGHEST_WEIGHT = "highestWeight";
+
   @Override
   public HostSpec getHost(@NonNull final List<HostSpec> hosts,
       @NonNull final HostRole role,

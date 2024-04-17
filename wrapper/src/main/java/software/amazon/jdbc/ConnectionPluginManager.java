@@ -36,7 +36,7 @@ import software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPlugin;
 import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
-import software.amazon.jdbc.plugin.EndpointConnectionPlugin;
+import software.amazon.jdbc.plugin.endpoint.EndpointConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
@@ -489,6 +489,36 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         if (isSubscribed) {
           try {
             final HostSpec host = plugin.getHostSpecByStrategy(role, strategy);
+            if (host != null) {
+              return host;
+            }
+          } catch (UnsupportedOperationException e) {
+            // This plugin does not support the provided strategy, ignore the exception and move on
+          }
+        }
+      }
+
+      throw new UnsupportedOperationException(
+          "The driver does not support the requested host selection strategy: " + strategy);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new SQLException(e);
+    }
+  }
+
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+      throws SQLException, UnsupportedOperationException {
+    try {
+      for (ConnectionPlugin plugin : this.plugins) {
+        Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
+        boolean isSubscribed =
+            pluginSubscribedMethods.contains(ALL_METHODS)
+                || pluginSubscribedMethods.contains(GET_HOST_SPEC_BY_STRATEGY_METHOD);
+
+        if (isSubscribed) {
+          try {
+            final HostSpec host = plugin.getHostSpecByStrategy(hosts, role, strategy);
             if (host != null) {
               return host;
             }

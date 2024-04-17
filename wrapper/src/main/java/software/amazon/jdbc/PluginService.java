@@ -100,6 +100,8 @@ public interface PluginService extends ExceptionHandler {
   HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException;
 
+  HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+      throws SQLException, UnsupportedOperationException;
   /**
    * Evaluates the host role of the given connection - either a writer or a reader.
    *

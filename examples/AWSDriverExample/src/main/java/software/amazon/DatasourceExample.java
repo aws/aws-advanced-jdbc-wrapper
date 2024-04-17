@@ -24,10 +24,10 @@ import java.util.Properties;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 
 public class DatasourceExample {
-  private static final String USER = "username";
+  private static final String USER = "user";
   private static final String PASSWORD = "password";
 
-  public static void main(String[] args) throws SQLException {
+  public static void main(String[] args) throws SQLException, InterruptedException {
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     ds.setJdbcProtocol("jdbc:postgresql:");
@@ -36,8 +36,8 @@ public class DatasourceExample {
     ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
 
     // Configure basic data source information:
-    ds.setServerName("scratch");
-    ds.setDatabase("postgres");
+    ds.setServerName("db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
+    ds.setDatabase("test");
     ds.setServerPort("5432");
 
     // Configure the driver-specific and AWS JDBC Driver properties (optional):
@@ -59,10 +59,17 @@ public class DatasourceExample {
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     // Try and make a connection:
-    try (final Connection conn = ds.getConnection(USER, PASSWORD);
-        final Statement statement = conn.createStatement();
-        final ResultSet rs = statement.executeQuery("SELECT * from aurora_db_instance_identifier()")) {
-      System.out.println(Util.getResult(rs));
+    while(true) {
+      try (final Connection conn = ds.getConnection(USER, PASSWORD);
+           final Statement statement = conn.createStatement();
+           ) {
+        final ResultSet rs = statement.executeQuery("SELECT * from aurora_db_instance_identifier()");
+        System.out.println(Util.getResult(rs));
+      } catch (Exception e) {
+        System.out.println(e);
+      }
+      Thread.sleep(5000);
     }
+
   }
 }

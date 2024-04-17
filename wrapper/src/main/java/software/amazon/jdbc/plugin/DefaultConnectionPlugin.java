@@ -248,13 +248,20 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException {
+    List<HostSpec> hosts = this.pluginService.getHosts();
+
+    return this.getHostSpecByStrategy(hosts, role, strategy);
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final HostRole role, final String strategy)
+      throws SQLException {
     if (HostRole.UNKNOWN.equals(role)) {
       // Users must request either a writer or a reader role.
       throw new SQLException("DefaultConnectionPlugin.unknownRoleRequested");
     }
 
-    List<HostSpec> hosts = this.pluginService.getHosts();
-    if (hosts.size() < 1) {
+    if (hosts.isEmpty()) {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
     }
 
