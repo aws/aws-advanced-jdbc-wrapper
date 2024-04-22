@@ -31,7 +31,7 @@ dependencies {
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.25.31")
     compileOnly("software.amazon.awssdk:auth:2.25.25") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:http-client-spi:2.25.31") // Required for IAM (light implementation)
+    compileOnly("software.amazon.awssdk:http-client-spi:2.25.36") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.25.17")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.25.31")
@@ -64,7 +64,7 @@ dependencies {
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.25.31")
     testImplementation("software.amazon.awssdk:auth:2.25.25") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:http-client-spi:2.25.31") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:http-client-spi:2.25.36") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.25.31")
     testImplementation("software.amazon.awssdk:secretsmanager:2.25.31")
     testImplementation("software.amazon.awssdk:sts:2.25.17")
