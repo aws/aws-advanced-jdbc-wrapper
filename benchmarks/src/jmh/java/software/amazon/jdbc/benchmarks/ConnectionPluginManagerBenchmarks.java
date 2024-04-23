@@ -103,6 +103,7 @@ public class ConnectionPluginManagerBenchmarks {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock TelemetryCounter mockTelemetryCounter;
   @Mock TelemetryGauge mockTelemetryGauge;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
   ConfigurationProfile configurationProfile;
   private AutoCloseable closeable;
 
@@ -139,7 +140,7 @@ public class ConnectionPluginManagerBenchmarks {
         .thenReturn("myInstance1.domain.com", "myInstance2.domain.com", "myInstance3.domain.com");
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
-
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
     // Create a plugin chain with 10 custom test plugins.
     final List<Class<? extends ConnectionPluginFactory>> pluginFactories = new ArrayList<>(
         Collections.nCopies(10, BenchmarkPluginFactory.class));
