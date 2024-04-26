@@ -53,7 +53,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
           AURORA_MYSQL_DB_ENGINE_VERSION: "latest"
-          AURORA_PG_ENGINE_VERSION: "latest"
+          AURORA_PG_ENGINE_VERSION: "16.2"
       - name: 'Archive junit results'
         if: always()
         uses: actions/upload-artifact@v4
