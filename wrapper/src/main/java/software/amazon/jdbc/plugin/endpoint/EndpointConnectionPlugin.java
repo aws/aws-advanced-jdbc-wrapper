@@ -75,7 +75,7 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
         EndpointServiceImpl::new);
   }
 
-  public EndpointConnectionPlugin (
+  public EndpointConnectionPlugin(
       final PluginService pluginService,
       final @NonNull Properties properties,
       final @NonNull Supplier<EndpointService> endpointServiceSupplier) {
@@ -116,13 +116,13 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
     if (isInitialConnection) {
       initEndpointMonitorService();
       this.endpointService.startMonitoring(pluginService, hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
-      this.endpointService.startMonitoring(pluginService, getClusterHostSpec(hostSpec), properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
-    List<HostSpec> endpoints = this.endpointService.getEndpoints(this.pluginService.getHostListProvider().getClusterId(), props);
+    List<HostSpec> endpoints = this.endpointService.getEndpoints(
+        this.pluginService.getHostListProvider().getClusterId(), props);
 
     if (endpoints.isEmpty()) {
-        LOGGER.warning(Messages.get("EndpointConnectionPlugin.emptyEndpointCache"));
+      LOGGER.warning(Messages.get("EndpointConnectionPlugin.emptyEndpointCache"));
       return connectFunc.call();
     } else if (endpoints.contains(hostSpec)) {
       return connectFunc.call();

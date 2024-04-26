@@ -75,17 +75,13 @@ public class EndpointServiceImpl implements EndpointService {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final int intervalMs) {
-//     if (endpointMonitor == null) {
-//       endpointMonitor =
-//           this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs);
-//     }
-          final String endpointMonitorKey = pluginService.getHostListProvider().getClusterId();
-      final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
-          ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
-      endpointMonitors.computeIfAbsent(
-          endpointMonitorKey,
-          (key) -> this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs),
-          cacheExpirationNano);
+    final String endpointMonitorKey = pluginService.getHostListProvider().getClusterId();
+    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
+
+    endpointMonitors.computeIfAbsent(
+        endpointMonitorKey,
+        (key) -> this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs),
+        cacheExpirationNano);
   }
 }
