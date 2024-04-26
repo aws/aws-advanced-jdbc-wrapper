@@ -23,7 +23,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 
 public interface EndpointService {
-  List<HostSpec> getEndpoints();
+
+  List<HostSpec> getEndpoints(final String clusterId, final Properties props);
 
   void startMonitoring(final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
