@@ -17,15 +17,38 @@
 package software.amazon.jdbc.plugin.endpoint;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
 public class EndpointServiceImpl implements EndpointService {
+
+  public static final AwsWrapperProperty ENDPOINT_MONITOR_DISPOSAL_TIME_MS =
+      new AwsWrapperProperty(
+          "endpointMonitorDisposalTime",
+          "600000", // 10min
+          "Interval in milliseconds for an endopint monitor to be considered inactive and to be disposed.");
+  protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
   private final EndpointMonitorInitializer endpointMonitorInitializer;
-  private static EndpointMonitor endpointMonitor;
+
+  private static final SlidingExpirationCacheWithCleanupThread<String, EndpointMonitor> endpointMonitors =
+      new SlidingExpirationCacheWithCleanupThread<>(
+          (endpointMonitor) -> true,
+          (endpointMonitor) -> {
+            try {
+              endpointMonitor.close();
+            } catch (Exception e) {
+              // ignore
+            }
+          },
+          CACHE_CLEANUP_NANO
+      );
 
   public EndpointServiceImpl() {
     this(EndpointMonitor::new);
@@ -36,7 +59,14 @@ public class EndpointServiceImpl implements EndpointService {
   }
 
   @Override
-  public List<HostSpec> getEndpoints() {
+  public List<HostSpec> getEndpoints(final String clusterId, final Properties props) {
+    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
+        ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
+
+    final EndpointMonitor endpointMonitor = endpointMonitors.get(clusterId, cacheExpirationNano);
+    if (endpointMonitor == null) {
+      return Collections.EMPTY_LIST;
+    }
     return new ArrayList<>(endpointMonitor.getEndpoints());
   }
 
@@ -45,9 +75,17 @@ public class EndpointServiceImpl implements EndpointService {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final int intervalMs) {
-    if (endpointMonitor == null) {
-      endpointMonitor =
-          this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs);
-    }
+//     if (endpointMonitor == null) {
+//       endpointMonitor =
+//           this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs);
+//     }
+          final String endpointMonitorKey = pluginService.getHostListProvider().getClusterId();
+      final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
+          ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
+
+      endpointMonitors.computeIfAbsent(
+          endpointMonitorKey,
+          (key) -> this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs),
+          cacheExpirationNano);
   }
 }

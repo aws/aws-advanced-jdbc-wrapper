@@ -116,10 +116,10 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
     if (isInitialConnection) {
       initEndpointMonitorService();
       this.endpointService.startMonitoring(pluginService, hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
-//       this.endpointService.startMonitoring(pluginService, getClusterHostSpec(hostSpec), properties, INTERVAL_MILLIS.getInteger(properties));
+      this.endpointService.startMonitoring(pluginService, getClusterHostSpec(hostSpec), properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
-    List<HostSpec> endpoints = this.endpointService.getEndpoints();
+    List<HostSpec> endpoints = this.endpointService.getEndpoints(this.pluginService.getHostListProvider().getClusterId(), props);
 
     if (endpoints.isEmpty()) {
         LOGGER.warning(Messages.get("EndpointConnectionPlugin.emptyEndpointCache"));
@@ -128,7 +128,7 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
       return connectFunc.call();
     }
 
-    final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(this.endpointService.getEndpoints(),
+    final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(endpoints,
         HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
 
     LOGGER.finest(Messages.get("EndpointConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
