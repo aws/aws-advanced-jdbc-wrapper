@@ -329,6 +329,10 @@ tasks.register<Test>("test-all-aurora") {
     doFirst {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
+        systemProperty("test-no-mysql-driver", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-driver", "true")
+        systemProperty("test-no-mariadb-engine", "true")
     }
 }
 
