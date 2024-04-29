@@ -19,7 +19,7 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.3")
     implementation("mysql:mysql-connector-java:8.0.33")
     implementation("software.amazon.awssdk:rds:2.25.36")
-    implementation("software.amazon.awssdk:secretsmanager:2.25.31")
+    implementation("software.amazon.awssdk:secretsmanager:2.25.41")
     implementation("software.amazon.awssdk:sts:2.25.36")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
     implementation(project(":aws-advanced-jdbc-wrapper"))
