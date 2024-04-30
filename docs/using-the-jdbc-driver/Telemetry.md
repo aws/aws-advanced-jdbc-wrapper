@@ -42,7 +42,7 @@ Before enabling the Telemetry feature, a few setup steps are required to ensure 
 
 ## Using Telemetry
 
-Telemetry for the AWS JDBC Driver is a monitoring strategy that overlooks all plugins enabled in [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) and is not a plugin in itself. Therefore no changes are required in the `wrapperPlugins` parameter to enable Telemetry.
+Telemetry for the AWS JDBC Driver is a monitoring strategy that overlooks all plugins enabled in [`wrapperPlugins`](./UsingTheJdbcDriver.md#connection-plugin-manager-parameters) and is not a plugin in itself. Therefore no changes are required in the `wrapperPlugins` parameter to enable Telemetry.
 
 In order to enable Telemetry in the AWS JDBC Driver, you need to:
 
@@ -73,17 +73,17 @@ OpenTelemetrySdk.builder()
     .buildAndRegisterGlobal();
 ```
 
-We also provide a [complete sample application](examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsOTLPExample.java) using telemetry in the examples folder of this repository.
+We also provide a [complete sample application](../../examples/AWSDriverExample/src/main/java/software/amazon/TelemetryMetricsOTLPExample.java) using telemetry in the examples folder of this repository.
 
 ### Telemetry Parameters
 In addition to the parameter that enables Telemetry, you can pass following parameters to the AWS JDBC Driver through the connection URL to configure how telemetry data will be forwarded.
 
-| Parameter | Value | Required | Description | Default Value |
-|---|:---:|:---:|:---|---|
-| `enableTelemetry` | Boolean | No | Telemetry will be enabled when this property is set to `true`, otherwise no telemetry data will be gathered during the execution of the wrapper. | `false` |
-| `telemetryTracesBackend` | String | No | Determines to which backend the gathered tracing data will be forwarded to. Possible values include: `NONE`, `XRAY`, and `OTLP`.<br>`NONE` indicates that the application will collect tracing data but this data will not be forwarded anywhere.<br>`XRAY` indicates that the traces will be collected by the AWS XRay Daemon.<br>`OTLP` indicates that the traces will be collected by the AWS OTEL COllector. | `NONE` |
-| `telemetryMetricsBackend` | String | No | Determines to which backend the gathered metrics data will be forwarded to. Possible values include: `NONE` and `OTLP`.<br>`NONE` indicates that the application will collect metrics data but this data will not be forwarded anywhere.<br>`OTLP` indicates that the metrics will be collected by the AWS OTEL COllector. | `NONE` |
-| `telemetrySubmitTopLevel` | String | No | Determines which nesting strategy to adopt for traces about top level traces and nested traces.<br><br>See the [Nested tracing strategies using Amazon XRay](#Nested-Tracing-Strategies-Using-Amazon-XRay) section for more details about nesting strategies.<br><br>`ALWAYS_TOP_LEVEL` means that every JDBC call to the driver will generate a trace with no direct parent trace attached to it. If there is already an open trace being recorded by the application, no driver traces will be created.<br>`ALWAYS_NESTED` means that the wrapper will assume that there is an open trace in the application and the driver traces will all be attached to that open trace. If the user selects this value for the property and there is no open trace in the user application, no trace will be created.<br>`TOP_LEVEL` means that the application will look if there is an open trace in the users application prior to record telemetry data. If there is a current open trace, the traces created will be attached to that open trace. If not, all telemetry traces created will be top level.<br>`NO_TRACE` means that no traces will be created during the wrapper execution. | `TOP_LEVEL` |
+| Parameter                 |  Value  | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Default Value |
+|---------------------------|:-------:|:--------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `enableTelemetry`         | Boolean |    No    | Telemetry will be enabled when this property is set to `true`, otherwise no telemetry data will be gathered during the execution of the wrapper.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `false`       |
+| `telemetryTracesBackend`  | String  |    No    | Determines to which backend the gathered tracing data will be forwarded to. Possible values include: `NONE`, `XRAY`, and `OTLP`.<br>`NONE` indicates that the application will collect tracing data but this data will not be forwarded anywhere.<br>`XRAY` indicates that the traces will be collected by the AWS XRay Daemon.<br>`OTLP` indicates that the traces will be collected by the AWS OTEL COllector.                                                                                                                                                                                                              | `NONE`        |
+| `telemetryMetricsBackend` | String  |    No    | Determines to which backend the gathered metrics data will be forwarded to. Possible values include: `NONE` and `OTLP`.<br>`NONE` indicates that the application will collect metrics data but this data will not be forwarded anywhere.<br>`OTLP` indicates that the metrics will be collected by the AWS OTEL COllector.                                                                                                                                                                                                                                                                                                    | `NONE`        |
+| `telemetrySubmitTopLevel` | Boolean |    No    | By default the driver will look for open traces in the users application prior to record telemetry data. If there is a current open trace, the traces created will be attached to that open trace. If not, all telemetry traces created will be top level. Setting the parameter to `false` means that every JDBC call to the driver will generate a trace with no direct parent trace attached to it. If there is already an open trace being recorded by the application, no driver traces will be created. See the [Nested tracing strategies section](#nested-tracing-strategies-using-amazon-xray) for more information. | `false`       |
 
 ## Nested tracing strategies using Amazon XRay
 
@@ -103,13 +103,8 @@ When a trace is hierarchically linked to a parent trace, we say that this trace 
 
 Applications that interact with the AWS JDBC Driver may or may not have already opened telemetry traces on their own. In this case, it is up to the user to determine how they want to mix both application and driver traces.
 
-This can be done using the AWS JDBC Driver's `telemetrySubmitTopLevel` property. This property allows users to choose to submit the driver traces always as top level traces, to submit them nested to the application traces, or even to not submit the driver traces at all.
-
-The `telemetrySubmitTopLevel` property allows 4 different options to choose from:
-- `ALWAYS_TOP_LEVEL` means that all the driver traces should be all forced into being top level traces. If the application has already open traces, it will not be possible for the driver traces to be top level and the driver traces therefore will not be submitted.
-- `ALWAYS_NESTED` indicates that the user wants the driver traces to always be nested into their application traces. That will happen unless there are no open application traces when the driver is running. In that case no driver traces will be collected or submitted.
-  -`TOP_LEVEL` is a strategy where driver traces are submitted as top level traces, unless there is already an application open trace. If there is already an open trace, the driver traces will identify it and be submitted as nested traces with the application trace as parent.
-- `NO_TRACE` indicates that no traces will be submitted to Amazon XRay.
+This can be done using the AWS JDBC Driver's `telemetrySubmitTopLevel` property. This property allows users to choose to submit the driver traces always as top level traces or to submit them nested to the application traces.
+The default value is set to `false`, which means the driver traces to always be nested into their application traces. That will happen unless there are no open application traces when the driver is running. In that case no driver traces will be collected or submitted. When the property is set to `true`, all the driver traces would be submitted top level traces. If the application has already open traces, it will not be possible for the driver traces to be top level and the driver traces therefore will not be submitted.
 
 ## List of Metrics
 
@@ -119,46 +114,46 @@ Metrics can be one of 3 types: counters, gauges or histograms.
 
 ### EFM plugin
 
-| Metric name | Metric type | Description |
-|---|---|---|
-| efm.connections.aborted | Counter | Number of times a connection was aborted after being defined as unhealthy by an EFM monitoring thread |
-| efm.nodeUnhealthy.count.[NODE] | Counter | Number of times a specific node has been defined as unhealthy |
+| Metric name                    | Metric type | Description                                                                                           |
+|--------------------------------|-------------|-------------------------------------------------------------------------------------------------------|
+| efm.connections.aborted        | Counter     | Number of times a connection was aborted after being defined as unhealthy by an EFM monitoring thread |
+| efm.nodeUnhealthy.count.[NODE] | Counter     | Number of times a specific node has been defined as unhealthy                                         |
 
 ### Secrets Manager plugin
 
-| Metric name | Metric type | Description |
-|---|---|---|
-| secretsManager.fetchCredentials.count | Counter | Number of times credentials were fetched from Secrets Manager |
+| Metric name                           | Metric type | Description                                                   |
+|---------------------------------------|-------------|---------------------------------------------------------------|
+| secretsManager.fetchCredentials.count | Counter     | Number of times credentials were fetched from Secrets Manager |
 
 ### IAM plugin
 
-| Metric name | Metric type | Description |
-|---|---|---|
-| iam.fetchToken.count | Counter | Number of times tokens were fetched from IAM |
-| iam.tokenCache.size | Gauge | Size of the token cache |
+| Metric name          | Metric type | Description                                  |
+|----------------------|-------------|----------------------------------------------|
+| iam.fetchToken.count | Counter     | Number of times tokens were fetched from IAM |
+| iam.tokenCache.size  | Gauge       | Size of the token cache                      |
 
 ### Data Cache plugin
 
-| Metric name | Metric type | Description |
-|---|---|---|
-| dataCache.cache.hit | Counter | Number of times the cache was consulted and found a cached entry |
-| dataCache.cache.miss | Counter | Number of times the cacbe was consulted and no match was found |
-| dataCache.cache.totalCalls | Counter | Total number of calls to the cache |
-| dataCache.cache.size | Gauge | Size of the data cache |
+| Metric name                | Metric type | Description                                                      |
+|----------------------------|-------------|------------------------------------------------------------------|
+| dataCache.cache.hit        | Counter     | Number of times the cache was consulted and found a cached entry |
+| dataCache.cache.miss       | Counter     | Number of times the cacbe was consulted and no match was found   |
+| dataCache.cache.totalCalls | Counter     | Total number of calls to the cache                               |
+| dataCache.cache.size       | Gauge       | Size of the data cache                                           |
 
 ### Failover plugin
 
-| Metric name | Metric type | Description |
-|---|---|---|
-| writerFailover.triggered.count | Counter | Number of times writer failover was triggered |
-| writerFailover.completed.success.count | Counter | Number of times writer failover was completed and succeeded |
-| writerFailover.completed.failed.count | Counter | Number of times writer failover was completed and failed |
-| replicaFailover.triggered.count | Counter | Number of times replica failover was triggered |
-| replicaFailover.completed.success.count | Counter | Number of times replica failover was completed and succeeded |
-| replicaFailover.completed.failed.count | Counter | Number of times replica failover was completed and failed |
+| Metric name                             | Metric type | Description                                                  |
+|-----------------------------------------|-------------|--------------------------------------------------------------|
+| writerFailover.triggered.count          | Counter     | Number of times writer failover was triggered                |
+| writerFailover.completed.success.count  | Counter     | Number of times writer failover was completed and succeeded  |
+| writerFailover.completed.failed.count   | Counter     | Number of times writer failover was completed and failed     |
+| replicaFailover.triggered.count         | Counter     | Number of times replica failover was triggered               |
+| replicaFailover.completed.success.count | Counter     | Number of times replica failover was completed and succeeded |
+| replicaFailover.completed.failed.count  | Counter     | Number of times replica failover was completed and failed    |
 
 ### Stale DNS
 
-| Metric name | Metric type | Description |
-|---|---|---|
-| staleDNS.stale.detected | Counter | Number of times DNS was detected stale |
+| Metric name             | Metric type | Description                            |
+|-------------------------|-------------|----------------------------------------|
+| staleDNS.stale.detected | Counter     | Number of times DNS was detected stale |
