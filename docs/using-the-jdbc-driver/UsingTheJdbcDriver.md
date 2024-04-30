@@ -25,8 +25,14 @@ It is recommended that user applications use different settings for connections 
 The JDBC Wrapper can be used with different frameworks and tools. More details for some frameworks can be found [here](./Frameworks.md).
 
 ## Logging
-The AWS JDBC Driver uses the Java Util Logger built-in library functionality to log information. To enable logging and see information logged by the AWS JDBC Driver:
 
+There are multiple ways to enable logging when using the AWS JDBC Driver, some ways include:
+- using the built-in Java Util Logger library
+- using an external logger
+
+### Using the Java Util Logger
+To enable logging with the Java Util Logger library to log information, you can use either the `.properties` file or the `wrapperLoggerLevel` connection parameter:
+#### Properties File
 1. Create a `.properties` file and configure the logging level.
 2. Specify the `.properties` file with the `java.util.logging.config.file` option; for example, 
    `-Djava.util.logging.config.file=absolute\path\to\logging.properties`.
@@ -41,8 +47,27 @@ java.util.logging.ConsoleHandler.level=ALL
 software.amazon.jdbc.Driver.level=FINER
 software.amazon.jdbc.plugin.level=FINER
 ```
-
+#### Connection Parameter
 The AWS JDBC Driver also has a parameter, [`wrapperLoggerLevel`](#aws-advanced-jdbc-driver-parameters), to configure the logging level.
+```java
+ final Properties properties = new Properties();
+ properties.setProperty("wrapperLoggerLevel", "finest");
+ Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);
+```
+
+### Using an External Logger
+The two methods above are more suitable for simple Java applications that do not have a 3rd party logging library configured. If you are using the AWS JDBC Driver with Spring or Spring Boot, you can enable logging by adding the following to your configuration file.
+For `application.yml`:
+```yaml
+logging:  
+  level:  
+    software.amazon.jdbc: TRACE
+```
+
+For `application.properties`:
+```properties
+logging.level.software.amazon.jdbc=trace
+```
 
 ## AWS Advanced JDBC Driver Parameters
 These parameters are applicable to any instance of the AWS JDBC Driver.
