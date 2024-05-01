@@ -13,13 +13,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### :bug: Fixed
 - Connection identification and tracking in the host list provider (PR #943)[https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/943].
-- Green node endpoint replacement, allowing the AWS Advanced JDBC Driver to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/678).
-- MariaDB Pool Datasource support. Addresses [issue #957](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/957)
+- Green node endpoint replacement, allowing the AWS JDBC Driver to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/678).
+- MariaDB Pool Datasource support. Addresses [issue #957](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/957).
 
 ### :crab: Changed
 - Log level of `Failover.startWriterFailover` and `Failover.establishedConnection` from `fine` to `info` for better visibility of failover-related logs ([Issue #890](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/890)).
-- Documentation:
-  - Telemetry's connection properties. See [Telemetry](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/Telemetry.md).
+- Telemetry's connection property documentation. See [Telemetry](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/Telemetry.md).
 
 ## [2.3.5] - 2024-03-14
 
