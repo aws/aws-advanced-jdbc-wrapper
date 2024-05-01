@@ -3,14 +3,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [2.3.6] - ?
+## [2.3.6] - 2024-05-01
 
 ### :magic_wand: Added
+- Okta Authentication Support. See [UsingTheOktaAuthPlugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheOktaAuthPlugin.md).
 - Documentation:
   - Aurora Initial Connection Strategy Plugin. See [UsingTheAuroraInitialConnectionStrategyPlugin](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md)
+  - Additional instructions to enable logging for Spring and Spring Boot. See [Logging](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#logging).
+
+### :bug: Fixed
+- Connection identification and tracking in the host list provider (PR #943)[https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/943].
+- Green node endpoint replacement, allowing the AWS Advanced JDBC Driver to detect and connect to green nodes after Blue/Green switchover (PR# 948)(https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/948). Addresses [issue #678](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/678).
+- MariaDB Pool Datasource support. Addresses [issue #957](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/957)
 
 ### :crab: Changed
 - Log level of `Failover.startWriterFailover` and `Failover.establishedConnection` from `fine` to `info` for better visibility of failover-related logs ([Issue #890](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/890)).
+- Documentation:
+  - Telemetry's connection properties. See [Telemetry](https://github.com/awslabs/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/Telemetry.md).
 
 ## [2.3.5] - 2024-03-14
 
@@ -301,6 +310,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.3.6]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.5...2.3.6
 [2.3.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.4...2.3.5
 [2.3.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.3...2.3.4
 [2.3.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.2...2.3.3
