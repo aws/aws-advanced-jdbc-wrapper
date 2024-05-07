@@ -44,6 +44,9 @@ jobs:
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false'}}
         run: |
           ./gradlew --no-parallel --no-daemon test-hibernate-only
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
       - name: 'Archive junit results'
         if: ${{steps.changed-files.outputs.ONLY_DOCS && steps.changed-files.outputs.ONLY_DOCS == 'false' && !cancelled()}}
         uses: actions/upload-artifact@v4

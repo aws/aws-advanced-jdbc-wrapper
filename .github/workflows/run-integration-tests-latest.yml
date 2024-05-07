@@ -54,6 +54,9 @@ jobs:
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
           AURORA_MYSQL_DB_ENGINE_VERSION: "latest"
           AURORA_PG_ENGINE_VERSION: "latest"
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
       - name: Archive junit results for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@v4
