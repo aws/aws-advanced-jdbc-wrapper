@@ -46,6 +46,7 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.37.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.36.0")
     compileOnly("org.jsoup:jsoup:1.17.2")
+    compileOnly("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.2")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.2")
@@ -290,6 +291,16 @@ tasks.withType<Test> {
     val testReportsDir: File = file(testReportsPath)
     doFirst {
         testReportsDir.deleteRecursively()
+    }
+}
+
+tasks.register("maskJunitHtmlReport") {
+    doLast {
+        val jsFile = project.file("${layout.buildDirectory.get()}/report/data.js")
+        var text = jsFile.readText()
+        var regex = "\"([^\"]*(AWS_ACCESS_|AWS_SECRET_|AWS_SESSION_)[^\"]*)\", value: \"([^\"]*)\"".toRegex(setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
+        val maskedText = regex.replace(text, "\"$1\", value: \"*****\"")
+        jsFile.writeText(maskedText)
     }
 }
 
