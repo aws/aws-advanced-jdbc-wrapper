@@ -76,14 +76,17 @@ public class OpenedConnectionTracker {
       return;
     }
 
-    final Optional<String> instanceEndpoint = aliases.stream().filter(rdsUtils::isRdsInstance).findFirst();
+    final String instanceEndpoint = aliases.stream()
+        .filter(rdsUtils::isRdsInstance)
+        .max((x, y) -> x.compareToIgnoreCase(y))
+        .orElse(null);
 
-    if (!instanceEndpoint.isPresent()) {
+    if (instanceEndpoint == null) {
       LOGGER.finest(Messages.get("OpenedConnectionTracker.unableToPopulateOpenedConnectionQueue"));
       return;
     }
 
-    trackConnection(instanceEndpoint.get(), conn);
+    trackConnection(instanceEndpoint, conn);
   }
 
   /**
@@ -161,14 +164,13 @@ public class OpenedConnectionTracker {
       final StringBuilder builder = new StringBuilder();
       openedConnections.forEach((key, queue) -> {
         if (!queue.isEmpty()) {
-          builder.append("\t[ ");
-          builder.append(key).append(":");
-          builder.append("\n\t {");
+          builder.append("\t");
+          builder.append(key).append(" :");
+          builder.append("\n\t{");
           for (final WeakReference<Connection> connection : queue) {
             builder.append("\n\t\t").append(connection.get());
           }
-          builder.append("\n\t }\n");
-          builder.append("\t");
+          builder.append("\n\t}\n");
         }
       });
       return String.format("Opened Connections Tracked: \n[\n%s\n]", builder);

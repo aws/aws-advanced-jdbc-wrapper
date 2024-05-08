@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +47,7 @@ import org.mockito.stubbing.Answer;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
@@ -58,6 +60,7 @@ class ClusterAwareWriterFailoverHandlerTest {
   @Mock Connection mockNewWriterConnection;
   @Mock Connection mockReaderAConnection;
   @Mock Connection mockReaderBConnection;
+  @Mock Dialect mockDialect;
 
   private AutoCloseable closeable;
   private final Properties properties = new Properties();
@@ -95,6 +98,9 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockPluginService.getHosts()).thenReturn(topology);
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList())).thenThrow(SQLException.class);
+
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
@@ -137,6 +143,9 @@ class ClusterAwareWriterFailoverHandlerTest {
                   return new ReaderFailoverResult(mockReaderAConnection, readerA, true);
                 });
 
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
             mockPluginService,
@@ -178,6 +187,9 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
+
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
@@ -224,6 +236,9 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
 
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
             mockPluginService,
@@ -269,6 +284,9 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
+
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
@@ -321,6 +339,9 @@ class ClusterAwareWriterFailoverHandlerTest {
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
 
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(
             mockPluginService,
@@ -364,6 +385,9 @@ class ClusterAwareWriterFailoverHandlerTest {
 
     when(mockReaderFailover.getReaderConnection(ArgumentMatchers.anyList()))
         .thenReturn(new ReaderFailoverResult(mockReaderAConnection, readerA, true));
+
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
 
     final ClusterAwareWriterFailoverHandler target =
         new ClusterAwareWriterFailoverHandler(

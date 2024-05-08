@@ -20,13 +20,16 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 public class RdsMysqlDialect extends MysqlDialect {
 
-  private static final List<String> dialectUpdateCandidates = Collections.singletonList(
-      DialectCodes.AURORA_MYSQL);
+  private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.RDS_MULTI_AZ_MYSQL_CLUSTER,
+      DialectCodes.AURORA_MYSQL
+  );
 
   @Override
   public boolean isDialect(final Connection connection) {

@@ -18,6 +18,7 @@ package software.amazon.jdbc.dialect;
 
 import java.sql.Connection;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -25,6 +26,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.GenericExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.ConnectionStringHostListProvider;
+import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 
 public class UnknownDialect implements Dialect {
 
@@ -41,6 +43,8 @@ public class UnknownDialect implements Dialect {
   );
 
   private static GenericExceptionHandler genericExceptionHandler;
+
+  private static final EnumSet<FailoverRestriction> NO_RESTRICTIONS = EnumSet.noneOf(FailoverRestriction.class);
 
   @Override
   public int getDefaultPort() {
@@ -84,5 +88,10 @@ public class UnknownDialect implements Dialect {
   public void prepareConnectProperties(
       final @NonNull Properties connectProperties, final @NonNull String protocol, final @NonNull HostSpec hostSpec) {
     // do nothing
+  }
+
+  @Override
+  public EnumSet<FailoverRestriction> getFailoverRestrictions() {
+    return NO_RESTRICTIONS;
   }
 }

@@ -94,7 +94,7 @@ jar {
 }
 
 ext {
-    jaxbTargetDir = project.file( "${buildDir}/generated/sources/xjc/main" )
+    jaxbTargetDir = project.file( "${layout.buildDirectory.get()}/generated/sources/xjc/main" )
 }
 
 sourceSets {
@@ -140,7 +140,7 @@ task copyBundleResourcesXml (type: Copy) {
     inputs.property( "db", db )
     inputs.property( "dbHost", dbHost )
     ext {
-        bundlesTargetDir = file( "${buildDir}/bundles" )
+        bundlesTargetDir = file( "${layout.buildDirectory.get()}/bundles" )
         // Escape
         bundleTokens = [
                 'db.dialect' : dbBundle[db]['db.dialect'].replace("&", "&amp;"),
@@ -150,7 +150,7 @@ task copyBundleResourcesXml (type: Copy) {
                 'jdbc.url' : dbBundle[db]['jdbc.url'].replace("&", "&amp;"),
                 'connection.init_sql' : dbBundle[db]['connection.init_sql'].replace("&", "&amp;")
         ]
-        ext.bundleTokens['buildDirName'] = project.relativePath( buildDir )
+        ext.bundleTokens['buildDirName'] = project.relativePath( layout.buildDirectory.get() )
     }
 
     from('src/test/bundles/templates') {
@@ -167,10 +167,10 @@ task copyBundleResourcesXml (type: Copy) {
 task copyBundleResourcesNonXml (type: Copy) {
     inputs.property( "db", db )
     ext {
-        bundlesTargetDir = file( "${buildDir}/bundles" )
+        bundlesTargetDir = file( "${layout.buildDirectory.get()}/bundles" )
         // Escape
         bundleTokens = dbBundle[db]
-        ext.bundleTokens['buildDirName'] = project.relativePath( buildDir )
+        ext.bundleTokens['buildDirName'] = project.relativePath( layout.buildDirectory.get() )
     }
 
     from('src/test/bundles/templates') {

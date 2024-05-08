@@ -143,7 +143,10 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   ProxyHelper.enableAllConnectivity();
                 }
 
-                if (testRequest.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
+                final DatabaseEngineDeployment deployment = testRequest.getDatabaseEngineDeployment();
+                if (deployment == DatabaseEngineDeployment.AURORA
+                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ) {
+
                   AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
                   auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
@@ -209,15 +212,16 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   }
 
                   auroraUtil.makeSureInstancesUp(instanceIDs);
-                  TestAuroraHostListProvider.clearCache();
-                  TestPluginServiceImpl.clearHostAvailabilityCache();
-                  DialectManager.resetEndpointCache();
-                  TargetDriverDialectManager.resetCustomDialect();
-                  MonitorThreadContainer.releaseInstance();
-                  MonitorServiceImpl.clearCache();
-                  software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
-                  RdsUtils.clearCache();
                 }
+
+                TestAuroraHostListProvider.clearCache();
+                TestPluginServiceImpl.clearHostAvailabilityCache();
+                DialectManager.resetEndpointCache();
+                TargetDriverDialectManager.resetCustomDialect();
+                MonitorThreadContainer.releaseInstance();
+                MonitorServiceImpl.clearCache();
+                software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
+
                 if (tracesEnabled) {
                     AWSXRay.endSegment();
                 }
@@ -226,6 +230,23 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
             new AfterEachCallback() {
               @Override
               public void afterEach(ExtensionContext context) throws Exception {
+
+                TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
+                TestEnvironmentRequest testRequest = testInfo.getRequest();
+                final DatabaseEngineDeployment deployment = testRequest.getDatabaseEngineDeployment();
+                if ((deployment == DatabaseEngineDeployment.AURORA
+                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ)
+                    && testRequest.getFeatures().contains(TestEnvironmentFeatures.FAILOVER_SUPPORTED)) {
+
+                  AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+                  List<String> instanceIDs;
+                  instanceIDs =
+                      TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
+                          .stream().map(TestInstanceInfo::getInstanceId)
+                          .collect(Collectors.toList());
+                  auroraUtil.makeSureInstancesUp(instanceIDs);
+                }
+
                 Set<TestEnvironmentFeatures> features = TestEnvironment.getCurrent()
                     .getInfo()
                     .getRequest()
@@ -236,6 +257,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                   TimeUnit.SECONDS.sleep(3); // let OTLP container to send all collected metrics and traces
                 }
+                RdsUtils.clearCache();
               }
             });
       }

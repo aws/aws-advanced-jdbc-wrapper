@@ -89,7 +89,7 @@ tasks.withType<Test> {
     systemProperty("junit.jupiter.params.displayname.default", "{displayName} - {arguments}")
 
     reports.junitXml.required.set(true)
-    reports.junitXml.outputLocation.set(file("${project.buildDir}/test-results/container-" + System.currentTimeMillis()))
+    reports.junitXml.outputLocation.set(file("${project.layout.buildDirectory.get()}/test-results/container-" + System.currentTimeMillis()))
 
     reports.html.required.set(false)
 }

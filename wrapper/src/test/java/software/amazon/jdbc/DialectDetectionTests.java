@@ -75,7 +75,6 @@ public class DialectDetectionTests {
     when(this.mockConnection.createStatement()).thenReturn(this.mockStatement);
     when(this.mockHost.getUrl()).thenReturn("url");
     when(this.failResultSet.next()).thenReturn(false);
-    when(mockConnection.createStatement()).thenReturn(mockStatement);
   }
 
   @AfterEach
@@ -150,7 +149,7 @@ public class DialectDetectionTests {
     final PluginServiceImpl target = getPluginService(LOCALHOST, MYSQL_PROTOCOL);
     target.setInitialConnectionHostSpec(mockHost);
     target.updateDialect(mockConnection);
-    assertEquals(RdsMultiAzDbClusterMysqlDialect.class, target.dialect.getClass());
+    assertEquals(AuroraMysqlDialect.class, target.dialect.getClass());
   }
 
   @Test

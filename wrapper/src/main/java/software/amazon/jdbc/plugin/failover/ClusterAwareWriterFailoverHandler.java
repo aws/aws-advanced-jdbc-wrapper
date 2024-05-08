@@ -99,14 +99,17 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       return DEFAULT_RESULT;
     }
 
+    final boolean singleTask =
+        this.pluginService.getDialect().getFailoverRestrictions().contains(FailoverRestriction.DISABLE_TASK_A);
+
     final ExecutorService executorService = Executors.newFixedThreadPool(2);
     final CompletionService<WriterFailoverResult> completionService = new ExecutorCompletionService<>(executorService);
-    submitTasks(currentTopology, executorService, completionService);
+    submitTasks(currentTopology, executorService, completionService, singleTask);
 
     try {
       final long startTimeNano = System.nanoTime();
       WriterFailoverResult result = getNextResult(executorService, completionService, this.maxFailoverTimeoutMs);
-      if (result.isConnected() || result.getException() != null) {
+      if (result.isConnected() || result.getException() != null || singleTask) {
         return result;
       }
 
@@ -145,9 +148,12 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
   private void submitTasks(
       final List<HostSpec> currentTopology, final ExecutorService executorService,
-      final CompletionService<WriterFailoverResult> completionService) {
+      final CompletionService<WriterFailoverResult> completionService,
+      final boolean singleTask) {
     final HostSpec writerHost = this.getWriter(currentTopology);
-    completionService.submit(new ReconnectToWriterHandler(writerHost));
+    if (!singleTask) {
+      completionService.submit(new ReconnectToWriterHandler(writerHost));
+    }
     completionService.submit(new WaitForNewWriterHandler(
         currentTopology,
         writerHost));
@@ -272,6 +278,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
         }
 
         success = isCurrentHostWriter(latestTopology);
+        LOGGER.finest("[TaskA] success: " + success);
         pluginService.setAvailability(this.originalWriterHost.asAliases(), HostAvailability.AVAILABLE);
         return new WriterFailoverResult(success, false, latestTopology, success ? conn : null, "TaskA");
       } catch (final InterruptedException exception) {

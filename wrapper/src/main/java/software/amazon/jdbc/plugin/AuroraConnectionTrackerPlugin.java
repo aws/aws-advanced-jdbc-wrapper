@@ -23,9 +23,9 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
@@ -40,6 +40,8 @@ import software.amazon.jdbc.util.SubscribedMethodHelper;
 
 public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin implements
     CanReleaseResources {
+
+  private static final Logger LOGGER = Logger.getLogger(AuroraConnectionTrackerPlugin.class.getName());
 
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
@@ -97,7 +99,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
         this.pluginService.fillAliases(conn, hostSpec);
       }
       tracker.populateOpenedConnectionQueue(hostSpec, conn);
-      tracker.logOpenedConnections();
     }
 
     return conn;

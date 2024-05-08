@@ -65,6 +65,9 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
         // Not in use.
         continue;
       }
+      if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ && config.noMultiAz) {
+        continue;
+      }
 
       for (DatabaseEngine engine : DatabaseEngine.values()) {
         if (engine == DatabaseEngine.PG && config.noPgEngine) {
@@ -83,7 +86,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
             continue;
           }
 
-          for (int numOfInstances : Arrays.asList(1, 2, 5)) {
+          for (int numOfInstances : Arrays.asList(1, 2, 3, 5)) {
             if (instances == DatabaseInstances.SINGLE_INSTANCE && numOfInstances > 1) {
               continue;
             }
@@ -96,7 +99,20 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
             if (numOfInstances == 2 && config.noInstances2) {
               continue;
             }
+            if (numOfInstances == 3 && config.noInstances3) {
+              continue;
+            }
             if (numOfInstances == 5 && config.noInstances5) {
+              continue;
+            }
+            if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ && numOfInstances != 3) {
+              // Multi-AZ clusters supports only 3 instances
+              continue;
+            }
+            if (deployment == DatabaseEngineDeployment.AURORA && numOfInstances == 3) {
+              // Aurora supports clusters with 3 instances but running such tests is similar
+              // to running tests on 5-instance cluster.
+              // Let's save some time and skip tests for this configuration
               continue;
             }
 
@@ -136,7 +152,9 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                           deployment == DatabaseEngineDeployment.DOCKER || config.noFailover
                               ? null
                               : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
-                          deployment == DatabaseEngineDeployment.DOCKER || config.noIam
+                          deployment == DatabaseEngineDeployment.DOCKER
+                              || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ
+                              || config.noIam
                               ? null
                               : TestEnvironmentFeatures.IAM,
                           config.noSecretsManager ? null : TestEnvironmentFeatures.SECRETS_MANAGER,

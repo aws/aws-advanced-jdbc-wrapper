@@ -53,6 +53,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -71,6 +72,7 @@ import software.amazon.jdbc.util.StringUtils;
   TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED,
   TestEnvironmentFeatures.FAILOVER_SUPPORTED
 })
+@Order(10)
 public class PerformanceTest {
 
   private static final Logger LOGGER = Logger.getLogger(PerformanceTest.class.getName());

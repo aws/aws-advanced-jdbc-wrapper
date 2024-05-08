@@ -60,6 +60,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
@@ -78,6 +79,7 @@ import software.amazon.jdbc.util.StringUtils;
   TestEnvironmentFeatures.FAILOVER_SUPPORTED
 })
 @Tag("advanced")
+@Order(1)
 public class AdvancedPerformanceTest {
 
   private static final Logger LOGGER = Logger.getLogger(AdvancedPerformanceTest.class.getName());

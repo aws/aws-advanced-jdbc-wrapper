@@ -6,14 +6,14 @@ on:
     branches:
       - main
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   all-integration-tests-lts:
     name: 'Run Aurora integration tests with LTS'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dbEngine: [ "mysql-aurora", "mysql-multi-az", "pg-aurora", "pg-multi-az" ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-aurora
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }}
         env:
           AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           AURORA_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -54,17 +54,17 @@ jobs:
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
           AURORA_MYSQL_DB_ENGINE_VERSION: "lts"
           AURORA_PG_ENGINE_VERSION: "lts"
-      - name: 'Archive junit results'
+      - name: Archive junit results for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-report-lts
+          name: junit-report-lts-${{ matrix.dbEngine }}
           path: ./wrapper/build/test-results
           retention-days: 5
-      - name: 'Archive html summary report'
+      - name: Archive html summary report for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: html-summary-report-lts
+          name: html-summary-report-lts-${{ matrix.dbEngine }}
           path: ./wrapper/build/report
           retention-days: 5
