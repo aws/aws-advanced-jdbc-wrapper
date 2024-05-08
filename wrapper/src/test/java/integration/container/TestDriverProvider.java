@@ -77,9 +77,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     for (TestDriver testDriver : TestEnvironment.getCurrent().getAllowedTestDrivers()) {
       TestTemplateInvocationContext testTemplateInvocationContext =
           getEnvironment(context, testDriver);
-      if (testTemplateInvocationContext != null) {
-        resultContextList.add(testTemplateInvocationContext);
-      }
+      resultContextList.add(testTemplateInvocationContext);
     }
     return Arrays.stream(resultContextList.toArray(new TestTemplateInvocationContext[0]));
   }
@@ -146,7 +144,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 }
 
                 if (testRequest.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA) {
-                  AuroraTestUtility auroraUtil = new AuroraTestUtility(testInfo.getAuroraRegion());
+                  AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
                   auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
                   boolean makeSureFirstInstanceWriter =
@@ -161,7 +159,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     // Wait up to 5min
                     long startTimeNano = System.nanoTime();
                     while ((instanceIDs.size() != testRequest.getNumOfInstances()
-                        || instanceIDs.size() == 0
+                        || instanceIDs.isEmpty()
                         || !auroraUtil.isDBInstanceWriter(instanceIDs.get(0)))
                         && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
 
