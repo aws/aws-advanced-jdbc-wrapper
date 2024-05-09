@@ -166,13 +166,15 @@ public class ConnectionUrlParser {
 
     final String[] listOfParameters = urlParameters[1].split("&");
     for (final String param : listOfParameters) {
-      final String[] currentParameter = param.split("=");
+      final int pos = param.indexOf("=");
       String currentParameterValue = "";
 
-      if (currentParameter.length > 1) {
-        currentParameterValue = urlDecode(currentParameter[1]);
+      if (pos == -1) {
+        props.setProperty(param, currentParameterValue);
+        continue;
       }
 
+      currentParameterValue = urlDecode(param.substring(pos + 1));
       if (currentParameterValue == null) {
         continue;
       }
@@ -183,7 +185,8 @@ public class ConnectionUrlParser {
       if (matcher.matches()) {
         currentParameterValue = "";
       }
-      props.setProperty(currentParameter[0], currentParameterValue);
+      final String currentParameterName = param.substring(0, pos);
+      props.setProperty(currentParameterName, currentParameterValue);
     }
   }
 

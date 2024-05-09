@@ -34,6 +34,7 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
 class ConnectionUrlParserTest {
+
   @ParameterizedTest
   @MethodSource("testGetHostsFromConnectionUrlArguments")
   void testGetHostsFromConnectionUrl_returnCorrectHostList(String testUrl, List<HostSpec> expected) {
@@ -101,6 +102,14 @@ class ConnectionUrlParserTest {
     assertEquals(expected, props.getProperty("param"));
   }
 
+  @ParameterizedTest
+  @MethodSource("urlWithNestedParams")
+  void testParsingUrlWithNestedParams(final String url, final String expected) {
+    Properties props = new Properties();
+    ConnectionUrlParser.parsePropertiesFromUrl(url, props);
+    assertEquals(expected, props.getProperty("param"));
+  }
+
   private static Stream<Arguments> testGetHostsFromConnectionUrlArguments() {
     return Stream.of(
         Arguments.of("protocol//", new ArrayList<HostSpec>()),
@@ -160,6 +169,15 @@ class ConnectionUrlParserTest {
         Arguments.of("protocol//host/db?param=foo", "foo"),
         Arguments.of("protocol//host:1234/db?param=?.foo", "?.foo"),
         Arguments.of("protocol//host?param=?", "?")
+    );
+  }
+
+  private static Stream<Arguments> urlWithNestedParams() {
+    return Stream.of(
+        Arguments.of("protocol//host/db?param=-c%20foo=1000", "-c foo=1000"),
+        Arguments.of("protocol//host/db?param=-c foo=1000", "-c foo=1000"),
+        Arguments.of("protocol//host/db?param=-c%20foo=a,b,c%20-c%20bar=10", "-c foo=a,b,c -c bar=10"),
+        Arguments.of("protocol//host/db?param=-c foo=a,b,c -c bar=10", "-c foo=a,b,c -c bar=10")
     );
   }
 }
