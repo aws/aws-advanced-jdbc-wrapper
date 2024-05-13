@@ -38,7 +38,7 @@ dependencies {
     implementation("io.vertx:vertx-config")
     implementation("io.vertx:vertx-jdbc-client")
     implementation("io.vertx:vertx-web")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     implementation("org.postgresql:postgresql:42.7.3")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
