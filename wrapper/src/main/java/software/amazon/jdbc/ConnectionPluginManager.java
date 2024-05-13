@@ -500,8 +500,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
       throw new UnsupportedOperationException(
           "The driver does not support the requested host selection strategy: " + strategy);
-    } catch (RuntimeException e) {
-      throw e;
     } catch (Exception e) {
       throw new SQLException(e);
     }
@@ -530,8 +528,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
       throw new UnsupportedOperationException(
           "The driver does not support the requested host selection strategy: " + strategy);
-    } catch (RuntimeException e) {
-      throw e;
     } catch (Exception e) {
       throw new SQLException(e);
     }
