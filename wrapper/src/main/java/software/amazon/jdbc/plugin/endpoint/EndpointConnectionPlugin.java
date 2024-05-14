@@ -29,18 +29,16 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(EndpointConnectionPlugin.class.getName());
-  private static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
+  protected static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
       "endpointMonitorIntervalMs",
       "1000", // TODO: change this to something more sensible later
       "Interval in millis between polling for endpoints to the database.");
@@ -113,8 +111,8 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection,
           SQLException> connectFunc) throws SQLException {
+    initEndpointMonitorService();
     if (isInitialConnection) {
-      initEndpointMonitorService();
       this.endpointService.startMonitoring(pluginService, hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
@@ -136,16 +134,9 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
     return pluginService.connect(selectedHostSpec, props);
   }
 
-  public void initEndpointMonitorService() {
+  private void initEndpointMonitorService() {
     if (endpointService == null) {
       this.endpointService = this.endpointServiceSupplier.get();
     }
-  }
-
-  private HostSpec getClusterHostSpec(final @NonNull HostSpec connectHostSpec) {
-    return new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host(this.pluginService.getHostListProvider().getClusterId())
-        .port(connectHostSpec.getPort())
-        .build();
   }
 }
