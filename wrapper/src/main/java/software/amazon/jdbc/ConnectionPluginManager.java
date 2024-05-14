@@ -19,7 +19,6 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Wrapper;
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -89,11 +88,11 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       };
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
-  private static final String ALL_METHODS = "*";
-  private static final String CONNECT_METHOD = "connect";
+  protected static final String ALL_METHODS = "*";
+  protected static final String CONNECT_METHOD = "connect";
   private static final String FORCE_CONNECT_METHOD = "forceConnect";
   private static final String ACCEPTS_STRATEGY_METHOD = "acceptsStrategy";
-  private static final String GET_HOST_SPEC_BY_STRATEGY_METHOD = "getHostSpecByStrategy";
+  protected static final String GET_HOST_SPEC_BY_STRATEGY_METHOD = "getHostSpecByStrategy";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
@@ -130,7 +129,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
-      final ArrayList<ConnectionPlugin> plugins,
+      final List<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
       final PluginService pluginService,
       final TelemetryFactory telemetryFactory) {
@@ -145,7 +144,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
-      final ArrayList<ConnectionPlugin> plugins,
+      final List<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
       final TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
