@@ -40,12 +40,8 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(EndpointConnectionPlugin.class.getName());
   protected static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
       "endpointMonitorIntervalMs",
-      "1000", // TODO: change this to something more sensible later
+      "30000",
       "Interval in millis between polling for endpoints to the database.");
-  private static final AwsWrapperProperty ENDPOINT_CONNECTION_MAX_RETRIES = new AwsWrapperProperty(
-      "endpointConnectionMaxRetries",
-      "5",
-      "Max number of retries to ");
   protected final PluginService pluginService;
   protected final @NonNull Properties properties;
   private final @NonNull Supplier<EndpointService> endpointServiceSupplier;
