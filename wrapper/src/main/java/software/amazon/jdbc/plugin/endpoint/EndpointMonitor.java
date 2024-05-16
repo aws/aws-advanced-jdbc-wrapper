@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +42,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -58,9 +60,11 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
   private final ConcurrentLinkedQueue<HostSpec> endpoints = new ConcurrentLinkedQueue<>();
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
-
   private final TelemetryFactory telemetryFactory;
   private Connection monitoringConn = null;
+  final Executor networkTimeoutExecutor = new SynchronousExecutor();
+  static final int defaultQueryTimeoutMs = 5000;
+
   private final ExecutorService threadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -183,14 +187,27 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
   }
 
   private List<HostSpec> queryForEndpoints(final Connection conn) throws SQLException {
-    // TODO: set up timeouts???
+    int networkTimeout = -1;
+    try {
+      networkTimeout = conn.getNetworkTimeout();
+      // The query is not monitored by the EFM plugin, so it needs a socket timeout
+      if (networkTimeout == 0) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, defaultQueryTimeoutMs);
+      }
+    } catch (SQLException e) {
+      LOGGER.warning(() -> Messages.get("EndpointMonitor.getNetworkTimeoutError",
+          new Object[] {e.getMessage()}));
+    }
+
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery("select * from test")) { // TODO: replace this mock table
       return processQueryResults(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("EndpointMonitor.invalidQuery"), e);
     } finally {
-      // TODO: add network timeout stuff
+      if (networkTimeout == 0 && !conn.isClosed()) {
+        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
+      }
     }
   }
 
