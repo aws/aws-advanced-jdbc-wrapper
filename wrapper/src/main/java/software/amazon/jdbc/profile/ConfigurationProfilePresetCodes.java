@@ -65,7 +65,7 @@ public class ConfigurationProfilePresetCodes {
   private static final Set<String> KNOWN_PRESETS = ConcurrentHashMap.newKeySet();
 
   static {
-    registerProperties(String.class);
+    registerProperties(ConfigurationProfilePresetCodes.class);
   }
 
   public static boolean isKnownPreset(final @NonNull String presetName) {
