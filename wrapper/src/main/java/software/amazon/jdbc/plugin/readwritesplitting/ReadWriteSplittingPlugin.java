@@ -326,15 +326,18 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
           switchToReaderConnection(hosts);
         } catch (final SQLException e) {
           if (!isConnectionUsable(currentConnection)) {
-            logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"),
-                SqlState.CONNECTION_UNABLE_TO_CONNECT, e);
+            logAndThrowException(
+                Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader", new Object[] { e.getMessage() }),
+                SqlState.CONNECTION_UNABLE_TO_CONNECT,
+                e);
             return;
           }
 
-          // Failed to switch to a reader; use writer as a fallback
-          LOGGER.warning(() -> Messages.get(
+          // Failed to switch to a reader. {0}. The current writer will be used as a fallback: ''{1}''
+          LOGGER.fine(() -> Messages.get(
               "ReadWriteSplittingPlugin.fallbackToWriter",
               new Object[] {
+                  e.getMessage(),
                   this.pluginService.getCurrentHostSpec().getUrl()}));
         }
       }
@@ -370,7 +373,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private void logAndThrowException(
       final String logMessage, final SqlState sqlState, final Throwable cause)
       throws SQLException {
-    LOGGER.severe(logMessage);
+    LOGGER.fine(logMessage);
     throw new ReadWriteSplittingSQLException(logMessage, sqlState.getState(), cause);
   }
 

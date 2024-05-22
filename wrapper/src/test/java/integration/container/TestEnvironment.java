@@ -173,6 +173,7 @@ public class TestEnvironment {
               client,
               environment.info.getDatabaseInfo().getClusterEndpoint(),
               environment.info.getDatabaseInfo().getClusterEndpointPort());
+
       environment.proxies.put(environment.info.getProxyDatabaseInfo().getClusterEndpoint(), proxy);
     }
 
@@ -267,12 +268,5 @@ public class TestEnvironment {
       return false;
     }
     return true;
-  }
-
-  public static boolean isAwsDatabase() {
-    DatabaseEngineDeployment deployment =
-        getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
-    return DatabaseEngineDeployment.AURORA.equals(deployment)
-        || DatabaseEngineDeployment.RDS.equals(deployment);
   }
 }

@@ -27,7 +27,6 @@ import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
-import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
@@ -41,7 +40,6 @@ import integration.container.condition.EnableOnTestDriver;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
-import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -50,7 +48,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
@@ -561,23 +558,20 @@ public class AuroraFailoverTest {
   protected Properties initDefaultProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
-    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
     return props;
   }
 
   protected Properties initDefaultProxiedProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
-    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
         props,
-        "?."
-            + TestEnvironment.getCurrent()
-                .getInfo()
-                .getProxyDatabaseInfo()
-                .getInstanceEndpointSuffix());
+        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
+          + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
     return props;
   }
 
@@ -606,8 +600,9 @@ public class AuroraFailoverTest {
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
 
-    DriverHelper.setConnectTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(targetDataSourceProps, "10000");
+    PropertyDefinition.SOCKET_TIMEOUT.set(targetDataSourceProps, "10000");
+
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     return ds.getConnection(

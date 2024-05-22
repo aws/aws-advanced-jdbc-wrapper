@@ -310,6 +310,17 @@ public class RdsUtils {
     }
   }
 
+  public String removePort(final String hostAndPort) {
+    if (StringUtils.isNullOrEmpty(hostAndPort)) {
+      return hostAndPort;
+    }
+    int index = hostAndPort.indexOf(":");
+    if (index == -1) {
+      return hostAndPort;
+    }
+    return hostAndPort.substring(0, index);
+  }
+
   public boolean isGreenInstance(final String host) {
     return !StringUtils.isNullOrEmpty(host) && BG_GREEN_HOST_PATTERN.matcher(host).matches();
   }

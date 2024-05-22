@@ -177,11 +177,7 @@ public class HostSpec {
   }
 
   public String getUrl() {
-    String url = isPortSpecified() ? host + ":" + port : host;
-    if (!url.endsWith("/")) {
-      url += "/";
-    }
-    return url;
+    return getHostAndPort() + "/";
   }
 
   public String getHostAndPort() {
@@ -197,7 +193,7 @@ public class HostSpec {
   }
 
   public String asAlias() {
-    return isPortSpecified() ? host + ":" + port : host;
+    return getHostAndPort();
   }
 
   public Set<String> asAliases() {

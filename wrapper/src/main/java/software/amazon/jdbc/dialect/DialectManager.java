@@ -255,7 +255,7 @@ public class DialectManager implements DialectProvider {
   private void logCurrentDialect() {
     LOGGER.finest(() -> String.format("Current dialect: %s, %s, canUpdate: %b",
         this.dialectCode,
-        this.dialect == null ? "<null>" : this.dialect.getClass().getName(),
+        this.dialect == null ? "<null>" : this.dialect,
         this.canUpdate));
   }
 }

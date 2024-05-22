@@ -49,7 +49,7 @@ public class ProxyHelper {
           .bandwidth(
               "DOWN-STREAM", ToxicDirection.DOWNSTREAM, 0); // from database server towards driver
     } catch (IOException e) {
-      // ignore
+      LOGGER.finest("Error disabling connectivity DOWN-STREAM: " + e.getMessage());
     }
 
     try {
@@ -58,7 +58,7 @@ public class ProxyHelper {
           .bandwidth(
               "UP-STREAM", ToxicDirection.UPSTREAM, 0); // from driver towards database server
     } catch (IOException e) {
-      // ignore
+      LOGGER.finest("Error disabling connectivity UP-STREAM: " + e.getMessage());
     }
     LOGGER.finest("Disabled connectivity to " + proxy.getName());
   }
@@ -92,7 +92,7 @@ public class ProxyHelper {
             }
           });
     } catch (IOException ex) {
-      // ignore
+      LOGGER.finest("Error enabling connectivity: " + ex.getMessage());
     }
     LOGGER.finest("Enabled connectivity to " + proxy.getName());
   }

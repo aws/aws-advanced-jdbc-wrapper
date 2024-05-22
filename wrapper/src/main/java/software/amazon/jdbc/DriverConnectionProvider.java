@@ -118,7 +118,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
       final @NonNull Properties props)
       throws SQLException {
 
-    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
+    LOGGER.finest(() -> PropertyUtils.logProperties(
+        PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
 
     final Properties copy = PropertyUtils.copyProperties(props);
     dialect.prepareConnectProperties(copy, protocol, hostSpec);
@@ -126,7 +127,9 @@ public class DriverConnectionProvider implements ConnectionProvider {
     final ConnectInfo connectInfo = targetDriverDialect.prepareConnectInfo(protocol, hostSpec, copy);
 
     LOGGER.finest(() -> "Connecting to " + connectInfo.url
-        + PropertyUtils.logProperties(PropertyUtils.maskProperties(connectInfo.props), "\nwith properties: \n"));
+        + PropertyUtils.logProperties(
+            PropertyUtils.maskProperties(connectInfo.props),
+        "\nwith properties: \n"));
 
     Connection conn;
     try {
@@ -183,7 +186,8 @@ public class DriverConnectionProvider implements ConnectionProvider {
 
       LOGGER.finest(() -> "Connecting to " + fixedConnectInfo.url
           + " after correcting the hostname from " + originalHost
-          + PropertyUtils.logProperties(PropertyUtils.maskProperties(fixedConnectInfo.props), "\nwith properties: \n"));
+          + PropertyUtils.logProperties(
+              PropertyUtils.maskProperties(fixedConnectInfo.props), "\nwith properties: \n"));
 
       conn = this.driver.connect(fixedConnectInfo.url, fixedConnectInfo.props);
     }

@@ -165,6 +165,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
       }
 
       this.pluginService.setCurrentConnection(conn, this.pluginService.getInitialConnectionHostSpec());
+      this.pluginService.refreshHostList();
     }
   }
 
@@ -927,11 +928,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
   @Override
   public <T> T unwrap(final Class<T> iface) throws SQLException {
-    T result = this.pluginService.getCurrentConnection().unwrap(iface);
+    T result = this.pluginManager.unwrap(iface);
     if (result != null) {
       return result;
     }
-    return this.pluginManager.unwrap(iface);
+    return this.pluginService.getCurrentConnection().unwrap(iface);
   }
 
   @Override

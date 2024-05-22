@@ -69,20 +69,21 @@ public class OpenedConnectionTracker {
   public void populateOpenedConnectionQueue(final HostSpec hostSpec, final Connection conn) {
     final Set<String> aliases = hostSpec.asAliases();
 
-    // Check if the connection was established using a cluster endpoint
-    final String host = hostSpec.asAlias();
-    if (rdsUtils.isRdsInstance(host)) {
-      trackConnection(host, conn);
+    // Check if the connection was established using an instance endpoint
+    if (rdsUtils.isRdsInstance(hostSpec.getHost())) {
+      trackConnection(hostSpec.getHostAndPort(), conn);
       return;
     }
 
     final String instanceEndpoint = aliases.stream()
-        .filter(rdsUtils::isRdsInstance)
-        .max((x, y) -> x.compareToIgnoreCase(y))
+        .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
+        .max(String::compareToIgnoreCase)
         .orElse(null);
 
     if (instanceEndpoint == null) {
-      LOGGER.finest(Messages.get("OpenedConnectionTracker.unableToPopulateOpenedConnectionQueue"));
+      LOGGER.finest(
+          Messages.get("OpenedConnectionTracker.unableToPopulateOpenedConnectionQueue",
+            new Object[] {hostSpec.getHost()}));
       return;
     }
 
@@ -105,7 +106,9 @@ public class OpenedConnectionTracker {
         TELEMETRY_INVALIDATE_CONNECTIONS, TelemetryTraceLevel.NESTED);
 
     try {
-      final Optional<String> instanceEndpoint = Arrays.stream(node).filter(rdsUtils::isRdsInstance).findFirst();
+      final Optional<String> instanceEndpoint = Arrays.stream(node)
+          .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
+          .findFirst();
       if (!instanceEndpoint.isPresent()) {
         return;
       }
@@ -121,7 +124,10 @@ public class OpenedConnectionTracker {
   public void invalidateCurrentConnection(final HostSpec hostSpec, final Connection connection) {
     final String host = rdsUtils.isRdsInstance(hostSpec.getHost())
         ? hostSpec.asAlias()
-        : hostSpec.getAliases().stream().filter(rdsUtils::isRdsInstance).findFirst().orElse(null);
+        : hostSpec.getAliases().stream()
+            .filter(x -> rdsUtils.isRdsInstance(rdsUtils.removePort(x)))
+            .findFirst()
+            .orElse(null);
 
     if (StringUtils.isNullOrEmpty(host)) {
       return;

@@ -67,8 +67,9 @@ public class DataCachePluginTests {
     DataCacheConnectionPlugin.clearCache();
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setConnectTimeout(props, 30, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 30, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, "30000");
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "30000");
+
     props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
     props.setProperty(DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*testTable.*");
 
@@ -176,8 +177,8 @@ public class DataCachePluginTests {
     DataCacheConnectionPlugin.clearCache();
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setConnectTimeout(props, 30, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 30, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, "30000");
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "30000");
     props.setProperty(PropertyDefinition.PLUGINS.name, "dataCache");
     props.setProperty(
         DataCacheConnectionPlugin.DATA_CACHE_TRIGGER_CONDITION.name, ".*WRONG_EXPRESSION.*");

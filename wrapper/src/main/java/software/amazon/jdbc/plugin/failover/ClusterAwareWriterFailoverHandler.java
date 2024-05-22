@@ -398,6 +398,10 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
      * @return Returns true if successful.
      */
     private boolean refreshTopologyAndConnectToNewWriter() throws InterruptedException {
+      boolean allowOldWriter = pluginService.getDialect()
+          .getFailoverRestrictions()
+          .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
+
       while (true) {
         try {
           pluginService.forceRefreshHostList(this.currentReaderConnection);
@@ -419,7 +423,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
               this.currentTopology = topology;
               final HostSpec writerCandidate = getWriter(this.currentTopology);
 
-              if (!isSame(writerCandidate, this.originalWriterHost)) {
+              if (allowOldWriter || !isSame(writerCandidate, this.originalWriterHost)) {
                 // new writer is available, and it's different from the previous writer
                 LOGGER.finest(() -> Utils.logTopology(this.currentTopology, "[TaskB] "));
                 if (connectToWriter(writerCandidate)) {

@@ -65,7 +65,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
         // Not in use.
         continue;
       }
-      if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ && config.noMultiAz) {
+      if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER && config.noMultiAz) {
         continue;
       }
 
@@ -105,7 +105,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
             if (numOfInstances == 5 && config.noInstances5) {
               continue;
             }
-            if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ && numOfInstances != 3) {
+            if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER && numOfInstances != 3) {
               // Multi-AZ clusters supports only 3 instances
               continue;
             }
@@ -153,7 +153,7 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                               ? null
                               : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
                           deployment == DatabaseEngineDeployment.DOCKER
-                              || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ
+                              || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
                               || config.noIam
                               ? null
                               : TestEnvironmentFeatures.IAM,

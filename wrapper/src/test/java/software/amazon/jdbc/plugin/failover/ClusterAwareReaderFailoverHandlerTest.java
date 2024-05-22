@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.mockitoSession;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,6 +37,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -43,12 +45,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
@@ -206,6 +210,10 @@ class ClusterAwareReaderFailoverHandlerTest {
                 });
     when(mockPluginService.forceConnect(eq(fastHost), eq(properties))).thenReturn(mockConnection);
 
+    Dialect mockDialect = Mockito.mock(Dialect.class);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+
     final ReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
             mockPluginService,
@@ -228,6 +236,10 @@ class ClusterAwareReaderFailoverHandlerTest {
     // expected test result: failure to get reader
     final List<HostSpec> hosts = defaultHosts.subList(0, 4); // 3 connection attempts (writer not attempted)
     when(mockPluginService.forceConnect(any(), eq(properties))).thenThrow(new SQLException("exception", "08S01", null));
+
+    Dialect mockDialect = Mockito.mock(Dialect.class);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
 
     final int currentHostIndex = 2;
 
@@ -259,6 +271,10 @@ class ClusterAwareReaderFailoverHandlerTest {
                   }
                   return mockConnection;
                 });
+
+    Dialect mockDialect = Mockito.mock(Dialect.class);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
 
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
@@ -319,6 +335,10 @@ class ClusterAwareReaderFailoverHandlerTest {
     originalHosts.get(4).setAvailability(HostAvailability.NOT_AVAILABLE);
     originalHosts.get(5).setAvailability(HostAvailability.NOT_AVAILABLE);
 
+    Dialect mockDialect = Mockito.mock(Dialect.class);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
+
     final ClusterAwareReaderFailoverHandler target =
         new ClusterAwareReaderFailoverHandler(
             mockPluginService,
@@ -353,6 +373,9 @@ class ClusterAwareReaderFailoverHandlerTest {
         .host("reader1").port(1234).role(HostRole.READER).build();
     final List<HostSpec> hosts = Arrays.asList(writer, reader);
 
+    Dialect mockDialect = Mockito.mock(Dialect.class);
+    when(mockDialect.getFailoverRestrictions()).thenReturn(EnumSet.noneOf(FailoverRestriction.class));
+    when(mockPluginService.getDialect()).thenReturn(mockDialect);
     final ClusterAwareReaderFailoverHandler target =
             new ClusterAwareReaderFailoverHandler(
                     mockPluginService,
