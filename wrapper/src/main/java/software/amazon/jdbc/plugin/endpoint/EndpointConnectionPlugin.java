@@ -112,22 +112,27 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
       this.endpointService.startMonitoring(pluginService, hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
-    List<HostSpec> endpoints = this.endpointService.getEndpoints(
-        this.pluginService.getHostListProvider().getClusterId(), props);
+    try {
+      List<HostSpec> endpoints = this.endpointService.getEndpoints(
+          this.pluginService.getHostListProvider().getClusterId(), props);
 
-    if (endpoints.isEmpty()) {
-      LOGGER.warning(Messages.get("EndpointConnectionPlugin.emptyEndpointCache"));
-      return connectFunc.call();
-    } else if (endpoints.contains(hostSpec)) {
-      return connectFunc.call();
+      if (endpoints.isEmpty()) {
+        LOGGER.warning(Messages.get("EndpointConnectionPlugin.emptyEndpointCache"));
+        return connectFunc.call();
+      } else if (endpoints.contains(hostSpec)) {
+        return connectFunc.call();
+      }
+
+      final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(endpoints,
+          HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+
+      LOGGER.finest(Messages.get("EndpointConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
+
+      return pluginService.connect(selectedHostSpec, props);
+    } catch (UnsupportedOperationException e) {
+      LOGGER.severe(Messages.get("EndpointConnectionPlugin.incorrectConfiguration"));
+      throw e;
     }
-
-    final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(endpoints,
-        HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
-
-    LOGGER.finest(Messages.get("EndpointConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
-
-    return pluginService.connect(selectedHostSpec, props);
   }
 
   private void initEndpointMonitorService() {

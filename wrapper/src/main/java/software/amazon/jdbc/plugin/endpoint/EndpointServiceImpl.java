@@ -33,7 +33,7 @@ public class EndpointServiceImpl implements EndpointService {
       new AwsWrapperProperty(
           "endpointMonitorDisposalTime",
           "600000", // 10min
-          "Interval in milliseconds for an endopint monitor to be considered inactive and to be disposed.");
+          "Interval in milliseconds for an endpoint monitor to be considered inactive and to be disposed.");
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
   private final EndpointMonitorInitializer endpointMonitorInitializer;
 
@@ -67,7 +67,7 @@ public class EndpointServiceImpl implements EndpointService {
     if (endpointMonitor == null) {
       return Collections.EMPTY_LIST;
     }
-    return new ArrayList<>(endpointMonitor.getEndpoints());
+    return endpointMonitor.getEndpoints();
   }
 
   @Override
@@ -76,12 +76,16 @@ public class EndpointServiceImpl implements EndpointService {
       final @NonNull Properties props,
       final int intervalMs) {
 
-    final String endpointMonitorKey = pluginService.getHostListProvider().getClusterId();
-    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
+    try {
+      final String endpointMonitorKey = pluginService.getHostListProvider().getClusterId();
+      final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
-    endpointMonitors.computeIfAbsent(
-        endpointMonitorKey,
-        (key) -> this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs),
-        cacheExpirationNano);
+      endpointMonitors.computeIfAbsent(
+          endpointMonitorKey,
+          (key) -> this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs),
+          cacheExpirationNano);
+    } catch (UnsupportedOperationException e) {
+      throw e;
+    }
   }
 }
