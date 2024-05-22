@@ -66,7 +66,7 @@ public class EndpointServiceImplTest {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
             .build()
     );
-    when(mockEndpointMonitor.getEndpoints()).thenReturn(new ArrayDeque<>(endpointHostSpecList));
+    when(mockEndpointMonitor.getEndpoints()).thenReturn(endpointHostSpecList);
 
     EndpointService endpointService = new EndpointServiceImpl((a, b, c, d) -> mockEndpointMonitor);
     endpointService.startMonitoring(mockPluginService, hostSpec, props, intervalMs);

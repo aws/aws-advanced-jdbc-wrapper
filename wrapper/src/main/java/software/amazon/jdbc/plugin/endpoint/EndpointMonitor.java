@@ -22,15 +22,15 @@ import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -57,7 +57,8 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
   private final int intervalMs;
   private @NonNull HostSpec hostSpec;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
-  private final ConcurrentLinkedQueue<HostSpec> endpoints = new ConcurrentLinkedQueue<>();
+  private final AtomicReference<List<HostSpec>> endpoints = new AtomicReference<>(
+      Collections.unmodifiableList(new ArrayList<>()));
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
@@ -97,8 +98,8 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
     this.threadPool.shutdown(); // No more task are accepted by pool.
   }
 
-  public Queue<HostSpec> getEndpoints() {
-    return this.endpoints;
+  public List<HostSpec> getEndpoints() {
+    return this.endpoints.get();
   }
 
   public AtomicBoolean isStopped() {
@@ -134,9 +135,8 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
           continue;
         }
         List<HostSpec> newEndpoints = queryForEndpoints(this.monitoringConn);
-        this.endpoints.clear();
-        this.endpoints.addAll(newEndpoints);
-        LOGGER.finest(Utils.logTopology(new ArrayList<>(this.endpoints), "[endpointMonitor]"));
+        this.endpoints.set(Collections.unmodifiableList(newEndpoints));
+        LOGGER.finest(Utils.logTopology(endpoints.get(), "[endpointMonitor]"));
         TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
       } catch (final InterruptedException exception) {
         LOGGER.finest(
@@ -201,7 +201,7 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
 
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery("select * from test")) { // TODO: replace this mock table
-      return processQueryResults(resultSet);
+      return mapResultSetToHostSpecList(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("EndpointMonitor.invalidQuery"), e);
     } finally {
@@ -211,7 +211,7 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
     }
   }
 
-  private List<HostSpec> processQueryResults(final ResultSet resultSet) throws SQLException {
+  private List<HostSpec> mapResultSetToHostSpecList(final ResultSet resultSet) throws SQLException {
 
     List<HostSpec> hosts = new ArrayList<>();
     while (resultSet.next()) {

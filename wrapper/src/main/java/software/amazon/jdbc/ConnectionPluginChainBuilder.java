@@ -90,7 +90,6 @@ public class ConnectionPluginChainBuilder {
   protected static final Map<Class<? extends ConnectionPluginFactory>, Integer> pluginWeightByPluginFactory =
       new HashMap<Class<? extends ConnectionPluginFactory>, Integer>() {
         {
-          put(EndpointConnectionPluginFactory.class, 90);
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(DataCacheConnectionPluginFactory.class, 200);
           put(AuroraInitialConnectionStrategyPluginFactory.class, 390);
@@ -104,6 +103,7 @@ public class ConnectionPluginChainBuilder {
           put(IamAuthConnectionPluginFactory.class, 1000);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
           put(FederatedAuthPluginFactory.class, 1200);
+          put(EndpointConnectionPluginFactory.class, 1250);
           put(LogQueryConnectionPluginFactory.class, 1300);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);

@@ -478,30 +478,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    */
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException {
-    try {
-      for (ConnectionPlugin plugin : this.plugins) {
-        Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
-        boolean isSubscribed =
-            pluginSubscribedMethods.contains(ALL_METHODS)
-                || pluginSubscribedMethods.contains(GET_HOST_SPEC_BY_STRATEGY_METHOD);
-
-        if (isSubscribed) {
-          try {
-            final HostSpec host = plugin.getHostSpecByStrategy(role, strategy);
-            if (host != null) {
-              return host;
-            }
-          } catch (UnsupportedOperationException e) {
-            // This plugin does not support the provided strategy, ignore the exception and move on
-          }
-        }
-      }
-
-      throw new UnsupportedOperationException(
-          "The driver does not support the requested host selection strategy: " + strategy);
-    } catch (Exception e) {
-      throw new SQLException(e);
-    }
+    return getHostSpecByStrategy(null, role, strategy);
   }
 
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
@@ -515,7 +492,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
         if (isSubscribed) {
           try {
-            final HostSpec host = plugin.getHostSpecByStrategy(hosts, role, strategy);
+            final HostSpec host =  hosts == null || hosts.isEmpty()
+                ? plugin.getHostSpecByStrategy(role, strategy)
+                : plugin.getHostSpecByStrategy(hosts, role, strategy);
+
             if (host != null) {
               return host;
             }
