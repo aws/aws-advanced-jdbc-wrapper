@@ -25,9 +25,11 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
 
 ## How to use the Okta Authentication Plugin with the AWS JDBC Driver 
 
-### Enabling the Federated Authentication Plugin
+### Enabling the Okta Authentication Plugin
 > [!NOTE]\
-> AWS IAM database authentication is needed to use the Federated Authentication Plugin. This is because after the plugin acquires SAML assertion from the identity provider, the SAML Assertion is then used to acquire an AWS IAM token. The AWS IAM token is then subsequently used to access the database.  
+> AWS IAM database authentication is needed to use the Okta Authentication Plugin. This is because after the plugin
+> acquires SAML assertion from the identity provider, the SAML Assertion is then used to acquire an AWS IAM token. The AWS
+> IAM token is then subsequently used to access the database.
 
 1. Enable AWS IAM database authentication on an existing database or create a new database with AWS IAM database authentication on the AWS RDS Console:
    - If needed, review the documentation about [IAM authentication for MariaDB, MySQL, and PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html).

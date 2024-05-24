@@ -28,7 +28,7 @@ import java.util.Properties;
  */
 public class PgConnectionSample {
 
-  private static final String CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://database-pg.cluster-cwpu2jclcwdc.us-east-2.rds.amazonaws.com:5432/postgres";
+  private static final String CONNECTION_STRING = "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/connectionSample";
   // Alternatively, all connection properties can be set in the connection string:
   // private static final String CONNECTION_STRING =
   //     "jdbc:aws-wrapper:postgresql://database-pg-name.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/connectionSample"
@@ -37,8 +37,8 @@ public class PgConnectionSample {
   //         + "&loginTimeout=100"
   //         + "&wrapperPlugins=failover,efm2"
   //         + "&wrapperLogUnclosedConnections=true";
-  private static final String USERNAME = "pgadmin";
-  private static final String PASSWORD = "my_password_2020";
+  private static final String USERNAME = "username";
+  private static final String PASSWORD = "password";
 
   public static void main(String[] args) throws SQLException {
     final Properties properties = new Properties();
@@ -49,14 +49,13 @@ public class PgConnectionSample {
     properties.setProperty("loginTimeout", "100");
 
     // Configuring connection properties for the JDBC Wrapper.
-    properties.setProperty("wrapperPlugins", "failover,efm");
+    properties.setProperty("wrapperPlugins", "failover,efm2");
     properties.setProperty("wrapperLogUnclosedConnections", "true");
 
     try (Connection conn = DriverManager.getConnection(CONNECTION_STRING, properties);
          Statement stmt = conn.createStatement();
          ResultSet rs = stmt.executeQuery("SELECT 1")) {
       rs.next();
-      System.out.println(rs.getString(1));
     }
   }
 }
