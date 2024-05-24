@@ -6,6 +6,8 @@ AWS Identity and Access Management (IAM) grants users access control across all 
 ## Prerequisites
 > [!WARNING]\
 > To preserve compatibility with customers using the community driver, IAM Authentication requires the [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) to be included separately in the classpath. The AWS Java SDK RDS is a runtime dependency and must be resolved.
+> 
+> Note: AWS Java SDK RDS may have transitive dependencies that are also required (ex. [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies.
 >
 > Since [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) size is around 5.4Mb (22Mb including all RDS SDK dependencies), some users may experience difficulties using the plugin due to limited available disk size.
 > In such cases, the [AWS Java SDK RDS v2.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds) dependency may be replaced with just two dependencies which have a smaller footprint (around 300Kb in total):
