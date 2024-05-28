@@ -296,11 +296,13 @@ tasks.withType<Test> {
 
 tasks.register("maskJunitHtmlReport") {
     doLast {
-        val jsFile = project.file("${layout.buildDirectory.get()}/report/data.js")
-        var text = jsFile.readText()
-        var regex = "\"([^\"]*(AWS_ACCESS_|AWS_SECRET_|AWS_SESSION_)[^\"]*)\", value: \"([^\"]*)\"".toRegex(setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
-        val maskedText = regex.replace(text, "\"$1\", value: \"*****\"")
-        jsFile.writeText(maskedText)
+        if (project.file("${layout.buildDirectory.get()}/report/data.js").exists()) {
+            val jsFile = project.file("${layout.buildDirectory.get()}/report/data.js")
+            var text = jsFile.readText()
+            var regex = "\"([^\"]*(AWS_ACCESS_|AWS_SECRET_|AWS_SESSION_)[^\"]*)\", value: \"([^\"]*)\"".toRegex(setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
+            val maskedText = regex.replace(text, "\"$1\", value: \"*****\"")
+            jsFile.writeText(maskedText)
+        }
     }
 }
 
