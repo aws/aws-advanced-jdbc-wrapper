@@ -32,13 +32,13 @@ dependencies {
     compileOnly("software.amazon.awssdk:rds:2.25.56")
     compileOnly("software.amazon.awssdk:auth:2.25.46") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.25.56") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:sts:2.25.46")
+    compileOnly("software.amazon.awssdk:sts:2.25.60")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.25.41")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     compileOnly("mysql:mysql-connector-java:8.0.33")
     compileOnly("org.postgresql:postgresql:42.7.3")
-    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.3.3")
+    compileOnly("org.mariadb.jdbc:mariadb-java-client:3.4.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.15.3")
@@ -59,7 +59,7 @@ dependencies {
     testImplementation("org.apache.commons:commons-dbcp2:2.12.0")
     testImplementation("org.postgresql:postgresql:42.7.3")
     testImplementation("mysql:mysql-connector-java:8.0.33")
-    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.3.3")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.4.0")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
@@ -68,7 +68,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:http-client-spi:2.25.56") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.25.31")
     testImplementation("software.amazon.awssdk:secretsmanager:2.25.41")
-    testImplementation("software.amazon.awssdk:sts:2.25.46")
+    testImplementation("software.amazon.awssdk:sts:2.25.60")
     testImplementation("org.testcontainers:testcontainers:1.19.7")
     testImplementation("org.testcontainers:mysql:1.19.8")
     testImplementation("org.testcontainers:postgresql:1.19.8")
@@ -296,11 +296,13 @@ tasks.withType<Test> {
 
 tasks.register("maskJunitHtmlReport") {
     doLast {
-        val jsFile = project.file("${layout.buildDirectory.get()}/report/data.js")
-        var text = jsFile.readText()
-        var regex = "\"([^\"]*(AWS_ACCESS_|AWS_SECRET_|AWS_SESSION_)[^\"]*)\", value: \"([^\"]*)\"".toRegex(setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
-        val maskedText = regex.replace(text, "\"$1\", value: \"*****\"")
-        jsFile.writeText(maskedText)
+        if (project.file("${layout.buildDirectory.get()}/report/data.js").exists()) {
+            val jsFile = project.file("${layout.buildDirectory.get()}/report/data.js")
+            var text = jsFile.readText()
+            var regex = "\"([^\"]*(AWS_ACCESS_|AWS_SECRET_|AWS_SESSION_)[^\"]*)\", value: \"([^\"]*)\"".toRegex(setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
+            val maskedText = regex.replace(text, "\"$1\", value: \"*****\"")
+            jsFile.writeText(maskedText)
+        }
     }
 }
 

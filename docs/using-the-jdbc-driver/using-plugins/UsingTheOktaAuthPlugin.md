@@ -13,6 +13,7 @@ In the case of AD FS, the user signs into the AD FS sign in page. This generates
   - [AWS Java SDK RDS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/rds)
   - [AWS Java SDK STS v2.7.x](https://central.sonatype.com/artifact/software.amazon.awssdk/sts)
   - [jsoup](https://central.sonatype.com/artifact/org.jsoup/jsoup)
+- Note: The above dependencies may have transitive dependencies that are also required (ex. AWS Java SDK RDS requires [AWS Java SDK Core](https://central.sonatype.com/artifact/software.amazon.awssdk/aws-core/)). If you are not using a package manager such as Maven or Gradle, please refer to Maven Central to determine these transitive dependencies. 
 - This plugin does not create or modify any Okta or IAM resources. Okta must be federated into to your AWS IAM account before using this plugin. You can follow Okta's [integration guide](https://help.okta.com/en-us/content/topics/deploymentguides/aws/aws-deployment.htm).
 
 > [!NOTE]\
