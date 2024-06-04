@@ -122,6 +122,9 @@ This driver currently does not support switchover in Amazon RDS Blue/Green Deplo
 
 This driver currently does not support failover with Amazon Aurora Global Databases. While it is possible to connect to global databases, failing over to a secondary cluster will result in errors and there may be additional unforeseen errors when working with global databases. Support for Amazon Aurora Global Databases is in the backlog, but we cannot comment on a timeline right now.
 
+#### Virtual Threading
+Due to the use of `sychronized` in the AWS JDBC Driver, pinning with virtual threads may occur. Note that this will not cause the AWS JDBC Driver to behave incorrectly, but may hinder scalability when using virtual threads with the AWS JDBC Driver. 
+
 ## Examples
 
 | Description                                                                                                                                                                                                              |                                                                                                                                                                    Examples                                                                                                                                                                    |
