@@ -3,6 +3,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.3.7] - 2024-06-05
+
+### :magic_wand: Added
+- Documentation:
+  - Warnings of transitive dependencies for IAM, Federated, and Okta Authentication plugins ([PR #1007](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1007)).
+  - Section in Known Limitations regarding Virtual Threading and possible pinning due to use of `synchronized` in the codebase ([Issue #1024](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1024)).
+
+### :bug: Fixed
+- Driver incorrectly truncating nested connection options when parsing connection urls resulting in unexpected errors ([PR #988](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/988)).
+- `ConfigurationProfilePresetCodes.isKnownPreset` incorrectly returning false ([Issue #1000](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1000)).
+- Documentation:
+  - Incorrect reference to Federated Authentication Plugin ([PR #1008](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1008)).
+  - Broken links in code example documentation ([Issue #1017](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1017)).
+
 ## [2.3.6] - 2024-05-01
 
 ### :magic_wand: Added
@@ -309,6 +323,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.3.7]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.6...2.3.7
 [2.3.6]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.5...2.3.6
 [2.3.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.4...2.3.5
 [2.3.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.3...2.3.4
