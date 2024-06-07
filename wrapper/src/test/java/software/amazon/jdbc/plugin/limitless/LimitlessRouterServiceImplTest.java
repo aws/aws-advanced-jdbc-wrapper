@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.endpoint;
+package software.amazon.jdbc.plugin.limitless;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
 import java.sql.SQLException;
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -35,13 +34,13 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
-public class EndpointServiceImplTest {
+public class LimitlessRouterServiceImplTest {
 
   private static final String CLUSTER_ID = "someClusterId";
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
-  @Mock private EndpointMonitor mockEndpointMonitor;
-  @Mock private EndpointMonitorInitializer mockEndpointMonitorInitializer;
+  @Mock private LimitlessRouterMonitor mockLimitlessRouterMonitor;
+  @Mock private LimitlessRouterMonitorInitializer mockLimitlessRouterMonitorInitializer;
   private static final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("some-instance").role(HostRole.WRITER).build();
   private static final int intervalMs = 1000;
@@ -66,20 +65,22 @@ public class EndpointServiceImplTest {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
             .build()
     );
-    when(mockEndpointMonitor.getEndpoints()).thenReturn(endpointHostSpecList);
+    when(mockLimitlessRouterMonitor.getLimitlessRouters()).thenReturn(endpointHostSpecList);
 
-    EndpointService endpointService = new EndpointServiceImpl((a, b, c, d) -> mockEndpointMonitor);
-    endpointService.startMonitoring(mockPluginService, hostSpec, props, intervalMs);
+    LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl((a, b, c, d) -> mockLimitlessRouterMonitor);
+    limitlessRouterService.startMonitoring(mockPluginService, hostSpec, props, intervalMs);
 
-    final List<HostSpec> actualEndpointHostSpecList = endpointService.getEndpoints(CLUSTER_ID, props);
+    final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
 
     assertEquals(endpointHostSpecList, actualEndpointHostSpecList);
   }
 
   @Test
-  void test_nullEndpointMonitor() {
-    EndpointService endpointService = new EndpointServiceImpl((a, b, c, d) -> mockEndpointMonitor);
-    final List<HostSpec> actualEndpointHostSpecList = endpointService.getEndpoints(CLUSTER_ID, props);
+  void test_nullLimitlessRouterMonitor() {
+    LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl((a, b, c, d) -> mockLimitlessRouterMonitor);
+    final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
     assertEquals(0, actualEndpointHostSpecList.size());
   }
 }

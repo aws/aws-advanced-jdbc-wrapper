@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.endpoint;
+package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -36,16 +36,16 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
-public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
-  private static final Logger LOGGER = Logger.getLogger(EndpointConnectionPlugin.class.getName());
+public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
+  private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
   protected static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
-      "endpointMonitorIntervalMs",
+      "limitlessTransactionRouterMonitorIntervalMs",
       "30000",
-      "Interval in millis between polling for endpoints to the database.");
+      "Interval in millis between polling for Limitless Transaction Routers to the database.");
   protected final PluginService pluginService;
   protected final @NonNull Properties properties;
-  private final @NonNull Supplier<EndpointService> endpointServiceSupplier;
-  private EndpointService endpointService;
+  private final @NonNull Supplier<LimitlessRouterService> limitlessRouterServiceSupplier;
+  private LimitlessRouterService limitlessRouterService;
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
@@ -55,7 +55,7 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
       });
 
   static {
-    PropertyDefinition.registerPluginProperties(EndpointConnectionPlugin.class);
+    PropertyDefinition.registerPluginProperties(LimitlessConnectionPlugin.class);
   }
 
   @Override
@@ -63,19 +63,19 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
     return subscribedMethods;
   }
 
-  public EndpointConnectionPlugin(final PluginService pluginService, final @NonNull Properties properties) {
+  public LimitlessConnectionPlugin(final PluginService pluginService, final @NonNull Properties properties) {
     this(pluginService,
         properties,
-        EndpointServiceImpl::new);
+        LimitlessRouterServiceImpl::new);
   }
 
-  public EndpointConnectionPlugin(
+  public LimitlessConnectionPlugin(
       final PluginService pluginService,
       final @NonNull Properties properties,
-      final @NonNull Supplier<EndpointService> endpointServiceSupplier) {
+      final @NonNull Supplier<LimitlessRouterService> limitlessRouterServiceSupplier) {
     this.pluginService = pluginService;
     this.properties = properties;
-    this.endpointServiceSupplier = endpointServiceSupplier;
+    this.limitlessRouterServiceSupplier = limitlessRouterServiceSupplier;
   }
 
   @Override
@@ -107,37 +107,38 @@ public class EndpointConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection,
           SQLException> connectFunc) throws SQLException {
-    initEndpointMonitorService();
+    initLimitlessRouterMonitorService();
     if (isInitialConnection) {
-      this.endpointService.startMonitoring(pluginService, hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
+      this.limitlessRouterService
+          .startMonitoring(pluginService, hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
     try {
-      List<HostSpec> endpoints = this.endpointService.getEndpoints(
+      List<HostSpec> limitlessRouters = this.limitlessRouterService.getLimitlessRouters(
           this.pluginService.getHostListProvider().getClusterId(), props);
 
-      if (endpoints.isEmpty()) {
-        LOGGER.warning(Messages.get("EndpointConnectionPlugin.emptyEndpointCache"));
+      if (limitlessRouters.isEmpty()) {
+        LOGGER.warning(Messages.get("LimitlessConnectionPlugin.LimitlessRouterCache"));
         return connectFunc.call();
-      } else if (endpoints.contains(hostSpec)) {
+      } else if (limitlessRouters.contains(hostSpec)) {
         return connectFunc.call();
       }
 
-      final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(endpoints,
+      final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
           HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
 
-      LOGGER.finest(Messages.get("EndpointConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
+      LOGGER.finest(Messages.get("LimitlessConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
 
       return pluginService.connect(selectedHostSpec, props);
     } catch (UnsupportedOperationException e) {
-      LOGGER.severe(Messages.get("EndpointConnectionPlugin.incorrectConfiguration"));
+      LOGGER.severe(Messages.get("LimitlessConnectionPlugin.incorrectConfiguration"));
       throw e;
     }
   }
 
-  private void initEndpointMonitorService() {
-    if (endpointService == null) {
-      this.endpointService = this.endpointServiceSupplier.get();
+  private void initLimitlessRouterMonitorService() {
+    if (limitlessRouterService == null) {
+      this.limitlessRouterService = this.limitlessRouterServiceSupplier.get();
     }
   }
 }

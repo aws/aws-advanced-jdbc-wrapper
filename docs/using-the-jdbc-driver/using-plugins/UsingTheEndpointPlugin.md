@@ -13,10 +13,10 @@ The Limitless Connection Plugin achieves this by being load aware. It will perio
 To enable the Endpoint Connection Plugin, add the plugin code `endpoint` to the [`wrapperPlugins`](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters) value, or to the current [driver profile](../UsingTheJdbcDriver.md#connection-plugin-manager-parameters).
 
 ### Endpoint Connection Plugin Parameters
-| Parameter                     |  Value  | Required | Description                                                                                    | Default Value | Example Value |
-|-------------------------------|:-------:|:--------:|:-----------------------------------------------------------------------------------------------|---------------|---------------|
-| `endpointMonitorIntervalMs`   | Integer |    No    | Interval in milliseconds between polling for endpoints to the database.                              | `30000`       | `15000`       |
-| `endpointMonitorDisposalTime` | Integer |    No    | Interval in milliseconds for an endpoint monitor to be considered inactive and to be disposed. | `600000`      | `300000`      |
+| Parameter                                         |  Value  | Required | Description                                                                                    | Default Value | Example Value |
+|---------------------------------------------------|:-------:|:--------:|:-----------------------------------------------------------------------------------------------|---------------|---------------|
+| `limitlessTransactionRouterMonitorIntervalMs`     | Integer |    No    | Interval in milliseconds between polling for endpoints to the database.                        | `30000`       | `15000`       |
+| `limitlessTransactionRouterMonitorDisposalTimeMs` | Integer |    No    | Interval in milliseconds for an endpoint monitor to be considered inactive and to be disposed. | `600000`      | `300000`      |
 
 ## Sample Code
 [EndpointPluginExample](../../../examples/AWSDriverExample/src/main/java/software/amazon/EndpointPluginExample.java)

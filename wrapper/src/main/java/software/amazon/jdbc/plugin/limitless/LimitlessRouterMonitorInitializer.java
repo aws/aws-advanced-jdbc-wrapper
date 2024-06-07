@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.endpoint;
+package software.amazon.jdbc.plugin.limitless;
 
 import java.util.Properties;
-import software.amazon.jdbc.ConnectionPlugin;
-import software.amazon.jdbc.ConnectionPluginFactory;
+import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 
-public class EndpointConnectionPluginFactory implements ConnectionPluginFactory {
-  @Override
-  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
-    return new EndpointConnectionPlugin(pluginService, props);
-  }
+@FunctionalInterface
+public interface LimitlessRouterMonitorInitializer {
+  LimitlessRouterMonitor createLimitlessRouterMonitor(
+      final PluginService pluginService,
+      final HostSpec hostSpec,
+      final Properties props,
+      final int intervalMs
+  );
 }
