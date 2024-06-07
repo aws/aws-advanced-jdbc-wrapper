@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.endpoint;
+package software.amazon.jdbc.plugin.limitless;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
@@ -40,7 +40,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
-public class EndpointConnectionPluginTest {
+public class LimitlessConnectionPluginTest {
 
   private static final String DRIVER_PROTOCOL = "jdbc:postgresql:";
   private static final HostSpec INPUT_HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -53,10 +53,10 @@ public class EndpointConnectionPluginTest {
   @Mock JdbcCallable<Connection, SQLException> mockConnectFuncLambda;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
-  @Mock private EndpointService mockEndpointService;
+  @Mock private LimitlessRouterService mockLimitlessRouterService;
   private static Properties props;
 
-  private static EndpointConnectionPlugin plugin;
+  private static LimitlessConnectionPlugin plugin;
 
   private AutoCloseable closeable;
 
@@ -64,7 +64,7 @@ public class EndpointConnectionPluginTest {
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     props = new Properties();
-    plugin = new EndpointConnectionPlugin(mockPluginService, props, () -> mockEndpointService);
+    plugin = new LimitlessConnectionPlugin(mockPluginService, props, () -> mockLimitlessRouterService);
 
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
@@ -81,14 +81,14 @@ public class EndpointConnectionPluginTest {
             .build(),
         highestWeightHostSpec
     );
-    when(mockEndpointService.getEndpoints(any(), any())).thenReturn(endpointHostSpecList);
+    when(mockLimitlessRouterService.getLimitlessRouters(any(), any())).thenReturn(endpointHostSpecList);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(highestWeightHostSpec);
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true, mockConnectFuncLambda);
 
-    verify(mockEndpointService, times(1)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
-        props, Integer.parseInt(EndpointConnectionPlugin.INTERVAL_MILLIS.defaultValue));
-    verify(mockEndpointService, times(1)).getEndpoints(CLUSTER_ID, props);
+    verify(mockLimitlessRouterService, times(1)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+        props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
+    verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
         HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(highestWeightHostSpec, props);
@@ -105,30 +105,30 @@ public class EndpointConnectionPluginTest {
             .build(),
         highestWeightHostSpec
     );
-    when(mockEndpointService.getEndpoints(any(), any())).thenReturn(endpointHostSpecList);
+    when(mockLimitlessRouterService.getLimitlessRouters(any(), any())).thenReturn(endpointHostSpecList);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(highestWeightHostSpec);
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, false, mockConnectFuncLambda);
 
-    verify(mockEndpointService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
-        props, Integer.parseInt(EndpointConnectionPlugin.INTERVAL_MILLIS.defaultValue));
-    verify(mockEndpointService, times(1)).getEndpoints(CLUSTER_ID, props);
+    verify(mockLimitlessRouterService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+        props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
+    verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
         HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(1)).connect(highestWeightHostSpec, props);
   }
 
   @Test
-  void testConnect_givenEmptyEndpointCache() throws SQLException {
+  void testConnect_givenEmptyLimitlessRouterCache() throws SQLException {
     final List<HostSpec> emptyEndpointHostSpecList = Collections.emptyList();
-    when(mockEndpointService.getEndpoints(any(), any())).thenReturn(emptyEndpointHostSpecList);
+    when(mockLimitlessRouterService.getLimitlessRouters(any(), any())).thenReturn(emptyEndpointHostSpecList);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(highestWeightHostSpec);
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, false, mockConnectFuncLambda);
 
-    verify(mockEndpointService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
-        props, Integer.parseInt(EndpointConnectionPlugin.INTERVAL_MILLIS.defaultValue));
-    verify(mockEndpointService, times(1)).getEndpoints(CLUSTER_ID, props);
+    verify(mockLimitlessRouterService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+        props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
+    verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(0)).getHostSpecByStrategy(emptyEndpointHostSpecList,
         HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(0)).connect(highestWeightHostSpec, props);
@@ -136,7 +136,7 @@ public class EndpointConnectionPluginTest {
   }
 
   @Test
-  void testConnect_givenHostSpecInEndpointCache() throws SQLException {
+  void testConnect_givenHostSpecInLimitlessRouterCache() throws SQLException {
     final List<HostSpec> endpointHostSpecList = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
             .build(),
@@ -146,14 +146,14 @@ public class EndpointConnectionPluginTest {
             .build(),
         INPUT_HOST_SPEC
     );
-    when(mockEndpointService.getEndpoints(any(), any())).thenReturn(endpointHostSpecList);
+    when(mockLimitlessRouterService.getLimitlessRouters(any(), any())).thenReturn(endpointHostSpecList);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(highestWeightHostSpec);
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, false, mockConnectFuncLambda);
 
-    verify(mockEndpointService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
-        props, Integer.parseInt(EndpointConnectionPlugin.INTERVAL_MILLIS.defaultValue));
-    verify(mockEndpointService, times(1)).getEndpoints(CLUSTER_ID, props);
+    verify(mockLimitlessRouterService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+        props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
+    verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(0)).getHostSpecByStrategy(endpointHostSpecList,
         HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
     verify(mockPluginService, times(0)).connect(highestWeightHostSpec, props);

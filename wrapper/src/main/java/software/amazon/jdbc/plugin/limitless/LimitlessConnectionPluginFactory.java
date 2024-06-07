@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.endpoint;
+package software.amazon.jdbc.plugin.limitless;
 
-import java.util.List;
 import java.util.Properties;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 
-public interface EndpointService {
-
-  List<HostSpec> getEndpoints(final String clusterId, final Properties props);
-
-  void startMonitoring(final @NonNull PluginService pluginService,
-      final @NonNull HostSpec hostSpec,
-      final @NonNull Properties props,
-      final int intervalMs);
+public class LimitlessConnectionPluginFactory implements ConnectionPluginFactory {
+  @Override
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+    return new LimitlessConnectionPlugin(pluginService, props);
+  }
 }

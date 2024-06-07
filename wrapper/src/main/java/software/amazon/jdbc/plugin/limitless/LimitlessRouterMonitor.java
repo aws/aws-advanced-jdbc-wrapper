@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.endpoint;
+package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -48,16 +48,16 @@ import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class EndpointMonitor implements AutoCloseable, Runnable {
+public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
 
   private static final Logger LOGGER =
-      Logger.getLogger(EndpointMonitor.class.getName());
+      Logger.getLogger(LimitlessRouterMonitor.class.getName());
 
-  private static final String MONITORING_PROPERTY_PREFIX = "endpoint-";
+  private static final String MONITORING_PROPERTY_PREFIX = "limitless-router-monitor-";
   private final int intervalMs;
   private @NonNull HostSpec hostSpec;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
-  private final AtomicReference<List<HostSpec>> endpoints = new AtomicReference<>(
+  private final AtomicReference<List<HostSpec>> limitlessRouters = new AtomicReference<>(
       Collections.unmodifiableList(new ArrayList<>()));
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
@@ -72,7 +72,7 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
     return monitoringThread;
   });
 
-  public EndpointMonitor(
+  public LimitlessRouterMonitor(
       final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
@@ -98,8 +98,8 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
     this.threadPool.shutdown(); // No more task are accepted by pool.
   }
 
-  public List<HostSpec> getEndpoints() {
-    return this.endpoints.get();
+  public List<HostSpec> getLimitlessRouters() {
+    return this.limitlessRouters.get();
   }
 
   public AtomicBoolean isStopped() {
@@ -115,14 +115,14 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
       this.threadPool.shutdownNow();
     }
     LOGGER.finest(() -> Messages.get(
-        "EndpointMonitor.stopped",
+        "LimitlessRouterMonitor.stopped",
         new Object[] {this.hostSpec.getHost()}));
   }
 
   @Override
   public void run() {
     LOGGER.finest(() -> Messages.get(
-        "EndpointMonitor.running",
+        "LimitlessRouterMonitor.running",
         new Object[] {this.hostSpec.getHost()}));
 
     while (!this.stopped.get()) {
@@ -134,14 +134,14 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
         if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
           continue;
         }
-        List<HostSpec> newEndpoints = queryForEndpoints(this.monitoringConn);
-        this.endpoints.set(Collections.unmodifiableList(newEndpoints));
-        LOGGER.finest(Utils.logTopology(endpoints.get(), "[endpointMonitor]"));
+        List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
+        this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
+        LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
         TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
       } catch (final InterruptedException exception) {
         LOGGER.finest(
             () -> Messages.get(
-                "EndpointMonitor.interruptedExceptionDuringMonitoring",
+                "LimitlessRouterMonitor.interruptedExceptionDuringMonitoring",
                 new Object[] {this.hostSpec.getHost()}));
       } catch (final Exception ex) {
         // this should not be reached; log and exit thread
@@ -149,7 +149,7 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
           LOGGER.log(
               Level.FINEST,
               Messages.get(
-                  "EndpointMonitor.exceptionDuringMonitoringStop",
+                  "LimitlessRouterMonitor.exceptionDuringMonitoringStop",
                   new Object[] {this.hostSpec.getHost()}),
               ex); // We want to print full trace stack of the exception.
         }
@@ -166,11 +166,11 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
         // open a new connection
         LOGGER.finest(() -> Messages.get(
-            "EndpointMonitor.openingConnection",
+            "LimitlessRouterMonitor.openingConnection",
             new Object[] {this.hostSpec.getUrl()}));
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, this.props);
         LOGGER.finest(() -> Messages.get(
-            "EndpointMonitor.openedConnection",
+            "LimitlessRouterMonitor.openedConnection",
             new Object[] {this.monitoringConn}));
       }
     } catch (SQLException ex) {
@@ -186,7 +186,7 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
     }
   }
 
-  private List<HostSpec> queryForEndpoints(final Connection conn) throws SQLException {
+  private List<HostSpec> queryForLimitlessRouters(final Connection conn) throws SQLException {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -195,7 +195,7 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
         conn.setNetworkTimeout(networkTimeoutExecutor, defaultQueryTimeoutMs);
       }
     } catch (SQLException e) {
-      LOGGER.warning(() -> Messages.get("EndpointMonitor.getNetworkTimeoutError",
+      LOGGER.warning(() -> Messages.get("LimitlessRouterMonitor.getNetworkTimeoutError",
           new Object[] {e.getMessage()}));
     }
 
@@ -203,7 +203,7 @@ public class EndpointMonitor implements AutoCloseable, Runnable {
          final ResultSet resultSet = stmt.executeQuery("select * from test")) { // TODO: replace this mock table
       return mapResultSetToHostSpecList(resultSet);
     } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("EndpointMonitor.invalidQuery"), e);
+      throw new SQLException(Messages.get("LimitlessRouterMonitor.invalidQuery"), e);
     } finally {
       if (networkTimeout == 0 && !conn.isClosed()) {
         conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);

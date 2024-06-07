@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.endpoint;
+package software.amazon.jdbc.plugin.limitless;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -27,22 +26,22 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
-public class EndpointServiceImpl implements EndpointService {
+public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
-  public static final AwsWrapperProperty ENDPOINT_MONITOR_DISPOSAL_TIME_MS =
+  public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
-          "endpointMonitorDisposalTime",
+          "limitlessTransactionRouterMonitorDisposalTimeMs",
           "600000", // 10min
-          "Interval in milliseconds for an endpoint monitor to be considered inactive and to be disposed.");
+          "Interval in milliseconds for an Limitless router monitor to be considered inactive and to be disposed.");
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
-  private final EndpointMonitorInitializer endpointMonitorInitializer;
+  private final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
 
-  private static final SlidingExpirationCacheWithCleanupThread<String, EndpointMonitor> endpointMonitors =
+  private static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor> limitlessRouterMonitors =
       new SlidingExpirationCacheWithCleanupThread<>(
-          (endpointMonitor) -> true,
-          (endpointMonitor) -> {
+          (limitlessRouterMonitor) -> true,
+          (limitlessRouterMonitor) -> {
             try {
-              endpointMonitor.close();
+              limitlessRouterMonitor.close();
             } catch (Exception e) {
               // ignore
             }
@@ -50,24 +49,25 @@ public class EndpointServiceImpl implements EndpointService {
           CACHE_CLEANUP_NANO
       );
 
-  public EndpointServiceImpl() {
-    this(EndpointMonitor::new);
+  public LimitlessRouterServiceImpl() {
+    this(LimitlessRouterMonitor::new);
   }
 
-  public EndpointServiceImpl(final EndpointMonitorInitializer endpointMonitorInitializer) {
-    this.endpointMonitorInitializer = endpointMonitorInitializer;
+  public LimitlessRouterServiceImpl(final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer) {
+    this.limitlessRouterMonitorInitializer = limitlessRouterMonitorInitializer;
   }
 
   @Override
-  public List<HostSpec> getEndpoints(final String clusterId, final Properties props) {
+  public List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
-        ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
+        MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
-    final EndpointMonitor endpointMonitor = endpointMonitors.get(clusterId, cacheExpirationNano);
-    if (endpointMonitor == null) {
+    final LimitlessRouterMonitor
+        limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
+    if (limitlessRouterMonitor == null) {
       return Collections.EMPTY_LIST;
     }
-    return endpointMonitor.getEndpoints();
+    return limitlessRouterMonitor.getLimitlessRouters();
   }
 
   @Override
@@ -77,12 +77,13 @@ public class EndpointServiceImpl implements EndpointService {
       final int intervalMs) {
 
     try {
-      final String endpointMonitorKey = pluginService.getHostListProvider().getClusterId();
-      final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(ENDPOINT_MONITOR_DISPOSAL_TIME_MS.getLong(props));
+      final String limitlessRouterMonitorKey = pluginService.getHostListProvider().getClusterId();
+      final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
-      endpointMonitors.computeIfAbsent(
-          endpointMonitorKey,
-          (key) -> this.endpointMonitorInitializer.createEndpointMonitor(pluginService, hostSpec, props, intervalMs),
+      limitlessRouterMonitors.computeIfAbsent(
+          limitlessRouterMonitorKey,
+          (key) -> this.limitlessRouterMonitorInitializer
+              .createLimitlessRouterMonitor(pluginService, hostSpec, props, intervalMs),
           cacheExpirationNano);
     } catch (UnsupportedOperationException e) {
       throw e;
