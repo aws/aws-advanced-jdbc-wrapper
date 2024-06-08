@@ -37,10 +37,10 @@ import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 public class LimitlessRouterServiceImplTest {
 
   private static final String CLUSTER_ID = "someClusterId";
+  private static final String OTHER_CLUSTER_ID = "someOtherClusterId";
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
   @Mock private LimitlessRouterMonitor mockLimitlessRouterMonitor;
-  @Mock private LimitlessRouterMonitorInitializer mockLimitlessRouterMonitorInitializer;
   private static final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("some-instance").role(HostRole.WRITER).build();
   private static final int intervalMs = 1000;
@@ -67,7 +67,7 @@ public class LimitlessRouterServiceImplTest {
     );
     when(mockLimitlessRouterMonitor.getLimitlessRouters()).thenReturn(endpointHostSpecList);
 
-    LimitlessRouterService limitlessRouterService =
+    final LimitlessRouterService limitlessRouterService =
         new LimitlessRouterServiceImpl((a, b, c, d) -> mockLimitlessRouterMonitor);
     limitlessRouterService.startMonitoring(mockPluginService, hostSpec, props, intervalMs);
 
@@ -78,9 +78,10 @@ public class LimitlessRouterServiceImplTest {
 
   @Test
   void test_nullLimitlessRouterMonitor() {
-    LimitlessRouterService limitlessRouterService =
-        new LimitlessRouterServiceImpl((a, b, c, d) -> mockLimitlessRouterMonitor);
-    final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
+    final LimitlessRouterService limitlessRouterService =
+        new LimitlessRouterServiceImpl((a, b, c, d) -> null);
+    final List<HostSpec> actualEndpointHostSpecList =
+        limitlessRouterService.getLimitlessRouters(OTHER_CLUSTER_ID, props);
     assertEquals(0, actualEndpointHostSpecList.size());
   }
 }
