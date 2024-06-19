@@ -78,7 +78,7 @@ public class ConnectionPluginChainBuilder {
           put("dev", DeveloperConnectionPluginFactory.class);
           put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
           put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
-          put("endpoint", LimitlessConnectionPluginFactory.class);
+          put("limitless", LimitlessConnectionPluginFactory.class);
         }
       };
 
