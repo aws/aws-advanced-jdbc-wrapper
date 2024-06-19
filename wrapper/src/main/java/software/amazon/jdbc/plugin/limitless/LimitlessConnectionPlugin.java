@@ -118,7 +118,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           this.pluginService.getHostListProvider().getClusterId(), props);
 
       if (limitlessRouters.isEmpty()) {
-        LOGGER.warning(Messages.get("LimitlessConnectionPlugin.LimitlessRouterCache"));
+        LOGGER.warning(Messages.get("LimitlessConnectionPlugin.LimitlessRouterCacheEmpty"));
         return connectFunc.call();
       } else if (limitlessRouters.contains(hostSpec)) {
         return connectFunc.call();
