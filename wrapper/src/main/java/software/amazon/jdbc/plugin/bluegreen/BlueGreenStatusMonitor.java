@@ -112,7 +112,8 @@ public class BlueGreenStatusMonitor {
           }
           this.pluginService.setStatus(BlueGreenStatus.class, status, true);
 
-          IntervalType intervalType = checkIntervalTypeMap.getOrDefault(status.getCurrentPhase(), IntervalType.BASELINE);
+          IntervalType intervalType =
+              checkIntervalTypeMap.getOrDefault(status.getCurrentPhase(), IntervalType.BASELINE);
           long delay = checkIntervalMap.getOrDefault(intervalType, DEFAULT_CHECK_INTERVAL_MS);
           this.canHoldConnection = (delay <= TimeUnit.MINUTES.toMillis(2));
           TimeUnit.MILLISECONDS.sleep(delay);
@@ -149,7 +150,7 @@ public class BlueGreenStatusMonitor {
   /**
    * Collect IP addresses of green nodes and map them to a new-blue FQDN host names.
    * It's assumed that each blue nodes will be mapped to a single green node.
-   *
+   * <p></p>
    * Example:
    * Current topology:
    * - instance-1.XYZ.us-east-2.rds.amazonaws.com (10.0.1.100)
@@ -256,8 +257,8 @@ public class BlueGreenStatusMonitor {
         // At least one node is in active switching over phase.
         currentPhase = BlueGreenPhases.SWITCHING_OVER;
       } else if (hostPhases.contains(BlueGreenPhases.PREPARATION_TO_SWITCH_OVER)) {
-          // At least one node is in preparation for switching over phase.
-          currentPhase = BlueGreenPhases.PREPARATION_TO_SWITCH_OVER;
+        // At least one node is in preparation for switching over phase.
+        currentPhase = BlueGreenPhases.PREPARATION_TO_SWITCH_OVER;
       } else if (hostPhases.contains(BlueGreenPhases.SWITCH_OVER_COMPLETED) && hostPhases.size() == 1) {
         // All nodes have completed switchover.
         currentPhase = BlueGreenPhases.SWITCH_OVER_COMPLETED;

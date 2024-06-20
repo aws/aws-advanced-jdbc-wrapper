@@ -150,7 +150,9 @@ public class TestEnvironmentInfo {
     this.iamUsername = iamUsername;
   }
 
-  public String getBlueGreenDeploymentId() { return this.blueGreenDeploymentId; }
+  public String getBlueGreenDeploymentId() {
+    return this.blueGreenDeploymentId;
+  }
 
   public void setBlueGreenDeploymentId(final String blueGreenDeploymentId) {
     this.blueGreenDeploymentId = blueGreenDeploymentId;
