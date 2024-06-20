@@ -247,7 +247,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected boolean rejectOrHoldConnect(final HostSpec connectHostSpec)
       throws SQLTimeoutException {
 
-    if(this.bgStatus == null) {
+    if (this.bgStatus == null) {
       return false;
     }
 
@@ -272,7 +272,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   protected HostSpec routeToGreenEndpoint(final HostSpec connectHostSpec) {
 
-    if(this.bgStatus == null) {
+    if (this.bgStatus == null) {
       return null;
     }
 
@@ -307,7 +307,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
   protected HostSpec routeToGreenIpAddress(final HostSpec connectHostSpec) {
 
-    if(this.bgStatus == null) {
+    if (this.bgStatus == null) {
       return null;
     }
 

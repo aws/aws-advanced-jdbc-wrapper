@@ -21,6 +21,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import integration.DatabaseEngine;
+import integration.DatabaseEngineDeployment;
+import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
+import integration.TestInstanceInfo;
+import integration.container.ConnectionStringHelper;
+import integration.container.TestDriver;
+import integration.container.TestDriverProvider;
+import integration.container.TestEnvironment;
+import integration.container.condition.EnableOnDatabaseEngine;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
+import integration.container.condition.EnableOnTestFeature;
+import integration.util.AuroraTestUtility;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -51,23 +64,8 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import integration.DatabaseEngine;
-import integration.DatabaseEngineDeployment;
-import integration.TestEnvironmentFeatures;
-import integration.TestEnvironmentInfo;
-import integration.TestInstanceInfo;
-import integration.container.ConnectionStringHelper;
-import integration.container.TestDriver;
-import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
-import integration.container.condition.EnableOnDatabaseEngine;
-import integration.container.condition.EnableOnDatabaseEngineDeployment;
-import integration.container.condition.EnableOnTestFeature;
-import integration.util.AuroraTestUtility;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.DBInstance;
-import software.amazon.jdbc.ConnectionPluginManager;
-import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin;
 import software.amazon.jdbc.util.RdsUtils;
@@ -84,7 +82,8 @@ public class BlueGreenDeploymentTests {
   protected static final RdsUtils rdsUtil = new RdsUtils();
 
   private static final String MYSQL_BG_STATUS_QUERY =
-      "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1) as hostId, endpoint, port, blue_green_deployment FROM mysql.rds_topology";
+      "SELECT id, SUBSTRING_INDEX(endpoint, '.', 1) as hostId, endpoint, port, blue_green_deployment"
+      + " FROM mysql.rds_topology";
 
   private static final String TEST_CLUSTER_ID = "test-cluster-id";
 
@@ -218,28 +217,32 @@ public class BlueGreenDeploymentTests {
       LOGGER.finest("directBlueIdleLostConnectionTime: -");
     } else {
       LOGGER.finest(String.format("directBlueIdleLostConnectionTime: %d ms",
-          TimeUnit.NANOSECONDS.toMillis(results.directBlueIdleLostConnectionTime.get() - results.bgTriggerTime.get())));
+          TimeUnit.NANOSECONDS.toMillis(
+              results.directBlueIdleLostConnectionTime.get() - results.bgTriggerTime.get())));
     }
 
     if (results.directBlueLostConnectionTime.get() == 0) {
       LOGGER.finest("directBlueLostConnectionTime (SELECT 1): -");
     } else {
       LOGGER.finest(String.format("directBlueLostConnectionTime (SELECT 1): %d ms",
-          TimeUnit.NANOSECONDS.toMillis(results.directBlueLostConnectionTime.get() - results.bgTriggerTime.get())));
+          TimeUnit.NANOSECONDS.toMillis(
+              results.directBlueLostConnectionTime.get() - results.bgTriggerTime.get())));
     }
 
     if (results.wrapperBlueIdleLostConnectionTime.get() == 0) {
       LOGGER.finest("wrapperBlueIdleLostConnectionTime: -");
     } else {
       LOGGER.finest(String.format("wrapperBlueIdleLostConnectionTime: %d ms",
-          TimeUnit.NANOSECONDS.toMillis(results.wrapperBlueIdleLostConnectionTime.get() - results.bgTriggerTime.get())));
+          TimeUnit.NANOSECONDS.toMillis(
+              results.wrapperBlueIdleLostConnectionTime.get() - results.bgTriggerTime.get())));
     }
 
     if (results.wrapperGreenLostConnectionTime.get() == 0) {
       LOGGER.finest("wrapperGreenLostConnectionTime (SELECT 1): -");
     } else {
       LOGGER.finest(String.format("wrapperGreenLostConnectionTime (SELECT 1): %d ms",
-          TimeUnit.NANOSECONDS.toMillis(results.wrapperGreenLostConnectionTime.get() - results.bgTriggerTime.get())));
+          TimeUnit.NANOSECONDS.toMillis(
+              results.wrapperGreenLostConnectionTime.get() - results.bgTriggerTime.get())));
     }
 
     if (results.dnsBlueChangedTime.get() == 0) {
@@ -269,7 +272,8 @@ public class BlueGreenDeploymentTests {
       results.blueWrapperConnectTimes.stream()
           .sorted(Comparator.comparingLong(x -> x.startTime))
           .filter(x -> x.holdNano > 0 || x.error != null)
-          .forEach(x -> LOGGER.finest(String.format("blueWrapperConnectTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
+          .forEach(x -> LOGGER.finest(String.format(
+              "blueWrapperConnectTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
               TimeUnit.NANOSECONDS.toMillis(x.startTime - results.bgTriggerTime.get()),
               TimeUnit.NANOSECONDS.toMillis(x.endTime - x.startTime),
               TimeUnit.NANOSECONDS.toMillis(x.holdNano),
@@ -294,7 +298,8 @@ public class BlueGreenDeploymentTests {
       results.blueWrapperExecuteTimes.stream()
           .sorted(Comparator.comparingLong(x -> x.startTime))
           .filter(x -> x.holdNano > 0 || x.error != null)
-          .forEach(x -> LOGGER.finest(String.format("blueWrapperExecuteTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
+          .forEach(x -> LOGGER.finest(String.format(
+              "blueWrapperExecuteTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
               TimeUnit.NANOSECONDS.toMillis(x.startTime - results.bgTriggerTime.get()),
               TimeUnit.NANOSECONDS.toMillis(x.endTime - x.startTime),
               TimeUnit.NANOSECONDS.toMillis(x.holdNano),
@@ -319,7 +324,8 @@ public class BlueGreenDeploymentTests {
       results.greenWrapperExecuteTimes.stream()
           .sorted(Comparator.comparingLong(x -> x.startTime))
           .filter(x -> x.holdNano > 0 || x.error != null)
-          .forEach(x -> LOGGER.finest(String.format("greenWrapperExecuteTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
+          .forEach(x -> LOGGER.finest(String.format(
+              "greenWrapperExecuteTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
               TimeUnit.NANOSECONDS.toMillis(x.startTime - results.bgTriggerTime.get()),
               TimeUnit.NANOSECONDS.toMillis(x.endTime - x.startTime),
               TimeUnit.NANOSECONDS.toMillis(x.holdNano),
@@ -597,11 +603,13 @@ public class BlueGreenDeploymentTests {
           try  {
             ResultSet rs = statement.executeQuery("SELECT sleep(5)");
             endTime = System.nanoTime();
-            results.blueWrapperExecuteTimes.add(new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
+            results.blueWrapperExecuteTimes.add(
+                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
           } catch (SQLException throwable) {
             //LOGGER.finest("[WrapperBlueExecute] thread exception: " + throwable);
             endTime = System.nanoTime();
-            results.blueWrapperExecuteTimes.add(new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
+            results.blueWrapperExecuteTimes.add(
+                new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano(), throwable.getMessage()));
             if (conn.isClosed()) {
               break;
             }
@@ -878,12 +886,7 @@ public class BlueGreenDeploymentTests {
             while (rs.next()) {
               String queryHostId = rs.getString("hostId");
               String queryNewStatus = rs.getString("blue_green_deployment");
-              String queryEndpoint = rs.getString("endpoint");
-//               LOGGER.finest("[DirectGreenTopology] queryEndpoint: " + queryEndpoint);
-//               LOGGER.finest(String.format("[DirectGreenTopology] %s: %s", queryHostId, queryNewStatus));
               boolean isGreen = rdsUtil.isGreenInstance(queryHostId);
-//               LOGGER.finest(
-//                   String.format("[DirectGreenTopology] isGreen: %s, queryHostId: %s", isGreen, queryHostId));
 
               String noPrefixQueryHostId = rdsUtil.removeGreenInstancePrefix(queryHostId);
               String oldStatus = statusByHost.get(queryHostId);
@@ -1013,9 +1016,14 @@ public class BlueGreenDeploymentTests {
             results.greenWrapperExecuteTimes.add(new TimeHolder(startTime, endTime, bgPlugin.getHoldTimeNano()));
             TimeUnit.SECONDS.sleep(1);
           } catch (SQLTimeoutException sqlTimeoutException) {
-            LOGGER.finest("[WrapperGreenConnectivity] (SQLTimeoutException) thread exception: " + sqlTimeoutException);
+            LOGGER.finest(
+                "[WrapperGreenConnectivity] (SQLTimeoutException) thread exception: " + sqlTimeoutException);
             results.greenWrapperExecuteTimes.add(
-                new TimeHolder(startTime, System.nanoTime(), bgPlugin.getHoldTimeNano(), sqlTimeoutException.getMessage()));
+                new TimeHolder(
+                    startTime,
+                    System.nanoTime(),
+                    bgPlugin.getHoldTimeNano(),
+                    sqlTimeoutException.getMessage()));
             if (conn.isClosed()) {
               results.wrapperGreenLostConnectionTime.set(System.nanoTime());
               break;

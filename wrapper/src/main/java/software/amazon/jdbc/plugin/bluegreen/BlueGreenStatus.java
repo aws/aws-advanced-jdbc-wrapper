@@ -41,6 +41,11 @@ public class BlueGreenStatus {
     return this.currentPhase;
   }
 
-  public @NonNull Map<String, String> getHostIpAddresses() { return this.hostIpAddresses; }
-  public @NonNull Map<String, String> getCorrespondingNodes() { return this.correspondingNodes; }
+  public @NonNull Map<String, String> getHostIpAddresses() {
+    return this.hostIpAddresses;
+  }
+
+  public @NonNull Map<String, String> getCorrespondingNodes() {
+    return this.correspondingNodes;
+  }
 }
