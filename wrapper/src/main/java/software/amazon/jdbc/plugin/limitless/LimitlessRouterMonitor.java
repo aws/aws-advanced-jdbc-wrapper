@@ -38,6 +38,7 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
@@ -136,6 +137,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         }
         List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
         this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
+        RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
         LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
         TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
       } catch (final InterruptedException exception) {
@@ -226,7 +228,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private HostSpec createHost(final ResultSet resultSet) throws SQLException {
     final String hostName = resultSet.getString(2);
     final float cpu = resultSet.getFloat(3);
-    final long weight = (long) - (cpu * 10);
+    final long weight = (long) (10 - cpu * 10);
     return new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host(hostName)
         .port(this.hostSpec.getPort())
