@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin;
+package software.amazon.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -96,7 +96,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_EmptyHost() {
+  void testSetup_EmptyHost() {
     final String hostWeights =
         "instance-0:1,"
             + ":3,"
@@ -109,7 +109,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_EmptyWeight() {
+  void testSetup_EmptyWeight() {
     final String hostWeights =
         "instance-0:1,"
             + "instance-1:,"
@@ -122,7 +122,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_ZeroWeight() {
+  void testSetup_ZeroWeight() {
     final String hostWeights =
         "instance-0:1,"
             + "instance-1:0,"
@@ -135,7 +135,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_ZeroDefaultWeight() {
+  void testSetup_ZeroDefaultWeight() {
     defaultProps.put(RoundRobinHostSelector.ROUND_ROBIN_DEFAULT_WEIGHT.name, "0");
     assertThrows(
         SQLException.class,
@@ -143,7 +143,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_BadWeightFormat() {
+  void testSetup_BadWeightFormat() {
     final String hostWeights =
         "instance-0:1,"
             + "instance-1:1:3,"
@@ -156,7 +156,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_FloatWeights() {
+  void testSetup_FloatWeights() {
     final String hostWeights =
         "instance-0:1,"
             + "instance-1:1.123,"
@@ -169,7 +169,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_FloatDefaultWeight() {
+  void testSetup_FloatDefaultWeight() {
     defaultProps.put(RoundRobinHostSelector.ROUND_ROBIN_DEFAULT_WEIGHT.name, "1.123");
     assertThrows(
         SQLException.class,
@@ -177,7 +177,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_NegativeWeights() {
+  void testSetup_NegativeWeights() {
     final String hostWeights =
         "instance-0:1,"
             + "instance-1:-1,"
@@ -190,7 +190,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_NegativeDefaultWeight() {
+  void testSetup_NegativeDefaultWeight() {
     defaultProps.put(RoundRobinHostSelector.ROUND_ROBIN_DEFAULT_WEIGHT.name, "-1");
     assertThrows(
         SQLException.class,
@@ -198,7 +198,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_ParseWeightError() {
+  void testSetup_ParseWeightError() {
     final String hostWeights = "instance-0:1,instance-1:1a";
     defaultProps.put(RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS.name, hostWeights);
     assertThrows(
@@ -207,7 +207,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testSetup_ParseDefaultWeightError() {
+  void testSetup_ParseDefaultWeightError() {
     defaultProps.put(RoundRobinHostSelector.ROUND_ROBIN_DEFAULT_WEIGHT.name, "1a");
     assertThrows(
         SQLException.class,
@@ -215,13 +215,13 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHost_NoReaders() {
+  void testGetHost_NoReaders() {
     assertThrows(SQLException.class,
         () -> roundRobinHostSelector.getHost(writerHostsList, HostRole.READER, defaultProps));
   }
 
   @Test
-  public void testGetHost() throws SQLException {
+  void testGetHost() throws SQLException {
     assertEquals(
         readerHostSpec1.getHost(),
         roundRobinHostSelector.getHost(hostsList123, HostRole.READER, defaultProps).getHost());
@@ -237,7 +237,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHostNullProperties() throws SQLException {
+  void testGetHostNullProperties() throws SQLException {
     defaultProps = null;
     assertEquals(
         readerHostSpec1.getHost(),
@@ -254,7 +254,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHost_Weighted() throws SQLException {
+  void testGetHost_Weighted() throws SQLException {
     assertEquals(
         readerHostSpec1.getHost(),
         roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
@@ -279,7 +279,166 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHost_CacheEntryExpired() throws SQLException {
+  void testGetHost_WeightChange() throws SQLException {
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec3.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+
+    final Properties newWeightedProps = new Properties();
+    final String newHostWeightsPropsValue = "instance-0:1,"
+        + "instance-1:1,"
+        + "instance-2:3,"
+        + "instance-3:2";
+    newWeightedProps.setProperty(RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS.name, newHostWeightsPropsValue);
+
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec3.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec3.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+  }
+
+  @Test
+  void testGetHost_HostWeightPairPropertyChangeToEmpty() throws SQLException {
+    final Properties emptyHostWeightPairProps = new Properties();
+    final String emptyString = "";
+    emptyHostWeightPairProps.setProperty(RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS.name, emptyString);
+
+    roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps);
+    assertEquals(4,
+        RoundRobinHostSelector.roundRobinCache.get(readerHostSpec1.getHost()).clusterWeightsMap.size());
+    roundRobinHostSelector.getHost(hostsList123, HostRole.READER, emptyHostWeightPairProps);
+    assertEquals(0,
+        RoundRobinHostSelector.roundRobinCache.get(readerHostSpec1.getHost()).clusterWeightsMap.size());
+  }
+
+  @Test
+  void testGetHost_HostWeightPairPropertyChangeToNull() throws SQLException {
+    final Properties nullHostWeightPairProps = new Properties();
+
+    roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps);
+    assertEquals(4,
+        RoundRobinHostSelector.roundRobinCache.get(readerHostSpec1.getHost()).clusterWeightsMap.size());
+    roundRobinHostSelector.getHost(hostsList123, HostRole.READER, nullHostWeightPairProps);
+    assertEquals(4,
+        RoundRobinHostSelector.roundRobinCache.get(readerHostSpec1.getHost()).clusterWeightsMap.size());
+  }
+
+  @Test
+  void testGetHost_WeightChangeFromNone() throws SQLException {
+    final Properties emptyProps = new Properties();
+    roundRobinHostSelector.getHost(hostsList123, HostRole.READER, emptyProps);
+    assertEquals(0,
+        RoundRobinHostSelector.roundRobinCache.get(readerHostSpec1.getHost()).clusterWeightsMap.size());
+
+    roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps);
+    assertEquals(4,
+        RoundRobinHostSelector.roundRobinCache.get(readerHostSpec1.getHost()).clusterWeightsMap.size());
+  }
+
+  @Test
+  void testGetHost_MultipleWeightChanges() throws SQLException {
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec3.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, weightedProps).getHost());
+
+    final Properties emptyProps = new Properties();
+    emptyProps.setProperty(RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS.name, "");
+
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, emptyProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, emptyProps).getHost());
+    assertEquals(
+        readerHostSpec3.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, emptyProps).getHost());
+
+    final Properties newWeightedProps = new Properties();
+    final String newHostWeightsPropsValue = "instance-0:1,"
+        + "instance-1:1,"
+        + "instance-2:3,"
+        + "instance-3:2";
+    newWeightedProps.setProperty(RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS.name, newHostWeightsPropsValue);
+
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec2.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec3.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec3.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+    assertEquals(
+        readerHostSpec1.getHost(),
+        roundRobinHostSelector.getHost(hostsList123, HostRole.READER, newWeightedProps).getHost());
+  }
+
+  @Test
+  void testGetHost_CacheEntryExpired() throws SQLException {
     assertEquals(
         readerHostSpec1.getHost(),
         roundRobinHostSelector.getHost(hostsList123, HostRole.READER, defaultProps).getHost());
@@ -298,7 +457,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHost_ScaleUp() throws SQLException {
+  void testGetHost_ScaleUp() throws SQLException {
     assertEquals(
         readerHostSpec1.getHost(),
         roundRobinHostSelector.getHost(hostsList123, HostRole.READER, defaultProps).getHost());
@@ -314,7 +473,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHost_ScaleDown() throws SQLException {
+  void testGetHost_ScaleDown() throws SQLException {
     assertEquals(
         readerHostSpec1.getHost(),
         roundRobinHostSelector.getHost(hostsList123, HostRole.READER, defaultProps).getHost());
@@ -327,7 +486,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHost_LastHostNotInHostsList() throws SQLException {
+  void testGetHost_LastHostNotInHostsList() throws SQLException {
     assertEquals(
         readerHostSpec1.getHost(),
         roundRobinHostSelector.getHost(hostsList123, HostRole.READER, defaultProps).getHost());
@@ -343,7 +502,7 @@ public class RoundRobinHostSelectorTest {
   }
 
   @Test
-  public void testGetHost_AllHostsChanged() throws SQLException {
+  void testGetHost_AllHostsChanged() throws SQLException {
     assertEquals(
         readerHostSpec1.getHost(),
         roundRobinHostSelector.getHost(hostsList14, HostRole.READER, defaultProps).getHost());
@@ -353,5 +512,32 @@ public class RoundRobinHostSelectorTest {
     assertEquals(
         readerHostSpec4.getHost(),
         roundRobinHostSelector.getHost(hostsList14, HostRole.READER, defaultProps).getHost());
+  }
+
+  @Test
+  void testSetRoundRobinHostWeightPairsProperty() {
+    final String expectedPropertyValue = "instance-1:2,instance-2:1,instance-3:0";
+
+    final List<HostSpec> hosts = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-1")
+            .weight(2)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-2")
+            .weight(1)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+            .host("instance-3")
+            .weight(0)
+            .build()
+    );
+    final Properties properties = new Properties();
+    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(properties, hosts);
+
+    final String actualPropertyValue = properties.getProperty(
+        RoundRobinHostSelector.ROUND_ROBIN_HOST_WEIGHT_PAIRS.name);
+
+    assertEquals(expectedPropertyValue, actualPropertyValue);
   }
 }

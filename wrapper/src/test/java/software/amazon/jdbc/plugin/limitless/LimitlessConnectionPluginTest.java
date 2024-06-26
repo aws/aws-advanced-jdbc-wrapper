@@ -37,8 +37,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessConnectionPluginTest {
 
@@ -90,7 +90,7 @@ public class LimitlessConnectionPluginTest {
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
-        HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
     verify(mockPluginService, times(1)).connect(highestWeightHostSpec, props);
   }
 
@@ -114,7 +114,7 @@ public class LimitlessConnectionPluginTest {
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
-        HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
     verify(mockPluginService, times(1)).connect(highestWeightHostSpec, props);
   }
 
@@ -130,7 +130,7 @@ public class LimitlessConnectionPluginTest {
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(0)).getHostSpecByStrategy(emptyEndpointHostSpecList,
-        HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
     verify(mockPluginService, times(0)).connect(highestWeightHostSpec, props);
     verify(mockConnectFuncLambda, times(1)).call();
   }
@@ -155,7 +155,7 @@ public class LimitlessConnectionPluginTest {
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(0)).getHostSpecByStrategy(endpointHostSpecList,
-        HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
     verify(mockPluginService, times(0)).connect(highestWeightHostSpec, props);
     verify(mockConnectFuncLambda, times(1)).call();
   }

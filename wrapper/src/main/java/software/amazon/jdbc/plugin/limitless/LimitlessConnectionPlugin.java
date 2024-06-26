@@ -32,9 +32,9 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
@@ -124,8 +124,9 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
         return connectFunc.call();
       }
 
+      RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(props, limitlessRouters);
       final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
-          HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+          HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
 
       LOGGER.finest(Messages.get("LimitlessConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
 
