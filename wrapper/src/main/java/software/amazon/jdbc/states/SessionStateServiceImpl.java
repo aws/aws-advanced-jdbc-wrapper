@@ -503,7 +503,6 @@ public class SessionStateServiceImpl implements SessionStateService {
 
     if (this.copySessionState.catalog.canRestorePristine()) {
       try {
-
         //noinspection OptionalGetWithoutIsPresent
         final String pristineCatalog = this.copySessionState.catalog.getPristineValue().get();
         if (!StringUtils.isNullOrEmpty(pristineCatalog)) {
