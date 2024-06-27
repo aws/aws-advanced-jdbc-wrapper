@@ -66,8 +66,12 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.DBInstance;
+import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.DialectCodes;
+import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.RdsUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -504,11 +508,9 @@ public class BlueGreenDeploymentTests {
 
       Connection conn = null;
       try {
-        final Properties props = ConnectionStringHelper.getDefaultProperties();
-        RdsHostListProvider.CLUSTER_ID.set(props, TEST_CLUSTER_ID);
-
+        final Properties props = this.getWrapperConnectionProperties();
         conn = openConnectionWithRetry(
-            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, "bg"),
+            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
             props);
         LOGGER.finest("[WrapperBlueIdle] connection is open.");
 
@@ -574,11 +576,9 @@ public class BlueGreenDeploymentTests {
 
       Connection conn = null;
       try {
-        final Properties props = ConnectionStringHelper.getDefaultProperties();
-        RdsHostListProvider.CLUSTER_ID.set(props, TEST_CLUSTER_ID);
-
+        final Properties props = this.getWrapperConnectionProperties();
         conn = DriverManager.getConnection(
-            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, "bg"),
+            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
             props);
 
         BlueGreenConnectionPlugin bgPlugin = conn.unwrap(BlueGreenConnectionPlugin.class);
@@ -657,8 +657,7 @@ public class BlueGreenDeploymentTests {
       Connection conn = null;
       BlueGreenConnectionPlugin bgPlugin = null;
       try {
-        final Properties props = ConnectionStringHelper.getDefaultProperties();
-        RdsHostListProvider.CLUSTER_ID.set(props, TEST_CLUSTER_ID);
+        final Properties props = this.getWrapperConnectionProperties();
 
         Thread.sleep(1000);
 
@@ -675,7 +674,7 @@ public class BlueGreenDeploymentTests {
           long endTime;
           try  {
             conn = DriverManager.getConnection(
-                ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, "bg"),
+                ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
                 props);
             endTime = System.nanoTime();
 
@@ -985,11 +984,9 @@ public class BlueGreenDeploymentTests {
 
       Connection conn = null;
       try {
-        final Properties props = ConnectionStringHelper.getDefaultProperties();
-        RdsHostListProvider.CLUSTER_ID.set(props, TEST_CLUSTER_ID);
-
+        final Properties props = this.getWrapperConnectionProperties();
         conn = openConnectionWithRetry(
-            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, "bg"),
+            ConnectionStringHelper.getWrapperUrlWithPlugins(host, port, dbName, this.getWrapperConnectionPlugins()),
             props);
         LOGGER.finest("[WrapperGreenConnectivity] connection is open.");
 
@@ -1121,5 +1118,23 @@ public class BlueGreenDeploymentTests {
       throw new RuntimeException("Blue instance not found.");
     }
     return Arrays.asList(blueInstance.endpoint().address(), greenInstance.endpoint().address());
+  }
+
+  private Properties getWrapperConnectionProperties() {
+    final Properties props = ConnectionStringHelper.getDefaultProperties();
+    RdsHostListProvider.CLUSTER_ID.set(props, TEST_CLUSTER_ID);
+    DialectManager.DIALECT.set(props, DialectCodes.RDS_MYSQL);
+    if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
+      IamAuthConnectionPlugin.IAM_REGION.set(props, TestEnvironment.getCurrent().getInfo().getRegion());
+      PropertyDefinition.USER.set(props, TestEnvironment.getCurrent().getInfo().getIamUsername());
+    }
+    return props;
+  }
+
+  private String getWrapperConnectionPlugins() {
+    if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM)) {
+      return "bg,iam";
+    }
+    return "bg";
   }
 }

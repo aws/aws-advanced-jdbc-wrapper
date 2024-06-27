@@ -176,7 +176,6 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                                 : TestEnvironmentFeatures.FAILOVER_SUPPORTED,
                             deployment == DatabaseEngineDeployment.DOCKER
                                 || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER
-                                || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_INSTANCE
                                 || config.noIam
                                 ? null
                                 : TestEnvironmentFeatures.IAM,

@@ -253,4 +253,6 @@ public interface PluginService extends ExceptionHandler {
   <T> void setStatus(final Class<T> clazz, final @Nullable T status, final boolean clusterBound);
 
   <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound);
+
+  boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz);
 }
