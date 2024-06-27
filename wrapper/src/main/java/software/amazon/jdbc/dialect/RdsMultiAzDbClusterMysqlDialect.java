@@ -32,6 +32,7 @@ import software.amazon.jdbc.plugin.failover.FailoverRestriction;
 import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.StringUtils;
 
 public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements SupportBlueGreen {
 
@@ -65,16 +66,27 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect implements Sup
       stmt = connection.createStatement();
       rs = stmt.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY);
 
-      if (rs.next()) {
-        rs.close();
-        stmt.close();
-
-        stmt = connection.createStatement();
-        rs = stmt.executeQuery(TOPOLOGY_QUERY);
-
-        return rs.next();
+      if (!rs.next()) {
+        return false;
       }
-      return false;
+
+      rs.close();
+      rs = stmt.executeQuery(TOPOLOGY_QUERY);
+
+      if (!rs.next()) {
+        return false;
+      }
+
+      rs.close();
+      rs = stmt.executeQuery("SHOW VARIABLES LIKE 'report_host'");
+
+      if (!rs.next()) {
+        return false;
+      }
+
+      final String reportHost = rs.getString(2); // get variable value; expected value is IP address
+      return !StringUtils.isNullOrEmpty(reportHost);
+
     } catch (final SQLException ex) {
       // ignore
     } finally {

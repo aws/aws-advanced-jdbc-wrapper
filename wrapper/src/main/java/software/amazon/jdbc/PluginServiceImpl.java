@@ -824,4 +824,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         ? String.format("%s::%s", this.hostListProvider.getClusterId(), clazz.getName())
         : clazz.getName();
   }
+
+  public boolean isPluginInUse(final Class<? extends ConnectionPlugin> pluginClazz) {
+    try {
+      return this.pluginManager.isWrapperFor(pluginClazz);
+    } catch (SQLException e) {
+      return false;
+    }
+  }
 }

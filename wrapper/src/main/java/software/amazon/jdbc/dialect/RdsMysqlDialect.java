@@ -21,10 +21,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
+import software.amazon.jdbc.util.StringUtils;
 
-public class RdsMysqlDialect extends MysqlDialect {
+public class RdsMysqlDialect extends MysqlDialect implements SupportBlueGreen {
+
+  private static final String BG_STATUS_QUERY =
+      "SELECT id, endpoint, port, blue_green_deployment FROM mysql.rds_topology";
+
+  private static final String TOPOLOGY_TABLE_EXIST_QUERY =
+      "SELECT 1 AS tmp FROM information_schema.tables WHERE"
+          + " table_schema = 'mysql' AND table_name = 'rds_topology'";
 
   private static final List<String> dialectUpdateCandidates = Arrays.asList(
       DialectCodes.AURORA_MYSQL,
@@ -51,15 +58,22 @@ public class RdsMysqlDialect extends MysqlDialect {
     try {
       stmt = connection.createStatement();
       rs = stmt.executeQuery(this.getServerVersionQuery());
-      while (rs.next()) {
-        final int columnCount = rs.getMetaData().getColumnCount();
-        for (int i = 1; i <= columnCount; i++) {
-          final String columnValue = rs.getString(i);
-          if ("Source distribution".equalsIgnoreCase(columnValue)) {
-            return true;
-          }
-        }
+      if (!rs.next()) {
+        return false;
       }
+      final String columnValue = rs.getString(2);
+      if ("Source distribution".equalsIgnoreCase(columnValue)) {
+        return false;
+      }
+
+      rs.close();
+      rs = stmt.executeQuery("SHOW VARIABLES LIKE 'report_host'");
+      if (!rs.next()) {
+        return false;
+      }
+      final String reportHost = rs.getString(2); // get variable value; expected empty value
+      return StringUtils.isNullOrEmpty(reportHost);
+
     } catch (final SQLException ex) {
       // ignore
     } finally {
@@ -84,5 +98,22 @@ public class RdsMysqlDialect extends MysqlDialect {
   @Override
   public List<String> getDialectUpdateCandidates() {
     return dialectUpdateCandidates;
+  }
+
+  @Override
+  public String getBlueGreenStatusQuery() {
+    return BG_STATUS_QUERY;
+  }
+
+  @Override
+  public boolean isStatusAvailable(final Connection connection) {
+    try {
+      try (Statement statement = connection.createStatement();
+          ResultSet rs = statement.executeQuery(TOPOLOGY_TABLE_EXIST_QUERY)) {
+        return rs.next();
+      }
+    } catch (SQLException ex) {
+      return false;
+    }
   }
 }

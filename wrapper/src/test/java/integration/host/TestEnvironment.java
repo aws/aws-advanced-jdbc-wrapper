@@ -1269,9 +1269,10 @@ public class TestEnvironment implements AutoCloseable {
           auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
           String old1ClusterName = this.auroraClusterName + "-old1";
           if (auroraUtil.doesClusterExist(old1ClusterName)) {
+            LOGGER.finest("Deleting MultiAz cluster " + old1ClusterName + "." + this.rdsClusterDomain);
             auroraUtil.deleteCluster(old1ClusterName);
+            LOGGER.finest("Deleted MultiAz cluster " + old1ClusterName + "." + this.rdsClusterDomain);
           }
-          // TODO: delete green cluster if it still exists
         }
         break;
       case RDS_MULTI_AZ_INSTANCE:
@@ -1279,13 +1280,12 @@ public class TestEnvironment implements AutoCloseable {
           BlueGreenDeployment blueGreenDeployment =
               auroraUtil.getBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
           auroraUtil.deleteBlueGreenDeployment(this.info.getBlueGreenDeploymentId());
-          String old1InstanceName = this.rdsInstanceName + "-old1";
-          if (auroraUtil.doesInstanceExist(old1InstanceName)) {
-            auroraUtil.deleteMultiAzInstance(old1InstanceName);
-          }
-          DBInstance greenInstance = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.target());
-          if (greenInstance != null) {
-            auroraUtil.deleteMultiAzInstance(greenInstance.dbInstanceIdentifier());
+
+          DBInstance old1Instance = auroraUtil.getRdsInstanceInfoByArn(blueGreenDeployment.source());
+          if (old1Instance != null) {
+            LOGGER.finest("Deleting MultiAz Instance " + old1Instance.dbInstanceIdentifier() + "." + this.rdsClusterDomain);
+            auroraUtil.deleteMultiAzInstance(old1Instance.dbInstanceIdentifier());
+            LOGGER.finest("Deleted MultiAz Instance " + old1Instance.dbInstanceIdentifier() + "." + this.rdsClusterDomain);
           }
         }
         break;

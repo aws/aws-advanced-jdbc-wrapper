@@ -684,6 +684,11 @@ public class ConcurrencyTests {
     public <T> T getStatus(final @NonNull Class<T> clazz, final boolean clusterBound) {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public boolean isPluginInUse(Class<? extends ConnectionPlugin> pluginClazz) {
+      return false;
+    }
   }
 
   public static class TestConnection implements Connection {

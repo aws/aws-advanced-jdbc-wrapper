@@ -319,7 +319,7 @@ public class AuroraTestUtility {
             (requestBuilder) ->
                 requestBuilder.filters(
                     Filter.builder().name("db-instance-id").values(dbIdentifier).build()),
-            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
+            (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(60)));
 
     if (waiterResponse.matched().exception().isPresent()) {
       deleteMultiAzInstance();
@@ -805,11 +805,11 @@ public class AuroraTestUtility {
     final DescribeDbInstancesRequest request =
         DescribeDbInstancesRequest.builder().dbInstanceIdentifier(instanceId).build();
     try {
-      rdsClient.describeDBInstances(request);
+      DescribeDbInstancesResponse response = rdsClient.describeDBInstances(request);
+      return response.sdkHttpResponse().isSuccessful();
     } catch (DbInstanceNotFoundException ex) {
       return false;
     }
-    return true;
   }
 
   public DBCluster getClusterInfo(final String clusterId) {
@@ -1746,12 +1746,18 @@ public class AuroraTestUtility {
           stmt.execute(
               "CREATE USER " + dbUser + " IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS';");
           stmt.execute("GRANT ALL PRIVILEGES ON " + databaseName + ".* TO '" + dbUser + "'@'%';");
+
+          // BG switchover status needs it.
+          stmt.execute("GRANT SELECT ON mysql.* TO '" + dbUser + "'@'%';");
           break;
         case PG:
           stmt.execute("DROP USER IF EXISTS " + dbUser + ";");
           stmt.execute("CREATE USER " + dbUser + ";");
           stmt.execute("GRANT rds_iam TO " + dbUser + ";");
           stmt.execute("GRANT ALL PRIVILEGES ON DATABASE " + databaseName + " TO " + dbUser + ";");
+
+          // BG switchover status needs it.
+          stmt.execute("GRANT SELECT ON rds_tools.* TO " + dbUser + ";"); //TODO: verify we need it
           break;
         default:
           throw new UnsupportedOperationException(databaseEngine.toString());
@@ -1825,7 +1831,7 @@ public class AuroraTestUtility {
 
   public String createBueGreenDeployment(String name, String sourceArn) {
 
-    final String blueGreenName = "bg-" + name;
+    final String blueGreenName = "bgd-" + name;
 
     final CreateBlueGreenDeploymentResponse response = rdsClient.createBlueGreenDeployment(
         CreateBlueGreenDeploymentRequest.builder()
@@ -1846,7 +1852,7 @@ public class AuroraTestUtility {
     String blueGreenId = response.blueGreenDeployment().blueGreenDeploymentIdentifier();
 
     BlueGreenDeployment blueGreenDeployment = getBlueGreenDeployment(blueGreenId);
-    long end = System.nanoTime() + TimeUnit.MINUTES.toNanos(30);
+    long end = System.nanoTime() + TimeUnit.MINUTES.toNanos(60);
     while ((blueGreenDeployment == null || !blueGreenDeployment.status().equalsIgnoreCase("available"))
         && System.nanoTime() < end) {
       try {

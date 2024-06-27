@@ -448,7 +448,7 @@ tasks.register<Test>("test-bg-mysql-multi-az-instance") {
         systemProperty("test-no-openjdk8", "true")
         systemProperty("test-no-aurora", "true")
         systemProperty("test-no-failover", "true")
-        systemProperty("test-no-iam", "true")
+        //systemProperty("test-no-iam", "true")
         systemProperty("test-no-secrets-manager", "true")
         systemProperty("test-no-hikari", "true")
         systemProperty("test-no-instances-2", "true")

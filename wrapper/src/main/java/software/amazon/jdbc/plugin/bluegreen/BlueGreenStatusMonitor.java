@@ -23,6 +23,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -81,8 +82,10 @@ public class BlueGreenStatusMonitor {
   protected final ExecutorService executorService = Executors.newFixedThreadPool(1);
 
   protected final RdsUtils rdsUtils = new RdsUtils();
-  protected boolean canHoldConnection = false;
+  protected boolean canHoldConnection = true;
   protected Connection connection = null;
+  protected HostSpec connectionHostSpec = null;
+
   protected Random random = new Random();
 
   public BlueGreenStatusMonitor(
@@ -102,27 +105,30 @@ public class BlueGreenStatusMonitor {
 
       TimeUnit.SECONDS.sleep(1); // Some delay so the connection is initialized and topology is fetched.
 
-      while (true) {
-        try {
-          BlueGreenStatus currentStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
-          final BlueGreenStatus status = this.getStatus(currentStatus);
-          if (currentStatus == null
-              || (status != null && currentStatus.getCurrentPhase() != status.getCurrentPhase())) {
-            LOGGER.finest("Status changed to: " + status.getCurrentPhase());
+      try {
+        while (true) {
+          try {
+            BlueGreenStatus currentStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
+            final BlueGreenStatus status = this.getStatus(currentStatus);
+            if (currentStatus == null
+                || (status != null && currentStatus.getCurrentPhase() != status.getCurrentPhase())) {
+              LOGGER.finest("Status changed to: " + status.getCurrentPhase());
+            }
+            this.pluginService.setStatus(BlueGreenStatus.class, status, true);
+
+            IntervalType intervalType =
+                checkIntervalTypeMap.getOrDefault(status.getCurrentPhase(), IntervalType.BASELINE);
+            long delay = checkIntervalMap.getOrDefault(intervalType, DEFAULT_CHECK_INTERVAL_MS);
+            this.canHoldConnection = (delay <= TimeUnit.MINUTES.toMillis(5));
+            TimeUnit.MILLISECONDS.sleep(delay);
+
+          } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Unhandled exception while monitoring blue/green status.", ex);
           }
-          this.pluginService.setStatus(BlueGreenStatus.class, status, true);
-
-          IntervalType intervalType =
-              checkIntervalTypeMap.getOrDefault(status.getCurrentPhase(), IntervalType.BASELINE);
-          long delay = checkIntervalMap.getOrDefault(intervalType, DEFAULT_CHECK_INTERVAL_MS);
-          this.canHoldConnection = (delay <= TimeUnit.MINUTES.toMillis(2));
-          TimeUnit.MILLISECONDS.sleep(delay);
-
-        } catch (InterruptedException interruptedException) {
-          throw interruptedException;
-        } catch (Exception ex) {
-          LOGGER.log(Level.WARNING, "Unhandled exception while monitoring blue/green status.", ex);
         }
+      } finally {
+        this.closeConnection();
+        LOGGER.finest("Blue/green status monitoring thread is completed.");
       }
     });
     executorService.shutdown(); // executor accepts no more tasks
@@ -165,8 +171,7 @@ public class BlueGreenStatusMonitor {
    * - instance-3.XYZ.us-east-2.rds.amazonaws.com (10.0.1.105)
    * Resulting map contains both blue and green nodes.
    */
-  protected void collectHostIpAddresses() throws SQLException {
-    final List<HostSpec> hosts = this.pluginService.getHosts();
+  protected void collectHostIpAddresses(final List<HostSpec> hosts) {
 
     for (HostSpec hostSpec : hosts) {
       if (this.rdsUtils.isGreenInstance(hostSpec.getHost())) {
@@ -207,23 +212,37 @@ public class BlueGreenStatusMonitor {
             .collect(Collectors.toMap(k -> k.host, v -> v.correspondingHost)));
   }
 
+  protected void closeConnection() {
+    try {
+      if (this.connection != null && !this.connection.isClosed()) {
+        this.connection.close();
+      }
+    } catch (SQLException sqlException) {
+      // ignore
+    }
+    this.connection = null;
+  }
+
   protected BlueGreenStatus getStatus(final BlueGreenStatus currentStatus) {
     try {
-      if (this.connection == null || !this.connection.isValid(5)) {
-        if (this.connection != null) {
-          try {
-            this.connection.close();
-          } catch (SQLException sqlException) {
-            // ignore
-          }
+      if (this.connection == null || this.connection.isClosed()) {
+        this.closeConnection();
+        if (this.connectionHostSpec == null) {
+          this.connectionHostSpec = this.getHostSpec();
         }
-        final HostSpec hostSpec = this.getHostSpec();
-        if (hostSpec == null) {
+        if (this.connectionHostSpec == null) {
           LOGGER.finest("No node found for blue/green status check.");
           return new BlueGreenStatus(
               BlueGreenPhases.NOT_CREATED, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
         }
-        this.connection = this.getConnection(hostSpec);
+        try {
+          LOGGER.info("Opening monitoring connection to " + this.connectionHostSpec.getHost());
+          this.connection = this.getConnection(this.connectionHostSpec);
+        } catch (SQLException ex) {
+          // can't open connection
+          // let's return the current status and try to open a connection on the next round
+          return currentStatus;
+        }
       }
 
       if (!supportBlueGreen.isStatusAvailable(this.connection)) {
@@ -243,12 +262,40 @@ public class BlueGreenStatusMonitor {
 
       final HashMap<String, BlueGreenPhases> phasesByHost = new HashMap<>();
       final HashSet<BlueGreenPhases> hostPhases = new HashSet<>();
+      final List<HostSpec> hosts = new ArrayList<>();
 
       while (resultSet.next()) {
         final String endpoint = resultSet.getString("endpoint");
+        final int port = resultSet.getInt("port");
         final BlueGreenPhases phase = this.parsePhase(resultSet.getString("blue_green_deployment"));
         phasesByHost.put(endpoint, phase);
         hostPhases.add(phase);
+        final HostSpec hostSpec = this.pluginService.getHostSpecBuilder()
+            .host(endpoint)
+            .hostId(this.getHostId(endpoint))
+            .port(port)
+            .build();
+        hosts.add(hostSpec);
+      }
+
+      // try to reconnect to a green host if possible
+      if (!this.rdsUtils.isGreenInstance(this.connectionHostSpec.getHost())) {
+        final HostSpec candidateHostSpec = this.getHostSpec(hosts);
+        if (candidateHostSpec != null && this.rdsUtils.isGreenInstance(candidateHostSpec.getHost())) {
+          try {
+            LOGGER.info("(candidate) Opening monitoring connection to " + candidateHostSpec.getHost());
+            final Connection candidateConnection = this.getConnection(candidateHostSpec);
+
+            // replace current connection with a candidate one
+            LOGGER.info("Reconnected to green node.");
+            this.closeConnection();
+            this.connectionHostSpec = candidateHostSpec;
+            this.connection = candidateConnection;
+          } catch (SQLException ex) {
+            // can't open connection
+            // continue and try to open a connection on the next round
+          }
+        }
       }
 
       BlueGreenPhases currentPhase;
@@ -271,7 +318,7 @@ public class BlueGreenStatusMonitor {
 
       if (currentPhase == BlueGreenPhases.PREPARATION_TO_SWITCH_OVER) {
         this.pluginService.refreshHostList(this.connection);
-        this.collectHostIpAddresses();
+        this.collectHostIpAddresses(hosts);
       }
 
       return new BlueGreenStatus(currentPhase, this.getHostIpAddresses(), this.getCorrespondingHosts());
@@ -290,17 +337,20 @@ public class BlueGreenStatusMonitor {
       // do nothing
       LOGGER.log(Level.FINEST, "Unhandled exception.", e);
     } finally {
-      if (!this.canHoldConnection && this.connection != null) {
-        try {
-          this.connection.close();
-        } catch (SQLException sqlException) {
-          // ignore
-        }
-        this.connection = null;
+      if (!this.canHoldConnection) {
+        this.closeConnection();
       }
     }
 
     return new BlueGreenStatus(BlueGreenPhases.NOT_CREATED, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+  }
+
+  protected String getHostId(final String endpoint) {
+    if (StringUtils.isNullOrEmpty(endpoint)) {
+      return null;
+    }
+    final String[] parts = endpoint.split("\\.");
+    return parts != null && parts.length > 0 ? parts[0] : null;
   }
 
   protected BlueGreenPhases parsePhase(final String value) {
@@ -320,8 +370,10 @@ public class BlueGreenStatusMonitor {
   }
 
   protected HostSpec getHostSpec() {
+    return this.getHostSpec(this.pluginService.getHosts());
+  }
 
-    final List<HostSpec> hosts = this.pluginService.getHosts();
+  protected HostSpec getHostSpec(final List<HostSpec> hosts) {
 
     HostSpec hostSpec = this.getRandomHost(hosts, HostRole.UNKNOWN, true);
 

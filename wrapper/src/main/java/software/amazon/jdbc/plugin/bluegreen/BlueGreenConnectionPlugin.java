@@ -37,6 +37,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -86,6 +87,8 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected long holdEndTime;
   protected BlueGreenStatus bgStatus = null;
 
+  protected boolean isIamInUse = false;
+
   public BlueGreenConnectionPlugin(
       final @NonNull PluginService pluginService,
       final @NonNull Properties props) {
@@ -131,22 +134,34 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       return connectFunc.call();
     }
 
+    if (isInitialConnection) {
+      this.isIamInUse = this.pluginService.isPluginInUse(IamAuthConnectionPlugin.class);
+    }
+
     this.bgStatus = this.pluginService.getStatus(BlueGreenStatus.class, true);
     final boolean needReroute = this.rejectOrHoldConnect(hostSpec);
+    LOGGER.info("needReroute: " + needReroute);
 
     if (needReroute) {
 
       final Properties copy = PropertyUtils.copyProperties(props);
       copy.setProperty(BG_PLUGIN_REROUTED_CONNECTION_CALL, "true");
+      if (this.isIamInUse) {
+        copy.setProperty(IamAuthConnectionPlugin.IAM_HOST.name, hostSpec.getHost());
+        LOGGER.info("iamHost: " + IamAuthConnectionPlugin.IAM_HOST.getString(copy));
+        LOGGER.info("iamRegion: " + IamAuthConnectionPlugin.IAM_REGION.getString(copy));
+      }
 
-      HostSpec routedHostSpec = this.routeToGreenEndpoint(hostSpec);
+      HostSpec routedHostSpec;
+
+      routedHostSpec = this.routeToGreenEndpoint(hostSpec);
       if (routedHostSpec != null) {
-        LOGGER.finest("Reroute " + hostSpec.getHost() + " to " + routedHostSpec.getHost());
+        LOGGER.info("Reroute (green node) " + hostSpec.getHost() + " to " + routedHostSpec.getHost());
         try {
           return this.pluginService.connect(routedHostSpec, copy);
         } catch (SQLException sqlException) {
           if (this.isCausedBy(sqlException, UnknownHostException.class, false)) {
-            LOGGER.finest("Green node DNS doesn't exist: " + routedHostSpec.getHost());
+            LOGGER.info("Green node DNS doesn't exist: " + routedHostSpec.getHost());
             // let's continue and try IP address instead of green node endpoint...
           } else {
             throw sqlException;
@@ -157,7 +172,7 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
       // ...try green node IP address
       routedHostSpec = this.routeToGreenIpAddress(hostSpec);
       if (routedHostSpec != null) {
-        LOGGER.finest("Reroute " + hostSpec.getHost() + " to " + routedHostSpec.getHost());
+        LOGGER.info("Reroute (IP address) " + hostSpec.getHost() + " to " + routedHostSpec.getHost());
         return this.pluginService.connect(routedHostSpec, copy);
       }
     }
