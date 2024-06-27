@@ -28,6 +28,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.util.StringUtils;
 
 public class SessionStateServiceImpl implements SessionStateService {
 
@@ -427,7 +428,10 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.sessionState.catalog.getValue().isPresent()) {
       this.sessionState.catalog.resetPristineValue();
       this.setupPristineCatalog();
-      newConnection.setCatalog(this.sessionState.catalog.getValue().get());
+      final String currentCatalog = this.sessionState.catalog.getValue().get();
+      if (!StringUtils.isNullOrEmpty(currentCatalog)) {
+        newConnection.setCatalog(currentCatalog);
+      }
     }
 
     if (this.sessionState.schema.getValue().isPresent()) {
@@ -500,7 +504,10 @@ public class SessionStateServiceImpl implements SessionStateService {
     if (this.copySessionState.catalog.canRestorePristine()) {
       try {
         //noinspection OptionalGetWithoutIsPresent
-        connection.setCatalog(this.copySessionState.catalog.getPristineValue().get());
+        final String pristineCatalog = this.copySessionState.catalog.getPristineValue().get();
+        if (!StringUtils.isNullOrEmpty(pristineCatalog)) {
+          connection.setCatalog(pristineCatalog);
+        }
       } catch (final SQLException e) {
         // Ignore any exception
       }
