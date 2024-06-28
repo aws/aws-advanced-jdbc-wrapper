@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -325,6 +326,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
         try {
           switchToReaderConnection(hosts);
         } catch (final SQLException e) {
+          LOGGER.log(Level.FINEST, "Exception:", e);
           if (!isConnectionUsable(currentConnection)) {
             logAndThrowException(Messages.get("ReadWriteSplittingPlugin.errorSwitchingToReader"),
                 SqlState.CONNECTION_UNABLE_TO_CONNECT, e);

@@ -54,7 +54,7 @@ public class ContainerHelper {
   private static final String POSTGRES_CONTAINER_IMAGE_NAME = "postgres:latest";
   private static final String MARIADB_CONTAINER_IMAGE_NAME = "mariadb:10";
   private static final DockerImageName TOXIPROXY_IMAGE =
-      DockerImageName.parse("shopify/toxiproxy:2.1.4");
+      DockerImageName.parse("ghcr.io/shopify/toxiproxy:2.9.0");
 
   private static final int PROXY_CONTROL_PORT = 8474;
   private static final int PROXY_PORT = 8666;
@@ -257,7 +257,7 @@ public class ContainerHelper {
             "app/test/resources/logging-test.properties")
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/resources/simplelogger.properties"),
-            "app/test/simplelogger.properties");
+            "app/test/resources/simplelogger.properties");
   }
 
   protected Long execInContainer(

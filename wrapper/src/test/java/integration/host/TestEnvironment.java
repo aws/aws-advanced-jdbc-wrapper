@@ -35,6 +35,7 @@ import integration.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.AuroraTestUtility;
 import integration.util.ContainerHelper;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -688,6 +689,13 @@ public class TestEnvironment implements AutoCloseable {
       final ToxiproxyClient toxiproxyClient = new ToxiproxyClient(
           container.getHost(),
           container.getMappedPort(PROXY_CONTROL_PORT));
+
+      try {
+        LOGGER.finest(String.format("%s -> %s",
+            instance.getHost(), InetAddress.getByName(instance.getHost()).getHostAddress()));
+      } catch (UnknownHostException e) {
+        LOGGER.finest("Error getting IP address for " + instance.getHost() + " : " + e.getMessage());
+      }
 
       containerHelper.createProxy(
           toxiproxyClient,

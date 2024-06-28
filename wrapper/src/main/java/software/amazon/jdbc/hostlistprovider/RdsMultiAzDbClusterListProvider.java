@@ -170,13 +170,22 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
    * @throws SQLException If unable to retrieve the hostName from the result set
    */
   private HostSpec createHost(final ResultSet resultSet, final String writerNodeId) throws SQLException {
-    String hostName = resultSet.getString("endpoint");
+
+    String hostName = resultSet.getString("endpoint"); // "instance-name.XYZ.us-west-2.rds.amazonaws.com"
+    String instanceName = hostName.substring(0, hostName.indexOf(".")); // "instance-name"
+
+    // "instance-name.XYZ.us-west-2.rds.amazonaws.com" based on cluster instance template
+    final String endpoint = getHostEndpoint(instanceName);
+
     String hostId = resultSet.getString("id");
-    int port = resultSet.getInt("port");
+    int queryPort = resultSet.getInt("port");
+    final int port = this.clusterInstanceTemplate.isPortSpecified()
+        ? this.clusterInstanceTemplate.getPort()
+        : queryPort;
     final boolean isWriter = hostId.equals(writerNodeId);
 
     final HostSpec hostSpec = this.hostListProviderService.getHostSpecBuilder()
-        .host(hostName)
+        .host(endpoint)
         .port(port)
         .role(isWriter ? HostRole.WRITER : HostRole.READER)
         .availability(HostAvailability.AVAILABLE)
@@ -186,5 +195,16 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
     hostSpec.addAlias(hostName);
     hostSpec.setHostId(hostId);
     return hostSpec;
+  }
+
+  /**
+   * Build a host dns endpoint based on host/node name.
+   *
+   * @param nodeName A host name.
+   * @return Host dns endpoint
+   */
+  private String getHostEndpoint(final String nodeName) {
+    final String host = this.clusterInstanceTemplate.getHost();
+    return host.replace("?", nodeName);
   }
 }

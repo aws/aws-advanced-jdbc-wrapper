@@ -17,6 +17,7 @@
 package integration.container;
 
 import static java.util.Arrays.asList;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.platform.commons.util.AnnotationUtils.isAnnotated;
 
@@ -53,6 +54,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
+import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
@@ -176,6 +178,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                           throw ex;
                         }
                         instanceIDs = new ArrayList<>();
+                        throw ex; // TODO: debug
                       }
                     }
                     assertTrue(instanceIDs.size() > 0);
@@ -191,19 +194,22 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                     dbInfo.moveInstanceFirst(currentWriter);
                     testInfo.getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
 
-                    // Wait for cluster URL to resolve to the writer
-                    startTimeNano = System.nanoTime();
-                    String clusterInetAddress = auroraUtil.hostToIP(dbInfo.getClusterEndpoint());
-                    String writerInetAddress =
-                        auroraUtil.hostToIP(dbInfo.getInstances().get(0).getHost());
-                    while (!writerInetAddress.equals(clusterInetAddress)
-                        && TimeUnit.NANOSECONDS.toMinutes(System.nanoTime() - startTimeNano) < 5) {
-                      clusterInetAddress = auroraUtil.hostToIP(dbInfo.getClusterEndpoint());
-                      writerInetAddress =
-                          auroraUtil.hostToIP(dbInfo.getInstances().get(0).getHost());
-                      Thread.sleep(5000);
+                    // Wait for cluster endpoint to resolve to the writer
+                    auroraUtil.waitDnsEqual(
+                        dbInfo.getClusterEndpoint(),
+                        dbInfo.getInstances().get(0).getHost(),
+                        TimeUnit.MINUTES.toSeconds(5),
+                        true);
+
+                    if (instanceIDs.size() > 1) {
+                      // Wait for cluster RO endpoint to resolve NOT to the writer
+                      auroraUtil.waitDnsNotEqual(
+                          dbInfo.getClusterReadOnlyEndpoint(),
+                          dbInfo.getInstances().get(0).getHost(),
+                          TimeUnit.MINUTES.toSeconds(10),
+                          true);
                     }
-                    assertTrue(writerInetAddress.equals(clusterInetAddress));
+
                   } else {
                     instanceIDs =
                         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
@@ -211,7 +217,15 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                             .collect(Collectors.toList());
                   }
 
-                  auroraUtil.makeSureInstancesUp(instanceIDs);
+                  boolean allInstancesUp = auroraUtil.makeSureInstancesUp(
+                      instanceIDs, false, TimeUnit.MINUTES.toSeconds(3));
+
+                  if (!allInstancesUp) {
+                    auroraUtil.rebootCluster(testInfo.getAuroraClusterName());
+                    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName(), "rebooting");
+                    auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
+                    auroraUtil.makeSureInstancesUp(instanceIDs, true, TimeUnit.MINUTES.toSeconds(10));
+                  }
                 }
 
                 TestAuroraHostListProvider.clearCache();
@@ -220,32 +234,20 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                 TargetDriverDialectManager.resetCustomDialect();
                 MonitorThreadContainer.releaseInstance();
                 MonitorServiceImpl.clearCache();
+                ConnectionProviderManager.releaseResources();
+                ConnectionProviderManager.resetProvider();
+                ConnectionProviderManager.resetConnectionInitFunc();
                 software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
 
                 if (tracesEnabled) {
                     AWSXRay.endSegment();
                 }
+                LOGGER.finest("Completed.");
               }
             },
             new AfterEachCallback() {
               @Override
               public void afterEach(ExtensionContext context) throws Exception {
-
-                TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
-                TestEnvironmentRequest testRequest = testInfo.getRequest();
-                final DatabaseEngineDeployment deployment = testRequest.getDatabaseEngineDeployment();
-                if ((deployment == DatabaseEngineDeployment.AURORA
-                    || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ)
-                    && testRequest.getFeatures().contains(TestEnvironmentFeatures.FAILOVER_SUPPORTED)) {
-
-                  AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-                  List<String> instanceIDs;
-                  instanceIDs =
-                      TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
-                          .stream().map(TestInstanceInfo::getInstanceId)
-                          .collect(Collectors.toList());
-                  auroraUtil.makeSureInstancesUp(instanceIDs);
-                }
 
                 Set<TestEnvironmentFeatures> features = TestEnvironment.getCurrent()
                     .getInfo()
@@ -258,6 +260,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   TimeUnit.SECONDS.sleep(3); // let OTLP container to send all collected metrics and traces
                 }
                 RdsUtils.clearCache();
+
+                LOGGER.finest("Completed.");
               }
             });
       }

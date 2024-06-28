@@ -19,6 +19,7 @@ package software.amazon.jdbc.util;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpirationCache<K, V> {
@@ -31,6 +32,8 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
     monitoringThread.setDaemon(true);
     return monitoringThread;
   });
+  protected static boolean isInitialized = false;
+  protected static ReentrantLock initLock = new ReentrantLock();
 
   public SlidingExpirationCacheWithCleanupThread() {
     super();
@@ -53,22 +56,32 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
   }
 
   protected void initCleanupThread() {
-    cleanupThreadPool.submit(() -> {
-      while (true) {
-        TimeUnit.NANOSECONDS.sleep(this.cleanupIntervalNanos);
+    if (!isInitialized) {
+      initLock.lock();
+      try {
+        if (!isInitialized) {
+          isInitialized = true;
+          cleanupThreadPool.submit(() -> {
+            while (true) {
+              TimeUnit.NANOSECONDS.sleep(this.cleanupIntervalNanos);
 
-        LOGGER.finest("Cleaning up...");
-        this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
-        cache.forEach((key, value) -> {
-          try {
-            removeIfExpired(key);
-          } catch (Exception ex) {
-            // ignore
-          }
-        });
+              LOGGER.finest("Cleaning up...");
+              this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
+              cache.forEach((key, value) -> {
+                try {
+                  removeIfExpired(key);
+                } catch (Exception ex) {
+                  // ignore
+                }
+              });
+            }
+          });
+          cleanupThreadPool.shutdown();
+        }
+      } finally {
+        initLock.unlock();
       }
-    });
-    cleanupThreadPool.shutdown();
+    }
   }
 
   @Override

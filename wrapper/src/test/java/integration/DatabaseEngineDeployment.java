@@ -19,6 +19,6 @@ package integration;
 public enum DatabaseEngineDeployment {
   DOCKER,
   RDS,
-  RDS_MULTI_AZ,
+  RDS_MULTI_AZ, // MAZ cluster
   AURORA
 }

@@ -222,7 +222,10 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
     final HikariDataSource ds = databasePools.computeIfAbsent(
         new PoolKey(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
-        (lambdaPoolKey) -> createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
+        (lambdaPoolKey) -> {
+          LOGGER.finest(() -> "Create a new pool for " + lambdaPoolKey.toString());
+          return createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect);
+        },
         poolExpirationCheckNanos
     );
 

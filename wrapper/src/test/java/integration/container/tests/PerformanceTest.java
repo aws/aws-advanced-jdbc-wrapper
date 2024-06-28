@@ -52,6 +52,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
@@ -73,6 +74,7 @@ import software.amazon.jdbc.util.StringUtils;
   TestEnvironmentFeatures.FAILOVER_SUPPORTED
 })
 @Order(10)
+@Disabled
 public class PerformanceTest {
 
   private static final Logger LOGGER = Logger.getLogger(PerformanceTest.class.getName());

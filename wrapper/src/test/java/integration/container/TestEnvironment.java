@@ -36,6 +36,8 @@ import io.opentelemetry.sdk.metrics.export.MetricReader;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -161,6 +163,12 @@ public class TestEnvironment {
       if (proxies == null || proxies.isEmpty()) {
         throw new RuntimeException("Proxy for " + instance.getInstanceId() + " is not found.");
       }
+      try {
+        LOGGER.finest(String.format("%s -> %s",
+            instance.getHost(), InetAddress.getByName(instance.getHost()).getHostAddress()));
+      } catch (UnknownHostException e) {
+        LOGGER.finest("Error getting IP address for " + instance.getHost() + " : " + e.getMessage());
+      }
       environment.proxies.put(instance.getInstanceId(), proxies.get(0));
     }
 
@@ -173,6 +181,7 @@ public class TestEnvironment {
               client,
               environment.info.getDatabaseInfo().getClusterEndpoint(),
               environment.info.getDatabaseInfo().getClusterEndpointPort());
+
       environment.proxies.put(environment.info.getProxyDatabaseInfo().getClusterEndpoint(), proxy);
     }
 

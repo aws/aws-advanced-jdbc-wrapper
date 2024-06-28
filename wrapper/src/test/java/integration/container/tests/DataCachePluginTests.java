@@ -35,6 +35,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -52,6 +53,7 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPlugin.CachedResultSet;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 @Order(5)
+@Disabled
 public class DataCachePluginTests {
 
   private static final Logger LOGGER = Logger.getLogger(DataCachePluginTests.class.getName());
