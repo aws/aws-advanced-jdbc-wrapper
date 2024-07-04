@@ -1,7 +1,7 @@
 # Aurora Connection Tracker Plugin
 
 This plugin tracks all the opened connections. In the event of a cluster failover, this plugin will close all the impacted connections.
-This plugin is enabled by default.
+If no plugins are explicitly specified, this plugin is enabled by default.
 
 ## Use Case
 User applications can have two types of connections:
