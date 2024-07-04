@@ -170,11 +170,11 @@ public class RdsHostListProvider implements DynamicHostListProvider {
       HostSpecBuilder hostSpecBuilder = this.hostListProviderService.getHostSpecBuilder();
       this.clusterInstanceTemplate =
           CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties) == null
-              ? hostSpecBuilder.host(rdsHelper.getRdsInstanceHostPattern(originalUrl)).build()
+              ? hostSpecBuilder.host(rdsHelper.getRdsInstanceHostPattern(this.initialHostSpec.getHostAndPort())).build()
               : hostSpecBuilder.host(CLUSTER_INSTANCE_HOST_PATTERN.getString(this.properties)).build();
       validateHostPatternSetting(this.clusterInstanceTemplate.getHost());
 
-      this.rdsUrlType = rdsHelper.identifyRdsType(originalUrl);
+      this.rdsUrlType = rdsHelper.identifyRdsType(this.initialHostSpec.getHost());
 
       final String clusterIdSetting = CLUSTER_ID.getString(this.properties);
       if (!StringUtils.isNullOrEmpty(clusterIdSetting)) {
@@ -185,14 +185,13 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         this.clusterId = this.initialHostSpec.getUrl();
       } else if (rdsUrlType.isRds()) {
         final ClusterSuggestedResult clusterSuggestedResult =
-            getSuggestedClusterId(this.initialHostSpec.getUrl());
-        if (clusterSuggestedResult != null && !StringUtils.isNullOrEmpty(
-            clusterSuggestedResult.clusterId)) {
+            getSuggestedClusterId(this.initialHostSpec.getHostAndPort());
+        if (clusterSuggestedResult != null && !StringUtils.isNullOrEmpty(clusterSuggestedResult.clusterId)) {
           this.clusterId = clusterSuggestedResult.clusterId;
           this.isPrimaryClusterId = clusterSuggestedResult.isPrimaryClusterId;
         } else {
           final String clusterRdsHostUrl =
-              this.rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getUrl());
+              this.rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getHostAndPort());
           if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
             this.clusterId = this.clusterInstanceTemplate.isPortSpecified()
                 ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
@@ -284,7 +283,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
         continue;
       }
       for (final HostSpec host : hosts) {
-        if (host.getUrl().equals(url)) {
+        if (host.getHostAndPort().equals(url)) {
           LOGGER.finest(() -> Messages.get("RdsHostListProvider.suggestedClusterId",
               new Object[] {key, url}));
           return new ClusterSuggestedResult(key, isPrimaryCluster);

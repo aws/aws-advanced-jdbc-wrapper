@@ -436,7 +436,7 @@ class RdsHostListProviderTest {
     assertFalse(provider1.isPrimaryClusterId);
     assertTrue(provider2.isPrimaryClusterId);
     assertEquals(2, RdsHostListProvider.topologyCache.size());
-    assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/",
+    assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
         RdsHostListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
 
     // RdsHostListProvider.logCache();

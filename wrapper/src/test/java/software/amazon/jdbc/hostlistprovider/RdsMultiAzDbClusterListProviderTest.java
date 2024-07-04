@@ -418,7 +418,7 @@ class RdsMultiAzDbClusterListProviderTest {
     assertFalse(provider1.isPrimaryClusterId);
     assertTrue(provider2.isPrimaryClusterId);
     assertEquals(2, RdsMultiAzDbClusterListProvider.topologyCache.size());
-    assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com/",
+    assertEquals("cluster-a.cluster-xyz.us-east-2.rds.amazonaws.com",
         RdsMultiAzDbClusterListProvider.suggestedPrimaryClusterIdCache.get(provider1.clusterId));
 
     // RdsMultiAzDbClusterListProvider.logCache();
