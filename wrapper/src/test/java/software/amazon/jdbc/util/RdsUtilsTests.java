@@ -70,29 +70,31 @@ public class RdsUtilsTests {
   private static final String usEastRegionElbUrl =
       "elb-name.elb.us-east-2.amazonaws.com";
 
-  
-  private static final String usIsobEastRegionCluster =
-      "database-test-name.cluster-XYZ.us-isob-east-1.rds.sc2s.sgov.gov";
-  private static final String usIsobEastRegionClusterReadOnly =
-      "database-test-name.cluster-ro-XYZ.us-isob-east-1.rds.sc2s.sgov.gov";
-  private static final String usIsobEastRegionInstance =
-      "instance-test-name.XYZ.us-isob-east-1.rds.sc2s.sgov.gov";
-  private static final String usIsobEastRegionProxy =
-      "proxy-test-name.proxy-XYZ.us-isob-east-1.rds.sc2s.sgov.gov";
-  private static final String usIsobEastRegionCustomDomain =
-      "custom-test-name.cluster-custom-XYZ.us-isob-east-1.rds.sc2s.sgov.gov";
 
-  
+  private static final String usIsobEastRegionCluster =
+      "database-test-name.cluster-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
+  private static final String usIsobEastRegionClusterReadOnly =
+      "database-test-name.cluster-ro-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
+  private static final String usIsobEastRegionInstance =
+      "instance-test-name.XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
+  private static final String usIsobEastRegionProxy =
+      "proxy-test-name.proxy-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
+  private static final String usIsobEastRegionCustomDomain =
+      "custom-test-name.cluster-custom-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
+
+
+  private static final String usGovEastRegionCluster =
+      "database-test-name.cluster-XYZ.rds.us-gov-east-1.amazonaws.com";
   private static final String usIsoEastRegionCluster =
-      "database-test-name.cluster-XYZ.us-iso-east-1.rds.c2s.ic.gov";
+      "database-test-name.cluster-XYZ.rds.us-iso-east-1.c2s.ic.gov";
   private static final String usIsoEastRegionClusterReadOnly =
-      "database-test-name.cluster-ro-XYZ.us-iso-east-1.rds.c2s.ic.gov";
+      "database-test-name.cluster-ro-XYZ.rds.us-iso-east-1.c2s.ic.gov";
   private static final String usIsoEastRegionInstance =
-      "instance-test-name.XYZ.us-iso-east-1.rds.c2s.ic.gov";
+      "instance-test-name.XYZ.rds.us-iso-east-1.c2s.ic.gov";
   private static final String usIsoEastRegionProxy =
-      "proxy-test-name.proxy-XYZ.us-iso-east-1.rds.c2s.ic.gov";
+      "proxy-test-name.proxy-XYZ.rds.us-iso-east-1.c2s.ic.gov";
   private static final String usIsoEastRegionCustomDomain =
-      "custom-test-name.cluster-custom-XYZ.us-iso-east-1.rds.c2s.ic.gov";
+      "custom-test-name.cluster-custom-XYZ.rds.us-iso-east-1.c2s.ic.gov";
 
   @BeforeEach
   public void setupTests() {
@@ -143,14 +145,17 @@ public class RdsUtilsTests {
     assertEquals(expectedHostPattern, target.getRdsInstanceHostPattern(usEastRegionProxy));
     assertEquals(expectedHostPattern, target.getRdsInstanceHostPattern(usEastRegionCustomDomain));
 
-    final String isobExpectedHostPattern = "?.XYZ.us-isob-east-1.rds.sc2s.sgov.gov";
+    final String govExpectedHostPattern = "?.XYZ.rds.us-gov-east-1.amazonaws.com";
+    assertEquals(govExpectedHostPattern, target.getRdsInstanceHostPattern(usGovEastRegionCluster));
+
+    final String isobExpectedHostPattern = "?.XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionCluster));
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionClusterReadOnly));
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionInstance));
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionProxy));
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionCustomDomain));
 
-    final String isoExpectedHostPattern = "?.XYZ.us-iso-east-1.rds.c2s.ic.gov";
+    final String isoExpectedHostPattern = "?.XYZ.rds.us-iso-east-1.c2s.ic.gov";
     assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionCluster));
     assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionClusterReadOnly));
     assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionInstance));
@@ -214,13 +219,13 @@ public class RdsUtilsTests {
     assertFalse(target.isWriterClusterDns(usEastRegionProxy));
     assertFalse(target.isWriterClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isWriterClusterDns(usEastRegionElbUrl));
-    
+
     assertTrue(target.isWriterClusterDns(usIsobEastRegionCluster));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionClusterReadOnly));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionInstance));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionProxy));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionCustomDomain));
-    
+
     assertTrue(target.isWriterClusterDns(usIsoEastRegionCluster));
     assertFalse(target.isWriterClusterDns(usIsoEastRegionClusterReadOnly));
     assertFalse(target.isWriterClusterDns(usIsoEastRegionInstance));
@@ -248,13 +253,13 @@ public class RdsUtilsTests {
     assertFalse(target.isReaderClusterDns(usEastRegionProxy));
     assertFalse(target.isReaderClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isReaderClusterDns(usEastRegionElbUrl));
-    
+
     assertFalse(target.isReaderClusterDns(usIsobEastRegionCluster));
     assertTrue(target.isReaderClusterDns(usIsobEastRegionClusterReadOnly));
     assertFalse(target.isReaderClusterDns(usIsobEastRegionInstance));
     assertFalse(target.isReaderClusterDns(usIsobEastRegionProxy));
     assertFalse(target.isReaderClusterDns(usIsobEastRegionCustomDomain));
-    
+
     assertFalse(target.isReaderClusterDns(usIsoEastRegionCluster));
     assertTrue(target.isReaderClusterDns(usIsoEastRegionClusterReadOnly));
     assertFalse(target.isReaderClusterDns(usIsoEastRegionInstance));
@@ -283,14 +288,17 @@ public class RdsUtilsTests {
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionProxy));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionCustomDomain));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionElbUrl));
-    
+
+    final String govExpectedHostPattern = "us-gov-east-1";
+    assertEquals(govExpectedHostPattern, target.getRdsRegion(usGovEastRegionCluster));
+
     final String isobExpectedHostPattern = "us-isob-east-1";
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionCluster));
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionClusterReadOnly));
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionInstance));
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionProxy));
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionCustomDomain));
-    
+
     final String isoExpectedHostPattern = "us-iso-east-1";
     assertEquals(isoExpectedHostPattern, target.getRdsRegion(usIsoEastRegionCluster));
     assertEquals(isoExpectedHostPattern, target.getRdsRegion(usIsoEastRegionClusterReadOnly));
@@ -316,7 +324,6 @@ public class RdsUtilsTests {
   public void testBrokenPathsHostPattern() {
     final String incorrectChinaHostPattern = "?.rds.cn-northwest-1.rds.amazonaws.com.cn";
     assertEquals(incorrectChinaHostPattern, target.getRdsInstanceHostPattern(extraRdsChinaPath));
-    assertEquals("?", target.getRdsInstanceHostPattern(missingCnChinaPath));
     assertEquals("?", target.getRdsInstanceHostPattern(missingRegionChinaPath));
   }
 
@@ -326,7 +333,6 @@ public class RdsUtilsTests {
     final String chinaExpectedRegion = "cn-northwest-1";
     assertEquals(chinaExpectedRegion, target.getRdsRegion(extraRdsChinaPath));
 
-    assertNull(target.getRdsRegion(missingCnChinaPath));
     assertNull(target.getRdsRegion(missingRegionChinaPath));
   }
 
@@ -341,7 +347,6 @@ public class RdsUtilsTests {
   public void testBrokenPathsWriterCluster() {
     // Expected to return true with correct cluster paths
     assertFalse(target.isWriterClusterDns(extraRdsChinaPath));
-    assertFalse(target.isWriterClusterDns(missingCnChinaPath));
     assertFalse(target.isWriterClusterDns(missingRegionChinaPath));
   }
 
@@ -349,7 +354,6 @@ public class RdsUtilsTests {
   public void testBrokenPathsRdsDns() {
     // Expected to return true with correct cluster paths
     assertTrue(target.isRdsDns(extraRdsChinaPath));
-    assertFalse(target.isRdsDns(missingCnChinaPath));
     assertFalse(target.isRdsDns(missingRegionChinaPath));
   }
 

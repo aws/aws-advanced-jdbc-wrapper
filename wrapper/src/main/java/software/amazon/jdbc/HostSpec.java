@@ -184,6 +184,10 @@ public class HostSpec {
     return url;
   }
 
+  public String getHostAndPort() {
+    return isPortSpecified() ? host + ":" + port : host;
+  }
+
   public String getHostId() {
     return hostId;
   }
