@@ -44,8 +44,8 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   private static final String NODE_ID_QUERY = "SELECT @@server_id";
   private static final String IS_READER_QUERY = "SELECT @@read_only";
 
-  private static final EnumSet<FailoverRestriction> TASK_A_RESTRICTIONS =
-      EnumSet.of(FailoverRestriction.DISABLE_TASK_A);
+  private static final EnumSet<FailoverRestriction> RDS_MULTI_AZ_RESTRICTIONS =
+      EnumSet.of(FailoverRestriction.DISABLE_TASK_A, FailoverRestriction.ENABLE_WRITER_IN_TASK_B);
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -117,6 +117,6 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
 
   @Override
   public EnumSet<FailoverRestriction> getFailoverRestrictions() {
-    return TASK_A_RESTRICTIONS;
+    return RDS_MULTI_AZ_RESTRICTIONS;
   }
 }

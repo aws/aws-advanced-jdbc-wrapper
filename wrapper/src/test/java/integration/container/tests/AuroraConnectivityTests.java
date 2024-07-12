@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import integration.DatabaseEngineDeployment;
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
@@ -35,7 +34,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -69,8 +67,8 @@ public class AuroraConnectivityTests {
     props.setProperty(
         PropertyDefinition.PASSWORD.name,
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
-    DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+    props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
+    props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "10000");
     props.setProperty(PropertyDefinition.PLUGINS.name, "efm");
 
     String url = ConnectionStringHelper.getWrapperReaderClusterUrl();

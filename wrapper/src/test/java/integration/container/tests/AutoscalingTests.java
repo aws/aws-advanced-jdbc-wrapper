@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.zaxxer.hikari.HikariConfig;
 import integration.DatabaseEngineDeployment;
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
@@ -36,7 +35,6 @@ import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
 import integration.util.AuroraTestUtility;
-import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -69,8 +67,9 @@ public class AutoscalingTests {
 
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
+
     return props;
   }
 

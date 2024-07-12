@@ -326,7 +326,7 @@ public class MonitorImpl implements Monitor {
     }
 
     LOGGER.finest(() -> Messages.get(
-        "MonitorImpl.startMonitoringThread",
+        "MonitorImpl.stopMonitoringThread",
         new Object[]{this.hostSpec.getHost()}));
   }
 

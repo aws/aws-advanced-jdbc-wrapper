@@ -116,7 +116,8 @@ public class Driver implements java.sql.Driver {
       PropertyDefinition.DATABASE.set(props, databaseName);
     }
 
-    LOGGER.finest(() -> PropertyUtils.logProperties(props, "Connecting with properties: \n"));
+    LOGGER.finest(() -> PropertyUtils.logProperties(
+        PropertyUtils.maskProperties(props), "Connecting with properties: \n"));
 
     final String profileName = PropertyDefinition.PROFILE_NAME.getString(props);
     ConfigurationProfile configurationProfile = null;

@@ -244,7 +244,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     final List<HostSpec> hostsByPriority = new ArrayList<>(activeReaders);
     final int numOfReaders = activeReaders.size() + downHostList.size();
-    if (writerHost != null && (!this.enableFailoverStrictReader || numOfReaders == 0)) {
+    if (writerHost != null
+        && (!this.enableFailoverStrictReader || numOfReaders == 0)) {
       hostsByPriority.add(writerHost);
     }
     hostsByPriority.addAll(downHostList);
@@ -277,9 +278,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   public List<HostSpec> getReaderHostsByPriority(final List<HostSpec> hosts) {
     final List<HostSpec> activeReaders = new ArrayList<>();
     final List<HostSpec> downHostList = new ArrayList<>();
+    HostSpec writerHost = null;
 
     for (final HostSpec host : hosts) {
       if (host.getRole() == HostRole.WRITER) {
+        writerHost = host;
         continue;
       }
       if (host.getRawAvailability() == HostAvailability.AVAILABLE) {
@@ -294,6 +297,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
     final List<HostSpec> hostsByPriority = new ArrayList<>();
     hostsByPriority.addAll(activeReaders);
     hostsByPriority.addAll(downHostList);
+
+    final int numOfReaders = activeReaders.size() + downHostList.size();
+    if (writerHost != null && (numOfReaders == 0
+          || this.pluginService.getDialect().getFailoverRestrictions()
+                .contains(FailoverRestriction.ENABLE_WRITER_IN_TASK_B))) {
+      hostsByPriority.add(writerHost);
+    }
 
     return hostsByPriority;
   }

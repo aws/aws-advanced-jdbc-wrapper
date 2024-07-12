@@ -287,7 +287,7 @@ public class AwsIamIntegrationTest {
         TestEnvironment.getCurrent().getInfo().getRegion());
     props.setProperty(PropertyDefinition.USER.name, user);
     props.setProperty(PropertyDefinition.PASSWORD.name, password);
-    DriverHelper.setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, false);
+    props.setProperty(PropertyDefinition.TCP_KEEP_ALIVE.name, "false");
     return props;
   }
 

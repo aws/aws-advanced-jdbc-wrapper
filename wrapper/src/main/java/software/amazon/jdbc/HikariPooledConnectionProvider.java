@@ -195,8 +195,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     HostSpec connectionHostSpec = hostSpec;
 
     if (PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props)
-        && this.rdsUtils.isRdsDns(hostSpec.getHost())
-        && this.rdsUtils.isGreenInstance(hostSpec.getHost())) {
+        && rdsUtils.isRdsDns(hostSpec.getHost())
+        && rdsUtils.isGreenInstance(hostSpec.getHost())) {
 
       // check DNS for such green host name
       InetAddress resolvedAddress = null;
@@ -209,7 +209,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       if (resolvedAddress == null) {
         // Green node DNS doesn't exist
 
-        final String fixedHost = this.rdsUtils.removeGreenInstancePrefix(hostSpec.getHost());
+        final String fixedHost = rdsUtils.removeGreenInstancePrefix(hostSpec.getHost());
         connectionHostSpec = new HostSpecBuilder(hostSpec.getHostAvailabilityStrategy())
             .copyFrom(hostSpec)
             .host(fixedHost)
@@ -245,6 +245,16 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   @Override
   public void releaseResources() {
+    databasePools.getEntries().forEach((poolKey, pool) -> {
+      if (!pool.isClosed()) {
+        pool.close();
+      }
+    });
+    databasePools.clear();
+  }
+
+  // For testing purposes
+  public static void clearCache() {
     databasePools.getEntries().forEach((poolKey, pool) -> {
       if (!pool.isClosed()) {
         pool.close();

@@ -211,8 +211,9 @@ public class ReadWriteSplittingPerformanceTest {
 
   protected Properties initNoPluginPropsWithTimeouts() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    DriverHelper.setConnectTimeout(props, CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, TIMEOUT_SEC, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
+
     return props;
   }
 

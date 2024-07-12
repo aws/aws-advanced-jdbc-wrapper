@@ -110,8 +110,8 @@ public class BasicConnectivityTests {
     LOGGER.info(testDriver.toString());
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
-    DriverHelper.setConnectTimeout(testDriver, props, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
+    props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
+    props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "10000");
 
     String url =
         ConnectionStringHelper.getWrapperUrl(
@@ -189,8 +189,8 @@ public class BasicConnectivityTests {
     LOGGER.info(TestEnvironment.getCurrent().getCurrentDriver().toString());
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
-    DriverHelper.setConnectTimeout(props, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(props, 10, TimeUnit.SECONDS);
+    PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
 
     TestInstanceInfo instanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);

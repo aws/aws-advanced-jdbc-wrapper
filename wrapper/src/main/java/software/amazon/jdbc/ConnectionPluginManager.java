@@ -581,6 +581,12 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   @Override
   public <T> T unwrap(Class<T> iface) throws SQLException {
+    if (iface == ConnectionPluginManager.class) {
+      return iface.cast(this);
+    }
+    if (iface == PluginService.class) {
+      return iface.cast(this.pluginService);
+    }
     if (this.plugins == null) {
       return null;
     }

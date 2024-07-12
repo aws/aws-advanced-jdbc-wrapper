@@ -20,7 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -34,7 +34,8 @@ public class RdsPgDialect extends PgDialect {
 
   private static final Logger LOGGER = Logger.getLogger(RdsPgDialect.class.getName());
 
-  private static final List<String> dialectUpdateCandidates = Collections.singletonList(
+  private static final List<String> dialectUpdateCandidates = Arrays.asList(
+      DialectCodes.RDS_MULTI_AZ_PG_CLUSTER,
       DialectCodes.AURORA_PG);
 
   private static final String extensionsSql = "SELECT (setting LIKE '%rds_tools%') AS rds_tools, "

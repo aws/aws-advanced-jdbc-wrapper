@@ -16,6 +16,7 @@
 
 package integration.container.tests;
 
+import static integration.util.AuroraTestUtility.executeWithTimeout;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,6 +43,7 @@ import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
+import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
@@ -57,7 +59,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
-import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
+import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -80,77 +82,80 @@ public class HikariTests {
 
   @TestTemplate
   public void testOpenConnectionWithUrl() throws SQLException {
-    final HikariDataSource dataSource = new HikariDataSource();
-    final String url = ConnectionStringHelper.getWrapperUrl();
-    dataSource.setJdbcUrl(url);
-    dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
-    dataSource.addDataSourceProperty(PLUGINS.name, "");
+    try (final HikariDataSource dataSource = new HikariDataSource()) {
+      final String url = ConnectionStringHelper.getWrapperUrl();
+      dataSource.setJdbcUrl(url);
+      dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      dataSource.addDataSourceProperty(PLUGINS.name, "");
 
-    final Connection conn = dataSource.getConnection();
+      final Connection conn = dataSource.getConnection();
 
-    assertTrue(conn instanceof HikariProxyConnection);
-    final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
+      assertTrue(conn instanceof HikariProxyConnection);
+      final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
 
-    assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
-    final ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
-    assertTrue(connWrapper.isWrapperFor(DriverHelper.getConnectionClass()));
+      assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
+      final ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
+      assertTrue(connWrapper.isWrapperFor(DriverHelper.getConnectionClass()));
 
-    assertTrue(conn.isValid(10));
-    conn.close();
+      assertTrue(conn.isValid(10));
+      conn.close();
+    }
   }
 
   @TestTemplate
   public void testOpenConnectionWithDataSourceClassName() throws SQLException {
 
-    final HikariDataSource dataSource = new HikariDataSource();
-    dataSource.setDataSourceClassName(AwsWrapperDataSource.class.getName());
+    try (final HikariDataSource dataSource = new HikariDataSource()) {
 
-    // Configure the connection pool:
-    dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      dataSource.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
-    // Configure AwsWrapperDataSource:
-    dataSource.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
-    dataSource.addDataSourceProperty("serverName",
-        TestEnvironment.getCurrent()
-            .getInfo()
-            .getDatabaseInfo()
-            .getInstances()
-            .get(0)
-            .getHost());
-    dataSource.addDataSourceProperty(PropertyDefinition.DATABASE.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+      // Configure the connection pool:
+      dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
-    // Specify the driver-specific DataSource for AwsWrapperDataSource:
-    dataSource.addDataSourceProperty("targetDataSourceClassName",
-        DriverHelper.getDataSourceClassname());
+      // Configure AwsWrapperDataSource:
+      dataSource.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
+      dataSource.addDataSourceProperty("serverName",
+          TestEnvironment.getCurrent()
+              .getInfo()
+              .getDatabaseInfo()
+              .getInstances()
+              .get(0)
+              .getHost());
+      dataSource.addDataSourceProperty(PropertyDefinition.DATABASE.name,
+          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
-    // Configuring driver-specific DataSource:
-    final Properties targetDataSourceProps = new Properties();
-    targetDataSourceProps.setProperty(PLUGINS.name, "");
+      // Specify the driver-specific DataSource for AwsWrapperDataSource:
+      dataSource.addDataSourceProperty("targetDataSourceClassName",
+          DriverHelper.getDataSourceClassname());
 
-    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
-        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
-        == DatabaseEngine.MYSQL) {
-      // Connecting to Mysql database with MariaDb driver requires a configuration parameter
-      // "permitMysqlScheme"
-      targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+      // Configuring driver-specific DataSource:
+      final Properties targetDataSourceProps = new Properties();
+      targetDataSourceProps.setProperty(PLUGINS.name, "");
+
+      if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+          && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
+          == DatabaseEngine.MYSQL) {
+        // Connecting to Mysql database with MariaDb driver requires a configuration parameter
+        // "permitMysqlScheme"
+        targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+      }
+
+      dataSource.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
+
+      final Connection conn = dataSource.getConnection();
+
+      assertTrue(conn instanceof HikariProxyConnection);
+      final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
+
+      assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
+      final ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
+      assertTrue(connWrapper.isWrapperFor(DriverHelper.getConnectionClass()));
+
+      assertTrue(conn.isValid(10));
+      conn.close();
     }
-
-    dataSource.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
-
-    final Connection conn = dataSource.getConnection();
-
-    assertTrue(conn instanceof HikariProxyConnection);
-    final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
-
-    assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
-    final ConnectionWrapper connWrapper = (ConnectionWrapper) hikariConn.unwrap(Connection.class);
-    assertTrue(connWrapper.isWrapperFor(DriverHelper.getConnectionClass()));
-
-    assertTrue(conn.isValid(10));
-    conn.close();
   }
 
   /**
@@ -161,24 +166,37 @@ public class HikariTests {
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testFailoverLostConnection() throws SQLException {
+
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
     final Properties customProps = new Properties();
     PLUGINS.set(customProps, "failover");
     FAILOVER_TIMEOUT_MS.set(customProps, Integer.toString(1));
-    DriverHelper.setSocketTimeout(customProps, 1, TimeUnit.SECONDS);
+    PropertyDefinition.SOCKET_TIMEOUT.set(customProps, String.valueOf(TimeUnit.SECONDS.toMillis(1)));
 
-    final HikariDataSource dataSource = createDataSource(customProps);
+    try (final HikariDataSource dataSource = createDataSource(customProps)) {
 
-    try (Connection conn = dataSource.getConnection()) {
-      assertTrue(conn.isValid(5));
+      try (Connection conn = dataSource.getConnection()) {
+        assertTrue(conn.isValid(5));
 
-      ProxyHelper.disableAllConnectivity();
+        ProxyHelper.disableAllConnectivity();
 
-      assertThrows(FailoverFailedSQLException.class, () -> AuroraFailoverTest.auroraUtil.queryInstanceId(conn));
-      assertFalse(conn.isValid(5));
+        assertThrows(FailoverFailedSQLException.class, () ->
+            // It's expected that the following statement executes in matter of seconds
+            // (since we rely on small socket timeout and small failover timeout). However,
+            // if it takes more time, we'd like to exit by timeout rather than waiting indefinitely.
+            executeWithTimeout(
+                () -> auroraUtil.queryInstanceId(conn),
+                TimeUnit.MINUTES.toMillis(1)
+            )
+        );
+        assertFalse(conn.isValid(5));
+      }
+
+      assertThrows(SQLTransientConnectionException.class, dataSource::getConnection);
+
+    } finally {
+      ProxyHelper.enableAllConnectivity();
     }
-
-    assertThrows(SQLTransientConnectionException.class, dataSource::getConnection);
-    ProxyHelper.enableAllConnectivity();
   }
 
   /**
@@ -191,6 +209,8 @@ public class HikariTests {
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testEFMFailover() throws SQLException {
+
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
     ProxyHelper.disableAllConnectivity();
 
     final List<TestInstanceInfo> instances = TestEnvironment.getCurrent()
@@ -204,32 +224,32 @@ public class HikariTests {
     LOGGER.fine("Instance to fail over to: " + readerIdentifier);
 
     ProxyHelper.enableConnectivity(writerIdentifier);
-    final HikariDataSource dataSource = createDataSource(null);
+    try (final HikariDataSource dataSource = createDataSource(null)) {
 
-    // Get a valid connection, then make it fail over to a different instance
-    try (Connection conn = dataSource.getConnection()) {
-      assertTrue(conn.isValid(5));
-      String currentConnectionId = AuroraFailoverTest.auroraUtil.queryInstanceId(conn);
-      assertTrue(currentConnectionId.equalsIgnoreCase(writerIdentifier));
-      LOGGER.fine("Connected to instance: " + currentConnectionId);
+      // Get a valid connection, then make it fail over to a different instance
+      try (Connection conn = dataSource.getConnection()) {
+        assertTrue(conn.isValid(5));
+        String currentConnectionId = auroraUtil.queryInstanceId(conn);
+        assertTrue(currentConnectionId.equalsIgnoreCase(writerIdentifier));
+        LOGGER.fine("Connected to instance: " + currentConnectionId);
 
-      ProxyHelper.enableConnectivity(readerIdentifier);
-      ProxyHelper.disableConnectivity(writerIdentifier);
+        ProxyHelper.enableConnectivity(readerIdentifier);
+        ProxyHelper.disableConnectivity(writerIdentifier);
 
-      assertThrows(FailoverSuccessSQLException.class, () -> AuroraFailoverTest.auroraUtil.queryInstanceId(conn));
+        assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
 
-      // Check the connection is valid after connecting to a different instance
-      assertTrue(conn.isValid(5));
-      currentConnectionId = AuroraFailoverTest.auroraUtil.queryInstanceId(conn);
-      LOGGER.fine("Connected to instance: " + currentConnectionId);
-      assertTrue(currentConnectionId.equalsIgnoreCase(readerIdentifier));
+        // Check the connection is valid after connecting to a different instance
+        assertTrue(conn.isValid(5));
+        currentConnectionId = auroraUtil.queryInstanceId(conn);
+        LOGGER.fine("Connected to instance: " + currentConnectionId);
+        assertTrue(currentConnectionId.equalsIgnoreCase(readerIdentifier));
 
-      // Try to get a new connection to the failed instance, which times out
-      assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
+        // Try to get a new connection to the failed instance, which times out
+        assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
+      }
+    } finally {
+      ProxyHelper.enableAllConnectivity();
     }
-
-    ProxyHelper.enableAllConnectivity();
-    dataSource.close();
   }
 
   private HikariDataSource createDataSource(final Properties customProps) {
@@ -282,7 +302,7 @@ public class HikariTests {
 
     final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
 
-    targetDataSourceProps.setProperty(PLUGINS.name, "failover,efm");
+    targetDataSourceProps.setProperty(PLUGINS.name, "failover,efm2");
     targetDataSourceProps.setProperty(
         "clusterInstanceHostPattern",
         "?."
@@ -307,10 +327,10 @@ public class HikariTests {
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
 
-    DriverHelper.setMonitoringConnectTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
-    DriverHelper.setMonitoringSocketTimeout(targetDataSourceProps, 3, TimeUnit.SECONDS);
-    DriverHelper.setConnectTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
-    DriverHelper.setSocketTimeout(targetDataSourceProps, 10, TimeUnit.SECONDS);
+    targetDataSourceProps.setProperty("monitoring-" + PropertyDefinition.CONNECT_TIMEOUT.name, "3000");
+    targetDataSourceProps.setProperty("monitoring-" + PropertyDefinition.SOCKET_TIMEOUT.name, "3000");
+    targetDataSourceProps.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
+    targetDataSourceProps.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "10000");
 
     if (customProps != null) {
       final Enumeration<?> propertyNames = customProps.propertyNames();
