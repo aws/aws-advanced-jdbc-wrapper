@@ -202,12 +202,12 @@ public class DriverHelper {
     }
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setConnectTimeout(Properties props, long timeout, TimeUnit timeUnit) {
     setConnectTimeout(TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setConnectTimeout(
       TestDriver testDriver, Properties props, long timeout, TimeUnit timeUnit) {
     switch (testDriver) {
@@ -227,12 +227,12 @@ public class DriverHelper {
     }
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setSocketTimeout(Properties props, long timeout, TimeUnit timeUnit) {
     setSocketTimeout(TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setSocketTimeout(
       TestDriver testDriver, Properties props, long timeout, TimeUnit timeUnit) {
     switch (testDriver) {
@@ -252,12 +252,12 @@ public class DriverHelper {
     }
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setTcpKeepAlive(Properties props, boolean enabled) {
     setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, enabled);
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setTcpKeepAlive(TestDriver testDriver, Properties props, boolean enabled) {
     switch (testDriver) {
       case MYSQL:
@@ -274,14 +274,14 @@ public class DriverHelper {
     }
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setMonitoringConnectTimeout(
       Properties props, long timeout, TimeUnit timeUnit) {
     setMonitoringConnectTimeout(
         TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setMonitoringConnectTimeout(
       TestDriver testDriver, Properties props, long timeout, TimeUnit timeUnit) {
     switch (testDriver) {
@@ -303,13 +303,13 @@ public class DriverHelper {
     }
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setMonitoringSocketTimeout(Properties props, long timeout, TimeUnit timeUnit) {
     setMonitoringSocketTimeout(
         TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
-  // The method should be used on connections with a target drivers ONLY !!!
+  // This method should be used on connections with a target driver ONLY!
   public static void setMonitoringSocketTimeout(
       TestDriver testDriver, Properties props, long timeout, TimeUnit timeUnit) {
     switch (testDriver) {
