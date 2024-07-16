@@ -48,7 +48,7 @@ dependencies {
     compileOnly("org.jsoup:jsoup:1.17.2")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
 
-    testImplementation("org.junit.platform:junit-platform-commons:1.10.2")
+    testImplementation("org.junit.platform:junit-platform-commons:1.10.3")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.3")
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.3")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.10.3")
