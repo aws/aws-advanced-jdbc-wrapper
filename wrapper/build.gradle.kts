@@ -46,7 +46,7 @@ dependencies {
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.39.0")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.39.0")
     compileOnly("org.jsoup:jsoup:1.17.2")
-    compileOnly("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
+    compileOnly("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
 
     testImplementation("org.junit.platform:junit-platform-commons:1.10.3")
     testImplementation("org.junit.platform:junit-platform-engine:1.10.3")
