@@ -131,11 +131,6 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       LOGGER.finest(() -> "Use a separate DataSource object to create a connection.");
       // use a new data source instance to instantiate a connection
       final DataSource ds = createDataSource();
-      targetDriverDialect.prepareDataSource(
-          ds,
-          protocol,
-          hostSpec,
-          copy);
       conn = this.openConnection(ds, protocol, targetDriverDialect, hostSpec, copy);
 
     } else {
@@ -145,11 +140,6 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       this.lock.lock();
       LOGGER.finest(() -> "Use main DataSource object to create a connection.");
       try {
-        targetDriverDialect.prepareDataSource(
-            this.dataSource,
-            protocol,
-            hostSpec,
-            copy);
         conn = this.openConnection(this.dataSource, protocol, targetDriverDialect, hostSpec, copy);
       } finally {
         this.lock.unlock();
@@ -170,11 +160,16 @@ public class DataSourceConnectionProvider implements ConnectionProvider {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props)
       throws SQLException {
-
+    final boolean enableGreenNodeReplacement = PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props);
     try {
+      targetDriverDialect.prepareDataSource(
+          ds,
+          protocol,
+          hostSpec,
+          props);
       return ds.getConnection();
     } catch (Throwable throwable) {
-      if (!PropertyDefinition.ENABLE_GREEN_NODE_REPLACEMENT.getBoolean(props)) {
+      if (!enableGreenNodeReplacement) {
         throw throwable;
       }
 
