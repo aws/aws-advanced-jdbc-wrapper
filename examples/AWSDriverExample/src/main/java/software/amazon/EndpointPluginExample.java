@@ -32,7 +32,7 @@ public class EndpointPluginExample {
     // targetDataSourceProps.setProperty("serverName", "db-identifier.cluster-XYZ.us-east-2.rds.amazonaws.com");
     // targetDataSourceProps.setProperty("database", "employees");
     // targetDataSourceProps.setProperty("serverPort", "5432");
-    targetDataSourceProps.setProperty("wrapperPlugins", "endpoint");
+    targetDataSourceProps.setProperty("wrapperPlugins", "limitless");
 
     // Configure any driver-specific properties:
 //     targetDataSourceProps.setProperty("ssl", "true");

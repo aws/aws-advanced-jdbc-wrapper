@@ -40,7 +40,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
   protected static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
       "limitlessTransactionRouterMonitorIntervalMs",
-      "30000",
+      "15000",
       "Interval in millis between polling for Limitless Transaction Routers to the database.");
   protected final PluginService pluginService;
   protected final @NonNull Properties properties;
