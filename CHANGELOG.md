@@ -3,10 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
-## [2.3.8] - TBD
+## [2.3.8] - 2024-07-31
 
 ### :bug: Fixed
 - Avoid setting a blank catalog when closing a connection ([PR #1047](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1047)).
+- Ensure the `enableGreenNodeReplacement` parameter setting is used during connection ([Issue #1059](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1059)).
+- Ensure GovCloud DNS patterns are supported ((PR #1054)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1054]).
 
 ## [2.3.7] - 2024-06-05
 
@@ -328,6 +330,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.3.8]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.7...2.3.8
 [2.3.7]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.6...2.3.7
 [2.3.6]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.5...2.3.6
 [2.3.5]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.4...2.3.5
