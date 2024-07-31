@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :bug: Fixed
 - Avoid setting a blank catalog when closing a connection ([PR #1047](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1047)).
 - Ensure the `enableGreenNodeReplacement` parameter setting is used during connection ([Issue #1059](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1059)).
-- Ensure GovCloud DNS patterns are supported ((PR #1054)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1054]).
+- Ensure GovCloud DNS patterns are supported ([PR #1054](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1054)).
 
 ## [2.3.7] - 2024-06-05
 
