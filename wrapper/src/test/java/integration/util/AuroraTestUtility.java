@@ -1937,6 +1937,8 @@ public class AuroraTestUtility {
       return;
     }
 
+    //TODO: check BG status and then delete
+
     DeleteBlueGreenDeploymentResponse response = rdsClient.deleteBlueGreenDeployment(
         DeleteBlueGreenDeploymentRequest.builder()
             .blueGreenDeploymentIdentifier(blueGreenId)

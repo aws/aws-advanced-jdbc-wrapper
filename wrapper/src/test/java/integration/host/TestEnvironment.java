@@ -547,8 +547,6 @@ public class TestEnvironment implements AutoCloseable {
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
 
-    authorizeIP(env);
-
     final DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
     final DatabaseEngine engine = env.info.getRequest().getDatabaseEngine();
     if (DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment) && DatabaseEngine.PG.equals(engine)) {
@@ -671,8 +669,6 @@ public class TestEnvironment implements AutoCloseable {
 
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
-
-    authorizeIP(env);
 
     final DatabaseEngineDeployment deployment = env.info.getRequest().getDatabaseEngineDeployment();
     final DatabaseEngine engine = env.info.getRequest().getDatabaseEngine();
