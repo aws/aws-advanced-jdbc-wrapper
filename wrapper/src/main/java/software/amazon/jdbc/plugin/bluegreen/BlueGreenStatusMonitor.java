@@ -51,7 +51,7 @@ public class BlueGreenStatusMonitor {
   private static final Logger LOGGER = Logger.getLogger(BlueGreenStatusMonitor.class.getName());
   private static final long DEFAULT_CHECK_INTERVAL_MS = TimeUnit.MINUTES.toMillis(5);
   private static final long CACHE_CLEANUP_NANO = TimeUnit.SECONDS.toNanos(5);
-  private static final long CACHE_HOST_REPLACEMENT_EXPIRATION_NANO = TimeUnit.SECONDS.toNanos(1);
+  private static final long CACHE_HOST_REPLACEMENT_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
 
   private static final HashMap<String, BlueGreenPhases> blueGreenStatusMapping =
       new HashMap<String, BlueGreenPhases>() {
@@ -326,10 +326,12 @@ public class BlueGreenStatusMonitor {
     } catch (SQLSyntaxErrorException sqlSyntaxErrorException) {
       if (currentStatus == null || currentStatus.getCurrentPhase() == BlueGreenPhases.NOT_CREATED) {
         LOGGER.finest("(SQLSyntaxErrorException) currentPhase: " + BlueGreenPhases.NOT_CREATED);
+        hostReplacements.clear();
         return new BlueGreenStatus(
             BlueGreenPhases.NOT_CREATED, this.getHostIpAddresses(), this.getCorrespondingHosts());
       } else {
         LOGGER.finest("(SQLSyntaxErrorException) currentPhase: " + BlueGreenPhases.SWITCH_OVER_COMPLETED);
+        hostReplacements.clear();
         return new BlueGreenStatus(
             BlueGreenPhases.SWITCH_OVER_COMPLETED, this.getHostIpAddresses(), this.getCorrespondingHosts());
       }

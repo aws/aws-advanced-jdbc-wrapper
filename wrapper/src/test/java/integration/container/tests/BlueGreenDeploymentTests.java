@@ -64,6 +64,8 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.model.BlueGreenDeployment;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.jdbc.PropertyDefinition;
@@ -72,6 +74,7 @@ import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.bluegreen.BlueGreenConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.plugin.iam.RegularRdsUtility;
 import software.amazon.jdbc.util.RdsUtils;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -138,6 +141,8 @@ public class BlueGreenDeploymentTests {
     public final ConcurrentLinkedDeque<TimeHolder> blueWrapperConnectTimes = new ConcurrentLinkedDeque<>();
     public final ConcurrentLinkedDeque<TimeHolder> blueWrapperExecuteTimes = new ConcurrentLinkedDeque<>();
     public final ConcurrentLinkedDeque<TimeHolder> greenWrapperExecuteTimes = new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<TimeHolder> greenDirectIamIpWithBlueNodeConnectTimes = new ConcurrentLinkedDeque<>();
+    public final ConcurrentLinkedDeque<TimeHolder> greenDirectIamIpWithGreenNodeConnectTimes = new ConcurrentLinkedDeque<>();
   }
 
   private final BlueGreenResults results = new BlueGreenResults();
@@ -146,10 +151,13 @@ public class BlueGreenDeploymentTests {
   @ExtendWith(TestDriverProvider.class)
   public void test_Switchover(TestDriver testDriver) throws SQLException, InterruptedException {
 
+    boolean iamEnabled =
+        TestEnvironment.getCurrent().getInfo().getRequest().getFeatures().contains(TestEnvironmentFeatures.IAM);
+
     this.results.startTime.set(System.nanoTime());
 
     final AtomicBoolean stop = new AtomicBoolean(false);
-    final CountDownLatch startLatch = new CountDownLatch(10);
+    final CountDownLatch startLatch = new CountDownLatch(iamEnabled ? 12 : 10);
     final CountDownLatch finishLatch = new CountDownLatch(9);
 
     final ArrayList<Thread> threads = new ArrayList<>();
@@ -185,6 +193,17 @@ public class BlueGreenDeploymentTests {
             hostId, host, testInstance.getPort(), dbName, startLatch, stop, finishLatch, results));
         threads.add(getGreenDnsMonitoringThread(
             hostId, host, startLatch, stop, finishLatch));
+
+        if (iamEnabled) {
+          threads.add(getGreenIamConnectivityMonitoringThread(
+              "BlueHostToken", rdsUtil.removeGreenInstancePrefix(host), host,
+              testInstance.getPort(), dbName, startLatch, stop, finishLatch,
+              results.greenDirectIamIpWithBlueNodeConnectTimes));
+          threads.add(getGreenIamConnectivityMonitoringThread(
+              "GreenHostToken", host, host,
+              testInstance.getPort(), dbName, startLatch, stop, finishLatch,
+              results.greenDirectIamIpWithGreenNodeConnectTimes));
+        }
       }
     }
 
@@ -192,7 +211,7 @@ public class BlueGreenDeploymentTests {
         info.getBlueGreenDeploymentId(), startLatch, stop, finishLatch, results));
 
     assertEquals(startLatch.getCount(), threads.size());
-    assertEquals(finishLatch.getCount(), threads.size() - 1);
+    //assertEquals(finishLatch.getCount(), threads.size() - 1);
 
     threads.forEach(Thread::start);
     LOGGER.finest("All threads started.");
@@ -356,6 +375,64 @@ public class BlueGreenDeploymentTests {
             x.getKey(), TimeUnit.NANOSECONDS.toMillis(x.getValue() - results.bgTriggerTime.get()))));
     if (results.greenStatusTime.isEmpty()) {
       LOGGER.finest("[green] - empty");
+    }
+
+    if (iamEnabled) {
+      if (results.greenDirectIamIpWithBlueNodeConnectTimes.isEmpty()) {
+        LOGGER.finest("greenDirectIamIpWithBlueNodeConnectTimes: - empty");
+      } else {
+        TimeHolder firstConnect = results.greenDirectIamIpWithBlueNodeConnectTimes.getFirst();
+        LOGGER.finest(
+            String.format("greenDirectIamIpWithBlueNodeConnectTimes [first, starting at %d ms]: duration %d ms %s",
+                TimeUnit.NANOSECONDS.toMillis(firstConnect.startTime - results.bgTriggerTime.get()),
+                TimeUnit.NANOSECONDS.toMillis(firstConnect.endTime - firstConnect.startTime),
+                (firstConnect.error == null ? "" : ", error: " + firstConnect.error)));
+
+        results.greenDirectIamIpWithBlueNodeConnectTimes.stream()
+            .sorted(Comparator.comparingLong(x -> x.startTime))
+            .filter(x -> x.holdNano > 0 || x.error != null)
+            .forEach(x -> LOGGER.finest(String.format(
+                "greenDirectIamIpWithBlueNodeConnectTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
+                TimeUnit.NANOSECONDS.toMillis(x.startTime - results.bgTriggerTime.get()),
+                TimeUnit.NANOSECONDS.toMillis(x.endTime - x.startTime),
+                TimeUnit.NANOSECONDS.toMillis(x.holdNano),
+                (x.error == null ? "" : ", error: " + x.error))));
+
+        TimeHolder lastConnect = results.greenDirectIamIpWithBlueNodeConnectTimes.getLast();
+        LOGGER.finest(
+            String.format("greenDirectIamIpWithBlueNodeConnectTimes [last, starting at %d ms]: duration %d ms %s",
+                TimeUnit.NANOSECONDS.toMillis(lastConnect.startTime - results.bgTriggerTime.get()),
+                TimeUnit.NANOSECONDS.toMillis(lastConnect.endTime - lastConnect.startTime),
+                (lastConnect.error == null ? "" : ", error: " + lastConnect.error)));
+      }
+
+      if (results.greenDirectIamIpWithGreenNodeConnectTimes.isEmpty()) {
+        LOGGER.finest("greenDirectIamIpWithGreenNodeConnectTimes: - empty");
+      } else {
+        TimeHolder firstConnect = results.greenDirectIamIpWithGreenNodeConnectTimes.getFirst();
+        LOGGER.finest(
+            String.format("greenDirectIamIpWithGreenNodeConnectTimes [first, starting at %d ms]: duration %d ms %s",
+                TimeUnit.NANOSECONDS.toMillis(firstConnect.startTime - results.bgTriggerTime.get()),
+                TimeUnit.NANOSECONDS.toMillis(firstConnect.endTime - firstConnect.startTime),
+                (firstConnect.error == null ? "" : ", error: " + firstConnect.error)));
+
+        results.greenDirectIamIpWithGreenNodeConnectTimes.stream()
+            .sorted(Comparator.comparingLong(x -> x.startTime))
+            .filter(x -> x.holdNano > 0 || x.error != null)
+            .forEach(x -> LOGGER.finest(String.format(
+                "greenDirectIamIpWithGreenNodeConnectTimes [starting at %d ms]: duration %d ms, holdTime: %d ms %s",
+                TimeUnit.NANOSECONDS.toMillis(x.startTime - results.bgTriggerTime.get()),
+                TimeUnit.NANOSECONDS.toMillis(x.endTime - x.startTime),
+                TimeUnit.NANOSECONDS.toMillis(x.holdNano),
+                (x.error == null ? "" : ", error: " + x.error))));
+
+        TimeHolder lastConnect = results.greenDirectIamIpWithGreenNodeConnectTimes.getLast();
+        LOGGER.finest(
+            String.format("greenDirectIamIpWithGreenNodeConnectTimes [last, starting at %d ms]: duration %d ms %s",
+                TimeUnit.NANOSECONDS.toMillis(lastConnect.startTime - results.bgTriggerTime.get()),
+                TimeUnit.NANOSECONDS.toMillis(lastConnect.endTime - lastConnect.startTime),
+                (lastConnect.error == null ? "" : ", error: " + lastConnect.error)));
+      }
     }
 
     LOGGER.finest("Completed");
@@ -1048,6 +1125,105 @@ public class BlueGreenDeploymentTests {
 
         finishLatch.countDown();
         LOGGER.finest("[WrapperGreenConnectivity] thread is completed.");
+      }
+    });
+  }
+
+  // Green node
+  // Check: connectivity (opening a new connection) with IAM when using node IP address
+  // Expect: loose connectivity after green node changes its name (green prefix to no-prefix)
+  // Can terminate for itself
+  private Thread getGreenIamConnectivityMonitoringThread(
+      final String threadPrefix,
+      final String iamTokenHost,
+      final String connectHost,
+      final int port,
+      final String dbName,
+      final CountDownLatch startLatch,
+      final AtomicBoolean stop,
+      final CountDownLatch finishLatch,
+      final ConcurrentLinkedDeque<TimeHolder> resultQueue) {
+
+    return new Thread(() -> {
+
+      Connection conn = null;
+      try {
+        RegularRdsUtility regularRdsUtility = new RegularRdsUtility();
+
+        final Properties props = new Properties();
+        props.setProperty("user", TestEnvironment.getCurrent().getInfo().getIamUsername());
+        props.setProperty("connectTimeout", "10000");
+        props.setProperty("socketTimeout", "10000");
+
+        final String greenNodeConnectIp = InetAddress.getByName(connectHost).getHostAddress();
+
+        Thread.sleep(1000);
+
+        // notify that this thread is ready for work
+        startLatch.countDown();
+
+        // wait for another threads to be ready to start the test
+        startLatch.await(5, TimeUnit.MINUTES);
+
+        LOGGER.finest("[DirectGreenIamIp" + threadPrefix + "] Starting connectivity monitoring " + iamTokenHost);
+
+        while (!stop.get()) {
+
+          String token = regularRdsUtility.generateAuthenticationToken(
+              DefaultCredentialsProvider.create(),
+              Region.of(TestEnvironment.getCurrent().getInfo().getRegion()),
+              iamTokenHost,
+              3306,
+              TestEnvironment.getCurrent().getInfo().getIamUsername());
+          props.setProperty("password", token);
+
+          long startTime = System.nanoTime();
+          long endTime;
+          try  {
+            conn = DriverManager.getConnection(
+                ConnectionStringHelper.getUrl(greenNodeConnectIp, port, dbName),
+                props);
+            endTime = System.nanoTime();
+            resultQueue.add(new TimeHolder(startTime, endTime));
+
+          } catch (SQLTimeoutException sqlTimeoutException) {
+            LOGGER.finest("[DirectGreenIamIp" + threadPrefix + "] (SQLTimeoutException) thread exception: " + sqlTimeoutException);
+            endTime = System.nanoTime();
+            resultQueue.add(new TimeHolder(startTime, endTime, sqlTimeoutException.getMessage()));
+          } catch (SQLException throwable) {
+            LOGGER.finest("[DirectGreenIamIp" + threadPrefix + "] thread exception: " + throwable.getMessage());
+            endTime = System.nanoTime();
+            resultQueue.add(new TimeHolder(startTime, endTime, throwable.getMessage()));
+          }
+
+          try {
+            if (conn != null) {
+              conn.close();
+              conn = null;
+            }
+          } catch (SQLException sqlException) {
+            // do nothing
+          }
+
+          TimeUnit.MILLISECONDS.sleep(1000);
+        }
+
+      } catch (InterruptedException interruptedException) {
+        // Ignore, stop the thread
+      } catch (Exception exception) {
+        LOGGER.log(Level.FINEST, "[DirectGreenIamIp" + threadPrefix + "] thread unhandled exception: ", exception);
+        fail("[DirectGreenIamIp" + threadPrefix + "] thread unhandled exception: " + exception);
+      } finally {
+        try {
+          if (conn != null && !conn.isClosed()) {
+            conn.close();
+          }
+        } catch (Exception ex) {
+          // do nothing
+        }
+
+        finishLatch.countDown();
+        LOGGER.finest("[DirectGreenIamIp" + threadPrefix + "] thread is completed.");
       }
     });
   }

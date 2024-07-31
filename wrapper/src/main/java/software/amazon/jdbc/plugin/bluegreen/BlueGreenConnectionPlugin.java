@@ -16,7 +16,6 @@
 
 package software.amazon.jdbc.plugin.bluegreen;
 
-import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
@@ -88,6 +87,11 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
   protected BlueGreenStatus bgStatus = null;
 
   protected boolean isIamInUse = false;
+  protected String greenHost = null;
+  protected String greenHostIpAddress = null;
+  protected HostSpec greenHostSpec = null;
+  protected String iamHost = null;
+  protected boolean greenNodeAlreadyChangedHostName = false;
 
   public BlueGreenConnectionPlugin(
       final @NonNull PluginService pluginService,
@@ -142,39 +146,63 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     final boolean needReroute = this.rejectOrHoldConnect(hostSpec);
     LOGGER.info("needReroute: " + needReroute);
 
-    if (needReroute) {
+    boolean haveAllRerouteData = this.canRouteToGreenNode(hostSpec);
+    LOGGER.info("haveAllRerouteData: " + haveAllRerouteData);
+
+    // init and use later
+    if (needReroute && haveAllRerouteData && this.greenHost == null) {
+      this.greenHost = this.bgStatus.getCorrespondingNodes().get(hostSpec.getHost());
+      this.greenHostIpAddress = this.bgStatus.getHostIpAddresses().get(this.greenHost);
+      this.greenHostSpec = this.pluginService.getHostSpecBuilder().copyFrom(hostSpec)
+          .host(this.greenHostIpAddress)
+          .hostId(hostSpec.getHostId())
+          .availability(HostAvailability.AVAILABLE)
+          .build();
+    }
+
+    if (needReroute && this.greenHost != null) {
 
       final Properties copy = PropertyUtils.copyProperties(props);
       copy.setProperty(BG_PLUGIN_REROUTED_CONNECTION_CALL, "true");
-      if (this.isIamInUse) {
-        copy.setProperty(IamAuthConnectionPlugin.IAM_HOST.name, hostSpec.getHost());
-        LOGGER.info("iamHost: " + IamAuthConnectionPlugin.IAM_HOST.getString(copy));
-        LOGGER.info("iamRegion: " + IamAuthConnectionPlugin.IAM_REGION.getString(copy));
-      }
 
-      HostSpec routedHostSpec;
+      boolean needRepeat;
+      LOGGER.info("Reroute (IP address) " + hostSpec.getHost() + " to " + this.greenHostIpAddress);
+      do {
+        needRepeat = false;
 
-      routedHostSpec = this.routeToGreenEndpoint(hostSpec);
-      if (routedHostSpec != null) {
-        LOGGER.info("Reroute (green node) " + hostSpec.getHost() + " to " + routedHostSpec.getHost());
+        if (this.isIamInUse) {
+          if (this.iamHost == null) {
+            // let's assume that green node requires IAM token based on green node name
+            this.iamHost = this.greenHost;
+            this.greenNodeAlreadyChangedHostName = false;
+          }
+          copy.setProperty(IamAuthConnectionPlugin.IAM_HOST.name, this.iamHost);
+          //copy.setProperty(IamAuthConnectionPlugin.IAM_EXPIRATION.name, "0");
+          LOGGER.info("iamHost: " + IamAuthConnectionPlugin.IAM_HOST.getString(copy));
+          LOGGER.info("iamRegion: " + IamAuthConnectionPlugin.IAM_REGION.getString(copy));
+        }
+
         try {
-          return this.pluginService.connect(routedHostSpec, copy);
+          return this.pluginService.connect(this.greenHostSpec, copy);
+
         } catch (SQLException sqlException) {
-          if (this.isCausedBy(sqlException, UnknownHostException.class, false)) {
-            LOGGER.info("Green node DNS doesn't exist: " + routedHostSpec.getHost());
-            // let's continue and try IP address instead of green node endpoint...
+          if (this.pluginService.isLoginException(sqlException)) {
+            // It seems that green node has already changed its host name to blue, and now
+            // it requires an IAM token based on blue node name.
+            if (this.greenNodeAlreadyChangedHostName) {
+              LOGGER.info("Can't connect (IP address) even with blue-node IAM token.");
+              throw sqlException;
+            }
+            this.iamHost = hostSpec.getHost();
+            this.greenNodeAlreadyChangedHostName = true;
+            LOGGER.info("Reroute failed since green node " + this.greenHost
+                + " already change its name to blue. Trying again with an updated token.");
+            needRepeat = true;
           } else {
             throw sqlException;
           }
         }
-      }
-
-      // ...try green node IP address
-      routedHostSpec = this.routeToGreenIpAddress(hostSpec);
-      if (routedHostSpec != null) {
-        LOGGER.info("Reroute (IP address) " + hostSpec.getHost() + " to " + routedHostSpec.getHost());
-        return this.pluginService.connect(routedHostSpec, copy);
-      }
+      } while (needRepeat);
     }
 
     Connection conn = connectFunc.call();
@@ -332,7 +360,12 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
 
     if (this.bgStatus.getCurrentPhase() == BlueGreenPhases.SWITCH_OVER_COMPLETED) {
 
-      String replacementId = this.bgStatus.getHostIpAddresses().get(connectHostSpec.getHost());
+      String correspondingGreenHost = this.bgStatus.getCorrespondingNodes().get(connectHostSpec.getHost());
+      if (correspondingGreenHost == null) {
+        return null;
+      }
+
+      String replacementId = this.bgStatus.getHostIpAddresses().get(correspondingGreenHost);
       if (replacementId == null) {
         return null;
       }
@@ -345,6 +378,40 @@ public class BlueGreenConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     return null;
+  }
+
+  protected boolean canRouteToGreenNode(final HostSpec connectHostSpec) {
+
+    if (this.bgStatus == null) {
+      LOGGER.info("Status is null");
+      return false;
+    }
+
+    if (this.rdsUtils.isIPv4(connectHostSpec.getHost()) || this.rdsUtils.isIPv6(connectHostSpec.getHost())) {
+      LOGGER.info("Already IP address");
+      return false;
+    }
+
+    if (this.bgStatus.getCurrentPhase() != BlueGreenPhases.SWITCH_OVER_COMPLETED) {
+      LOGGER.info("BG isn't yet completed");
+      return false;
+    }
+
+    String correspondingGreenHost = this.bgStatus.getCorrespondingNodes().get(connectHostSpec.getHost());
+    if (correspondingGreenHost == null) {
+      LOGGER.info("Corresponding node is null for " + connectHostSpec.getHost());
+      // can't find a corresponding green node
+      return false;
+    }
+
+    String replacementId = this.bgStatus.getHostIpAddresses().get(correspondingGreenHost);
+    if (replacementId == null) {
+      LOGGER.info("IP address is null for " + correspondingGreenHost);
+      // can't find IP address for a green node
+      return false;
+    }
+
+    return true;
   }
 
   protected String getHostId(final String endpoint) {
