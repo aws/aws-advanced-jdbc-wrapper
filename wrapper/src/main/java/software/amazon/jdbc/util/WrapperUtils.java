@@ -284,13 +284,27 @@ public class WrapperUtils {
       return toProxy;
     }
 
-    Class<?> wrapperClass = availableWrappers.get(resultClass);
+    Class<?> effectiveResultClass = resultClass;
+
+    if (resultClass == Statement.class) {
+      // Statement class is a special case since it has subclasses like PreparedStatement and CallableStatement.
+      // We need to choose the best result class based on actual toProxy object.
+
+      // Order of the following if-statements is important!
+      if (toProxy instanceof CallableStatement) {
+        effectiveResultClass = CallableStatement.class;
+      } else if (toProxy instanceof PreparedStatement) {
+        effectiveResultClass = PreparedStatement.class;
+      }
+    }
+
+    Class<?> wrapperClass = availableWrappers.get(effectiveResultClass);
 
     if (wrapperClass != null) {
       return createInstance(
           wrapperClass,
           resultClass,
-          new Class<?>[] {resultClass, ConnectionPluginManager.class},
+          new Class<?>[] {effectiveResultClass, ConnectionPluginManager.class},
           toProxy,
           pluginManager);
     }
