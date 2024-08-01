@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.util;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,12 +27,12 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReentrantLock;
 import org.junit.jupiter.api.AfterEach;
@@ -43,6 +44,9 @@ import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
+import software.amazon.jdbc.wrapper.CallableStatementWrapper;
+import software.amazon.jdbc.wrapper.PreparedStatementWrapper;
+import software.amazon.jdbc.wrapper.StatementWrapper;
 
 public class WrapperUtilsTest {
 
@@ -154,5 +158,28 @@ public class WrapperUtilsTest {
     assertNull(stmtConn);
     final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockClosedStatement);
     assertNull(rsConn);
+  }
+
+  @Test
+  void testStatementWrapper() throws InstantiationException {
+    ConnectionPluginManager mockPluginManager = mock(ConnectionPluginManager.class);
+
+    assertInstanceOf(StatementWrapper.class,
+        WrapperUtils.wrapWithProxyIfNeeded(
+            Statement.class,
+            mock(Statement.class),
+            mockPluginManager));
+
+    assertInstanceOf(PreparedStatementWrapper.class,
+        WrapperUtils.wrapWithProxyIfNeeded(
+            Statement.class,
+            mock(PreparedStatement.class),
+            mockPluginManager));
+
+    assertInstanceOf(CallableStatementWrapper.class,
+        WrapperUtils.wrapWithProxyIfNeeded(
+            Statement.class,
+            mock(CallableStatement.class),
+            mockPluginManager));
   }
 }
