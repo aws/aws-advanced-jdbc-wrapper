@@ -1829,7 +1829,7 @@ public class AuroraTestUtility {
     }
   }
 
-  public String createBueGreenDeployment(String name, String sourceArn) {
+  public String createBlueGreenDeployment(String name, String sourceArn) {
 
     final String blueGreenName = "bgd-" + name;
 
@@ -1868,6 +1868,33 @@ public class AuroraTestUtility {
     }
 
     return blueGreenId;
+  }
+
+  public void waitUntilBlueGreenDeploymentHasRightState(String blueGreenId, String... allowedStatuses) {
+
+    String status = getBlueGreenDeployment(blueGreenId).status();
+    LOGGER.finest("BGD status: " + status + ", waiting for status: " + String.join(", ", allowedStatuses));
+    final Set<String> allowedStatusSet = Arrays.stream(allowedStatuses)
+        .map(String::toLowerCase)
+        .collect(Collectors.toSet());
+    final long waitTillNanoTime = System.nanoTime() + TimeUnit.MINUTES.toNanos(15);
+    while (!allowedStatusSet.contains(status.toLowerCase()) && waitTillNanoTime > System.nanoTime()) {
+      try {
+        TimeUnit.MILLISECONDS.sleep(1000);
+      } catch (InterruptedException ex) {
+        throw new RuntimeException(ex);
+      }
+      String tmpStatus = getBlueGreenDeployment(blueGreenId).status();
+      if (!tmpStatus.equalsIgnoreCase(status)) {
+        LOGGER.finest("BGD status (waiting): " + tmpStatus);
+      }
+      status = tmpStatus;
+    }
+    LOGGER.finest("BGD status (after wait): " + status);
+
+    if (!allowedStatusSet.contains(status.toLowerCase())) {
+      throw new RuntimeException("BlueGreen Deployment " + blueGreenId + " has wrong status.");
+    }
   }
 
   public void switchoverBlueGreenDeployment(String blueGreenId) {
@@ -1937,7 +1964,7 @@ public class AuroraTestUtility {
       return;
     }
 
-    //TODO: check BG status and then delete
+    waitUntilBlueGreenDeploymentHasRightState(blueGreenId, "available", "switchover_completed");
 
     DeleteBlueGreenDeploymentResponse response = rdsClient.deleteBlueGreenDeployment(
         DeleteBlueGreenDeploymentRequest.builder()

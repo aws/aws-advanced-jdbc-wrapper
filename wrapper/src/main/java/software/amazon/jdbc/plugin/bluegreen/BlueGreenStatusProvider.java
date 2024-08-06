@@ -127,4 +127,10 @@ public class BlueGreenStatusProvider {
 
     return monitoringConnProperties;
   }
+
+  public void notifyGreenNodeChangedName() {
+    if (greenBlueGreenStatusMonitor != null) {
+      greenBlueGreenStatusMonitor.notifyGreenNodeChangedName();
+    }
+  }
 }

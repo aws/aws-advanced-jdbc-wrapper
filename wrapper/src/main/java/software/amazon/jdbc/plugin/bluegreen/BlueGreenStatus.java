@@ -27,14 +27,18 @@ public class BlueGreenStatus {
   private final Map<String, String> hostIpAddresses = new ConcurrentHashMap<>();
   private final Map<String, String> correspondingNodes = new ConcurrentHashMap<>();
 
+  private final boolean greenNodeChangedName;
+
   public BlueGreenStatus(
       final BlueGreenPhases phase,
       final Map<String, String> hostIpAddresses,
-      final Map<String, String> correspondingNodes) {
+      final Map<String, String> correspondingNodes,
+      final boolean greenNodeChangedName) {
 
     this.currentPhase = phase;
     this.hostIpAddresses.putAll(hostIpAddresses);
     this.correspondingNodes.putAll(correspondingNodes);
+    this.greenNodeChangedName = greenNodeChangedName;
   }
 
   public @NonNull BlueGreenPhases getCurrentPhase() {
@@ -48,4 +52,6 @@ public class BlueGreenStatus {
   public @NonNull Map<String, String> getCorrespondingNodes() {
     return this.correspondingNodes;
   }
+
+  public boolean getGreenNodeChangedName() { return this.greenNodeChangedName; }
 }
