@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -50,8 +51,8 @@ public class BlueGreenStatusMonitor {
 
   private static final Logger LOGGER = Logger.getLogger(BlueGreenStatusMonitor.class.getName());
   private static final long DEFAULT_CHECK_INTERVAL_MS = TimeUnit.MINUTES.toMillis(5);
-  private static final long CACHE_CLEANUP_NANO = TimeUnit.SECONDS.toNanos(5);
-  private static final long CACHE_HOST_REPLACEMENT_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
+  private static final long CACHE_CLEANUP_NANO = TimeUnit.SECONDS.toNanos(30);
+  private static final long CACHE_HOST_REPLACEMENT_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(1);
 
   private static final HashMap<String, BlueGreenPhases> blueGreenStatusMapping =
       new HashMap<String, BlueGreenPhases>() {
@@ -62,21 +63,21 @@ public class BlueGreenStatusMonitor {
           put("SWITCHOVER_STARTING_ON_TARGET", BlueGreenPhases.PREPARATION_TO_SWITCH_OVER);
           put("SWITCHOVER_IN_PROGRESS_ON_SOURCE", BlueGreenPhases.SWITCHING_OVER);
           put("SWITCHOVER_IN_PROGRESS_ON_TARGET", BlueGreenPhases.SWITCHING_OVER);
-          put("TARGET_PROMOTED_DNS_UPDATING", BlueGreenPhases.SWITCH_OVER_COMPLETED);
-          put("SOURCE_DEMOTED_DNS_UPDATING", BlueGreenPhases.SWITCH_OVER_COMPLETED);
+          put("TARGET_PROMOTED_DNS_UPDATING", BlueGreenPhases.POST_SWITCH_OVER);
+          put("SOURCE_DEMOTED_DNS_UPDATING", BlueGreenPhases.POST_SWITCH_OVER);
         }
       };
 
   protected final SlidingExpirationCacheWithCleanupThread<String, HostReplacementHolder> hostReplacements =
       new SlidingExpirationCacheWithCleanupThread<>(
-          BlueGreenStatusMonitor::canRemoveHostReplacement,
+          this::canRemoveHostReplacement,
           null,
           CACHE_CLEANUP_NANO);
 
   protected final SupportBlueGreen supportBlueGreen;
   protected final PluginService pluginService;
   protected final Properties props;
-
+  protected final AtomicBoolean greenNodeChangedName = new AtomicBoolean(false);
   protected final Map<BlueGreenPhases, IntervalType> checkIntervalTypeMap;
   protected final Map<IntervalType, Long> checkIntervalMap;
   protected final ExecutorService executorService = Executors.newFixedThreadPool(1);
@@ -132,25 +133,6 @@ public class BlueGreenStatusMonitor {
       }
     });
     executorService.shutdown(); // executor accepts no more tasks
-  }
-
-  protected static boolean canRemoveHostReplacement(final HostReplacementHolder hostReplacementHolder) {
-    try {
-      final String currentIp = InetAddress.getByName(hostReplacementHolder.host).getHostAddress();
-      if (!hostReplacementHolder.currentIp.equals(currentIp)) {
-        // DNS has changed. We can remove this replacement.
-        LOGGER.finest("Removing host replacement for " + hostReplacementHolder.host);
-        return true;
-      }
-    } catch (UnknownHostException ex) {
-      if (hostReplacementHolder.isGreenPrefix) {
-        // Green node DNS doesn't exist anymore. We can delete it from the cache.
-        LOGGER.finest("Removing host replacement for " + hostReplacementHolder.host);
-        return true;
-      }
-      // otherwise do nothing
-    }
-    return false;
   }
 
   /**
@@ -233,7 +215,10 @@ public class BlueGreenStatusMonitor {
         if (this.connectionHostSpec == null) {
           LOGGER.finest("No node found for blue/green status check.");
           return new BlueGreenStatus(
-              BlueGreenPhases.NOT_CREATED, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+              BlueGreenPhases.NOT_CREATED,
+              new ConcurrentHashMap<>(),
+              new ConcurrentHashMap<>(),
+              false);
         }
         try {
           LOGGER.info("Opening monitoring connection to " + this.connectionHostSpec.getHost());
@@ -249,11 +234,18 @@ public class BlueGreenStatusMonitor {
         if (currentStatus == null || currentStatus.getCurrentPhase() == BlueGreenPhases.NOT_CREATED) {
           //LOGGER.finest("(status not available) currentPhase: " + BlueGreenPhases.NOT_CREATED);
           return new BlueGreenStatus(
-              BlueGreenPhases.NOT_CREATED, this.getHostIpAddresses(), this.getCorrespondingHosts());
+              BlueGreenPhases.NOT_CREATED,
+              this.getHostIpAddresses(),
+              this.getCorrespondingHosts(),
+              false);
         } else {
           //LOGGER.finest("(status not available) currentPhase: " + BlueGreenPhases.SWITCH_OVER_COMPLETED);
+          this.greenNodeChangedName.set(true);
           return new BlueGreenStatus(
-              BlueGreenPhases.SWITCH_OVER_COMPLETED, this.getHostIpAddresses(), this.getCorrespondingHosts());
+              BlueGreenPhases.SWITCH_OVER_COMPLETED,
+              this.getHostIpAddresses(),
+              this.getCorrespondingHosts(),
+              this.greenNodeChangedName.get());
         }
       }
 
@@ -303,6 +295,9 @@ public class BlueGreenStatusMonitor {
       if (hostPhases.contains(BlueGreenPhases.SWITCHING_OVER)) {
         // At least one node is in active switching over phase.
         currentPhase = BlueGreenPhases.SWITCHING_OVER;
+      } else if (hostPhases.contains(BlueGreenPhases.POST_SWITCH_OVER)) {
+        // At least one node is in post switching over phase.
+        currentPhase = BlueGreenPhases.POST_SWITCH_OVER;
       } else if (hostPhases.contains(BlueGreenPhases.PREPARATION_TO_SWITCH_OVER)) {
         // At least one node is in preparation for switching over phase.
         currentPhase = BlueGreenPhases.PREPARATION_TO_SWITCH_OVER;
@@ -319,21 +314,31 @@ public class BlueGreenStatusMonitor {
       if (currentPhase == BlueGreenPhases.PREPARATION_TO_SWITCH_OVER) {
         this.pluginService.refreshHostList(this.connection);
         this.collectHostIpAddresses(hosts);
+        this.greenNodeChangedName.set(false);
       }
 
-      return new BlueGreenStatus(currentPhase, this.getHostIpAddresses(), this.getCorrespondingHosts());
+      return new BlueGreenStatus(
+          currentPhase,
+          this.getHostIpAddresses(),
+          this.getCorrespondingHosts(),
+          this.greenNodeChangedName.get());
 
     } catch (SQLSyntaxErrorException sqlSyntaxErrorException) {
       if (currentStatus == null || currentStatus.getCurrentPhase() == BlueGreenPhases.NOT_CREATED) {
         LOGGER.finest("(SQLSyntaxErrorException) currentPhase: " + BlueGreenPhases.NOT_CREATED);
-        hostReplacements.clear();
         return new BlueGreenStatus(
-            BlueGreenPhases.NOT_CREATED, this.getHostIpAddresses(), this.getCorrespondingHosts());
+            BlueGreenPhases.NOT_CREATED,
+            this.getHostIpAddresses(),
+            this.getCorrespondingHosts(),
+            false);
       } else {
         LOGGER.finest("(SQLSyntaxErrorException) currentPhase: " + BlueGreenPhases.SWITCH_OVER_COMPLETED);
-        hostReplacements.clear();
+        this.greenNodeChangedName.set(true);
         return new BlueGreenStatus(
-            BlueGreenPhases.SWITCH_OVER_COMPLETED, this.getHostIpAddresses(), this.getCorrespondingHosts());
+            BlueGreenPhases.SWITCH_OVER_COMPLETED,
+            this.getHostIpAddresses(),
+            this.getCorrespondingHosts(),
+            this.greenNodeChangedName.get());
       }
     } catch (Exception e) {
       // do nothing
@@ -344,7 +349,15 @@ public class BlueGreenStatusMonitor {
       }
     }
 
-    return new BlueGreenStatus(BlueGreenPhases.NOT_CREATED, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+    return new BlueGreenStatus(
+        BlueGreenPhases.NOT_CREATED,
+        new ConcurrentHashMap<>(),
+        new ConcurrentHashMap<>(),
+        false);
+  }
+
+  public void notifyGreenNodeChangedName() {
+    this.greenNodeChangedName.set(true);
   }
 
   protected String getHostId(final String endpoint) {
@@ -411,6 +424,28 @@ public class BlueGreenStatusMonitor {
     return filteredHosts.isEmpty()
         ? null
         : filteredHosts.get(this.random.nextInt(filteredHosts.size()));
+  }
+
+  protected boolean canRemoveHostReplacement(final HostReplacementHolder hostReplacementHolder) {
+    if (!this.greenNodeChangedName.get()) {
+      return false;
+    }
+    try {
+      final String currentIp = InetAddress.getByName(hostReplacementHolder.host).getHostAddress();
+      if (!hostReplacementHolder.currentIp.equals(currentIp)) {
+        // DNS has changed. We can remove this replacement.
+        LOGGER.info("Removing host replacement for " + hostReplacementHolder.host);
+        return true;
+      }
+    } catch (UnknownHostException ex) {
+      if (hostReplacementHolder.isGreenPrefix) {
+        // Green node DNS doesn't exist anymore. We can delete it from the cache.
+        LOGGER.info("Removing host replacement for " + hostReplacementHolder.host);
+        return true;
+      }
+      // otherwise do nothing
+    }
+    return false;
   }
 
   public static class HostReplacementHolder {
