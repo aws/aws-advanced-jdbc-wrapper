@@ -118,7 +118,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           this.pluginService.getHostListProvider().getClusterId(), props);
 
       if (limitlessRouters.isEmpty()) {
-        LOGGER.warning(Messages.get("LimitlessConnectionPlugin.LimitlessRouterCacheEmpty"));
+        LOGGER.info(Messages.get("LimitlessConnectionPlugin.LimitlessRouterCacheEmpty"));
         return connectFunc.call();
       } else if (limitlessRouters.contains(hostSpec)) {
         return connectFunc.call();
@@ -128,7 +128,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final HostSpec selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
           HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
 
-      LOGGER.finest(Messages.get("LimitlessConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
+      LOGGER.fine(Messages.get("LimitlessConnectionPlugin.selectedHost", new Object[] {selectedHostSpec.getHost()}));
 
       return pluginService.connect(selectedHostSpec, props);
     } catch (UnsupportedOperationException e) {

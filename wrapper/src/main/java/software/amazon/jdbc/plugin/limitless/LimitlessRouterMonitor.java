@@ -115,14 +115,14 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     if (!this.threadPool.awaitTermination(5, TimeUnit.SECONDS)) {
       this.threadPool.shutdownNow();
     }
-    LOGGER.finest(() -> Messages.get(
+    LOGGER.fine(() -> Messages.get(
         "LimitlessRouterMonitor.stopped",
         new Object[] {this.hostSpec.getHost()}));
   }
 
   @Override
   public void run() {
-    LOGGER.finest(() -> Messages.get(
+    LOGGER.fine(() -> Messages.get(
         "LimitlessRouterMonitor.running",
         new Object[] {this.hostSpec.getHost()}));
 
@@ -138,7 +138,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
         this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
         RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
-        LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
+        LOGGER.fine(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
         TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
       } catch (final InterruptedException exception) {
         LOGGER.finest(
@@ -167,11 +167,11 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     try {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
         // open a new connection
-        LOGGER.finest(() -> Messages.get(
+        LOGGER.fine(() -> Messages.get(
             "LimitlessRouterMonitor.openingConnection",
             new Object[] {this.hostSpec.getUrl()}));
         this.monitoringConn = this.pluginService.forceConnect(this.hostSpec, this.props);
-        LOGGER.finest(() -> Messages.get(
+        LOGGER.fine(() -> Messages.get(
             "LimitlessRouterMonitor.openedConnection",
             new Object[] {this.monitoringConn}));
       }
