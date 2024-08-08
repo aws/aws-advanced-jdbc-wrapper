@@ -82,7 +82,15 @@ To use the AWS JDBC Driver with a connection pool, you must:
    ds.addDataSourceProperty("targetDataSourceProperties", targetDataSourceProps);
    ```
 
-> **:warning:Note:** HikariCP supports either DataSource-based configuration or DriverManager-based configuration by specifying the `dataSourceClassName` or the `jdbcUrl`. When using the `AwsWrapperDataSource` you must specify the `dataSourceClassName`, and the  `HikariDataSource.setJdbcUrl` method should not be used. For more information see HikariCP's [documentation](https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby).
+> [!WARNING]\
+> HikariCP supports either DataSource-based configuration or DriverManager-based configuration by specifying the `dataSourceClassName` or the `jdbcUrl`. When using the `AwsWrapperDataSource` you must specify the `dataSourceClassName`, and the  `HikariDataSource.setJdbcUrl` method should not be used. For more information see HikariCP's [documentation](https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby).
+
+> [!NOTE]\
+> When using HikariCP with the wrapper, you may see log messages from HikariCP about unable to instantiate their `PropertyElf` class:
+> 
+> `com.zaxxer.hikari.util.PropertyElf - Class "{wrapperLogLevel=ALL, defaultRowFetchSize=10000, wrapperPlugins=failover,efm2}" not found or could not instantiate it`
+> 
+> The wrapper does not rely on Hikari's PropertyElf to set properties on the target DataSource object, so these messages can be ignored.
 
 ### Examples
 See [here](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java) for a simple AWS Driver Datasource example.
