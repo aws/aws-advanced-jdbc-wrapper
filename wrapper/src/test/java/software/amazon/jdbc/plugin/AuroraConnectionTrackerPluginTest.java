@@ -30,6 +30,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -50,6 +51,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 
@@ -66,6 +68,8 @@ public class AuroraConnectionTrackerPluginTest {
   @Mock JdbcCallable<Connection, SQLException> mockConnectionFunction;
   @Mock JdbcCallable<ResultSet, SQLException> mockSqlFunction;
   @Mock JdbcCallable<Void, SQLException> mockCloseOrAbortFunction;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
+
   private static final Object[] SQL_ARGS = {"sql"};
 
   private AutoCloseable closeable;
@@ -82,6 +86,8 @@ public class AuroraConnectionTrackerPluginTest {
     when(mockRdsUtils.identifyRdsType(any())).thenReturn(RdsUrlType.RDS_INSTANCE);
     when(mockPluginService.getCurrentConnection()).thenReturn(mockConnection);
     when(mockPluginService.getDialect()).thenReturn(mockTopologyAwareDialect);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getNetworkBoundMethodNames()).thenReturn(new HashSet<>());
   }
 
   @AfterEach

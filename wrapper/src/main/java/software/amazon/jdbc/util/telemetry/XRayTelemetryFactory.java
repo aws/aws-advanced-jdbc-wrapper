@@ -44,4 +44,7 @@ public class XRayTelemetryFactory implements TelemetryFactory {
     throw new RuntimeException("XRay doesn't support metrics.");
   }
 
+  public boolean isEnabled() {
+    return true;
+  }
 }

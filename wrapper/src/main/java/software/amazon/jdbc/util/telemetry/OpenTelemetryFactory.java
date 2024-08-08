@@ -73,4 +73,8 @@ public class OpenTelemetryFactory implements TelemetryFactory {
   private String trimName(final String name) {
     return (name.length() > NAME_MAX_LENGTH) ? name.substring(0, NAME_MAX_LENGTH) : name;
   }
+
+  public boolean isEnabled() {
+    return true;
+  }
 }
