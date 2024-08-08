@@ -90,7 +90,7 @@ To use the AWS JDBC Driver with a connection pool, you must:
 > 
 > `com.zaxxer.hikari.util.PropertyElf - Class "{wrapperLogLevel=ALL, defaultRowFetchSize=10000, wrapperPlugins=failover,efm2}" not found or could not instantiate it`
 > 
-> The wrapper does not rely on Hikari's PropertyElf to set properties on teh target DataSource object, so these messages can be ignored.
+> The wrapper does not rely on Hikari's PropertyElf to set properties on the target DataSource object, so these messages can be ignored.
 
 ### Examples
 See [here](../../examples/AWSDriverExample/src/main/java/software/amazon/DatasourceExample.java) for a simple AWS Driver Datasource example.
