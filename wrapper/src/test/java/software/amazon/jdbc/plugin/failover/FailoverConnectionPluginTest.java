@@ -468,5 +468,10 @@ class FailoverConnectionPluginTest {
     public HostSpec identifyConnection(Connection connection) throws SQLException {
       return new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("foo").build();
     }
+
+    @Override
+    public String getClusterId() throws UnsupportedOperationException {
+      throw new UnsupportedOperationException();
+    }
   }
 }

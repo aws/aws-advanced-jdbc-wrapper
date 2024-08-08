@@ -19,6 +19,7 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -129,6 +130,9 @@ public interface ConnectionPlugin {
    *                                       requested strategy
    */
   HostSpec getHostSpecByStrategy(final HostRole role, final String strategy)
+      throws SQLException, UnsupportedOperationException;
+
+  HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException;
 
   void initHostProvider(

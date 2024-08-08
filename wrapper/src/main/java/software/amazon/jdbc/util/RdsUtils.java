@@ -75,7 +75,7 @@ public class RdsUtils {
   private static final Pattern AURORA_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\."
-              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-)?"
+              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|limitless-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
               + "\\.rds\\.amazonaws\\.com)$",
           Pattern.CASE_INSENSITIVE);
@@ -87,11 +87,17 @@ public class RdsUtils {
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
               + "\\.rds\\.amazonaws\\.com)$",
           Pattern.CASE_INSENSITIVE);
-
+  private static final Pattern AURORA_LIMITLESS_CLUSTER_PATTERN =
+      Pattern.compile(
+          "(?<instance>.+)\\."
+              + "(?<dns>limitless-)+"
+              + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
+              + "\\.rds\\.(amazonaws\\.com(\\.cn)?|sc2s\\.sgov\\.gov|c2s\\.ic\\.gov))",
+          Pattern.CASE_INSENSITIVE);
   private static final Pattern AURORA_CHINA_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\."
-              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-)?"
+              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|limitless-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
               + "\\.amazonaws\\.com\\.cn)$",
           Pattern.CASE_INSENSITIVE);
@@ -107,7 +113,7 @@ public class RdsUtils {
   private static final Pattern AURORA_OLD_CHINA_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\."
-              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-)?"
+              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|limitless-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.(?<region>[a-zA-Z0-9\\-]+)"
               + "\\.rds\\.amazonaws\\.com\\.cn)$",
           Pattern.CASE_INSENSITIVE);
@@ -123,7 +129,7 @@ public class RdsUtils {
   private static final Pattern AURORA_GOV_DNS_PATTERN =
       Pattern.compile(
           "^(?<instance>.+)\\."
-              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-)?"
+              + "(?<dns>proxy-|cluster-|cluster-ro-|cluster-custom-|limitless-)?"
               + "(?<domain>[a-zA-Z0-9]+\\.rds\\.(?<region>[a-zA-Z0-9\\-]+)"
               + "\\.(amazonaws\\.com|c2s\\.ic\\.gov|sc2s\\.sgov\\.gov))$",
           Pattern.CASE_INSENSITIVE);
@@ -250,6 +256,11 @@ public class RdsUtils {
     return dnsGroup != null && dnsGroup.equalsIgnoreCase("cluster-ro-");
   }
 
+  public boolean isLimitlessDbShardGroupDns(final String host) {
+    final String dnsGroup = getDnsGroup(host);
+    return dnsGroup != null && dnsGroup.equalsIgnoreCase("limitless-");
+  }
+
   public String getRdsClusterHostUrl(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;
@@ -270,6 +281,10 @@ public class RdsUtils {
     final Matcher govMatcher = AURORA_GOV_CLUSTER_PATTERN.matcher(host);
     if (govMatcher.find()) {
       return host.replaceAll(AURORA_GOV_CLUSTER_PATTERN.pattern(), "${instance}.cluster-${domain}");
+    }
+    final Matcher limitlessMatcher = AURORA_LIMITLESS_CLUSTER_PATTERN.matcher(host);
+    if (limitlessMatcher.find()) {
+      return host.replaceAll(AURORA_LIMITLESS_CLUSTER_PATTERN.pattern(), "${instance}.limitless-${domain}");
     }
     return null;
   }
@@ -300,6 +315,8 @@ public class RdsUtils {
       return RdsUrlType.RDS_READER_CLUSTER;
     } else if (isRdsCustomClusterDns(host)) {
       return RdsUrlType.RDS_CUSTOM_CLUSTER;
+    } else if (isLimitlessDbShardGroupDns(host)) {
+      return RdsUrlType.RDS_AURORA_LIMITLESS_DB_SHARD_GROUP;
     } else if (isRdsProxyDns(host)) {
       return RdsUrlType.RDS_PROXY;
     } else if (isRdsDns(host)) {

@@ -43,6 +43,7 @@ import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SlidingExpirationCache;
+import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     CanReleaseResources {
@@ -53,6 +54,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
+          put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
           put(RandomHostSelector.STRATEGY_RANDOM, new RandomHostSelector());
           put(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN, new RoundRobinHostSelector());
         }

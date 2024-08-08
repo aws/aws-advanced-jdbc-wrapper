@@ -501,6 +501,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy) {
+      return null;
+    }
+
+    @Override
     public HostRole getHostRole(Connection conn) {
       return null;
     }
