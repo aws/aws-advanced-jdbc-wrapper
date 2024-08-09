@@ -202,4 +202,8 @@ public class OpenedConnectionTracker {
       queue.removeIf(connectionWeakReference -> Objects.equals(connectionWeakReference.get(), null));
     });
   }
+
+  public static void clearCache() {
+    openedConnections.clear();
+  }
 }

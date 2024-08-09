@@ -22,7 +22,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
+import software.amazon.jdbc.ConnectionPluginChainBuilder;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 
 public class AuroraMysqlDialect extends MysqlDialect {
 
@@ -32,6 +34,10 @@ public class AuroraMysqlDialect extends MysqlDialect {
           + "FROM information_schema.replica_host_status "
           // filter out nodes that haven't been updated in the last 5 minutes
           + "WHERE time_to_sec(timediff(now(), LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' ";
+
+  private static final String IS_WRITER_QUERY =
+      "SELECT SERVER_ID FROM information_schema.replica_host_status "
+      + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = @@aurora_server_id";
 
   private static final String NODE_ID_QUERY = "SELECT @@aurora_server_id";
   private static final String IS_READER_QUERY = "SELECT @@innodb_read_only";
@@ -75,12 +81,29 @@ public class AuroraMysqlDialect extends MysqlDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService) -> new AuroraHostListProvider(
-        properties,
-        initialUrl,
-        hostListProviderService,
-        TOPOLOGY_QUERY,
-        NODE_ID_QUERY,
-        IS_READER_QUERY);
+    return (properties, initialUrl, hostListProviderService, pluginService) -> {
+
+      final List<String> plugins = ConnectionPluginChainBuilder.getPluginCodes(properties);
+
+      if (plugins.contains("failover2")) {
+        return new MonitoringRdsHostListProvider(
+            properties,
+            initialUrl,
+            hostListProviderService,
+            TOPOLOGY_QUERY,
+            NODE_ID_QUERY,
+            IS_READER_QUERY,
+            IS_WRITER_QUERY,
+            pluginService);
+      }
+      return new AuroraHostListProvider(
+          properties,
+          initialUrl,
+          hostListProviderService,
+          TOPOLOGY_QUERY,
+          NODE_ID_QUERY,
+          IS_READER_QUERY);
+    };
   }
 }
+

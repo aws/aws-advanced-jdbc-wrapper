@@ -75,6 +75,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(HostMonitoringConnectionPlugin.class, "plugin:efm");
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin.class, "plugin:efm2");
           put(FailoverConnectionPlugin.class, "plugin:failover");
+          put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin.class, "plugin:failover2");
           put(IamAuthConnectionPlugin.class, "plugin:iam");
           put(AwsSecretsManagerConnectionPlugin.class, "plugin:awsSecretsManager");
           put(FederatedAuthPlugin.class, "plugin:federatedAuth");

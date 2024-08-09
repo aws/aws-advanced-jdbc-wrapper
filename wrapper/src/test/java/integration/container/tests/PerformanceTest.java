@@ -60,6 +60,10 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.provider.Arguments;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
+import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
 import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
@@ -84,8 +88,8 @@ public class PerformanceTest {
           ? 5
           : Integer.parseInt(System.getenv("REPEAT_TIMES"));
 
-  private static final int TIMEOUT_SEC = 1;
-  private static final int CONNECT_TIMEOUT_SEC = 3;
+  private static final int TIMEOUT_MS = 3000;
+  private static final int CONNECT_TIMEOUT_MS = 3000;
   private static final int PERF_FAILOVER_TIMEOUT_MS = 120000;
 
   private static final List<PerfStatMonitoring> enhancedFailureMonitoringPerfDataList =
@@ -133,20 +137,22 @@ public class PerformanceTest {
   @TestTemplate
   @Tag("efm")
   public void test_FailureDetectionTime_EnhancedMonitoringEnabled() throws IOException {
-
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
     test_FailureDetectionTime_EnhancedMonitoringEnabled("efm");
-
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
     test_FailureDetectionTime_EnhancedMonitoringEnabled("efm2");
   }
 
   public void test_FailureDetectionTime_EnhancedMonitoringEnabled(final String efmPlugin)
         throws IOException {
 
+    OpenedConnectionTracker.clearCache();
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
+    AuroraHostListProvider.clearAll();
+    MonitoringRdsHostListProvider.clearCache();
+
     enhancedFailureMonitoringPerfDataList.clear();
+
+    LOGGER.finest("Test round with plugins: " + efmPlugin);
 
     try {
       Stream<Arguments> argsStream = generateFailureDetectionTimeParams();
@@ -186,17 +192,18 @@ public class PerformanceTest {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(
         MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
-        String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+        String.valueOf(CONNECT_TIMEOUT_MS));
     props.setProperty(
         MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
-        String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
-    CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+        String.valueOf(TIMEOUT_MS));
+    CONNECT_TIMEOUT.set(props, String.valueOf(CONNECT_TIMEOUT_MS));
 
     // this performance test measures efm failure detection time after disconnecting the network
     FAILURE_DETECTION_TIME.set(props, Integer.toString(detectionTimeMillis));
     FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(detectionIntervalMillis));
     FAILURE_DETECTION_COUNT.set(props, Integer.toString(detectionCount));
     PLUGINS.set(props, efmPlugin);
+    RdsHostListProvider.CLUSTER_ID.set(props, "test-cluster-id");
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, data);
@@ -210,19 +217,24 @@ public class PerformanceTest {
   @Tag("efm")
   @Tag("failover")
   public void test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled() throws IOException {
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
-    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("efm");
-
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
-    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("efm2");
+    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover,efm");
+    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover,efm2");
+    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover2,efm");
+    test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled("failover2,efm2");
   }
 
-  public void test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(final String efmPlugin)
+  public void test_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(final String plugins)
       throws IOException {
 
+    OpenedConnectionTracker.clearCache();
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
+    AuroraHostListProvider.clearAll();
+    MonitoringRdsHostListProvider.clearCache();
+
     failoverWithEfmPerfDataList.clear();
+
+    LOGGER.finest("Test round with plugins: " + plugins);
 
     try {
       Stream<Arguments> argsStream = generateFailureDetectionTimeParams();
@@ -231,7 +243,7 @@ public class PerformanceTest {
             try {
               Object[] args = a.get();
               execute_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(
-                  efmPlugin, (int) args[0], (int) args[1], (int) args[2], (int) args[3]);
+                  plugins, (int) args[0], (int) args[1], (int) args[2], (int) args[3]);
             } catch (SQLException ex) {
               throw new RuntimeException(ex);
             }
@@ -245,14 +257,14 @@ public class PerformanceTest {
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getCurrentDriver(),
               TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
-              efmPlugin),
+              plugins.replace(",", "_")),
           failoverWithEfmPerfDataList);
       failoverWithEfmPerfDataList.clear();
     }
   }
 
   private void execute_FailureDetectionTime_FailoverAndEnhancedMonitoringEnabled(
-      final String efmPlugin,
+      final String plugins,
       int detectionTime,
       int detectionInterval,
       int detectionCount,
@@ -262,18 +274,18 @@ public class PerformanceTest {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(
         MONITORING_CONNECTION_PREFIX + PropertyDefinition.CONNECT_TIMEOUT.name,
-        String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+        String.valueOf(CONNECT_TIMEOUT_MS));
     props.setProperty(
         MONITORING_CONNECTION_PREFIX + PropertyDefinition.SOCKET_TIMEOUT.name,
-        String.valueOf(TimeUnit.SECONDS.toMillis(TIMEOUT_SEC)));
-    CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+        String.valueOf(TIMEOUT_MS));
+    CONNECT_TIMEOUT.set(props, String.valueOf(CONNECT_TIMEOUT_MS));
 
     // this performance test measures failover and efm failure detection time after disconnecting
     // the network
     FAILURE_DETECTION_TIME.set(props, Integer.toString(detectionTime));
     FAILURE_DETECTION_INTERVAL.set(props, Integer.toString(detectionInterval));
     FAILURE_DETECTION_COUNT.set(props, Integer.toString(detectionCount));
-    PLUGINS.set(props, "failover," + efmPlugin);
+    PLUGINS.set(props, plugins);
     FAILOVER_TIMEOUT_MS.set(props, Integer.toString(PERF_FAILOVER_TIMEOUT_MS));
     props.setProperty(
         "clusterInstanceHostPattern",
@@ -283,6 +295,7 @@ public class PerformanceTest {
                 .getProxyDatabaseInfo()
                 .getInstanceEndpointSuffix());
     FailoverConnectionPlugin.FAILOVER_MODE.set(props, "strict-reader");
+    RdsHostListProvider.CLUSTER_ID.set(props, "test-cluster-id");
 
     final PerfStatMonitoring data = new PerfStatMonitoring();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, data);
@@ -295,8 +308,21 @@ public class PerformanceTest {
   @TestTemplate
   @Tag("failover")
   public void test_FailoverTime_SocketTimeout() throws IOException {
+    test_FailoverTime_SocketTimeout("failover");
+    test_FailoverTime_SocketTimeout("failover2");
+  }
+
+  private void test_FailoverTime_SocketTimeout(final String plugins) throws IOException {
+
+    OpenedConnectionTracker.clearCache();
+    MonitorThreadContainer.releaseInstance();
+    MonitorServiceImpl.clearCache();
+    AuroraHostListProvider.clearAll();
+    MonitoringRdsHostListProvider.clearCache();
 
     failoverWithSocketTimeoutPerfDataList.clear();
+
+    LOGGER.finest("Test round with plugins: " + plugins);
 
     try {
       Stream<Arguments> argsStream = generateFailoverSocketTimeoutTimeParams();
@@ -304,7 +330,7 @@ public class PerformanceTest {
           a -> {
             try {
               Object[] args = a.get();
-              execute_FailoverTime_SocketTimeout((int) args[0], (int) args[1]);
+              execute_FailoverTime_SocketTimeout(plugins, (int) args[0], (int) args[1]);
             } catch (SQLException ex) {
               throw new RuntimeException(ex);
             }
@@ -314,25 +340,26 @@ public class PerformanceTest {
       doWritePerfDataToFile(
           String.format(
               "./build/reports/tests/FailoverWithSocketTimeout_"
-              + "Db_%s_Driver_%s_Instances_%d.xlsx",
+              + "Db_%s_Driver_%s_Instances_%d_Plugins_%s.xlsx",
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getCurrentDriver(),
-              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances()),
+              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
+              plugins.replace(",", "_")),
           failoverWithSocketTimeoutPerfDataList);
       failoverWithSocketTimeoutPerfDataList.clear();
     }
   }
 
-  private void execute_FailoverTime_SocketTimeout(int socketTimeout, int sleepDelayMillis)
+  private void execute_FailoverTime_SocketTimeout(final String plugins, int socketTimeout, int sleepDelayMillis)
       throws SQLException {
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     // this performance test measures how socket timeout changes the overall failover time
     SOCKET_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(socketTimeout)));
-    CONNECT_TIMEOUT.set(props, String.valueOf(TimeUnit.SECONDS.toMillis(CONNECT_TIMEOUT_SEC)));
+    CONNECT_TIMEOUT.set(props, String.valueOf(CONNECT_TIMEOUT_MS));
 
     // Loads just failover plugin; don't load Enhanced Failure Monitoring plugin
-    props.setProperty("wrapperPlugins", "failover");
+    props.setProperty("wrapperPlugins", plugins);
     props.setProperty(
         "clusterInstanceHostPattern",
         "?."
@@ -342,6 +369,7 @@ public class PerformanceTest {
                 .getInstanceEndpointSuffix());
     props.setProperty("failoverTimeoutMs", Integer.toString(PERF_FAILOVER_TIMEOUT_MS));
     FailoverConnectionPlugin.FAILOVER_MODE.set(props, "strict-reader");
+    RdsHostListProvider.CLUSTER_ID.set(props, "test-cluster-id");
 
     final PerfStatSocketTimeout data = new PerfStatSocketTimeout();
     doMeasurePerformance(sleepDelayMillis, REPEAT_TIMES, props, data);
@@ -356,10 +384,21 @@ public class PerformanceTest {
       PerfStatBase data)
       throws SQLException {
 
+    ProxyHelper.enableAllConnectivity();
+
     final AtomicLong downtimeNanos = new AtomicLong();
     final List<Long> elapsedTimeMillis = new ArrayList<>(repeatTimes);
 
     for (int i = 0; i < repeatTimes; i++) {
+
+      try {
+        LOGGER.finest("Resting 15s...");
+        TimeUnit.SECONDS.sleep(15); // let monitoring threads to recover from previous network outage
+      } catch (InterruptedException ex) {
+        // do nothing
+      }
+
+      LOGGER.finest("Iteration: " + i);
       downtimeNanos.set(0);
 
       // Thread to stop network
@@ -388,19 +427,23 @@ public class PerformanceTest {
 
         thread.start();
 
+        LOGGER.finest("Start long query.");
+
         // Execute long query
-        try (final ResultSet result = statement.executeQuery(getQuerySql())) {
+        try (final ResultSet result = statement.executeQuery(getQuerySql(600))) {
           fail("Sleep query finished, should not be possible with network downed.");
         } catch (SQLException ex) { // Catching executing query
           // Calculate and add detection time
-          if (downtimeNanos.get() == 0) {
+          final long downtime = downtimeNanos.get();
+          if (downtime == 0) {
             LOGGER.warning("Network outages start time is undefined!");
+            elapsedTimeMillis.add(0L);
           } else {
-            final long failureTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - downtimeNanos.get());
+            final long failureTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - downtime);
             elapsedTimeMillis.add(failureTimeMillis);
+            LOGGER.finest("Elapsed: " + failureTimeMillis);
           }
         }
-
       } finally {
         thread.interrupt(); // Ensure thread has stopped running
         ProxyHelper.enableConnectivity(
@@ -452,15 +495,15 @@ public class PerformanceTest {
     return DriverManager.getConnection(url, props);
   }
 
-  private String getQuerySql() {
+  private String getQuerySql(final int seconds) {
     final DatabaseEngine databaseEngine =
         TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     switch (databaseEngine) {
       case PG:
-        return "SELECT pg_sleep(600)"; // 600s -> 10min
+        return String.format("SELECT pg_sleep(%d)", seconds);
       case MYSQL:
       case MARIADB:
-        return "SELECT sleep(600)"; // 600s -> 10min
+        return String.format("SELECT sleep(%d)", seconds);
       default:
         throw new UnsupportedOperationException(databaseEngine.name());
     }
@@ -470,13 +513,9 @@ public class PerformanceTest {
     // detectionTimeMs, detectionIntervalMs, detectionCount, sleepDelayMs
     return Stream.of(
         // Defaults
-        Arguments.of(30000, 5000, 3, 5000),
         Arguments.of(30000, 5000, 3, 10000),
-        Arguments.of(30000, 5000, 3, 15000),
         Arguments.of(30000, 5000, 3, 20000),
-        Arguments.of(30000, 5000, 3, 25000),
         Arguments.of(30000, 5000, 3, 30000),
-        Arguments.of(30000, 5000, 3, 35000),
         Arguments.of(30000, 5000, 3, 40000),
         Arguments.of(30000, 5000, 3, 50000),
         Arguments.of(30000, 5000, 3, 60000),
@@ -490,19 +529,17 @@ public class PerformanceTest {
         Arguments.of(6000, 1000, 1, 6000),
         Arguments.of(6000, 1000, 1, 7000),
         Arguments.of(6000, 1000, 1, 8000),
-        Arguments.of(6000, 1000, 1, 9000),
-        Arguments.of(6000, 1000, 1, 10000));
+        Arguments.of(6000, 1000, 1, 9000)
+    );
   }
 
   private Stream<Arguments> generateFailoverSocketTimeoutTimeParams() {
     // socketTimeout (seconds), sleepDelayMS
     return Stream.of(
-        Arguments.of(30, 5000),
         Arguments.of(30, 10000),
-        Arguments.of(30, 15000),
         Arguments.of(30, 20000),
-        Arguments.of(30, 25000),
-        Arguments.of(30, 30000));
+        Arguments.of(30, 30000),
+        Arguments.of(30, 40000));
   }
 
   private abstract static class PerfStatBase {

@@ -188,12 +188,17 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, connProvider);
+    return connectInternal(driverProtocol, hostSpec, props, connProvider, isInitialConnection);
   }
 
   private Connection connectInternal(
-      String driverProtocol, HostSpec hostSpec, Properties props, ConnectionProvider connProvider)
+      String driverProtocol,
+      HostSpec hostSpec,
+      Properties props,
+      ConnectionProvider connProvider,
+      final boolean isInitialConnection)
       throws SQLException {
+
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         connProvider.getTargetName(), TelemetryTraceLevel.NESTED);
@@ -213,7 +218,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     this.connProviderManager.initConnection(conn, driverProtocol, hostSpec, props);
 
     this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.AVAILABLE);
-    this.pluginService.updateDialect(conn);
+    if (isInitialConnection) {
+      this.pluginService.updateDialect(conn);
+    }
 
     return conn;
   }
@@ -229,7 +236,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
 
     // It's guaranteed that this plugin is always the last in plugin chain so forceConnectFunc can be
     // ignored.
-    return connectInternal(driverProtocol, hostSpec, props, this.defaultConnProvider);
+    return connectInternal(driverProtocol, hostSpec, props, this.defaultConnProvider, isInitialConnection);
   }
 
   @Override

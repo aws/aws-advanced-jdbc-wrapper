@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.dialect;
+package software.amazon.jdbc.plugin.failover2;
 
 import java.util.Properties;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostListProvider;
-import software.amazon.jdbc.HostListProviderService;
+import software.amazon.jdbc.ConnectionPlugin;
+import software.amazon.jdbc.ConnectionPluginFactory;
 import software.amazon.jdbc.PluginService;
 
-@FunctionalInterface
-public interface HostListProviderSupplier {
-  @NonNull HostListProvider getProvider(
-      final @NonNull Properties properties,
-      final String initialUrl,
-      final @NonNull HostListProviderService hostListProviderService,
-      final @NonNull PluginService pluginService);
+public class FailoverConnectionPluginFactory implements ConnectionPluginFactory {
+
+  @Override
+  public ConnectionPlugin getInstance(final PluginService pluginService, final Properties props) {
+    return new FailoverConnectionPlugin(pluginService, props);
+  }
 }

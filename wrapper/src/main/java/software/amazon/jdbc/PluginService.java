@@ -147,6 +147,17 @@ public interface PluginService extends ExceptionHandler {
   void forceRefreshHostList(Connection connection) throws SQLException;
 
   /**
+   * Initiates a topology update.
+   *
+   * @param shouldVerifyWriter true, if a caller expects to get topology with the latest confirmed writer
+   * @param timeoutMs timeout in msec to wait until topology gets refreshed and a new (or existing) writer is
+   *                  confirmed (if shouldVerifyWriter has a value of <code>true</code>).
+   * @return true, if successful. False, if operation is unsuccessful or timeout is reached
+   * @throws SQLException if there was an error establishing a connection or fetching a topology
+   */
+  boolean forceRefreshHostList(final boolean shouldVerifyWriter, final long timeoutMs) throws SQLException;
+
+  /**
    * Establishes a connection to the given host using the given properties. If a non-default
    * {@link ConnectionProvider} has been set with
    * {@link ConnectionProviderManager#setConnectionProvider} and
