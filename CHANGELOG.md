@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.3.9] - 2024-08-09
+
+### :bug: Fixed
+- Statement object cast error [Issue #1045](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1045).
+- Missing required dependency in the bundled jar for ADFS Authentication [PR #1083](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1083).
+
+### :crab: Changed
+- Documentation:
+    - Information on HikariCP's instantiation failure messages. See [Connecting with a DataSource](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/DataSource.md#hikaricp-pooling-example).
+    - Required dependencies for the Okta Authentication Plugin. See [Okta Authentication Plugin](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheOktaAuthPlugin.md#prerequisites).
+
 ## [2.3.8] - 2024-07-31
 
 ### :bug: Fixed
@@ -330,6 +341,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.3.9]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.8...2.3.9
 [2.3.8]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.7...2.3.8
 [2.3.7]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.6...2.3.7
 [2.3.6]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.5...2.3.6

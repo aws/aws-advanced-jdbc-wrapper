@@ -224,7 +224,7 @@ If there is an unreleased feature you would like to try, it may be available in 
   <dependency>
     <groupId>software.amazon.jdbc</groupId>
     <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-    <version>2.3.9-SNAPSHOT</version>
+    <version>2.3.10-SNAPSHOT</version>
     <scope>system</scope>
     <systemPath>path-to-snapshot-jar</systemPath>
   </dependency>
