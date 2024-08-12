@@ -89,4 +89,15 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       throw e;
     }
   }
+
+  public synchronized void runMonitor(final String clusterId, final Properties props) {
+    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
+        MONITOR_DISPOSAL_TIME_MS.getLong(props));
+
+    final LimitlessRouterMonitor
+        limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
+    if (limitlessRouterMonitor == null) {
+      limitlessRouterMonitor.run();
+    }
+  }
 }

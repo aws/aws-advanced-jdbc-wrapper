@@ -30,6 +30,7 @@ The URL used to connect to a Limitless database is the Database Shard Group URL.
 |---------------------------------------------------|:-------:|:--------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|---------------|
 | `limitlessTransactionRouterMonitorIntervalMs`     | Integer |    No    | Interval in milliseconds between polling for load metric metadata of transaction routers. Note that the default value of 15 seconds was chosen to match the expected refresh rate of load metric metadata from the database. | `15000`       | `30000`       |
 | `limitlessTransactionRouterMonitorDisposalTimeMs` | Integer |    No    | Interval in milliseconds for Limitless monitor to be considered inactive and to be disposed.                                                                                                                                 | `600000`      | `300000`      |
+| `limitlessConnectMaxRetries`                      | Integer |    No    | Max number of connection retries the Limitless Connection Plugin will attempt.                                                                                                                                               | `5`           | `13`          |
 
 ### Use with other plugins
 The Limitless Connection Plugin is compatible with authentication type plugins such as the IAM and AWS Secrets Manager Plugins.

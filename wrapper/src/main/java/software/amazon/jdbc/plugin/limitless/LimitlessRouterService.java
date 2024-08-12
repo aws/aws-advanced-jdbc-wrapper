@@ -30,4 +30,6 @@ public interface LimitlessRouterService {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final int intervalMs);
+
+  void runMonitor(String clusterId, Properties props);
 }
