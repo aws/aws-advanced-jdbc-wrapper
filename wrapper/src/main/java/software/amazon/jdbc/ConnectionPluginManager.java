@@ -37,6 +37,7 @@ import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
 import software.amazon.jdbc.plugin.DefaultConnectionPlugin;
 import software.amazon.jdbc.plugin.ExecutionTimeConnectionPlugin;
 import software.amazon.jdbc.plugin.LogQueryConnectionPlugin;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
@@ -85,6 +86,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           put(FastestResponseStrategyPlugin.class, "plugin:fastestResponseStrategy");
           put(DefaultConnectionPlugin.class, "plugin:targetDriver");
           put(AuroraInitialConnectionStrategyPlugin.class, "plugin:initialConnection");
+          put(CustomEndpointPlugin.class, "plugin:customEndpoint");
         }
       };
 

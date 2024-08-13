@@ -70,6 +70,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -481,7 +482,21 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public CustomEndpointInfo getCustomEndpointInfo() {
+      return null;
+    }
+
+    @Override
+    public void setCustomEndpointInfo(CustomEndpointInfo customEndpointInfo) {
+    }
+
+    @Override
     public List<HostSpec> getHosts() {
+      return null;
+    }
+
+    @Override
+    public List<HostSpec> getAllowedHosts() {
       return null;
     }
 

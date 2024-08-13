@@ -16,6 +16,9 @@
 
 package software.amazon.jdbc.plugin.failover2;
 
+import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointType.ANY;
+import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointType.READER;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -36,6 +39,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverMode;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -162,6 +166,44 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   @Override
   public Set<String> getSubscribedMethods() {
     return subscribedMethods;
+  }
+
+  @Override
+  public Connection connect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+    return connectInternal(connectFunc);
+  }
+
+  @Override
+  public Connection forceConnect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> forceConnectFunc)
+      throws SQLException {
+    return connectInternal(forceConnectFunc);
+  }
+
+  protected Connection connectInternal(final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    Connection conn = connectFunc.call();
+    if (conn != null) {
+      CustomEndpointInfo customEndpointInfo = this.pluginService.getCustomEndpointInfo();
+      if (FAILOVER_MODE.getString(this.properties) == null && customEndpointInfo != null) {
+        if (READER.equals(customEndpointInfo.getCustomEndpointType())) {
+          this.failoverMode = FailoverMode.STRICT_READER;
+        } else if (ANY.equals(customEndpointInfo.getCustomEndpointType())) {
+          this.failoverMode = FailoverMode.READER_OR_WRITER;
+        }
+      }
+    }
+
+    return conn;
   }
 
   @Override
@@ -364,7 +406,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
       }
 
-      final List<HostSpec> hosts = this.pluginService.getHosts();
+      final List<HostSpec> hosts = this.pluginService.getAllowedHosts();
       Connection readerCandidateConn = null;
       HostSpec readerCandidate = null;
       final Set<HostSpec> remainingHosts = new HashSet<>(hosts);

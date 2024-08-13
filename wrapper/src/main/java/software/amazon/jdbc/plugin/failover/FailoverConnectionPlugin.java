@@ -16,6 +16,9 @@
 
 package software.amazon.jdbc.plugin.failover;
 
+import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointType.ANY;
+import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointType.READER;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -41,6 +44,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
@@ -356,7 +360,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   public boolean isFailoverEnabled() {
     return this.enableFailoverSetting
         && !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
-        && !Utils.isNullOrEmpty(this.pluginService.getHosts());
+        && !Utils.isNullOrEmpty(this.pluginService.getAllowedHosts());
   }
 
   private void initSettings() {
@@ -391,7 +395,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private HostSpec getCurrentWriter() throws SQLException {
-    final List<HostSpec> topology = this.pluginService.getHosts();
+    final List<HostSpec> topology = this.pluginService.getAllowedHosts();
     if (topology == null) {
       return null;
     }
@@ -488,8 +492,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private boolean shouldAttemptReaderConnection() {
-    final List<HostSpec> topology = this.pluginService.getHosts();
-    if (topology == null || this.failoverMode == FailoverMode.STRICT_WRITER) {
+    final List<HostSpec> topology = this.pluginService.getAllowedHosts();
+    if (Utils.isNullOrEmpty(topology) || this.failoverMode == FailoverMode.STRICT_WRITER) {
       return false;
     }
 
@@ -598,7 +602,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (failedHostSpec != null && failedHostSpec.getRawAvailability() == HostAvailability.AVAILABLE) {
         failedHost = failedHostSpec;
       }
-      final ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+      final ReaderFailoverResult result =
+          readerFailoverHandler.failover(this.pluginService.getAllowedHosts(), failedHost);
 
       if (result != null) {
         final SQLException exception = result.getException();
@@ -652,7 +657,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
-      final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getHosts());
+      final WriterFailoverResult failoverResult =
+          this.writerFailoverHandler.failover(this.pluginService.getAllowedHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {
@@ -803,6 +809,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (conn == null) {
       // This should be unreachable, the above logic will either get a connection successfully or throw an exception.
       throw new SQLException(Messages.get("Failover.unableToConnect"));
+    }
+
+    CustomEndpointInfo customEndpointInfo = this.pluginService.getCustomEndpointInfo();
+    if (FAILOVER_MODE.getString(this.properties) == null && customEndpointInfo != null) {
+      if (READER.equals(customEndpointInfo.getCustomEndpointType())) {
+        this.failoverMode = FailoverMode.STRICT_READER;
+      } else if (ANY.equals(customEndpointInfo.getCustomEndpointType())) {
+        this.failoverMode = FailoverMode.READER_OR_WRITER;
+      }
     }
 
     if (isInitialConnection) {
