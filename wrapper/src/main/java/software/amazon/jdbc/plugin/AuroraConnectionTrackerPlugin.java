@@ -45,16 +45,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
   static final String METHOD_ABORT = "Connection.abort";
   static final String METHOD_CLOSE = "Connection.close";
-  private static final Set<String> subscribedMethods =
-      Collections.unmodifiableSet(new HashSet<String>() {
-        {
-          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
-          add("connect");
-          add("forceConnect");
-          add("notifyNodeListChanged");
-        }
-      });
-
+  private final Set<String> subscribedMethods;
   private final PluginService pluginService;
   private final RdsUtils rdsHelper;
   private final OpenedConnectionTracker tracker;
@@ -73,6 +64,13 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
     this.pluginService = pluginService;
     this.rdsHelper = rdsUtils;
     this.tracker = tracker;
+
+    final HashSet<String> methods = new HashSet<>();
+    methods.add("connect");
+    methods.add("forceConnect");
+    methods.add("notifyNodeListChanged");
+    methods.addAll(this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames());
+    this.subscribedMethods = Collections.unmodifiableSet(methods);
   }
 
   @Override

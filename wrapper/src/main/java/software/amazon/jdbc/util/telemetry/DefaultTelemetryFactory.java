@@ -21,10 +21,14 @@ import software.amazon.jdbc.PropertyDefinition;
 
 public class DefaultTelemetryFactory implements TelemetryFactory {
 
+  private static final OpenTelemetryFactory OPEN_TELEMETRY_FACTORY = new OpenTelemetryFactory();
+  private static final XRayTelemetryFactory X_RAY_TELEMETRY_FACTORY = new XRayTelemetryFactory();
+  private static final NullTelemetryFactory NULL_TELEMETRY_FACTORY = new NullTelemetryFactory();
+
   private final boolean enableTelemetry;
   private final String telemetryTracesBackend;
   private final String telemetryMetricsBackend;
-  private final boolean telemetrySubmitToplevel;
+  private final boolean telemetrySubmitTopLevel;
 
   private final TelemetryFactory tracesTelemetryFactory;
   private final TelemetryFactory metricsTelemetryFactory;
@@ -33,41 +37,41 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
     this.enableTelemetry = PropertyDefinition.ENABLE_TELEMETRY.getBoolean(properties);
     this.telemetryTracesBackend = PropertyDefinition.TELEMETRY_TRACES_BACKEND.getString(properties);
     this.telemetryMetricsBackend = PropertyDefinition.TELEMETRY_METRICS_BACKEND.getString(properties);
-    this.telemetrySubmitToplevel = PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.getBoolean(properties);
+    this.telemetrySubmitTopLevel = PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.getBoolean(properties);
 
     if (enableTelemetry) {
       if ("otlp".equalsIgnoreCase(telemetryTracesBackend)) {
-        this.tracesTelemetryFactory = new OpenTelemetryFactory();
+        this.tracesTelemetryFactory = OPEN_TELEMETRY_FACTORY;
       } else if ("xray".equalsIgnoreCase(telemetryTracesBackend)) {
-        this.tracesTelemetryFactory = new XRayTelemetryFactory();
+        this.tracesTelemetryFactory = X_RAY_TELEMETRY_FACTORY;
       } else if ("none".equalsIgnoreCase(telemetryTracesBackend)) {
-        this.tracesTelemetryFactory = new NullTelemetryFactory();
+        this.tracesTelemetryFactory = NULL_TELEMETRY_FACTORY;
       } else {
         throw new RuntimeException(
             telemetryTracesBackend + " is not a valid tracing backend. Available options: OTLP, XRAY, NONE.");
       }
     } else {
-      this.tracesTelemetryFactory = new NullTelemetryFactory();
+      this.tracesTelemetryFactory = NULL_TELEMETRY_FACTORY;
     }
 
     if (enableTelemetry) {
       if ("otlp".equalsIgnoreCase(telemetryMetricsBackend)) {
-        this.metricsTelemetryFactory = new OpenTelemetryFactory();
+        this.metricsTelemetryFactory = OPEN_TELEMETRY_FACTORY;
       } else if ("none".equalsIgnoreCase(telemetryMetricsBackend)) {
-        this.metricsTelemetryFactory = new NullTelemetryFactory();
+        this.metricsTelemetryFactory = NULL_TELEMETRY_FACTORY;
       } else {
         throw new RuntimeException(
             telemetryTracesBackend + " is not a valid metrics backend. Available options: OTLP, NONE.");
       }
     } else {
-      this.metricsTelemetryFactory = new NullTelemetryFactory();
+      this.metricsTelemetryFactory = NULL_TELEMETRY_FACTORY;
     }
   }
 
   @Override
   public TelemetryContext openTelemetryContext(final String name, final TelemetryTraceLevel traceLevel) {
     TelemetryTraceLevel effectiveTraceLevel = traceLevel;
-    if (!this.telemetrySubmitToplevel && traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
+    if (!this.telemetrySubmitTopLevel && traceLevel == TelemetryTraceLevel.TOP_LEVEL) {
       effectiveTraceLevel = TelemetryTraceLevel.NESTED;
     }
     return this.tracesTelemetryFactory.openTelemetryContext(name, effectiveTraceLevel);
@@ -86,5 +90,10 @@ public class DefaultTelemetryFactory implements TelemetryFactory {
   @Override
   public TelemetryGauge createGauge(final String name, final GaugeCallable<Long> callback) {
     return this.metricsTelemetryFactory.createGauge(name, callback);
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return this.enableTelemetry;
   }
 }

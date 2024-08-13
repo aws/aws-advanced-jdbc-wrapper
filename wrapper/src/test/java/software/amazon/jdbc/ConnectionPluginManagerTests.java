@@ -33,6 +33,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -58,6 +60,7 @@ import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
+import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -74,6 +77,8 @@ public class ConnectionPluginManagerTests {
   @Mock TelemetryContext mockTelemetryContext;
   @Mock PluginService mockPluginService;
   @Mock PluginManagerService mockPluginManagerService;
+  @Mock TargetDriverDialect mockTargetDriverDialect;
+
   ConfigurationProfile configurationProfile = ConfigurationProfileBuilder.get().withName("test").build();
 
   private AutoCloseable closeable;
@@ -89,6 +94,15 @@ public class ConnectionPluginManagerTests {
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.openTelemetryContext(anyString(), any())).thenReturn(mockTelemetryContext);
     when(mockTelemetryFactory.openTelemetryContext(eq(null), any())).thenReturn(mockTelemetryContext);
+    when(mockPluginService.getTargetDriverDialect()).thenReturn(mockTargetDriverDialect);
+    when(mockTargetDriverDialect.getNetworkBoundMethodNames()).thenReturn(
+        new HashSet<>(Arrays.asList(
+            "lock-db-resource-from-thread-1",
+            "release-db-resource-from-thread-1",
+            "lock-db-resource-from-thread-2",
+            "testJdbcCall_A",
+            "testJdbcCall_B",
+            "testJdbcCall_C")));
   }
 
   @Test
@@ -108,6 +122,7 @@ public class ConnectionPluginManagerTests {
     final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
+    target.networkBoundedMethods = mockTargetDriverDialect.getNetworkBoundMethodNames();
 
     final Object result =
         target.execute(
@@ -150,6 +165,7 @@ public class ConnectionPluginManagerTests {
     final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
+    target.networkBoundedMethods = mockTargetDriverDialect.getNetworkBoundMethodNames();
 
     final Object result =
         target.execute(
@@ -190,6 +206,7 @@ public class ConnectionPluginManagerTests {
     final ConnectionPluginManager target =
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
+    target.networkBoundedMethods = mockTargetDriverDialect.getNetworkBoundMethodNames();
 
     final Object result =
         target.execute(
@@ -371,6 +388,7 @@ public class ConnectionPluginManagerTests {
     final ConnectionPluginManager target = Mockito.spy(
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory));
+    target.networkBoundedMethods = mockTargetDriverDialect.getNetworkBoundMethodNames();
 
     Object result =
         target.execute(
@@ -451,6 +469,7 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider,
             null, testProperties, testPlugins, mockConnectionWrapper,
             mockPluginService, mockTelemetryFactory);
+    target.networkBoundedMethods = mockTargetDriverDialect.getNetworkBoundMethodNames();
 
     assertThrows(SQLException.class,
         () -> target.execute(String.class, Exception.class, mockOldConnection, "testJdbcCall_A", () -> "result", null));
@@ -543,6 +562,7 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider1,
             null, testProperties, testPlugins, mockConnectionWrapper1,
             mockPluginService1, mockTelemetryFactory1);
+    pluginManager1.networkBoundedMethods = mockTargetDriverDialect.getNetworkBoundMethodNames();
 
     final ConnectionProvider mockConnectionProvider2 = Mockito.mock(ConnectionProvider.class);
     final ConnectionWrapper mockConnectionWrapper2 = Mockito.mock(ConnectionWrapper.class);
@@ -557,6 +577,7 @@ public class ConnectionPluginManagerTests {
         new ConnectionPluginManager(mockConnectionProvider2,
             null, testProperties, testPlugins, mockConnectionWrapper2,
             mockPluginService2, mockTelemetryFactory2);
+    pluginManager2.networkBoundedMethods = mockTargetDriverDialect.getNetworkBoundMethodNames();
 
     // Imaginary database resource is considered "locked" when latch is 0
     final CountDownLatch waitForDbResourceLocked = new CountDownLatch(1);

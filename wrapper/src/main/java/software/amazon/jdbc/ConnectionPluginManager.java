@@ -106,6 +106,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected final ConnectionWrapper connectionWrapper;
   protected PluginService pluginService;
   protected TelemetryFactory telemetryFactory;
+  protected final boolean isTelemetryEnabled;
+  protected Set<String> networkBoundedMethods;
 
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
@@ -119,6 +121,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     this.effectiveConnProvider = effectiveConnProvider;
     this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
+    this.isTelemetryEnabled = this.telemetryFactory.isEnabled();
   }
 
   /**
@@ -152,6 +155,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     this.plugins = plugins;
     this.connectionWrapper = connectionWrapper;
     this.telemetryFactory = telemetryFactory;
+    this.isTelemetryEnabled = this.telemetryFactory.isEnabled();
   }
 
   public void lock() {
@@ -199,6 +203,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         pluginManagerService,
         props,
         configurationProfile);
+
+    this.networkBoundedMethods = this.pluginService.getTargetDriverDialect().getNetworkBoundMethodNames();
   }
 
   protected <T, E extends Exception> T executeWithSubscribedPlugins(
@@ -259,14 +265,25 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
       if (isSubscribed) {
         if (pluginChainFunc == null) {
-          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
-              executeWithTelemetry(() -> pipelineFunc.call(plugin, jdbcFunc), pluginName);
+          if (this.isTelemetryEnabled) {
+            pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+                executeWithTelemetry(() -> pipelineFunc.call(plugin, jdbcFunc), pluginName);
+          } else {
+            pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+                pipelineFunc.call(plugin, jdbcFunc);
+          }
         } else {
           final PluginChainJdbcCallable<T, E> finalPluginChainFunc = pluginChainFunc;
-          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
-              executeWithTelemetry(() -> pipelineFunc.call(
-                  plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc)),
-                  pluginName);
+          if (this.isTelemetryEnabled) {
+            pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+                executeWithTelemetry(() -> pipelineFunc.call(
+                        plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc)),
+                    pluginName);
+          } else {
+            pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+                pipelineFunc.call(
+                        plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc));
+          }
         }
       }
     }
@@ -315,16 +332,18 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final Object[] jdbcMethodArgs)
       throws E {
 
-    // The target driver may block on Statement.getConnection().
-    if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
-      final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-      if (conn != null
-          && conn != this.pluginService.getCurrentConnection()
-          && !sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
-        throw WrapperUtils.wrapExceptionIfNeeded(
-            exceptionClass,
-            new SQLException(
-                Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[] {methodInvokeOn})));
+    if (this.networkBoundedMethods.contains(methodName)) {
+      // The target driver may block on Statement.getConnection().
+      if (!AsynchronousMethodsHelper.ASYNCHRONOUS_METHODS.contains(methodName)) {
+        final Connection conn = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+        if (conn != null
+            && conn != this.pluginService.getCurrentConnection()
+            && !sqlMethodAnalyzer.isMethodClosingSqlObject(methodName)) {
+          throw WrapperUtils.wrapExceptionIfNeeded(
+              exceptionClass,
+              new SQLException(
+                  Messages.get("ConnectionPluginManager.invokedAgainstOldConnection", new Object[]{methodInvokeOn})));
+        }
       }
     }
 

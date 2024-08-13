@@ -37,6 +37,80 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
   private static final String POOLING_DS_CLASS_NAME = "org.postgresql.ds.PGPoolingDataSource";
   private static final String CP_DS_CLASS_NAME = "org.postgresql.ds.PGConnectionPoolDataSource";
 
+  private static final Set<String> PG_ALLOWED_ON_CLOSED_METHOD_NAMES = Collections.unmodifiableSet(
+      new HashSet<String>() {
+      {
+        addAll(ALLOWED_ON_CLOSED_METHODS);
+        add(STATEMENT_CLEAR_WARNINGS);
+        add(STATEMENT_GET_FETCH_SIZE);
+        add(STATEMENT_GET_MAX_FIELD_SIZE);
+        add(STATEMENT_GET_RESULT_SET_TYPE);
+        add(STATEMENT_IS_CLOSE_ON_COMPLETION);
+        add(STATEMENT_CLEAR_BATCH);
+        add(STATEMENT_CLOSE_ON_COMPLETION);
+        add(STATEMENT_GET_GENERATED_KEYS);
+        add(STATEMENT_GET_MAX_ROWS);
+        add(STATEMENT_GET_MORE_RESULTS);
+        add(STATEMENT_GET_QUERY_TIMEOUT);
+        add(STATEMENT_GET_RESULT_SET);
+        add(STATEMENT_GET_RESULT_SET_CONCURRENCY);
+        add(STATEMENT_GET_UPDATE_COUNT);
+        add(STATEMENT_GET_WARNINGS);
+        add(STATEMENT_ADD_BATCH);
+        add(CALL_GET_ARRAY);
+        add(CALL_GET_BIG_DECIMAL);
+        add(CALL_GET_BOOLEAN);
+        add(CALL_GET_BYTE);
+        add(CALL_GET_BYTES);
+        add(CALL_GET_DATE);
+        add(CALL_GET_DOUBLE);
+        add(CALL_GET_FLOAT);
+        add(CALL_GET_INT);
+        add(CALL_GET_LONG);
+        add(CALL_GET_OBJECT);
+        add(CALL_GET_SHORT);
+        add(CALL_GET_SQLXML);
+        add(CALL_GET_TIME);
+        add(CALL_GET_STRING);
+        add(CALL_GET_TIMESTAMP);
+        add(CALL_WAS_NULL);
+        add(PREP_ADD_BATCH);
+        add(PREP_CLEAR_PARAMS);
+      }
+    });
+
+  //TODO: verify methods below
+  private static final Set<String> PG_NETWORK_BOUND_METHODS = Collections.unmodifiableSet(
+      new HashSet<>(Arrays.asList(
+          "Connection.commit",
+          "Connection.connect",
+          "Connection.isValid",
+          "Connection.rollback",
+          "Connection.sendQueryCancel",
+          "Connection.setAutoCommit",
+          "Connection.setReadOnly",
+          "Statement.cancel",
+          "Statement.execute",
+          "Statement.executeBatch",
+          "Statement.executeLargeBatch",
+          "Statement.executeLargeUpdate",
+          "Statement.executeQuery",
+          "Statement.executeUpdate",
+          "Statement.executeWithFlags",
+          "PreparedStatement.execute",
+          "PreparedStatement.executeBatch",
+          "PreparedStatement.executeLargeUpdate",
+          "PreparedStatement.executeQuery",
+          "PreparedStatement.executeUpdate",
+          "PreparedStatement.executeWithFlags",
+          "PreparedStatement.getParameterMetaData",
+          "CallableStatement.execute",
+          "CallableStatement.executeLargeUpdate",
+          "CallableStatement.executeQuery",
+          "CallableStatement.executeUpdate",
+          "CallableStatement.executeWithFlags"
+      )));
+
   private static final Set<String> dataSourceClassMap = new HashSet<>(Arrays.asList(
       SIMPLE_DS_CLASS_NAME,
       POOLING_DS_CLASS_NAME,
@@ -120,45 +194,11 @@ public class PgTargetDriverDialect extends GenericTargetDriverDialect {
 
   @Override
   public Set<String> getAllowedOnConnectionMethodNames() {
-    return Collections.unmodifiableSet(new HashSet<String>() {
-      {
-        addAll(ALLOWED_ON_CLOSED_METHODS);
-        add(STATEMENT_CLEAR_WARNINGS);
-        add(STATEMENT_GET_FETCH_SIZE);
-        add(STATEMENT_GET_MAX_FIELD_SIZE);
-        add(STATEMENT_GET_RESULT_SET_TYPE);
-        add(STATEMENT_IS_CLOSE_ON_COMPLETION);
-        add(STATEMENT_CLEAR_BATCH);
-        add(STATEMENT_CLOSE_ON_COMPLETION);
-        add(STATEMENT_GET_GENERATED_KEYS);
-        add(STATEMENT_GET_MAX_ROWS);
-        add(STATEMENT_GET_MORE_RESULTS);
-        add(STATEMENT_GET_QUERY_TIMEOUT);
-        add(STATEMENT_GET_RESULT_SET);
-        add(STATEMENT_GET_RESULT_SET_CONCURRENCY);
-        add(STATEMENT_GET_UPDATE_COUNT);
-        add(STATEMENT_GET_WARNINGS);
-        add(STATEMENT_ADD_BATCH);
-        add(CALL_GET_ARRAY);
-        add(CALL_GET_BIG_DECIMAL);
-        add(CALL_GET_BOOLEAN);
-        add(CALL_GET_BYTE);
-        add(CALL_GET_BYTES);
-        add(CALL_GET_DATE);
-        add(CALL_GET_DOUBLE);
-        add(CALL_GET_FLOAT);
-        add(CALL_GET_INT);
-        add(CALL_GET_LONG);
-        add(CALL_GET_OBJECT);
-        add(CALL_GET_SHORT);
-        add(CALL_GET_SQLXML);
-        add(CALL_GET_TIME);
-        add(CALL_GET_STRING);
-        add(CALL_GET_TIMESTAMP);
-        add(CALL_WAS_NULL);
-        add(PREP_ADD_BATCH);
-        add(PREP_CLEAR_PARAMS);
-      }
-    });
+    return PG_ALLOWED_ON_CLOSED_METHOD_NAMES;
+  }
+
+  @Override
+  public Set<String> getNetworkBoundMethodNames() {
+    return PG_NETWORK_BOUND_METHODS;
   }
 }

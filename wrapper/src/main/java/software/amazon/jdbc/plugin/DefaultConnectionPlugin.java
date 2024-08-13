@@ -68,6 +68,10 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   private final PluginService pluginService;
   private final PluginManagerService pluginManagerService;
 
+  private final String targetName;
+  private final boolean isTelemetryEnabled;
+  private boolean isRequiredMaintainTransactionContext = false;
+
   public DefaultConnectionPlugin(
       final PluginService pluginService,
       final ConnectionProvider defaultConnProvider,
@@ -101,6 +105,9 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     this.defaultConnProvider = defaultConnProvider;
     this.effectiveConnProvider = effectiveConnProvider;
     this.connProviderManager = connProviderManager;
+    this.targetName = this.pluginService.getTargetName();
+    this.isTelemetryEnabled = this.pluginService.getTelemetryFactory().isEnabled();
+    this.isRequiredMaintainTransactionContext = this.pluginService.isRequiredMaintainTransactionContext();
   }
 
   @Override
@@ -121,40 +128,48 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     LOGGER.finest(
         () -> Messages.get("DefaultConnectionPlugin.executingMethod", new Object[] {methodName}));
 
-    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-        this.pluginService.getTargetName(), TelemetryTraceLevel.NESTED);
+    TelemetryContext telemetryContext = null;
+    if (this.isTelemetryEnabled) {
+      TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+      telemetryContext = telemetryFactory.openTelemetryContext(
+          this.targetName, TelemetryTraceLevel.NESTED);
+    }
 
     T result;
     try {
       result = jdbcMethodFunc.call();
     } finally {
-      telemetryContext.closeContext();
+      if (this.isTelemetryEnabled) {
+        telemetryContext.closeContext();
+      }
     }
 
-    final Connection currentConn = this.pluginService.getCurrentConnection();
-    final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
-    if (boundConnection != null && boundConnection != currentConn) {
-      // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
-      // ConnectionPluginManager#execute blocks all methods invoked using old connections except for close/abort.
-      return result;
+    if (this.isRequiredMaintainTransactionContext) {
+      final Connection currentConn = this.pluginService.getCurrentConnection();
+      final Connection boundConnection = WrapperUtils.getConnectionFromSqlObject(methodInvokeOn);
+      if (boundConnection != null && boundConnection != currentConn) {
+        // The method being invoked is using an old connection, so transaction/autocommit analysis should be skipped.
+        // ConnectionPluginManager#execute blocks all methods invoked using old connections except for close/abort.
+        return result;
+      }
+
+      if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
+        this.pluginManagerService.setInTransaction(true);
+      } else if (
+          sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
+              // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
+              || sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(currentConn, methodName,
+              jdbcMethodArgs)) {
+        this.pluginManagerService.setInTransaction(false);
+      }
     }
 
-    if (sqlMethodAnalyzer.doesOpenTransaction(currentConn, methodName, jdbcMethodArgs)) {
-      this.pluginManagerService.setInTransaction(true);
-    } else if (
-        sqlMethodAnalyzer.doesCloseTransaction(currentConn, methodName, jdbcMethodArgs)
-            // According to the JDBC spec, transactions are committed if autocommit is switched from false to true.
-            || sqlMethodAnalyzer.doesSwitchAutoCommitFalseTrue(currentConn, methodName,
-            jdbcMethodArgs)) {
-      this.pluginManagerService.setInTransaction(false);
-    }
-
+    // TODO: verify and reconsider this logic
     if (sqlMethodAnalyzer.isStatementSettingAutoCommit(methodName, jdbcMethodArgs)) {
       final Boolean autocommit = sqlMethodAnalyzer.getAutoCommitValueFromSqlStatement(jdbcMethodArgs);
       if (autocommit != null) {
         try {
-          currentConn.setAutoCommit(autocommit);
+          this.pluginService.getCurrentConnection().setAutoCommit(autocommit);
         } catch (final SQLException e) {
           // do nothing
         }
