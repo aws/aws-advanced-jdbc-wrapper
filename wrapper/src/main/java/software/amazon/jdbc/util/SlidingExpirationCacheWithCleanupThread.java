@@ -16,8 +16,8 @@
 
 package software.amazon.jdbc.util;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
@@ -27,13 +27,11 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
   private static final Logger LOGGER =
       Logger.getLogger(SlidingExpirationCacheWithCleanupThread.class.getName());
 
-  private static final int CLEANUP_THREAD_POOL_MAX_THREADS = 1;
-  protected static final ThreadPoolExecutor cleanupThreadPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(
-      CLEANUP_THREAD_POOL_MAX_THREADS, runnableTarget -> {
-        final Thread monitoringThread = new Thread(runnableTarget);
-        monitoringThread.setDaemon(true);
-        return monitoringThread;
-      });
+  protected static final ExecutorService cleanupThreadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
+    final Thread monitoringThread = new Thread(runnableTarget);
+    monitoringThread.setDaemon(true);
+    return monitoringThread;
+  });
   protected static boolean isInitialized = false;
   protected static ReentrantLock initLock = new ReentrantLock();
 

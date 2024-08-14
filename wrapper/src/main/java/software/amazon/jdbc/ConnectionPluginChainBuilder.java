@@ -100,10 +100,10 @@ public class ConnectionPluginChainBuilder {
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
+          put(LimitlessConnectionPluginFactory.class, 950);
           put(IamAuthConnectionPluginFactory.class, 1000);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
           put(FederatedAuthPluginFactory.class, 1200);
-          put(LimitlessConnectionPluginFactory.class, 1250);
           put(LogQueryConnectionPluginFactory.class, 1300);
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);

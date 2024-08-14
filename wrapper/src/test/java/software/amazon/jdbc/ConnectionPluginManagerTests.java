@@ -646,7 +646,98 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testGetHostSpecByStrategy() throws SQLException {
+  public void testGetHostSpecByStrategy_givenPluginWithNoSubscriptions_thenThrowsSqlException() throws SQLException {
+    final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
+    when(mockPlugin.getSubscribedMethods()).thenReturn(Collections.emptySet());
+    when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
+
+    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+
+    final Properties testProperties = new Properties();
+    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
+        null, testProperties, testPlugins, mockConnectionWrapper,
+        mockPluginService, mockTelemetryFactory);
+
+    final HostRole inputHostRole = HostRole.WRITER;
+    final String inputStrategy = "someStrategy";
+
+    assertThrows(
+        SQLException.class,
+        () -> connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
+  }
+
+  @Test
+  public void testGetHostSpecByStrategy_givenPluginWithDiffSubscription_thenThrowsSqlException() throws SQLException {
+    final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
+    when(mockPlugin.getSubscribedMethods())
+        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.CONNECT_METHOD)));
+    when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
+
+    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+
+    final Properties testProperties = new Properties();
+    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
+        null, testProperties, testPlugins, mockConnectionWrapper,
+        mockPluginService, mockTelemetryFactory);
+
+    final HostRole inputHostRole = HostRole.WRITER;
+    final String inputStrategy = "someStrategy";
+
+    assertThrows(
+        SQLException.class,
+        () -> connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
+  }
+
+  @Test
+  public void testGetHostSpecByStrategy_givenUnsupportedPlugin_thenThrowsSqlException() throws SQLException {
+    final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
+    when(mockPlugin.getSubscribedMethods())
+        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.ALL_METHODS)));
+    when(mockPlugin.getHostSpecByStrategy(any(), any())).thenThrow(new UnsupportedOperationException());
+
+    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+
+    final Properties testProperties = new Properties();
+    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
+        null, testProperties, testPlugins, mockConnectionWrapper,
+        mockPluginService, mockTelemetryFactory);
+
+    final HostRole inputHostRole = HostRole.WRITER;
+    final String inputStrategy = "someStrategy";
+
+    assertThrows(
+        SQLException.class,
+        () -> connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy));
+  }
+
+  @Test
+  public void testGetHostSpecByStrategy_givenSupportedSubscribedPlugin_thenThrowsSqlException() throws SQLException {
+    final ConnectionPlugin mockPlugin = mock(ConnectionPlugin.class);
+
+    when(mockPlugin.getSubscribedMethods())
+        .thenReturn(new HashSet<>(Arrays.asList(ConnectionPluginManager.ALL_METHODS)));
+
+    final HostSpec expectedHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("expected-instance").build();
+    when(mockPlugin.getHostSpecByStrategy(any(), any())).thenReturn(expectedHostSpec);
+
+    final List<ConnectionPlugin> testPlugins = Arrays.asList(mockPlugin);
+
+    final Properties testProperties = new Properties();
+    final ConnectionPluginManager connectionPluginManager = new ConnectionPluginManager(mockConnectionProvider,
+        null, testProperties, testPlugins, mockConnectionWrapper,
+        mockPluginService, mockTelemetryFactory);
+
+    final HostRole inputHostRole = HostRole.WRITER;
+    final String inputStrategy = "someStrategy";
+    final HostSpec actualHostSpec = connectionPluginManager.getHostSpecByStrategy(inputHostRole, inputStrategy);
+
+    verify(mockPlugin, times(1)).getHostSpecByStrategy(inputHostRole, inputStrategy);
+    assertEquals(expectedHostSpec, actualHostSpec);
+  }
+
+  @Test
+  public void testGetHostSpecByStrategy_givenMultiplePlugins() throws SQLException {
     final ConnectionPlugin unsubscribedPlugin0 = mock(ConnectionPlugin.class);
     final ConnectionPlugin unsupportedSubscribedPlugin0 = mock(ConnectionPlugin.class);
     final ConnectionPlugin unsubscribedPlugin1 = mock(ConnectionPlugin.class);
@@ -691,7 +782,7 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
-  public void testGetHostSpecByStrategy_givenHosts() throws SQLException {
+  public void testGetHostSpecByStrategy_givenInputHostsAndMultiplePlugins() throws SQLException {
     final ConnectionPlugin unsubscribedPlugin0 = mock(ConnectionPlugin.class);
     final ConnectionPlugin unsupportedSubscribedPlugin0 = mock(ConnectionPlugin.class);
     final ConnectionPlugin unsubscribedPlugin1 = mock(ConnectionPlugin.class);

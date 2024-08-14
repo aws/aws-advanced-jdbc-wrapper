@@ -46,4 +46,4 @@ To mitigate this, consider setting connection properties that may reduce number 
 If you are using HikariCP, some of these properties are `idleTimeout`, `maxLifetime`, `minimumIdle`.
 
 ## Sample Code
-[LimitlessPostgresqlExample](../../../examples/AWSDriverExample/src/main/java/software/amazon/EndpointPluginExample.java)
+[Limitless Postgresql Example](../../../examples/AWSDriverExample/src/main/java/software/amazon/LimitlessPostgresqlExample.java)

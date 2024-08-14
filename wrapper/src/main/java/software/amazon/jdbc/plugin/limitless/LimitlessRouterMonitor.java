@@ -228,7 +228,16 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private HostSpec createHost(final ResultSet resultSet) throws SQLException {
     final String hostName = resultSet.getString(1);
     final float cpu = resultSet.getFloat(2);
-    final long weight = (long) (10 - cpu * 10);
+
+    long weight = Math.round(10 - cpu * 10);
+
+    if (weight < 1 || weight > 10) {
+      weight = 1; // default to 1
+      LOGGER.warning(() -> Messages.get(
+          "LimitlessRouterMonitor.invalidRouterLoad",
+          new Object[] {hostName, cpu}));
+    }
+
     return new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host(hostName)
         .port(this.hostSpec.getPort())
