@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -76,6 +77,12 @@ public abstract class AbstractConnectionPlugin implements ConnectionPlugin {
 
   @Override
   public HostSpec getHostSpecByStrategy(final HostRole role, final String strategy)
+      throws SQLException, UnsupportedOperationException {
+    throw new UnsupportedOperationException("getHostSpecByStrategy is not supported by this plugin.");
+  }
+
+  @Override
+  public HostSpec getHostSpecByStrategy(final List<HostSpec> hosts, final HostRole role, final String strategy)
       throws SQLException, UnsupportedOperationException {
     throw new UnsupportedOperationException("getHostSpecByStrategy is not supported by this plugin.");
   }

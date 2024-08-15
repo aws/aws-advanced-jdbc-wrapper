@@ -41,6 +41,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory;
+import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory;
@@ -77,6 +78,7 @@ public class ConnectionPluginChainBuilder {
           put("dev", DeveloperConnectionPluginFactory.class);
           put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
           put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
+          put("limitless", LimitlessConnectionPluginFactory.class);
         }
       };
 
@@ -98,6 +100,7 @@ public class ConnectionPluginChainBuilder {
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
+          put(LimitlessConnectionPluginFactory.class, 950);
           put(IamAuthConnectionPluginFactory.class, 1000);
           put(AwsSecretsManagerConnectionPluginFactory.class, 1100);
           put(FederatedAuthPluginFactory.class, 1200);

@@ -101,6 +101,28 @@ public interface PluginService extends ExceptionHandler {
       throws SQLException, UnsupportedOperationException;
 
   /**
+   * Selects a {@link HostSpec} with the requested role from available hosts using the requested
+   * strategy. {@link #acceptsStrategy} should be called first to evaluate if the available
+   * {@link ConnectionProvider} or {@link ConnectionPlugin} instances support the selection of a
+   * host with the requested role and strategy.
+   *
+   * @param hosts    the list of {@link HostSpec} from which a {@link HostSpec} will be selected from
+   * @param role     the desired role of the host - either a writer or a reader
+   * @param strategy the strategy that should be used to select a {@link HostSpec} from the
+   *                 available hosts (eg "random")
+   * @return a {@link HostSpec} with the requested role
+   * @throws SQLException                  if the available {@link ConnectionProvider} or
+   *                                       {@link ConnectionPlugin} instances do not cannot find a
+   *                                       host matching the requested role or an error occurs while
+   *                                       selecting a host
+   * @throws UnsupportedOperationException if the available {@link ConnectionProvider} or
+   *                                       {@link ConnectionPlugin} instances do not support the
+   *                                       requested strategy
+   */
+  HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+      throws SQLException, UnsupportedOperationException;
+
+  /**
    * Evaluates the host role of the given connection - either a writer or a reader.
    *
    * @param conn a connection to the database instance whose role should be determined

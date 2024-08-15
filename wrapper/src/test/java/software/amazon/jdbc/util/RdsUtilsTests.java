@@ -37,6 +37,8 @@ public class RdsUtilsTests {
       "proxy-test-name.proxy-XYZ.us-east-2.rds.amazonaws.com";
   private static final String usEastRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.us-east-2.rds.amazonaws.com";
+  private static final String usEastRegionLimitlessDbShardGroup =
+      "database-test-name.limitless-XYZ.us-east-2.rds.amazonaws.com";
 
   private static final String chinaRegionCluster =
       "database-test-name.cluster-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
@@ -48,6 +50,8 @@ public class RdsUtilsTests {
       "proxy-test-name.proxy-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
   private static final String chinaRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
+  private static final String chinaRegionLimitlessDbShardGroup =
+      "database-test-name.limitless-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
 
   private static final String oldChinaRegionCluster =
       "database-test-name.cluster-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
@@ -59,6 +63,8 @@ public class RdsUtilsTests {
       "proxy-test-name.proxy-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
   private static final String oldChinaRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
+  private static final String oldChinaRegionLimitlessDbShardGroup =
+      "database-test-name.limitless-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
 
   private static final String extraRdsChinaPath =
       "database-test-name.cluster-XYZ.rds.cn-northwest-1.rds.amazonaws.com.cn";
@@ -81,7 +87,8 @@ public class RdsUtilsTests {
       "proxy-test-name.proxy-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
   private static final String usIsobEastRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
-
+  private static final String usIsobEastRegionLimitlessDbShardGroup =
+      "database-test-name.limitless-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
 
   private static final String usGovEastRegionCluster =
       "database-test-name.cluster-XYZ.rds.us-gov-east-1.amazonaws.com";
@@ -95,6 +102,8 @@ public class RdsUtilsTests {
       "proxy-test-name.proxy-XYZ.rds.us-iso-east-1.c2s.ic.gov";
   private static final String usIsoEastRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.rds.us-iso-east-1.c2s.ic.gov";
+  private static final String usIsoEastRegionLimitlessDbShardGroup =
+      "database-test-name.limitless-XYZ.rds.us-iso-east-1.c2s.ic.gov";
 
   @BeforeEach
   public void setupTests() {
@@ -110,30 +119,35 @@ public class RdsUtilsTests {
     assertTrue(target.isRdsDns(usEastRegionProxy));
     assertTrue(target.isRdsDns(usEastRegionCustomDomain));
     assertFalse(target.isRdsDns(usEastRegionElbUrl));
+    assertTrue(target.isRdsDns(usEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsDns(chinaRegionCluster));
     assertTrue(target.isRdsDns(chinaRegionClusterReadOnly));
     assertTrue(target.isRdsDns(chinaRegionInstance));
     assertTrue(target.isRdsDns(chinaRegionProxy));
     assertTrue(target.isRdsDns(chinaRegionCustomDomain));
+    assertTrue(target.isRdsDns(chinaRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsDns(oldChinaRegionCluster));
     assertTrue(target.isRdsDns(oldChinaRegionClusterReadOnly));
     assertTrue(target.isRdsDns(oldChinaRegionInstance));
     assertTrue(target.isRdsDns(oldChinaRegionProxy));
     assertTrue(target.isRdsDns(oldChinaRegionCustomDomain));
+    assertTrue(target.isRdsDns(oldChinaRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsDns(usIsobEastRegionCluster));
     assertTrue(target.isRdsDns(usIsobEastRegionClusterReadOnly));
     assertTrue(target.isRdsDns(usIsobEastRegionInstance));
     assertTrue(target.isRdsDns(usIsobEastRegionProxy));
     assertTrue(target.isRdsDns(usIsobEastRegionCustomDomain));
+    assertTrue(target.isRdsDns(usIsobEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsDns(usIsoEastRegionCluster));
     assertTrue(target.isRdsDns(usIsoEastRegionClusterReadOnly));
     assertTrue(target.isRdsDns(usIsoEastRegionInstance));
     assertTrue(target.isRdsDns(usIsoEastRegionProxy));
     assertTrue(target.isRdsDns(usIsoEastRegionCustomDomain));
+    assertTrue(target.isRdsDns(usIsoEastRegionLimitlessDbShardGroup));
   }
 
   @Test
@@ -144,6 +158,7 @@ public class RdsUtilsTests {
     assertEquals(expectedHostPattern, target.getRdsInstanceHostPattern(usEastRegionInstance));
     assertEquals(expectedHostPattern, target.getRdsInstanceHostPattern(usEastRegionProxy));
     assertEquals(expectedHostPattern, target.getRdsInstanceHostPattern(usEastRegionCustomDomain));
+    assertEquals(expectedHostPattern, target.getRdsInstanceHostPattern(usEastRegionLimitlessDbShardGroup));
 
     final String govExpectedHostPattern = "?.XYZ.rds.us-gov-east-1.amazonaws.com";
     assertEquals(govExpectedHostPattern, target.getRdsInstanceHostPattern(usGovEastRegionCluster));
@@ -154,6 +169,7 @@ public class RdsUtilsTests {
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionInstance));
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionProxy));
     assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionCustomDomain));
+    assertEquals(isobExpectedHostPattern, target.getRdsInstanceHostPattern(usIsobEastRegionLimitlessDbShardGroup));
 
     final String isoExpectedHostPattern = "?.XYZ.rds.us-iso-east-1.c2s.ic.gov";
     assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionCluster));
@@ -161,6 +177,7 @@ public class RdsUtilsTests {
     assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionInstance));
     assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionProxy));
     assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionCustomDomain));
+    assertEquals(isoExpectedHostPattern, target.getRdsInstanceHostPattern(usIsoEastRegionLimitlessDbShardGroup));
 
     final String chinaExpectedHostPattern = "?.XYZ.rds.cn-northwest-1.amazonaws.com.cn";
     assertEquals(chinaExpectedHostPattern, target.getRdsInstanceHostPattern(chinaRegionCluster));
@@ -168,6 +185,7 @@ public class RdsUtilsTests {
     assertEquals(chinaExpectedHostPattern, target.getRdsInstanceHostPattern(chinaRegionInstance));
     assertEquals(chinaExpectedHostPattern, target.getRdsInstanceHostPattern(chinaRegionProxy));
     assertEquals(chinaExpectedHostPattern, target.getRdsInstanceHostPattern(chinaRegionCustomDomain));
+    assertEquals(chinaExpectedHostPattern, target.getRdsInstanceHostPattern(chinaRegionLimitlessDbShardGroup));
 
     final String oldChinaExpectedHostPattern = "?.XYZ.cn-northwest-1.rds.amazonaws.com.cn";
     assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionCluster));
@@ -175,6 +193,7 @@ public class RdsUtilsTests {
     assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionInstance));
     assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionProxy));
     assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionCustomDomain));
+    assertEquals(oldChinaExpectedHostPattern, target.getRdsInstanceHostPattern(oldChinaRegionLimitlessDbShardGroup));
   }
 
   @Test
@@ -185,30 +204,35 @@ public class RdsUtilsTests {
     assertFalse(target.isRdsClusterDns(usEastRegionProxy));
     assertFalse(target.isRdsClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isRdsClusterDns(usEastRegionElbUrl));
+    assertFalse(target.isRdsClusterDns(usEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsClusterDns(usIsobEastRegionCluster));
     assertTrue(target.isRdsClusterDns(usIsobEastRegionClusterReadOnly));
     assertFalse(target.isRdsClusterDns(usIsobEastRegionInstance));
     assertFalse(target.isRdsClusterDns(usIsobEastRegionProxy));
     assertFalse(target.isRdsClusterDns(usIsobEastRegionCustomDomain));
+    assertFalse(target.isRdsClusterDns(usIsobEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsClusterDns(usIsoEastRegionCluster));
     assertTrue(target.isRdsClusterDns(usIsoEastRegionClusterReadOnly));
     assertFalse(target.isRdsClusterDns(usIsoEastRegionInstance));
     assertFalse(target.isRdsClusterDns(usIsoEastRegionProxy));
     assertFalse(target.isRdsClusterDns(usIsoEastRegionCustomDomain));
+    assertFalse(target.isRdsClusterDns(usIsoEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsClusterDns(chinaRegionCluster));
     assertTrue(target.isRdsClusterDns(chinaRegionClusterReadOnly));
     assertFalse(target.isRdsClusterDns(chinaRegionInstance));
     assertFalse(target.isRdsClusterDns(chinaRegionProxy));
     assertFalse(target.isRdsClusterDns(chinaRegionCustomDomain));
+    assertFalse(target.isRdsClusterDns(chinaRegionLimitlessDbShardGroup));
 
     assertTrue(target.isRdsClusterDns(oldChinaRegionCluster));
     assertTrue(target.isRdsClusterDns(oldChinaRegionClusterReadOnly));
     assertFalse(target.isRdsClusterDns(oldChinaRegionInstance));
     assertFalse(target.isRdsClusterDns(oldChinaRegionProxy));
     assertFalse(target.isRdsClusterDns(oldChinaRegionCustomDomain));
+    assertFalse(target.isRdsClusterDns(oldChinaRegionLimitlessDbShardGroup));
   }
 
   @Test
@@ -219,30 +243,35 @@ public class RdsUtilsTests {
     assertFalse(target.isWriterClusterDns(usEastRegionProxy));
     assertFalse(target.isWriterClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isWriterClusterDns(usEastRegionElbUrl));
+    assertFalse(target.isWriterClusterDns(usEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isWriterClusterDns(usIsobEastRegionCluster));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionClusterReadOnly));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionInstance));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionProxy));
     assertFalse(target.isWriterClusterDns(usIsobEastRegionCustomDomain));
+    assertFalse(target.isWriterClusterDns(usIsobEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isWriterClusterDns(usIsoEastRegionCluster));
     assertFalse(target.isWriterClusterDns(usIsoEastRegionClusterReadOnly));
     assertFalse(target.isWriterClusterDns(usIsoEastRegionInstance));
     assertFalse(target.isWriterClusterDns(usIsoEastRegionProxy));
     assertFalse(target.isWriterClusterDns(usIsoEastRegionCustomDomain));
+    assertFalse(target.isWriterClusterDns(usIsoEastRegionLimitlessDbShardGroup));
 
     assertTrue(target.isWriterClusterDns(chinaRegionCluster));
     assertFalse(target.isWriterClusterDns(chinaRegionClusterReadOnly));
     assertFalse(target.isWriterClusterDns(chinaRegionInstance));
     assertFalse(target.isWriterClusterDns(chinaRegionProxy));
     assertFalse(target.isWriterClusterDns(chinaRegionCustomDomain));
+    assertFalse(target.isWriterClusterDns(chinaRegionLimitlessDbShardGroup));
 
     assertTrue(target.isWriterClusterDns(oldChinaRegionCluster));
     assertFalse(target.isWriterClusterDns(oldChinaRegionClusterReadOnly));
     assertFalse(target.isWriterClusterDns(oldChinaRegionInstance));
     assertFalse(target.isWriterClusterDns(oldChinaRegionProxy));
     assertFalse(target.isWriterClusterDns(oldChinaRegionCustomDomain));
+    assertFalse(target.isWriterClusterDns(oldChinaRegionLimitlessDbShardGroup));
   }
 
   @Test
@@ -253,30 +282,40 @@ public class RdsUtilsTests {
     assertFalse(target.isReaderClusterDns(usEastRegionProxy));
     assertFalse(target.isReaderClusterDns(usEastRegionCustomDomain));
     assertFalse(target.isReaderClusterDns(usEastRegionElbUrl));
+    assertFalse(target.isReaderClusterDns(usEastRegionLimitlessDbShardGroup));
 
     assertFalse(target.isReaderClusterDns(usIsobEastRegionCluster));
     assertTrue(target.isReaderClusterDns(usIsobEastRegionClusterReadOnly));
     assertFalse(target.isReaderClusterDns(usIsobEastRegionInstance));
     assertFalse(target.isReaderClusterDns(usIsobEastRegionProxy));
     assertFalse(target.isReaderClusterDns(usIsobEastRegionCustomDomain));
+    assertFalse(target.isReaderClusterDns(usIsobEastRegionLimitlessDbShardGroup));
 
     assertFalse(target.isReaderClusterDns(usIsoEastRegionCluster));
     assertTrue(target.isReaderClusterDns(usIsoEastRegionClusterReadOnly));
     assertFalse(target.isReaderClusterDns(usIsoEastRegionInstance));
     assertFalse(target.isReaderClusterDns(usIsoEastRegionProxy));
     assertFalse(target.isReaderClusterDns(usIsoEastRegionCustomDomain));
+    assertFalse(target.isReaderClusterDns(usIsoEastRegionLimitlessDbShardGroup));
 
     assertFalse(target.isReaderClusterDns(chinaRegionCluster));
     assertTrue(target.isReaderClusterDns(chinaRegionClusterReadOnly));
     assertFalse(target.isReaderClusterDns(chinaRegionInstance));
     assertFalse(target.isReaderClusterDns(chinaRegionProxy));
     assertFalse(target.isReaderClusterDns(chinaRegionCustomDomain));
+    assertFalse(target.isReaderClusterDns(chinaRegionLimitlessDbShardGroup));
 
     assertFalse(target.isReaderClusterDns(oldChinaRegionCluster));
     assertTrue(target.isReaderClusterDns(oldChinaRegionClusterReadOnly));
     assertFalse(target.isReaderClusterDns(oldChinaRegionInstance));
     assertFalse(target.isReaderClusterDns(oldChinaRegionProxy));
     assertFalse(target.isReaderClusterDns(oldChinaRegionCustomDomain));
+    assertFalse(target.isReaderClusterDns(oldChinaRegionLimitlessDbShardGroup));
+  }
+
+  @Test
+  public void testIsLimitlessDbShardGroupDns() {
+
   }
 
   @Test
@@ -288,6 +327,7 @@ public class RdsUtilsTests {
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionProxy));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionCustomDomain));
     assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionElbUrl));
+    assertEquals(expectedHostPattern, target.getRdsRegion(usEastRegionLimitlessDbShardGroup));
 
     final String govExpectedHostPattern = "us-gov-east-1";
     assertEquals(govExpectedHostPattern, target.getRdsRegion(usGovEastRegionCluster));
@@ -298,6 +338,7 @@ public class RdsUtilsTests {
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionInstance));
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionProxy));
     assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionCustomDomain));
+    assertEquals(isobExpectedHostPattern, target.getRdsRegion(usIsobEastRegionLimitlessDbShardGroup));
 
     final String isoExpectedHostPattern = "us-iso-east-1";
     assertEquals(isoExpectedHostPattern, target.getRdsRegion(usIsoEastRegionCluster));
@@ -305,6 +346,7 @@ public class RdsUtilsTests {
     assertEquals(isoExpectedHostPattern, target.getRdsRegion(usIsoEastRegionInstance));
     assertEquals(isoExpectedHostPattern, target.getRdsRegion(usIsoEastRegionProxy));
     assertEquals(isoExpectedHostPattern, target.getRdsRegion(usIsoEastRegionCustomDomain));
+    assertEquals(isoExpectedHostPattern, target.getRdsRegion(usIsoEastRegionLimitlessDbShardGroup));
 
     final String chinaExpectedHostPattern = "cn-northwest-1";
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(chinaRegionCluster));
@@ -312,12 +354,14 @@ public class RdsUtilsTests {
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(chinaRegionInstance));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(chinaRegionProxy));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(chinaRegionCustomDomain));
+    assertEquals(chinaExpectedHostPattern, target.getRdsRegion(chinaRegionLimitlessDbShardGroup));
 
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionCluster));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionClusterReadOnly));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionInstance));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionProxy));
     assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionCustomDomain));
+    assertEquals(chinaExpectedHostPattern, target.getRdsRegion(oldChinaRegionLimitlessDbShardGroup));
   }
 
   @Test

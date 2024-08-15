@@ -23,6 +23,7 @@ public enum RdsUrlType {
   RDS_CUSTOM_CLUSTER(true, true),
   RDS_PROXY(true, false),
   RDS_INSTANCE(true, false),
+  RDS_AURORA_LIMITLESS_DB_SHARD_GROUP(true, true),
   OTHER(false, false);
 
   private final boolean isRds;

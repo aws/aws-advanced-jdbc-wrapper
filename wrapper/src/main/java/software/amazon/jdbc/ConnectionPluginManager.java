@@ -19,7 +19,6 @@ package software.amazon.jdbc;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Wrapper;
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +42,7 @@ import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin;
 import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
+import software.amazon.jdbc.plugin.limitless.LimitlessConnectionPlugin;
 import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
@@ -67,6 +67,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
       new HashMap<Class<? extends ConnectionPlugin>, String>() {
         {
+          put(LimitlessConnectionPlugin.class, "plugin:endpoint");
           put(ExecutionTimeConnectionPlugin.class, "plugin:executionTime");
           put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
           put(LogQueryConnectionPlugin.class, "plugin:logQuery");
@@ -87,11 +88,11 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       };
 
   private static final Logger LOGGER = Logger.getLogger(ConnectionPluginManager.class.getName());
-  private static final String ALL_METHODS = "*";
-  private static final String CONNECT_METHOD = "connect";
+  protected static final String ALL_METHODS = "*";
+  protected static final String CONNECT_METHOD = "connect";
   private static final String FORCE_CONNECT_METHOD = "forceConnect";
   private static final String ACCEPTS_STRATEGY_METHOD = "acceptsStrategy";
-  private static final String GET_HOST_SPEC_BY_STRATEGY_METHOD = "getHostSpecByStrategy";
+  protected static final String GET_HOST_SPEC_BY_STRATEGY_METHOD = "getHostSpecByStrategy";
   private static final String INIT_HOST_PROVIDER_METHOD = "initHostProvider";
   private static final String NOTIFY_CONNECTION_CHANGED_METHOD = "notifyConnectionChanged";
   private static final String NOTIFY_NODE_LIST_CHANGED_METHOD = "notifyNodeListChanged";
@@ -128,7 +129,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
-      final ArrayList<ConnectionPlugin> plugins,
+      final List<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
       final PluginService pluginService,
       final TelemetryFactory telemetryFactory) {
@@ -143,7 +144,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
       final Properties props,
-      final ArrayList<ConnectionPlugin> plugins,
+      final List<ConnectionPlugin> plugins,
       final ConnectionWrapper connectionWrapper,
       final TelemetryFactory telemetryFactory) {
     this.defaultConnProvider = defaultConnProvider;
@@ -477,6 +478,11 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    */
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException, UnsupportedOperationException {
+    return getHostSpecByStrategy(null, role, strategy);
+  }
+
+  public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy)
+      throws SQLException, UnsupportedOperationException {
     try {
       for (ConnectionPlugin plugin : this.plugins) {
         Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
@@ -486,7 +492,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
         if (isSubscribed) {
           try {
-            final HostSpec host = plugin.getHostSpecByStrategy(role, strategy);
+            final HostSpec host =  hosts == null || hosts.isEmpty()
+                ? plugin.getHostSpecByStrategy(role, strategy)
+                : plugin.getHostSpecByStrategy(hosts, role, strategy);
+
             if (host != null) {
               return host;
             }
@@ -498,8 +507,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
       throw new UnsupportedOperationException(
           "The driver does not support the requested host selection strategy: " + strategy);
-    } catch (RuntimeException e) {
-      throw e;
     } catch (Exception e) {
       throw new SQLException(e);
     }
