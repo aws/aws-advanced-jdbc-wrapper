@@ -17,7 +17,9 @@
 package integration.container.tests;
 
 import static integration.util.AuroraTestUtility.executeWithTimeout;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static software.amazon.jdbc.PropertyDefinition.PLUGINS;
@@ -57,8 +59,11 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
 import software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverConnectionPlugin;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
@@ -173,7 +178,7 @@ public class HikariTests {
     FAILOVER_TIMEOUT_MS.set(customProps, Integer.toString(1));
     PropertyDefinition.SOCKET_TIMEOUT.set(customProps, String.valueOf(TimeUnit.SECONDS.toMillis(1)));
 
-    try (final HikariDataSource dataSource = createDataSource(customProps)) {
+    try (final HikariDataSource dataSource = createHikariDataSource(customProps)) {
 
       try (Connection conn = dataSource.getConnection()) {
         assertTrue(conn.isValid(5));
@@ -224,7 +229,7 @@ public class HikariTests {
     LOGGER.fine("Instance to fail over to: " + readerIdentifier);
 
     ProxyHelper.enableConnectivity(writerIdentifier);
-    try (final HikariDataSource dataSource = createDataSource(null)) {
+    try (final HikariDataSource dataSource = createHikariDataSource(null)) {
 
       // Get a valid connection, then make it fail over to a different instance
       try (Connection conn = dataSource.getConnection()) {
@@ -252,7 +257,83 @@ public class HikariTests {
     }
   }
 
-  private HikariDataSource createDataSource(final Properties customProps) {
+  /**
+   * After successfully opening and returning a connection to the Hikari pool, getConnection() is called during
+   * failover.
+   */
+  @TestTemplate
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
+  @EnableOnNumOfInstances(min = 2)
+  public void testInternalPoolsFailoverDuringGetConnection() throws SQLException, InterruptedException {
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final List<TestInstanceInfo> instances = proxyInfo.getInstances();
+    final TestInstanceInfo writer = instances.get(0);
+    final String writerId = writer.getInstanceId();
+
+    setupInternalConnectionPools();
+    final AwsWrapperDataSource ds = createWrapperDataSource(writer, proxyInfo);
+
+    // Open connection and then return it to the pool
+    Connection conn = ds.getConnection();
+    assertEquals(writerId, auroraUtil.queryInstanceId(conn));
+    conn.close();
+
+    ProxyHelper.disableConnectivity(writer.getInstanceId());
+    // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
+    // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
+    // and trigger failover.
+    TimeUnit.MILLISECONDS.sleep(500);
+
+    // Driver will fail over internally and return a connection to another node.
+    conn = ds.getConnection();
+    // Assert that we connected to a different node.
+    assertNotEquals(writerId, auroraUtil.queryInstanceId(conn));
+
+    ConnectionProviderManager.releaseResources();
+  }
+
+  private static AwsWrapperDataSource createWrapperDataSource(TestInstanceInfo instanceInfo, TestProxyDatabaseInfo proxyInfo) {
+    Properties targetDataSourceProps = new Properties();
+    targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover,efm");
+    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-reader");
+    targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, String.valueOf(TimeUnit.MINUTES.toMillis(5)));
+    targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, "?." + proxyInfo.getInstanceEndpointSuffix());
+    targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_ID.name, "HikariTestsCluster ");
+
+    AwsWrapperDataSource ds = new AwsWrapperDataSource();
+    ds.setTargetDataSourceProperties(targetDataSourceProps);
+    ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
+    ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
+    ds.setServerName(instanceInfo.getHost());
+    ds.setServerPort(String.valueOf(instanceInfo.getPort()));
+    ds.setDatabase(proxyInfo.getDefaultDbName());
+    ds.setUser(proxyInfo.getUsername());
+    ds.setPassword(proxyInfo.getPassword());
+
+    return ds;
+  }
+
+  private static void setupInternalConnectionPools() {
+    final HikariPooledConnectionProvider provider =
+        new HikariPooledConnectionProvider((hostSpec, props) -> {
+          HikariConfig config = new HikariConfig();
+          config.setMaximumPoolSize(30);
+          config.setMinimumIdle(2);
+          config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+          config.setInitializationFailTimeout(-1);
+          config.setConnectionTimeout(1500);
+          config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+          config.setValidationTimeout(1000);
+          config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+          config.setReadOnly(true);
+          config.setAutoCommit(true);
+          return config;
+        });
+    ConnectionProviderManager.setConnectionProvider(provider);
+  }
+
+  private HikariDataSource createHikariDataSource(final Properties customProps) {
     final HikariConfig config = getConfig(customProps);
     final HikariDataSource dataSource = new HikariDataSource(config);
 
