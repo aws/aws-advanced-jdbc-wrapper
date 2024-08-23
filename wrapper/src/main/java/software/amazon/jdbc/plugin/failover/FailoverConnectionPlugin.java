@@ -84,6 +84,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private final PluginService pluginService;
   protected final Properties properties;
   protected boolean enableFailoverSetting;
+  protected boolean enableConnectFailover;
   protected int failoverTimeoutMsSetting;
   protected int failoverClusterTopologyRefreshRateMsSetting;
   protected int failoverWriterReconnectIntervalMsSetting;
@@ -136,6 +137,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty(
           "enableClusterAwareFailover", "true",
           "Enable/disable cluster-aware failover logic");
+
+  public static final AwsWrapperProperty ENABLE_CONNECT_FAILOVER =
+      new AwsWrapperProperty(
+          "enableConnectFailover", "false",
+          "Enable/disable cluster-aware failover if the initial connection to the database fails. "
+              + " Note that this may result in a connection to a different instance in the cluster than was specified "
+              + "by the URL.");
 
   public static final AwsWrapperProperty FAILOVER_MODE =
       new AwsWrapperProperty(
@@ -353,6 +361,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   private void initSettings() {
     this.enableFailoverSetting = ENABLE_CLUSTER_AWARE_FAILOVER.getBoolean(this.properties);
+    this.enableConnectFailover = ENABLE_CONNECT_FAILOVER.getBoolean(this.properties);
     this.failoverTimeoutMsSetting = FAILOVER_TIMEOUT_MS.getInteger(this.properties);
     this.failoverClusterTopologyRefreshRateMsSetting =
         FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS.getInteger(this.properties);
@@ -780,11 +789,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
               driverProtocol, hostSpec, props, connectFunc);
     } catch (final SQLException e) {
-      try {
-        if (isForceConnect || !shouldExceptionTriggerConnectionSwitch(e)) {
-          throw e;
-        }
+      if (!this.enableConnectFailover || isForceConnect || !shouldExceptionTriggerConnectionSwitch(e)) {
+        throw e;
+      }
 
+      try {
         failover(this.pluginService.getCurrentHostSpec());
       } catch (FailoverSuccessSQLException failoverSuccessException) {
         conn = this.pluginService.getCurrentConnection();
