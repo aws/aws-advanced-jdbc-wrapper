@@ -263,6 +263,7 @@ public class HikariTests {
    * getConnection is called.
    */
   @TestTemplate
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation()
@@ -304,6 +305,7 @@ public class HikariTests {
    * getConnection is called.
    */
   @TestTemplate
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverReaderFailoverOnGetConnectionInvocation()
@@ -353,6 +355,7 @@ public class HikariTests {
    * getConnection is called. Since the cluster only has one instance and the instance stays down, failover fails.
    */
   @TestTemplate
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(max = 1)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation_singleInstance()
