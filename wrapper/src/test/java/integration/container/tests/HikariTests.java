@@ -49,6 +49,7 @@ import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
+import java.time.LocalTime;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
@@ -258,13 +259,55 @@ public class HikariTests {
   }
 
   /**
-   * After successfully opening and returning a connection to the Hikari pool, getConnection() is called during
-   * failover.
+   * After successfully opening and returning a connection to the Hikari pool, writer failover is triggered when
+   * getConnection is called.
    */
   @TestTemplate
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 2)
-  public void testInternalPoolsFailoverDuringGetConnection() throws SQLException, InterruptedException {
+  public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation() throws SQLException, InterruptedException {
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final List<TestInstanceInfo> instances = proxyInfo.getInstances();
+    final TestInstanceInfo reader = instances.get(1);
+    final String readerId = reader.getInstanceId();
+
+    setupInternalConnectionPools();
+    try {
+      final Properties targetDataSourceProps = new Properties();
+      targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
+      final AwsWrapperDataSource ds = createWrapperDataSource(reader, proxyInfo, targetDataSourceProps);
+
+      // Open connection and then return it to the pool
+      Connection conn = ds.getConnection();
+      assertEquals(readerId, auroraUtil.queryInstanceId(conn));
+      conn.close();
+
+      ProxyHelper.disableConnectivity(reader.getInstanceId());
+      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
+      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
+      // and trigger failover.
+      TimeUnit.MILLISECONDS.sleep(500);
+
+      // Driver will fail over internally and return a connection to another node.
+      System.out.println("Calling getConnection at: " + LocalTime.now());
+      conn = ds.getConnection();
+      System.out.println("getConnection returned at: " + LocalTime.now());
+      // Assert that we connected to a different node.
+      assertNotEquals(readerId, auroraUtil.queryInstanceId(conn));
+    } finally {
+      ConnectionProviderManager.releaseResources();
+    }
+  }
+
+  /**
+   * After successfully opening and returning a connection to the Hikari pool, reader failover is triggered when
+   * getConnection is called.
+   */
+  @TestTemplate
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
+  @EnableOnNumOfInstances(min = 2)
+  public void testInternalPools_driverReaderFailoverOnGetConnectionInvocation() throws SQLException, InterruptedException {
     final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
     final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
@@ -272,31 +315,74 @@ public class HikariTests {
     final String writerId = writer.getInstanceId();
 
     setupInternalConnectionPools();
-    final AwsWrapperDataSource ds = createWrapperDataSource(writer, proxyInfo);
+    try {
+      final Properties targetDataSourceProps = new Properties();
+      targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-reader");
+      final AwsWrapperDataSource ds = createWrapperDataSource(writer, proxyInfo, targetDataSourceProps);
 
-    // Open connection and then return it to the pool
-    Connection conn = ds.getConnection();
-    assertEquals(writerId, auroraUtil.queryInstanceId(conn));
-    conn.close();
+      // Open connection and then return it to the pool
+      Connection conn = ds.getConnection();
+      assertEquals(writerId, auroraUtil.queryInstanceId(conn));
+      conn.close();
 
-    ProxyHelper.disableConnectivity(writer.getInstanceId());
-    // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
-    // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
-    // and trigger failover.
-    TimeUnit.MILLISECONDS.sleep(500);
+      ProxyHelper.disableConnectivity(writer.getInstanceId());
+      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
+      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
+      // and trigger failover.
+      TimeUnit.MILLISECONDS.sleep(500);
 
-    // Driver will fail over internally and return a connection to another node.
-    conn = ds.getConnection();
-    // Assert that we connected to a different node.
-    assertNotEquals(writerId, auroraUtil.queryInstanceId(conn));
-
-    ConnectionProviderManager.releaseResources();
+      // Driver will fail over internally and return a connection to another node.
+      System.out.println("Calling getConnection at: " + LocalTime.now());
+      conn = ds.getConnection();
+      System.out.println("getConnection returned at: " + LocalTime.now());
+      // Assert that we connected to a different node.
+      assertNotEquals(writerId, auroraUtil.queryInstanceId(conn));
+    } finally {
+      ConnectionProviderManager.releaseResources();
+    }
   }
 
-  private static AwsWrapperDataSource createWrapperDataSource(TestInstanceInfo instanceInfo, TestProxyDatabaseInfo proxyInfo) {
-    Properties targetDataSourceProps = new Properties();
+  /**
+   * After successfully opening and returning a connection to the Hikari pool, writer failover is triggered when
+   * getConnection is called. Since the cluster only has one instance and the instance stays down, failover fails.
+   */
+  @TestTemplate
+  @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
+  @EnableOnNumOfInstances(max = 1)
+  public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation_singleInstance() throws SQLException, InterruptedException {
+    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final List<TestInstanceInfo> instances = proxyInfo.getInstances();
+    final TestInstanceInfo writer = instances.get(0);
+    final String writerId = writer.getInstanceId();
+
+    setupInternalConnectionPools();
+    try {
+      final Properties targetDataSourceProps = new Properties();
+      targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
+      targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_TIMEOUT_MS.name, "5000");
+      final AwsWrapperDataSource ds = createWrapperDataSource(writer, proxyInfo, targetDataSourceProps);
+
+      // Open connection and then return it to the pool
+      Connection conn = ds.getConnection();
+      assertEquals(writerId, auroraUtil.queryInstanceId(conn));
+      conn.close();
+
+      ProxyHelper.disableAllConnectivity();
+      // Hikari's 'com.zaxxer.hikari.aliveBypassWindowMs' property is set to 500ms by default. We need to wait this long
+      // to trigger Hikari's validation attempts when HikariDatasource#getConnection is called. These attempts will fail
+      // and trigger failover.
+      TimeUnit.MILLISECONDS.sleep(500);
+
+      // Driver will attempt to fail over internally, but the node is still down, so it fails.
+      assertThrows(FailoverFailedSQLException.class, ds::getConnection);
+    } finally {
+      ConnectionProviderManager.releaseResources();
+    }
+  }
+
+  private static AwsWrapperDataSource createWrapperDataSource(TestInstanceInfo instanceInfo, TestProxyDatabaseInfo proxyInfo, Properties targetDataSourceProps) {
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover,efm");
-    targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-reader");
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name, String.valueOf(TimeUnit.MINUTES.toMillis(5)));
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name, "?." + proxyInfo.getInstanceEndpointSuffix());
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_ID.name, "HikariTestsCluster ");
