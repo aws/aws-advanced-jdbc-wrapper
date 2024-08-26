@@ -60,7 +60,9 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import software.amazon.jdbc.AcceptsUrlFunc;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
@@ -274,7 +276,7 @@ public class HikariTests {
     final TestInstanceInfo reader = instances.get(1);
     final String readerId = reader.getInstanceId();
 
-    setupInternalConnectionPools();
+    setupInternalConnectionPools(getInstanceUrlSubstring(reader.getHost()));
     try {
       final Properties targetDataSourceProps = new Properties();
       targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
@@ -316,7 +318,7 @@ public class HikariTests {
     final TestInstanceInfo writer = instances.get(0);
     final String writerId = writer.getInstanceId();
 
-    setupInternalConnectionPools();
+    setupInternalConnectionPools(getInstanceUrlSubstring(writer.getHost()));
     try {
       final Properties targetDataSourceProps = new Properties();
       targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-reader");
@@ -366,7 +368,7 @@ public class HikariTests {
     final TestInstanceInfo writer = instances.get(0);
     final String writerId = writer.getInstanceId();
 
-    setupInternalConnectionPools();
+    setupInternalConnectionPools(getInstanceUrlSubstring(writer.getHost()));
     try {
       final Properties targetDataSourceProps = new Properties();
       targetDataSourceProps.setProperty(FailoverConnectionPlugin.FAILOVER_MODE.name, "strict-writer");
@@ -389,6 +391,16 @@ public class HikariTests {
     } finally {
       ConnectionProviderManager.releaseResources();
     }
+  }
+
+  /**
+   * Given an instance URL, extracts the substring of the URL that is common to all instance URLs. For example, given
+   * "instance-1.ABC.cluster-XYZ.us-west-2.rds.amazonaws.com.proxied", returns
+   * ".ABC.cluster-XYZ.us-west-2.rds.amazonaws.com.proxied"
+   */
+  private static String getInstanceUrlSubstring(String instanceUrl) {
+    int substringStart = instanceUrl.indexOf(".");
+    return instanceUrl.substring(substringStart);
   }
 
   private static AwsWrapperDataSource createWrapperDataSource(TestInstanceInfo instanceInfo,
@@ -414,22 +426,31 @@ public class HikariTests {
     return ds;
   }
 
-  private static void setupInternalConnectionPools() {
+  private static void setupInternalConnectionPools(String instanceUrlSubstring) {
+    HikariPoolConfigurator hikariConfigurator = (hostSpec, props) -> {
+      HikariConfig config = new HikariConfig();
+      config.setMaximumPoolSize(30);
+      config.setMinimumIdle(2);
+      config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
+      config.setInitializationFailTimeout(-1);
+      config.setConnectionTimeout(1500);
+      config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
+      config.setValidationTimeout(1000);
+      config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
+      config.setReadOnly(true);
+      config.setAutoCommit(true);
+      return config;
+    };
+
+    AcceptsUrlFunc acceptsUrlFunc = (hostSpec, props) -> hostSpec.getHost().contains(instanceUrlSubstring);
+
     final HikariPooledConnectionProvider provider =
-        new HikariPooledConnectionProvider((hostSpec, props) -> {
-          HikariConfig config = new HikariConfig();
-          config.setMaximumPoolSize(30);
-          config.setMinimumIdle(2);
-          config.setIdleTimeout(TimeUnit.MINUTES.toMillis(15));
-          config.setInitializationFailTimeout(-1);
-          config.setConnectionTimeout(1500);
-          config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(3));
-          config.setValidationTimeout(1000);
-          config.setMaxLifetime(TimeUnit.DAYS.toMillis(1));
-          config.setReadOnly(true);
-          config.setAutoCommit(true);
-          return config;
-        });
+        new HikariPooledConnectionProvider(
+            hikariConfigurator,
+            null,
+            acceptsUrlFunc,
+            TimeUnit.MINUTES.toNanos(30),
+            TimeUnit.MINUTES.toNanos(10));
     ConnectionProviderManager.setConnectionProvider(provider);
   }
 
