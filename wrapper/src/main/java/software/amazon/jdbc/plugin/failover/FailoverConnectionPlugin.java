@@ -141,9 +141,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   public static final AwsWrapperProperty ENABLE_CONNECT_FAILOVER =
       new AwsWrapperProperty(
           "enableConnectFailover", "false",
-          "Enable/disable cluster-aware failover if the initial connection to the database fails. "
-              + " Note that this may result in a connection to a different instance in the cluster than was specified "
-              + "by the URL.");
+          "Enable/disable cluster-aware failover if the initial connection to the database fails due to a "
+              + "network exception. Note that this may result in a connection to a different instance in the cluster "
+              + "than was specified by the URL.");
 
   public static final AwsWrapperProperty FAILOVER_MODE =
       new AwsWrapperProperty(
