@@ -35,9 +35,9 @@ public interface AcceptsUrlFunc {
    * connection to the host specified by the given {@link HostSpec}.
    *
    * @param hostSpec      the host details for the requested connection
-   * @param props         the properties specified for the original connection through
-   * @return the key that should be used for the given host and properties. An internal connection
-   *     pool will be created for each unique key returned by this function.
+   * @param props         the properties specified for the requested connection
+   * @return a boolean indicating whether an internal connection pool should be created for a connection specified by
+   *     the given {@link HostSpec} and {@link Properties}.
    */
   boolean acceptsUrl(HostSpec hostSpec, Properties props);
 }
