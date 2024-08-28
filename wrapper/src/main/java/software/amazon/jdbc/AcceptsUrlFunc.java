@@ -22,22 +22,14 @@ import java.util.Properties;
 public interface AcceptsUrlFunc {
 
   /**
-   * A function that can optionally be passed to the {@link HikariPooledConnectionProvider}
-   * to define when an internal connection pool should be created for a connection with the given {@link HostSpec} and
-   * {@link Properties}.
-   *
-   * <p>By default, the HikariPooledConnectionProvider will create an internal connection pool if the passed in
-   * {@link HostSpec} specifies a URL with a standard RDS instance format. If you would like to change this default
-   * behaviour, you can pass in a function with this interface to define your own behaviour. If the connection provider
-   * has been set to a {@link HikariPooledConnectionProvider} via
-   * {@link ConnectionProviderManager#setConnectionProvider(ConnectionProvider)}, this function will be called when the
-   * connect pipeline is used. If the function returns true, an internal connection pool will be created for the
-   * connection to the host specified by the given {@link HostSpec}.
+   * This function can be passed to a {@link ConnectionProvider} constructor to specify when the
+   * {@link ConnectionProvider} should be used to open a connection to the given {@link HostSpec} with the
+   * given {@link Properties}.
    *
    * @param hostSpec      the host details for the requested connection
-   * @param props         the properties specified for the requested connection
-   * @return a boolean indicating whether an internal connection pool should be created for a connection specified by
-   *     the given {@link HostSpec} and {@link Properties}.
+   * @param props         the properties for the requested connection
+   * @return a boolean indicating whether a {@link ConnectionProvider} should be used to open a connection to the given
+   *     {@link HostSpec} with the given {@link Properties}.
    */
   boolean acceptsUrl(HostSpec hostSpec, Properties props);
 }

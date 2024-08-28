@@ -21,7 +21,7 @@ import java.sql.SQLException;
 
 public class MySQLExceptionHandler implements ExceptionHandler {
   public static final String SQLSTATE_ACCESS_ERROR = "28000";
-  public static final String SYNTAX_ERROR_OR_ACCESS_VIOLATION = "42000";
+  public static final String SQLSTATE_SYNTAX_ERROR_OR_ACCESS_VIOLATION = "42000";
   public static final String SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION =
       "setNetworkTimeout cannot be called on a closed connection";
 
@@ -33,9 +33,10 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLException) {
         SQLException sqlException = (SQLException) exception;
 
-        // Hikari throws a network exception with SQL state 42000 if:
-        // - the MariaDB driver is being used (the underlying driver determines the SQL state of the Hikari exception)
-        // - HikariDataSource#getConnection is called and the cached connection is broken due to server failover.
+        // Hikari throws a network exception with SQL state 42000 if all the following points are true:
+        // - HikariDataSource#getConnection is called and the cached connection that was grabbed is broken due to server
+        // failover.
+        // - the MariaDB driver is being used (the underlying driver determines the SQL state of the Hikari exception).
         //
         // The check for the Hikari MariaDB exception is added here because the exception handler is determined by the
         // database dialect. Consequently, this exception handler is used when using the MariaDB driver against a MySQL
@@ -92,7 +93,7 @@ public class MySQLExceptionHandler implements ExceptionHandler {
   }
 
   private boolean isHikariMariaDbNetworkException(final SQLException sqlException) {
-    return sqlException.getSQLState().equals(SYNTAX_ERROR_OR_ACCESS_VIOLATION)
+    return sqlException.getSQLState().equals(SQLSTATE_SYNTAX_ERROR_OR_ACCESS_VIOLATION)
         && sqlException.getMessage().contains(SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION);
   }
 }

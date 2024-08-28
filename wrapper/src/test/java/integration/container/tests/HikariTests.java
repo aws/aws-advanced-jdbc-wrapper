@@ -398,12 +398,12 @@ public class HikariTests {
    * "instance-1.ABC.cluster-XYZ.us-west-2.rds.amazonaws.com.proxied", returns
    * ".ABC.cluster-XYZ.us-west-2.rds.amazonaws.com.proxied"
    */
-  private static String getInstanceUrlSubstring(String instanceUrl) {
+  private String getInstanceUrlSubstring(String instanceUrl) {
     int substringStart = instanceUrl.indexOf(".");
     return instanceUrl.substring(substringStart);
   }
 
-  private static AwsWrapperDataSource createWrapperDataSource(TestInstanceInfo instanceInfo,
+  private AwsWrapperDataSource createWrapperDataSource(TestInstanceInfo instanceInfo,
       TestProxyDatabaseInfo proxyInfo, Properties targetDataSourceProps) {
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover,efm");
     targetDataSourceProps.setProperty(FailoverConnectionPlugin.ENABLE_CONNECT_FAILOVER.name, "true");
@@ -431,7 +431,7 @@ public class HikariTests {
     return ds;
   }
 
-  private static void setupInternalConnectionPools(String instanceUrlSubstring) {
+  private void setupInternalConnectionPools(String instanceUrlSubstring) {
     HikariPoolConfigurator hikariConfigurator = (hostSpec, props) -> {
       HikariConfig config = new HikariConfig();
       config.setMaximumPoolSize(30);
