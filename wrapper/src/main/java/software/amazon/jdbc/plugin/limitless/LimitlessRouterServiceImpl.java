@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin.limitless;
 
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -71,6 +72,19 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   @Override
+  public List<HostSpec> forceGetLimitlessRouters(final String clusterId, final Properties props) throws SQLException {
+    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
+        MONITOR_DISPOSAL_TIME_MS.getLong(props));
+
+    final LimitlessRouterMonitor
+        limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
+    if (limitlessRouterMonitor == null) {
+      return Collections.EMPTY_LIST;
+    }
+    return limitlessRouterMonitor.forceGetLimitlessRouters();
+  }
+
+  @Override
   public synchronized void startMonitoring(final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
@@ -87,17 +101,6 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           cacheExpirationNano);
     } catch (UnsupportedOperationException e) {
       throw e;
-    }
-  }
-
-  public synchronized void runMonitor(final String clusterId, final Properties props) {
-    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
-        MONITOR_DISPOSAL_TIME_MS.getLong(props));
-
-    final LimitlessRouterMonitor
-        limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
-    if (limitlessRouterMonitor == null) {
-      limitlessRouterMonitor.run();
     }
   }
 }

@@ -40,6 +40,20 @@ import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
+  protected static final AwsWrapperProperty WAIT_F0R_ROUTER_INFO = new AwsWrapperProperty(
+      "limitlessWaitForTransactionRouterInfo",
+      "true",
+      "If the cache of transaction router info is empty and a new connection is made, this property toggles whether "
+          + "the plugin will wait and synchronously fetch transaction router info before selecting a transaction "
+          + "router to connect to, or to fall back to using the provided DB Shard Group endpoint URL.");
+  protected static final AwsWrapperProperty GET_ROUTER_RETRY_INTERVAL_MILLIS = new AwsWrapperProperty(
+      "limitlessGetTransactionRouterInfoRetryIntervalMs",
+      "300",
+      "Interval in millis between retries fetching Limitless Transaction Router information.");
+  protected static final AwsWrapperProperty GET_ROUTER_MAX_RETRIES = new AwsWrapperProperty(
+      "limitlessGetTransactionRouterInfoMaxRetries",
+      "5",
+      "Max number of connection retries fetching Limitless Transaction Router information.");
   protected static final AwsWrapperProperty INTERVAL_MILLIS = new AwsWrapperProperty(
       "limitlessTransactionRouterMonitorIntervalMs",
       "15000",
@@ -123,9 +137,16 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
         this.pluginService.getHostListProvider().getClusterId(), props);
 
     if (limitlessRouters.isEmpty()) {
-      LOGGER.info(Messages.get("LimitlessConnectionPlugin.limitlessRouterCacheEmpty"));
-      return connectFunc.call();
+      LOGGER.fine(Messages.get("LimitlessConnectionPlugin.limitlessRouterCacheEmpty"));
+      final boolean waitForRouterInfo = WAIT_F0R_ROUTER_INFO.getBoolean(props);
+      if (waitForRouterInfo) {
+        limitlessRouters = synchronouslyGetLimitlessRouters(props);
+      } else {
+        LOGGER.fine(Messages.get("LimitlessConnectionPlugin.usingProvidedConnectUrl"));
+        return connectFunc.call();
+      }
     } else if (limitlessRouters.contains(hostSpec)) {
+      LOGGER.fine(Messages.get("LimitlessConnectionPlugin.connectWithHost", new Object[] {hostSpec.getHost()}));
       return connectFunc.call();
     }
 
@@ -195,13 +216,45 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       throw new SQLException(Messages.get("LimitlessConnectionPlugin.maxRetriesExceeded"), originalException);
     }
 
-    limitlessRouterService.runMonitor(this.pluginService.getHostListProvider().getClusterId(), props);
-    final List<HostSpec> newLimitlessRouters = this.limitlessRouterService.getLimitlessRouters(
-        this.pluginService.getHostListProvider().getClusterId(), props);
+    final List<HostSpec> newLimitlessRouters = synchronouslyGetLimitlessRouters(props);
     if (newLimitlessRouters == null || newLimitlessRouters.isEmpty()) {
       throw new SQLException(Messages.get("LimitlessConnectionPlugin.noRoutersAvailableForRetry"), originalException);
     }
 
     return retryConnection(newLimitlessRouters, props, retryCount, originalException);
+  }
+
+  private synchronized List<HostSpec> synchronouslyGetLimitlessRouters(final Properties props)
+      throws SQLException {
+    final List<HostSpec> currentLimitlessRouters = this.limitlessRouterService.getLimitlessRouters(
+        this.pluginService.getHostListProvider().getClusterId(), props);
+    if (!currentLimitlessRouters.isEmpty()) {
+      return currentLimitlessRouters;
+    }
+
+    LOGGER.fine(Messages.get("LimitlessConnectionPlugin.synchronouslyGetLimitlessRouters"));
+    List<HostSpec> newLimitlessRouters = this.limitlessRouterService.forceGetLimitlessRouters(
+        this.pluginService.getHostListProvider().getClusterId(), props);
+    if (newLimitlessRouters != null && !newLimitlessRouters.isEmpty()) {
+      return newLimitlessRouters;
+    }
+
+    int retryCount = 0;
+    int maxRetries = GET_ROUTER_MAX_RETRIES.getInteger(props);
+    int retryIntervalMs = GET_ROUTER_RETRY_INTERVAL_MILLIS.getInteger(props);
+    while (newLimitlessRouters.isEmpty() && retryCount < maxRetries) {
+      try {
+        newLimitlessRouters = this.limitlessRouterService.forceGetLimitlessRouters(
+            this.pluginService.getHostListProvider().getClusterId(), props);
+        if (newLimitlessRouters != null && !newLimitlessRouters.isEmpty()) {
+          return newLimitlessRouters;
+        }
+        retryCount++;
+        Thread.sleep(retryIntervalMs);
+      } catch (final InterruptedException e) {
+        // do nothing
+      }
+    }
+    throw new SQLException(Messages.get("LimitlessConnectionPlugin.noRoutersAvailable"));
   }
 }

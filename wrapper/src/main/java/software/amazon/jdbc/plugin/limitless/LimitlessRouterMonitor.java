@@ -91,6 +91,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
                   this.props.getProperty(p));
               this.props.remove(p);
             });
+    this.props.setProperty(LimitlessConnectionPlugin.WAIT_F0R_ROUTER_INFO.name, "false");
 
     this.intervalMs = intervalMs;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
@@ -161,6 +162,19 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         }
       }
     }
+  }
+
+  public synchronized List<HostSpec> forceGetLimitlessRouters() throws SQLException {
+    this.openConnection();
+    if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
+      LOGGER.warning(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRoutersFailed"));
+      return Collections.emptyList();
+    }
+    List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
+    this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
+    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
+    LOGGER.fine(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
+    return newLimitlessRouters;
   }
 
   private void openConnection() throws SQLException {
