@@ -21,6 +21,9 @@ import java.sql.SQLException;
 
 public class MySQLExceptionHandler implements ExceptionHandler {
   public static final String SQLSTATE_ACCESS_ERROR = "28000";
+  public static final String SQLSTATE_SYNTAX_ERROR_OR_ACCESS_VIOLATION = "42000";
+  public static final String SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION =
+      "setNetworkTimeout cannot be called on a closed connection";
 
   @Override
   public boolean isNetworkException(final Throwable throwable) {
@@ -28,7 +31,19 @@ public class MySQLExceptionHandler implements ExceptionHandler {
 
     while (exception != null) {
       if (exception instanceof SQLException) {
-        return isNetworkException(((SQLException) exception).getSQLState());
+        SQLException sqlException = (SQLException) exception;
+
+        // Hikari throws a network exception with SQL state 42000 if all the following points are true:
+        // - HikariDataSource#getConnection is called and the cached connection that was grabbed is broken due to server
+        // failover.
+        // - the MariaDB driver is being used (the underlying driver determines the SQL state of the Hikari exception).
+        //
+        // The check for the Hikari MariaDB exception is added here because the exception handler is determined by the
+        // database dialect. Consequently, this exception handler is used when using the MariaDB driver against a MySQL
+        // database engine.
+        if (isNetworkException(sqlException.getSQLState()) || isHikariMariaDbNetworkException(sqlException)) {
+          return true;
+        }
       } else if (exception instanceof CJException) {
         return isNetworkException(((CJException) exception).getSQLState());
       }
@@ -75,5 +90,10 @@ public class MySQLExceptionHandler implements ExceptionHandler {
     }
 
     return SQLSTATE_ACCESS_ERROR.equals(sqlState);
+  }
+
+  private boolean isHikariMariaDbNetworkException(final SQLException sqlException) {
+    return sqlException.getSQLState().equals(SQLSTATE_SYNTAX_ERROR_OR_ACCESS_VIOLATION)
+        && sqlException.getMessage().contains(SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION);
   }
 }

@@ -69,6 +69,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
   private final HikariPoolConfigurator poolConfigurator;
   private final HikariPoolMapping poolMapping;
+  private final AcceptsUrlFunc acceptsUrlFunc;
   private final LeastConnectionsHostSelector leastConnectionsHostSelector;
 
   /**
@@ -112,6 +113,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       HikariPoolConfigurator hikariPoolConfigurator, HikariPoolMapping mapping) {
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
+    this.acceptsUrlFunc = null;
     this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
   }
 
@@ -147,14 +149,62 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       long poolCleanupNanos) {
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
+    this.acceptsUrlFunc = null;
     poolExpirationCheckNanos = poolExpirationNanos;
     databasePools.setCleanupIntervalNanos(poolCleanupNanos);
     this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
   }
 
+  /**
+   * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
+   * {@link ConnectionProviderManager#setConnectionProvider} to enable internal connection pools for
+   * each database instance in a cluster. By maintaining internal connection pools, the driver can
+   * improve performance by reusing old {@link Connection} objects.
+   *
+   * @param hikariPoolConfigurator a function that returns a {@link HikariConfig} with specific
+   *                               Hikari configurations. By default, the
+   *                               {@link HikariPooledConnectionProvider} will configure the
+   *                               jdbcUrl, exceptionOverrideClassName, username, and password. Any
+   *                               additional configuration should be defined by passing in this
+   *                               parameter. If no additional configuration is desired, pass in a
+   *                               {@link HikariPoolConfigurator} that returns an empty
+   *                               HikariConfig.
+   * @param mapping                a function that returns a String key used for the internal
+   *                               connection pool keys. An internal connection pool will be
+   *                               generated for each unique key returned by this function.
+   * @param acceptsUrlFunc         a function that defines when an internal connection pool should be created for a
+   *                               requested connection. An internal connection pool will be created when the connect
+   *                               pipeline is being executed and this function returns <code>true</code>.
+   * @param poolExpirationNanos    the amount of time that a pool should sit in the cache before
+   *                               being marked as expired for cleanup, in nanoseconds. Expired
+   *                               pools can still be used and will not be closed unless there
+   *                               are no active connections.
+   * @param poolCleanupNanos       the interval defining how often expired connection pools
+   *                               should be cleaned up, in nanoseconds. Note that expired pools
+   *                               will not be closed unless there are no active connections.
+   */
+  public HikariPooledConnectionProvider(
+      HikariPoolConfigurator hikariPoolConfigurator,
+      HikariPoolMapping mapping,
+      AcceptsUrlFunc acceptsUrlFunc,
+      long poolExpirationNanos,
+      long poolCleanupNanos) {
+    this.poolConfigurator = hikariPoolConfigurator;
+    this.poolMapping = mapping;
+    this.acceptsUrlFunc = acceptsUrlFunc;
+    poolExpirationCheckNanos = poolExpirationNanos;
+    databasePools.setCleanupIntervalNanos(poolCleanupNanos);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
+  }
+
+
   @Override
   public boolean acceptsUrl(
       @NonNull String protocol, @NonNull HostSpec hostSpec, @NonNull Properties props) {
+    if (this.acceptsUrlFunc != null) {
+      return this.acceptsUrlFunc.acceptsUrl(hostSpec, props);
+    }
+
     final RdsUrlType urlType = rdsUtils.identifyRdsType(hostSpec.getHost());
     return RdsUrlType.RDS_INSTANCE.equals(urlType);
   }
