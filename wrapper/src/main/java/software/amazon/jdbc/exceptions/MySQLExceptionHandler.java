@@ -53,11 +53,6 @@ public class MySQLExceptionHandler implements ExceptionHandler {
     return false;
   }
 
-  private boolean isHikariMariaDbNetworkException(final SQLException sqlException) {
-    return sqlException.getSQLState().equals(SYNTAX_ERROR_OR_ACCESS_VIOLATION)
-        && sqlException.getMessage().contains(SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION);
-  }
-
   @Override
   public boolean isNetworkException(final String sqlState) {
     if (sqlState == null) {
@@ -94,5 +89,10 @@ public class MySQLExceptionHandler implements ExceptionHandler {
     }
 
     return SQLSTATE_ACCESS_ERROR.equals(sqlState);
+  }
+
+  private boolean isHikariMariaDbNetworkException(final SQLException sqlException) {
+    return sqlException.getSQLState().equals(SYNTAX_ERROR_OR_ACCESS_VIOLATION)
+        && sqlException.getMessage().contains(SET_NETWORK_TIMEOUT_ON_CLOSED_CONNECTION);
   }
 }
