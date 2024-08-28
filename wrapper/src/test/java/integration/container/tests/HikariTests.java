@@ -411,7 +411,12 @@ public class HikariTests {
         String.valueOf(TimeUnit.MINUTES.toMillis(5)));
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
         "?." + proxyInfo.getInstanceEndpointSuffix());
-    targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_ID.name, "HikariTestsCluster ");
+    targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_ID.name, "HikariTestsCluster");
+
+    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+      targetDataSourceProps.setProperty("permitMysqlScheme", "1");
+    }
 
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setTargetDataSourceProperties(targetDataSourceProps);
