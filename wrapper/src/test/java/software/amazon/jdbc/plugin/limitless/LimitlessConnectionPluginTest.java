@@ -130,14 +130,27 @@ public class LimitlessConnectionPluginTest {
     when(mockLimitlessRouterService.getLimitlessRouters(any(), any())).thenReturn(emptyEndpointHostSpecList);
     when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(expectedSelectedHostSpec);
 
-    plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, false, mockConnectFuncLambda);
+    final Properties propsWaitForRouterInfoSetTrue = new Properties();
+    propsWaitForRouterInfoSetTrue.setProperty(LimitlessConnectionPlugin.WAIT_F0R_ROUTER_INFO.name, "true");
+  }
+
+  @Test
+  void testConnect_givenEmptyLimitlessRouterCacheAndNoWaitForRouterInfo() throws SQLException {
+    final List<HostSpec> emptyEndpointHostSpecList = Collections.emptyList();
+    when(mockLimitlessRouterService.getLimitlessRouters(any(), any())).thenReturn(emptyEndpointHostSpecList);
+    when(mockPluginService.getHostSpecByStrategy(any(), any(), any())).thenReturn(expectedSelectedHostSpec);
+
+    final Properties propsWaitForRouterInfoSetFalse = new Properties();
+    propsWaitForRouterInfoSetFalse.setProperty(LimitlessConnectionPlugin.WAIT_F0R_ROUTER_INFO.name, "false");
+
+    plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, propsWaitForRouterInfoSetFalse, false, mockConnectFuncLambda);
 
     verify(mockLimitlessRouterService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
-    verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
+    verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, propsWaitForRouterInfoSetFalse);
     verify(mockPluginService, times(0)).getHostSpecByStrategy(emptyEndpointHostSpecList,
         HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
-    verify(mockPluginService, times(0)).connect(expectedSelectedHostSpec, props);
+    verify(mockPluginService, times(0)).connect(expectedSelectedHostSpec, propsWaitForRouterInfoSetFalse);
     verify(mockConnectFuncLambda, times(1)).call();
   }
 

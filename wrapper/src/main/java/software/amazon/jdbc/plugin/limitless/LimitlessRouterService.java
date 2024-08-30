@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin.limitless;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -26,10 +27,10 @@ public interface LimitlessRouterService {
 
   List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props);
 
+  List<HostSpec> forceGetLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
+
   void startMonitoring(final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final int intervalMs);
-
-  void runMonitor(String clusterId, Properties props);
 }
