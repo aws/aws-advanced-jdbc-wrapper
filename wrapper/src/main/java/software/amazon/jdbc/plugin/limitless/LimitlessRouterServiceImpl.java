@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -28,13 +29,13 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
-
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
           "limitlessTransactionRouterMonitorDisposalTimeMs",
           "600000", // 10min
           "Interval in milliseconds for an Limitless router monitor to be considered inactive and to be disposed.");
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
+  protected static final ReentrantLock forceGetLimitlessRoutersLock = new ReentrantLock();
   private final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
 
   private static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor> limitlessRouterMonitors =
@@ -73,6 +74,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
   @Override
   public List<HostSpec> forceGetLimitlessRouters(final String clusterId, final Properties props) throws SQLException {
+
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
@@ -81,7 +83,16 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     if (limitlessRouterMonitor == null) {
       return Collections.EMPTY_LIST;
     }
-    return limitlessRouterMonitor.forceGetLimitlessRouters();
+    forceGetLimitlessRoutersLock.lock();
+    try {
+      final List<HostSpec> limitlessRouterList = limitlessRouterMonitor.getLimitlessRouters();
+      if (limitlessRouterList != null && !limitlessRouterList.isEmpty()) {
+        return limitlessRouterList;
+      }
+      return limitlessRouterMonitor.forceGetLimitlessRouters();
+    } finally {
+      forceGetLimitlessRoutersLock.unlock();
+    }
   }
 
   @Override
