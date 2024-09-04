@@ -8,7 +8,7 @@ on:
 
 jobs:
   all-integration-tests-latest:
-    name: Run Aurora integration tests with latest
+    name: Run Aurora integration tests with latest engine version
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

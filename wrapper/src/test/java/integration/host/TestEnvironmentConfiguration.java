@@ -85,8 +85,8 @@ public class TestEnvironmentConfiguration {
   public String rdsEndpoint =
       System.getenv("RDS_ENDPOINT"); // "https://rds-int.amazon.com"
 
-  // Expected values: "latest", "lts", or engine version, for example, "15.4"
-  // If left as empty, will use LTS version
+  // Expected values: "latest", "default", or engine version, for example, "15.4"
+  // If left as empty, will use default version
   public String auroraMySqlDbEngineVersion =
       System.getenv("AURORA_MYSQL_DB_ENGINE_VERSION");
   public String auroraPgDbEngineVersion =

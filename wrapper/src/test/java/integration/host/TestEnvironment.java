@@ -600,11 +600,11 @@ public class TestEnvironment implements AutoCloseable {
       String systemPropertyVersion) {
 
     if (StringUtils.isNullOrEmpty(systemPropertyVersion)) {
-      return env.auroraUtil.getLTSVersion(engineName);
+      return env.auroraUtil.getDefaultVersion(engineName);
     }
     switch (systemPropertyVersion.toLowerCase()) {
-      case "lts":
-        return env.auroraUtil.getLTSVersion(engineName);
+      case "default":
+        return env.auroraUtil.getDefaultVersion(engineName);
       case "latest":
         return env.auroraUtil.getLatestVersion(engineName);
       default:
