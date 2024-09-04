@@ -170,7 +170,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           "LimitlessConnectionPlugin.failedToConnectToHost",
           new Object[] {selectedHostSpec.getHost()}));
       selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
-      return retryConnection(limitlessRouters, props, 0, e);
+      return retryConnectWithLeastLoadedRouters(limitlessRouters, props, e);
     }
   }
 
@@ -180,48 +180,51 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private Connection retryConnection(final List<HostSpec> limitlessRouters, final Properties props, int inputRetryCount,
-      final SQLException originalException) throws SQLException {
+  private Connection retryConnectWithLeastLoadedRouters(final List<HostSpec> limitlessRouters,
+      final Properties props, final SQLException originalException) throws SQLException {
 
-    int retryCount = inputRetryCount;
+    List<HostSpec> currentRouters = limitlessRouters;
+    int retryCount = 0;
     final int maxRetries = MAX_RETRIES.getInteger(props) >= 0
         ? MAX_RETRIES.getInteger(props)
         : Integer.valueOf(MAX_RETRIES.defaultValue);
 
-    while (limitlessRouters.stream().anyMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))
-        && retryCount < maxRetries) {
-      final HostSpec selectedHostSpec;
-      try {
-        selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
-            HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
-        LOGGER.fine(Messages.get(
-            "LimitlessConnectionPlugin.selectedHostForRetry",
-            new Object[] {selectedHostSpec.getHost()}));
-      } catch (UnsupportedOperationException e) {
-        LOGGER.severe(Messages.get("LimitlessConnectionPlugin.incorrectConfiguration"));
-        throw e;
+    while (retryCount < maxRetries) {
+      if (currentRouters.stream().anyMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
+        retryCount++;
+        final HostSpec selectedHostSpec;
+        try {
+          // Changing strategy to prioritize making a connection using the healthiest/heaviest router
+          selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
+              HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+          LOGGER.fine(Messages.get(
+              "LimitlessConnectionPlugin.selectedHostForRetry",
+              new Object[] {selectedHostSpec.getHost()}));
+        } catch (UnsupportedOperationException e) {
+          LOGGER.severe(Messages.get("LimitlessConnectionPlugin.incorrectConfiguration"));
+          throw e;
+        }
+
+        try {
+          return pluginService.connect(selectedHostSpec, props);
+        } catch (SQLException e) {
+          selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
+          LOGGER.warning(Messages.get(
+              "LimitlessConnectionPlugin.failedToConnectToHost",
+              new Object[] {selectedHostSpec.getHost()}));
+        }
+      } else {
+        currentRouters = synchronouslyGetLimitlessRouters(props);
+        if (currentRouters == null
+            || currentRouters.isEmpty()
+            || !currentRouters.stream().anyMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
+          throw new SQLException(
+              Messages.get("LimitlessConnectionPlugin.noRoutersAvailableForRetry"),
+              originalException);
+        }
       }
-      try {
-        return pluginService.connect(selectedHostSpec, props);
-      } catch (SQLException e) {
-        selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
-        LOGGER.warning(Messages.get(
-            "LimitlessConnectionPlugin.failedToConnectToHost",
-            new Object[] {selectedHostSpec.getHost()}));
-      }
-      retryCount++;
     }
-
-    if (retryCount >= maxRetries) {
-      throw new SQLException(Messages.get("LimitlessConnectionPlugin.maxRetriesExceeded"), originalException);
-    }
-
-    final List<HostSpec> newLimitlessRouters = synchronouslyGetLimitlessRouters(props);
-    if (newLimitlessRouters == null || newLimitlessRouters.isEmpty()) {
-      throw new SQLException(Messages.get("LimitlessConnectionPlugin.noRoutersAvailableForRetry"), originalException);
-    }
-
-    return retryConnection(newLimitlessRouters, props, retryCount, originalException);
+    throw new SQLException(Messages.get("LimitlessConnectionPlugin.noRoutersAvailableForRetry"), originalException);
   }
 
   private List<HostSpec> synchronouslyGetLimitlessRouters(final Properties props) throws SQLException {

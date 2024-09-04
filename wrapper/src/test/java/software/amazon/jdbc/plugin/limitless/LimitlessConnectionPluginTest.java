@@ -254,9 +254,7 @@ public class LimitlessConnectionPluginTest {
     verify(mockLimitlessRouterService, times(1)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
-    verify(mockLimitlessRouterService,
-        times(Integer.valueOf(LimitlessConnectionPlugin.GET_ROUTER_MAX_RETRIES.defaultValue) + 2))
-        .forceGetLimitlessRouters(CLUSTER_ID, props);
+    verify(mockLimitlessRouterService, times(1)).forceGetLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
         HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
     verify(
