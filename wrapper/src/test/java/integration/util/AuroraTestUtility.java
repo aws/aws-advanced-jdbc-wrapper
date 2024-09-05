@@ -44,9 +44,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -1422,14 +1420,14 @@ public class AuroraTestUtility {
         .orElse(null);
   }
 
-  public String getLTSVersion(String engine) {
+  public String getDefaultVersion(String engine) {
     final DescribeDbEngineVersionsResponse versions = rdsClient.describeDBEngineVersions(
         DescribeDbEngineVersionsRequest.builder().defaultOnly(true).engine(engine).build()
     );
     if (!versions.dbEngineVersions().isEmpty()) {
       return versions.dbEngineVersions().get(0).engineVersion();
     }
-    throw new RuntimeException("Failed to find LTS version");
+    throw new RuntimeException("Failed to find default version");
   }
 
   public static AuroraTestUtility getUtility() {

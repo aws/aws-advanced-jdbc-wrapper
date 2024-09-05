@@ -1,4 +1,4 @@
-name: Run Aurora Integration Tests LTS
+name: Run Aurora Integration Tests Default
 
 on:
   workflow_dispatch:
@@ -7,8 +7,8 @@ on:
       - main
 
 jobs:
-  all-integration-tests-lts:
-    name: 'Run Aurora integration tests with LTS'
+  all-integration-tests-default:
+    name: 'Run Aurora integration tests with default engine version'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -52,8 +52,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-          AURORA_MYSQL_DB_ENGINE_VERSION: "lts"
-          AURORA_PG_ENGINE_VERSION: "lts"
+          AURORA_MYSQL_DB_ENGINE_VERSION: "default"
+          AURORA_PG_ENGINE_VERSION: "default"
       - name: Mask data
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
@@ -61,13 +61,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-report-lts-${{ matrix.dbEngine }}
+          name: junit-report-default-${{ matrix.dbEngine }}
           path: ./wrapper/build/test-results
           retention-days: 5
       - name: Archive html summary report for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: html-summary-report-lts-${{ matrix.dbEngine }}
+          name: html-summary-report-default-${{ matrix.dbEngine }}
           path: ./wrapper/build/report
           retention-days: 5
