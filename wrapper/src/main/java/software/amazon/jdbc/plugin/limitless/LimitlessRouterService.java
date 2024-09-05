@@ -25,7 +25,7 @@ import software.amazon.jdbc.PluginService;
 
 public interface LimitlessRouterService {
 
-  List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props);
+  List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 
   List<HostSpec> forceGetLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 

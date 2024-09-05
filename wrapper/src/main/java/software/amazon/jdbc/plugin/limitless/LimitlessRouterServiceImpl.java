@@ -17,7 +17,6 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.SQLException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +25,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
@@ -40,8 +40,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
   private static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor> limitlessRouterMonitors =
       new SlidingExpirationCacheWithCleanupThread<>(
-          (limitlessRouterMonitor) -> true,
-          (limitlessRouterMonitor) -> {
+          limitlessRouterMonitor -> true,
+          limitlessRouterMonitor -> {
             try {
               limitlessRouterMonitor.close();
             } catch (Exception e) {
@@ -60,14 +60,15 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   @Override
-  public List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) {
+  public List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
     final LimitlessRouterMonitor
         limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
     if (limitlessRouterMonitor == null) {
-      return Collections.EMPTY_LIST;
+      throw new SQLException(
+          Messages.get("LimitlessRouterServiceImpl.nulLimitlessRouterMonitor", new Object[]{clusterId}));
     }
     return limitlessRouterMonitor.getLimitlessRouters();
   }
@@ -81,7 +82,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     final LimitlessRouterMonitor
         limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
     if (limitlessRouterMonitor == null) {
-      return Collections.EMPTY_LIST;
+      throw new SQLException(
+          Messages.get("LimitlessRouterServiceImpl.nulLimitlessRouterMonitor", new Object[]{clusterId}));
     }
     forceGetLimitlessRoutersLock.lock();
     try {
@@ -107,7 +109,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
       limitlessRouterMonitors.computeIfAbsent(
           limitlessRouterMonitorKey,
-          (key) -> this.limitlessRouterMonitorInitializer
+          key -> this.limitlessRouterMonitorInitializer
               .createLimitlessRouterMonitor(pluginService, hostSpec, props, intervalMs),
           cacheExpirationNano);
     } catch (UnsupportedOperationException e) {

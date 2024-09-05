@@ -17,6 +17,7 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
 import java.sql.SQLException;
@@ -54,7 +55,7 @@ public class LimitlessRouterServiceImplTest {
   }
 
   @Test
-  void test() {
+  void test() throws SQLException {
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
     final List<HostSpec> endpointHostSpecList = Arrays.asList(
@@ -80,8 +81,6 @@ public class LimitlessRouterServiceImplTest {
   void test_nullLimitlessRouterMonitor() {
     final LimitlessRouterService limitlessRouterService =
         new LimitlessRouterServiceImpl((a, b, c, d) -> null);
-    final List<HostSpec> actualEndpointHostSpecList =
-        limitlessRouterService.getLimitlessRouters(OTHER_CLUSTER_ID, props);
-    assertEquals(0, actualEndpointHostSpecList.size());
+    assertThrows(SQLException.class, () -> limitlessRouterService.getLimitlessRouters(OTHER_CLUSTER_ID, props));
   }
 }

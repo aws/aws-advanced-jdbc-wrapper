@@ -168,8 +168,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     LOGGER.fine(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRouters"));
     this.openConnection();
     if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
-      LOGGER.fine(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRoutersFailed"));
-      return Collections.emptyList();
+      throw new SQLException(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRoutersFailed"));
     }
     List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
     this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));

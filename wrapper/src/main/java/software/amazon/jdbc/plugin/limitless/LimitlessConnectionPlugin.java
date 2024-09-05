@@ -170,6 +170,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           "LimitlessConnectionPlugin.failedToConnectToHost",
           new Object[] {selectedHostSpec.getHost()}));
       selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
+      // Retry connect prioritising healthiest router for best chance of connection over load-balancing with round-robin
       return retryConnectWithLeastLoadedRouters(limitlessRouters, props, e);
     }
   }
@@ -189,31 +190,8 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
         ? MAX_RETRIES.getInteger(props)
         : Integer.valueOf(MAX_RETRIES.defaultValue);
 
-    while (retryCount < maxRetries) {
-      if (currentRouters.stream().anyMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
-        retryCount++;
-        final HostSpec selectedHostSpec;
-        try {
-          // Changing host selector strategy to prioritize making a connection using the healthiest/heaviest router
-          selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
-              HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
-          LOGGER.fine(Messages.get(
-              "LimitlessConnectionPlugin.selectedHostForRetry",
-              new Object[] {selectedHostSpec.getHost()}));
-        } catch (UnsupportedOperationException e) {
-          LOGGER.severe(Messages.get("LimitlessConnectionPlugin.incorrectConfiguration"));
-          throw e;
-        }
-
-        try {
-          return pluginService.connect(selectedHostSpec, props);
-        } catch (SQLException e) {
-          selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
-          LOGGER.warning(Messages.get(
-              "LimitlessConnectionPlugin.failedToConnectToHost",
-              new Object[] {selectedHostSpec.getHost()}));
-        }
-      } else {
+    while (retryCount++ < maxRetries) {
+      if (!currentRouters.stream().anyMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
         currentRouters = synchronouslyGetLimitlessRoutersWithRetry(props);
         if (currentRouters == null
             || currentRouters.isEmpty()
@@ -222,6 +200,28 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
               Messages.get("LimitlessConnectionPlugin.noRoutersAvailableForRetry"),
               originalException);
         }
+      }
+
+      final HostSpec selectedHostSpec;
+      try {
+        // Select healthiest router for best chance of connection over load-balancing with round-robin
+        selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
+            HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
+        LOGGER.fine(Messages.get(
+            "LimitlessConnectionPlugin.selectedHostForRetry",
+            new Object[] {selectedHostSpec.getHost()}));
+      } catch (UnsupportedOperationException e) {
+        LOGGER.severe(Messages.get("LimitlessConnectionPlugin.incorrectConfiguration"));
+        throw e;
+      }
+
+      try {
+        return pluginService.connect(selectedHostSpec, props);
+      } catch (SQLException e) {
+        selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
+        LOGGER.warning(Messages.get(
+            "LimitlessConnectionPlugin.failedToConnectToHost",
+            new Object[] {selectedHostSpec.getHost()}));
       }
     }
     throw new SQLException(Messages.get("LimitlessConnectionPlugin.noRoutersAvailableForRetry"), originalException);
@@ -242,11 +242,12 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
         }
         Thread.sleep(retryIntervalMs);
       } catch (final InterruptedException e) {
-        // do nothing
+        Thread.currentThread().interrupt();
+        throw new SQLException(Messages.get("LimitlessConnectionPlugin.interruptedThread"));
       } finally {
         retryCount++;
       }
-    } while (newLimitlessRouters == null || newLimitlessRouters.isEmpty() && retryCount < maxRetries);
+    } while (retryCount < maxRetries);
     throw new SQLException(Messages.get("LimitlessConnectionPlugin.noRoutersAvailable"));
   }
 }
