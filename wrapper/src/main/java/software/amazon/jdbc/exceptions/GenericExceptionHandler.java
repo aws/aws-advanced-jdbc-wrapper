@@ -73,8 +73,14 @@ public class GenericExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLLoginException) {
         return true;
       }
+
+      String sqlState = null;
       if (exception instanceof SQLException) {
-        return isLoginException(((SQLException) exception).getSQLState());
+        sqlState = ((SQLException) exception).getSQLState();
+      }
+
+      if (isLoginException(sqlState)) {
+        return true;
       }
 
       exception = exception.getCause();
