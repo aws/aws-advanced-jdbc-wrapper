@@ -71,10 +71,16 @@ public class MySQLExceptionHandler implements ExceptionHandler {
       if (exception instanceof SQLLoginException) {
         return true;
       }
+
+      String sqlState = null;
       if (exception instanceof SQLException) {
-        return isLoginException(((SQLException) exception).getSQLState());
+        sqlState = ((SQLException) exception).getSQLState();
       } else if (exception instanceof CJException) {
-        return isLoginException(((CJException) exception).getSQLState());
+        sqlState = ((CJException) exception).getSQLState();
+      }
+
+      if (isLoginException(sqlState)) {
+        return true;
       }
 
       exception = exception.getCause();
