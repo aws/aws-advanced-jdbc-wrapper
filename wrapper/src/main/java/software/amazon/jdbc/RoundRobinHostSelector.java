@@ -111,7 +111,7 @@ public class RoundRobinHostSelector implements HostSelector {
         targetHostIndex = 0;
       }
 
-      final Integer weight = clusterInfo.clusterWeightsMap.get(eligibleHosts.get(targetHostIndex).getHost());
+      final Integer weight = clusterInfo.clusterWeightsMap.get(eligibleHosts.get(targetHostIndex).getHostId());
       clusterInfo.weightCounter = weight == null ? clusterInfo.defaultWeight : weight;
     }
 
