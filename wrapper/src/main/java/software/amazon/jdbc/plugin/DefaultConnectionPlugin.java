@@ -255,7 +255,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   @Override
   public HostSpec getHostSpecByStrategy(HostRole role, String strategy)
       throws SQLException {
-    List<HostSpec> hosts = this.pluginService.getHosts();
+    List<HostSpec> hosts = this.pluginService.getAllowedHosts();
 
     return this.getHostSpecByStrategy(hosts, role, strategy);
   }

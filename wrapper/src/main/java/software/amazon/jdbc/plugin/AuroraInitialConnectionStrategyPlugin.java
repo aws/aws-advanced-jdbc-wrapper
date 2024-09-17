@@ -380,12 +380,12 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   }
 
   private boolean hasNoReaders() {
-    if (this.pluginService.getHosts().isEmpty()) {
+    if (this.pluginService.getAllowedHosts().isEmpty()) {
       // Topology inconclusive/corrupted.
       return false;
     }
 
-    for (HostSpec hostSpec : this.pluginService.getHosts()) {
+    for (HostSpec hostSpec : this.pluginService.getAllowedHosts()) {
       if (hostSpec.getRole() == HostRole.WRITER) {
         continue;
       }

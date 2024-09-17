@@ -170,9 +170,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         if (this.getHosts().isEmpty()) {
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
-        this.currentHostSpec = this.getWriter(this.getHosts());
+        this.currentHostSpec = this.getWriter(this.getAllowedHosts());
         if (this.currentHostSpec == null) {
-          this.currentHostSpec = this.getHosts().get(0);
+          this.currentHostSpec = this.getAllowedHosts().get(0);
         }
       }
       if (this.currentHostSpec == null) {
