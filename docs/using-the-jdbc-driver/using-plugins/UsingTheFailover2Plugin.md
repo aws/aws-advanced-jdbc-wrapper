@@ -27,7 +27,7 @@ The topology monitoring component mentioned above (`MonitoringRdsHostListProvide
 
 When the cluster topology needs to be confirmed, the monitoring component opens new threads, one for each node (see _Picture 3_). Each of these threads tries to connect to a node and checks if the node is a writer. When Aurora failover occurs, the new writer node is the first node to reflect the true topology of the cluster. Other nodes connect to the new writer shortly after and update their local copies of the topology. Topology information acquired from a reader node may be outdated/inaccurate for a short period after failover. You can see a typical example of stale topology in the diagram above: thread `instance-3`, box `Topology`, to the right. The stale topology incorrectly shows that `instance-3` is still a writer.
 
-TThe threads monitoring the topology stop when a new writer is detected. For 30 seconds after a new writer is detected (and after all waiting connections have been notified), topology continues to be updated at an increased rate. This allows time for all readers to appear in the topology, since 30 seconds is usually enough time for cluster failover to complete and cluster topology to stabilize.
+The threads monitoring the topology stop when a new writer is detected. For 30 seconds after a new writer is detected (and after all waiting connections have been notified), topology continues to be updated at an increased rate. This allows time for all readers to appear in the topology, since 30 seconds is usually enough time for cluster failover to complete and cluster topology to stabilize.
 
 All improvements mentioned above help the Failover Plugin v2 to operate with improved performance and less demand for resources. 
 
