@@ -527,19 +527,22 @@ public class RoundRobinHostSelectorTest {
 
   @Test
   void testSetRoundRobinHostWeightPairsProperty() {
-    final String expectedPropertyValue = "instance-1:2,instance-2:1,instance-3:0";
+    final String expectedPropertyValue = "instance-1-id:2,instance-2-id:1,instance-3-id:0";
 
     final List<HostSpec> hosts = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("instance-1")
+            .hostId("instance-1-id")
             .weight(2)
             .build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("instance-2")
+            .hostId("instance-2-id")
             .weight(1)
             .build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("instance-3")
+            .hostId("instance-3-id")
             .weight(0)
             .build()
     );

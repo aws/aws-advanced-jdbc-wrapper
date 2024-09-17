@@ -57,7 +57,7 @@ public class RoundRobinHostSelector implements HostSelector {
     final StringBuilder builder = new StringBuilder();
     for (int i = 0; i < hosts.size(); i++) {
       builder
-          .append(hosts.get(i).getHost())
+          .append(hosts.get(i).getHostId())
           .append(":")
           .append(hosts.get(i).getWeight());
       if (i < hosts.size() - 1) {
