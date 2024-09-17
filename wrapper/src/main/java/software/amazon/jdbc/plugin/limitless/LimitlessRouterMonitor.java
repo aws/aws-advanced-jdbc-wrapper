@@ -258,6 +258,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         .role(HostRole.WRITER)
         .availability(HostAvailability.AVAILABLE)
         .weight(weight)
+        .hostId(hostName)
         .build();
   }
 }

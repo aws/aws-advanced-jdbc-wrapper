@@ -38,16 +38,27 @@ public class RoundRobinHostSelectorTest {
   private static Properties defaultProps;
   private static Properties weightedProps;
 
+  private final String host0 = "host-0";
+  private final String host1 = "host-1";
+  private final String host2 = "host-2";
+  private final String host3 = "host-3";
+  private final String host4 = "host-4";
+  private final String instance0 = "instance-0";
+  private final String instance1 = "instance-1";
+  private final String instance2 = "instance-2";
+  private final String instance3 = "instance-3";
+  private final String instance4 = "instance-4";
+
   private final HostSpec writerHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("instance-0").port(TEST_PORT).build();
+      .host(host0).hostId(instance0).port(TEST_PORT).build();
   private final HostSpec readerHostSpec1 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("instance-1").port(TEST_PORT).role(HostRole.READER).build();
+      .host(host1).hostId(instance1).port(TEST_PORT).role(HostRole.READER).build();
   private final HostSpec readerHostSpec2 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("instance-2").port(TEST_PORT).role(HostRole.READER).build();
+      .host(host2).hostId(instance2).port(TEST_PORT).role(HostRole.READER).build();
   private final HostSpec readerHostSpec3 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("instance-3").port(TEST_PORT).role(HostRole.READER).build();
+      .host(host3).hostId(instance3).port(TEST_PORT).role(HostRole.READER).build();
   private final HostSpec readerHostSpec4 = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("instance-4").port(TEST_PORT).role(HostRole.READER).build();
+      .host(host4).hostId(instance4).port(TEST_PORT).role(HostRole.READER).build();
 
   // Each number at the end of the host list represents which readers have been added.
   private final List<HostSpec> hostsList123 = Arrays.asList(
@@ -516,19 +527,22 @@ public class RoundRobinHostSelectorTest {
 
   @Test
   void testSetRoundRobinHostWeightPairsProperty() {
-    final String expectedPropertyValue = "instance-1:2,instance-2:1,instance-3:0";
+    final String expectedPropertyValue = "instance-1-id:2,instance-2-id:1,instance-3-id:0";
 
     final List<HostSpec> hosts = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("instance-1")
+            .hostId("instance-1-id")
             .weight(2)
             .build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("instance-2")
+            .hostId("instance-2-id")
             .weight(1)
             .build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("instance-3")
+            .hostId("instance-3-id")
             .weight(0)
             .build()
     );
