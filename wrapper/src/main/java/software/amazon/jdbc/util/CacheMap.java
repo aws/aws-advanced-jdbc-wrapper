@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class CacheMap<K, V> {
 
@@ -31,7 +32,7 @@ public class CacheMap<K, V> {
   public CacheMap() {
   }
 
-  public V get(final K key) {
+  public @Nullable V get(final K key) {
     final CacheItem<V> cacheItem = cache.computeIfPresent(key, (kk, vv) -> vv.isExpired() ? null : vv);
     return cacheItem == null ? null : cacheItem.item;
   }

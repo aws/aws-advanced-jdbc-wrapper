@@ -34,6 +34,7 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngine;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestDriver;
@@ -44,18 +45,23 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
+import software.amazon.jdbc.dialect.DialectCodes;
+import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
@@ -70,7 +76,6 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @EnableOnNumOfInstances(min = 2)
-@EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA) // TODO: MultiAz is failing
 @MakeSureFirstInstanceWriter
 @Order(14)
 public class AuroraFailoverTest {
@@ -423,9 +428,35 @@ public class AuroraFailoverTest {
 
       // Execute Query again to get the current connection id;
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      LOGGER.fine("currentConnectionId: " + currentConnectionId);
 
       // Assert that we are connected to the new writer after failover happens.
-      List<String> instanceIDs = auroraUtil.getAuroraInstanceIds();
+      List<String> instanceIDs = null;
+      for (TestInstanceInfo instanceInfo : TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()) {
+        if (instanceInfo == initialWriterInstanceInfo
+            && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+                == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
+          // Old writer node for RDS MultiAz clusters (usually) isn't available for a long time after failover.
+          // Let's skip this node and fetch topology from another node.
+          continue;
+        }
+        try {
+          instanceIDs = auroraUtil.getAuroraInstanceIds(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+              ConnectionStringHelper.getUrl(
+                  instanceInfo.getHost(), instanceInfo.getPort(),
+                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+          if (!instanceIDs.isEmpty()) {
+            break;
+          }
+        } catch (SQLException ex) {
+          // do nothing
+        }
+      }
+
       assertTrue(instanceIDs.size() > 0);
       final String nextWriterId = instanceIDs.get(0);
 
@@ -497,7 +528,6 @@ public class AuroraFailoverTest {
         TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
 
     final Properties props = initDefaultProps();
-    props.setProperty("keepSessionStateOnFailover", "true");
 
     try (final Connection conn =
              DriverManager.getConnection(
@@ -555,9 +585,13 @@ public class AuroraFailoverTest {
 
   // Helper methods below
 
+  protected String getFailoverPlugin() {
+    return "failover";
+  }
+
   protected Properties initDefaultProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
+    props.setProperty(PropertyDefinition.PLUGINS.name, this.getFailoverPlugin());
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
     return props;
@@ -565,7 +599,7 @@ public class AuroraFailoverTest {
 
   protected Properties initDefaultProxiedProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "failover");
+    props.setProperty(PropertyDefinition.PLUGINS.name, this.getFailoverPlugin());
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
@@ -590,7 +624,7 @@ public class AuroraFailoverTest {
 
     // Configure the driver-specific data source:
     Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
-    targetDataSourceProps.setProperty("wrapperPlugins", "failover");
+    targetDataSourceProps.setProperty("wrapperPlugins", this.getFailoverPlugin());
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()

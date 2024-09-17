@@ -21,12 +21,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.logging.Logger;
+import software.amazon.jdbc.ConnectionPluginChainBuilder;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHostListProvider;
 import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterPgDialect extends PgDialect {
+
+  private static final Logger LOGGER = Logger.getLogger(RdsMultiAzDbClusterPgDialect.class.getName());
 
   private static MultiAzDbClusterPgExceptionHandler exceptionHandler;
 
@@ -37,12 +42,20 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
       "SELECT 1 AS tmp FROM information_schema.routines"
           + " WHERE routine_schema='rds_tools' AND routine_name='multi_az_db_cluster_source_dbi_resource_id'";
 
+  // For reader nodes, the query should return a writer node ID. For a writer node, the query should return no data.
   private static final String FETCH_WRITER_NODE_QUERY =
-      "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
+      "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()"
+          + " WHERE multi_az_db_cluster_source_dbi_resource_id !="
+          + " (SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
 
   private static final String FETCH_WRITER_NODE_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
 
   private static final String NODE_ID_QUERY = "SELECT dbi_resource_id FROM rds_tools.dbi_resource_id()";
+
+  private static final String NODE_ID_FUNC_EXIST_QUERY =
+      "SELECT 1 AS tmp FROM information_schema.routines"
+          + " WHERE routine_schema='rds_tools' AND routine_name='dbi_resource_id'";
+
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
 
   @Override
@@ -66,7 +79,7 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
         stmt.close();
 
         stmt = connection.createStatement();
-        rs = stmt.executeQuery(FETCH_WRITER_NODE_QUERY);
+        rs = stmt.executeQuery(NODE_ID_FUNC_EXIST_QUERY);
 
         return rs.next();
       }
@@ -99,14 +112,33 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService) -> new RdsMultiAzDbClusterListProvider(
-        properties,
-        initialUrl,
-        hostListProviderService,
-        TOPOLOGY_QUERY,
-        NODE_ID_QUERY,
-        IS_READER_QUERY,
-        FETCH_WRITER_NODE_QUERY,
-        FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+    return (properties, initialUrl, hostListProviderService, pluginService) -> {
+      final List<String> plugins = ConnectionPluginChainBuilder.getPluginCodes(properties);
+
+      if (plugins.contains("failover2")) {
+        return new MonitoringRdsMultiAzHostListProvider(
+            properties,
+            initialUrl,
+            hostListProviderService,
+            TOPOLOGY_QUERY,
+            NODE_ID_QUERY,
+            IS_READER_QUERY,
+            pluginService,
+            FETCH_WRITER_NODE_QUERY,
+            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+
+      } else {
+
+        return new RdsMultiAzDbClusterListProvider(
+            properties,
+            initialUrl,
+            hostListProviderService,
+            TOPOLOGY_QUERY,
+            NODE_ID_QUERY,
+            IS_READER_QUERY,
+            FETCH_WRITER_NODE_QUERY,
+            FETCH_WRITER_NODE_QUERY_COLUMN_NAME);
+      }
+    };
   }
 }

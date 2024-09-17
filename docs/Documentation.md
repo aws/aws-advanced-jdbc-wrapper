@@ -11,6 +11,7 @@
   - [Plugins](/docs/using-the-jdbc-driver/UsingTheJdbcDriver.md#plugins)
     - [Failover Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md)
       - [Failover Configuration Guide](/docs/using-the-jdbc-driver/FailoverConfigurationGuide.md)
+    - [Failover Plugin v2](/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md)
     - [Host Monitoring Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheHostMonitoringPlugin.md)
     - [IAM Authentication Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
     - [AWS Secrets Manager Plugin](/docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)

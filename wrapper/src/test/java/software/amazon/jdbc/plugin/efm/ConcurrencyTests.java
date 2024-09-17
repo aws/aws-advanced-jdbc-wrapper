@@ -541,6 +541,12 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public boolean forceRefreshHostList(final boolean shouldVerifyWriter, long timeoutMs)
+        throws SQLException {
+      return false;
+    }
+
+    @Override
     public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
       return new TestConnection();
     }

@@ -20,8 +20,11 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.logging.Logger;
+import software.amazon.jdbc.ConnectionPluginChainBuilder;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -44,6 +47,10 @@ public class AuroraPgDialect extends PgDialect {
           // filter out nodes that haven't been updated in the last 5 minutes
           + "WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' "
           + "OR LAST_UPDATE_TIMESTAMP IS NULL";
+
+  private static final String IS_WRITER_QUERY =
+      "SELECT SERVER_ID FROM aurora_replica_status() "
+          + "WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = aurora_db_instance_identifier()";
 
   private static final String NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
@@ -119,12 +126,28 @@ public class AuroraPgDialect extends PgDialect {
 
   @Override
   public HostListProviderSupplier getHostListProvider() {
-    return (properties, initialUrl, hostListProviderService) -> new AuroraHostListProvider(
-        properties,
-        initialUrl,
-        hostListProviderService,
-        TOPOLOGY_QUERY,
-        NODE_ID_QUERY,
-        IS_READER_QUERY);
+    return (properties, initialUrl, hostListProviderService, pluginService) -> {
+
+      final List<String> plugins = ConnectionPluginChainBuilder.getPluginCodes(properties);
+
+      if (plugins.contains("failover2")) {
+        return new MonitoringRdsHostListProvider(
+            properties,
+            initialUrl,
+            hostListProviderService,
+            TOPOLOGY_QUERY,
+            NODE_ID_QUERY,
+            IS_READER_QUERY,
+            IS_WRITER_QUERY,
+            pluginService);
+      }
+      return new AuroraHostListProvider(
+          properties,
+          initialUrl,
+          hostListProviderService,
+          TOPOLOGY_QUERY,
+          NODE_ID_QUERY,
+          IS_READER_QUERY);
+    };
   }
 }

@@ -26,7 +26,7 @@ public class Utils {
     return list == null || list.isEmpty();
   }
 
-  public static String logTopology(final @NonNull List<HostSpec> hosts) {
+  public static String logTopology(final @Nullable List<HostSpec> hosts) {
     return logTopology(hosts, null);
   }
 

@@ -95,6 +95,13 @@ public class MonitorServiceImpl implements MonitorService {
   }
 
   public static void clearCache() {
+    monitors.getEntries().values().forEach(monitor -> {
+      try {
+        monitor.close();
+      } catch (Exception ex) {
+        // ignore
+      }
+    });
     monitors.clear();
   }
 

@@ -66,6 +66,7 @@ public class ConnectionPluginChainBuilder {
           put("efm", HostMonitoringConnectionPluginFactory.class);
           put("efm2", software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class);
           put("failover", FailoverConnectionPluginFactory.class);
+          put("failover2", software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class);
           put("iam", IamAuthConnectionPluginFactory.class);
           put("awsSecretsManager", AwsSecretsManagerConnectionPluginFactory.class);
           put("federatedAuth", FederatedAuthPluginFactory.class);
@@ -97,6 +98,7 @@ public class ConnectionPluginChainBuilder {
           put(AuroraStaleDnsPluginFactory.class, 500);
           put(ReadWriteSplittingPluginFactory.class, 600);
           put(FailoverConnectionPluginFactory.class, 700);
+          put(software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory.class, 710);
           put(HostMonitoringConnectionPluginFactory.class, 800);
           put(software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class, 810);
           put(FastestResponseStrategyPluginFactory.class, 900);
@@ -143,13 +145,7 @@ public class ConnectionPluginChainBuilder {
       pluginFactories = configurationProfile.getPluginFactories();
     } else {
 
-      String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
-
-      if (pluginCodes == null) {
-        pluginCodes = DEFAULT_PLUGINS;
-      }
-
-      final List<String> pluginCodeList = StringUtils.split(pluginCodes, ",", true);
+      final List<String> pluginCodeList = getPluginCodes(props);
       pluginFactories = new ArrayList<>(pluginCodeList.size());
 
       for (final String pluginCode : pluginCodeList) {
@@ -209,6 +205,14 @@ public class ConnectionPluginChainBuilder {
     plugins.add(defaultPlugin);
 
     return plugins;
+  }
+
+  public static List<String> getPluginCodes(final Properties props) {
+    String pluginCodes = PropertyDefinition.PLUGINS.getString(props);
+    if (pluginCodes == null) {
+      pluginCodes = DEFAULT_PLUGINS;
+    }
+    return StringUtils.split(pluginCodes, ",", true);
   }
 
   protected List<Class<? extends ConnectionPluginFactory>> sortPluginFactories(

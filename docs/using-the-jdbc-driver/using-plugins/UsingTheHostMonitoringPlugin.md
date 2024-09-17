@@ -78,7 +78,8 @@ properties.setProperty("monitoring-socketTimeout", "10");
 Host Monitoring Plugin v2, also known as `efm2`, is an alternative implementation of enhanced failure monitoring and it is functionally equal to the Host Monitoring Plugin described above. Both plugins share the same set of [configuration parameters](#enhanced-failure-monitoring-parameters). The `efm2` plugin is designed to be a drop-in replacement for the `efm` plugin.
 The `efm2` plugin can be used in any scenario where the `efm` plugin is mentioned. This plugin is enabled by default since [version 2.3.3](https://github.com/awslabs/aws-advanced-jdbc-wrapper/releases/tag/2.3.3) of the driver. The original EFM plugin can still be used by specifying `efm` in the `wrapperPlugins` parameter.
 
-> [!NOTE] Since these two plugins are separate plugins, users may decide to use them together with a single connection. While this should not  have any negative side effects, it is not recommended. It is recommended to use either the `efm` plugin, or the `efm2` plugin where it's needed.
+> [!NOTE]\ 
+> Since these two plugins are separate plugins, users may decide to use them together with a single connection. While this should not have any negative side effects, it is not recommended. It is recommended to use either the `efm` plugin, or the `efm2` plugin where it's needed.
  
 
 The `efm2` plugin is designed to address [some of the issues](https://github.com/awslabs/aws-advanced-jdbc-wrapper/issues/675) that have been reported by multiple users. The following changes have been made:

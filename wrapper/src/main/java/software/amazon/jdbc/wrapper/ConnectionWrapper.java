@@ -146,7 +146,8 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
 
     final HostListProviderSupplier supplier = this.pluginService.getDialect().getHostListProvider();
     if (supplier != null) {
-      final HostListProvider provider = supplier.getProvider(props, this.originalUrl, hostListProviderService);
+      final HostListProvider provider = supplier.getProvider(
+          props, this.originalUrl, this.hostListProviderService, this.pluginService);
       hostListProviderService.setHostListProvider(provider);
     }
 

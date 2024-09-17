@@ -203,7 +203,7 @@ public class RdsMultiAzDbClusterListProvider extends RdsHostListProvider {
    * @param nodeName A host name.
    * @return Host dns endpoint
    */
-  private String getHostEndpoint(final String nodeName) {
+  protected String getHostEndpoint(final String nodeName) {
     final String host = this.clusterInstanceTemplate.getHost();
     return host.replace("?", nodeName);
   }
