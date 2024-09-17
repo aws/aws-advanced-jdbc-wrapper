@@ -192,7 +192,8 @@ public class MonitorImpl implements Monitor {
 
             while ((monitorContext = this.activeContexts.poll()) != null) {
 
-              synchronized (monitorContext) {
+              monitorContext.getLock().lock();
+              try {
                 // If context is already invalid, just skip it
                 if (!monitorContext.isActiveContext()) {
                   continue;
@@ -223,6 +224,8 @@ public class MonitorImpl implements Monitor {
                     delayMillis = monitorContext.getFailureDetectionIntervalMillis();
                   }
                 }
+              } finally {
+                monitorContext.getLock().unlock();
               }
             }
 

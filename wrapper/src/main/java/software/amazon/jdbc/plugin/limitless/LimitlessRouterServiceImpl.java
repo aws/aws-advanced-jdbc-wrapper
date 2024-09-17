@@ -98,7 +98,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   @Override
-  public synchronized void startMonitoring(final @NonNull PluginService pluginService,
+  public void startMonitoring(final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final int intervalMs) {

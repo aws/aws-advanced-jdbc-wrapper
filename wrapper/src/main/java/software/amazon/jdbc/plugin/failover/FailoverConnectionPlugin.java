@@ -558,7 +558,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
    */
-  protected synchronized void failover(final HostSpec failedHost) throws SQLException {
+  protected void failover(final HostSpec failedHost) throws SQLException {
     this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
 
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
@@ -720,7 +720,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  protected synchronized void pickNewConnection() throws SQLException {
+  protected void pickNewConnection() throws SQLException {
     if (this.isClosed && this.closedExplicitly) {
       LOGGER.fine(() -> Messages.get("Failover.transactionResolutionUnknownError"));
       return;

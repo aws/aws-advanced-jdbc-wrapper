@@ -377,7 +377,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     throw new ReadWriteSplittingSQLException(logMessage, sqlState.getState(), cause);
   }
 
-  private synchronized void switchToWriterConnection(
+  private void switchToWriterConnection(
       final List<HostSpec> hosts)
       throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
@@ -418,7 +418,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
             newConnectionHost.getUrl()}));
   }
 
-  private synchronized void switchToReaderConnection(final List<HostSpec> hosts)
+  private void switchToReaderConnection(final List<HostSpec> hosts)
       throws SQLException {
     final Connection currentConnection = this.pluginService.getCurrentConnection();
     final HostSpec currentHost = this.pluginService.getCurrentHostSpec();

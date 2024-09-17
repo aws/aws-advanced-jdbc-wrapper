@@ -40,7 +40,6 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
-import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 /**
  * Monitor the server while the connection is executing methods for more sophisticated failure
@@ -181,7 +180,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
 
     } finally {
       if (monitorContext != null) {
-        synchronized (monitorContext) {
+        monitorContext.getLock().lock();
+        try {
           this.monitorService.stopMonitoring(monitorContext);
 
           if (monitorContext.isNodeUnhealthy()) {
@@ -206,6 +206,8 @@ public class HostMonitoringConnectionPlugin extends AbstractConnectionPlugin
                           new Object[] {this.pluginService.getCurrentHostSpec().asAlias()})));
             }
           }
+        } finally {
+          monitorContext.getLock().unlock();
         }
 
         LOGGER.finest(
