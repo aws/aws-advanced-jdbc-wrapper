@@ -45,7 +45,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements Ca
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final SlidingExpirationCacheWithCleanupThread<String, CustomEndpointMonitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
-          (monitor) -> true,
+          CustomEndpointMonitor::shouldDispose,
           (monitor) -> {
             try {
               monitor.close();

@@ -133,6 +133,11 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   }
 
   @Override
+  public boolean shouldDispose() {
+    return this.pluginServices.isEmpty();
+  }
+
+  @Override
   public void close() {
     this.stop.set(true);
 

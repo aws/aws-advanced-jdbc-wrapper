@@ -118,10 +118,15 @@ public class SlidingExpirationCache<K, V> {
   }
 
   protected void removeIfExpired(K key) {
-    final CacheItem cacheItem = cache.get(key);
-    if (cacheItem == null || cacheItem.shouldCleanup()) {
-      removeAndDispose(key);
-    }
+    // TODO: what if the disposal function is long-running? It will lock up the cache until its done.
+    cache.computeIfPresent(key, (k, cacheItem) -> {
+      if (cacheItem.shouldCleanup()) {
+        removeAndDispose(key);
+        return null;
+      }
+
+      return cacheItem;
+    });
   }
 
   /**

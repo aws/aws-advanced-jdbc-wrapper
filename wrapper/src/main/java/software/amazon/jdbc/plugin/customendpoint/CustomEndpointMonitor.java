@@ -27,4 +27,6 @@ public interface CustomEndpointMonitor extends AutoCloseable, Runnable {
   void registerPluginService(PluginService pluginService);
 
   void deregisterPluginService(PluginService pluginService);
+
+  boolean shouldDispose();
 }
