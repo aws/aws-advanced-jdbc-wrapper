@@ -286,6 +286,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
     this.rdsUrlType = this.rdsHelper.identifyRdsType(initialUrl);
 
+    // TODO: do we want to try to set the failover mode based on the custom endpoint type here, or in connectInternal,
+    //  or neither? If here, the custom endpoint info will only be available if a previous connection to it has been
+    //  made. If in connectInternal, the info may be available even if it is the first connection to the endpoint.
     if (this.failoverMode == null) {
       if (this.rdsUrlType.isRdsCluster()) {
         this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
