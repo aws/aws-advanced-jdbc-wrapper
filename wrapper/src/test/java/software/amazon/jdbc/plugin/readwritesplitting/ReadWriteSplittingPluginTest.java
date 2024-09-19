@@ -124,6 +124,7 @@ public class ReadWriteSplittingPluginTest {
     when(this.mockPluginService.getCurrentConnection()).thenReturn(mockWriterConn);
     when(this.mockPluginService.getCurrentHostSpec()).thenReturn(writerHostSpec);
     when(this.mockPluginService.getHosts()).thenReturn(defaultHosts);
+    when(this.mockPluginService.getAllowedHosts()).thenReturn(defaultHosts);
     when(this.mockPluginService.getHostSpecByStrategy(eq(HostRole.READER), eq("random")))
         .thenReturn(readerHostSpec1);
     when(this.mockPluginService.connect(eq(writerHostSpec), any(Properties.class)))
@@ -268,7 +269,7 @@ public class ReadWriteSplittingPluginTest {
 
   @Test
   public void testSetReadOnly_true_oneHost() throws SQLException {
-    when(this.mockPluginService.getHosts()).thenReturn(Collections.singletonList(writerHostSpec));
+    when(this.mockPluginService.getAllowedHosts()).thenReturn(Collections.singletonList(writerHostSpec));
 
     final ReadWriteSplittingPlugin plugin = new ReadWriteSplittingPlugin(
         mockPluginService,
