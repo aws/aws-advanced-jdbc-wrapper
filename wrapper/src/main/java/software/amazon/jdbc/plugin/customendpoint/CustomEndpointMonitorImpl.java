@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE;
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.REGION_PROPERTY;
-import static software.amazon.jdbc.plugin.customendpoint.MemberListType.EXCLUSION_LIST;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -52,6 +51,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final RdsClient rdsClient;
+  protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
   protected final Region region;
   protected final long refreshRateNano;
@@ -74,12 +74,12 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
       Properties props,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc,
       long cacheEntryExpirationNano) {
-
+    this.customEndpointHostSpec = customClusterHostSpec;
     this.region = getRegion(customClusterHostSpec, props);
     this.rdsClient = rdsClientFunc.apply(customClusterHostSpec, this.region);
+    this.cacheEntryExpirationNano = cacheEntryExpirationNano;
 
     this.refreshRateNano = TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE.getLong(props));
-    this.cacheEntryExpirationNano = cacheEntryExpirationNano;
 
     this.endpointIdentifier = this.rdsUtils.getRdsClusterId(customClusterHostSpec.getHost());
     if (StringUtils.isNullOrEmpty(this.endpointIdentifier)) {
@@ -210,11 +210,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         this.pluginServicesLock.readLock().lock();
         try {
           for (PluginService service : this.pluginServices) {
-            if (EXCLUSION_LIST.equals(endpointInfo.getMemberListType())) {
-              service.setExcludedHosts(endpointInfo.getExcludedMembers());
-            } else {
-              service.setStaticHosts(endpointInfo.getStaticMembers());
-            }
+            service.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
           }
         } finally {
           this.pluginServicesLock.readLock().unlock();

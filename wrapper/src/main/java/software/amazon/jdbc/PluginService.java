@@ -65,10 +65,6 @@ public interface PluginService extends ExceptionHandler {
   // TODO: should we rename to getAllHosts?
   List<HostSpec> getHosts();
 
-  void setStaticHosts(final List<String> allowedHosts);
-
-  void setExcludedHosts(final List<String> blockedHosts);
-
   List<HostSpec> getAllowedHosts();
 
   HostSpec getInitialConnectionHostSpec();
@@ -224,4 +220,8 @@ public interface PluginService extends ExceptionHandler {
   String getTargetName();
 
   @NonNull SessionStateService getSessionStateService();
+
+  <T> void setStatus(final String statusKey, final @Nullable T status, final boolean clusterBound);
+
+  <T> T getStatus(final String statusKey, final @NonNull Class<T> clazz, final boolean clusterBound);
 }

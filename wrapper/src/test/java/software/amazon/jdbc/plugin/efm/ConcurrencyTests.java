@@ -70,7 +70,6 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -482,15 +481,6 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public CustomEndpointInfo getCustomEndpointInfo() {
-      return null;
-    }
-
-    @Override
-    public void setCustomEndpointInfo(CustomEndpointInfo customEndpointInfo) {
-    }
-
-    @Override
     public List<HostSpec> getHosts() {
       return null;
     }
@@ -584,6 +574,15 @@ public class ConcurrencyTests {
     @Override
     public @NonNull SessionStateService getSessionStateService() {
       return new TestSessionStateService();
+    }
+
+    @Override
+    public <T> void setStatus(String statusKey, @Nullable T status, boolean clusterBound) {
+    }
+
+    @Override
+    public <T> T getStatus(String statusKey, @NonNull Class<T> clazz, boolean clusterBound) {
+      return null;
     }
 
     @Override

@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc;
 
+import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_LIST;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -46,13 +48,13 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -60,6 +62,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
+
+  protected static final CacheMap<String, Object> statusesExpiringCache = new CacheMap<>();
+  protected static final long DEFAULT_STATUS_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ConnectionPluginManager pluginManager;
@@ -70,7 +75,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected List<HostSpec> hosts = new ArrayList<>();
   protected List<String> staticHosts;
   protected List<String> excludedHosts;
-  protected ReentrantLock allowedHostsLock = new ReentrantLock();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
@@ -374,51 +378,21 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public void setStaticHosts(List<String> staticHosts) {
-    this.allowedHostsLock.lock();
-    try {
-      this.staticHosts = staticHosts;
-    } finally {
-      this.allowedHostsLock.unlock();
-    }
-  }
-
-  @Override
-  public void setExcludedHosts(List<String> excludedHosts) {
-    this.allowedHostsLock.lock();
-    try {
-      this.excludedHosts = excludedHosts;
-    } finally {
-      this.allowedHostsLock.unlock();
-    }
-  }
-
-  @Override
   public List<HostSpec> getAllowedHosts() {
-    if (Utils.isNullOrEmpty(this.staticHosts) && Utils.isNullOrEmpty(this.excludedHosts)) {
-      return this.getHosts();
+    CustomEndpointInfo customEndpointInfo =
+        this.getStatus(this.initialConnectionHostSpec.getHost(), CustomEndpointInfo.class, true);
+    if (customEndpointInfo == null) {
+      return this.hosts;
     }
 
-    this.allowedHostsLock.lock();
-    try {
-      if (Utils.isNullOrEmpty(this.staticHosts) && Utils.isNullOrEmpty(this.excludedHosts)) {
-        return this.getHosts();
-      }
-
-      List<HostSpec> allowedHosts = this.hosts;
-      if (!Utils.isNullOrEmpty(this.staticHosts)) {
-        allowedHosts = allowedHosts.stream()
-            .filter((hostSpec) -> this.staticHosts.contains(hostSpec.getHost())).collect(Collectors.toList());
-      }
-
-      if (!Utils.isNullOrEmpty(this.excludedHosts)) {
-        allowedHosts = allowedHosts.stream()
-            .filter((hostSpec -> !this.excludedHosts.contains(hostSpec.getHost()))).collect(Collectors.toList());
-      }
-
-      return allowedHosts;
-    } finally {
-      this.allowedHostsLock.unlock();
+    if (STATIC_LIST.equals(customEndpointInfo.getMemberListType())) {
+      return this.hosts.stream()
+          .filter((hostSpec -> customEndpointInfo.getStaticMembers().contains(hostSpec.getHost())))
+          .collect(Collectors.toList());
+    } else {
+      return this.hosts.stream()
+          .filter((hostSpec -> !customEndpointInfo.getExcludedMembers().contains(hostSpec.getHost())))
+          .collect(Collectors.toList());
     }
   }
 
@@ -741,5 +715,31 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public @NonNull SessionStateService getSessionStateService() {
     return this.sessionStateService;
+  }
+
+  @Override
+  public <T> void setStatus(final String statusKey, final @Nullable T status, final boolean clusterBound) {
+    final String cacheKey = this.getStatusCacheKey(statusKey, clusterBound);
+    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
+    if (status == null) {
+      statusesExpiringCache.remove(cacheKey);
+      LOGGER.finest(String.format("remove status, size: %d", statusesExpiringCache.size()));
+    } else {
+      statusesExpiringCache.put(cacheKey, status, DEFAULT_STATUS_CACHE_EXPIRE_NANO);
+      LOGGER.finest(String.format("set status, size: %d", statusesExpiringCache.size()));
+    }
+  }
+
+  @Override
+  public <T> T getStatus(final String statusKey, final @NonNull Class<T> clazz, final boolean clusterBound) {
+    final String cacheKey = this.getStatusCacheKey(statusKey, clusterBound);
+    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
+    return clazz.cast(statusesExpiringCache.get(cacheKey));
+  }
+
+  protected <T> String getStatusCacheKey(final String statusKey, final boolean clusterBound) {
+    return clusterBound
+        ? String.format("%s::%s", this.hostListProvider.getClusterId(), statusKey)
+        : statusKey;
   }
 }
