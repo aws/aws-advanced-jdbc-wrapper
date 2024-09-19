@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### :magic_wand: Added
 - Logic and a connection property to enable driver failover when network exceptions occur in the connect pipeline (PR #1099)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1099]
+- A new reworked and re-architected failover plugin (PR #1089)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1089]
+- Virtual Threading support (PR #1120)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1120]
 
 ## [2.3.9] - 2024-08-09
 
@@ -308,7 +310,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Lock initialization of `AuroraHostListProvider` ([PR #347](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/347)).
 - Optimized thread locks and expiring cache for the Enhanced Monitoring Plugin ([PR #365](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/365)).
 - Updated Hibernate sample code to reflect changes in the wrapper source code ([PR #368](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/368)).
-- Updated KnownLimitations.md to reflect that Amazon RDS Blue/Green Deployments are not supported. See [Amazon RDS Blue/Green Deployments](./docs/KnownLimitations.md#amazon-rds-blue-green-deployments).
+- Updated KnownLimitations.md to reflect that Amazon RDS Blue/Green Deployments are not supported. See [Amazon RDS Blue/Green Deployments](./docs/README.md#amazon-rds-bluegreen-deployments).
 
 ## [1.0.1] - 2023-01-30
 ### :magic_wand: Added
