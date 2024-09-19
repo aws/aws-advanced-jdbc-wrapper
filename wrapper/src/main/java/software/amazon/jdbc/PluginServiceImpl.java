@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc;
 
-import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_LIST;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -48,13 +46,13 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -70,8 +68,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> hosts = new ArrayList<>();
-  protected CustomEndpointInfo customEndpointInfo;
-  protected final ReentrantLock customEndpointInfoLock = new ReentrantLock();
+  protected List<String> staticHosts;
+  protected List<String> excludedHosts;
+  protected ReentrantLock allowedHostsLock = new ReentrantLock();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
@@ -370,49 +369,56 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public CustomEndpointInfo getCustomEndpointInfo() {
-    return this.customEndpointInfo;
-  }
-
-
-  @Override
-  public void setCustomEndpointInfo(CustomEndpointInfo customEndpointInfo) {
-    this.customEndpointInfoLock.lock();
-    try {
-      this.customEndpointInfo = customEndpointInfo;
-    } finally {
-      this.customEndpointInfoLock.unlock();
-    }
-  }
-
-  @Override
   public List<HostSpec> getHosts() {
     return this.hosts;
   }
 
   @Override
+  public void setStaticHosts(List<String> staticHosts) {
+    this.allowedHostsLock.lock();
+    try {
+      this.staticHosts = staticHosts;
+    } finally {
+      this.allowedHostsLock.unlock();
+    }
+  }
+
+  @Override
+  public void setExcludedHosts(List<String> excludedHosts) {
+    this.allowedHostsLock.lock();
+    try {
+      this.excludedHosts = excludedHosts;
+    } finally {
+      this.allowedHostsLock.unlock();
+    }
+  }
+
+  @Override
   public List<HostSpec> getAllowedHosts() {
-    if (this.customEndpointInfo == null) {
+    if (Utils.isNullOrEmpty(this.staticHosts) && Utils.isNullOrEmpty(this.excludedHosts)) {
       return this.getHosts();
     }
 
-    this.customEndpointInfoLock.lock();
+    this.allowedHostsLock.lock();
     try {
-      if (this.customEndpointInfo == null) {
+      if (Utils.isNullOrEmpty(this.staticHosts) && Utils.isNullOrEmpty(this.excludedHosts)) {
         return this.getHosts();
       }
 
-      if (STATIC_LIST.equals(this.customEndpointInfo.getMemberListType())) {
-        List<String> staticHosts = this.customEndpointInfo.getStaticMembers();
-        return this.hosts.stream().filter(
-            hostSpec -> staticHosts.contains(hostSpec.getHost())).collect(Collectors.toList());
-      } else {
-        List<String> excludedHosts = this.customEndpointInfo.getExcludedMembers();
-        return this.hosts.stream().filter(
-            hostSpec -> !excludedHosts.contains(hostSpec.getHost())).collect(Collectors.toList());
+      List<HostSpec> allowedHosts = this.hosts;
+      if (!Utils.isNullOrEmpty(this.staticHosts)) {
+        allowedHosts = allowedHosts.stream()
+            .filter((hostSpec) -> this.staticHosts.contains(hostSpec.getHost())).collect(Collectors.toList());
       }
+
+      if (!Utils.isNullOrEmpty(this.excludedHosts)) {
+        allowedHosts = allowedHosts.stream()
+            .filter((hostSpec -> !this.excludedHosts.contains(hostSpec.getHost()))).collect(Collectors.toList());
+      }
+
+      return allowedHosts;
     } finally {
-      this.customEndpointInfoLock.unlock();
+      this.allowedHostsLock.unlock();
     }
   }
 

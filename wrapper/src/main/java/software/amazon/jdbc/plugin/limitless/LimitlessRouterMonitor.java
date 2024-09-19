@@ -142,7 +142,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
         this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
         RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
-        LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
+        LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor] Topology:"));
         TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
       } catch (final InterruptedException exception) {
         LOGGER.finest(
@@ -179,7 +179,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
       List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
       this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
       RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
-      LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
+      LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor] Topology:"));
       return newLimitlessRouters;
 
     } finally {

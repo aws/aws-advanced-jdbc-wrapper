@@ -16,9 +16,6 @@
 
 package software.amazon.jdbc.plugin.failover;
 
-import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointType.ANY;
-import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointType.READER;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
@@ -44,7 +41,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
@@ -665,6 +661,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           throw exception;
         }
       }
+
       if (failoverResult == null || !failoverResult.isConnected()) {
         // "Unable to establish SQL connection to writer node"
         processFailoverFailure(Messages.get("Failover.unableToConnectToWriter"));
@@ -674,6 +671,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       // successfully re-connected to a writer node
       final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
+      final List<HostSpec> allowedHosts = this.pluginService.getAllowedHosts();
+      if (!allowedHosts.contains(writerHostSpec)) {
+        // TODO: should we increment the writer failed counter here or not?
+        processFailoverFailure(
+            Messages.get("Failover.newWriterNotAllowed",
+                new Object[] {
+                    writerHostSpec == null ? "<null>" : writerHostSpec.getHost(),
+                    Utils.logTopology(allowedHosts, "")
+                }));
+        return;
+      }
+
       this.pluginService.setCurrentConnection(failoverResult.getNewConnection(), writerHostSpec);
 
       LOGGER.fine(
@@ -809,15 +818,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (conn == null) {
       // This should be unreachable, the above logic will either get a connection successfully or throw an exception.
       throw new SQLException(Messages.get("Failover.unableToConnect"));
-    }
-
-    CustomEndpointInfo customEndpointInfo = this.pluginService.getCustomEndpointInfo();
-    if (FAILOVER_MODE.getString(this.properties) == null && customEndpointInfo != null) {
-      if (READER.equals(customEndpointInfo.getCustomEndpointType())) {
-        this.failoverMode = FailoverMode.STRICT_READER;
-      } else if (ANY.equals(customEndpointInfo.getCustomEndpointType())) {
-        this.failoverMode = FailoverMode.READER_OR_WRITER;
-      }
     }
 
     if (isInitialConnection) {

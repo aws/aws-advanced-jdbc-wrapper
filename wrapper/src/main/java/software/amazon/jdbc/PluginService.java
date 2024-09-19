@@ -27,7 +27,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -63,12 +62,12 @@ public interface PluginService extends ExceptionHandler {
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
 
-  CustomEndpointInfo getCustomEndpointInfo();
-
-  void setCustomEndpointInfo(CustomEndpointInfo customEndpointInfo);
-
   // TODO: should we rename to getAllHosts?
   List<HostSpec> getHosts();
+
+  void setStaticHosts(final List<String> allowedHosts);
+
+  void setExcludedHosts(final List<String> blockedHosts);
 
   List<HostSpec> getAllowedHosts();
 

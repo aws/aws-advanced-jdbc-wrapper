@@ -425,7 +425,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
               if (allowOldWriter || !isSame(writerCandidate, this.originalWriterHost)) {
                 // new writer is available, and it's different from the previous writer
-                LOGGER.finest(() -> Utils.logTopology(this.currentTopology, "[TaskB] "));
+                LOGGER.finest(() -> Utils.logTopology(this.currentTopology, "[TaskB] Topology:"));
                 if (connectToWriter(writerCandidate)) {
                   return true;
                 }

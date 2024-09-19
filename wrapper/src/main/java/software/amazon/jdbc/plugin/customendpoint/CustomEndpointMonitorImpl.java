@@ -18,8 +18,8 @@ package software.amazon.jdbc.plugin.customendpoint;
 
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE;
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.REGION_PROPERTY;
+import static software.amazon.jdbc.plugin.customendpoint.MemberListType.EXCLUSION_LIST;
 
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -27,6 +27,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -55,7 +57,8 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final long refreshRateNano;
   protected final long cacheEntryExpirationNano;
 
-  protected final List<PluginService> pluginServices = Collections.synchronizedList(new LinkedList<>());
+  protected final List<PluginService> pluginServices = new LinkedList<>();
+  protected final ReadWriteLock pluginServicesLock = new ReentrantReadWriteLock();
   // TODO: is it problematic for each monitor thread to have its own executor service
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
@@ -117,24 +120,32 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
   @Override
   public void registerPluginService(PluginService pluginService) {
-    this.pluginServices.add(pluginService);
+    this.pluginServicesLock.writeLock().lock();
+    try {
+      this.pluginServices.add(pluginService);
+    } finally {
+      this.pluginServicesLock.writeLock().unlock();
+    }
   }
 
   @Override
   public void deregisterPluginService(PluginService pluginService) {
-    this.pluginServices.remove(pluginService);
-    if (this.pluginServices.isEmpty()) {
-      synchronized (this.pluginServices) {
-        if (this.pluginServices.isEmpty()) {
-          this.close();
-        }
-      }
+    this.pluginServicesLock.writeLock().lock();
+    try {
+      this.pluginServices.remove(pluginService);
+    } finally {
+      this.pluginServicesLock.writeLock().unlock();
     }
   }
 
   @Override
   public boolean shouldDispose() {
-    return this.pluginServices.isEmpty();
+    this.pluginServicesLock.readLock().lock();
+    try {
+      return this.pluginServices.isEmpty();
+    } finally {
+      this.pluginServicesLock.readLock().unlock();
+    }
   }
 
   @Override
@@ -196,10 +207,17 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
         // The custom endpoint info has changed, so we need to update the info in the registered plugin services.
         customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, this.cacheEntryExpirationNano);
-        synchronized (this.pluginServices) {
+        this.pluginServicesLock.readLock().lock();
+        try {
           for (PluginService service : this.pluginServices) {
-            service.setCustomEndpointInfo(endpointInfo);
+            if (EXCLUSION_LIST.equals(endpointInfo.getMemberListType())) {
+              service.setExcludedHosts(endpointInfo.getExcludedMembers());
+            } else {
+              service.setStaticHosts(endpointInfo.getStaticMembers());
+            }
           }
+        } finally {
+          this.pluginServicesLock.readLock().unlock();
         }
 
         long elapsedTime = System.nanoTime() - start;
