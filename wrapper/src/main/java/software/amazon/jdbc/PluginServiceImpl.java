@@ -73,8 +73,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
   protected List<HostSpec> hosts = new ArrayList<>();
-  protected List<String> staticHosts;
-  protected List<String> excludedHosts;
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
