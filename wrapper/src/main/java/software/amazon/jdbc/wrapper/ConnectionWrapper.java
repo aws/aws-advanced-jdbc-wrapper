@@ -193,7 +193,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public synchronized void clearWarnings() throws SQLException {
+  public void clearWarnings() throws SQLException {
     WrapperUtils.runWithPlugins(
         SQLException.class,
         this.pluginManager,
@@ -500,7 +500,7 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
   }
 
   @Override
-  public synchronized SQLWarning getWarnings() throws SQLException {
+  public SQLWarning getWarnings() throws SQLException {
     return WrapperUtils.executeWithPlugins(
         SQLWarning.class,
         SQLException.class,

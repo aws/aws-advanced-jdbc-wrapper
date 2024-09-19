@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -56,7 +57,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
 
   private static final String MONITORING_PROPERTY_PREFIX = "limitless-router-monitor-";
   private final int intervalMs;
-  private @NonNull HostSpec hostSpec;
+  private final @NonNull HostSpec hostSpec;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final AtomicReference<List<HostSpec>> limitlessRouters = new AtomicReference<>(
       Collections.unmodifiableList(new ArrayList<>()));
@@ -72,6 +73,8 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     monitoringThread.setDaemon(true);
     return monitoringThread;
   });
+
+  private final ReentrantLock lock = new ReentrantLock();
 
   public LimitlessRouterMonitor(
       final @NonNull PluginService pluginService,
@@ -164,17 +167,24 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     }
   }
 
-  public synchronized List<HostSpec> forceGetLimitlessRouters() throws SQLException {
+  public List<HostSpec> forceGetLimitlessRouters() throws SQLException {
     LOGGER.finest(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRouters"));
-    this.openConnection();
-    if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
-      throw new SQLException(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRoutersFailed"));
+
+    lock.lock();
+    try {
+      this.openConnection();
+      if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
+        throw new SQLException(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRoutersFailed"));
+      }
+      List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
+      this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
+      RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
+      LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
+      return newLimitlessRouters;
+
+    } finally {
+      lock.unlock();
     }
-    List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
-    this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
-    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
-    LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
-    return newLimitlessRouters;
   }
 
   private void openConnection() throws SQLException {

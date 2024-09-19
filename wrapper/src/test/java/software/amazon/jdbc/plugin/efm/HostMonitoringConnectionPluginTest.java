@@ -41,6 +41,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -85,6 +86,7 @@ class HostMonitoringConnectionPluginTest {
   @Mock Supplier<MonitorService> supplier;
   @Mock RdsUtils rdsUtils;
   @Mock MonitorConnectionContext context;
+  @Mock ReentrantLock mockReentrantLock;
   @Mock MonitorService monitorService;
   @Mock JdbcCallable<ResultSet, SQLException> sqlFunction;
   private HostMonitoringConnectionPlugin plugin;
@@ -130,6 +132,7 @@ class HostMonitoringConnectionPluginTest {
             anyInt(),
             anyInt()))
         .thenReturn(context);
+    when(context.getLock()).thenReturn(mockReentrantLock);
 
     when(pluginService.getCurrentConnection()).thenReturn(connection);
     when(pluginService.getCurrentHostSpec()).thenReturn(hostSpec);

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -48,6 +49,8 @@ public class RoundRobinHostSelector implements HostSelector {
           "((?<host>[^:/?#]*):(?<weight>[0-9]*))");
   protected static final CacheMap<String, RoundRobinClusterInfo> roundRobinCache = new CacheMap<>();
 
+  protected static final ReentrantLock lock = new ReentrantLock();
+
   static {
     PropertyDefinition.registerPluginProperties(RoundRobinHostSelector.class);
   }
@@ -69,56 +72,63 @@ public class RoundRobinHostSelector implements HostSelector {
   }
 
   @Override
-  public synchronized HostSpec getHost(
+  public HostSpec getHost(
       final @NonNull List<HostSpec> hosts,
       final @NonNull HostRole role,
       final @Nullable Properties props) throws SQLException {
-    final List<HostSpec> eligibleHosts = hosts.stream()
-        .filter(hostSpec ->
-            role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
-        .sorted(Comparator.comparing(HostSpec::getHost))
-        .collect(Collectors.toList());
 
-    if (eligibleHosts.isEmpty()) {
-      throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
-    }
+    lock.lock();
+    try {
+      final List<HostSpec> eligibleHosts = hosts.stream()
+          .filter(hostSpec ->
+              role.equals(hostSpec.getRole()) && hostSpec.getAvailability().equals(HostAvailability.AVAILABLE))
+          .sorted(Comparator.comparing(HostSpec::getHost))
+          .collect(Collectors.toList());
 
-    // Create new cache entries for provided hosts if necessary. All hosts point to the same cluster info.
-    createCacheEntryForHosts(eligibleHosts, props);
-    final String currentClusterInfoKey = eligibleHosts.get(0).getHost();
-    final RoundRobinClusterInfo clusterInfo = roundRobinCache.get(currentClusterInfoKey);
+      if (eligibleHosts.isEmpty()) {
+        throw new SQLException(Messages.get("HostSelector.noHostsMatchingRole", new Object[]{role}));
+      }
 
-    final HostSpec lastHost = clusterInfo.lastHost;
-    int lastHostIndex = -1;
+      // Create new cache entries for provided hosts if necessary. All hosts point to the same cluster info.
+      createCacheEntryForHosts(eligibleHosts, props);
+      final String currentClusterInfoKey = eligibleHosts.get(0).getHost();
+      final RoundRobinClusterInfo clusterInfo = roundRobinCache.get(currentClusterInfoKey);
 
-    // Check if lastHost is in list of eligible hosts. Update lastHostIndex.
-    if (lastHost != null) {
-      for (int i = 0; i < eligibleHosts.size(); i++) {
-        if (eligibleHosts.get(i).getHost().equals(lastHost.getHost())) {
-          lastHostIndex = i;
+      final HostSpec lastHost = clusterInfo.lastHost;
+      int lastHostIndex = -1;
+
+      // Check if lastHost is in list of eligible hosts. Update lastHostIndex.
+      if (lastHost != null) {
+        for (int i = 0; i < eligibleHosts.size(); i++) {
+          if (eligibleHosts.get(i).getHost().equals(lastHost.getHost())) {
+            lastHostIndex = i;
+          }
         }
       }
-    }
 
-    final int targetHostIndex;
-    // If the host is weighted and the lastHost is in the eligibleHosts list.
-    if (clusterInfo.weightCounter > 0 && lastHostIndex != -1) {
-      targetHostIndex = lastHostIndex;
-    } else {
-      if (lastHostIndex != -1 && lastHostIndex != eligibleHosts.size() - 1) {
-        targetHostIndex = lastHostIndex + 1;
+      final int targetHostIndex;
+      // If the host is weighted and the lastHost is in the eligibleHosts list.
+      if (clusterInfo.weightCounter > 0 && lastHostIndex != -1) {
+        targetHostIndex = lastHostIndex;
       } else {
-        targetHostIndex = 0;
+        if (lastHostIndex != -1 && lastHostIndex != eligibleHosts.size() - 1) {
+          targetHostIndex = lastHostIndex + 1;
+        } else {
+          targetHostIndex = 0;
+        }
+
+        final Integer weight = clusterInfo.clusterWeightsMap.get(eligibleHosts.get(targetHostIndex).getHostId());
+        clusterInfo.weightCounter = weight == null ? clusterInfo.defaultWeight : weight;
       }
 
-      final Integer weight = clusterInfo.clusterWeightsMap.get(eligibleHosts.get(targetHostIndex).getHostId());
-      clusterInfo.weightCounter = weight == null ? clusterInfo.defaultWeight : weight;
+      clusterInfo.weightCounter--;
+      clusterInfo.lastHost = eligibleHosts.get(targetHostIndex);
+
+      return eligibleHosts.get(targetHostIndex);
+
+    } finally {
+      lock.unlock();
     }
-
-    clusterInfo.weightCounter--;
-    clusterInfo.lastHost = eligibleHosts.get(targetHostIndex);
-
-    return eligibleHosts.get(targetHostIndex);
   }
 
   private void createCacheEntryForHosts(
