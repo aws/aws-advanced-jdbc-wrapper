@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.customendpoint;
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE;
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.REGION_PROPERTY;
 
+import java.lang.ref.WeakReference;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -57,7 +58,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final long refreshRateNano;
   protected final long cacheEntryExpirationNano;
 
-  protected final List<PluginService> pluginServices = new LinkedList<>();
+  protected final List<WeakReference<PluginService>> pluginServices = new LinkedList<>();
   protected final ReadWriteLock pluginServicesLock = new ReentrantReadWriteLock();
   // TODO: is it problematic for each monitor thread to have its own executor service
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
@@ -122,7 +123,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   public void registerPluginService(PluginService pluginService) {
     this.pluginServicesLock.writeLock().lock();
     try {
-      this.pluginServices.add(pluginService);
+      this.pluginServices.add(new WeakReference<>(pluginService));
     } finally {
       this.pluginServicesLock.writeLock().unlock();
     }
@@ -191,14 +192,13 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
               ));
 
           // TODO: should we throw an exception and then return? Or wait and then try again?
-          long elapsedTime = System.nanoTime() - start;
-          long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
-          TimeUnit.NANOSECONDS.sleep(sleepDuration);
+          TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
           continue;
         }
 
         CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
-        if (customEndpointInfoCache.get(this.endpointIdentifier).equals(endpointInfo)) {
+        CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.endpointIdentifier);
+        if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
           long elapsedTime = System.nanoTime() - start;
           long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
           TimeUnit.NANOSECONDS.sleep(sleepDuration);
@@ -209,8 +209,11 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, this.cacheEntryExpirationNano);
         this.pluginServicesLock.readLock().lock();
         try {
-          for (PluginService service : this.pluginServices) {
-            service.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
+          for (WeakReference<PluginService> serviceRef : this.pluginServices) {
+            PluginService service = serviceRef.get();
+            if (service != null) {
+              service.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
+            }
           }
         } finally {
           this.pluginServicesLock.readLock().unlock();

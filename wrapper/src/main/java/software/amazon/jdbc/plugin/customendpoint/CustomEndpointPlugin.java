@@ -136,14 +136,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements Ca
 
     // If we get here we are making an initial connection to a custom cluster URL
     String customClusterHost = hostSpec.getHost();
-    CustomEndpointMonitor monitor = monitors.get(customClusterHost, MONITOR_EXPIRATION_NANO);
-    if (monitor != null) {
-      // A monitor is already running for this custom endpoint.
-      this.customEndpointMonitor = monitor;
-      monitor.registerPluginService(this.pluginService);
-      return conn;
-    }
-
     this.customEndpointMonitor = monitors.computeIfAbsent(
         customClusterHost,
         (customEndpoint) -> new CustomEndpointMonitorImpl(
@@ -156,7 +148,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements Ca
     );
 
     this.customEndpointMonitor.registerPluginService(this.pluginService);
-    return connectFunc.call();
+    return conn;
   }
 
   @Override
