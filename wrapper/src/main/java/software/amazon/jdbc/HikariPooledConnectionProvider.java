@@ -51,7 +51,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   private static final String thisClassName = HikariPooledConnectionProvider.class.getName();
   private static final Logger LOGGER = Logger.getLogger(HikariPooledConnectionProvider.class.getName());
 
-  private static final Map<String, HostSelector> acceptedStrategies =
+  protected static final Map<String, HostSelector> acceptedStrategies =
       Collections.unmodifiableMap(new HashMap<String, HostSelector>() {
         {
           put(HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT, new HighestWeightHostSelector());
@@ -60,17 +60,17 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
         }
       });
 
-  private static final RdsUtils rdsUtils = new RdsUtils();
-  private static SlidingExpirationCache<PoolKey, HikariDataSource> databasePools =
+  protected static final RdsUtils rdsUtils = new RdsUtils();
+  protected static SlidingExpirationCache<PoolKey, HikariDataSource> databasePools =
       new SlidingExpirationCache<>(
           (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() == 0,
           HikariDataSource::close
       );
-  private static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
-  private final HikariPoolConfigurator poolConfigurator;
-  private final HikariPoolMapping poolMapping;
-  private final AcceptsUrlFunc acceptsUrlFunc;
-  private final LeastConnectionsHostSelector leastConnectionsHostSelector;
+  protected static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
+  protected final HikariPoolConfigurator poolConfigurator;
+  protected final HikariPoolMapping poolMapping;
+  protected final AcceptsUrlFunc acceptsUrlFunc;
+  protected final LeastConnectionsHostSelector leastConnectionsHostSelector;
 
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
@@ -285,7 +285,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   // The pool key should always be retrieved using this method, because the username
   // must always be included to avoid sharing privileged connections with other users.
-  private String getPoolKey(HostSpec hostSpec, Properties props) {
+  protected String getPoolKey(HostSpec hostSpec, Properties props) {
     if (this.poolMapping != null) {
       return this.poolMapping.getKey(hostSpec, props);
     }
