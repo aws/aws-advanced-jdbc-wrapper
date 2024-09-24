@@ -227,7 +227,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
 
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery(
-             "select dns_host, load from aurora_limitless_router_endpoints()")) {
+             "select router_endpoint, load from aurora_limitless_router_endpoints()")) {
       return mapResultSetToHostSpecList(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("LimitlessRouterMonitor.invalidQuery"), e);

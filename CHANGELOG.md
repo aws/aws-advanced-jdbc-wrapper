@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Logic and a connection property to enable driver failover when network exceptions occur in the connect pipeline (PR #1099)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1099]
 - A new reworked and re-architected failover plugin (PR #1089)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1089]
 - Virtual Threading support (PR #1120)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1120]
+- Limitless Connection Plugin. See [UsingTheLimitlessConnectionPlugin.md](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheLimitlessConnectionPlugin.md).
 
 ## [2.3.9] - 2024-08-09
 
