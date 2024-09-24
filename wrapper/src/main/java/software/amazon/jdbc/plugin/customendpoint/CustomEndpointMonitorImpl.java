@@ -19,16 +19,12 @@ package software.amazon.jdbc.plugin.customendpoint;
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE;
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.REGION_PROPERTY;
 
-import java.lang.ref.WeakReference;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -58,8 +54,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final long refreshRateNano;
   protected final long cacheEntryExpirationNano;
 
-  protected final List<WeakReference<PluginService>> pluginServices = new LinkedList<>();
-  protected final ReadWriteLock pluginServicesLock = new ReentrantReadWriteLock();
+  protected final PluginService pluginService;
   // TODO: is it problematic for each monitor thread to have its own executor service
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
@@ -71,10 +66,12 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   });
 
   public CustomEndpointMonitorImpl(
+      PluginService pluginService,
       HostSpec customClusterHostSpec,
       Properties props,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc,
       long cacheEntryExpirationNano) {
+    this.pluginService = pluginService;
     this.customEndpointHostSpec = customClusterHostSpec;
     this.region = getRegion(customClusterHostSpec, props);
     this.rdsClient = rdsClientFunc.apply(customClusterHostSpec, this.region);
@@ -120,33 +117,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   }
 
   @Override
-  public void registerPluginService(PluginService pluginService) {
-    this.pluginServicesLock.writeLock().lock();
-    try {
-      this.pluginServices.add(new WeakReference<>(pluginService));
-    } finally {
-      this.pluginServicesLock.writeLock().unlock();
-    }
-  }
-
-  @Override
-  public void deregisterPluginService(PluginService pluginService) {
-    this.pluginServicesLock.writeLock().lock();
-    try {
-      this.pluginServices.remove(pluginService);
-    } finally {
-      this.pluginServicesLock.writeLock().unlock();
-    }
-  }
-
-  @Override
   public boolean shouldDispose() {
-    this.pluginServicesLock.readLock().lock();
-    try {
-      return this.pluginServices.isEmpty();
-    } finally {
-      this.pluginServicesLock.readLock().unlock();
-    }
+    // TODO: how will we know when to stop the monitor?
+    return false;
   }
 
   @Override
@@ -207,17 +180,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
         // The custom endpoint info has changed, so we need to update the info in the registered plugin services.
         customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, this.cacheEntryExpirationNano);
-        this.pluginServicesLock.readLock().lock();
-        try {
-          for (WeakReference<PluginService> serviceRef : this.pluginServices) {
-            PluginService service = serviceRef.get();
-            if (service != null) {
-              service.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
-            }
-          }
-        } finally {
-          this.pluginServicesLock.readLock().unlock();
-        }
+        this.pluginService.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
 
         long elapsedTime = System.nanoTime() - start;
         long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);

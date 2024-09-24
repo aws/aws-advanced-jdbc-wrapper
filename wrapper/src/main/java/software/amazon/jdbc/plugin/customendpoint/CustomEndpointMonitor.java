@@ -16,17 +16,11 @@
 
 package software.amazon.jdbc.plugin.customendpoint;
 
-import software.amazon.jdbc.PluginService;
-
 /**
  * Interface for custom endpoint monitors. This class uses background threads to monitor custom endpoints for info on
  * allowed and excluded hosts.
  */
 public interface CustomEndpointMonitor extends AutoCloseable, Runnable {
-
-  void registerPluginService(PluginService pluginService);
-
-  void deregisterPluginService(PluginService pluginService);
 
   boolean shouldDispose();
 }

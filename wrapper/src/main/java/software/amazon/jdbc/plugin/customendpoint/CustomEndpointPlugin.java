@@ -33,12 +33,11 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
-import software.amazon.jdbc.cleanup.CanReleaseResources;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
-public class CustomEndpointPlugin extends AbstractConnectionPlugin implements CanReleaseResources {
+public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   protected static final long CACHE_CLEANUP_RATE_NANO = TimeUnit.MINUTES.toNanos(1);
   protected static final long MONITOR_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(15);
@@ -139,6 +138,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements Ca
     this.customEndpointMonitor = monitors.computeIfAbsent(
         customClusterHost,
         (customEndpoint) -> new CustomEndpointMonitorImpl(
+            this.pluginService,
             hostSpec,
             props,
             this.rdsClientFunc,
@@ -147,12 +147,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin implements Ca
         MONITOR_EXPIRATION_NANO
     );
 
-    this.customEndpointMonitor.registerPluginService(this.pluginService);
     return conn;
-  }
-
-  @Override
-  public void releaseResources() {
-    this.customEndpointMonitor.deregisterPluginService(this.pluginService);
   }
 }
