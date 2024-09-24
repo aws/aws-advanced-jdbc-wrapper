@@ -55,6 +55,7 @@ import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -171,7 +172,17 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         if (this.getHosts().isEmpty()) {
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
-        this.currentHostSpec = this.getWriter(this.getAllowedHosts());
+
+        this.currentHostSpec = this.getWriter(this.getHosts());
+        if (!this.getAllowedHosts().contains(this.currentHostSpec)) {
+          throw new RuntimeException(
+              Messages.get("PluginServiceImpl.currentHostNotAllowed",
+                  new Object[] {
+                      currentHostSpec == null ? "<null>" : currentHostSpec.getHost(),
+                      Utils.logTopology(this.getAllowedHosts(), "")})
+          );
+        }
+
         if (this.currentHostSpec == null) {
           this.currentHostSpec = this.getAllowedHosts().get(0);
         }

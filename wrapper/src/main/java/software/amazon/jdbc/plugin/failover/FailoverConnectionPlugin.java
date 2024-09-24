@@ -359,7 +359,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   public boolean isFailoverEnabled() {
     return this.enableFailoverSetting
         && !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
-        && !Utils.isNullOrEmpty(this.pluginService.getAllowedHosts());
+        && !Utils.isNullOrEmpty(this.pluginService.getHosts());
   }
 
   private void initSettings() {
@@ -394,7 +394,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private HostSpec getCurrentWriter() throws SQLException {
-    final List<HostSpec> topology = this.pluginService.getAllowedHosts();
+    final List<HostSpec> topology = this.pluginService.getHosts();
     if (topology == null) {
       return null;
     }
@@ -657,7 +657,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
       final WriterFailoverResult failoverResult =
-          this.writerFailoverHandler.failover(this.pluginService.getAllowedHosts());
+          this.writerFailoverHandler.failover(this.pluginService.getHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {

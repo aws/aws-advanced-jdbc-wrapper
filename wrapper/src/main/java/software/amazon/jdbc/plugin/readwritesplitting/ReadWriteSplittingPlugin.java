@@ -387,8 +387,17 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       return;
     }
 
-    this.inReadWriteSplit = true;
     final HostSpec writerHost = getWriter(hosts);
+    if (!this.pluginService.getAllowedHosts().contains(writerHost)) {
+      // TODO: if we get here, setReadOnly(true) was called but the writer is not allowed. Do we want to throw an
+      //  exception or just stick with the current reader connection?
+      logAndThrowException(
+          Messages.get("ReadWriteSplittingPlugin.writerSwitchNotAllowed",
+              new Object[] { writerHost.getUrl(), Utils.logTopology(this.pluginService.getAllowedHosts(), "") })
+      );
+    }
+
+    this.inReadWriteSplit = true;
     if (!isConnectionUsable(this.writerConnection)) {
       getNewWriterConnection(writerHost);
     } else {

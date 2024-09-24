@@ -115,7 +115,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
     Connection conn = connectFunc.call();
     if (isInitialConnection) {
-      this.hostResponseTimeService.setHosts(this.pluginService.getHosts());
+      this.hostResponseTimeService.setHosts(this.pluginService.getAllowedHosts());
     }
     return conn;
   }
@@ -131,7 +131,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
     Connection conn = forceConnectFunc.call();
     if (isInitialConnection) {
-      this.hostResponseTimeService.setHosts(this.pluginService.getHosts());
+      this.hostResponseTimeService.setHosts(this.pluginService.getAllowedHosts());
     }
     return conn;
   }
@@ -154,8 +154,8 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     final HostSpec fastestResponseHost = cachedFastestResponseHostByRole.get(role.name());
 
     if (fastestResponseHost != null) {
-      // Found a fastest host. Let find it in the the latest topology.
-      HostSpec foundHostSpec = this.pluginService.getHosts().stream()
+      // Found a fastest host. Let find it in the latest topology.
+      HostSpec foundHostSpec = this.pluginService.getAllowedHosts().stream()
           .filter(x -> x.equals(fastestResponseHost))
           .findAny()
           .orElse(null);
@@ -171,7 +171,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
     // Cached result isn't available. Need to find the fastest response time host.
 
-    final HostSpec calculatedFastestResponseHost = this.pluginService.getHosts().stream()
+    final HostSpec calculatedFastestResponseHost = this.pluginService.getAllowedHosts().stream()
         .filter(x -> role.equals(x.getRole()))
         .map(x -> new ResponseTimeTuple(x, this.hostResponseTimeService.getResponseTime(x)))
         .sorted(Comparator.comparingInt(x -> x.responseTime))
@@ -192,7 +192,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
 
   @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
-    this.hosts = this.pluginService.getHosts();
+    this.hosts = this.pluginService.getAllowedHosts();
     this.hostResponseTimeService.setHosts(this.hosts);
   }
 

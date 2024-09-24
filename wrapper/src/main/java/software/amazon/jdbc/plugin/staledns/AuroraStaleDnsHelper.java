@@ -135,6 +135,15 @@ public class AuroraStaleDnsHelper {
           new Object[]{this.writerHostSpec}));
       staleDNSDetectedCounter.inc();
 
+      if (!this.pluginService.getAllowedHosts().contains(this.writerHostSpec)) {
+        throw new SQLException(
+            Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
+                new Object[] {
+                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHost(),
+                    Utils.logTopology(this.pluginService.getAllowedHosts(), "")})
+        );
+      }
+
       final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
       if (isInitialConnection) {
         hostListProviderService.setInitialConnectionHostSpec(this.writerHostSpec);

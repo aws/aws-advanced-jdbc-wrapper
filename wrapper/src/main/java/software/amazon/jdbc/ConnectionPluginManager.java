@@ -51,6 +51,7 @@ import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.AsynchronousMethodsHelper;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SqlMethodAnalyzer;
+import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.WrapperUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -495,7 +496,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
         if (isSubscribed) {
           try {
-            final HostSpec host =  hosts == null || hosts.isEmpty()
+            final HostSpec host = Utils.isNullOrEmpty(hosts)
                 ? plugin.getHostSpecByStrategy(role, strategy)
                 : plugin.getHostSpecByStrategy(hosts, role, strategy);
 
