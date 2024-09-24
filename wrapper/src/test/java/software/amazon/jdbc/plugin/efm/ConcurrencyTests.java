@@ -481,12 +481,12 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public List<HostSpec> getHosts() {
+    public List<HostSpec> getAllHosts() {
       return null;
     }
 
     @Override
-    public List<HostSpec> getAllowedHosts() {
+    public List<HostSpec> getHosts() {
       return null;
     }
 

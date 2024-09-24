@@ -359,7 +359,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   public boolean isFailoverEnabled() {
     return this.enableFailoverSetting
         && !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
-        && !Utils.isNullOrEmpty(this.pluginService.getHosts());
+        && !Utils.isNullOrEmpty(this.pluginService.getAllHosts());
   }
 
   private void initSettings() {
@@ -394,7 +394,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private HostSpec getCurrentWriter() throws SQLException {
-    final List<HostSpec> topology = this.pluginService.getHosts();
+    final List<HostSpec> topology = this.pluginService.getAllHosts();
     if (topology == null) {
       return null;
     }
@@ -491,7 +491,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private boolean shouldAttemptReaderConnection() {
-    final List<HostSpec> topology = this.pluginService.getAllowedHosts();
+    final List<HostSpec> topology = this.pluginService.getHosts();
     if (Utils.isNullOrEmpty(topology) || this.failoverMode == FailoverMode.STRICT_WRITER) {
       return false;
     }
@@ -602,7 +602,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         failedHost = failedHostSpec;
       }
       final ReaderFailoverResult result =
-          readerFailoverHandler.failover(this.pluginService.getAllowedHosts(), failedHost);
+          readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
 
       if (result != null) {
         final SQLException exception = result.getException();
@@ -657,7 +657,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
       final WriterFailoverResult failoverResult =
-          this.writerFailoverHandler.failover(this.pluginService.getHosts());
+          this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {
@@ -674,7 +674,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       // successfully re-connected to a writer node
       final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
-      final List<HostSpec> allowedHosts = this.pluginService.getAllowedHosts();
+      final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!allowedHosts.contains(writerHostSpec)) {
         // TODO: should we increment the writer failed counter here or not?
         processFailoverFailure(

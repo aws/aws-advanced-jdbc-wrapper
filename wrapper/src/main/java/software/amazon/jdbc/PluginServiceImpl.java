@@ -169,22 +169,22 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       this.currentHostSpec = this.initialConnectionHostSpec;
 
       if (this.currentHostSpec == null) {
-        if (this.getHosts().isEmpty()) {
+        if (this.getAllHosts().isEmpty()) {
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
 
-        this.currentHostSpec = this.getWriter(this.getHosts());
-        if (!this.getAllowedHosts().contains(this.currentHostSpec)) {
+        this.currentHostSpec = this.getWriter(this.getAllHosts());
+        if (!this.getHosts().contains(this.currentHostSpec)) {
           throw new RuntimeException(
               Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
                       currentHostSpec == null ? "<null>" : currentHostSpec.getHost(),
-                      Utils.logTopology(this.getAllowedHosts(), "")})
+                      Utils.logTopology(this.getHosts(), "")})
           );
         }
 
         if (this.currentHostSpec == null) {
-          this.currentHostSpec = this.getAllowedHosts().get(0);
+          this.currentHostSpec = this.getHosts().get(0);
         }
       }
       if (this.currentHostSpec == null) {
@@ -382,12 +382,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public List<HostSpec> getHosts() {
+  public List<HostSpec> getAllHosts() {
     return this.hosts;
   }
 
   @Override
-  public List<HostSpec> getAllowedHosts() {
+  public List<HostSpec> getHosts() {
     CustomEndpointInfo customEndpointInfo =
         this.getStatus(this.initialConnectionHostSpec.getHost(), CustomEndpointInfo.class, true);
     if (customEndpointInfo == null) {
@@ -412,7 +412,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       return;
     }
 
-    final List<HostSpec> hostsToChange = this.getHosts().stream()
+    final List<HostSpec> hostsToChange = this.getAllHosts().stream()
         .filter((host) -> hostAliases.contains(host.asAlias())
             || host.getAliases().stream().anyMatch(hostAliases::contains))
         .distinct()

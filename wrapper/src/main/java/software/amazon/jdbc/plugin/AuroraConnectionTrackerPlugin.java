@@ -136,7 +136,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
   }
 
   private void checkWriterChanged() {
-    final HostSpec hostSpecAfterFailover = this.getWriter(this.pluginService.getHosts());
+    final HostSpec hostSpecAfterFailover = this.getWriter(this.pluginService.getAllHosts());
 
     if (this.currentWriter == null) {
       this.currentWriter = hostSpecAfterFailover;
@@ -153,7 +153,7 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
 
   private void rememberWriter() {
     if (this.currentWriter == null || this.needUpdateCurrentWriter) {
-      this.currentWriter = this.getWriter(this.pluginService.getHosts());
+      this.currentWriter = this.getWriter(this.pluginService.getAllHosts());
       this.needUpdateCurrentWriter = false;
     }
   }

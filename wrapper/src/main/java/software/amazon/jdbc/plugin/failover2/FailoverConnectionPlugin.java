@@ -245,7 +245,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected boolean isFailoverEnabled() {
     return !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
-        && !Utils.isNullOrEmpty(this.pluginService.getHosts());
+        && !Utils.isNullOrEmpty(this.pluginService.getAllHosts());
   }
 
   protected void invalidInvocationOnClosedConnection() throws SQLException {
@@ -367,7 +367,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
       }
 
-      final List<HostSpec> hosts = this.pluginService.getAllowedHosts();
+      final List<HostSpec> hosts = this.pluginService.getHosts();
       Connection readerCandidateConn = null;
       HostSpec readerCandidate = null;
       final Set<HostSpec> remainingHosts = new HashSet<>(hosts);
@@ -482,7 +482,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
       }
 
-      final List<HostSpec> updatedHosts = this.pluginService.getHosts();
+      final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
 
       Connection writerCandidateConn = null;
       final HostSpec writerCandidate = updatedHosts.stream()
@@ -490,7 +490,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           .findFirst()
           .orElse(null);
 
-      List<HostSpec> allowedHosts = this.pluginService.getAllowedHosts();
+      List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (writerCandidate != null && !allowedHosts.contains(writerCandidate)) {
         // TODO: should we increment the writer failed counter here or not?
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",

@@ -63,9 +63,9 @@ public interface PluginService extends ExceptionHandler {
       throws SQLException;
 
   // TODO: should we rename to getAllHosts?
-  List<HostSpec> getHosts();
+  List<HostSpec> getAllHosts();
 
-  List<HostSpec> getAllowedHosts();
+  List<HostSpec> getHosts();
 
   HostSpec getInitialConnectionHostSpec();
 

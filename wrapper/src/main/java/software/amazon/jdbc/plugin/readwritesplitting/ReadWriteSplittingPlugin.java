@@ -315,7 +315,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       }
     }
 
-    final List<HostSpec> hosts = this.pluginService.getAllowedHosts();
+    final List<HostSpec> hosts = this.pluginService.getHosts();
     if (Utils.isNullOrEmpty(hosts)) {
       logAndThrowException(Messages.get("ReadWriteSplittingPlugin.emptyHostList"));
     }
@@ -388,12 +388,12 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     }
 
     final HostSpec writerHost = getWriter(hosts);
-    if (!this.pluginService.getAllowedHosts().contains(writerHost)) {
+    if (!this.pluginService.getHosts().contains(writerHost)) {
       // TODO: if we get here, setReadOnly(true) was called but the writer is not allowed. Do we want to throw an
       //  exception or just stick with the current reader connection?
       logAndThrowException(
           Messages.get("ReadWriteSplittingPlugin.writerSwitchNotAllowed",
-              new Object[] { writerHost.getUrl(), Utils.logTopology(this.pluginService.getAllowedHosts(), "") })
+              new Object[] { writerHost.getUrl(), Utils.logTopology(this.pluginService.getHosts(), "") })
       );
     }
 
@@ -501,7 +501,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     Connection conn = null;
     HostSpec readerHost = null;
 
-    int connAttempts = this.pluginService.getAllowedHosts().size() * 2;
+    int connAttempts = this.pluginService.getHosts().size() * 2;
     for (int i = 0; i < connAttempts; i++) {
       HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(HostRole.READER, this.readerSelectorStrategy);
       try {

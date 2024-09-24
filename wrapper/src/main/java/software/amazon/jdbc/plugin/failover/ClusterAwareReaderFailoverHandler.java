@@ -154,7 +154,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
             // need to ensure that new connection is a connection to a reader node
 
             pluginService.forceRefreshHostList(result.getConnection());
-            topology = pluginService.getHosts();
+            topology = pluginService.getAllHosts();
             for (final HostSpec node : topology) {
               if (node.getUrl().equals(result.getHost().getUrl())) {
                 // found new connection host in the latest topology
