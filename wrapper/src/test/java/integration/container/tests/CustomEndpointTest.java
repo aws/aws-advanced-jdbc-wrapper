@@ -1,5 +1,6 @@
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,29 +59,31 @@ public class CustomEndpointTest {
   protected static final String oneInstanceEndpointId = "test-endpoint-1";
   protected static final String twoInstanceEndpointId = "test-endpoint-2";
   protected static final List<String> endpointIDs = Arrays.asList(oneInstanceEndpointId, twoInstanceEndpointId);
-  protected static CreateDbClusterEndpointResponse oneInstanceEndpointInfo;
-  protected static CreateDbClusterEndpointResponse twoInstanceEndpointInfo;
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+  protected static final boolean reuseExistingEndpoint = true;
+  protected static DBClusterEndpoint oneInstanceEndpointInfo;
+  protected static DBClusterEndpoint twoInstanceEndpointInfo;
 
   protected String currentWriter;
 
   @BeforeAll
   public static void createEndpoints() {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    String clusterId = envInfo.getAuroraClusterName();
     String region = envInfo.getRegion();
 
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
+      if (reuseExistingEndpoint) {
+        waitUntilEndpointsAvailable(client, clusterId);
+        return;
+      }
+
       // Delete pre-existing custom endpoints in case they weren't cleaned up in a previous run.
       deleteEndpoints(client);
 
       List<TestInstanceInfo> instances = envInfo.getDatabaseInfo().getInstances();
-      String clusterId = envInfo.getAuroraClusterName();
-
-      oneInstanceEndpointInfo = createEndpoint(
-          client, clusterId, oneInstanceEndpointId, instances.subList(0, 1));
-      twoInstanceEndpointInfo = createEndpoint(
-          client, clusterId, twoInstanceEndpointId, instances.subList(0, 2));
-
+      createEndpoint(client, clusterId, oneInstanceEndpointId, instances.subList(0, 1));
+      createEndpoint(client, clusterId, twoInstanceEndpointId, instances.subList(0, 2));
       waitUntilEndpointsAvailable(client, clusterId);
     }
   }
@@ -90,7 +93,7 @@ public class CustomEndpointTest {
       try {
         client.deleteDBClusterEndpoint((builder) -> builder.dbClusterEndpointIdentifier(endpointId));
       } catch (DbClusterEndpointNotFoundException e) {
-        // Custom endpoint already does not exist - do nothing
+        // Custom endpoint already does not exist - do nothing.
       }
     }
 
@@ -145,9 +148,18 @@ public class CustomEndpointTest {
       int availableEndpoints = 0;
       for (int i = 0; i < endpoints.size() && availableEndpoints < endpointIDs.size(); i++) {
         DBClusterEndpoint endpoint = endpoints.get(i);
-        if (endpointIDs.contains(endpoint.dbClusterEndpointIdentifier())
-            && "available".equals(endpoint.status())) {
-          availableEndpoints++;
+        if (oneInstanceEndpointId.equals(endpoint.dbClusterEndpointIdentifier())) {
+          oneInstanceEndpointInfo = endpoint;
+          if ("available".equals(endpoint.status())) {
+            availableEndpoints++;
+          }
+        }
+
+        if (twoInstanceEndpointId.equals(endpoint.dbClusterEndpointIdentifier())) {
+          twoInstanceEndpointInfo = endpoint;
+          if ("available".equals(endpoint.status())) {
+            availableEndpoints++;
+          }
         }
       }
 
@@ -169,41 +181,13 @@ public class CustomEndpointTest {
 
   @AfterAll
   public static void cleanup() {
+    if (reuseExistingEndpoint) {
+      return;
+    }
+
     String region = TestEnvironment.getCurrent().getInfo().getRegion();
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
       deleteEndpoints(client);
-    }
-  }
-
-  @TestTemplate
-  public void testCustomEndpointReaderFailover() throws SQLException, InterruptedException {
-    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
-    final int port = dbInfo.getClusterEndpointPort();
-    final Properties props = initDefaultProps();
-    props.setProperty("failoverMode", "reader-or-writer");
-
-    try (final Connection conn =
-             DriverManager.getConnection(
-                 ConnectionStringHelper.getWrapperUrl(
-                     oneInstanceEndpointInfo.endpoint(),
-                     port,
-                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
-                 props)) {
-
-      String instanceId = auroraUtil.queryInstanceId(conn);
-      assertTrue(oneInstanceEndpointInfo.staticMembers().contains(instanceId));
-
-      // Use failover API to break connection
-      if (instanceId.equals(this.currentWriter)) {
-        auroraUtil.failoverClusterAndWaitUntilWriterChanged();
-      } else {
-        auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(this.currentWriter, instanceId);
-      }
-
-      assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
-
-      String newInstanceId = auroraUtil.queryInstanceId(conn);
-      assertTrue(oneInstanceEndpointInfo.staticMembers().contains(newInstanceId));
     }
   }
 
@@ -213,5 +197,63 @@ public class CustomEndpointTest {
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
     return props;
+  }
+
+  @TestTemplate
+  public void testCustomEndpointReaderFailover() throws SQLException, InterruptedException {
+    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
+    final int port = dbInfo.getClusterEndpointPort();
+    final Properties props = initDefaultProps();
+    props.setProperty("failoverMode", "reader-or-writer");
+
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperUrl(oneInstanceEndpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
+        props)) {
+      List<String> endpointMembers = oneInstanceEndpointInfo.staticMembers();
+      String instanceId = auroraUtil.queryInstanceId(conn);
+      assertTrue(endpointMembers.contains(instanceId));
+
+      // Use failover API to break connection.
+      if (instanceId.equals(this.currentWriter)) {
+        auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      } else {
+        auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(this.currentWriter, instanceId);
+      }
+
+      assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
+
+      String newInstanceId = auroraUtil.queryInstanceId(conn);
+      assertTrue(endpointMembers.contains(newInstanceId));
+    }
+  }
+
+  @TestTemplate
+  public void testCustomEndpointReadWriteSplitting() throws SQLException, InterruptedException {
+    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
+    final int port = dbInfo.getClusterEndpointPort();
+    final Properties props = initDefaultProps();
+
+    if (!twoInstanceEndpointInfo.staticMembers().contains(currentWriter)) {
+      // For this test, we want one instance in the custom endpoint to be the writer, and one to be a reader.
+      String newWriter = twoInstanceEndpointInfo.staticMembers().get(0);
+      auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(currentWriter, newWriter);
+      currentWriter = newWriter;
+    }
+
+    try (final Connection conn = DriverManager.getConnection(
+        ConnectionStringHelper.getWrapperUrl(twoInstanceEndpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
+        props)) {
+      List<String> endpointMembers = twoInstanceEndpointInfo.staticMembers();
+      String instanceId1 = auroraUtil.queryInstanceId(conn);
+      assertTrue(endpointMembers.contains(instanceId1));
+
+      // Switch to an instance of the opposite role.
+      boolean newReadOnlyValue = !currentWriter.equals(instanceId1);
+      conn.setReadOnly(newReadOnlyValue);
+
+      String instanceId2 = auroraUtil.queryInstanceId(conn);
+      assertNotEquals(instanceId1, instanceId2);
+      assertTrue(endpointMembers.contains(instanceId2));
+    }
   }
 }
