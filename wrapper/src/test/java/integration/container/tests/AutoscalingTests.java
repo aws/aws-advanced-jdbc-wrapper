@@ -61,7 +61,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA})
 @EnableOnNumOfInstances(min = 5)
 @MakeSureFirstInstanceWriter
-@Order(16)
+@Order(17)
 public class AutoscalingTests {
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
 

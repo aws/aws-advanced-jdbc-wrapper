@@ -117,29 +117,6 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   }
 
   @Override
-  public boolean shouldDispose() {
-    // TODO: how will we know when to stop the monitor?
-    return false;
-  }
-
-  @Override
-  public void close() {
-    this.stop.set(true);
-
-    try {
-      // TODO: the termination timeout is taken from failover2, should it be shorter since it blocks the current thread?
-      if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
-        this.monitorExecutor.shutdownNow();
-        this.rdsClient.close();
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      this.monitorExecutor.shutdownNow();
-      this.rdsClient.close();
-    }
-  }
-
-  @Override
   public void run() {
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
@@ -191,5 +168,32 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     } finally {
       this.rdsClient.close();
     }
+  }
+
+  @Override
+  public boolean shouldDispose() {
+    // TODO: how will we know when to stop the monitor?
+    return false;
+  }
+
+  @Override
+  public void close() {
+    this.stop.set(true);
+
+    try {
+      // TODO: the termination timeout is taken from failover2, should it be shorter since it blocks the current thread?
+      if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+        this.monitorExecutor.shutdownNow();
+        this.rdsClient.close();
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      this.monitorExecutor.shutdownNow();
+      this.rdsClient.close();
+    }
+  }
+
+  public static void clearCache() {
+    customEndpointInfoCache.clear();
   }
 }

@@ -396,11 +396,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
     if (STATIC_LIST.equals(customEndpointInfo.getMemberListType())) {
       return this.hosts.stream()
-          .filter((hostSpec -> customEndpointInfo.getStaticMembers().contains(hostSpec.getHost())))
+          .filter((hostSpec -> customEndpointInfo.getStaticMembers().contains(hostSpec.getHostId())))
           .collect(Collectors.toList());
     } else {
       return this.hosts.stream()
-          .filter((hostSpec -> !customEndpointInfo.getExcludedMembers().contains(hostSpec.getHost())))
+          .filter((hostSpec -> !customEndpointInfo.getExcludedMembers().contains(hostSpec.getHostId())))
           .collect(Collectors.toList());
     }
   }
@@ -750,5 +750,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     return clusterBound
         ? String.format("%s::%s", this.hostListProvider.getClusterId(), statusKey)
         : statusKey;
+  }
+
+  public static void clearCache() {
+    statusesExpiringCache.clear();
   }
 }

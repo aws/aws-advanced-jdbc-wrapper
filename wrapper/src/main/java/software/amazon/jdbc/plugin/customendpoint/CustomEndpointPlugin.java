@@ -149,4 +149,16 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
     return conn;
   }
+
+  public static void clearCache() {
+    for (CustomEndpointMonitor monitor : monitors.getEntries().values()) {
+      try {
+        monitor.close();
+      } catch (Exception ex) {
+        // ignore
+      }
+    }
+
+    monitors.clear();
+  }
 }
