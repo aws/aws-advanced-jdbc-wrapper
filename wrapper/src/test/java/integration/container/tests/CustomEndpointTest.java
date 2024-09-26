@@ -20,8 +20,9 @@ import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -58,11 +59,13 @@ public class CustomEndpointTest {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointTest.class.getName());
   protected static final String oneInstanceEndpointId = "test-endpoint-1";
   protected static final String twoInstanceEndpointId = "test-endpoint-2";
-  protected static final List<String> endpointIDs = Arrays.asList(oneInstanceEndpointId, twoInstanceEndpointId);
+  protected static final Map<String, DBClusterEndpoint> endpoints = new HashMap<String, DBClusterEndpoint>() {{
+    put(oneInstanceEndpointId, null);
+    put(twoInstanceEndpointId, null);
+  }};
+
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   protected static final boolean reuseExistingEndpoint = true;
-  protected static DBClusterEndpoint oneInstanceEndpointInfo;
-  protected static DBClusterEndpoint twoInstanceEndpointInfo;
 
   protected String currentWriter;
 
@@ -89,7 +92,7 @@ public class CustomEndpointTest {
   }
 
   private static void deleteEndpoints(RdsClient client) {
-    for (String endpointId : endpointIDs) {
+    for (String endpointId : endpoints.keySet() ) {
       try {
         client.deleteDBClusterEndpoint((builder) -> builder.dbClusterEndpointIdentifier(endpointId));
       } catch (DbClusterEndpointNotFoundException e) {
@@ -114,7 +117,7 @@ public class CustomEndpointTest {
       List<String> responseIDs = endpointsResponse.dbClusterEndpoints().stream()
           .map(DBClusterEndpoint::dbClusterEndpointIdentifier).collect(Collectors.toList());
 
-      allEndpointsDeleted = endpointIDs.stream().noneMatch(responseIDs::contains);
+      allEndpointsDeleted = endpoints.keySet().stream().noneMatch(responseIDs::contains);
     }
 
     if (!allEndpointsDeleted) {
@@ -143,27 +146,21 @@ public class CustomEndpointTest {
       DescribeDbClusterEndpointsResponse endpointsResponse = client.describeDBClusterEndpoints(
           (builder) ->
               builder.dbClusterIdentifier(clusterId).filters(customEndpointFilter));
-      List<DBClusterEndpoint> endpoints = endpointsResponse.dbClusterEndpoints();
+      List<DBClusterEndpoint> responseEndpoints = endpointsResponse.dbClusterEndpoints();
 
-      int availableEndpoints = 0;
-      for (int i = 0; i < endpoints.size() && availableEndpoints < endpointIDs.size(); i++) {
-        DBClusterEndpoint endpoint = endpoints.get(i);
-        if (oneInstanceEndpointId.equals(endpoint.dbClusterEndpointIdentifier())) {
-          oneInstanceEndpointInfo = endpoint;
+      int numAvailableEndpoints = 0;
+      for (int i = 0; i < responseEndpoints.size() && numAvailableEndpoints < endpoints.size(); i++) {
+        DBClusterEndpoint endpoint = responseEndpoints.get(i);
+        String endpointId = endpoint.dbClusterEndpointIdentifier();
+        if (endpoints.containsKey(endpointId)) {
+          endpoints.put(endpointId, endpoint);
           if ("available".equals(endpoint.status())) {
-            availableEndpoints++;
-          }
-        }
-
-        if (twoInstanceEndpointId.equals(endpoint.dbClusterEndpointIdentifier())) {
-          twoInstanceEndpointInfo = endpoint;
-          if ("available".equals(endpoint.status())) {
-            availableEndpoints++;
+            numAvailableEndpoints++;
           }
         }
       }
 
-      allEndpointsAvailable = availableEndpoints == endpointIDs.size();
+      allEndpointsAvailable = numAvailableEndpoints == endpoints.size();
     }
 
     if (!allEndpointsAvailable) {
@@ -201,15 +198,17 @@ public class CustomEndpointTest {
 
   @TestTemplate
   public void testCustomEndpointReaderFailover() throws SQLException, InterruptedException {
+    // The single-instance endpoint will be used for this test.
+    final DBClusterEndpoint endpoint = endpoints.get(oneInstanceEndpointId);
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
     props.setProperty("failoverMode", "reader-or-writer");
 
     try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(oneInstanceEndpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
+        ConnectionStringHelper.getWrapperUrl(endpoint.endpoint(), port, dbInfo.getDefaultDbName()),
         props)) {
-      List<String> endpointMembers = oneInstanceEndpointInfo.staticMembers();
+      List<String> endpointMembers = endpoint.staticMembers();
       String instanceId = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId));
 
@@ -229,29 +228,36 @@ public class CustomEndpointTest {
 
   @TestTemplate
   public void testCustomEndpointReadWriteSplitting() throws SQLException, InterruptedException {
+    // The two-instance custom endpoint will be used for this test.
+    final DBClusterEndpoint testEndpoint = endpoints.get(twoInstanceEndpointId);
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
 
-    if (!twoInstanceEndpointInfo.staticMembers().contains(currentWriter)) {
+    if (!testEndpoint.staticMembers().contains(currentWriter)) {
       // For this test, we want one instance in the custom endpoint to be the writer, and one to be a reader.
-      String newWriter = twoInstanceEndpointInfo.staticMembers().get(0);
+      String newWriter = testEndpoint.staticMembers().get(0);
       auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(currentWriter, newWriter);
       currentWriter = newWriter;
     }
 
     try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(twoInstanceEndpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
+        ConnectionStringHelper.getWrapperUrl(testEndpoint.endpoint(), port, dbInfo.getDefaultDbName()),
         props)) {
-      List<String> endpointMembers = twoInstanceEndpointInfo.staticMembers();
+      List<String> endpointMembers = testEndpoint.staticMembers();
       String instanceId1 = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId1));
 
       // Switch to an instance of the opposite role.
-      boolean newReadOnlyValue = !currentWriter.equals(instanceId1);
+      boolean newReadOnlyValue = currentWriter.equals(instanceId1);
+      LOGGER.fine(newReadOnlyValue ? "Testing switch to reader..." : "Testing switch to writer...");
       conn.setReadOnly(newReadOnlyValue);
 
       String instanceId2 = auroraUtil.queryInstanceId(conn);
+      if (instanceId1.equals(instanceId2)) {
+        System.out.println("Error: both instances were " + instanceId1);
+      }
+
       assertNotEquals(instanceId1, instanceId2);
       assertTrue(endpointMembers.contains(instanceId2));
     }

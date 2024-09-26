@@ -16,7 +16,7 @@
 
 package software.amazon.jdbc.plugin.customendpoint;
 
-import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE;
+import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS;
 import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.REGION_PROPERTY;
 
 import java.util.List;
@@ -44,6 +44,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   // Keys are custom cluster endpoint identifiers, values are information objects for the associated custom cluster.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
+  protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected final AtomicBoolean stop = new AtomicBoolean(false);
   protected final RdsUtils rdsUtils = new RdsUtils();
@@ -52,7 +53,6 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final String endpointIdentifier;
   protected final Region region;
   protected final long refreshRateNano;
-  protected final long cacheEntryExpirationNano;
 
   protected final PluginService pluginService;
   // TODO: is it problematic for each monitor thread to have its own executor service
@@ -67,24 +67,22 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
   public CustomEndpointMonitorImpl(
       PluginService pluginService,
-      HostSpec customClusterHostSpec,
+      HostSpec customEndpointHostSpec,
       Properties props,
-      BiFunction<HostSpec, Region, RdsClient> rdsClientFunc,
-      long cacheEntryExpirationNano) {
+      BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.pluginService = pluginService;
-    this.customEndpointHostSpec = customClusterHostSpec;
-    this.region = getRegion(customClusterHostSpec, props);
-    this.rdsClient = rdsClientFunc.apply(customClusterHostSpec, this.region);
-    this.cacheEntryExpirationNano = cacheEntryExpirationNano;
+    this.customEndpointHostSpec = customEndpointHostSpec;
+    this.region = getRegion(customEndpointHostSpec, props);
+    this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
 
-    this.refreshRateNano = TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE.getLong(props));
+    this.refreshRateNano = TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props));
 
-    this.endpointIdentifier = this.rdsUtils.getRdsClusterId(customClusterHostSpec.getHost());
+    this.endpointIdentifier = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
     if (StringUtils.isNullOrEmpty(this.endpointIdentifier)) {
       throw new RuntimeException(
           Messages.get(
               "CustomEndpointMonitorImpl.errorParsingEndpointIdentifier",
-              new Object[] {customClusterHostSpec.getHost()}));
+              new Object[] {customEndpointHostSpec.getHost()}));
     }
 
     this.monitorExecutor.submit(this);
@@ -156,7 +154,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         }
 
         // The custom endpoint info has changed, so we need to update the info in the registered plugin services.
-        customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, this.cacheEntryExpirationNano);
+        customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
         this.pluginService.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
 
         long elapsedTime = System.nanoTime() - start;

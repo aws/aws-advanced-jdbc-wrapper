@@ -34,14 +34,13 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   protected static final long CACHE_CLEANUP_RATE_NANO = TimeUnit.MINUTES.toNanos(1);
-  protected static final long MONITOR_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(15);
-  protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
   protected static final SlidingExpirationCacheWithCleanupThread<String, CustomEndpointMonitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
           CustomEndpointMonitor::shouldDispose,
@@ -62,26 +61,40 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         }
       });
 
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
+      "customEndpointInfoRefreshRateMs", "30000",
+      "Controls how frequently custom endpoint monitors fetch custom endpoint info.");
+
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_CONNECT_TIMEOUT_MS = new AwsWrapperProperty(
+      "customEndpointInfoConnectTimeoutMs", "1000",
+      "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be "
+          + "populated in the cache.");
+
+  // TODO: is 15 minutes a good value?
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_SEC = new AwsWrapperProperty(
+      "customEndpointInfoMonitorIdleExpirationMs", String.valueOf(TimeUnit.MINUTES.toSeconds(15)),
+      "Controls how long a monitor should run without use before expiring and being removed.");
+
   public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
       "customEndpointRegion", null,
       "The region of the cluster's custom endpoints.");
-
-  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE = new AwsWrapperProperty(
-      "customEndpointInfoRefreshRateMs", "30000",
-      "Controls how frequently custom endpoint monitors fetch custom endpoint info.");
 
   static {
     PropertyDefinition.registerPluginProperties(CustomEndpointPlugin.class);
   }
 
   protected final PluginService pluginService;
+  protected final Properties props;
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
-  protected CustomEndpointMonitor customEndpointMonitor;
+
+  protected final int waitOnCachedInfoDurationMs;
+  protected final int idleMonitorExpirationSec;
 
   public CustomEndpointPlugin(final PluginService pluginService, final Properties props) {
     this(
         pluginService,
+        props,
         (hostSpec, region) ->
             RdsClient.builder()
                 .region(region)
@@ -91,9 +104,14 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   public CustomEndpointPlugin(
       final PluginService pluginService,
+      final Properties props,
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.pluginService = pluginService;
+    this.props = props;
     this.rdsClientFunc = rdsClientFunc;
+
+    this.waitOnCachedInfoDurationMs = CUSTOM_ENDPOINT_INFO_CONNECT_TIMEOUT_MS.getInteger(this.props);
+    this.idleMonitorExpirationSec = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_SEC.getInteger(this.props);
   }
 
   @Override
@@ -128,24 +146,43 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       Properties props,
       boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    final Connection conn = connectFunc.call();
     if (!isInitialConnection || !this.rdsUtils.isRdsCustomClusterDns(hostSpec.getHost())) {
-      return conn;
+      return connectFunc.call();
     }
 
     // If we get here we are making an initial connection to a custom cluster URL
     String customClusterHost = hostSpec.getHost();
-    this.customEndpointMonitor = monitors.computeIfAbsent(
+    monitors.computeIfAbsent(
         customClusterHost,
         (customEndpoint) -> new CustomEndpointMonitorImpl(
             this.pluginService,
             hostSpec,
             props,
-            this.rdsClientFunc,
-            CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO
+            this.rdsClientFunc
         ),
-        MONITOR_EXPIRATION_NANO
+        this.idleMonitorExpirationSec
     );
+
+    final Connection conn = connectFunc.call();
+
+    // If needed, wait a short time for the monitor to place the custom endpoint info in the cache. This ensures other
+    // plugins get accurate custom endpoint info. The monitor will boot up while the connection is being established
+    // here, so we likely don't have to wait long, if at all.
+    long waitForEndpointInfoTimeoutNano =
+        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
+    boolean isInfoInCache = false;
+    while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
+      CustomEndpointInfo cachedInfo = this.pluginService.getStatus(hostSpec.getHost(), CustomEndpointInfo.class, true);
+      isInfoInCache = cachedInfo != null;
+    }
+
+    if (!isInfoInCache) {
+      // TODO: should we throw an exception or just log a warning? If we only log a warning, other plugins may not
+      //  receive custom endpoint info and will instead rely on the complete topology list.
+      throw new SQLException(
+          Messages.get("CustomEndpointPlugin.cacheTimeout",
+              new Object[]{this.waitOnCachedInfoDurationMs, hostSpec.getHost()}));
+    }
 
     return conn;
   }

@@ -64,6 +64,7 @@ public class ConnectionPluginChainBuilder {
           put("executionTime", ExecutionTimeConnectionPluginFactory.class);
           put("logQuery", LogQueryConnectionPluginFactory.class);
           put("dataCache", DataCacheConnectionPluginFactory.class);
+          put("customEndpoint", CustomEndpointPluginFactory.class);
           put("efm", HostMonitoringConnectionPluginFactory.class);
           put("efm2", software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory.class);
           put("failover", FailoverConnectionPluginFactory.class);
@@ -81,7 +82,6 @@ public class ConnectionPluginChainBuilder {
           put("fastestResponseStrategy", FastestResponseStrategyPluginFactory.class);
           put("initialConnection", AuroraInitialConnectionStrategyPluginFactory.class);
           put("limitless", LimitlessConnectionPluginFactory.class);
-          put("customEndpoint", CustomEndpointPluginFactory.class);
         }
       };
 
@@ -95,6 +95,7 @@ public class ConnectionPluginChainBuilder {
         {
           put(DriverMetaDataConnectionPluginFactory.class, 100);
           put(DataCacheConnectionPluginFactory.class, 200);
+          put(CustomEndpointPluginFactory.class, 380);
           put(AuroraInitialConnectionStrategyPluginFactory.class, 390);
           put(AuroraConnectionTrackerPluginFactory.class, 400);
           put(AuroraStaleDnsPluginFactory.class, 500);
@@ -112,7 +113,6 @@ public class ConnectionPluginChainBuilder {
           put(ConnectTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(ExecutionTimeConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
           put(DeveloperConnectionPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
-          put(CustomEndpointPluginFactory.class, WEIGHT_RELATIVE_TO_PRIOR_PLUGIN);
         }
       };
 
