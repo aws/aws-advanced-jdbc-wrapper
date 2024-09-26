@@ -2,6 +2,9 @@ name: Run Aurora Integration Tests CodeBuild
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - tests/mysql84
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -11,8 +14,8 @@ jobs:
   aurora-integration-tests:
     strategy:
       matrix:
-        engine_version: ["latest"]
-        environment: ["mysql", "pg"]
+        engine_version: ["8.4.1"]
+        environment: ["mysql"]
     runs-on: codebuild-jdbcWrapper-${{ github.run_id }}-${{ github.run_attempt }}
     environment: ${{ matrix.environment }}_integ
     steps:
@@ -46,15 +49,15 @@ jobs:
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
       - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-aurora
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.environment }}-multi-az
         env:
-          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
           RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
-          AURORA_MYSQL_DB_ENGINE_VERSION: "latest"
+          AURORA_MYSQL_DB_ENGINE_VERSION: ${{ matrix.engine_version }}
           AURORA_PG_ENGINE_VERSION: "latest"
       - name: 'Archive junit results ${{ matrix.engine_version }}'
         if: always()
