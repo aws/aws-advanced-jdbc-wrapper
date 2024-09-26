@@ -1,13 +1,20 @@
-name: Run Aurora Postgres Performance Tests
+name: Run MultiAZ Integration Tests
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  aurora-postgres-performance-tests:
-    concurrency: PerformanceTests-Aurora
-    name: 'Run Aurora Postgres container performance tests'
+  all-integration-tests-default:
+    name: 'Run Aurora integration tests with default engine version'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dbEngine: [ "mysql-multi-az", "pg-multi-az" ]
+        version: [ "default", "latest" ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v4
@@ -37,21 +44,31 @@ jobs:
           echo "TEMP_AWS_ACCESS_KEY_ID=${creds[0]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SECRET_ACCESS_KEY=${creds[1]}" >> $GITHUB_ENV
           echo "TEMP_AWS_SESSION_TOKEN=${creds[2]}" >> $GITHUB_ENV
-      - name: 'Run performance tests (OpenJDK)'
+      - name: Run integration tests
         run: |
-          ./gradlew --no-parallel --no-daemon test-aurora-pg-performance
+          ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }}
         env:
           RDS_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-          AURORA_MYSQL_DB_ENGINE_VERSION: "default"
-          AURORA_PG_ENGINE_VERSION: "default"
-      - name: 'Archive Performance Results'
+          AURORA_MYSQL_DB_ENGINE_VERSION: ${{ matrix.version }}
+          AURORA_PG_ENGINE_VERSION: ${{ matrix.vresion }}
+      - name: Mask data
+        run: |
+          ./gradlew --no-parallel --no-daemon maskJunitHtmlReport
+      - name: Archive junit results for ${{ matrix.dbEngine }}
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: 'performance-results'
-          path: ./wrapper/build/reports/tests/
+          name: junit-report-default-${{ matrix.dbEngine }}
+          path: ./wrapper/build/test-results
+          retention-days: 5
+      - name: Archive html summary report for ${{ matrix.dbEngine }}
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-summary-report-default-${{ matrix.dbEngine }}
+          path: ./wrapper/build/report
           retention-days: 5

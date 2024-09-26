@@ -555,46 +555,35 @@ public class TestEnvironment implements AutoCloseable {
   private static String getDbEngineVersion(TestEnvironment env) {
     switch (env.info.getRequest().getDatabaseEngineDeployment()) {
       case AURORA:
-        return getAuroraDbEngineVersion(env);
+        return getRdsEngineVersion(env, "aurora-");
       case RDS:
       case RDS_MULTI_AZ_CLUSTER:
-        return getRdsEngineVersion(env.info.getRequest());
+        return getRdsEngineVersion(env, "");
       default:
         throw new NotImplementedException(env.info.getRequest().getDatabaseEngineDeployment().toString());
     }
   }
 
-  private static String getAuroraDbEngineVersion(TestEnvironment env) {
+  private static String getRdsEngineVersion(TestEnvironment env, String engineNamePrefix) {
     String engineName;
     String systemPropertyVersion;
     TestEnvironmentRequest request = env.info.getRequest();
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        engineName = "aurora-mysql";
+        engineName = engineNamePrefix + "mysql";
         systemPropertyVersion = config.auroraMySqlDbEngineVersion;
         break;
       case PG:
-        engineName = "aurora-postgresql";
+        engineName = engineNamePrefix + "postgresql";
         systemPropertyVersion = config.auroraPgDbEngineVersion;
         break;
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
-    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion);
+    return findDbEngineVersion(env, engineName, systemPropertyVersion);
   }
 
-  private static String getRdsEngineVersion(TestEnvironmentRequest request) {
-    switch (request.getDatabaseEngine()) {
-      case MYSQL:
-        return "8.0.33";
-      case PG:
-        return "15.4";
-      default:
-        throw new NotImplementedException(request.getDatabaseEngine().toString());
-    }
-  }
-
-  private static String findAuroraDbEngineVersion(
+  private static String findDbEngineVersion(
       TestEnvironment env,
       String engineName,
       String systemPropertyVersion) {
@@ -1078,8 +1067,8 @@ public class TestEnvironment implements AutoCloseable {
 
       if (preCreateInfo.envPreCreateFuture == null
           && (preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.AURORA
-            || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS
-            || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER)) {
+          || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS
+          || preCreateInfo.request.getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER)) {
 
         // run environment creation in advance
         int finalIndex = index;
