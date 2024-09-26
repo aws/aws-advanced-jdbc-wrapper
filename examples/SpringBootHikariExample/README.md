@@ -4,7 +4,7 @@ In this tutorial, you will set up a Spring Boot application using Hikari and the
 
 > Note: this tutorial was written using the following technologies:
 >    - Spring Boot 2.7.0
->    - AWS JDBC Driver 2.3.9
+>    - AWS JDBC Driver 2.4.0
 >    - Postgresql 42.5.4
 >    - Java 8
 
