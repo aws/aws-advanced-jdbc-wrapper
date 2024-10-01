@@ -78,6 +78,7 @@ public class DialectDetectionTests {
     when(this.mockConnection.createStatement()).thenReturn(this.mockStatement);
     when(this.mockHost.getUrl()).thenReturn("url");
     when(this.failResultSet.next()).thenReturn(false);
+    pluginManager.plugins = new ArrayList<>();
   }
 
   @AfterEach

@@ -20,11 +20,10 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.List;
 import java.util.logging.Logger;
-import software.amazon.jdbc.ConnectionPluginChainBuilder;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 
 /**
  * Suitable for the following AWS PG configurations.
@@ -128,9 +127,9 @@ public class AuroraPgDialect extends PgDialect {
   public HostListProviderSupplier getHostListProvider() {
     return (properties, initialUrl, hostListProviderService, pluginService) -> {
 
-      final List<String> plugins = ConnectionPluginChainBuilder.getPluginCodes(properties);
+      final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 
-      if (plugins.contains("failover2")) {
+      if (failover2Plugin != null) {
         return new MonitoringRdsHostListProvider(
             properties,
             initialUrl,
