@@ -572,6 +572,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public <T> T getPlugin(Class<T> pluginClazz) {
+      return null;
+    }
+
+    @Override
     public boolean isNetworkException(Throwable throwable) {
       return false;
     }
