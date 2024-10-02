@@ -22,11 +22,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.logging.Logger;
-import software.amazon.jdbc.ConnectionPluginChainBuilder;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.exceptions.MultiAzDbClusterPgExceptionHandler;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHostListProvider;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterPgDialect extends PgDialect {
@@ -113,9 +113,10 @@ public class RdsMultiAzDbClusterPgDialect extends PgDialect {
   @Override
   public HostListProviderSupplier getHostListProvider() {
     return (properties, initialUrl, hostListProviderService, pluginService) -> {
-      final List<String> plugins = ConnectionPluginChainBuilder.getPluginCodes(properties);
 
-      if (plugins.contains("failover2")) {
+      final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
+
+      if (failover2Plugin != null) {
         return new MonitoringRdsMultiAzHostListProvider(
             properties,
             initialUrl,

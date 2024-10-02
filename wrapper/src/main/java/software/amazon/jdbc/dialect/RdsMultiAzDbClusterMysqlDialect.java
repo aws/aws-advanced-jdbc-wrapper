@@ -24,11 +24,11 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.ConnectionPluginChainBuilder;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.hostlistprovider.RdsMultiAzDbClusterListProvider;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsMultiAzHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverRestriction;
+import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
 import software.amazon.jdbc.util.DriverInfo;
 
 public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
@@ -98,9 +98,9 @@ public class RdsMultiAzDbClusterMysqlDialect extends MysqlDialect {
   public HostListProviderSupplier getHostListProvider() {
     return (properties, initialUrl, hostListProviderService, pluginService) -> {
 
-      final List<String> plugins = ConnectionPluginChainBuilder.getPluginCodes(properties);
+      final FailoverConnectionPlugin failover2Plugin = pluginService.getPlugin(FailoverConnectionPlugin.class);
 
-      if (plugins.contains("failover2")) {
+      if (failover2Plugin != null) {
         return new MonitoringRdsMultiAzHostListProvider(
             properties,
             initialUrl,
