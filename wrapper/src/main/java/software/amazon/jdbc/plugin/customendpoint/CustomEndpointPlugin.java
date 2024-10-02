@@ -37,6 +37,8 @@ import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.SubscribedMethodHelper;
+import software.amazon.jdbc.util.WrapperUtils;
 
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
@@ -56,6 +58,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
+          addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("connect");
           add("forceConnect");
         }
@@ -65,8 +68,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       "customEndpointInfoRefreshRateMs", "30000",
       "Controls how frequently custom endpoint monitors fetch custom endpoint info.");
 
-  public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_CONNECT_TIMEOUT_MS = new AwsWrapperProperty(
-      "customEndpointInfoConnectTimeoutMs", "1000",
+  public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS = new AwsWrapperProperty(
+      "waitForCustomEndpointInfoTimeoutMs", "1000",
       "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be "
           + "populated in the cache.");
 
@@ -90,6 +93,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   protected final int waitOnCachedInfoDurationMs;
   protected final int idleMonitorExpirationSec;
+  protected HostSpec customEndpointHostSpec;
 
   public CustomEndpointPlugin(final PluginService pluginService, final Properties props) {
     this(
@@ -110,7 +114,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.props = props;
     this.rdsClientFunc = rdsClientFunc;
 
-    this.waitOnCachedInfoDurationMs = CUSTOM_ENDPOINT_INFO_CONNECT_TIMEOUT_MS.getInteger(this.props);
+    this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
     this.idleMonitorExpirationSec = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_SEC.getInteger(this.props);
   }
 
@@ -151,40 +155,87 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     // If we get here we are making an initial connection to a custom cluster URL
-    String customClusterHost = hostSpec.getHost();
+    this.customEndpointHostSpec = hostSpec;
     monitors.computeIfAbsent(
-        customClusterHost,
+        this.customEndpointHostSpec.getHost(),
         (customEndpoint) -> new CustomEndpointMonitorImpl(
             this.pluginService,
-            hostSpec,
+            this.customEndpointHostSpec,
             props,
             this.rdsClientFunc
         ),
         this.idleMonitorExpirationSec
     );
 
-    final Connection conn = connectFunc.call();
-
     // If needed, wait a short time for the monitor to place the custom endpoint info in the cache. This ensures other
-    // plugins get accurate custom endpoint info. The monitor will boot up while the connection is being established
-    // here, so we likely don't have to wait long, if at all.
+    // plugins get accurate custom endpoint info.
     long waitForEndpointInfoTimeoutNano =
         System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
     boolean isInfoInCache = false;
     while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
-      CustomEndpointInfo cachedInfo = this.pluginService.getStatus(hostSpec.getHost(), CustomEndpointInfo.class, true);
+      CustomEndpointInfo cachedInfo =
+          this.pluginService.getStatus(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
       isInfoInCache = cachedInfo != null;
     }
+
+    final Connection conn = connectFunc.call();
 
     if (!isInfoInCache) {
       // TODO: should we throw an exception or just log a warning? If we only log a warning, other plugins may not
       //  receive custom endpoint info and will instead rely on the complete topology list.
       throw new SQLException(
           Messages.get("CustomEndpointPlugin.cacheTimeout",
-              new Object[]{this.waitOnCachedInfoDurationMs, hostSpec.getHost()}));
+              new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
     }
 
     return conn;
+  }
+
+  @Override
+  public <T, E extends Exception> T execute(
+      final Class<T> resultClass,
+      final Class<E> exceptionClass,
+      final Object methodInvokeOn,
+      final String methodName,
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final Object[] jdbcMethodArgs)
+      throws E {
+    if (this.customEndpointHostSpec == null) {
+      return jdbcMethodFunc.call();
+    }
+
+    monitors.computeIfAbsent(
+        this.customEndpointHostSpec.getHost(),
+        (customEndpoint) -> new CustomEndpointMonitorImpl(
+            this.pluginService,
+            this.customEndpointHostSpec,
+            props,
+            this.rdsClientFunc
+        ),
+        this.idleMonitorExpirationSec
+    );
+
+    // If needed, wait a short time for the monitor to place the custom endpoint info in the cache. This ensures other
+    // plugins get accurate custom endpoint info.
+    long waitForEndpointInfoTimeoutNano =
+        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
+    boolean isInfoInCache = false;
+    while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
+      CustomEndpointInfo cachedInfo =
+          this.pluginService.getStatus(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
+      isInfoInCache = cachedInfo != null;
+    }
+
+    if (!isInfoInCache) {
+      // TODO: should we throw an exception or just log a warning? If we only log a warning, other plugins may not
+      //  receive custom endpoint info and will instead rely on the complete topology list.
+      SQLException cacheTimeoutException = new SQLException(
+          Messages.get("CustomEndpointPlugin.cacheTimeout",
+              new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, cacheTimeoutException);
+    }
+
+    return jdbcMethodFunc.call();
   }
 
   public static void clearCache() {

@@ -36,6 +36,8 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointType;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverMode;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -91,6 +93,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       Collections.unmodifiableSet(new HashSet<String>() {
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+          add("connect");
           add("initHostProvider");
         }
       });
@@ -224,9 +227,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
     this.rdsUrlType = this.rdsHelper.identifyRdsType(initialUrl);
 
-    // TODO: do we want to try to set the failover mode based on the custom endpoint type here, or in connectInternal,
-    //  or neither? If here, the custom endpoint info will only be available if a previous connection to it has been
-    //  made. If in connectInternal, the info may be available even if it is the first connection to the endpoint.
     if (this.failoverMode == null) {
       if (this.rdsUrlType.isRdsCluster()) {
         this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
@@ -618,5 +618,28 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return (methodName.equals(METHOD_CLOSE)
         || methodName.equals(METHOD_IS_CLOSED)
         || methodName.equals(METHOD_ABORT));
+  }
+
+  @Override
+  public Connection connect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+    if (isInitialConnection
+        && FAILOVER_MODE.getString(props) == null
+        && this.rdsHelper.isRdsCustomClusterDns(hostSpec.getHost())) {
+      CustomEndpointInfo customEndpointInfo =
+          this.pluginService.getStatus(hostSpec.getHost(), CustomEndpointInfo.class, true);
+      if (CustomEndpointType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {
+        this.failoverMode = FailoverMode.READER_OR_WRITER;
+      } else {
+        this.failoverMode = FailoverMode.STRICT_READER;
+      }
+    }
+
+    return connectFunc.call();
   }
 }

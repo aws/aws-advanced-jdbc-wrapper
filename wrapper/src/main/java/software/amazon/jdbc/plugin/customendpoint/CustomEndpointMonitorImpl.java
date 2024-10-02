@@ -171,7 +171,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   @Override
   public boolean shouldDispose() {
     // TODO: how will we know when to stop the monitor?
-    return false;
+    return true;
   }
 
   @Override

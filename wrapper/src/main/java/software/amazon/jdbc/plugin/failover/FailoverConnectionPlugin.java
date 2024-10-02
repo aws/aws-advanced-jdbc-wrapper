@@ -41,6 +41,8 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointType;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
@@ -286,9 +288,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
     this.rdsUrlType = this.rdsHelper.identifyRdsType(initialUrl);
 
-    // TODO: do we want to try to set the failover mode based on the custom endpoint type here, or in connectInternal,
-    //  or neither? If here, the custom endpoint info will only be available if a previous connection to it has been
-    //  made. If in connectInternal, the info may be available even if it is the first connection to the endpoint.
     if (this.failoverMode == null) {
       if (this.rdsUrlType.isRdsCluster()) {
         this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
@@ -800,6 +799,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc, boolean isForceConnect)
       throws SQLException {
+    if (isInitialConnection
+        && FAILOVER_MODE.getString(props) == null
+        && this.rdsHelper.isRdsCustomClusterDns(hostSpec.getHost())) {
+      CustomEndpointInfo customEndpointInfo =
+          this.pluginService.getStatus(hostSpec.getHost(), CustomEndpointInfo.class, true);
+      if (CustomEndpointType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {
+        this.failoverMode = FailoverMode.READER_OR_WRITER;
+      } else {
+        this.failoverMode = FailoverMode.STRICT_READER;
+      }
+    }
 
     Connection conn = null;
     try {

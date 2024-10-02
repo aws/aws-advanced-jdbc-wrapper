@@ -1,5 +1,6 @@
 package integration.container.tests;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,6 +45,7 @@ import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsRespo
 import software.amazon.awssdk.services.rds.model.Filter;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
+import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLException;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
@@ -190,20 +192,19 @@ public class CustomEndpointTest {
 
   protected Properties initDefaultProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,failover,customEndpoint");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "customEndpoint,readWriteSplitting,failover");
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
     return props;
   }
 
   @TestTemplate
-  public void testCustomEndpointReaderFailover() throws SQLException, InterruptedException {
+  public void testCustomEndpointFailover() throws SQLException, InterruptedException {
     // The single-instance endpoint will be used for this test.
     final DBClusterEndpoint endpoint = endpoints.get(oneInstanceEndpointId);
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
-    props.setProperty("failoverMode", "reader-or-writer");
 
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getWrapperUrl(endpoint.endpoint(), port, dbInfo.getDefaultDbName()),
@@ -260,6 +261,54 @@ public class CustomEndpointTest {
 
       assertNotEquals(instanceId1, instanceId2);
       assertTrue(endpointMembers.contains(instanceId2));
+    }
+  }
+
+  @TestTemplate
+  public void testCustomEndpointReadWriteSplitting_testCustomEndpointChanges() throws SQLException {
+    // The one-instance custom endpoint will be used for this test.
+    final DBClusterEndpoint testEndpoint = endpoints.get(oneInstanceEndpointId);
+    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
+    final int port = dbInfo.getClusterEndpointPort();
+    final Properties props = initDefaultProps();
+
+    try (final Connection conn =
+             DriverManager.getConnection(
+                 ConnectionStringHelper.getWrapperUrl(testEndpoint.endpoint(), port, dbInfo.getDefaultDbName()),
+                  props);
+         final RdsClient client = RdsClient.builder().region(Region.of(envInfo.getRegion())).build()) {
+      List<String> endpointMembers = testEndpoint.staticMembers();
+      String originalInstanceId = auroraUtil.queryInstanceId(conn);
+      assertTrue(endpointMembers.contains(originalInstanceId));
+
+      // Attempt to switch to an instance of the opposite role. This should fail since the custom endpoint consists only
+      // of the current host.
+      boolean newReadOnlyValue = currentWriter.equals(originalInstanceId);
+      assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
+
+      String newMember;
+      if (currentWriter.equals(originalInstanceId)) {
+        newMember = dbInfo.getInstances().get(1).getInstanceId();
+      } else {
+        newMember = currentWriter;
+      }
+
+      client.modifyDBClusterEndpoint(
+          builder ->
+              builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(originalInstanceId, newMember));
+      // TODO: wait for member to show up in endpoint
+
+      try {
+        assertDoesNotThrow(() -> conn.setReadOnly(newReadOnlyValue));
+        conn.setReadOnly(!newReadOnlyValue);
+      } finally {
+        client.modifyDBClusterEndpoint(
+            builder ->
+                builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(originalInstanceId));
+      }
+
+      assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
     }
   }
 }
