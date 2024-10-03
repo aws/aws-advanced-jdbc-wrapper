@@ -60,12 +60,11 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
       initLock.lock();
       try {
         if (!isInitialized) {
-          System.out.println("asdf Submitting cleanup thread for cache with ID: " + System.identityHashCode(cache));
           cleanupThreadPool.submit(() -> {
             while (true) {
               TimeUnit.NANOSECONDS.sleep(this.cleanupIntervalNanos);
 
-              LOGGER.finest("asdf Cleaning up, cache size: " + cache.size() + ", cacheID: " + System.identityHashCode(cache));
+              LOGGER.finest("Cleaning up...");
               this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
               cache.forEach((key, value) -> {
                 try {

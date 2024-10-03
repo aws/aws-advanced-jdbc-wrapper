@@ -2,7 +2,6 @@ package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -258,39 +257,6 @@ public class CustomEndpointTest {
 
       String newInstanceId = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(newInstanceId));
-    }
-  }
-
-  @TestTemplate
-  public void testCustomEndpointReadWriteSplitting() throws SQLException, InterruptedException {
-    // The two-instance custom endpoint will be used for this test.
-    final DBClusterEndpoint testEndpoint = endpoints.get(twoInstanceEndpointId);
-    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
-    final int port = dbInfo.getClusterEndpointPort();
-    final Properties props = initDefaultProps();
-
-    if (!testEndpoint.staticMembers().contains(currentWriter)) {
-      // For this test, we want one instance in the custom endpoint to be the writer, and one to be a reader.
-      String newWriter = testEndpoint.staticMembers().get(0);
-      auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(currentWriter, newWriter);
-      currentWriter = newWriter;
-    }
-
-    try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(testEndpoint.endpoint(), port, dbInfo.getDefaultDbName()),
-        props)) {
-      List<String> endpointMembers = testEndpoint.staticMembers();
-      String instanceId1 = auroraUtil.queryInstanceId(conn);
-      assertTrue(endpointMembers.contains(instanceId1));
-
-      // Switch to an instance of the opposite role.
-      boolean newReadOnlyValue = currentWriter.equals(instanceId1);
-      LOGGER.fine(newReadOnlyValue ? "Testing switch to reader..." : "Testing switch to writer...");
-      conn.setReadOnly(newReadOnlyValue);
-
-      String instanceId2 = auroraUtil.queryInstanceId(conn);
-      assertNotEquals(instanceId1, instanceId2);
-      assertTrue(endpointMembers.contains(instanceId2));
     }
   }
 

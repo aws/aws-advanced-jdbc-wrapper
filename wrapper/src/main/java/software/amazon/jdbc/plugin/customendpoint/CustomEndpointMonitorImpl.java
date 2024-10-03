@@ -55,7 +55,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final long refreshRateNano;
 
   protected final PluginService pluginService;
-  // TODO: is it problematic for each monitor thread to have its own executor service
+  // TODO: is it problematic for each monitor thread to have its own executor service?
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
@@ -116,8 +116,6 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
   @Override
   public void run() {
-    System.out.println("asdf: starting custom endpoint monitor");
-
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         long start = System.nanoTime();
@@ -141,7 +139,6 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
                   }
               ));
 
-          // TODO: should we throw an exception and then return? Or wait and then try again?
           TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
           continue;
         }
@@ -167,19 +164,16 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
       Thread.currentThread().interrupt();
     } finally {
       this.rdsClient.close();
-      System.out.println("CEMI run ending");
     }
   }
 
   @Override
   public boolean shouldDispose() {
-    // TODO: does it make sense to just return true here or should there be a different condition?
     return true;
   }
 
   @Override
   public void close() {
-    System.out.println("asdf: CEMI.close() start");
     this.stop.set(true);
 
     try {
@@ -194,8 +188,6 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
       this.monitorExecutor.shutdownNow();
       this.rdsClient.close();
     }
-
-    System.out.println("asdf: CEMI.close() end");
   }
 
   public static void clearCache() {

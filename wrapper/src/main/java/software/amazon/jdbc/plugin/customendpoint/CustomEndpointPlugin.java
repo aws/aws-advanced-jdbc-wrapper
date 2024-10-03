@@ -48,7 +48,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
           CustomEndpointMonitor::shouldDispose,
           (monitor) -> {
             try {
-              System.out.println("asdf about to call monitor.close");
               monitor.close();
             } catch (Exception ex) {
               // ignore
@@ -74,7 +73,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be "
           + "populated in the cache.");
 
-  // TODO: is 15 minutes a good value?
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS = new AwsWrapperProperty(
       "customEndpointMonitorExpirationMs", String.valueOf(TimeUnit.MINUTES.toMillis(15)),
       "Controls how long a monitor should run without use before expiring and being removed.");
@@ -179,17 +177,13 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       isInfoInCache = cachedInfo != null;
     }
 
-    final Connection conn = connectFunc.call();
-
     if (!isInfoInCache) {
-      // TODO: should we throw an exception or just log a warning? If we only log a warning, other plugins may not
-      //  receive custom endpoint info and will instead rely on the complete topology list.
       throw new SQLException(
           Messages.get("CustomEndpointPlugin.cacheTimeout",
               new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
     }
 
-    return conn;
+    return connectFunc.call();
   }
 
   @Override
@@ -228,8 +222,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     if (!isInfoInCache) {
-      // TODO: should we throw an exception or just log a warning? If we only log a warning, other plugins may not
-      //  receive custom endpoint info and will instead rely on the complete topology list.
       SQLException cacheTimeoutException = new SQLException(
           Messages.get("CustomEndpointPlugin.cacheTimeout",
               new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
