@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import integration.DatabaseEngineDeployment;
 import integration.TestDatabaseInfo;
@@ -21,10 +22,14 @@ import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -38,7 +43,6 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
-import software.amazon.awssdk.services.rds.model.CreateDbClusterEndpointResponse;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 import software.amazon.awssdk.services.rds.model.DbClusterEndpointNotFoundException;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsResponse;
@@ -128,10 +132,10 @@ public class CustomEndpointTest {
     }
   }
 
-  private static CreateDbClusterEndpointResponse createEndpoint(
+  private static void createEndpoint(
       RdsClient client, String clusterId, String endpointId, List<TestInstanceInfo> instances) {
     List<String> instanceIDs = instances.stream().map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
-    return client.createDBClusterEndpoint((builder) ->
+    client.createDBClusterEndpoint((builder) ->
       builder.dbClusterEndpointIdentifier(endpointId)
           .dbClusterIdentifier(clusterId)
           .endpointType("ANY")
@@ -169,6 +173,35 @@ public class CustomEndpointTest {
       throw new RuntimeException(
           "The test setup step timed out while waiting for the new custom endpoints to become available.");
     }
+  }
+
+  public static void waitUntilEndpointHasCorrectState(RdsClient client, String endpointId, List<String> membersList) {
+    long start = System.nanoTime();
+
+    // Convert to set for later comparison.
+    Set<String> members = new HashSet<>(membersList);
+    long timeoutEndNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(20);
+    boolean hasCorrectState = false;
+    while (!hasCorrectState && System.nanoTime() < timeoutEndNano) {
+      DescribeDbClusterEndpointsResponse response = client.describeDBClusterEndpoints(
+          (builder) ->
+              builder.dbClusterEndpointIdentifier(endpointId));
+      if (response.dbClusterEndpoints().size() != 1) {
+        fail("Unexpected number of endpoints returned while waiting for custom endpoint to have the specified list of "
+            + "members. Expected 1, got " + response.dbClusterEndpoints().size());
+      }
+
+      DBClusterEndpoint endpoint = response.dbClusterEndpoints().get(0);
+      // Compare sets to ignore order when checking for members equality.
+      Set<String> responseMembers = new HashSet<>(endpoint.staticMembers());
+      hasCorrectState = responseMembers.equals(members) && "available".equals(endpoint.status());
+    }
+
+    if (!hasCorrectState) {
+      fail("Timed out while waiting for the custom endpoint to stabilize");
+    }
+
+    System.out.println("asdf waitUntilEndpointHasMembers took " + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) + " seconds");
   }
 
   @BeforeEach
@@ -272,6 +305,9 @@ public class CustomEndpointTest {
     final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
+    // This setting is not required for the test, but it allows us to also test recreation of expired monitors since it
+    // takes more than 30 seconds to modify the cluster endpoint (usually around 140s).
+    props.setProperty("customEndpointMonitorExpirationMs", "30000");
 
     try (final Connection conn =
              DriverManager.getConnection(
@@ -297,15 +333,16 @@ public class CustomEndpointTest {
       client.modifyDBClusterEndpoint(
           builder ->
               builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(originalInstanceId, newMember));
-      // TODO: wait for member to show up in endpoint
 
       try {
+        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Arrays.asList(originalInstanceId, newMember));
         assertDoesNotThrow(() -> conn.setReadOnly(newReadOnlyValue));
         conn.setReadOnly(!newReadOnlyValue);
       } finally {
         client.modifyDBClusterEndpoint(
             builder ->
                 builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(originalInstanceId));
+        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Collections.singletonList(originalInstanceId));
       }
 
       assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));

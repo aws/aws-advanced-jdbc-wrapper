@@ -75,7 +75,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   // TODO: is 15 minutes a good value?
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_SEC = new AwsWrapperProperty(
-      "customEndpointInfoMonitorIdleExpirationMs", String.valueOf(TimeUnit.MINUTES.toSeconds(15)),
+      "customEndpointMonitorExpirationMs", String.valueOf(TimeUnit.MINUTES.toSeconds(15)),
       "Controls how long a monitor should run without use before expiring and being removed.");
 
   public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
