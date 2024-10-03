@@ -197,7 +197,7 @@ public class RdsHostListProvider implements DynamicHostListProvider {
           this.isPrimaryClusterId = clusterSuggestedResult.isPrimaryClusterId;
         } else {
           final String clusterRdsHostUrl =
-              rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getHostAndPort());
+              rdsHelper.getRdsClusterHostUrl(this.initialHostSpec.getHost());
           if (!StringUtils.isNullOrEmpty(clusterRdsHostUrl)) {
             this.clusterId = this.clusterInstanceTemplate.isPortSpecified()
                 ? String.format("%s:%s", clusterRdsHostUrl, this.clusterInstanceTemplate.getPort())
