@@ -16,7 +16,9 @@
 
 package software.amazon.jdbc.util;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -118,9 +120,22 @@ public class SlidingExpirationCache<K, V> {
   }
 
   protected void removeIfExpired(K key) {
-    final CacheItem cacheItem = cache.get(key);
-    if (cacheItem == null || cacheItem.shouldCleanup()) {
-      removeAndDispose(key);
+    // A list is used to store the cached item for later disposal since lambdas require references to outer variables
+    // to be final. This allows us to dispose of the item after it has been removed and the cache has been unlocked,
+    // which is important because the disposal function may be long-running.
+    final List<V> itemList = new ArrayList<>(1);
+    cache.computeIfPresent(key, (k, cacheItem) -> {
+      if (cacheItem.shouldCleanup()) {
+        itemList.add(cacheItem.item);
+        return null;
+      }
+
+      return cacheItem;
+    });
+
+    V item = itemList.get(0);
+    if (item != null && itemDisposalFunc != null) {
+      itemDisposalFunc.dispose(item);
     }
   }
 
