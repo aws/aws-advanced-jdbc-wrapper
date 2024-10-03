@@ -92,6 +92,7 @@ public class SlidingExpirationCache<K, V> {
         k -> new CacheItem(
             mappingFunction.apply(k),
             System.nanoTime() + itemExpirationNano));
+    System.out.println("asdf Added item of class " + cacheItem.item.getClass().toString() + " to cache with ID: " + System.identityHashCode(cache));
     return cacheItem.withExtendExpiration(itemExpirationNano).item;
   }
 

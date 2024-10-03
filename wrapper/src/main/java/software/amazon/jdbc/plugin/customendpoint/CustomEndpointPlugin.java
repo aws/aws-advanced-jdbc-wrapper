@@ -48,6 +48,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
           CustomEndpointMonitor::shouldDispose,
           (monitor) -> {
             try {
+              System.out.println("asdf about to call monitor.close");
               monitor.close();
             } catch (Exception ex) {
               // ignore
@@ -69,13 +70,13 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       "Controls how frequently custom endpoint monitors fetch custom endpoint info.");
 
   public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS = new AwsWrapperProperty(
-      "waitForCustomEndpointInfoTimeoutMs", "1000",
+      "waitForCustomEndpointInfoTimeoutMs", "5000",
       "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be "
           + "populated in the cache.");
 
   // TODO: is 15 minutes a good value?
-  public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_SEC = new AwsWrapperProperty(
-      "customEndpointMonitorExpirationMs", String.valueOf(TimeUnit.MINUTES.toSeconds(15)),
+  public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS = new AwsWrapperProperty(
+      "customEndpointMonitorExpirationMs", String.valueOf(TimeUnit.MINUTES.toMillis(15)),
       "Controls how long a monitor should run without use before expiring and being removed.");
 
   public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
@@ -92,7 +93,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
   protected final int waitOnCachedInfoDurationMs;
-  protected final int idleMonitorExpirationSec;
+  protected final int idleMonitorExpirationMs;
   protected HostSpec customEndpointHostSpec;
 
   public CustomEndpointPlugin(final PluginService pluginService, final Properties props) {
@@ -115,7 +116,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.rdsClientFunc = rdsClientFunc;
 
     this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
-    this.idleMonitorExpirationSec = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_SEC.getInteger(this.props);
+    this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
   }
 
   @Override
@@ -164,7 +165,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
             props,
             this.rdsClientFunc
         ),
-        this.idleMonitorExpirationSec
+        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
     );
 
     // If needed, wait a short time for the monitor to place the custom endpoint info in the cache. This ensures other
@@ -212,7 +213,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
             props,
             this.rdsClientFunc
         ),
-        this.idleMonitorExpirationSec
+        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
     );
 
     // If needed, wait a short time for the monitor to place the custom endpoint info in the cache. This ensures other

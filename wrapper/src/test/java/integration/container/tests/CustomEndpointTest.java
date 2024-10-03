@@ -1,6 +1,7 @@
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -288,17 +289,13 @@ public class CustomEndpointTest {
       conn.setReadOnly(newReadOnlyValue);
 
       String instanceId2 = auroraUtil.queryInstanceId(conn);
-      if (instanceId1.equals(instanceId2)) {
-        System.out.println("Error: both instances were " + instanceId1);
-      }
-
       assertNotEquals(instanceId1, instanceId2);
       assertTrue(endpointMembers.contains(instanceId2));
     }
   }
 
   @TestTemplate
-  public void testCustomEndpointReadWriteSplitting_testCustomEndpointChanges() throws SQLException {
+  public void testCustomEndpointReadWriteSplitting_withCustomEndpointChanges() throws SQLException {
     // The one-instance custom endpoint will be used for this test.
     final DBClusterEndpoint testEndpoint = endpoints.get(oneInstanceEndpointId);
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
@@ -315,16 +312,16 @@ public class CustomEndpointTest {
                   props);
          final RdsClient client = RdsClient.builder().region(Region.of(envInfo.getRegion())).build()) {
       List<String> endpointMembers = testEndpoint.staticMembers();
-      String originalInstanceId = auroraUtil.queryInstanceId(conn);
-      assertTrue(endpointMembers.contains(originalInstanceId));
+      String instanceId1 = auroraUtil.queryInstanceId(conn);
+      assertTrue(endpointMembers.contains(instanceId1));
 
       // Attempt to switch to an instance of the opposite role. This should fail since the custom endpoint consists only
       // of the current host.
-      boolean newReadOnlyValue = currentWriter.equals(originalInstanceId);
+      boolean newReadOnlyValue = currentWriter.equals(instanceId1);
       assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
 
       String newMember;
-      if (currentWriter.equals(originalInstanceId)) {
+      if (currentWriter.equals(instanceId1)) {
         newMember = dbInfo.getInstances().get(1).getInstanceId();
       } else {
         newMember = currentWriter;
@@ -332,19 +329,26 @@ public class CustomEndpointTest {
 
       client.modifyDBClusterEndpoint(
           builder ->
-              builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(originalInstanceId, newMember));
+              builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(instanceId1, newMember));
 
       try {
-        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Arrays.asList(originalInstanceId, newMember));
+        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Arrays.asList(instanceId1, newMember));
+
+        // We should now be able to switch to newMember.
         assertDoesNotThrow(() -> conn.setReadOnly(newReadOnlyValue));
+        String instanceId2 = auroraUtil.queryInstanceId(conn);
+        assertEquals(instanceId2, newMember);
+
+        // Switch back to original instance.
         conn.setReadOnly(!newReadOnlyValue);
       } finally {
         client.modifyDBClusterEndpoint(
             builder ->
-                builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(originalInstanceId));
-        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Collections.singletonList(originalInstanceId));
+                builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(instanceId1));
+        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Collections.singletonList(instanceId1));
       }
 
+      // Attempting to switch should fail again because newMember was removed from the custom endpoint.
       assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
     }
   }

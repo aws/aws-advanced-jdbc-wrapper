@@ -116,6 +116,8 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
   @Override
   public void run() {
+    System.out.println("asdf: starting custom endpoint monitor");
+
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         long start = System.nanoTime();
@@ -165,21 +167,24 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
       Thread.currentThread().interrupt();
     } finally {
       this.rdsClient.close();
+      System.out.println("CEMI run ending");
     }
   }
 
   @Override
   public boolean shouldDispose() {
-    // TODO: how will we know when to stop the monitor?
+    // TODO: does it make sense to just return true here or should there be a different condition?
     return true;
   }
 
   @Override
   public void close() {
+    System.out.println("asdf: CEMI.close() start");
     this.stop.set(true);
 
     try {
-      // TODO: the termination timeout is taken from failover2, should it be shorter since it blocks the current thread?
+      // TODO: the run loop takes 30s by default but could take more depending on the user setting. Should we keep 30s
+      //  as the maximum wait time here or is that too short/long?
       if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
         this.monitorExecutor.shutdownNow();
         this.rdsClient.close();
@@ -189,6 +194,8 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
       this.monitorExecutor.shutdownNow();
       this.rdsClient.close();
     }
+
+    System.out.println("asdf: CEMI.close() end");
   }
 
   public static void clearCache() {

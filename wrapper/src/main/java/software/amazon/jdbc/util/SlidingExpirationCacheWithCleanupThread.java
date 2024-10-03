@@ -27,13 +27,13 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
   private static final Logger LOGGER =
       Logger.getLogger(SlidingExpirationCacheWithCleanupThread.class.getName());
 
-  protected static final ExecutorService cleanupThreadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
+  protected final ExecutorService cleanupThreadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
     return monitoringThread;
   });
-  protected static boolean isInitialized = false;
-  protected static ReentrantLock initLock = new ReentrantLock();
+  protected boolean isInitialized = false;
+  protected ReentrantLock initLock = new ReentrantLock();
 
   public SlidingExpirationCacheWithCleanupThread() {
     super();
@@ -60,11 +60,12 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
       initLock.lock();
       try {
         if (!isInitialized) {
+          System.out.println("asdf Submitting cleanup thread for cache with ID: " + System.identityHashCode(cache));
           cleanupThreadPool.submit(() -> {
             while (true) {
               TimeUnit.NANOSECONDS.sleep(this.cleanupIntervalNanos);
 
-              LOGGER.finest("Cleaning up...");
+              LOGGER.finest("asdf Cleaning up, cache size: " + cache.size() + ", cacheID: " + System.identityHashCode(cache));
               this.cleanupTimeNanos.set(System.nanoTime() + cleanupIntervalNanos);
               cache.forEach((key, value) -> {
                 try {
