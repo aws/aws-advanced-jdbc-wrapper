@@ -29,12 +29,12 @@ plugins {
 dependencies {
     implementation("org.checkerframework:checker-qual:3.47.0")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
-    compileOnly("software.amazon.awssdk:rds:2.25.70")
+    compileOnly("software.amazon.awssdk:rds:2.28.12")
     compileOnly("software.amazon.awssdk:auth:2.28.2") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.27.8") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.27.22")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.27.8")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.28.11")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     compileOnly("mysql:mysql-connector-java:8.0.33")
     compileOnly("org.postgresql:postgresql:42.7.4")
@@ -43,8 +43,8 @@ dependencies {
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.18.1")
     compileOnly("io.opentelemetry:opentelemetry-api:1.42.1")
-    compileOnly("io.opentelemetry:opentelemetry-sdk:1.40.0")
-    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.40.0")
+    compileOnly("io.opentelemetry:opentelemetry-sdk:1.42.1")
+    compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.42.1")
     compileOnly("org.jsoup:jsoup:1.18.1")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
 
@@ -63,11 +63,11 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.25.70")
+    testImplementation("software.amazon.awssdk:rds:2.28.12")
     testImplementation("software.amazon.awssdk:auth:2.28.2") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.27.8") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.28.2")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.27.8")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.28.11")
     testImplementation("software.amazon.awssdk:sts:2.27.22")
     testImplementation("org.testcontainers:testcontainers:1.20.1")
     testImplementation("org.testcontainers:mysql:1.20.1")
@@ -81,8 +81,8 @@ dependencies {
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.1")
     testImplementation("io.opentelemetry:opentelemetry-api:1.42.1")
-    testImplementation("io.opentelemetry:opentelemetry-sdk:1.40.0")
-    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.40.0")
+    testImplementation("io.opentelemetry:opentelemetry-sdk:1.42.1")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.40.0")
     testImplementation("org.jsoup:jsoup:1.18.1")
 }

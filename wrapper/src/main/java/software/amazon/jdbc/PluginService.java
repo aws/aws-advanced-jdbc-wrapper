@@ -217,4 +217,6 @@ public interface PluginService extends ExceptionHandler {
   String getTargetName();
 
   @NonNull SessionStateService getSessionStateService();
+
+  <T> T getPlugin(final Class<T> pluginClazz);
 }
