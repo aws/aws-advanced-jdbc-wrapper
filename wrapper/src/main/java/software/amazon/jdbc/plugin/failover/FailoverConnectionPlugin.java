@@ -809,6 +809,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       } else {
         this.failoverMode = FailoverMode.STRICT_READER;
       }
+
+      LOGGER.finest(
+          Messages.get("Failover.failoverModeDeterminedFromCustomEndpointType", new Object[]{ this.failoverMode }));
     }
 
     Connection conn = null;

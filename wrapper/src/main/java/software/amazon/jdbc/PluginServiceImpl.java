@@ -742,7 +742,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public <T> T getStatus(final String statusKey, final @NonNull Class<T> clazz, final boolean clusterBound) {
     final String cacheKey = this.getStatusCacheKey(statusKey, clusterBound);
-    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
     return clazz.cast(statusesExpiringCache.get(cacheKey));
   }
 
@@ -753,6 +752,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   public static void clearCache() {
+    LOGGER.info(Messages.get("PluginServiceImpl.clearCache"));
     statusesExpiringCache.clear();
   }
 

@@ -116,6 +116,11 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
   @Override
   public void run() {
+    LOGGER.fine(
+        Messages.get(
+            "CustomEndpointMonitorImpl.startingMonitor",
+            new Object[] { this.customEndpointHostSpec.getHost() }));
+
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
         long start = System.nanoTime();
@@ -126,6 +131,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
             this.rdsClient.describeDBClusterEndpoints(
                 (builder) ->
                     builder.dbClusterEndpointIdentifier(this.endpointIdentifier).filters(customEndpointFilter));
+
         List<DBClusterEndpoint> endpoints = endpointsResponse.dbClusterEndpoints();
         if (endpoints.size() != 1) {
           List<String> endpointURLs = endpoints.stream().map(DBClusterEndpoint::endpoint).collect(Collectors.toList());
@@ -152,6 +158,11 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
           continue;
         }
 
+        LOGGER.fine(
+            Messages.get(
+                "CustomEndpointMonitorImpl.detectedChangeInCustomEndpointInfo",
+                new Object[]{ this.customEndpointHostSpec.getHost(), endpointInfo }));
+
         // The custom endpoint info has changed, so we need to update the info in the registered plugin services.
         customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
         this.pluginService.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
@@ -161,9 +172,12 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         TimeUnit.NANOSECONDS.sleep(sleepDuration);
       }
     } catch (InterruptedException e) {
+      LOGGER.info(Messages.get("CustomEndpointMonitorImpl.interrupted", new Object[]{ this.customEndpointHostSpec }));
       Thread.currentThread().interrupt();
     } finally {
       this.rdsClient.close();
+      LOGGER.fine(
+          Messages.get("CustomEndpointMonitorImpl.stoppedMonitor", new Object[]{ this.customEndpointHostSpec }));
     }
   }
 
@@ -174,16 +188,32 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
   @Override
   public void close() {
+    LOGGER.fine(
+        Messages.get(
+            "CustomEndpointMonitorImpl.stoppingMonitor",
+            new Object[]{ this.customEndpointHostSpec.getHost() }));
+
     this.stop.set(true);
 
     try {
       // TODO: the run loop takes 30s by default but could take more depending on the user setting. Should we keep 30s
       //  as the maximum wait time here or is that too short/long?
-      if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+      int terminationTimeoutSec = 30;
+      if (!this.monitorExecutor.awaitTermination(terminationTimeoutSec, TimeUnit.SECONDS)) {
+        LOGGER.info(
+            Messages.get(
+                "CustomEndpointMonitorImpl.monitorTerminationTimeout",
+                new Object[]{ terminationTimeoutSec, this.customEndpointHostSpec.getHost() }));
+
         this.monitorExecutor.shutdownNow();
         this.rdsClient.close();
       }
     } catch (InterruptedException e) {
+      LOGGER.info(
+          Messages.get(
+              "CustomEndpointMonitorImpl.interruptedWhileTerminating",
+              new Object[]{ this.customEndpointHostSpec.getHost() }));
+
       Thread.currentThread().interrupt();
       this.monitorExecutor.shutdownNow();
       this.rdsClient.close();
@@ -191,6 +221,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   }
 
   public static void clearCache() {
+    LOGGER.info(Messages.get("CustomEndpointMonitorImpl.clearCache"));
     customEndpointInfoCache.clear();
   }
 }

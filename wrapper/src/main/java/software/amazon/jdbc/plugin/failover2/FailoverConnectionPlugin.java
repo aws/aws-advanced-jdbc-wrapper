@@ -646,6 +646,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     if (isInitialConnection
         && FAILOVER_MODE.getString(props) == null
         && this.rdsHelper.isRdsCustomClusterDns(hostSpec.getHost())) {
+      LOGGER.finest(
+          Messages.get("Failover.failoverModeDeterminedFromCustomEndpointType", new Object[]{ this.failoverMode }));
+
       CustomEndpointInfo customEndpointInfo =
           this.pluginService.getStatus(hostSpec.getHost(), CustomEndpointInfo.class, true);
       if (CustomEndpointType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {

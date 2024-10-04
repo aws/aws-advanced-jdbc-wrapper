@@ -154,7 +154,11 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     // If we get here we are making an initial connection to a custom cluster URL
+    LOGGER.finest(
+        Messages.get(
+            "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[]{ hostSpec.getHost() }));
     this.customEndpointHostSpec = hostSpec;
+
     monitors.computeIfAbsent(
         this.customEndpointHostSpec.getHost(),
         (customEndpoint) -> new CustomEndpointMonitorImpl(
@@ -166,16 +170,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
     );
 
-    // If needed, wait a short time for the monitor to place the custom endpoint info in the cache. This ensures other
-    // plugins get accurate custom endpoint info.
-    long waitForEndpointInfoTimeoutNano =
-        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
-    boolean isInfoInCache = false;
-    while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
-      CustomEndpointInfo cachedInfo =
-          this.pluginService.getStatus(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
-      isInfoInCache = cachedInfo != null;
-    }
+    boolean isInfoInCache = waitForCustomEndpointInfo();
 
     if (!isInfoInCache) {
       throw new SQLException(
@@ -184,6 +179,38 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     return connectFunc.call();
+  }
+
+  private boolean waitForCustomEndpointInfo() {
+    CustomEndpointInfo cachedInfo =
+        this.pluginService.getStatus(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
+    boolean isInfoInCache = cachedInfo != null;
+
+    if (!isInfoInCache) {
+      // Wait for the monitor to place the custom endpoint info in the cache. This ensures other plugins get accurate
+      // custom endpoint info.
+      LOGGER.fine(
+          Messages.get(
+              "CustomEndpointPlugin.waitingforCustomEndpointInfo",
+              new Object[]{ this.customEndpointHostSpec.getHost(), this.waitOnCachedInfoDurationMs }));
+      long waitForEndpointInfoTimeoutNano =
+          System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
+
+      while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
+        cachedInfo =
+            this.pluginService.getStatus(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
+        isInfoInCache = cachedInfo != null;
+      }
+
+      if (isInfoInCache) {
+        LOGGER.fine(
+            Messages.get(
+                "CustomEndpointPlugin.foundInfoInCache",
+                new Object[]{ this.customEndpointHostSpec.getHost(), cachedInfo }));
+      }
+    }
+
+    return isInfoInCache;
   }
 
   @Override
@@ -210,16 +237,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
     );
 
-    // If needed, wait a short time for the monitor to place the custom endpoint info in the cache. This ensures other
-    // plugins get accurate custom endpoint info.
-    long waitForEndpointInfoTimeoutNano =
-        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
-    boolean isInfoInCache = false;
-    while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
-      CustomEndpointInfo cachedInfo =
-          this.pluginService.getStatus(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
-      isInfoInCache = cachedInfo != null;
-    }
+    boolean isInfoInCache = waitForCustomEndpointInfo();
 
     if (!isInfoInCache) {
       SQLException cacheTimeoutException = new SQLException(
@@ -232,6 +250,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   }
 
   public static void clearCache() {
+    LOGGER.info(Messages.get("CustomEndpointPlugin.closingMonitors"));
+
     for (CustomEndpointMonitor monitor : monitors.getEntries().values()) {
       try {
         monitor.close();

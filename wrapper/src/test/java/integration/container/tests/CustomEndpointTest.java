@@ -201,7 +201,7 @@ public class CustomEndpointTest {
       fail("Timed out while waiting for the custom endpoint to stabilize");
     }
 
-    System.out.println("asdf waitUntilEndpointHasMembers took " + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) + " seconds");
+    LOGGER.fine("waitUntilEndpointHasCorrectState took " + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) + " seconds");
   }
 
   @BeforeEach

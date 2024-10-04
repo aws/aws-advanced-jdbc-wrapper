@@ -134,4 +134,11 @@ public class CustomEndpointInfo {
     result = prime * result + ((this.memberListType == null) ? 0 : this.memberListType.hashCode());
     return result;
   }
+
+  @Override
+  public String toString() {
+    return String.format(
+        "CustomEndpointInfo[url=%s, clusterIdentifier=%s, customEndpointType=%s, memberListType=%s, members=%s]",
+        this.url, this.clusterIdentifier, this.customEndpointType, this.memberListType, this.members);
+  }
 }
