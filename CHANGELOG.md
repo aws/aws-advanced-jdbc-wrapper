@@ -3,16 +3,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+### :bug: Fixed
+- Use the cluster URL as the default cluster ID ([PR #1131](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1131)).
+
+## [2.4.0] - 2024-09-25
+
 ### :magic_wand: Added
-- Logic and a connection property to enable driver failover when network exceptions occur in the connect pipeline (PR #1099)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1099]
-- A new reworked and re-architected failover plugin (PR #1089)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1089]
-- Virtual Threading support (PR #1120)[https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1120]
+- Limitless Connection Plugin. See [UsingTheLimitlessConnectionPlugin.md](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheLimitlessConnectionPlugin.md).
+- A new reworked and re-architected failover plugin. See [UsingTheFailover2Plugin.md](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md).
+- Logic and a connection property to enable driver failover when network exceptions occur in the connect pipeline ([PR #1099](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1099)).
+- Virtual Threading support ([PR #1120](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1120)).
+
+### :bug: Fixed
+- Unwrap nested exceptions when checking for login exceptions ([Issue #1081](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1081)).
 
 ## [2.3.9] - 2024-08-09
 
 ### :bug: Fixed
-- Statement object cast error [Issue #1045](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1045).
-- Missing required dependency in the bundled jar for ADFS Authentication [PR #1083](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1083).
+- Statement object cast error ([Issue #1045](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1045)).
+- Missing required dependency in the bundled jar for ADFS Authentication ([PR #1083](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1083)).
 
 ### :crab: Changed
 - Documentation:
@@ -346,6 +355,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.4.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.9...2.4.0
 [2.3.9]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.8...2.3.9
 [2.3.8]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.7...2.3.8
 [2.3.7]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.6...2.3.7

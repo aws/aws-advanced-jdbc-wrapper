@@ -755,4 +755,13 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   public static void clearCache() {
     statusesExpiringCache.clear();
   }
+
+  public <T> T getPlugin(final Class<T> pluginClazz) {
+    for (ConnectionPlugin p : this.pluginManager.plugins) {
+      if (pluginClazz.isAssignableFrom(p.getClass())) {
+        return pluginClazz.cast(p);
+      }
+    }
+    return null;
+  }
 }

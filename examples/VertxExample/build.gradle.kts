@@ -33,13 +33,13 @@ application {
 }
 
 dependencies {
-    implementation(platform("io.vertx:vertx-stack-depchain:4.5.8"))
+    implementation(platform("io.vertx:vertx-stack-depchain:4.5.10"))
     implementation("io.vertx:vertx-core")
     implementation("io.vertx:vertx-config")
     implementation("io.vertx:vertx-jdbc-client")
     implementation("io.vertx:vertx-web")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
-    implementation("org.postgresql:postgresql:42.7.3")
+    implementation("org.postgresql:postgresql:42.7.4")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
 

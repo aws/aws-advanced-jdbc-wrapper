@@ -15,9 +15,9 @@
  */
 
 dependencies {
-    implementation("org.postgresql:postgresql:42.7.3")
+    implementation("org.postgresql:postgresql:42.7.4")
     implementation("mysql:mysql-connector-java:8.0.33")
     implementation(project(":aws-advanced-jdbc-wrapper"))
     implementation("org.apache.commons:commons-dbcp2:2.12.0")
-    implementation("software.amazon.awssdk:rds:2.25.70")
+    implementation("software.amazon.awssdk:rds:2.28.12")
 }

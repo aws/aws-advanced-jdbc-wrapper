@@ -62,7 +62,6 @@ public interface PluginService extends ExceptionHandler {
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
 
-  // TODO: should we rename to getAllHosts?
   List<HostSpec> getAllHosts();
 
   List<HostSpec> getHosts();
@@ -224,4 +223,6 @@ public interface PluginService extends ExceptionHandler {
   <T> void setStatus(final String statusKey, final @Nullable T status, final boolean clusterBound);
 
   <T> T getStatus(final String statusKey, final @NonNull Class<T> clazz, final boolean clusterBound);
+
+  <T> T getPlugin(final Class<T> pluginClazz);
 }

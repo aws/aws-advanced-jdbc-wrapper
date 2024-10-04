@@ -45,6 +45,7 @@ import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
@@ -67,6 +68,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private static final String TELEMETRY_WRITER_FAILOVER = "failover to writer node";
   private static final String TELEMETRY_READER_FAILOVER = "failover to replica";
 
+  private static final String INTERNAL_CONNECT_PROPERTY_NAME = "76c06979-49c4-4c86-9600-a63605b83f50";
+
   public static final AwsWrapperProperty FAILOVER_TIMEOUT_MS =
       new AwsWrapperProperty(
           "failoverTimeoutMs",
@@ -88,6 +91,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           "failoverReaderHostSelectorStrategy",
           "random",
           "The strategy that should be used to select a new reader host while opening a new connection.");
+
+  public static final AwsWrapperProperty ENABLE_CONNECT_FAILOVER =
+      new AwsWrapperProperty(
+          "enableConnectFailover", "false",
+          "Enable/disable cluster-aware failover if the initial connection to the database fails due to a "
+              + "network exception. Note that this may result in a connection to a different instance in the cluster "
+              + "than was specified by the URL.");
 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
@@ -320,7 +330,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * @throws SQLException if an error occurs
    */
   protected void failover(final HostSpec failedHost) throws SQLException {
-    this.pluginService.setAvailability(failedHost.asAliases(), HostAvailability.NOT_AVAILABLE);
 
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
@@ -367,6 +376,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
       }
 
+      final Properties copyProp = PropertyUtils.copyProperties(this.properties);
+      copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
+
       final List<HostSpec> hosts = this.pluginService.getHosts();
       Connection readerCandidateConn = null;
       HostSpec readerCandidate = null;
@@ -392,7 +404,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
 
         try {
-          readerCandidateConn = this.pluginService.connect(readerCandidate, this.properties);
+          readerCandidateConn = this.pluginService.connect(readerCandidate, copyProp);
           if (this.pluginService.getHostRole(readerCandidateConn) != HostRole.READER) {
             readerCandidateConn.close();
             readerCandidateConn = null;
@@ -415,7 +427,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                   this.failoverReaderHostSelectorStrategySetting);
           if (readerCandidate != null) {
             try {
-              readerCandidateConn = this.pluginService.connect(readerCandidate, this.properties);
+              readerCandidateConn = this.pluginService.connect(readerCandidate, copyProp);
             } catch (SQLException ex) {
               readerCandidate = null;
             }
@@ -483,6 +495,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
+      final Properties copyProp = PropertyUtils.copyProperties(this.properties);
+      copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
 
       Connection writerCandidateConn = null;
       final HostSpec writerCandidate = updatedHosts.stream()
@@ -502,7 +516,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       if (writerCandidate != null) {
         try {
-          writerCandidateConn = this.pluginService.connect(writerCandidate, this.properties);
+          writerCandidateConn = this.pluginService.connect(writerCandidate, copyProp);
         } catch (SQLException ex) {
           // do nothing
         }
@@ -628,6 +642,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+
     if (isInitialConnection
         && FAILOVER_MODE.getString(props) == null
         && this.rdsHelper.isRdsCustomClusterDns(hostSpec.getHost())) {
@@ -640,6 +655,59 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
     }
 
-    return connectFunc.call();
+    if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
+      return connectFunc.call();
+    }
+
+    // This call was initiated by this failover2 plugin and doesn't require any additional processing.
+    if (props.containsKey(INTERNAL_CONNECT_PROPERTY_NAME)) {
+      return connectFunc.call();
+    }
+
+    Connection conn = null;
+
+    final HostSpec hostSpecWithAvailability = this.pluginService.getHosts().stream()
+        .filter(x -> x.getHostAndPort().equals(hostSpec.getHostAndPort()))
+        .findFirst()
+        .orElse(null);
+
+    if (hostSpecWithAvailability == null
+        || hostSpecWithAvailability.getAvailability() != HostAvailability.NOT_AVAILABLE) {
+
+      try {
+        conn = this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
+            driverProtocol, hostSpec, props, connectFunc);
+      } catch (final SQLException e) {
+        if (!this.shouldExceptionTriggerConnectionSwitch(e)) {
+          throw e;
+        }
+
+        this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
+
+        try {
+          this.failover(hostSpec);
+        } catch (FailoverSuccessSQLException failoverSuccessException) {
+          conn = this.pluginService.getCurrentConnection();
+        }
+      }
+    } else {
+      try {
+        this.pluginService.refreshHostList();
+        this.failover(hostSpec);
+      } catch (FailoverSuccessSQLException failoverSuccessException) {
+        conn = this.pluginService.getCurrentConnection();
+      }
+    }
+
+    if (conn == null) {
+      // This should be unreachable, the above logic will either get a connection successfully or throw an exception.
+      throw new SQLException(Messages.get("Failover.unableToConnect"));
+    }
+
+    if (isInitialConnection) {
+      this.pluginService.refreshHostList(conn);
+    }
+
+    return conn;
   }
 }
