@@ -39,9 +39,13 @@ import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
+  private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
+
   // Keys are custom cluster endpoint identifiers, values are information objects for the associated custom cluster.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
@@ -65,6 +69,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     return monitoringThread;
   });
 
+  private final TelemetryFactory telemetryFactory;
+  private final TelemetryCounter infoChangedCounter;
+
   public CustomEndpointMonitorImpl(
       PluginService pluginService,
       HostSpec customEndpointHostSpec,
@@ -84,6 +91,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
               "CustomEndpointMonitorImpl.errorParsingEndpointIdentifier",
               new Object[] {customEndpointHostSpec.getHost()}));
     }
+
+    this.telemetryFactory = this.pluginService.getTelemetryFactory();
+    this.infoChangedCounter = this.telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
 
     this.monitorExecutor.submit(this);
     this.monitorExecutor.shutdown();
@@ -166,6 +176,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         // The custom endpoint info has changed, so we need to update the info in the registered plugin services.
         customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
         this.pluginService.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
+        this.infoChangedCounter.inc();
 
         long elapsedTime = System.nanoTime() - start;
         long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);

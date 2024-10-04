@@ -39,9 +39,14 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
 import software.amazon.jdbc.util.WrapperUtils;
+import software.amazon.jdbc.util.telemetry.TelemetryCounter;
+import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
+  private static final String TELEMETRY_CUSTOM_ENDPOINT_COUNTER = "customEndpoint.endpointConnections.counter";
+  private static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
+
   protected static final long CACHE_CLEANUP_RATE_NANO = TimeUnit.MINUTES.toNanos(1);
   protected static final SlidingExpirationCacheWithCleanupThread<String, CustomEndpointMonitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
@@ -90,6 +95,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
+  private final TelemetryFactory telemetryFactory;
+  private final TelemetryCounter endpointConnectionsCounter;
+  private final TelemetryCounter waitForInfoCounter;
+
   protected final int waitOnCachedInfoDurationMs;
   protected final int idleMonitorExpirationMs;
   protected HostSpec customEndpointHostSpec;
@@ -115,6 +124,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
     this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
     this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
+
+    this.telemetryFactory = pluginService.getTelemetryFactory();
+    this.endpointConnectionsCounter = telemetryFactory.createCounter(TELEMETRY_CUSTOM_ENDPOINT_COUNTER);
+    this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
   }
 
   @Override
@@ -149,15 +162,15 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       Properties props,
       boolean isInitialConnection,
       JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    if (!isInitialConnection || !this.rdsUtils.isRdsCustomClusterDns(hostSpec.getHost())) {
+    if (!this.rdsUtils.isRdsCustomClusterDns(hostSpec.getHost())) {
       return connectFunc.call();
     }
 
-    // If we get here we are making an initial connection to a custom cluster URL
+    this.customEndpointHostSpec = hostSpec;
+    this.endpointConnectionsCounter.inc();
     LOGGER.finest(
         Messages.get(
             "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[]{ hostSpec.getHost() }));
-    this.customEndpointHostSpec = hostSpec;
 
     monitors.computeIfAbsent(
         this.customEndpointHostSpec.getHost(),
@@ -170,6 +183,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
     );
 
+    // If needed, wait a short time for custom endpoint info to be discovered.
     boolean isInfoInCache = waitForCustomEndpointInfo();
 
     if (!isInfoInCache) {
@@ -189,6 +203,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     if (!isInfoInCache) {
       // Wait for the monitor to place the custom endpoint info in the cache. This ensures other plugins get accurate
       // custom endpoint info.
+      this.waitForInfoCounter.inc();
       LOGGER.fine(
           Messages.get(
               "CustomEndpointPlugin.waitingforCustomEndpointInfo",
@@ -237,6 +252,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
     );
 
+    // If needed, wait a short time for custom endpoint info to be discovered.
     boolean isInfoInCache = waitForCustomEndpointInfo();
 
     if (!isInfoInCache) {
