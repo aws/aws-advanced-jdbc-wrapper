@@ -1,3 +1,19 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -66,9 +82,9 @@ public class CustomEndpointTest {
   protected static final String oneInstanceEndpointId = "test-endpoint-1";
   protected static final String twoInstanceEndpointId = "test-endpoint-2";
   protected static final Map<String, DBClusterEndpoint> endpoints = new HashMap<String, DBClusterEndpoint>() {{
-    put(oneInstanceEndpointId, null);
-    put(twoInstanceEndpointId, null);
-  }};
+      put(oneInstanceEndpointId, null);
+      put(twoInstanceEndpointId, null);
+    }};
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   protected static final boolean reuseExistingEndpoint = false;
@@ -98,7 +114,7 @@ public class CustomEndpointTest {
   }
 
   private static void deleteEndpoints(RdsClient client) {
-    for (String endpointId : endpoints.keySet() ) {
+    for (String endpointId : endpoints.keySet()) {
       try {
         client.deleteDBClusterEndpoint((builder) -> builder.dbClusterEndpointIdentifier(endpointId));
       } catch (DbClusterEndpointNotFoundException e) {
@@ -136,10 +152,10 @@ public class CustomEndpointTest {
       RdsClient client, String clusterId, String endpointId, List<TestInstanceInfo> instances) {
     List<String> instanceIDs = instances.stream().map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
     client.createDBClusterEndpoint((builder) ->
-      builder.dbClusterEndpointIdentifier(endpointId)
-          .dbClusterIdentifier(clusterId)
-          .endpointType("ANY")
-          .staticMembers(instanceIDs));
+        builder.dbClusterEndpointIdentifier(endpointId)
+            .dbClusterIdentifier(clusterId)
+            .endpointType("ANY")
+            .staticMembers(instanceIDs));
   }
 
   public static void waitUntilEndpointsAvailable(RdsClient client, String clusterId) {
@@ -201,7 +217,8 @@ public class CustomEndpointTest {
       fail("Timed out while waiting for the custom endpoint to stabilize");
     }
 
-    LOGGER.fine("waitUntilEndpointHasCorrectState took " + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) + " seconds");
+    LOGGER.fine("waitUntilEndpointHasCorrectState took "
+        + TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start) + " seconds");
   }
 
   @BeforeEach
