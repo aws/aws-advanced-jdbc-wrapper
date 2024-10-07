@@ -133,6 +133,10 @@ public class SlidingExpirationCache<K, V> {
       return cacheItem;
     });
 
+    if (itemList.isEmpty()) {
+      return;
+    }
+
     V item = itemList.get(0);
     if (item != null && itemDisposalFunc != null) {
       itemDisposalFunc.dispose(item);
