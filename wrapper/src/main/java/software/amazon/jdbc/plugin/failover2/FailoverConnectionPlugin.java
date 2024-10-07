@@ -642,7 +642,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
     if (isInitialConnection
         && FAILOVER_MODE.getString(props) == null
         && this.rdsHelper.isRdsCustomClusterDns(hostSpec.getHost())) {
@@ -661,16 +660,17 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
     }
 
-    if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
-      return connectFunc.call();
-    }
-
     // This call was initiated by this failover2 plugin and doesn't require any additional processing.
     if (props.containsKey(INTERNAL_CONNECT_PROPERTY_NAME)) {
       return connectFunc.call();
     }
 
     Connection conn = null;
+
+    if (!ENABLE_CONNECT_FAILOVER.getBoolean(props)) {
+      return this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
+            driverProtocol, hostSpec, props, connectFunc);
+    }
 
     final HostSpec hostSpecWithAvailability = this.pluginService.getHosts().stream()
         .filter(x -> x.getHostAndPort().equals(hostSpec.getHostAndPort()))
