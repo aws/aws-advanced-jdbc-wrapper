@@ -579,7 +579,7 @@ public class WrapperUtils {
         return !stmt.isClosed() ? stmt.getConnection() : null;
       } else if (obj instanceof ResultSet) {
         final ResultSet rs = (ResultSet) obj;
-        final Statement stmt = rs.getStatement();
+        final Statement stmt = !rs.isClosed() ? rs.getStatement() : null;
         return stmt != null && !stmt.isClosed() ? stmt.getConnection() : null;
       }
     } catch (final SQLException | UnsupportedOperationException e) {

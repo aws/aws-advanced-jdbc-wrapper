@@ -161,6 +161,16 @@ public class WrapperUtilsTest {
   }
 
   @Test
+  void getConnectionFromSqlObjectChecksResultSetNotClosed() throws Exception {
+    final ResultSet mockResultSet = mock(ResultSet.class);
+    when(mockResultSet.isClosed()).thenReturn(true);
+    when(mockResultSet.getStatement()).thenThrow(IllegalStateException.class);
+
+    final Connection rsConn = WrapperUtils.getConnectionFromSqlObject(mockResultSet);
+    assertNull(rsConn);
+  }
+
+  @Test
   void testStatementWrapper() throws InstantiationException {
     ConnectionPluginManager mockPluginManager = mock(ConnectionPluginManager.class);
 
