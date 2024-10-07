@@ -80,8 +80,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS = new AwsWrapperProperty(
       "waitForCustomEndpointInfoTimeoutMs", "5000",
-      "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be "
-          + "populated in the cache.");
+      "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be made "
+          + "available by the custom endpoint monitor.");
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS = new AwsWrapperProperty(
       "customEndpointMonitorExpirationMs", String.valueOf(TimeUnit.MINUTES.toMillis(15)),
@@ -300,18 +300,18 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   /**
    * Executes the given method via a pipeline of plugins. If a custom endpoint is being used, a monitor for that custom
-   * endpoint will be created  if it does not already exist.
+   * endpoint will be created if it does not already exist.
    *
-   * @param resultClass    The class of the object returned by {@code jdbcMethodFunc}.
+   * @param resultClass    The class of the object returned by the {@code jdbcMethodFunc}.
    * @param exceptionClass The desired exception class for any exceptions that occur while executing the
    *                       {@code jdbcMethodFunc}.
    * @param methodInvokeOn The object that the {@code jdbcMethodFunc} is being invoked on.
    * @param methodName     The name of the method being invoked.
-   * @param jdbcMethodFunc The execute pipeline to call to execute the method being invoked.
+   * @param jdbcMethodFunc The execute pipeline to call to invoke the method.
    * @param jdbcMethodArgs The arguments to the method being invoked.
    * @param <T>            The type of the result returned by the method.
    * @param <E>            The desired type for any exceptions that occur while executing the {@code jdbcMethodFunc}.
-   * @return The result of the method invocation as determined by calling the {@code jdbcMethodFunc}.
+   * @return The result of the method invocation.
    * @throws E If an exception occurs, either directly in this method, or while executing the {@code jdbcMethodFunc}.
    */
   @Override

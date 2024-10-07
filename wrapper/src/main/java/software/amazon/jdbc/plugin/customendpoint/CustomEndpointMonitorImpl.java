@@ -46,7 +46,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
 
-  // Keys are custom cluster endpoint identifiers, values are information objects for the associated custom cluster.
+  // Keys are custom endpoint identifiers, values are information objects for the associated custom endpoint.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
 
@@ -162,7 +162,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
                 "CustomEndpointMonitorImpl.detectedChangeInCustomEndpointInfo",
                 new Object[]{ this.customEndpointHostSpec.getHost(), endpointInfo }));
 
-        // The custom endpoint info has changed, so we need to update the info in the registered plugin services.
+        // The custom endpoint info has changed, so we need to update the plugin service info cache.
         customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
         this.pluginService.setInfo(this.customEndpointHostSpec.getHost(), endpointInfo, true);
         this.infoChangedCounter.inc();

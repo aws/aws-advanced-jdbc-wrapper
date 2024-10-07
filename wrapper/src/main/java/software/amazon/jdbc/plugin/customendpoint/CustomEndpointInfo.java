@@ -27,16 +27,17 @@ import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
  * Represents custom endpoint information for a given custom endpoint.
  */
 public class CustomEndpointInfo {
-  private final String endpointIdentifier; // ID portion of the custom cluster endpoint URL.
-  private final String clusterIdentifier; // ID of the cluster that the custom cluster endpoint belongs to.
+  private final String endpointIdentifier; // ID portion of the custom endpoint URL.
+  private final String clusterIdentifier; // ID of the cluster that the custom endpoint belongs to.
   private final String url;
   private final CustomEndpointRoleType roleType;
 
   // A given custom endpoint will either specify a static list or an exclusion list, as indicated by `memberListType`.
-  // If the list is a static list, new cluster instances will not be added to the custom endpoint. If it is an exclusion
-  // list, new cluster instances will be added to the custom endpoint.
-  private final List<String> members;
+  // If the list is a static list, 'members' specifies instances included in the custom endpoint, and new cluster
+  // instances will not be automatically added to the custom endpoint. If it is an exclusion list, 'members' specifies
+  // instances excluded by the custom endpoint, and new cluster instances will be added to the custom endpoint.
   private final MemberListType memberListType;
+  private final List<String> members;
 
   /**
    * Constructs a new CustomEndpointInfo instance with the specified details.
@@ -46,7 +47,7 @@ public class CustomEndpointInfo {
    *                           identifier is "my-custom-endpoint".
    * @param clusterIdentifier  The cluster identifier for the cluster that the custom endpoint belongs to.
    * @param url                The URL for the custom endpoint.
-   * @param roleType           The role type of the custom cluster.
+   * @param roleType           The role type of the custom endpoint.
    * @param members            The instance IDs for the hosts in the custom endpoint.
    * @param memberListType     The list type for {@code members}.
    */

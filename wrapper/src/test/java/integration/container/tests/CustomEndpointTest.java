@@ -71,7 +71,7 @@ public class CustomEndpointTest {
   }};
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  protected static final boolean reuseExistingEndpoint = true;
+  protected static final boolean reuseExistingEndpoint = false;
 
   protected String currentWriter;
 
@@ -268,7 +268,7 @@ public class CustomEndpointTest {
     final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
-    // This setting is not required for the test, but it allows us to also test recreation of expired monitors since it
+    // This setting is not required for the test, but it allows us to also test re-creation of expired monitors since it
     // takes more than 30 seconds to modify the cluster endpoint (usually around 140s).
     props.setProperty("customEndpointMonitorExpirationMs", "30000");
 

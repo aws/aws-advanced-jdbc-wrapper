@@ -741,6 +741,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  @Nullable
   public <T> T getInfo(final String infoKey, final @NonNull Class<T> clazz, final boolean clusterBound) {
     final String cacheKey = this.getInfoCacheKey(infoKey, clusterBound);
     return clazz.cast(infoCache.get(cacheKey));
