@@ -37,7 +37,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointType;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointRoleType;
 import software.amazon.jdbc.plugin.failover.FailoverFailedSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverMode;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
@@ -650,8 +650,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           Messages.get("Failover.failoverModeDeterminedFromCustomEndpointType", new Object[]{ this.failoverMode }));
 
       CustomEndpointInfo customEndpointInfo =
-          this.pluginService.getStatus(hostSpec.getHost(), CustomEndpointInfo.class, true);
-      if (CustomEndpointType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {
+          this.pluginService.getInfo(hostSpec.getHost(), CustomEndpointInfo.class, true);
+      if (CustomEndpointRoleType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {
         this.failoverMode = FailoverMode.READER_OR_WRITER;
       } else {
         this.failoverMode = FailoverMode.STRICT_READER;

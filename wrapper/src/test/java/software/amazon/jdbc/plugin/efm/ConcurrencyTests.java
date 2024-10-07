@@ -577,11 +577,11 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public <T> void setStatus(String statusKey, @Nullable T status, boolean clusterBound) {
+    public <T> void setInfo(String infoKey, @Nullable T info, boolean clusterBound) {
     }
 
     @Override
-    public <T> T getStatus(String statusKey, @NonNull Class<T> clazz, boolean clusterBound) {
+    public <T> T getInfo(String infoKey, @NonNull Class<T> clazz, boolean clusterBound) {
       return null;
     }
 

@@ -62,8 +62,20 @@ public interface PluginService extends ExceptionHandler {
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
 
+  /**
+   * Get host information for all hosts in the cluster.
+   *
+   * @return host information for all hosts in the cluster.
+   */
   List<HostSpec> getAllHosts();
 
+  /**
+   * Get host information for allowed hosts in the cluster. Certain hosts in the cluster may be disallowed, and these
+   * hosts will not be returned by this function. For example, if a custom endpoint is being used, hosts outside the
+   * custom endpoint will not be returned.
+   *
+   * @return host information for allowed hosts in the cluster.
+   */
   List<HostSpec> getHosts();
 
   HostSpec getInitialConnectionHostSpec();
@@ -220,9 +232,27 @@ public interface PluginService extends ExceptionHandler {
 
   @NonNull SessionStateService getSessionStateService();
 
-  <T> void setStatus(final String statusKey, final @Nullable T status, final boolean clusterBound);
+  /**
+   * Store generic info in the shared info cache. This can be used to store different types of information that must
+   * be widely accessible via the plugin service.
+   *
+   * @param infoKey The key for the info being stored.
+   * @param info T The info to store in the cache.
+   * @param clusterBound Whether the info is specific to the current cluster being used.
+   * @param <T> The type of info being stored.
+   */
+  <T> void setInfo(final String infoKey, final @Nullable T info, final boolean clusterBound);
 
-  <T> T getStatus(final String statusKey, final @NonNull Class<T> clazz, final boolean clusterBound);
+  /**
+   * Fetch info from the shared info cache.
+   *
+   * @param infoKey The key for the info to fetch.
+   * @param clazz The class of the info being fetched.
+   * @param clusterBound Whether the info is specific to the current cluster being used.
+   * @return The info stored in the cache.
+   * @param <T> The type of info stored in the cache to be returned.
+   */
+  <T> T getInfo(final String infoKey, final @NonNull Class<T> clazz, final boolean clusterBound);
 
   <T> T getPlugin(final Class<T> pluginClazz);
 }

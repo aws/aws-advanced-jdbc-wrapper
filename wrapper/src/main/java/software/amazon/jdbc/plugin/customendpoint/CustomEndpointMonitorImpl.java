@@ -16,11 +16,7 @@
 
 package software.amazon.jdbc.plugin.customendpoint;
 
-import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS;
-import static software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin.REGION_PROPERTY;
-
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +38,10 @@ import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
+/**
+ * The default custom endpoint monitor implementation. This class uses a background thread to monitor a given custom
+ * endpoint for custom endpoint information and future changes to the custom endpoint.
+ */
 public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
@@ -69,20 +69,31 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     return monitoringThread;
   });
 
-  private final TelemetryFactory telemetryFactory;
   private final TelemetryCounter infoChangedCounter;
 
+  /**
+   * Constructs a CustomEndpointMonitorImpl instance for the host specified by {@code customEndpointHostSpec}.
+   *
+   * @param pluginService          The plugin service to use to update the plugin service info cache with custom
+   *                               endpoint info.
+   * @param customEndpointHostSpec The host information for the custom endpoint to be monitored.
+   * @param region                 The region of the custom endpoint to be monitored.
+   * @param refreshRateNano        Controls how often the custom endpoint information should be fetched and analyzed for
+   *                               changes. The value specified should be in nanoseconds.
+   * @param rdsClientFunc          The function to call to create the RDS client that will fetch custom endpoint
+   *                               information.
+   */
   public CustomEndpointMonitorImpl(
       PluginService pluginService,
       HostSpec customEndpointHostSpec,
-      Properties props,
+      Region region,
+      long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.pluginService = pluginService;
     this.customEndpointHostSpec = customEndpointHostSpec;
-    this.region = getRegion(customEndpointHostSpec, props);
+    this.region = region;
+    this.refreshRateNano = refreshRateNano;
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
-
-    this.refreshRateNano = TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props));
 
     this.endpointIdentifier = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
     if (StringUtils.isNullOrEmpty(this.endpointIdentifier)) {
@@ -92,38 +103,16 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
               new Object[] {customEndpointHostSpec.getHost()}));
     }
 
-    this.telemetryFactory = this.pluginService.getTelemetryFactory();
-    this.infoChangedCounter = this.telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
 
     this.monitorExecutor.submit(this);
     this.monitorExecutor.shutdown();
   }
 
-  protected Region getRegion(HostSpec hostSpec, Properties props) {
-    String regionString = REGION_PROPERTY.getString(props);
-    if (StringUtils.isNullOrEmpty(regionString)) {
-      regionString = rdsUtils.getRdsRegion(hostSpec.getHost());
-    }
-
-    if (StringUtils.isNullOrEmpty(regionString)) {
-      throw new
-          RuntimeException(
-          Messages.get(
-              "CustomEndpointMonitorImpl.missingRequiredConfigParameter",
-              new Object[] {REGION_PROPERTY.name}));
-    }
-
-    final Region region = Region.of(regionString);
-    if (!Region.regions().contains(region)) {
-      throw new RuntimeException(
-          Messages.get(
-              "AwsSdk.unsupportedRegion",
-              new Object[] {regionString}));
-    }
-
-    return region;
-  }
-
+  /**
+   * Analyzes a given custom endpoint for changes to custom endpoint information.
+   */
   @Override
   public void run() {
     LOGGER.fine(
@@ -175,7 +164,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
         // The custom endpoint info has changed, so we need to update the info in the registered plugin services.
         customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
-        this.pluginService.setStatus(this.customEndpointHostSpec.getHost(), endpointInfo, true);
+        this.pluginService.setInfo(this.customEndpointHostSpec.getHost(), endpointInfo, true);
         this.infoChangedCounter.inc();
 
         long elapsedTime = System.nanoTime() - start;
@@ -197,6 +186,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     return true;
   }
 
+  /**
+   * Stops the custom endpoint monitor.
+   */
   @Override
   public void close() {
     LOGGER.fine(
@@ -231,6 +223,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     }
   }
 
+  /**
+   * Clears the shared custom endpoint information cache.
+   */
   public static void clearCache() {
     LOGGER.info(Messages.get("CustomEndpointMonitorImpl.clearCache"));
     customEndpointInfoCache.clear();

@@ -42,7 +42,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointType;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointRoleType;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
@@ -803,8 +803,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         && FAILOVER_MODE.getString(props) == null
         && this.rdsHelper.isRdsCustomClusterDns(hostSpec.getHost())) {
       CustomEndpointInfo customEndpointInfo =
-          this.pluginService.getStatus(hostSpec.getHost(), CustomEndpointInfo.class, true);
-      if (CustomEndpointType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {
+          this.pluginService.getInfo(hostSpec.getHost(), CustomEndpointInfo.class, true);
+      if (CustomEndpointRoleType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {
         this.failoverMode = FailoverMode.READER_OR_WRITER;
       } else {
         this.failoverMode = FailoverMode.STRICT_READER;

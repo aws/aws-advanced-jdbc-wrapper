@@ -17,10 +17,15 @@
 package software.amazon.jdbc.plugin.customendpoint;
 
 /**
- * Interface for custom endpoint monitors. This class uses background threads to monitor custom endpoints for info on
- * allowed and excluded hosts.
+ * Interface for custom endpoint monitors. Custom endpoint monitors analyze a given custom endpoint for custom endpoint
+ * information and future changes to the endpoint.
  */
 public interface CustomEndpointMonitor extends AutoCloseable, Runnable {
 
+  /**
+   * Evaluates whether the monitor should be disposed.
+   *
+   * @return true if the monitor should be disposed, otherwise return false.
+   */
   boolean shouldDispose();
 }

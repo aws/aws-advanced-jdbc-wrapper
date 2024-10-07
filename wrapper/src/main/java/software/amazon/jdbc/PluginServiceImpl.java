@@ -64,8 +64,10 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
-  protected static final CacheMap<String, Object> statusesExpiringCache = new CacheMap<>();
-  protected static final long DEFAULT_STATUS_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
+  // A generic shared info cache that can be used to store different types of information that must be widely accessible
+  // via the plugin service.
+  protected static final CacheMap<String, Object> infoCache = new CacheMap<>();
+  protected static final long DEFAULT_INFO_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
 
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ConnectionPluginManager pluginManager;
@@ -389,7 +391,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public List<HostSpec> getHosts() {
     CustomEndpointInfo customEndpointInfo =
-        this.getStatus(this.initialConnectionHostSpec.getHost(), CustomEndpointInfo.class, true);
+        this.getInfo(this.initialConnectionHostSpec.getHost(), CustomEndpointInfo.class, true);
     if (customEndpointInfo == null) {
       return this.hosts;
     }
@@ -727,33 +729,32 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
-  public <T> void setStatus(final String statusKey, final @Nullable T status, final boolean clusterBound) {
-    final String cacheKey = this.getStatusCacheKey(statusKey, clusterBound);
-    LOGGER.finest(String.format("statusCacheKey: %s, size: %d", cacheKey, statusesExpiringCache.size()));
-    if (status == null) {
-      statusesExpiringCache.remove(cacheKey);
-      LOGGER.finest(String.format("remove status, size: %d", statusesExpiringCache.size()));
+  public <T> void setInfo(final String infoKey, final @Nullable T info, final boolean clusterBound) {
+    final String cacheKey = this.getInfoCacheKey(infoKey, clusterBound);
+    if (info == null) {
+      infoCache.remove(cacheKey);
+      LOGGER.finest(Messages.get("PluginServiceImpl.removeInfo", new Object[]{ cacheKey, infoCache.size() }));
     } else {
-      statusesExpiringCache.put(cacheKey, status, DEFAULT_STATUS_CACHE_EXPIRE_NANO);
-      LOGGER.finest(String.format("set status, size: %d", statusesExpiringCache.size()));
+      infoCache.put(cacheKey, info, DEFAULT_INFO_CACHE_EXPIRE_NANO);
+      LOGGER.finest(Messages.get("PluginServiceImpl.setInfo", new Object[]{ cacheKey, infoCache.size() }));
     }
   }
 
   @Override
-  public <T> T getStatus(final String statusKey, final @NonNull Class<T> clazz, final boolean clusterBound) {
-    final String cacheKey = this.getStatusCacheKey(statusKey, clusterBound);
-    return clazz.cast(statusesExpiringCache.get(cacheKey));
+  public <T> T getInfo(final String infoKey, final @NonNull Class<T> clazz, final boolean clusterBound) {
+    final String cacheKey = this.getInfoCacheKey(infoKey, clusterBound);
+    return clazz.cast(infoCache.get(cacheKey));
   }
 
-  protected <T> String getStatusCacheKey(final String statusKey, final boolean clusterBound) {
+  protected <T> String getInfoCacheKey(final String infoKey, final boolean clusterBound) {
     return clusterBound
-        ? String.format("%s::%s", this.hostListProvider.getClusterId(), statusKey)
-        : statusKey;
+        ? String.format("%s::%s", this.hostListProvider.getClusterId(), infoKey)
+        : infoKey;
   }
 
-  public static void clearCache() {
+  public static void clearInfoCache() {
     LOGGER.info(Messages.get("PluginServiceImpl.clearCache"));
-    statusesExpiringCache.clear();
+    infoCache.clear();
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {

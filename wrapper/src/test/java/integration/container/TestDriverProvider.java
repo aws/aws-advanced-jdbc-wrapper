@@ -237,8 +237,8 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
     HikariPooledConnectionProvider.clearCache();
     MonitoringRdsHostListProvider.clearCache();
-    PluginServiceImpl.clearCache();
-    CustomEndpointPlugin.clearCache();
+    PluginServiceImpl.clearInfoCache();
+    CustomEndpointPlugin.closeMonitors();
     CustomEndpointMonitorImpl.clearCache();
   }
 

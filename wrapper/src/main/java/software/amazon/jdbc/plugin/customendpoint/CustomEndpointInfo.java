@@ -23,11 +23,14 @@ import java.util.List;
 import java.util.Objects;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 
+/**
+ * Represents custom endpoint information for a given custom endpoint.
+ */
 public class CustomEndpointInfo {
   private final String endpointIdentifier; // ID portion of the custom cluster endpoint URL.
   private final String clusterIdentifier; // ID of the cluster that the custom cluster endpoint belongs to.
   private final String url;
-  private final CustomEndpointType customEndpointType;
+  private final CustomEndpointRoleType roleType;
 
   // A given custom endpoint will either specify a static list or an exclusion list, as indicated by `memberListType`.
   // If the list is a static list, new cluster instances will not be added to the custom endpoint. If it is an exclusion
@@ -35,21 +38,39 @@ public class CustomEndpointInfo {
   private final List<String> members;
   private final MemberListType memberListType;
 
-  CustomEndpointInfo(
+  /**
+   * Constructs a new CustomEndpointInfo instance with the specified details.
+   *
+   * @param endpointIdentifier The endpoint identifier for the custom endpoint. For example, if the custom endpoint URL
+   *                           is "my-custom-endpoint.cluster-custom-XYZ.us-east-1.rds.amazonaws.com", the endpoint
+   *                           identifier is "my-custom-endpoint".
+   * @param clusterIdentifier  The cluster identifier for the cluster that the custom endpoint belongs to.
+   * @param url                The URL for the custom endpoint.
+   * @param roleType           The role type of the custom cluster.
+   * @param members            The instance IDs for the hosts in the custom endpoint.
+   * @param memberListType     The list type for {@code members}.
+   */
+  public CustomEndpointInfo(
       String endpointIdentifier,
       String clusterIdentifier,
       String url,
-      CustomEndpointType customEndpointType,
+      CustomEndpointRoleType roleType,
       List<String> members,
       MemberListType memberListType) {
     this.endpointIdentifier = endpointIdentifier;
     this.clusterIdentifier = clusterIdentifier;
     this.url = url;
-    this.customEndpointType = customEndpointType;
+    this.roleType = roleType;
     this.members = members;
     this.memberListType = memberListType;
   }
 
+  /**
+   * Constructs a CustomEndpointInfo object from a DBClusterEndpoint instance as returned by the RDS API.
+   *
+   * @param responseEndpointInfo The endpoint info returned by the RDS API.
+   * @return A CustomEndPointInfo object representing the information in the given DBClusterEndpoint.
+   */
   public static CustomEndpointInfo fromDBClusterEndpoint(DBClusterEndpoint responseEndpointInfo) {
     final List<String> members;
     final MemberListType memberListType;
@@ -66,36 +87,77 @@ public class CustomEndpointInfo {
         responseEndpointInfo.dbClusterEndpointIdentifier(),
         responseEndpointInfo.dbClusterIdentifier(),
         responseEndpointInfo.endpoint(),
-        CustomEndpointType.valueOf(responseEndpointInfo.customEndpointType()),
+        CustomEndpointRoleType.valueOf(responseEndpointInfo.customEndpointType()),
         members,
         memberListType
     );
   }
 
+  /**
+   * Gets the endpoint identifier for the custom endpoint. For example, if the custom endpoint URL is
+   * "my-custom-endpoint.cluster-custom-XYZ.us-east-1.rds.amazonaws.com", the endpoint identifier is
+   * "my-custom-endpoint".
+   *
+   * @return The endpoint identifier for the custom endpoint.
+   */
   public String getEndpointIdentifier() {
     return endpointIdentifier;
   }
 
+  /**
+   * Gets the cluster identifier for the cluster that the custom endpoint belongs to.
+   *
+   * @return The cluster identifier for the cluster that the custom endpoint belongs to.
+   */
   public String getClusterIdentifier() {
     return clusterIdentifier;
   }
 
+  /**
+   * Gets the URL for the custom endpoint.
+   *
+   * @return The URL for the custom endpoint.
+   */
   public String getUrl() {
     return url;
   }
 
-  public CustomEndpointType getCustomEndpointType() {
-    return customEndpointType;
+  /**
+   * Gets the role type of the custom endpoint.
+   *
+   * @return The role type of the custom endpoint.
+   */
+  public CustomEndpointRoleType getCustomEndpointType() {
+    return roleType;
   }
 
+  /**
+   * Gets the member list type of the custom endpoint.
+   *
+   * @return The member list type of the custom endpoint.
+   */
   public MemberListType getMemberListType() {
     return this.memberListType;
   }
 
+  /**
+   * Gets the static members of the custom endpoint. If the custom endpoint member list type is an exclusion list,
+   * returns null.
+   *
+   * @return The static members of the custom endpoint, or null if the custom endpoint member list type is an exclusion
+   *     list.
+   */
   public List<String> getStaticMembers() {
     return STATIC_LIST.equals(this.memberListType) ? this.members : null;
   }
 
+  /**
+   * Gets the excluded members of the custom endpoint. If the custom endpoint member list type is a static list,
+   * returns null.
+   *
+   * @return The excluded members of the custom endpoint, or null if the custom endpoint member list type is a static
+   *     list.
+   */
   public List<String> getExcludedMembers() {
     return EXCLUSION_LIST.equals(this.memberListType) ? this.members : null;
   }
@@ -118,7 +180,7 @@ public class CustomEndpointInfo {
     return Objects.equals(this.endpointIdentifier, info.endpointIdentifier)
         && Objects.equals(this.clusterIdentifier, info.clusterIdentifier)
         && Objects.equals(this.url, info.url)
-        && Objects.equals(this.customEndpointType, info.customEndpointType)
+        && Objects.equals(this.roleType, info.roleType)
         && Objects.equals(this.members, info.members)
         && Objects.equals(this.memberListType, info.memberListType);
   }
@@ -130,7 +192,7 @@ public class CustomEndpointInfo {
     result = prime * result + ((this.endpointIdentifier == null) ? 0 : this.endpointIdentifier.hashCode());
     result = prime * result + ((this.clusterIdentifier == null) ? 0 : this.clusterIdentifier.hashCode());
     result = prime * result + ((this.url == null) ? 0 : this.url.hashCode());
-    result = prime * result + ((this.customEndpointType == null) ? 0 : this.customEndpointType.hashCode());
+    result = prime * result + ((this.roleType == null) ? 0 : this.roleType.hashCode());
     result = prime * result + ((this.memberListType == null) ? 0 : this.memberListType.hashCode());
     return result;
   }
@@ -139,6 +201,6 @@ public class CustomEndpointInfo {
   public String toString() {
     return String.format(
         "CustomEndpointInfo[url=%s, clusterIdentifier=%s, customEndpointType=%s, memberListType=%s, members=%s]",
-        this.url, this.clusterIdentifier, this.customEndpointType, this.memberListType, this.members);
+        this.url, this.clusterIdentifier, this.roleType, this.memberListType, this.members);
   }
 }
