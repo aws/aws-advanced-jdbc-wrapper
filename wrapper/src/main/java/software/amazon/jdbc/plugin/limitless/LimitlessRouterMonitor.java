@@ -40,6 +40,8 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.RoundRobinHostSelector;
+import software.amazon.jdbc.dialect.AuroraLimitlessDialect;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
@@ -58,6 +60,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private static final String MONITORING_PROPERTY_PREFIX = "limitless-router-monitor-";
   private final int intervalMs;
   private final @NonNull HostSpec hostSpec;
+  private final @NonNull String limitlessRouterEndpointQuery;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final AtomicReference<List<HostSpec>> limitlessRouters = new AtomicReference<>(
       Collections.unmodifiableList(new ArrayList<>()));
@@ -83,6 +86,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
       final int intervalMs) {
     this.pluginService = pluginService;
     this.hostSpec = hostSpec;
+    this.limitlessRouterEndpointQuery = getLimitlessRouterEndpointQuery();
     this.props = PropertyUtils.copyProperties(props);
 
     props.stringPropertyNames().stream()
@@ -101,6 +105,15 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
 
     this.threadPool.submit(this);
     this.threadPool.shutdown(); // No more task are accepted by pool.
+  }
+
+  private String getLimitlessRouterEndpointQuery() {
+    Dialect dialect = this.pluginService.getDialect();
+    if (dialect instanceof AuroraLimitlessDialect) {
+      return ((AuroraLimitlessDialect) dialect).getLimitlessRouterEndpointQuery();
+    }
+    throw new UnsupportedOperationException(Messages.get("LimitlessRouterMonitor.unsupportedDialectOrDatabase",
+        new Object[] {dialect}));
   }
 
   public List<HostSpec> getLimitlessRouters() {
@@ -226,8 +239,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     }
 
     try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(
-             "select router_endpoint, load from aurora_limitless_router_endpoints()")) {
+         final ResultSet resultSet = stmt.executeQuery(this.limitlessRouterEndpointQuery)) {
       return mapResultSetToHostSpecList(resultSet);
     } catch (final SQLSyntaxErrorException e) {
       throw new SQLException(Messages.get("LimitlessRouterMonitor.invalidQuery"), e);
