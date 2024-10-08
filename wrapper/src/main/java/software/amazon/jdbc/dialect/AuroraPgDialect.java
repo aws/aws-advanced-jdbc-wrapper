@@ -54,7 +54,7 @@ public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect
   private static final String NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
   protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
-      "select router_endopint, load from aurora_limitless_router_endpoints()";
+      "select router_endpoint, load from aurora_limitless_router_endpoints()";
 
   @Override
   public boolean isDialect(final Connection connection) {

@@ -16,7 +16,10 @@
 
 package software.amazon.jdbc.plugin.limitless;
 
+import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 
@@ -25,6 +28,7 @@ public interface LimitlessRouterMonitorInitializer {
   LimitlessRouterMonitor createLimitlessRouterMonitor(
       final PluginService pluginService,
       final HostSpec hostSpec,
+      final AtomicReference<List<HostSpec>> limitlessRouters,
       final Properties props,
       final int intervalMs
   );

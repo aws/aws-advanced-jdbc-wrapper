@@ -17,9 +17,12 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -51,6 +54,14 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           CACHE_CLEANUP_NANO
       );
 
+  private static final SlidingExpirationCacheWithCleanupThread<String, AtomicReference<List<HostSpec>>>
+      limitlessRouterCache =
+      new SlidingExpirationCacheWithCleanupThread<>(
+          x  -> true,
+          x -> {},
+        CACHE_CLEANUP_NANO
+      );
+
   public LimitlessRouterServiceImpl() {
     this(LimitlessRouterMonitor::new);
   }
@@ -63,14 +74,11 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   public List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
-
-    final LimitlessRouterMonitor
-        limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
-    if (limitlessRouterMonitor == null) {
-      throw new SQLException(
-          Messages.get("LimitlessRouterServiceImpl.nulLimitlessRouterMonitor", new Object[]{clusterId}));
+    final AtomicReference<List<HostSpec>> limitlessRouters = limitlessRouterCache.get(clusterId, cacheExpirationNano);
+    if (limitlessRouters == null) {
+      return Collections.emptyList();
     }
-    return limitlessRouterMonitor.getLimitlessRouters();
+    return limitlessRouters.get();
   }
 
   @Override
@@ -106,12 +114,23 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     try {
       final String limitlessRouterMonitorKey = pluginService.getHostListProvider().getClusterId();
       final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props));
+      final AtomicReference<List<HostSpec>> limitlessRouters = new AtomicReference<>(Collections.unmodifiableList(new ArrayList<>()));
 
       limitlessRouterMonitors.computeIfAbsent(
           limitlessRouterMonitorKey,
           key -> this.limitlessRouterMonitorInitializer
-              .createLimitlessRouterMonitor(pluginService, hostSpec, props, intervalMs),
+              .createLimitlessRouterMonitor(
+                  pluginService,
+                  hostSpec,
+                  limitlessRouters,
+                  props,
+                  intervalMs),
           cacheExpirationNano);
+      limitlessRouterCache.computeIfAbsent(
+          limitlessRouterMonitorKey,
+          key -> limitlessRouters,
+          cacheExpirationNano
+      );
     } catch (UnsupportedOperationException e) {
       throw e;
     }

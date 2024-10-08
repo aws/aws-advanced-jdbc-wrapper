@@ -18,6 +18,7 @@ package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -64,6 +65,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       "limitlessConnectMaxRetries",
       "5",
       "Max number of connection retries the Limitless Connection Plugin will attempt.");
+  protected static final List<Class> SUPPORTED_DIALECTS = Arrays.asList(AuroraLimitlessDialect.class);
   protected final PluginService pluginService;
   protected final @NonNull Properties properties;
   private final @NonNull Supplier<LimitlessRouterService> limitlessRouterServiceSupplier;
@@ -109,7 +111,6 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
     final Connection conn = connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
-    checkDialectSupport();
     return conn;
   }
 
@@ -122,7 +123,6 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
     final Connection conn = connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
-    checkDialectSupport();
     return conn;
   }
 
@@ -141,6 +141,18 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection,
           SQLException> connectFunc) throws SQLException {
+
+//     final Dialect dialect = this.pluginService.getDialect();
+//     if (SUPPORTED_DIALECTS.contains(dialect)) {
+//       // TODO: happy path
+//
+//     } else {
+//       // TODO: unhappy path
+//       final Connection conn = connectFunc.call();
+//
+//     }
+
+
     initLimitlessRouterMonitorService();
     if (isInitialConnection) {
       this.limitlessRouterService
@@ -159,7 +171,9 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
         LOGGER.finest(Messages.get("LimitlessConnectionPlugin.usingProvidedConnectUrl"));
         return connectFunc.call();
       }
-    } else if (limitlessRouters.contains(hostSpec)) {
+    }
+
+    if (limitlessRouters.contains(hostSpec)) {
       LOGGER.finest(Messages.get("LimitlessConnectionPlugin.connectWithHost", new Object[] {hostSpec.getHost()}));
       return connectFunc.call();
     }

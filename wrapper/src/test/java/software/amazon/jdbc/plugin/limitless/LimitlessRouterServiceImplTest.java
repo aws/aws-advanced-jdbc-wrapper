@@ -24,6 +24,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import org.junit.Ignore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -69,7 +70,7 @@ public class LimitlessRouterServiceImplTest {
     when(mockLimitlessRouterMonitor.getLimitlessRouters()).thenReturn(endpointHostSpecList);
 
     final LimitlessRouterService limitlessRouterService =
-        new LimitlessRouterServiceImpl((a, b, c, d) -> mockLimitlessRouterMonitor);
+        new LimitlessRouterServiceImpl((a, b, c, d, e) -> mockLimitlessRouterMonitor);
     limitlessRouterService.startMonitoring(mockPluginService, hostSpec, props, intervalMs);
 
     final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
@@ -80,7 +81,7 @@ public class LimitlessRouterServiceImplTest {
   @Test
   void test_nullLimitlessRouterMonitor() {
     final LimitlessRouterService limitlessRouterService =
-        new LimitlessRouterServiceImpl((a, b, c, d) -> null);
+        new LimitlessRouterServiceImpl((a, b, c, d, e) -> null);
     assertThrows(SQLException.class, () -> limitlessRouterService.getLimitlessRouters(OTHER_CLUSTER_ID, props));
   }
 }
