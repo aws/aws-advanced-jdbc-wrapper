@@ -62,8 +62,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private final @NonNull HostSpec hostSpec;
   private final @NonNull String limitlessRouterEndpointQuery;
   private final AtomicBoolean stopped = new AtomicBoolean(false);
-  private final AtomicReference<List<HostSpec>> limitlessRouters = new AtomicReference<>(
-      Collections.unmodifiableList(new ArrayList<>()));
+  private final AtomicReference<List<HostSpec>> limitlessRouters;
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
   private final TelemetryFactory telemetryFactory;
@@ -82,11 +81,13 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   public LimitlessRouterMonitor(
       final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
+      final @NonNull AtomicReference<List<HostSpec>> limitlessRouters,
       final @NonNull Properties props,
       final int intervalMs) {
     this.pluginService = pluginService;
     this.hostSpec = hostSpec;
     this.limitlessRouterEndpointQuery = getLimitlessRouterEndpointQuery();
+    this.limitlessRouters = limitlessRouters;
     this.props = PropertyUtils.copyProperties(props);
 
     props.stringPropertyNames().stream()
