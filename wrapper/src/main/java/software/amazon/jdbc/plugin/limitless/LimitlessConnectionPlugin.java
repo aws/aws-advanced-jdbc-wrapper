@@ -33,6 +33,8 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.RoundRobinHostSelector;
+import software.amazon.jdbc.dialect.AuroraLimitlessDialect;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
@@ -106,7 +108,9 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
+    final Connection conn = connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
+    checkDialectSupport();
+    return conn;
   }
 
   @Override
@@ -117,7 +121,17 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
+    final Connection conn = connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
+    checkDialectSupport();
+    return conn;
+  }
+
+  private void checkDialectSupport() {
+    final Dialect dialect = this.pluginService.getDialect();
+    if (!(dialect instanceof AuroraLimitlessDialect)) {
+      throw new UnsupportedOperationException(Messages.get("LimitlessConnectionPlugin.unsupportedDialectOrDatabase",
+          new Object[]{dialect}));
+    }
   }
 
   private Connection connectInternal(
@@ -151,7 +165,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(props, limitlessRouters);
-    final HostSpec selectedHostSpec;
+    HostSpec selectedHostSpec;
     try {
       selectedHostSpec = this.pluginService.getHostSpecByStrategy(limitlessRouters,
           HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
@@ -159,8 +173,8 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           "LimitlessConnectionPlugin.selectedHost",
           new Object[] {selectedHostSpec.getHost()}));
     } catch (UnsupportedOperationException e) {
-      LOGGER.severe(Messages.get("LimitlessConnectionPlugin.incorrectConfiguration"));
-      throw e;
+      selectedHostSpec = hostSpec;
+      LOGGER.warning(Messages.get("LimitlessConnectionPlugin.errorSelectingRouter", new Object[] {e.getMessage()}));
     }
 
     try {

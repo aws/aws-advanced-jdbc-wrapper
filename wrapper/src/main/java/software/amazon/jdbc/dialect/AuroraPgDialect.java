@@ -29,7 +29,7 @@ import software.amazon.jdbc.plugin.failover2.FailoverConnectionPlugin;
  * Suitable for the following AWS PG configurations.
  * - Regional Cluster
  */
-public class AuroraPgDialect extends PgDialect {
+public class AuroraPgDialect extends PgDialect implements AuroraLimitlessDialect {
   private static final Logger LOGGER = Logger.getLogger(AuroraPgDialect.class.getName());
 
   private static final String extensionsSql =
@@ -53,6 +53,8 @@ public class AuroraPgDialect extends PgDialect {
 
   private static final String NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
   private static final String IS_READER_QUERY = "SELECT pg_is_in_recovery()";
+  protected static final String LIMITLESS_ROUTER_ENDPOINT_QUERY =
+      "select router_endopint, load from aurora_limitless_router_endpoints()";
 
   @Override
   public boolean isDialect(final Connection connection) {
@@ -148,5 +150,10 @@ public class AuroraPgDialect extends PgDialect {
           NODE_ID_QUERY,
           IS_READER_QUERY);
     };
+  }
+
+  @Override
+  public String getLimitlessRouterEndpointQuery() {
+    return LIMITLESS_ROUTER_ENDPOINT_QUERY;
   }
 }
