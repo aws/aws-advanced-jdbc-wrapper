@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.regions.Region;
@@ -46,7 +47,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
   private static final String TELEMETRY_ENDPOINT_INFO_CHANGED = "customEndpoint.infoChanged.counter";
 
-  // Keys are custom endpoint identifiers, values are information objects for the associated custom endpoint.
+  // Keys are custom endpoint URLs, values are information objects for the associated custom endpoint.
   protected static final CacheMap<String, CustomEndpointInfo> customEndpointInfoCache = new CacheMap<>();
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
 
@@ -149,7 +150,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         }
 
         CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
-        CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.endpointIdentifier);
+        CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getHost());
         if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
           long elapsedTime = System.nanoTime() - start;
           long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
@@ -163,7 +164,8 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
                 new Object[]{ this.customEndpointHostSpec.getHost(), endpointInfo }));
 
         // The custom endpoint info has changed, so we need to update the plugin service info cache.
-        customEndpointInfoCache.put(this.endpointIdentifier, endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
+        customEndpointInfoCache.put(
+            this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
         this.pluginService.setInfo(this.customEndpointHostSpec.getHost(), endpointInfo, true);
         this.infoChangedCounter.inc();
 
@@ -174,6 +176,9 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     } catch (InterruptedException e) {
       LOGGER.info(Messages.get("CustomEndpointMonitorImpl.interrupted", new Object[]{ this.customEndpointHostSpec }));
       Thread.currentThread().interrupt();
+    } catch (Exception e) {
+      LOGGER.log(Level.SEVERE,
+          Messages.get("CustomEndpointMonitorImpl.exception", new Object[]{this.customEndpointHostSpec.getHost()}), e);
     } finally {
       this.rdsClient.close();
       LOGGER.fine(
