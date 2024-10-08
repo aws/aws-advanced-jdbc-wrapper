@@ -32,8 +32,8 @@ public class SlidingExpirationCacheWithCleanupThread<K, V> extends SlidingExpira
     monitoringThread.setDaemon(true);
     return monitoringThread;
   });
+  protected final ReentrantLock initLock = new ReentrantLock();
   protected boolean isInitialized = false;
-  protected ReentrantLock initLock = new ReentrantLock();
 
   public SlidingExpirationCacheWithCleanupThread() {
     super();
