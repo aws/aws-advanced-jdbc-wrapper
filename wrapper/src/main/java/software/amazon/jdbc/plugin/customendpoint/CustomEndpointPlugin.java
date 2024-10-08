@@ -200,17 +200,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         Messages.get(
             "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[]{ hostSpec.getHost() }));
 
-    monitors.computeIfAbsent(
-        this.customEndpointHostSpec.getHost(),
-        (customEndpoint) -> new CustomEndpointMonitorImpl(
-            this.pluginService,
-            this.customEndpointHostSpec,
-            getRegion(this.customEndpointHostSpec, props),
-            TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
-            this.rdsClientFunc
-        ),
-        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
-    );
+    createMonitorIfAbsent(props);
 
     // If needed, wait a short time for custom endpoint info to be discovered.
     boolean isInfoInCache = waitForCustomEndpointInfo();
@@ -222,6 +212,25 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     return connectFunc.call();
+  }
+
+  /**
+   * Creates a monitor for the custom endpoint if it does not already exist.
+   *
+   * @param props The connection properties.
+   */
+  protected void createMonitorIfAbsent(Properties props) {
+    monitors.computeIfAbsent(
+        this.customEndpointHostSpec.getHost(),
+        (customEndpoint) -> new CustomEndpointMonitorImpl(
+            this.pluginService,
+            this.customEndpointHostSpec,
+            getRegion(this.customEndpointHostSpec, props),
+            TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
+            this.rdsClientFunc
+        ),
+        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
+    );
   }
 
   /**
@@ -327,17 +336,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    monitors.computeIfAbsent(
-        this.customEndpointHostSpec.getHost(),
-        (customEndpoint) -> new CustomEndpointMonitorImpl(
-            this.pluginService,
-            this.customEndpointHostSpec,
-            getRegion(this.customEndpointHostSpec, props),
-            TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(this.props)),
-            this.rdsClientFunc
-        ),
-        TimeUnit.MILLISECONDS.toNanos(this.idleMonitorExpirationMs)
-    );
+    createMonitorIfAbsent(this.props);
 
     // If needed, wait a short time for custom endpoint info to be discovered.
     boolean isInfoInCache = waitForCustomEndpointInfo();
