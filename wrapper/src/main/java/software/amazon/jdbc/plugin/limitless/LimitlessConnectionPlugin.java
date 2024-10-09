@@ -139,8 +139,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final boolean isInitialConnection,
-      final JdbcCallable<Connection,
-          SQLException> connectFunc) throws SQLException {
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
 //     final Dialect dialect = this.pluginService.getDialect();
 //     if (SUPPORTED_DIALECTS.contains(dialect)) {
@@ -162,11 +161,13 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     List<HostSpec> limitlessRouters = this.limitlessRouterService.getLimitlessRouters(
         this.pluginService.getHostListProvider().getClusterId(), props);
 
+    Connection conn;
     if (limitlessRouters.isEmpty()) {
       LOGGER.finest(Messages.get("LimitlessConnectionPlugin.limitlessRouterCacheEmpty"));
       final boolean waitForRouterInfo = WAIT_F0R_ROUTER_INFO.getBoolean(props);
       if (waitForRouterInfo) {
-        limitlessRouters = synchronouslyGetLimitlessRoutersWithRetry(props);
+        conn = connectFunc.call();
+        limitlessRouters = synchronouslyGetLimitlessRoutersWithRetry(conn, hostSpec.getPort(), props);
       } else {
         LOGGER.finest(Messages.get("LimitlessConnectionPlugin.usingProvidedConnectUrl"));
         return connectFunc.call();
@@ -253,7 +254,8 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     throw new SQLException(Messages.get("LimitlessConnectionPlugin.noRoutersAvailableForRetry"), originalException);
   }
 
-  private List<HostSpec> synchronouslyGetLimitlessRoutersWithRetry(final Properties props) throws SQLException {
+  private List<HostSpec> synchronouslyGetLimitlessRoutersWithRetry(
+      final Connection conn, final int hostPort, final Properties props) throws SQLException {
     LOGGER.finest(Messages.get("LimitlessConnectionPlugin.synchronouslyGetLimitlessRouters"));
     int retryCount = -1; // start at -1 since the first try is not a retry.
     int maxRetries = GET_ROUTER_MAX_RETRIES.getInteger(props);
@@ -261,8 +263,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     List<HostSpec> newLimitlessRouters = null;
     do {
       try {
-        newLimitlessRouters = this.limitlessRouterService.forceGetLimitlessRouters(
-            this.pluginService.getHostListProvider().getClusterId(), props);
+        newLimitlessRouters = this.limitlessRouterService.forceGetLimitlessRoutersWithConn(conn, hostPort, props);
         if (newLimitlessRouters != null && !newLimitlessRouters.isEmpty()) {
           return newLimitlessRouters;
         }
