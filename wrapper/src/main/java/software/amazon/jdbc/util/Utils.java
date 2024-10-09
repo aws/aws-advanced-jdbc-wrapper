@@ -17,7 +17,6 @@
 package software.amazon.jdbc.util;
 
 import java.util.List;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
@@ -45,7 +44,8 @@ public class Utils {
         msg.append("   ").append(host == null ? "<null>" : host);
       }
     }
-    return (messagePrefix == null ? "" : messagePrefix)
-        + Messages.get("Utils.topology", new Object[] {msg.toString()});
+
+    return Messages.get("Utils.topology",
+        new Object[] {messagePrefix == null ? "Topology:" : messagePrefix, msg.toString()});
   }
 }

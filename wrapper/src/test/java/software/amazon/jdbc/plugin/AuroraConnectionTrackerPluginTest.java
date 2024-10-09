@@ -131,7 +131,7 @@ public class AuroraConnectionTrackerPluginTest {
         .build();
 
     // Host list changes during simulated failover
-    when(mockPluginService.getHosts()).thenReturn(Collections.singletonList(originalHost));
+    when(mockPluginService.getAllHosts()).thenReturn(Collections.singletonList(originalHost));
     doThrow(expectedException).when(mockSqlFunction).call();
 
     final AuroraConnectionTrackerPlugin plugin = new AuroraConnectionTrackerPlugin(
@@ -161,7 +161,7 @@ public class AuroraConnectionTrackerPluginTest {
         .build();
     final HostSpec failoverTargetHost = new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host2")
         .build();
-    when(mockPluginService.getHosts())
+    when(mockPluginService.getAllHosts())
         .thenReturn(Collections.singletonList(originalHost))
         .thenReturn(Collections.singletonList(failoverTargetHost));
     when(mockSqlFunction.call())

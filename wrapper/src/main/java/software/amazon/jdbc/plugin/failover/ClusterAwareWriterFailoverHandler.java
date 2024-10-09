@@ -259,7 +259,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
             conn = pluginService.forceConnect(this.originalWriterHost, initialConnectionProps);
             pluginService.forceRefreshHostList(conn);
-            latestTopology = pluginService.getHosts();
+            latestTopology = pluginService.getAllHosts();
 
           } catch (final SQLException exception) {
             // Propagate exceptions that are not caused by network errors.
@@ -405,7 +405,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
       while (true) {
         try {
           pluginService.forceRefreshHostList(this.currentReaderConnection);
-          final List<HostSpec> topology = pluginService.getHosts();
+          final List<HostSpec> topology = pluginService.getAllHosts();
 
           if (!topology.isEmpty()) {
 
@@ -425,7 +425,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
 
               if (allowOldWriter || !isSame(writerCandidate, this.originalWriterHost)) {
                 // new writer is available, and it's different from the previous writer
-                LOGGER.finest(() -> Utils.logTopology(this.currentTopology, "[TaskB] "));
+                LOGGER.finest(() -> Utils.logTopology(this.currentTopology, "[TaskB] Topology:"));
                 if (connectToWriter(writerCandidate)) {
                   return true;
                 }

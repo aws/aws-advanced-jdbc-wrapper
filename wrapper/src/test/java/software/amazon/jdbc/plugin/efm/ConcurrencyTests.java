@@ -481,6 +481,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public List<HostSpec> getAllHosts() {
+      return null;
+    }
+
+    @Override
     public List<HostSpec> getHosts() {
       return null;
     }
@@ -569,6 +574,15 @@ public class ConcurrencyTests {
     @Override
     public @NonNull SessionStateService getSessionStateService() {
       return new TestSessionStateService();
+    }
+
+    @Override
+    public <T> void setInfo(String infoKey, @Nullable T info, boolean clusterBound) {
+    }
+
+    @Override
+    public <T> T getInfo(String infoKey, @NonNull Class<T> clazz, boolean clusterBound) {
+      return null;
     }
 
     @Override

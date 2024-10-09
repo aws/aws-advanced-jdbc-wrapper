@@ -394,8 +394,8 @@ public class PluginServiceImplTests {
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostA", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostA", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -430,8 +430,8 @@ public class PluginServiceImplTests {
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostB", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostB", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -466,8 +466,8 @@ public class PluginServiceImplTests {
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostA", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostA", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -503,8 +503,8 @@ public class PluginServiceImplTests {
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostA", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostA", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(0)).notifyNodeListChanged(any());
   }
 
@@ -532,8 +532,8 @@ public class PluginServiceImplTests {
     aliases.add("hostA");
     target.setAvailability(aliases, HostAvailability.AVAILABLE);
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals(HostAvailability.AVAILABLE, target.getHosts().get(0).getAvailability());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals(HostAvailability.AVAILABLE, target.getAllHosts().get(0).getAvailability());
     verify(pluginManager, never()).notifyNodeListChanged(any());
   }
 
@@ -561,8 +561,8 @@ public class PluginServiceImplTests {
     aliases.add("hostA");
     target.setAvailability(aliases, HostAvailability.NOT_AVAILABLE);
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals(HostAvailability.NOT_AVAILABLE, target.getHosts().get(0).getAvailability());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals(HostAvailability.NOT_AVAILABLE, target.getAllHosts().get(0).getAvailability());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -597,8 +597,8 @@ public class PluginServiceImplTests {
     aliases.add("hostA");
     target.setAvailability(aliases, HostAvailability.AVAILABLE);
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals(HostAvailability.AVAILABLE, target.getHosts().get(0).getAvailability());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals(HostAvailability.AVAILABLE, target.getAllHosts().get(0).getAvailability());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();

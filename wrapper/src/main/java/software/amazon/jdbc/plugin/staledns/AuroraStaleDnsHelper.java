@@ -95,7 +95,7 @@ public class AuroraStaleDnsHelper {
       this.pluginService.refreshHostList(conn);
     }
 
-    LOGGER.finest(() -> Utils.logTopology(this.pluginService.getHosts()));
+    LOGGER.finest(() -> Utils.logTopology(this.pluginService.getAllHosts()));
 
     if (this.writerHostSpec == null) {
       final HostSpec writerCandidate = this.getWriter();
@@ -135,6 +135,15 @@ public class AuroraStaleDnsHelper {
           new Object[]{this.writerHostSpec}));
       staleDNSDetectedCounter.inc();
 
+      if (!this.pluginService.getHosts().contains(this.writerHostSpec)) {
+        throw new SQLException(
+            Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
+                new Object[] {
+                    this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHost(),
+                    Utils.logTopology(this.pluginService.getHosts(), "")})
+        );
+      }
+
       final Connection writerConn = this.pluginService.connect(this.writerHostSpec, props);
       if (isInitialConnection) {
         hostListProviderService.setInitialConnectionHostSpec(this.writerHostSpec);
@@ -170,7 +179,7 @@ public class AuroraStaleDnsHelper {
   }
 
   private HostSpec getWriter() {
-    for (final HostSpec host : this.pluginService.getHosts()) {
+    for (final HostSpec host : this.pluginService.getAllHosts()) {
       if (host.getRole() == HostRole.WRITER) {
         return host;
       }
