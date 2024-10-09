@@ -70,7 +70,7 @@ public class LimitlessRouterServiceImplTest {
     when(mockLimitlessRouterMonitor.getLimitlessRouters()).thenReturn(endpointHostSpecList);
 
     final LimitlessRouterService limitlessRouterService =
-        new LimitlessRouterServiceImpl((a, b, c, d, e) -> mockLimitlessRouterMonitor);
+        new LimitlessRouterServiceImpl(mockPluginService, (a, b, c, d, e) -> mockLimitlessRouterMonitor);
     limitlessRouterService.startMonitoring(mockPluginService, hostSpec, props, intervalMs);
 
     final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
@@ -81,7 +81,7 @@ public class LimitlessRouterServiceImplTest {
   @Test
   void test_nullLimitlessRouterMonitor() {
     final LimitlessRouterService limitlessRouterService =
-        new LimitlessRouterServiceImpl((a, b, c, d, e) -> null);
+        new LimitlessRouterServiceImpl(mockPluginService, (a, b, c, d, e) -> null);
     assertThrows(SQLException.class, () -> limitlessRouterService.getLimitlessRouters(OTHER_CLUSTER_ID, props));
   }
 }

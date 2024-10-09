@@ -16,6 +16,7 @@
 
 package software.amazon.jdbc.plugin.limitless;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
@@ -27,9 +28,12 @@ public interface LimitlessRouterService {
 
   List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 
+  List<HostSpec> forceGetLimitlessRoutersWithConn(
+      final Connection conn, final String clusterId, final int hostPort, final Properties props)  throws SQLException;
+
   List<HostSpec> forceGetLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 
-  void startMonitoring(final @NonNull PluginService pluginService,
+  void startMonitoring(
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final int intervalMs);
