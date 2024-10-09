@@ -86,20 +86,22 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     return limitlessRouters;
   }
 
-  public List<HostSpec> forceGetLimitlessRoutersWithConn(final Connection conn, final String clusterId, final int hostPort, final Properties props)  throws SQLException {
+  @Override
+  public List<HostSpec> forceGetLimitlessRoutersWithConn(
+      final Connection conn, final int hostPort, final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
     forceGetLimitlessRoutersLock.lock();
     try {
-      final List<HostSpec> limitlessRouters = limitlessRouterCache.get(clusterId, cacheExpirationNano);
+      final List<HostSpec> limitlessRouters = limitlessRouterCache.get(this.pluginService.getHostListProvider().getClusterId(), cacheExpirationNano);
       if (!Utils.isNullOrEmpty(limitlessRouters)) {
         return limitlessRouters;
       }
 
       final List<HostSpec> newLimitLessRouters = this.queryHelper.queryForLimitlessRouters(conn, hostPort);
       limitlessRouterCache.computeIfAbsent(
-          clusterId,
+          this.pluginService.getHostListProvider().getClusterId(),
           key -> Collections.unmodifiableList(newLimitLessRouters),
           cacheExpirationNano
       );
