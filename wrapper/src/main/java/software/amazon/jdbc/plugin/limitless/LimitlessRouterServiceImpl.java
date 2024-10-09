@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -88,7 +89,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
   @Override
   public List<HostSpec> forceGetLimitlessRoutersWithConn(
-      final Connection conn, final int hostPort, final Properties props) throws SQLException {
+      final Supplier<Connection> connectionSupplier, final int hostPort, final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
@@ -99,7 +100,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
         return limitlessRouters;
       }
 
-      final List<HostSpec> newLimitLessRouters = this.queryHelper.queryForLimitlessRouters(conn, hostPort);
+      final List<HostSpec> newLimitLessRouters =
+          this.queryHelper.queryForLimitlessRouters(connectionSupplier.get(), hostPort);
+      
       limitlessRouterCache.computeIfAbsent(
           this.pluginService.getHostListProvider().getClusterId(),
           key -> Collections.unmodifiableList(newLimitLessRouters),
