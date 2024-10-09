@@ -28,7 +28,7 @@ public interface LimitlessRouterMonitorInitializer {
   LimitlessRouterMonitor createLimitlessRouterMonitor(
       final PluginService pluginService,
       final HostSpec hostSpec,
-      final AtomicReference<List<HostSpec>> limitlessRouters,
+      final List<HostSpec> limitlessRouters,
       final Properties props,
       final int intervalMs
   );

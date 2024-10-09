@@ -67,8 +67,8 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       "Max number of connection retries the Limitless Connection Plugin will attempt.");
   protected static final List<Class> SUPPORTED_DIALECTS = Arrays.asList(AuroraLimitlessDialect.class);
   protected final PluginService pluginService;
-  protected final @NonNull Properties properties;
-  private final @NonNull Supplier<LimitlessRouterService> limitlessRouterServiceSupplier;
+  protected final Properties properties;
+  private final Supplier<LimitlessRouterService> limitlessRouterServiceSupplier;
   private LimitlessRouterService limitlessRouterService;
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
@@ -90,7 +90,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   public LimitlessConnectionPlugin(final PluginService pluginService, final @NonNull Properties properties) {
     this(pluginService,
         properties,
-        LimitlessRouterServiceImpl::new);
+        () -> new LimitlessRouterServiceImpl(pluginService));
   }
 
   public LimitlessConnectionPlugin(
@@ -156,7 +156,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     initLimitlessRouterMonitorService();
     if (isInitialConnection) {
       this.limitlessRouterService
-          .startMonitoring(pluginService, hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
+          .startMonitoring(hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
     List<HostSpec> limitlessRouters = this.limitlessRouterService.getLimitlessRouters(

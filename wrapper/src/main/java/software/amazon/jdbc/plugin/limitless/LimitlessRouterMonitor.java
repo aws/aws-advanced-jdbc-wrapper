@@ -81,13 +81,13 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   public LimitlessRouterMonitor(
       final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
-      final @NonNull AtomicReference<List<HostSpec>> limitlessRouters,
+      final @NonNull List<HostSpec> limitlessRouters,
       final @NonNull Properties props,
       final int intervalMs) {
     this.pluginService = pluginService;
     this.hostSpec = hostSpec;
     this.limitlessRouterEndpointQuery = getLimitlessRouterEndpointQuery();
-    this.limitlessRouters = limitlessRouters;
+    this.limitlessRouters = new AtomicReference<>(limitlessRouters);
     this.props = PropertyUtils.copyProperties(props);
 
     props.stringPropertyNames().stream()
