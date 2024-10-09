@@ -38,7 +38,7 @@ public class RdsUtilsTests {
   private static final String usEastRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.us-east-2.rds.amazonaws.com";
   private static final String usEastRegionLimitlessDbShardGroup =
-      "database-test-name.limitless-XYZ.us-east-2.rds.amazonaws.com";
+      "database-test-name.shardgrp-XYZ.us-east-2.rds.amazonaws.com";
 
   private static final String chinaRegionCluster =
       "database-test-name.cluster-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
@@ -51,7 +51,7 @@ public class RdsUtilsTests {
   private static final String chinaRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
   private static final String chinaRegionLimitlessDbShardGroup =
-      "database-test-name.limitless-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
+      "database-test-name.shardgrp-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
 
   private static final String oldChinaRegionCluster =
       "database-test-name.cluster-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
@@ -64,7 +64,7 @@ public class RdsUtilsTests {
   private static final String oldChinaRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
   private static final String oldChinaRegionLimitlessDbShardGroup =
-      "database-test-name.limitless-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
+      "database-test-name.shardgrp-XYZ.cn-northwest-1.rds.amazonaws.com.cn";
 
   private static final String extraRdsChinaPath =
       "database-test-name.cluster-XYZ.rds.cn-northwest-1.rds.amazonaws.com.cn";
@@ -88,7 +88,7 @@ public class RdsUtilsTests {
   private static final String usIsobEastRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
   private static final String usIsobEastRegionLimitlessDbShardGroup =
-      "database-test-name.limitless-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
+      "database-test-name.shardgrp-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
 
   private static final String usGovEastRegionCluster =
       "database-test-name.cluster-XYZ.rds.us-gov-east-1.amazonaws.com";
@@ -103,7 +103,7 @@ public class RdsUtilsTests {
   private static final String usIsoEastRegionCustomDomain =
       "custom-test-name.cluster-custom-XYZ.rds.us-iso-east-1.c2s.ic.gov";
   private static final String usIsoEastRegionLimitlessDbShardGroup =
-      "database-test-name.limitless-XYZ.rds.us-iso-east-1.c2s.ic.gov";
+      "database-test-name.shardgrp-XYZ.rds.us-iso-east-1.c2s.ic.gov";
 
   @BeforeEach
   public void setupTests() {
