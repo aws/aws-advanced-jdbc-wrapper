@@ -20,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
@@ -29,7 +30,7 @@ public interface LimitlessRouterService {
   List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 
   List<HostSpec> forceGetLimitlessRoutersWithConn(
-      final Connection conn, final int hostPort, final Properties props)  throws SQLException;
+      final Supplier<Connection> connectionSupplier, final int hostPort, final Properties props)  throws SQLException;
 
   List<HostSpec> forceGetLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 
