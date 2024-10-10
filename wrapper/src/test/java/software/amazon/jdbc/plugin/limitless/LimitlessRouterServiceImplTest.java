@@ -71,7 +71,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessRouterService limitlessRouterService =
         new LimitlessRouterServiceImpl(mockPluginService, (a, b, c, d, e) -> mockLimitlessRouterMonitor);
-    limitlessRouterService.startMonitoring(mockPluginService, hostSpec, props, intervalMs);
+    limitlessRouterService.startMonitoring(hostSpec, props, intervalMs);
 
     final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
 

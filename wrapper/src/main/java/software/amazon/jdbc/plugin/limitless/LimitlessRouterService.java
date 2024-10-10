@@ -30,7 +30,7 @@ public interface LimitlessRouterService {
   List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 
   List<HostSpec> forceGetLimitlessRoutersWithConn(
-      final Supplier<Connection> connectionSupplier, final int hostPort, final Properties props)  throws SQLException;
+      final Connection connection, final int hostPort, final Properties props)  throws SQLException;
 
   List<HostSpec> forceGetLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 

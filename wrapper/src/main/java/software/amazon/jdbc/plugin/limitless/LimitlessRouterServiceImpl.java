@@ -89,7 +89,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
   @Override
   public List<HostSpec> forceGetLimitlessRoutersWithConn(
-      final Supplier<Connection> connectionSupplier, final int hostPort, final Properties props) throws SQLException {
+      final Connection connection, final int hostPort, final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
@@ -101,8 +101,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       }
 
       final List<HostSpec> newLimitLessRouters =
-          this.queryHelper.queryForLimitlessRouters(connectionSupplier.get(), hostPort);
-      
+          this.queryHelper.queryForLimitlessRouters(connection, hostPort);
+
+      limitlessRouterCache.remove(this.pluginService.getHostListProvider().getClusterId());
       limitlessRouterCache.computeIfAbsent(
           this.pluginService.getHostListProvider().getClusterId(),
           key -> Collections.unmodifiableList(newLimitLessRouters),
@@ -146,7 +147,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     try {
       final String limitlessRouterMonitorKey = pluginService.getHostListProvider().getClusterId();
       final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props));
-      final List<HostSpec> limitlessRouters = Collections.unmodifiableList(new ArrayList<>());
+      final List<HostSpec> limitlessRouters = Collections.emptyList();
 
       limitlessRouterMonitors.computeIfAbsent(
           limitlessRouterMonitorKey,

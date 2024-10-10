@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -65,7 +64,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       "limitlessConnectMaxRetries",
       "5",
       "Max number of connection retries the Limitless Connection Plugin will attempt.");
-  protected static final List<Class> SUPPORTED_DIALECTS = Arrays.asList(AuroraLimitlessDialect.class);
+
   protected final PluginService pluginService;
   protected final Properties properties;
   private final Supplier<LimitlessRouterService> limitlessRouterServiceSupplier;
@@ -110,8 +109,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    final Connection conn = connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
-    return conn;
+    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
   }
 
   @Override
@@ -122,16 +120,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
-    final Connection conn = connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
-    return conn;
-  }
-
-  private void checkDialectSupport() {
-    final Dialect dialect = this.pluginService.getDialect();
-    if (!(dialect instanceof AuroraLimitlessDialect)) {
-      throw new UnsupportedOperationException(Messages.get("LimitlessConnectionPlugin.unsupportedDialectOrDatabase",
-          new Object[]{dialect}));
-    }
+    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc);
   }
 
   private Connection connectInternal(
@@ -140,17 +129,20 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final @NonNull Properties props,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+    final Dialect dialect = this.pluginService.getDialect();
+    if (AuroraLimitlessDialect.class.isAssignableFrom(dialect.getClass())) {
+      return connectInternalWithDialect(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
+    } else {
+      return connectInternalWithoutDialect(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
+    }
+  }
 
-//     final Dialect dialect = this.pluginService.getDialect();
-//     if (SUPPORTED_DIALECTS.contains(dialect)) {
-//       // TODO: happy path
-//
-//     } else {
-//       // TODO: unhappy path
-//       final Connection conn = connectFunc.call();
-//
-//     }
-
+  private Connection connectInternalWithDialect(
+      final @NonNull String driverProtocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
 
     initLimitlessRouterMonitorService();
     if (isInitialConnection) {
@@ -165,13 +157,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finest(Messages.get("LimitlessConnectionPlugin.limitlessRouterCacheEmpty"));
       final boolean waitForRouterInfo = WAIT_F0R_ROUTER_INFO.getBoolean(props);
       if (waitForRouterInfo) {
-        limitlessRouters = synchronouslyGetLimitlessRoutersWithRetry(() -> {
-          try {
-            return connectFunc.call();
-          } catch (SQLException e) {
-            throw new RuntimeException(e);
-          }
-        }, hostSpec.getPort(), props);
+        limitlessRouters = synchronouslyGetLimitlessRoutersWithRetry(connectFunc.call(), hostSpec.getPort(), props);
       } else {
         LOGGER.finest(Messages.get("LimitlessConnectionPlugin.usingProvidedConnectUrl"));
         return connectFunc.call();
@@ -204,14 +190,41 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           new Object[] {selectedHostSpec.getHost()}));
       selectedHostSpec.setAvailability(HostAvailability.NOT_AVAILABLE);
       // Retry connect prioritising healthiest router for best chance of connection over load-balancing with round-robin
-      return retryConnectWithLeastLoadedRouters(limitlessRouters, props, () -> {
-        try {
-          return connectFunc.call();
-        } catch (SQLException exception) {
-          throw new RuntimeException(exception);
-        }
-      }, hostSpec.getPort(), e);
+      return retryConnectWithLeastLoadedRouters(limitlessRouters, props, connectFunc.call(), hostSpec.getPort(), e);
     }
+  }
+
+  private Connection connectInternalWithoutDialect(
+      final @NonNull String driverProtocol,
+      final @NonNull HostSpec hostSpec,
+      final @NonNull Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
+
+    final Connection conn = connectFunc.call();
+
+    final Dialect dialect = this.pluginService.getDialect();
+    if (AuroraLimitlessDialect.class.isAssignableFrom(dialect.getClass())) {
+      throw new SQLException(""); // TODO: add message
+    }
+
+    initLimitlessRouterMonitorService();
+    if (isInitialConnection) {
+      this.limitlessRouterService
+          .startMonitoring(hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
+    }
+
+    List<HostSpec> limitlessRouters = this.limitlessRouterService.getLimitlessRouters(
+        this.pluginService.getHostListProvider().getClusterId(), props);
+    if (limitlessRouters.isEmpty()) {
+      LOGGER.finest(Messages.get("LimitlessConnectionPlugin.limitlessRouterCacheEmpty"));
+      final boolean waitForRouterInfo = WAIT_F0R_ROUTER_INFO.getBoolean(props);
+      if (waitForRouterInfo) {
+        synchronouslyGetLimitlessRoutersWithRetry(connectFunc.call(), hostSpec.getPort(), props);
+      }
+    }
+
+    return conn;
   }
 
   private void initLimitlessRouterMonitorService() {
@@ -221,7 +234,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private Connection retryConnectWithLeastLoadedRouters(final List<HostSpec> limitlessRouters, final Properties props,
-      final Supplier<Connection> connectionSupplier, final int hostPort, final SQLException originalException) throws SQLException {
+      final Connection conn, final int hostPort, final SQLException originalException) throws SQLException {
 
     List<HostSpec> currentRouters = limitlessRouters;
     int retryCount = 0;
@@ -229,7 +242,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
     while (retryCount++ < maxRetries) {
       if (currentRouters.stream().noneMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
-        currentRouters = synchronouslyGetLimitlessRoutersWithRetry(connectionSupplier, hostPort, props);
+        currentRouters = synchronouslyGetLimitlessRoutersWithRetry(conn, hostPort, props);
         if (currentRouters == null
             || currentRouters.isEmpty()
             || currentRouters.stream().noneMatch(h -> h.getAvailability().equals(HostAvailability.AVAILABLE))) {
@@ -265,7 +278,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private List<HostSpec> synchronouslyGetLimitlessRoutersWithRetry(
-      final Supplier<Connection> connectionSupplier, final int hostPort, final Properties props) throws SQLException {
+      final Connection conn, final int hostPort, final Properties props) throws SQLException {
     LOGGER.finest(Messages.get("LimitlessConnectionPlugin.synchronouslyGetLimitlessRouters"));
     int retryCount = -1; // start at -1 since the first try is not a retry.
     int maxRetries = GET_ROUTER_MAX_RETRIES.getInteger(props);
@@ -273,7 +286,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     do {
       try {
         List<HostSpec> newLimitlessRouters = this.limitlessRouterService.forceGetLimitlessRoutersWithConn(
-            connectionSupplier, hostPort, props);
+            conn, hostPort, props);
         if (newLimitlessRouters != null && !newLimitlessRouters.isEmpty()) {
           return newLimitlessRouters;
         }

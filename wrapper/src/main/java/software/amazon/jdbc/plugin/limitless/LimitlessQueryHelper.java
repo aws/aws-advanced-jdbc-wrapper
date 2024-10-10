@@ -60,6 +60,7 @@ public class LimitlessQueryHelper {
       LOGGER.warning(() -> Messages.get("LimitlessRouterMonitor.getNetworkTimeoutError",
           new Object[] {e.getMessage()}));
     }
+    // TODO: check dialect again
 
     try (final Statement stmt = conn.createStatement();
          final ResultSet resultSet = stmt.executeQuery(
