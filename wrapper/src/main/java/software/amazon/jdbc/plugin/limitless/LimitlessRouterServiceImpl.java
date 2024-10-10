@@ -18,13 +18,11 @@ package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -70,7 +68,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     this(pluginService, LimitlessRouterMonitor::new);
   }
 
-  public LimitlessRouterServiceImpl(final @NonNull PluginService pluginService, final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer) {
+  public LimitlessRouterServiceImpl(
+      final @NonNull PluginService pluginService,
+      final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer) {
     this.pluginService = pluginService;
     this.limitlessRouterMonitorInitializer = limitlessRouterMonitorInitializer;
     this.queryHelper = new LimitlessQueryHelper(pluginService);
@@ -95,7 +95,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
     forceGetLimitlessRoutersLock.lock();
     try {
-      final List<HostSpec> limitlessRouters = limitlessRouterCache.get(this.pluginService.getHostListProvider().getClusterId(), cacheExpirationNano);
+      final List<HostSpec> limitlessRouters =
+          limitlessRouterCache.get(this.pluginService.getHostListProvider().getClusterId(), cacheExpirationNano);
       if (!Utils.isNullOrEmpty(limitlessRouters)) {
         return limitlessRouters;
       }
