@@ -315,7 +315,41 @@ public class RdsUtilsTests {
 
   @Test
   public void testIsLimitlessDbShardGroupDns() {
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionCluster));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionClusterReadOnly));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionInstance));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionProxy));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionCustomDomain));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionElbUrl));
+    assertTrue(target.isLimitlessDbShardGroupDns(usEastRegionLimitlessDbShardGroup));
 
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsobEastRegionCluster));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsobEastRegionClusterReadOnly));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsobEastRegionInstance));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsobEastRegionProxy));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsobEastRegionCustomDomain));
+    assertTrue(target.isLimitlessDbShardGroupDns(usIsobEastRegionLimitlessDbShardGroup));
+
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsoEastRegionCluster));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsoEastRegionClusterReadOnly));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsoEastRegionInstance));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsoEastRegionProxy));
+    assertFalse(target.isLimitlessDbShardGroupDns(usIsoEastRegionCustomDomain));
+    assertTrue(target.isLimitlessDbShardGroupDns(usIsoEastRegionLimitlessDbShardGroup));
+
+    assertFalse(target.isLimitlessDbShardGroupDns(chinaRegionCluster));
+    assertFalse(target.isLimitlessDbShardGroupDns(chinaRegionClusterReadOnly));
+    assertFalse(target.isLimitlessDbShardGroupDns(chinaRegionInstance));
+    assertFalse(target.isLimitlessDbShardGroupDns(chinaRegionProxy));
+    assertFalse(target.isLimitlessDbShardGroupDns(chinaRegionCustomDomain));
+    assertTrue(target.isLimitlessDbShardGroupDns(chinaRegionLimitlessDbShardGroup));
+
+    assertFalse(target.isLimitlessDbShardGroupDns(oldChinaRegionCluster));
+    assertFalse(target.isLimitlessDbShardGroupDns(oldChinaRegionClusterReadOnly));
+    assertFalse(target.isLimitlessDbShardGroupDns(oldChinaRegionInstance));
+    assertFalse(target.isLimitlessDbShardGroupDns(oldChinaRegionProxy));
+    assertFalse(target.isLimitlessDbShardGroupDns(oldChinaRegionCustomDomain));
+    assertTrue(target.isLimitlessDbShardGroupDns(oldChinaRegionLimitlessDbShardGroup));
   }
 
   @Test

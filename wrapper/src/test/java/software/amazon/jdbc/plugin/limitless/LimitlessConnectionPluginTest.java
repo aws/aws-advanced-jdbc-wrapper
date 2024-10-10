@@ -92,7 +92,7 @@ public class LimitlessConnectionPluginTest {
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true, mockConnectFuncLambda);
 
-    verify(mockLimitlessRouterService, times(1)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+    verify(mockLimitlessRouterService, times(1)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
@@ -116,7 +116,7 @@ public class LimitlessConnectionPluginTest {
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, false, mockConnectFuncLambda);
 
-    verify(mockLimitlessRouterService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+    verify(mockLimitlessRouterService, times(0)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
@@ -145,7 +145,7 @@ public class LimitlessConnectionPluginTest {
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, propsWaitForRouterInfoSetFalse, false, mockConnectFuncLambda);
 
-    verify(mockLimitlessRouterService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+    verify(mockLimitlessRouterService, times(0)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, propsWaitForRouterInfoSetFalse);
     verify(mockPluginService, times(0)).getHostSpecByStrategy(emptyEndpointHostSpecList,
@@ -170,7 +170,7 @@ public class LimitlessConnectionPluginTest {
 
     plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, false, mockConnectFuncLambda);
 
-    verify(mockLimitlessRouterService, times(0)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+    verify(mockLimitlessRouterService, times(0)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(0)).getHostSpecByStrategy(endpointHostSpecList,
@@ -210,7 +210,7 @@ public class LimitlessConnectionPluginTest {
 
     assertEquals(expectedConnection, actualConnection);
 
-    verify(mockLimitlessRouterService, times(1)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+    verify(mockLimitlessRouterService, times(1)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
@@ -251,7 +251,7 @@ public class LimitlessConnectionPluginTest {
         SQLException.class,
         () -> plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, props, true, mockConnectFuncLambda));
 
-    verify(mockLimitlessRouterService, times(1)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+    verify(mockLimitlessRouterService, times(1)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
     verify(mockLimitlessRouterService, times(1)).forceGetLimitlessRouters(CLUSTER_ID, props);
@@ -297,7 +297,7 @@ public class LimitlessConnectionPluginTest {
         SQLException.class,
         () -> plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, propsWithMaxRetries, true, mockConnectFuncLambda));
 
-    verify(mockLimitlessRouterService, times(1)).startMonitoring(mockPluginService, INPUT_HOST_SPEC,
+    verify(mockLimitlessRouterService, times(1)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, propsWithMaxRetries);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,

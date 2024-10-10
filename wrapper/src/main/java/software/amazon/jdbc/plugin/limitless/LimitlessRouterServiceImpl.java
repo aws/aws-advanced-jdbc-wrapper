@@ -16,7 +16,9 @@
 
 package software.amazon.jdbc.plugin.limitless;
 
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -27,6 +29,7 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
+import software.amazon.jdbc.util.Utils;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
@@ -36,7 +39,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           "Interval in milliseconds for an Limitless router monitor to be considered inactive and to be disposed.");
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
   protected static final ReentrantLock forceGetLimitlessRoutersLock = new ReentrantLock();
-  private final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
+  protected final PluginService pluginService;
+  protected final LimitlessQueryHelper queryHelper;
+  protected final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
 
   private static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor> limitlessRouterMonitors =
       new SlidingExpirationCacheWithCleanupThread<>(
@@ -51,26 +56,64 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           CACHE_CLEANUP_NANO
       );
 
-  public LimitlessRouterServiceImpl() {
-    this(LimitlessRouterMonitor::new);
+  private static final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>>
+      limitlessRouterCache =
+      new SlidingExpirationCacheWithCleanupThread<>(
+          x  -> true,
+          x -> {},
+        CACHE_CLEANUP_NANO
+      );
+
+  public LimitlessRouterServiceImpl(final @NonNull PluginService pluginService) {
+    this(pluginService, LimitlessRouterMonitor::new);
   }
 
-  public LimitlessRouterServiceImpl(final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer) {
+  public LimitlessRouterServiceImpl(
+      final @NonNull PluginService pluginService,
+      final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer) {
+    this.pluginService = pluginService;
     this.limitlessRouterMonitorInitializer = limitlessRouterMonitorInitializer;
+    this.queryHelper = new LimitlessQueryHelper(pluginService);
   }
 
   @Override
   public List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
-
-    final LimitlessRouterMonitor
-        limitlessRouterMonitor = limitlessRouterMonitors.get(clusterId, cacheExpirationNano);
-    if (limitlessRouterMonitor == null) {
-      throw new SQLException(
-          Messages.get("LimitlessRouterServiceImpl.nulLimitlessRouterMonitor", new Object[]{clusterId}));
+    final List<HostSpec> limitlessRouters = limitlessRouterCache.get(clusterId, cacheExpirationNano);
+    if (limitlessRouters == null) {
+      return Collections.emptyList();
     }
-    return limitlessRouterMonitor.getLimitlessRouters();
+    return limitlessRouters;
+  }
+
+  @Override
+  public List<HostSpec> forceGetLimitlessRoutersWithConn(
+      final Connection connection, final int hostPort, final Properties props) throws SQLException {
+    final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
+        MONITOR_DISPOSAL_TIME_MS.getLong(props));
+
+    forceGetLimitlessRoutersLock.lock();
+    try {
+      final List<HostSpec> limitlessRouters =
+          limitlessRouterCache.get(this.pluginService.getHostListProvider().getClusterId(), cacheExpirationNano);
+      if (!Utils.isNullOrEmpty(limitlessRouters)) {
+        return limitlessRouters;
+      }
+
+      final List<HostSpec> newLimitLessRouters =
+          this.queryHelper.queryForLimitlessRouters(connection, hostPort);
+
+      limitlessRouterCache.remove(this.pluginService.getHostListProvider().getClusterId());
+      limitlessRouterCache.computeIfAbsent(
+          this.pluginService.getHostListProvider().getClusterId(),
+          key -> Collections.unmodifiableList(newLimitLessRouters),
+          cacheExpirationNano
+      );
+      return newLimitLessRouters;
+    } finally {
+      forceGetLimitlessRoutersLock.unlock();
+    }
   }
 
   @Override
@@ -98,20 +141,30 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   @Override
-  public void startMonitoring(final @NonNull PluginService pluginService,
-      final @NonNull HostSpec hostSpec,
+  public void startMonitoring(final @NonNull HostSpec hostSpec,
       final @NonNull Properties props,
       final int intervalMs) {
 
     try {
       final String limitlessRouterMonitorKey = pluginService.getHostListProvider().getClusterId();
       final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(MONITOR_DISPOSAL_TIME_MS.getLong(props));
+      final List<HostSpec> limitlessRouters = Collections.emptyList();
 
       limitlessRouterMonitors.computeIfAbsent(
           limitlessRouterMonitorKey,
           key -> this.limitlessRouterMonitorInitializer
-              .createLimitlessRouterMonitor(pluginService, hostSpec, props, intervalMs),
+              .createLimitlessRouterMonitor(
+                  pluginService,
+                  hostSpec,
+                  limitlessRouters,
+                  props,
+                  intervalMs),
           cacheExpirationNano);
+      limitlessRouterCache.computeIfAbsent(
+          limitlessRouterMonitorKey,
+          key -> limitlessRouters,
+          cacheExpirationNano
+      );
     } catch (UnsupportedOperationException e) {
       throw e;
     }

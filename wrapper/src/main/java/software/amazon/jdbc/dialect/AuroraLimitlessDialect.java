@@ -14,22 +14,8 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.limitless;
+package software.amazon.jdbc.dialect;
 
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.atomic.AtomicReference;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.PluginService;
-
-@FunctionalInterface
-public interface LimitlessRouterMonitorInitializer {
-  LimitlessRouterMonitor createLimitlessRouterMonitor(
-      final PluginService pluginService,
-      final HostSpec hostSpec,
-      final List<HostSpec> limitlessRouters,
-      final Properties props,
-      final int intervalMs
-  );
+public interface AuroraLimitlessDialect extends Dialect {
+  String getLimitlessRouterEndpointQuery();
 }
