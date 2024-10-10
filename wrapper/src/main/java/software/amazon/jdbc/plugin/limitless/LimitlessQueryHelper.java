@@ -75,7 +75,9 @@ public class LimitlessQueryHelper {
     }
   }
 
-  private List<HostSpec> mapResultSetToHostSpecList(final ResultSet resultSet, final int hostPortToMap) throws SQLException {
+  private List<HostSpec> mapResultSetToHostSpecList(
+      final ResultSet resultSet,
+      final int hostPortToMap) throws SQLException {
 
     List<HostSpec> hosts = new ArrayList<>();
     while (resultSet.next()) {

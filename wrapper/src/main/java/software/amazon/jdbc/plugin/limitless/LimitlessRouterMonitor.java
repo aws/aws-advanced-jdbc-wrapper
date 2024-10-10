@@ -65,6 +65,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private final AtomicReference<List<HostSpec>> limitlessRouters;
   private final @NonNull Properties props;
   private final @NonNull PluginService pluginService;
+  protected final LimitlessQueryHelper queryHelper;
   private final TelemetryFactory telemetryFactory;
   private Connection monitoringConn = null;
   final Executor networkTimeoutExecutor = new SynchronousExecutor();
@@ -89,7 +90,6 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     this.limitlessRouterEndpointQuery = getLimitlessRouterEndpointQuery();
     this.limitlessRouters = new AtomicReference<>(limitlessRouters);
     this.props = PropertyUtils.copyProperties(props);
-
     props.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
         .forEach(
@@ -103,7 +103,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
 
     this.intervalMs = intervalMs;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
-
+    this.queryHelper = new LimitlessQueryHelper(this.pluginService);
     this.threadPool.submit(this);
     this.threadPool.shutdown(); // No more task are accepted by pool.
   }
@@ -153,7 +153,8 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
           continue;
         }
-        List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
+        List<HostSpec> newLimitlessRouters = queryHelper.queryForLimitlessRouters(this.monitoringConn,
+            this.hostSpec.getPort());
         this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
         RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
         LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
@@ -190,7 +191,8 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
       if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
         throw new SQLException(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRoutersFailed"));
       }
-      List<HostSpec> newLimitlessRouters = queryForLimitlessRouters(this.monitoringConn);
+      List<HostSpec> newLimitlessRouters = queryHelper.queryForLimitlessRouters(this.monitoringConn,
+          this.hostSpec.getPort());
       this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
       RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
       LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));

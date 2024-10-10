@@ -130,7 +130,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     final Dialect dialect = this.pluginService.getDialect();
-    if (AuroraLimitlessDialect.class.isAssignableFrom(dialect.getClass())) {
+    if (dialect instanceof AuroraLimitlessDialect) {
       return connectInternalWithDialect(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
     } else {
       return connectInternalWithoutDialect(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
@@ -204,7 +204,7 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
     final Connection conn = connectFunc.call();
 
     final Dialect dialect = this.pluginService.getDialect();
-    if (AuroraLimitlessDialect.class.isAssignableFrom(dialect.getClass())) {
+    if (dialect instanceof AuroraLimitlessDialect) {
       throw new SQLException(""); // TODO: add message
     }
 
