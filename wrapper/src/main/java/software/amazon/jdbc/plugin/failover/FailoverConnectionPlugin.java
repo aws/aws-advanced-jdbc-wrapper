@@ -675,7 +675,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!allowedHosts.contains(writerHostSpec)) {
-        // TODO: should we increment the writer failed counter here or not?
+        this.failoverWriterFailedCounter.inc();
         processFailoverFailure(
             Messages.get("Failover.newWriterNotAllowed",
                 new Object[] {

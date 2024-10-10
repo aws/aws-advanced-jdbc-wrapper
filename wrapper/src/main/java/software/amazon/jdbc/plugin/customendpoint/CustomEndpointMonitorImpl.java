@@ -60,12 +60,11 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected final long refreshRateNano;
 
   protected final PluginService pluginService;
-  // TODO: is it problematic for each monitor thread to have its own executor service?
   protected final ExecutorService monitorExecutor = Executors.newSingleThreadExecutor(runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
     monitoringThread.setDaemon(true);
     if (!StringUtils.isNullOrEmpty(monitoringThread.getName())) {
-      monitoringThread.setName(monitoringThread.getName() + "-CustomEndpointMonitor");
+      monitoringThread.setName(monitoringThread.getName() + "-cem");
     }
     return monitoringThread;
   });
@@ -87,22 +86,16 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   public CustomEndpointMonitorImpl(
       PluginService pluginService,
       HostSpec customEndpointHostSpec,
+      String endpointIdentifier,
       Region region,
       long refreshRateNano,
       BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.pluginService = pluginService;
     this.customEndpointHostSpec = customEndpointHostSpec;
+    this.endpointIdentifier = endpointIdentifier;
     this.region = region;
     this.refreshRateNano = refreshRateNano;
     this.rdsClient = rdsClientFunc.apply(customEndpointHostSpec, this.region);
-
-    this.endpointIdentifier = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
-    if (StringUtils.isNullOrEmpty(this.endpointIdentifier)) {
-      throw new RuntimeException(
-          Messages.get(
-              "CustomEndpointMonitorImpl.errorParsingEndpointIdentifier",
-              new Object[] {customEndpointHostSpec.getHost()}));
-    }
 
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     this.infoChangedCounter = telemetryFactory.createCounter(TELEMETRY_ENDPOINT_INFO_CHANGED);
@@ -123,62 +116,70 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
 
     try {
       while (!this.stop.get() && !Thread.currentThread().isInterrupted()) {
-        long start = System.nanoTime();
+        try {
+          long start = System.nanoTime();
 
-        final Filter customEndpointFilter =
-            Filter.builder().name("db-cluster-endpoint-type").values("custom").build();
-        final DescribeDbClusterEndpointsResponse endpointsResponse =
-            this.rdsClient.describeDBClusterEndpoints(
-                (builder) ->
-                    builder.dbClusterEndpointIdentifier(this.endpointIdentifier).filters(customEndpointFilter));
+          final Filter customEndpointFilter =
+              Filter.builder().name("db-cluster-endpoint-type").values("custom").build();
+          final DescribeDbClusterEndpointsResponse endpointsResponse =
+              this.rdsClient.describeDBClusterEndpoints(
+                  (builder) ->
+                      builder.dbClusterEndpointIdentifier(this.endpointIdentifier).filters(customEndpointFilter));
 
-        List<DBClusterEndpoint> endpoints = endpointsResponse.dbClusterEndpoints();
-        if (endpoints.size() != 1) {
-          List<String> endpointURLs = endpoints.stream().map(DBClusterEndpoint::endpoint).collect(Collectors.toList());
-          LOGGER.warning(
-              Messages.get("CustomEndpointMonitorImpl.unexpectedNumberOfEndpoints",
-                  new Object[] {
-                      this.endpointIdentifier,
-                      this.region.id(),
-                      endpoints.size(),
-                      endpointURLs
-                  }
-              ));
+          List<DBClusterEndpoint> endpoints = endpointsResponse.dbClusterEndpoints();
+          if (endpoints.size() != 1) {
+            List<String> endpointURLs =
+                endpoints.stream().map(DBClusterEndpoint::endpoint).collect(Collectors.toList());
+            LOGGER.warning(
+                Messages.get("CustomEndpointMonitorImpl.unexpectedNumberOfEndpoints",
+                    new Object[] {
+                        this.endpointIdentifier,
+                        this.region.id(),
+                        endpoints.size(),
+                        endpointURLs
+                    }
+                ));
 
-          TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
-          continue;
-        }
+            TimeUnit.NANOSECONDS.sleep(this.refreshRateNano);
+            continue;
+          }
 
-        CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
-        CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getHost());
-        if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
+          CustomEndpointInfo endpointInfo = CustomEndpointInfo.fromDBClusterEndpoint(endpoints.get(0));
+          CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getHost());
+          if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
+            long elapsedTime = System.nanoTime() - start;
+            long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
+            TimeUnit.NANOSECONDS.sleep(sleepDuration);
+            continue;
+          }
+
+          LOGGER.fine(
+              Messages.get(
+                  "CustomEndpointMonitorImpl.detectedChangeInCustomEndpointInfo",
+                  new Object[] {this.customEndpointHostSpec.getHost(), endpointInfo}));
+
+          // The custom endpoint info has changed, so we need to update the plugin service info cache.
+          customEndpointInfoCache.put(
+              this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
+          this.pluginService.setInfo(this.customEndpointHostSpec.getHost(), endpointInfo, true);
+          this.infoChangedCounter.inc();
+
           long elapsedTime = System.nanoTime() - start;
           long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
           TimeUnit.NANOSECONDS.sleep(sleepDuration);
-          continue;
+        } catch (InterruptedException e) {
+          throw e;
+        } catch (Exception e) {
+          // If the exception is not an InterruptedException, log it and continue monitoring.
+          LOGGER.log(Level.SEVERE,
+              Messages.get(
+                  "CustomEndpointMonitorImpl.exception",
+                  new Object[]{this.customEndpointHostSpec.getHost()}), e);
         }
-
-        LOGGER.fine(
-            Messages.get(
-                "CustomEndpointMonitorImpl.detectedChangeInCustomEndpointInfo",
-                new Object[]{ this.customEndpointHostSpec.getHost(), endpointInfo }));
-
-        // The custom endpoint info has changed, so we need to update the plugin service info cache.
-        customEndpointInfoCache.put(
-            this.customEndpointHostSpec.getHost(), endpointInfo, CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO);
-        this.pluginService.setInfo(this.customEndpointHostSpec.getHost(), endpointInfo, true);
-        this.infoChangedCounter.inc();
-
-        long elapsedTime = System.nanoTime() - start;
-        long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
-        TimeUnit.NANOSECONDS.sleep(sleepDuration);
       }
     } catch (InterruptedException e) {
       LOGGER.info(Messages.get("CustomEndpointMonitorImpl.interrupted", new Object[]{ this.customEndpointHostSpec }));
       Thread.currentThread().interrupt();
-    } catch (Exception e) {
-      LOGGER.log(Level.SEVERE,
-          Messages.get("CustomEndpointMonitorImpl.exception", new Object[]{this.customEndpointHostSpec.getHost()}), e);
     } finally {
       this.rdsClient.close();
       LOGGER.fine(
@@ -204,9 +205,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
     this.stop.set(true);
 
     try {
-      // TODO: the run loop takes 30s by default but could take more depending on the user setting. Should we keep 30s
-      //  as the maximum wait time here or is that too short/long?
-      int terminationTimeoutSec = 30;
+      int terminationTimeoutSec = 5;
       if (!this.monitorExecutor.awaitTermination(terminationTimeoutSec, TimeUnit.SECONDS)) {
         LOGGER.info(
             Messages.get(

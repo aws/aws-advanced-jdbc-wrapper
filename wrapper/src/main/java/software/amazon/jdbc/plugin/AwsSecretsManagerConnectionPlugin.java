@@ -50,6 +50,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -79,6 +80,7 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
       "secretsManagerEndpoint", null,
       "The endpoint of the secret to retrieve.");
 
+  protected static final RegionUtils regionUtils = new RegionUtils();
   protected static final Map<Pair<String, Region>, Secret> secretsCache = new ConcurrentHashMap<>();
 
   private static final Pattern SECRETS_ARN_PATTERN =
@@ -156,27 +158,21 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
               new Object[] {SECRET_ID_PROPERTY.name}));
     }
 
-    String regionString;
-    if (StringUtils.isNullOrEmpty(props.getProperty(REGION_PROPERTY.name))) {
+    Region region = regionUtils.getRegion(props, REGION_PROPERTY.name);
+    if (region == null) {
       final Matcher matcher = SECRETS_ARN_PATTERN.matcher(secretId);
       if (matcher.matches()) {
-        regionString = matcher.group("region");
-      } else {
-        throw new RuntimeException(
-            Messages.get(
-                "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
-                new Object[] {REGION_PROPERTY.name}));
+        region = regionUtils.getRegionFromRegionString(matcher.group("region"));
       }
-    } else {
-      regionString = REGION_PROPERTY.getString(props);
     }
 
-    final Region region = Region.of(regionString);
-    if (!Region.regions().contains(region)) {
-      throw new RuntimeException(Messages.get(
-          "AwsSdk.unsupportedRegion",
-          new Object[] {regionString}));
+    if (region == null) {
+      throw new RuntimeException(
+          Messages.get(
+              "AwsSecretsManagerConnectionPlugin.missingRequiredConfigParameter",
+              new Object[] {REGION_PROPERTY.name}));
     }
+
     this.secretKey = Pair.of(secretId, region);
 
     this.secretsManagerClientFunc = secretsManagerClientFunc;

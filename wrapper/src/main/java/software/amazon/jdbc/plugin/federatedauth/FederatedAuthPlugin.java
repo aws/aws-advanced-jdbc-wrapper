@@ -22,7 +22,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +30,6 @@ import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsUtilities;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -43,12 +41,11 @@ import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
-import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class FederatedAuthPlugin extends AbstractConnectionPlugin {
 
@@ -93,6 +90,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
   protected static final Pattern SAML_RESPONSE_PATTERN = Pattern.compile("SAMLResponse\\W+value=\"(?<saml>[^\"]+)\"");
   protected static final String SAML_RESPONSE_PATTERN_GROUP = "saml";
+  protected static final RegionUtils regionUtils = new RegionUtils();
   private static final Logger LOGGER = Logger.getLogger(FederatedAuthPlugin.class.getName());
 
   protected final PluginService pluginService;
@@ -187,7 +185,11 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
         hostSpec,
         this.pluginService.getDialect().getDefaultPort());
 
-    final Region region = IamAuthUtils.getRegion(this.rdsUtils, IAM_REGION.getString(props), host, props);
+    final Region region = regionUtils.getRegion(host, props, IAM_REGION.name);
+    if (region == null) {
+      throw new SQLException(
+          Messages.get("FederatedAuthPlugin.missingRequiredConfigParameter", new Object[]{ IAM_REGION.name }));
+    }
 
     final String cacheKey = IamAuthUtils.getCacheKey(
         DB_USER.getString(props),

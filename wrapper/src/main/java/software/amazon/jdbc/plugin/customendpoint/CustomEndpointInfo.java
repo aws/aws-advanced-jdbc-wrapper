@@ -19,8 +19,10 @@ package software.amazon.jdbc.plugin.customendpoint;
 import static software.amazon.jdbc.plugin.customendpoint.MemberListType.EXCLUSION_LIST;
 import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_LIST;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 
 /**
@@ -37,7 +39,7 @@ public class CustomEndpointInfo {
   // instances will not be automatically added to the custom endpoint. If it is an exclusion list, 'members' specifies
   // instances excluded by the custom endpoint, and new cluster instances will be added to the custom endpoint.
   private final MemberListType memberListType;
-  private final List<String> members;
+  private final Set<String> members;
 
   /**
    * Constructs a new CustomEndpointInfo instance with the specified details.
@@ -56,7 +58,7 @@ public class CustomEndpointInfo {
       String clusterIdentifier,
       String url,
       CustomEndpointRoleType roleType,
-      List<String> members,
+      Set<String> members,
       MemberListType memberListType) {
     this.endpointIdentifier = endpointIdentifier;
     this.clusterIdentifier = clusterIdentifier;
@@ -89,7 +91,7 @@ public class CustomEndpointInfo {
         responseEndpointInfo.dbClusterIdentifier(),
         responseEndpointInfo.endpoint(),
         CustomEndpointRoleType.valueOf(responseEndpointInfo.customEndpointType()),
-        members,
+        new HashSet<>(members),
         memberListType
     );
   }
@@ -148,7 +150,7 @@ public class CustomEndpointInfo {
    * @return The static members of the custom endpoint, or null if the custom endpoint member list type is an exclusion
    *     list.
    */
-  public List<String> getStaticMembers() {
+  public Set<String> getStaticMembers() {
     return STATIC_LIST.equals(this.memberListType) ? this.members : null;
   }
 
@@ -159,7 +161,7 @@ public class CustomEndpointInfo {
    * @return The excluded members of the custom endpoint, or null if the custom endpoint member list type is a static
    *     list.
    */
-  public List<String> getExcludedMembers() {
+  public Set<String> getExcludedMembers() {
     return EXCLUSION_LIST.equals(this.memberListType) ? this.members : null;
   }
 

@@ -506,7 +506,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (writerCandidate != null && !allowedHosts.contains(writerCandidate)) {
-        // TODO: should we increment the writer failed counter here or not?
+        this.failoverWriterFailedCounter.inc();
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
             new Object[] {writerCandidate.getHost(), Utils.logTopology(allowedHosts, "")}));
         throw new FailoverFailedSQLException(

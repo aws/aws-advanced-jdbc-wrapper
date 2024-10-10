@@ -36,6 +36,7 @@ import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.SubscribedMethodHelper;
@@ -53,6 +54,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
 
   protected static final long CACHE_CLEANUP_RATE_NANO = TimeUnit.MINUTES.toNanos(1);
+  protected static final RegionUtils regionUtils = new RegionUtils();
   protected static final SlidingExpirationCacheWithCleanupThread<String, CustomEndpointMonitor> monitors =
       new SlidingExpirationCacheWithCleanupThread<>(
           CustomEndpointMonitor::shouldDispose,
@@ -100,9 +102,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final RdsUtils rdsUtils = new RdsUtils();
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
-  private final TelemetryCounter endpointConnectionsCounter;
-  private final TelemetryCounter waitForInfoCounter;
-
+  protected final TelemetryCounter waitForInfoCounter;
   protected final int waitOnCachedInfoDurationMs;
   protected final int idleMonitorExpirationMs;
   protected HostSpec customEndpointHostSpec;
@@ -143,7 +143,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
 
     TelemetryFactory telemetryFactory = pluginService.getTelemetryFactory();
-    this.endpointConnectionsCounter = telemetryFactory.createCounter(TELEMETRY_CUSTOM_ENDPOINT_COUNTER);
     this.waitForInfoCounter = telemetryFactory.createCounter(TELEMETRY_WAIT_FOR_INFO_COUNTER);
   }
 
@@ -195,7 +194,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     }
 
     this.customEndpointHostSpec = hostSpec;
-    this.endpointConnectionsCounter.inc();
     LOGGER.finest(
         Messages.get(
             "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[]{ hostSpec.getHost() }));
@@ -203,13 +201,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     createMonitorIfAbsent(props);
 
     // If needed, wait a short time for custom endpoint info to be discovered.
-    boolean isInfoInCache = waitForCustomEndpointInfo();
-
-    if (!isInfoInCache) {
-      throw new SQLException(
-          Messages.get("CustomEndpointPlugin.cacheTimeout",
-              new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
-    }
+    waitForCustomEndpointInfo();
 
     return connectFunc.call();
   }
@@ -219,13 +211,30 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    *
    * @param props The connection properties.
    */
-  protected void createMonitorIfAbsent(Properties props) {
+  protected void createMonitorIfAbsent(Properties props) throws SQLException {
+    String endpointIdentifier = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
+    if (StringUtils.isNullOrEmpty(endpointIdentifier)) {
+      throw new SQLException(
+          Messages.get(
+              "CustomEndpointPlugin.errorParsingEndpointIdentifier",
+              new Object[] {customEndpointHostSpec.getHost()}));
+    }
+
+    Region region = regionUtils.getRegion(this.customEndpointHostSpec.getHost(), props, REGION_PROPERTY.name);
+    if (region == null) {
+      throw new SQLException(
+          Messages.get(
+              "CustomEndpointPlugin.missingRequiredConfigParameter",
+              new Object[] {REGION_PROPERTY.name}));
+    }
+
     monitors.computeIfAbsent(
         this.customEndpointHostSpec.getHost(),
         (customEndpoint) -> new CustomEndpointMonitorImpl(
             this.pluginService,
             this.customEndpointHostSpec,
-            getRegion(this.customEndpointHostSpec, props),
+            endpointIdentifier,
+            region,
             TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
             this.rdsClientFunc
         ),
@@ -233,48 +242,14 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     );
   }
 
-  /**
-   * Determines the AWS region from the given parameters. The region specified by the props will be used if it is
-   * provided. Otherwise, the region will be parsed from the specified host URL.
-   *
-   * @param hostSpec Host information for the connection being established.
-   * @param props    The connection properties for the connection being established.
-   * @return The AWS region of the connection being established.
-   */
-  protected Region getRegion(HostSpec hostSpec, Properties props) {
-    String regionString = REGION_PROPERTY.getString(props);
-    if (StringUtils.isNullOrEmpty(regionString)) {
-      regionString = rdsUtils.getRdsRegion(hostSpec.getHost());
-    }
 
-    if (StringUtils.isNullOrEmpty(regionString)) {
-      throw new
-          RuntimeException(
-          Messages.get(
-              "CustomEndpointMonitorImpl.missingRequiredConfigParameter",
-              new Object[] {REGION_PROPERTY.name}));
-    }
-
-    final Region region = Region.of(regionString);
-    if (!Region.regions().contains(region)) {
-      throw new RuntimeException(
-          Messages.get(
-              "AwsSdk.unsupportedRegion",
-              new Object[] {regionString}));
-    }
-
-    return region;
-  }
 
   /**
    * If custom endpoint info does not exist for the current custom endpoint, waits a short time for the info to be
    * made available by the custom endpoint monitor. This is necessary so that other plugins can rely on accurate custom
    * endpoint info. Since custom endpoint monitors and information are shared, we should not have to wait often.
-   *
-   * @return true if the custom endpoint info is available, or false if we timed out while waiting for the info to
-   *     become available.
    */
-  protected boolean waitForCustomEndpointInfo() {
+  protected void waitForCustomEndpointInfo() throws SQLException {
     CustomEndpointInfo cachedInfo =
         this.pluginService.getInfo(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
     boolean isInfoInCache = cachedInfo != null;
@@ -290,10 +265,19 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       long waitForEndpointInfoTimeoutNano =
           System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
 
-      while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
-        cachedInfo =
-            this.pluginService.getInfo(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
-        isInfoInCache = cachedInfo != null;
+      try {
+        while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
+          TimeUnit.MILLISECONDS.sleep(100);
+          cachedInfo =
+              this.pluginService.getInfo(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
+          isInfoInCache = cachedInfo != null;
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new SQLException(
+            Messages.get(
+                "CustomEndpointPlugin.interruptedThread",
+                new Object[]{ this.customEndpointHostSpec.getHost() }));
       }
 
       if (isInfoInCache) {
@@ -301,10 +285,12 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
             Messages.get(
                 "CustomEndpointPlugin.foundInfoInCache",
                 new Object[]{ this.customEndpointHostSpec.getHost(), cachedInfo }));
+      } else {
+        throw new SQLException(
+            Messages.get("CustomEndpointPlugin.cacheTimeout",
+                new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
       }
     }
-
-    return isInfoInCache;
   }
 
   /**
@@ -336,16 +322,12 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    createMonitorIfAbsent(this.props);
-
     // If needed, wait a short time for custom endpoint info to be discovered.
-    boolean isInfoInCache = waitForCustomEndpointInfo();
-
-    if (!isInfoInCache) {
-      SQLException cacheTimeoutException = new SQLException(
-          Messages.get("CustomEndpointPlugin.cacheTimeout",
-              new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
-      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, cacheTimeoutException);
+    try {
+      createMonitorIfAbsent(this.props);
+      waitForCustomEndpointInfo();
+    } catch (Exception e) {
+      throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
 
     return jdbcMethodFunc.call();
@@ -356,15 +338,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    */
   public static void closeMonitors() {
     LOGGER.info(Messages.get("CustomEndpointPlugin.closeMonitors"));
-
-    for (CustomEndpointMonitor monitor : monitors.getEntries().values()) {
-      try {
-        monitor.close();
-      } catch (Exception ex) {
-        // ignore
-      }
-    }
-
+    // The clear call automatically calls close() on all monitors.
     monitors.clear();
   }
 }

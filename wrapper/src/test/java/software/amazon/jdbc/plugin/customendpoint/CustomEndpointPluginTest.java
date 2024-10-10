@@ -55,11 +55,11 @@ public class CustomEndpointPluginTest {
   private final String customEndpointUrl = "custom.cluster-custom-XYZ.us-east-1.rds.amazonaws.com";
 
   private AutoCloseable closeable;
-  private Properties props = new Properties();
-  private HostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
-  private HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
-  private HostSpec writerClusterHost = hostSpecBuilder.host(writerClusterUrl).build();
-  private HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
+  private final Properties props = new Properties();
+  private final HostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
+  private final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
+  private final HostSpec writerClusterHost = hostSpecBuilder.host(writerClusterUrl).build();
+  private final HostSpec host = hostSpecBuilder.host(customEndpointUrl).build();
 
   @Mock private PluginService mockPluginService;
   @Mock private BiFunction<HostSpec, Region, RdsClient> mockRdsClientFunc;
@@ -88,7 +88,7 @@ public class CustomEndpointPluginTest {
     CustomEndpointPlugin.monitors.clear();
   }
 
-  private CustomEndpointPlugin getSpyPlugin() {
+  private CustomEndpointPlugin getSpyPlugin() throws SQLException {
     CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockPluginService, props, mockRdsClientFunc);
     CustomEndpointPlugin spyPlugin = spy(plugin);
     doNothing().when(spyPlugin).createMonitorIfAbsent(any(Properties.class));

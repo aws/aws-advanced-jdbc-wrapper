@@ -24,13 +24,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -46,7 +45,6 @@ import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsResponse;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
-import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategy;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
@@ -62,11 +60,6 @@ public class CustomEndpointMonitorImplTest {
   @Mock private DBClusterEndpoint mockClusterEndpoint2;
   @Mock private TelemetryFactory mockTelemetryFactory;
   @Mock private TelemetryCounter mockTelemetryCounter;
-  @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
-  @Mock private JdbcCallable<Statement, SQLException> mockJdbcMethodFunc;
-  @Mock private CustomEndpointInfo mockCustomEndpointInfo;
-  @Mock private Connection mockConnection;
-  @Mock private CustomEndpointMonitor mockMonitor;
 
   private final String customEndpointUrl1 = "custom1.cluster-custom-XYZ.us-east-1.rds.amazonaws.com";
   private final String customEndpointUrl2 = "custom2.cluster-custom-XYZ.us-east-1.rds.amazonaws.com";
@@ -75,20 +68,20 @@ public class CustomEndpointMonitorImplTest {
   private final String endpointRoleType = "ANY";
   private List<DBClusterEndpoint> twoEndpointList;
   private List<DBClusterEndpoint> oneEndpointList;
-  private final List<String> staticMembers = Arrays.asList("member1", "member2");
+  private final List<String> staticMembersList = Arrays.asList("member1", "member2");
+  private final Set<String> staticMembersSet = new HashSet<>(staticMembersList);
   private final CustomEndpointInfo expectedInfo = new CustomEndpointInfo(
       endpointId,
       clusterId,
       customEndpointUrl1,
       CustomEndpointRoleType.valueOf(endpointRoleType),
-      staticMembers,
+      staticMembersSet,
       MemberListType.STATIC_LIST);
 
   private AutoCloseable closeable;
-  private Properties props = new Properties();
-  private HostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
-  private HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
-  private HostSpec host = hostSpecBuilder.host(customEndpointUrl1).build();
+  private final HostAvailabilityStrategy availabilityStrategy = new SimpleHostAvailabilityStrategy();
+  private final HostSpecBuilder hostSpecBuilder = new HostSpecBuilder(availabilityStrategy);
+  private final HostSpec host = hostSpecBuilder.host(customEndpointUrl1).build();
 
   @BeforeEach
   public void init() throws SQLException {
@@ -107,7 +100,7 @@ public class CustomEndpointMonitorImplTest {
     when(mockClusterEndpoint1.endpoint()).thenReturn(customEndpointUrl1);
     when(mockClusterEndpoint2.endpoint()).thenReturn(customEndpointUrl2);
     when(mockClusterEndpoint1.hasStaticMembers()).thenReturn(true);
-    when(mockClusterEndpoint1.staticMembers()).thenReturn(staticMembers);
+    when(mockClusterEndpoint1.staticMembers()).thenReturn(staticMembersList);
     when(mockClusterEndpoint1.dbClusterEndpointIdentifier()).thenReturn(endpointId);
     when(mockClusterEndpoint1.dbClusterIdentifier()).thenReturn(clusterId);
     when(mockClusterEndpoint1.customEndpointType()).thenReturn(endpointRoleType);
@@ -116,14 +109,13 @@ public class CustomEndpointMonitorImplTest {
   @AfterEach
   void cleanUp() throws Exception {
     closeable.close();
-    props.clear();
     CustomEndpointPlugin.monitors.clear();
   }
 
   @Test
   public void testRun() throws InterruptedException {
     CustomEndpointMonitorImpl monitor = new CustomEndpointMonitorImpl(
-        mockPluginService, host, Region.US_EAST_1, TimeUnit.MILLISECONDS.toNanos(50), mockRdsClientFunc);
+        mockPluginService, host, endpointId, Region.US_EAST_1, TimeUnit.MILLISECONDS.toNanos(50), mockRdsClientFunc);
     // Wait for 2 run cycles. The first will return an unexpected number of endpoints in the API response, the second
     // will return the expected number of endpoints (one).
     TimeUnit.MILLISECONDS.sleep(100);

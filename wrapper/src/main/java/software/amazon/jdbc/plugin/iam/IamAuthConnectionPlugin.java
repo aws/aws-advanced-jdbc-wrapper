@@ -39,6 +39,7 @@ import software.amazon.jdbc.plugin.TokenInfo;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -73,6 +74,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
       "iamExpiration", String.valueOf(DEFAULT_TOKEN_EXPIRATION_SEC),
       "IAM token cache expiration in seconds");
 
+  protected static final RegionUtils regionUtils = new RegionUtils();
   protected final PluginService pluginService;
   protected final RdsUtils rdsUtils = new RdsUtils();
 
@@ -128,7 +130,11 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
         this.pluginService.getDialect().getDefaultPort());
 
     final String iamRegion = IAM_REGION.getString(props);
-    final Region region = IamAuthUtils.getRegion(rdsUtils, iamRegion, host, props);
+    final Region region = regionUtils.getRegion(host, props, IAM_REGION.name);
+    if (region == null) {
+      throw new SQLException(
+          Messages.get("IamAuthConnectionPlugin.missingRequiredConfigParameter", new Object[]{ IAM_REGION.name }));
+    }
 
     final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);
 
