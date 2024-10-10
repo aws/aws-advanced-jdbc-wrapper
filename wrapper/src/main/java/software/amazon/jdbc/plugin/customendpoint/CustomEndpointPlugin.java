@@ -106,6 +106,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final int waitOnCachedInfoDurationMs;
   protected final int idleMonitorExpirationMs;
   protected HostSpec customEndpointHostSpec;
+  protected String customEndpointId;
+  protected Region region;
 
   /**
    * Constructs a new CustomEndpointPlugin instance.
@@ -198,6 +200,22 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         Messages.get(
             "CustomEndpointPlugin.connectionRequestToCustomEndpoint", new Object[]{ hostSpec.getHost() }));
 
+    this.customEndpointId = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
+    if (StringUtils.isNullOrEmpty(customEndpointId)) {
+      throw new SQLException(
+          Messages.get(
+              "CustomEndpointPlugin.errorParsingEndpointIdentifier",
+              new Object[] {customEndpointHostSpec.getHost()}));
+    }
+
+    this.region = regionUtils.getRegion(this.customEndpointHostSpec.getHost(), props, REGION_PROPERTY.name);
+    if (this.region == null) {
+      throw new SQLException(
+          Messages.get(
+              "CustomEndpointPlugin.unableToDetermineRegion",
+              new Object[] {REGION_PROPERTY.name}));
+    }
+
     createMonitorIfAbsent(props);
 
     // If needed, wait a short time for custom endpoint info to be discovered.
@@ -212,29 +230,13 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * @param props The connection properties.
    */
   protected void createMonitorIfAbsent(Properties props) throws SQLException {
-    String endpointIdentifier = this.rdsUtils.getRdsClusterId(customEndpointHostSpec.getHost());
-    if (StringUtils.isNullOrEmpty(endpointIdentifier)) {
-      throw new SQLException(
-          Messages.get(
-              "CustomEndpointPlugin.errorParsingEndpointIdentifier",
-              new Object[] {customEndpointHostSpec.getHost()}));
-    }
-
-    Region region = regionUtils.getRegion(this.customEndpointHostSpec.getHost(), props, REGION_PROPERTY.name);
-    if (region == null) {
-      throw new SQLException(
-          Messages.get(
-              "CustomEndpointPlugin.missingRequiredConfigParameter",
-              new Object[] {REGION_PROPERTY.name}));
-    }
-
     monitors.computeIfAbsent(
         this.customEndpointHostSpec.getHost(),
         (customEndpoint) -> new CustomEndpointMonitorImpl(
             this.pluginService,
             this.customEndpointHostSpec,
-            endpointIdentifier,
-            region,
+            this.customEndpointId,
+            this.region,
             TimeUnit.MILLISECONDS.toNanos(CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS.getLong(props)),
             this.rdsClientFunc
         ),

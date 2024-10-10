@@ -129,11 +129,10 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
         hostSpec,
         this.pluginService.getDialect().getDefaultPort());
 
-    final String iamRegion = IAM_REGION.getString(props);
     final Region region = regionUtils.getRegion(host, props, IAM_REGION.name);
     if (region == null) {
       throw new SQLException(
-          Messages.get("IamAuthConnectionPlugin.missingRequiredConfigParameter", new Object[]{ IAM_REGION.name }));
+          Messages.get("IamAuthConnectionPlugin.unableToDetermineRegion", new Object[]{ IAM_REGION.name }));
     }
 
     final int tokenExpirationSec = IAM_EXPIRATION.getInteger(props);

@@ -188,7 +188,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
     final Region region = regionUtils.getRegion(host, props, IAM_REGION.name);
     if (region == null) {
       throw new SQLException(
-          Messages.get("FederatedAuthPlugin.missingRequiredConfigParameter", new Object[]{ IAM_REGION.name }));
+          Messages.get("FederatedAuthPlugin.unableToDetermineRegion", new Object[]{ IAM_REGION.name }));
     }
 
     final String cacheKey = IamAuthUtils.getCacheKey(
