@@ -69,7 +69,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected static final Map<Class<? extends ConnectionPlugin>, String> pluginNameByClass =
       new HashMap<Class<? extends ConnectionPlugin>, String>() {
         {
-          put(LimitlessConnectionPlugin.class, "plugin:endpoint");
+          put(LimitlessConnectionPlugin.class, "plugin:limitless");
           put(ExecutionTimeConnectionPlugin.class, "plugin:executionTime");
           put(AuroraConnectionTrackerPlugin.class, "plugin:auroraConnectionTracker");
           put(LogQueryConnectionPlugin.class, "plugin:logQuery");
