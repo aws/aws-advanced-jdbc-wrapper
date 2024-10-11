@@ -42,8 +42,8 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   protected final LimitlessQueryHelper queryHelper;
   protected final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
 
-  protected static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor> limitlessRouterMonitors =
-      new SlidingExpirationCacheWithCleanupThread<>(
+  protected static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor>
+      limitlessRouterMonitors = new SlidingExpirationCacheWithCleanupThread<>(
           limitlessRouterMonitor -> true,
           limitlessRouterMonitor -> {
             try {

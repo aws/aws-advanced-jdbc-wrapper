@@ -95,13 +95,6 @@ public class SlidingExpirationCache<K, V> {
     return cacheItem.withExtendExpiration(itemExpirationNano).item;
   }
 
-  /**
-   *
-   * @param key                the key with which the specified value is to be associated
-   * @param value    the function to compute a value
-   * @param itemExpirationNano the expiration time of the new or renewed entry
-   * @return
-   */
   public V put(
       final K key,
       final V value,
