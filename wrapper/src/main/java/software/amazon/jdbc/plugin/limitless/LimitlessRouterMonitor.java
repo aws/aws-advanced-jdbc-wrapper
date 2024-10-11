@@ -46,6 +46,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -57,19 +58,16 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
   private static final Logger LOGGER =
       Logger.getLogger(LimitlessRouterMonitor.class.getName());
 
-  private static final String MONITORING_PROPERTY_PREFIX = "limitless-router-monitor-";
-  private final int intervalMs;
-  private final @NonNull HostSpec hostSpec;
-  private final @NonNull String limitlessRouterEndpointQuery;
-  private final AtomicBoolean stopped = new AtomicBoolean(false);
-  private final AtomicReference<List<HostSpec>> limitlessRouters;
-  private final @NonNull Properties props;
-  private final @NonNull PluginService pluginService;
+  protected static final String MONITORING_PROPERTY_PREFIX = "limitless-router-monitor-";
+  protected final int intervalMs;
+  protected final @NonNull HostSpec hostSpec;
+  protected final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache;
+  protected final String limitlessRouterCacheKey;
+  protected final @NonNull Properties props;
+  protected final @NonNull PluginService pluginService;
   protected final LimitlessQueryHelper queryHelper;
-  private final TelemetryFactory telemetryFactory;
-  private Connection monitoringConn = null;
-  final Executor networkTimeoutExecutor = new SynchronousExecutor();
-  static final int defaultQueryTimeoutMs = 5000;
+  protected final TelemetryFactory telemetryFactory;
+  protected Connection monitoringConn = null;
 
   private final ExecutorService threadPool = Executors.newFixedThreadPool(1, runnableTarget -> {
     final Thread monitoringThread = new Thread(runnableTarget);
@@ -77,18 +75,19 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     return monitoringThread;
   });
 
-  private final ReentrantLock lock = new ReentrantLock();
+  private final AtomicBoolean stopped = new AtomicBoolean(false);
 
   public LimitlessRouterMonitor(
       final @NonNull PluginService pluginService,
       final @NonNull HostSpec hostSpec,
-      final @NonNull List<HostSpec> limitlessRouters,
+      final @NonNull SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache,
+      final @NonNull String limitlessRouterCacheKey,
       final @NonNull Properties props,
       final int intervalMs) {
     this.pluginService = pluginService;
     this.hostSpec = hostSpec;
-    this.limitlessRouterEndpointQuery = getLimitlessRouterEndpointQuery();
-    this.limitlessRouters = new AtomicReference<>(limitlessRouters);
+    this.limitlessRouterCache = limitlessRouterCache;
+    this.limitlessRouterCacheKey = limitlessRouterCacheKey;
     this.props = PropertyUtils.copyProperties(props);
     props.stringPropertyNames().stream()
         .filter(p -> p.startsWith(MONITORING_PROPERTY_PREFIX))
@@ -108,17 +107,9 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
     this.threadPool.shutdown(); // No more task are accepted by pool.
   }
 
-  private String getLimitlessRouterEndpointQuery() {
-    Dialect dialect = this.pluginService.getDialect();
-    if (dialect instanceof AuroraLimitlessDialect) {
-      return ((AuroraLimitlessDialect) dialect).getLimitlessRouterEndpointQuery();
-    }
-    throw new UnsupportedOperationException(Messages.get("LimitlessRouterMonitor.unsupportedDialectOrDatabase",
-        new Object[] {dialect}));
-  }
-
   public List<HostSpec> getLimitlessRouters() {
-    return this.limitlessRouters.get();
+    return this.limitlessRouterCache.get(this.limitlessRouterCacheKey,
+        TimeUnit.MILLISECONDS.toNanos(LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props)));
   }
 
   public AtomicBoolean isStopped() {
@@ -155,9 +146,13 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
         }
         List<HostSpec> newLimitlessRouters = queryHelper.queryForLimitlessRouters(this.monitoringConn,
             this.hostSpec.getPort());
-        this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
+
+        limitlessRouterCache.put(
+            this.limitlessRouterCacheKey,
+            newLimitlessRouters, LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props));
+
         RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
-        LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
+        LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor]"));
         TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
       } catch (final InterruptedException exception) {
         LOGGER.finest(
@@ -179,27 +174,6 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
           telemetryContext.closeContext();
         }
       }
-    }
-  }
-
-  public List<HostSpec> forceGetLimitlessRouters() throws SQLException {
-    LOGGER.finest(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRouters"));
-
-    lock.lock();
-    try {
-      this.openConnection();
-      if (this.monitoringConn == null || this.monitoringConn.isClosed()) {
-        throw new SQLException(Messages.get("LimitlessRouterMonitor.forceGetLimitlessRoutersFailed"));
-      }
-      List<HostSpec> newLimitlessRouters = queryHelper.queryForLimitlessRouters(this.monitoringConn,
-          this.hostSpec.getPort());
-      this.limitlessRouters.set(Collections.unmodifiableList(newLimitlessRouters));
-      RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
-      LOGGER.finest(Utils.logTopology(limitlessRouters.get(), "[limitlessRouterMonitor]"));
-      return newLimitlessRouters;
-
-    } finally {
-      lock.unlock();
     }
   }
 
@@ -226,64 +200,5 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
       }
       throw ex;
     }
-  }
-
-  private List<HostSpec> queryForLimitlessRouters(final Connection conn) throws SQLException {
-    int networkTimeout = -1;
-    try {
-      networkTimeout = conn.getNetworkTimeout();
-      // The query is not monitored by the EFM plugin, so it needs a socket timeout
-      if (networkTimeout == 0) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, defaultQueryTimeoutMs);
-      }
-    } catch (SQLException e) {
-      LOGGER.warning(() -> Messages.get("LimitlessRouterMonitor.getNetworkTimeoutError",
-          new Object[] {e.getMessage()}));
-    }
-
-    try (final Statement stmt = conn.createStatement();
-         final ResultSet resultSet = stmt.executeQuery(this.limitlessRouterEndpointQuery)) {
-      return mapResultSetToHostSpecList(resultSet);
-    } catch (final SQLSyntaxErrorException e) {
-      throw new SQLException(Messages.get("LimitlessRouterMonitor.invalidQuery"), e);
-    } finally {
-      if (networkTimeout == 0 && !conn.isClosed()) {
-        conn.setNetworkTimeout(networkTimeoutExecutor, networkTimeout);
-      }
-    }
-  }
-
-  private List<HostSpec> mapResultSetToHostSpecList(final ResultSet resultSet) throws SQLException {
-
-    List<HostSpec> hosts = new ArrayList<>();
-    while (resultSet.next()) {
-      final HostSpec host = createHost(resultSet);
-      hosts.add(host);
-    }
-
-    return hosts;
-  }
-
-  private HostSpec createHost(final ResultSet resultSet) throws SQLException {
-    final String hostName = resultSet.getString(1);
-    final float cpu = resultSet.getFloat(2);
-
-    long weight = Math.round(10 - cpu * 10);
-
-    if (weight < 1 || weight > 10) {
-      weight = 1; // default to 1
-      LOGGER.warning(() -> Messages.get(
-          "LimitlessRouterMonitor.invalidRouterLoad",
-          new Object[] {hostName, cpu}));
-    }
-
-    return new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-        .host(hostName)
-        .port(this.hostSpec.getPort())
-        .role(HostRole.WRITER)
-        .availability(HostAvailability.AVAILABLE)
-        .weight(weight)
-        .hostId(hostName)
-        .build();
   }
 }
