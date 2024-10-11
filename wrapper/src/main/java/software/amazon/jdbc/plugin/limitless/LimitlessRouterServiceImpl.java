@@ -18,7 +18,6 @@ package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -28,7 +27,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
-import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
 
@@ -44,7 +42,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   protected final LimitlessQueryHelper queryHelper;
   protected final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
 
-  private static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor> limitlessRouterMonitors =
+  protected static final SlidingExpirationCacheWithCleanupThread<String, LimitlessRouterMonitor> limitlessRouterMonitors =
       new SlidingExpirationCacheWithCleanupThread<>(
           limitlessRouterMonitor -> true,
           limitlessRouterMonitor -> {
@@ -57,7 +55,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           CACHE_CLEANUP_NANO
       );
 
-  private static final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>>
+  protected static final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>>
       limitlessRouterCache =
       new SlidingExpirationCacheWithCleanupThread<>(
           x  -> true,
@@ -66,15 +64,16 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       );
 
   public LimitlessRouterServiceImpl(final @NonNull PluginService pluginService) {
-    this(pluginService, LimitlessRouterMonitor::new);
+    this(pluginService, LimitlessRouterMonitor::new, new LimitlessQueryHelper(pluginService));
   }
 
   public LimitlessRouterServiceImpl(
       final @NonNull PluginService pluginService,
-      final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer) {
+      final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer,
+      final LimitlessQueryHelper queryHelper) {
     this.pluginService = pluginService;
     this.limitlessRouterMonitorInitializer = limitlessRouterMonitorInitializer;
-    this.queryHelper = new LimitlessQueryHelper(pluginService);
+    this.queryHelper = queryHelper;
   }
 
   @Override

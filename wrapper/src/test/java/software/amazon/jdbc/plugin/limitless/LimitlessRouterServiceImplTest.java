@@ -17,17 +17,22 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
-import org.junit.Ignore;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostRole;
@@ -55,8 +60,14 @@ public class LimitlessRouterServiceImplTest {
     props = new Properties();
   }
 
+  @AfterEach
+  public void cleanup() throws Exception {
+    closeable.close();
+    LimitlessRouterServiceImpl.limitlessRouterCache.clear();
+  }
+
   @Test
-  void test() throws SQLException {
+  void testGetLimitlessRouters() throws SQLException {
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
     final List<HostSpec> endpointHostSpecList = Arrays.asList(
@@ -67,21 +78,48 @@ public class LimitlessRouterServiceImplTest {
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
             .build()
     );
-    when(mockLimitlessRouterMonitor.getLimitlessRouters()).thenReturn(endpointHostSpecList);
+    LimitlessRouterServiceImpl.limitlessRouterCache.put(CLUSTER_ID, endpointHostSpecList, 600000);
+    final LimitlessQueryHelper mockLimitlessQueryHelper = Mockito.mock(LimitlessQueryHelper.class);
 
-    final LimitlessRouterService limitlessRouterService =
-        new LimitlessRouterServiceImpl(mockPluginService, (a, b, c, d, e) -> mockLimitlessRouterMonitor);
+    final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
+        mockPluginService,
+        (a, b, c, d, e, f) -> mockLimitlessRouterMonitor,
+        mockLimitlessQueryHelper);
     limitlessRouterService.startMonitoring(hostSpec, props, intervalMs);
-
     final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
 
     assertEquals(endpointHostSpecList, actualEndpointHostSpecList);
   }
 
   @Test
-  void test_nullLimitlessRouterMonitor() {
-    final LimitlessRouterService limitlessRouterService =
-        new LimitlessRouterServiceImpl(mockPluginService, (a, b, c, d, e) -> null);
-    assertThrows(SQLException.class, () -> limitlessRouterService.getLimitlessRouters(OTHER_CLUSTER_ID, props));
+  void testForceGetLimitlessRoutersWithConn() throws SQLException {
+    when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
+    when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
+    final List<HostSpec> expectedHostSpecList = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER).weight(0)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
+            .build()
+    );
+    final LimitlessQueryHelper mockLimitlessQueryHelper = Mockito.mock(LimitlessQueryHelper.class);
+    when(mockLimitlessQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt()))
+        .thenReturn(expectedHostSpecList);
+
+    final Connection expectedConn = Mockito.mock(Connection.class);
+    final int expectedHostPort = 39;
+
+    final LimitlessRouterServiceImpl limitlessRouterService = new LimitlessRouterServiceImpl(
+            mockPluginService,
+            (a, b, c, d, e, f) -> mockLimitlessRouterMonitor,
+            mockLimitlessQueryHelper);
+
+    final List<HostSpec> actualHostSpecList = limitlessRouterService
+        .forceGetLimitlessRoutersWithConn(expectedConn, expectedHostPort, props);
+
+    verify(mockLimitlessQueryHelper, times(1))
+        .queryForLimitlessRouters(expectedConn, expectedHostPort);
+    assertEquals(expectedHostSpecList, actualHostSpecList);
   }
 }

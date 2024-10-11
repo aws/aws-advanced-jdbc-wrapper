@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -42,8 +43,11 @@ import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.RoundRobinHostSelector;
+import software.amazon.jdbc.dialect.AuroraPgDialect;
+import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessConnectionPluginTest {
@@ -55,8 +59,9 @@ public class LimitlessConnectionPluginTest {
 
   private static final HostSpec expectedSelectedHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("expected-selected-instance").role(HostRole.WRITER).weight(Long.MAX_VALUE).build();
-  @Mock private static Connection connection;
+  private static final Dialect expectedDialect = new AuroraPgDialect();
   @Mock JdbcCallable<Connection, SQLException> mockConnectFuncLambda;
+  @Mock private Connection mockConnection;
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
   @Mock private LimitlessRouterService mockLimitlessRouterService;
@@ -73,7 +78,14 @@ public class LimitlessConnectionPluginTest {
     plugin = new LimitlessConnectionPlugin(mockPluginService, props, () -> mockLimitlessRouterService);
 
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
+    when(mockPluginService.getDialect()).thenReturn(expectedDialect);
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
+    when(mockConnectFuncLambda.call()).thenReturn(mockConnection);
+  }
+
+  @AfterEach
+  void cleanUp() throws Exception {
+    closeable.close();
   }
 
   @Test
@@ -241,8 +253,6 @@ public class LimitlessConnectionPluginTest {
 
     when(mockLimitlessRouterService.getLimitlessRouters(any(), any()))
         .thenReturn(endpointHostSpecList, Collections.emptyList());
-    when(mockLimitlessRouterService.forceGetLimitlessRouters(any(), any()))
-        .thenReturn(endpointHostSpecList, Collections.emptyList());
     when(mockPluginService.getHostSpecByStrategy(any(), any(), eq(RoundRobinHostSelector.STRATEGY_ROUND_ROBIN)))
         .thenReturn(expectedSelectedHostSpec);
     when(mockPluginService.connect(eq(expectedSelectedHostSpec), any())).thenThrow(SQLException.class);
@@ -254,7 +264,6 @@ public class LimitlessConnectionPluginTest {
     verify(mockLimitlessRouterService, times(1)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
     verify(mockLimitlessRouterService, times(1)).getLimitlessRouters(CLUSTER_ID, props);
-    verify(mockLimitlessRouterService, times(1)).forceGetLimitlessRouters(CLUSTER_ID, props);
     verify(mockPluginService, times(1)).getHostSpecByStrategy(endpointHostSpecList,
         HostRole.WRITER, RoundRobinHostSelector.STRATEGY_ROUND_ROBIN);
     verify(
