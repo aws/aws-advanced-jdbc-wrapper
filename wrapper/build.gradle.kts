@@ -71,7 +71,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:sts:2.27.22")
     testImplementation("org.testcontainers:testcontainers:1.20.1")
     testImplementation("org.testcontainers:mysql:1.20.1")
-    testImplementation("org.testcontainers:postgresql:1.20.1")
+    testImplementation("org.testcontainers:postgresql:1.20.2")
     testImplementation("org.testcontainers:mariadb:1.20.1")
     testImplementation("org.testcontainers:junit-jupiter:1.20.1")
     testImplementation("org.testcontainers:toxiproxy:1.20.1")
