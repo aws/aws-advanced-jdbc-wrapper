@@ -18,9 +18,10 @@ package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -37,7 +38,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           "600000", // 10min
           "Interval in milliseconds for an Limitless router monitor to be considered inactive and to be disposed.");
   protected static final long CACHE_CLEANUP_NANO = TimeUnit.MINUTES.toNanos(1);
-  protected static final ReentrantLock forceGetLimitlessRoutersLock = new ReentrantLock();
+  protected static final Map<String, ReentrantLock> forceGetLimitlessRoutersLockMap = new ConcurrentHashMap<>();
   protected final PluginService pluginService;
   protected final LimitlessQueryHelper queryHelper;
   protected final LimitlessRouterMonitorInitializer limitlessRouterMonitorInitializer;
@@ -80,11 +81,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   public List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
-    final List<HostSpec> limitlessRouters = limitlessRouterCache.get(clusterId, cacheExpirationNano);
-    if (limitlessRouters == null) {
-      return Collections.emptyList();
-    }
-    return limitlessRouters;
+    return limitlessRouterCache.get(clusterId, cacheExpirationNano);
   }
 
   @Override
@@ -93,7 +90,11 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
-    forceGetLimitlessRoutersLock.lock();
+    final ReentrantLock lock = forceGetLimitlessRoutersLockMap.computeIfAbsent(
+        this.pluginService.getHostListProvider().getClusterId(),
+        (key) -> new ReentrantLock()
+    );
+    lock.lock();
     try {
       final List<HostSpec> limitlessRouters =
           limitlessRouterCache.get(this.pluginService.getHostListProvider().getClusterId(), cacheExpirationNano);
@@ -109,7 +110,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           newLimitlessRouters, LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props));
       return newLimitlessRouters;
     } finally {
-      forceGetLimitlessRoutersLock.unlock();
+      lock.unlock();
     }
   }
 

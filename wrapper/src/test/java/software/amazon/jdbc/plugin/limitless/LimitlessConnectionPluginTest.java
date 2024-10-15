@@ -302,9 +302,10 @@ public class LimitlessConnectionPluginTest {
     final int maxRetries = 7;
     propsWithMaxRetries.setProperty(LimitlessConnectionPlugin.MAX_RETRIES.name, String.valueOf(maxRetries));
 
-    assertThrows(
-        SQLException.class,
-        () -> plugin.connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, propsWithMaxRetries, true, mockConnectFuncLambda));
+
+    final Connection actualConn = plugin
+        .connect(DRIVER_PROTOCOL, INPUT_HOST_SPEC, propsWithMaxRetries, true, mockConnectFuncLambda);
+    assertEquals(mockConnection, actualConn);
 
     verify(mockLimitlessRouterService, times(1)).startMonitoring(INPUT_HOST_SPEC,
         props, Integer.parseInt(LimitlessConnectionPlugin.INTERVAL_MILLIS.defaultValue));
