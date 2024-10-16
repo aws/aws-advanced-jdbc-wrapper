@@ -83,7 +83,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessRouterService limitlessRouterService = new LimitlessRouterServiceImpl(
         mockPluginService,
-        (a, b, c, d, e, f) -> mockLimitlessRouterMonitor,
+        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
         mockLimitlessQueryHelper);
     limitlessRouterService.startMonitoring(hostSpec, props, intervalMs);
     final List<HostSpec> actualEndpointHostSpecList = limitlessRouterService.getLimitlessRouters(CLUSTER_ID, props);
@@ -112,7 +112,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessRouterServiceImpl limitlessRouterService = new LimitlessRouterServiceImpl(
             mockPluginService,
-            (a, b, c, d, e, f) -> mockLimitlessRouterMonitor,
+            (a, b, c, d, e) -> mockLimitlessRouterMonitor,
             mockLimitlessQueryHelper);
 
     final List<HostSpec> actualHostSpecList = limitlessRouterService
