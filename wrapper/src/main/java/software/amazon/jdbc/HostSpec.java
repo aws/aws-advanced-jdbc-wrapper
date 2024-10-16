@@ -145,6 +145,10 @@ public class HostSpec {
     return this.weight;
   }
 
+  public void setWeight(long weight) {
+    this.weight = weight;
+  }
+
   public void addAlias(final String... alias) {
     if (alias == null || alias.length < 1) {
       return;
