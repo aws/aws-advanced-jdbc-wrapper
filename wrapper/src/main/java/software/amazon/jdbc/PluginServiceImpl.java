@@ -16,8 +16,6 @@
 
 package software.amazon.jdbc;
 
-import static software.amazon.jdbc.plugin.customendpoint.MemberListType.STATIC_LIST;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,6 +31,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -48,7 +47,6 @@ import software.amazon.jdbc.exceptions.ExceptionManager;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.HostAvailabilityStrategyFactory;
 import software.amazon.jdbc.hostlistprovider.StaticHostListProvider;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.states.SessionStateServiceImpl;
@@ -64,18 +62,14 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private static final Logger LOGGER = Logger.getLogger(PluginServiceImpl.class.getName());
   protected static final long DEFAULT_HOST_AVAILABILITY_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(5);
 
-  // A generic shared info cache that can be used to store different types of information that must be widely accessible
-  // via the plugin service.
-  protected static final CacheMap<String, Object> infoCache = new CacheMap<>();
-  protected static final long DEFAULT_INFO_CACHE_EXPIRE_NANO = TimeUnit.MINUTES.toNanos(60);
-
   protected static final CacheMap<String, HostAvailability> hostAvailabilityExpiringCache = new CacheMap<>();
   protected final ConnectionPluginManager pluginManager;
   private final Properties props;
   private final String originalUrl;
   private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
-  protected List<HostSpec> hosts = new ArrayList<>();
+  protected List<HostSpec> allHosts = new ArrayList<>();
+  protected AtomicReference<AllowedAndBlockedHosts> allowedAndBlockedHosts = new AtomicReference<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
@@ -204,6 +198,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public HostSpec getInitialConnectionHostSpec() {
     return this.initialConnectionHostSpec;
+  }
+
+  @Override
+  public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
+    this.allowedAndBlockedHosts.set(allowedAndBlockedHosts);
   }
 
   @Override
@@ -385,26 +384,33 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public List<HostSpec> getAllHosts() {
-    return this.hosts;
+    return this.allHosts;
   }
 
   @Override
   public List<HostSpec> getHosts() {
-    CustomEndpointInfo customEndpointInfo =
-        this.getInfo(this.initialConnectionHostSpec.getHost(), CustomEndpointInfo.class, true);
-    if (customEndpointInfo == null) {
-      return this.hosts;
+    AllowedAndBlockedHosts hostPermissions = this.allowedAndBlockedHosts.get();
+    if (hostPermissions == null) {
+      return this.allHosts;
     }
 
-    if (STATIC_LIST.equals(customEndpointInfo.getMemberListType())) {
-      return this.hosts.stream()
-          .filter((hostSpec -> customEndpointInfo.getStaticMembers().contains(hostSpec.getHostId())))
-          .collect(Collectors.toList());
-    } else {
-      return this.hosts.stream()
-          .filter((hostSpec -> !customEndpointInfo.getExcludedMembers().contains(hostSpec.getHostId())))
+    List<HostSpec> hosts = this.allHosts;
+    Set<String> allowedHostIds = hostPermissions.getAllowedHostIds();
+    Set<String> blockedHostIds = hostPermissions.getBlockedHostIds();
+
+    if (!Utils.isNullOrEmpty(allowedHostIds)) {
+      hosts = hosts.stream()
+          .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
           .collect(Collectors.toList());
     }
+
+    if (!Utils.isNullOrEmpty(blockedHostIds)) {
+      hosts = hosts.stream()
+          .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
+          .collect(Collectors.toList());
+    }
+
+    return hosts;
   }
 
   @Override
@@ -465,18 +471,18 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void refreshHostList() throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
-    if (!Objects.equals(updatedHostList, this.hosts)) {
+    if (!Objects.equals(updatedHostList, this.allHosts)) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
   @Override
   public void refreshHostList(final Connection connection) throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
-    if (!Objects.equals(updatedHostList, this.hosts)) {
+    if (!Objects.equals(updatedHostList, this.allHosts)) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
@@ -485,7 +491,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
     if (updatedHostList != null) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
@@ -494,7 +500,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh(connection);
     if (updatedHostList != null) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
@@ -514,7 +520,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
           ((BlockingHostListProvider) hostListProvider).forceRefresh(shouldVerifyWriter, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
-        setNodeList(this.hosts, updatedHostList);
+        setNodeList(this.allHosts, updatedHostList);
         return true;
       }
     } catch (TimeoutException ex) {
@@ -558,7 +564,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     if (!changes.isEmpty()) {
-      this.hosts = newHosts != null ? newHosts : new ArrayList<>();
+      this.allHosts = newHosts != null ? newHosts : new ArrayList<>();
       this.pluginManager.notifyNodeListChanged(changes);
     }
   }
@@ -726,36 +732,6 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public @NonNull SessionStateService getSessionStateService() {
     return this.sessionStateService;
-  }
-
-  @Override
-  public <T> void setInfo(final String infoKey, final @Nullable T info, final boolean clusterBound) {
-    final String cacheKey = this.getInfoCacheKey(infoKey, clusterBound);
-    if (info == null) {
-      infoCache.remove(cacheKey);
-      LOGGER.finest(Messages.get("PluginServiceImpl.removeInfo", new Object[]{ cacheKey, infoCache.size() }));
-    } else {
-      infoCache.put(cacheKey, info, DEFAULT_INFO_CACHE_EXPIRE_NANO);
-      LOGGER.finest(Messages.get("PluginServiceImpl.setInfo", new Object[]{ cacheKey, infoCache.size() }));
-    }
-  }
-
-  @Override
-  @Nullable
-  public <T> T getInfo(final String infoKey, final @NonNull Class<T> clazz, final boolean clusterBound) {
-    final String cacheKey = this.getInfoCacheKey(infoKey, clusterBound);
-    return clazz.cast(infoCache.get(cacheKey));
-  }
-
-  protected <T> String getInfoCacheKey(final String infoKey, final boolean clusterBound) {
-    return clusterBound
-        ? String.format("%s::%s", this.hostListProvider.getClusterId(), infoKey)
-        : infoKey;
-  }
-
-  public static void clearInfoCache() {
-    LOGGER.info(Messages.get("PluginServiceImpl.clearCache"));
-    infoCache.clear();
   }
 
   public <T> T getPlugin(final Class<T> pluginClazz) {

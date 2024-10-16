@@ -50,7 +50,6 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
  */
 public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointPlugin.class.getName());
-  private static final String TELEMETRY_CUSTOM_ENDPOINT_COUNTER = "customEndpoint.endpointConnections.counter";
   private static final String TELEMETRY_WAIT_FOR_INFO_COUNTER = "customEndpoint.waitForInfo.counter";
 
   protected static final long CACHE_CLEANUP_RATE_NANO = TimeUnit.MINUTES.toNanos(1);
@@ -216,10 +215,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
               new Object[] {REGION_PROPERTY.name}));
     }
 
-    createMonitorIfAbsent(props);
+    CustomEndpointMonitor monitor = createMonitorIfAbsent(props);
 
     // If needed, wait a short time for custom endpoint info to be discovered.
-    waitForCustomEndpointInfo();
+    waitForCustomEndpointInfo(monitor);
 
     return connectFunc.call();
   }
@@ -229,8 +228,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    *
    * @param props The connection properties.
    */
-  protected void createMonitorIfAbsent(Properties props) throws SQLException {
-    monitors.computeIfAbsent(
+  protected CustomEndpointMonitor createMonitorIfAbsent(Properties props) {
+    return monitors.computeIfAbsent(
         this.customEndpointHostSpec.getHost(),
         (customEndpoint) -> new CustomEndpointMonitorImpl(
             this.pluginService,
@@ -251,12 +250,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
    * made available by the custom endpoint monitor. This is necessary so that other plugins can rely on accurate custom
    * endpoint info. Since custom endpoint monitors and information are shared, we should not have to wait often.
    */
-  protected void waitForCustomEndpointInfo() throws SQLException {
-    CustomEndpointInfo cachedInfo =
-        this.pluginService.getInfo(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
-    boolean isInfoInCache = cachedInfo != null;
+  protected void waitForCustomEndpointInfo(CustomEndpointMonitor monitor) throws SQLException {
+    boolean hasCustomEndpointInfo = monitor.hasCustomEndpointInfo();
 
-    if (!isInfoInCache) {
+    if (!hasCustomEndpointInfo) {
       // Wait for the monitor to place the custom endpoint info in the cache. This ensures other plugins get accurate
       // custom endpoint info.
       this.waitForInfoCounter.inc();
@@ -268,11 +265,9 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
           System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(this.waitOnCachedInfoDurationMs);
 
       try {
-        while (!isInfoInCache && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
+        while (!hasCustomEndpointInfo && System.nanoTime() < waitForEndpointInfoTimeoutNano) {
           TimeUnit.MILLISECONDS.sleep(100);
-          cachedInfo =
-              this.pluginService.getInfo(this.customEndpointHostSpec.getHost(), CustomEndpointInfo.class, true);
-          isInfoInCache = cachedInfo != null;
+          hasCustomEndpointInfo = monitor.hasCustomEndpointInfo();
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -282,14 +277,9 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
                 new Object[]{ this.customEndpointHostSpec.getHost() }));
       }
 
-      if (isInfoInCache) {
-        LOGGER.fine(
-            Messages.get(
-                "CustomEndpointPlugin.foundInfoInCache",
-                new Object[]{ this.customEndpointHostSpec.getHost(), cachedInfo }));
-      } else {
+      if (!hasCustomEndpointInfo) {
         throw new SQLException(
-            Messages.get("CustomEndpointPlugin.cacheTimeout",
+            Messages.get("CustomEndpointPlugin.timedOutWaitingForCustomEndpointInfo",
                 new Object[]{this.waitOnCachedInfoDurationMs, this.customEndpointHostSpec.getHost()}));
       }
     }
@@ -326,8 +316,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
     // If needed, wait a short time for custom endpoint info to be discovered.
     try {
-      createMonitorIfAbsent(this.props);
-      waitForCustomEndpointInfo();
+      CustomEndpointMonitor monitor = createMonitorIfAbsent(this.props);
+      waitForCustomEndpointInfo(monitor);
     } catch (Exception e) {
       throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }

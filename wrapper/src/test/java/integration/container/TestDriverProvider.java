@@ -56,7 +56,6 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
-import software.amazon.jdbc.PluginServiceImpl;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
@@ -237,7 +236,6 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
     HikariPooledConnectionProvider.clearCache();
     MonitoringRdsHostListProvider.clearCache();
-    PluginServiceImpl.clearInfoCache();
     CustomEndpointPlugin.closeMonitors();
     CustomEndpointMonitorImpl.clearCache();
   }

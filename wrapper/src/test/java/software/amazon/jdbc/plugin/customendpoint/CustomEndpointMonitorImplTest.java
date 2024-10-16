@@ -17,10 +17,10 @@
 package software.amazon.jdbc.plugin.customendpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +43,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBClusterEndpoint;
 import software.amazon.awssdk.services.rds.model.DescribeDbClusterEndpointsResponse;
+import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
@@ -92,8 +93,6 @@ public class CustomEndpointMonitorImplTest {
 
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
-    when(mockPluginService.getInfo(eq(host.getHost()), eq(CustomEndpointInfo.class), eq(true)))
-        .thenReturn(null);
     when(mockRdsClientFunc.apply(any(HostSpec.class), any(Region.class))).thenReturn(mockRdsClient);
     when(mockRdsClient.describeDBClusterEndpoints(any(Consumer.class))).thenReturn(mockDescribeResponse);
     when(mockDescribeResponse.dbClusterEndpoints()).thenReturn(twoEndpointList).thenReturn(oneEndpointList);
@@ -119,16 +118,17 @@ public class CustomEndpointMonitorImplTest {
     // Wait for 2 run cycles. The first will return an unexpected number of endpoints in the API response, the second
     // will return the expected number of endpoints (one).
     TimeUnit.MILLISECONDS.sleep(100);
+    assertEquals(expectedInfo, CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getHost()));
     monitor.close();
 
-    ArgumentCaptor<CustomEndpointInfo> captor = ArgumentCaptor.forClass(CustomEndpointInfo.class);
-    verify(mockPluginService).setInfo(eq(host.getHost()), captor.capture(), eq(true));
-    assertEquals(expectedInfo, captor.getValue());
-    assertEquals(expectedInfo, CustomEndpointMonitorImpl.customEndpointInfoCache.get(host.getHost()));
+    ArgumentCaptor<AllowedAndBlockedHosts> captor = ArgumentCaptor.forClass(AllowedAndBlockedHosts.class);
+    verify(mockPluginService).setAllowedAndBlockedHosts(captor.capture());
+    assertEquals(staticMembersSet, captor.getValue().getAllowedHostIds());
+    assertNull(captor.getValue().getBlockedHostIds());
 
     // Wait for monitor to close
     TimeUnit.MILLISECONDS.sleep(50);
     assertTrue(monitor.stop.get());
-    verify(mockRdsClient, times(1)).close();
+    verify(mockRdsClient, atLeastOnce()).close();
   }
 }

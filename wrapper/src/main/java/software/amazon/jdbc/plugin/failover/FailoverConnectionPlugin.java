@@ -41,8 +41,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointInfo;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointRoleType;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
@@ -799,24 +797,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc, boolean isForceConnect)
       throws SQLException {
-    if (isInitialConnection
-        && FAILOVER_MODE.getString(props) == null
-        && this.rdsHelper.isRdsCustomClusterDns(hostSpec.getHost())) {
-
-      CustomEndpointInfo customEndpointInfo =
-          this.pluginService.getInfo(hostSpec.getHost(), CustomEndpointInfo.class, true);
-      if (customEndpointInfo != null) {
-        if (CustomEndpointRoleType.ANY.equals(customEndpointInfo.getCustomEndpointType())) {
-          this.failoverMode = FailoverMode.READER_OR_WRITER;
-        } else {
-          this.failoverMode = FailoverMode.STRICT_READER;
-        }
-
-        LOGGER.finest(
-            Messages.get("Failover.failoverModeDeterminedFromCustomEndpointType", new Object[]{ this.failoverMode }));
-      }
-    }
-
     Connection conn = null;
     try {
       conn =

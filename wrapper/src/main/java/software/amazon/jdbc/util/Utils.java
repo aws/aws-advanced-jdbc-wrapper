@@ -16,13 +16,14 @@
 
 package software.amazon.jdbc.util;
 
+import java.util.Collection;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.HostSpec;
 
 public class Utils {
-  public static boolean isNullOrEmpty(final List<?> list) {
-    return list == null || list.isEmpty();
+  public static boolean isNullOrEmpty(final Collection<?> c) {
+    return c == null || c.isEmpty();
   }
 
   public static String logTopology(final @Nullable List<HostSpec> hosts) {

@@ -28,4 +28,12 @@ public interface CustomEndpointMonitor extends AutoCloseable, Runnable {
    * @return true if the monitor should be disposed, otherwise return false.
    */
   boolean shouldDispose();
+
+  /**
+   * Indicates whether the monitor has info about the custom endpoint or not. This will be false if the monitor is new
+   * and has not yet had enough time to fetch the info.
+   *
+   * @return true if the monitor has info about the custom endpoint, otherwise returns false.
+   */
+  boolean hasCustomEndpointInfo();
 }

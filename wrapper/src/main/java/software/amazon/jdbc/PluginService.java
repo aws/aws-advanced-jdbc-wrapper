@@ -81,6 +81,13 @@ public interface PluginService extends ExceptionHandler {
   HostSpec getInitialConnectionHostSpec();
 
   /**
+   * Set the collection of hosts that should be allowed and/or blocked for connections.
+   *
+   * @param allowedAndBlockedHosts An object defining the allowed and blocked sets of hosts.
+   */
+  void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts);
+
+  /**
    * Returns a boolean indicating if the available {@link ConnectionProvider} or
    * {@link ConnectionPlugin} instances support the selection of a host with the requested role and
    * strategy via {@link #getHostSpecByStrategy}.
@@ -231,29 +238,6 @@ public interface PluginService extends ExceptionHandler {
   String getTargetName();
 
   @NonNull SessionStateService getSessionStateService();
-
-  /**
-   * Store generic info in the shared info cache. This can be used to store different types of information that must
-   * be widely accessible via the plugin service.
-   *
-   * @param infoKey      The key for the info being stored.
-   * @param info         T The info to store in the cache.
-   * @param clusterBound Whether the info is specific to the current cluster being used.
-   * @param <T>          The type of info being stored.
-   */
-  <T> void setInfo(final String infoKey, final @Nullable T info, final boolean clusterBound);
-
-  /**
-   * Fetch info from the shared info cache.
-   *
-   * @param infoKey      The key for the info to fetch.
-   * @param clazz        The class of the info being fetched.
-   * @param clusterBound Whether the info is specific to the current cluster being used.
-   * @param <T>          The type of the info being fetched from the cache.
-   * @return The info stored in the cache.
-   */
-  @Nullable
-  <T> T getInfo(final String infoKey, final @NonNull Class<T> clazz, final boolean clusterBound);
 
   <T> T getPlugin(final Class<T> pluginClazz);
 }

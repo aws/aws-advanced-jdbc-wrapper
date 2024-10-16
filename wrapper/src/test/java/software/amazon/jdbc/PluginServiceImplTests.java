@@ -389,7 +389,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = new ArrayList<>();
+    target.allHosts = new ArrayList<>();
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
@@ -423,7 +423,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Arrays.asList(
+    target.allHosts = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").build());
     target.hostListProvider = hostListProvider;
@@ -460,7 +460,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+    target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.WRITER).build());
     target.hostListProvider = hostListProvider;
 
@@ -497,7 +497,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+    target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).build());
     target.hostListProvider = hostListProvider;
 
@@ -523,7 +523,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(
+    target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
             .build());
@@ -552,7 +552,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(
+    target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
             .build());
@@ -588,7 +588,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(
+    target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
             .build());
@@ -636,7 +636,7 @@ public class PluginServiceImplTests {
             configurationProfile,
             sessionStateService));
 
-    target.hosts = Arrays.asList(hostA, hostB);
+    target.allHosts = Arrays.asList(hostA, hostB);
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA.custom.domain.com");
@@ -681,7 +681,7 @@ public class PluginServiceImplTests {
             configurationProfile,
             sessionStateService));
 
-    target.hosts = Arrays.asList(hostA, hostB);
+    target.allHosts = Arrays.asList(hostA, hostB);
 
     Set<String> aliases = new HashSet<>();
     aliases.add("ip-10-10-10-10");

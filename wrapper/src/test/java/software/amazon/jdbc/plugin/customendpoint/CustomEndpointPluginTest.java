@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -67,7 +67,6 @@ public class CustomEndpointPluginTest {
   @Mock private TelemetryCounter mockTelemetryCounter;
   @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   @Mock private JdbcCallable<Statement, SQLException> mockJdbcMethodFunc;
-  @Mock private CustomEndpointInfo mockCustomEndpointInfo;
   @Mock private Connection mockConnection;
   @Mock private CustomEndpointMonitor mockMonitor;
 
@@ -77,8 +76,7 @@ public class CustomEndpointPluginTest {
 
     when(mockPluginService.getTelemetryFactory()).thenReturn(mockTelemetryFactory);
     when(mockTelemetryFactory.createCounter(any(String.class))).thenReturn(mockTelemetryCounter);
-    when(mockPluginService.getInfo(eq(host.getHost()), eq(CustomEndpointInfo.class), eq(true)))
-        .thenReturn(mockCustomEndpointInfo);
+    when(mockMonitor.hasCustomEndpointInfo()).thenReturn(true);
   }
 
   @AfterEach
@@ -88,10 +86,10 @@ public class CustomEndpointPluginTest {
     CustomEndpointPlugin.monitors.clear();
   }
 
-  private CustomEndpointPlugin getSpyPlugin() throws SQLException {
+  private CustomEndpointPlugin getSpyPlugin() {
     CustomEndpointPlugin plugin = new CustomEndpointPlugin(mockPluginService, props, mockRdsClientFunc);
     CustomEndpointPlugin spyPlugin = spy(plugin);
-    doNothing().when(spyPlugin).createMonitorIfAbsent(any(Properties.class));
+    doReturn(mockMonitor).when(spyPlugin).createMonitorIfAbsent(any(Properties.class));
     return spyPlugin;
   }
 
@@ -119,7 +117,7 @@ public class CustomEndpointPluginTest {
   public void testConnect_timeoutWaitingForInfo() throws SQLException {
     WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.set(props, "1");
     CustomEndpointPlugin spyPlugin = getSpyPlugin();
-    when(mockPluginService.getInfo(eq(host.getHost()), eq(CustomEndpointInfo.class), eq(true))).thenReturn(null);
+    when(mockMonitor.hasCustomEndpointInfo()).thenReturn(false);
 
     assertThrows(SQLException.class, () -> spyPlugin.forceConnect("", host, props, true, mockConnectFunc));
 
