@@ -255,6 +255,7 @@ public class CustomEndpointTest {
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
+    props.setProperty("failoverMode", "reader-or-writer");
 
     try (final Connection conn = DriverManager.getConnection(
         ConnectionStringHelper.getWrapperUrl(endpoint.endpoint(), port, dbInfo.getDefaultDbName()),
@@ -301,7 +302,18 @@ public class CustomEndpointTest {
       // Attempt to switch to an instance of the opposite role. This should fail since the custom endpoint consists only
       // of the current host.
       boolean newReadOnlyValue = currentWriter.equals(instanceId1);
-      assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
+      if (newReadOnlyValue) {
+        // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
+        // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
+        LOGGER.fine("Initial connection is to the writer. Attempting to switch to reader...");
+        conn.setReadOnly(newReadOnlyValue);
+        String newInstanceId = auroraUtil.queryInstanceId(conn);
+        assertEquals(instanceId1, newInstanceId);
+      } else {
+        // We are connected to the reader. Attempting to switch to the writer will throw an exception.
+        LOGGER.fine("Initial connection is to a reader. Attempting to switch to writer...");
+        assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
+      }
 
       String newMember;
       if (currentWriter.equals(instanceId1)) {
@@ -331,8 +343,17 @@ public class CustomEndpointTest {
         waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Collections.singletonList(instanceId1));
       }
 
-      // Attempting to switch should fail again because newMember was removed from the custom endpoint.
-      assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
+      // We should not be able to switch again because newMember was removed from the custom endpoint.
+      if (newReadOnlyValue) {
+        // We are connected to the writer. Attempting to switch to the reader will not work but will intentionally not
+        // throw an exception. In this scenario we log a warning and purposefully stick with the writer.
+        conn.setReadOnly(newReadOnlyValue);
+        String newInstanceId = auroraUtil.queryInstanceId(conn);
+        assertEquals(instanceId1, newInstanceId);
+      } else {
+        // We are connected to the reader. Attempting to switch to the writer will throw an exception.
+        assertThrows(ReadWriteSplittingSQLException.class, () -> conn.setReadOnly(newReadOnlyValue));
+      }
     }
   }
 }
