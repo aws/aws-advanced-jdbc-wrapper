@@ -95,6 +95,18 @@ public class SlidingExpirationCache<K, V> {
     return cacheItem.withExtendExpiration(itemExpirationNano).item;
   }
 
+  public V put(
+      final K key,
+      final V value,
+      final long itemExpirationNano) {
+    cleanUp();
+    final CacheItem cacheItem =  cache.put(key, new CacheItem(value, itemExpirationNano));
+    if (cacheItem == null) {
+      return null;
+    }
+    return cacheItem.item;
+  }
+
   public V get(final K key, final long itemExpirationNano) {
     cleanUp();
     final CacheItem cacheItem = cache.get(key);

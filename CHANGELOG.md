@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### :bug: Fixed
 - Use the cluster URL as the default cluster ID ([PR #1131](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1131)).
 - Fix logic in SlidingExpirationCache and SlidingExpirationCacheWithCleanupThread ([PR #1142](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1142)).
+- Limitless Connection Plugin to check dialect and attempt recovery in case an unsupported dialect is encountered ([PR #1148](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1148)).
+
+### :crab: Changed
+- Updated expected URL patterns for Limitless Databases ([PR #1147](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1147)).
 
 ## [2.4.0] - 2024-09-25
 
