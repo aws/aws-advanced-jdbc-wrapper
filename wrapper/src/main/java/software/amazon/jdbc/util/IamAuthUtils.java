@@ -16,9 +16,6 @@
 
 package software.amazon.jdbc.util;
 
-import java.sql.SQLException;
-import java.util.Optional;
-import java.util.Properties;
 import java.util.logging.Logger;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -51,46 +48,6 @@ public class IamAuthUtils {
     } else {
       return dialectDefaultPort;
     }
-  }
-
-  public static Region getRegion(
-      final RdsUtils rdsUtils,
-      final String iamRegion,
-      final String hostname,
-      final Properties props) throws SQLException {
-    if (!StringUtils.isNullOrEmpty(iamRegion)) {
-      return Region.of(iamRegion);
-    }
-
-    // Fallback to using host
-    // Get Region
-    final String rdsRegion = rdsUtils.getRdsRegion(hostname);
-
-    if (StringUtils.isNullOrEmpty(rdsRegion)) {
-      // Does not match Amazon's Hostname, throw exception
-      final String exceptionMessage = Messages.get(
-          "Authentication.unsupportedHostname",
-          new Object[] {hostname});
-
-      LOGGER.fine(exceptionMessage);
-      throw new SQLException(exceptionMessage);
-    }
-
-    // Check Region
-    final Optional<Region> regionOptional = Region.regions().stream()
-        .filter(r -> r.id().equalsIgnoreCase(rdsRegion))
-        .findFirst();
-
-    if (!regionOptional.isPresent()) {
-      final String exceptionMessage = Messages.get(
-          "AwsSdk.unsupportedRegion",
-          new Object[] {rdsRegion});
-
-      LOGGER.fine(exceptionMessage);
-      throw new SQLException(exceptionMessage);
-    }
-
-    return regionOptional.get();
   }
 
   public static String getCacheKey(

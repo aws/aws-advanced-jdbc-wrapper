@@ -62,9 +62,30 @@ public interface PluginService extends ExceptionHandler {
       @Nullable ConnectionPlugin skipNotificationForThisPlugin)
       throws SQLException;
 
+  /**
+   * Get host information for all hosts in the cluster.
+   *
+   * @return host information for all hosts in the cluster.
+   */
+  List<HostSpec> getAllHosts();
+
+  /**
+   * Get host information for allowed hosts in the cluster. Certain hosts in the cluster may be disallowed, and these
+   * hosts will not be returned by this function. For example, if a custom endpoint is being used, hosts outside the
+   * custom endpoint will not be returned.
+   *
+   * @return host information for allowed hosts in the cluster.
+   */
   List<HostSpec> getHosts();
 
   HostSpec getInitialConnectionHostSpec();
+
+  /**
+   * Set the collection of hosts that should be allowed and/or blocked for connections.
+   *
+   * @param allowedAndBlockedHosts An object defining the allowed and blocked sets of hosts.
+   */
+  void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts);
 
   /**
    * Returns a boolean indicating if the available {@link ConnectionProvider} or

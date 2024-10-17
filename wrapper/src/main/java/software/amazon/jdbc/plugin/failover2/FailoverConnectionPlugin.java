@@ -253,7 +253,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected boolean isFailoverEnabled() {
     return !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
-        && !Utils.isNullOrEmpty(this.pluginService.getHosts());
+        && !Utils.isNullOrEmpty(this.pluginService.getAllHosts());
   }
 
   protected void invalidInvocationOnClosedConnection() throws SQLException {
@@ -492,7 +492,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
       }
 
-      final List<HostSpec> updatedHosts = this.pluginService.getHosts();
+      final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
       final Properties copyProp = PropertyUtils.copyProperties(this.properties);
       copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
 
@@ -501,6 +501,16 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           .filter(x -> x.getRole() == HostRole.WRITER)
           .findFirst()
           .orElse(null);
+
+      List<HostSpec> allowedHosts = this.pluginService.getHosts();
+      if (writerCandidate != null && !allowedHosts.contains(writerCandidate)) {
+        this.failoverWriterFailedCounter.inc();
+        LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
+            new Object[] {writerCandidate.getHost(), Utils.logTopology(allowedHosts, "")}));
+        throw new FailoverFailedSQLException(
+            Messages.get("Failover.newWriterNotAllowed",
+                new Object[] {writerCandidate.getHost(), Utils.logTopology(allowedHosts, "")}));
+      }
 
       if (writerCandidate != null) {
         try {
@@ -630,7 +640,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
     // This call was initiated by this failover2 plugin and doesn't require any additional processing.
     if (props.containsKey(INTERNAL_CONNECT_PROPERTY_NAME)) {
       return connectFunc.call();

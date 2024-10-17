@@ -57,6 +57,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import software.amazon.jdbc.AllowedAndBlockedHosts;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.HostListProvider;
@@ -481,6 +482,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public List<HostSpec> getAllHosts() {
+      return null;
+    }
+
+    @Override
     public List<HostSpec> getHosts() {
       return null;
     }
@@ -488,6 +494,10 @@ public class ConcurrencyTests {
     @Override
     public HostSpec getInitialConnectionHostSpec() {
       return null;
+    }
+
+    @Override
+    public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
     }
 
     @Override

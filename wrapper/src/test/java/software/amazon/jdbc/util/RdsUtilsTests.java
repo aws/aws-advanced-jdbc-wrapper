@@ -76,7 +76,6 @@ public class RdsUtilsTests {
   private static final String usEastRegionElbUrl =
       "elb-name.elb.us-east-2.amazonaws.com";
 
-
   private static final String usIsobEastRegionCluster =
       "database-test-name.cluster-XYZ.rds.us-isob-east-1.sc2s.sgov.gov";
   private static final String usIsobEastRegionClusterReadOnly =
@@ -478,5 +477,44 @@ public class RdsUtilsTests {
         target.removeGreenInstancePrefix("test-instance-green-abcdef-12345-green-000000.domain.com"));
     assertEquals("test-instance-green-123456.domain.com",
         target.removeGreenInstancePrefix("test-instance-green-123456-green-123456.domain.com"));
+  }
+
+  @Test
+  public void testGetRdsClusterId() {
+    assertEquals("database-test-name", target.getRdsClusterId(usEastRegionCluster));
+    assertEquals("database-test-name", target.getRdsClusterId(usEastRegionClusterReadOnly));
+    assertNull(target.getRdsClusterId(usEastRegionInstance));
+    assertEquals("proxy-test-name", target.getRdsClusterId(usEastRegionProxy));
+    assertEquals("custom-test-name", target.getRdsClusterId(usEastRegionCustomDomain));
+    assertEquals("database-test-name", target.getRdsClusterId(usEastRegionLimitlessDbShardGroup));
+
+    assertEquals("database-test-name", target.getRdsClusterId(chinaRegionCluster));
+    assertEquals("database-test-name", target.getRdsClusterId(chinaRegionClusterReadOnly));
+    assertNull(target.getRdsClusterId(chinaRegionInstance));
+    assertEquals("proxy-test-name", target.getRdsClusterId(chinaRegionProxy));
+    assertEquals("custom-test-name", target.getRdsClusterId(chinaRegionCustomDomain));
+    assertEquals("database-test-name", target.getRdsClusterId(chinaRegionLimitlessDbShardGroup));
+
+    assertEquals("database-test-name", target.getRdsClusterId(oldChinaRegionCluster));
+    assertEquals("database-test-name", target.getRdsClusterId(oldChinaRegionClusterReadOnly));
+    assertNull(target.getRdsClusterId(oldChinaRegionInstance));
+    assertEquals("proxy-test-name", target.getRdsClusterId(oldChinaRegionProxy));
+    assertEquals("custom-test-name", target.getRdsClusterId(oldChinaRegionCustomDomain));
+    assertEquals("database-test-name", target.getRdsClusterId(oldChinaRegionLimitlessDbShardGroup));
+
+    assertEquals("database-test-name", target.getRdsClusterId(usIsobEastRegionCluster));
+    assertEquals("database-test-name", target.getRdsClusterId(usIsobEastRegionClusterReadOnly));
+    assertNull(target.getRdsClusterId(usIsobEastRegionInstance));
+    assertEquals("proxy-test-name", target.getRdsClusterId(usIsobEastRegionProxy));
+    assertEquals("custom-test-name", target.getRdsClusterId(usIsobEastRegionCustomDomain));
+    assertEquals("database-test-name", target.getRdsClusterId(usIsobEastRegionLimitlessDbShardGroup));
+
+    assertEquals("database-test-name", target.getRdsClusterId(usGovEastRegionCluster));
+    assertEquals("database-test-name", target.getRdsClusterId(usIsoEastRegionCluster));
+    assertEquals("database-test-name", target.getRdsClusterId(usIsoEastRegionClusterReadOnly));
+    assertNull(target.getRdsClusterId(usIsoEastRegionInstance));
+    assertEquals("proxy-test-name", target.getRdsClusterId(usIsoEastRegionProxy));
+    assertEquals("custom-test-name", target.getRdsClusterId(usIsoEastRegionCustomDomain));
+    assertEquals("database-test-name", target.getRdsClusterId(usIsoEastRegionLimitlessDbShardGroup));
   }
 }

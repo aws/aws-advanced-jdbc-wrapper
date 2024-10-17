@@ -389,13 +389,13 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = new ArrayList<>();
+    target.allHosts = new ArrayList<>();
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostA", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostA", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -423,15 +423,15 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Arrays.asList(
+    target.allHosts = Arrays.asList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostA").build(),
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("hostB").build());
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostB", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostB", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -460,14 +460,14 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+    target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.WRITER).build());
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostA", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostA", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -497,14 +497,14 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+    target.allHosts = Collections.singletonList(new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
         .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).build());
     target.hostListProvider = hostListProvider;
 
     target.refreshHostList();
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals("hostA", target.getHosts().get(0).getHost());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals("hostA", target.getAllHosts().get(0).getHost());
     verify(pluginManager, times(0)).notifyNodeListChanged(any());
   }
 
@@ -523,7 +523,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(
+    target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
             .build());
@@ -532,8 +532,8 @@ public class PluginServiceImplTests {
     aliases.add("hostA");
     target.setAvailability(aliases, HostAvailability.AVAILABLE);
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals(HostAvailability.AVAILABLE, target.getHosts().get(0).getAvailability());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals(HostAvailability.AVAILABLE, target.getAllHosts().get(0).getAvailability());
     verify(pluginManager, never()).notifyNodeListChanged(any());
   }
 
@@ -552,7 +552,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(
+    target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.AVAILABLE)
             .build());
@@ -561,8 +561,8 @@ public class PluginServiceImplTests {
     aliases.add("hostA");
     target.setAvailability(aliases, HostAvailability.NOT_AVAILABLE);
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals(HostAvailability.NOT_AVAILABLE, target.getHosts().get(0).getAvailability());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals(HostAvailability.NOT_AVAILABLE, target.getAllHosts().get(0).getAvailability());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -588,7 +588,7 @@ public class PluginServiceImplTests {
             mockTargetDriverDialect,
             configurationProfile,
             sessionStateService));
-    target.hosts = Collections.singletonList(
+    target.allHosts = Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
             .host("hostA").port(HostSpec.NO_PORT).role(HostRole.READER).availability(HostAvailability.NOT_AVAILABLE)
             .build());
@@ -597,8 +597,8 @@ public class PluginServiceImplTests {
     aliases.add("hostA");
     target.setAvailability(aliases, HostAvailability.AVAILABLE);
 
-    assertEquals(1, target.getHosts().size());
-    assertEquals(HostAvailability.AVAILABLE, target.getHosts().get(0).getAvailability());
+    assertEquals(1, target.getAllHosts().size());
+    assertEquals(HostAvailability.AVAILABLE, target.getAllHosts().get(0).getAvailability());
     verify(pluginManager, times(1)).notifyNodeListChanged(any());
 
     Map<String, EnumSet<NodeChangeOptions>> notifiedChanges = argumentChangesMap.getValue();
@@ -636,7 +636,7 @@ public class PluginServiceImplTests {
             configurationProfile,
             sessionStateService));
 
-    target.hosts = Arrays.asList(hostA, hostB);
+    target.allHosts = Arrays.asList(hostA, hostB);
 
     Set<String> aliases = new HashSet<>();
     aliases.add("hostA.custom.domain.com");
@@ -681,7 +681,7 @@ public class PluginServiceImplTests {
             configurationProfile,
             sessionStateService));
 
-    target.hosts = Arrays.asList(hostA, hostB);
+    target.allHosts = Arrays.asList(hostA, hostB);
 
     Set<String> aliases = new HashSet<>();
     aliases.add("ip-10-10-10-10");
