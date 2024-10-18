@@ -22,15 +22,12 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsUtilities;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -42,12 +39,11 @@ import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
+import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
-import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
-import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 public class OktaAuthPlugin extends AbstractConnectionPlugin {
 
@@ -89,6 +85,7 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
       new AwsWrapperProperty("dbUser", null, "The database user used to access the database");
 
   private static final Logger LOGGER = Logger.getLogger(OktaAuthPlugin.class.getName());
+  protected static final RegionUtils regionUtils = new RegionUtils();
 
   protected final PluginService pluginService;
 
@@ -160,7 +157,11 @@ public class OktaAuthPlugin extends AbstractConnectionPlugin {
         hostSpec,
         this.pluginService.getDialect().getDefaultPort());
 
-    final Region region = IamAuthUtils.getRegion(this.rdsUtils, IAM_REGION.getString(props), host, props);
+    final Region region = regionUtils.getRegion(host, props, IAM_REGION.name);
+    if (region == null) {
+      throw new SQLException(
+          Messages.get("OktaAuthPlugin.unableToDetermineRegion", new Object[]{ IAM_REGION.name }));
+    }
 
     final String cacheKey = IamAuthUtils.getCacheKey(
         DB_USER.getString(props),

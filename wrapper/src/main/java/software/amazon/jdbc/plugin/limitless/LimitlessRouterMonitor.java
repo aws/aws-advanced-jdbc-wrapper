@@ -152,7 +152,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
             newLimitlessRouters, LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
         RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
-        LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor]"));
+        LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
         TimeUnit.MILLISECONDS.sleep(this.intervalMs); // do not include this in the telemetry
       } catch (final InterruptedException exception) {
         LOGGER.finest(

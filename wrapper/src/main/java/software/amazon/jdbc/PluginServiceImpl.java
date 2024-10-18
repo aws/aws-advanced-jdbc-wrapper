@@ -31,6 +31,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -52,6 +53,7 @@ import software.amazon.jdbc.states.SessionStateServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 
 public class PluginServiceImpl implements PluginService, CanReleaseResources,
@@ -66,7 +68,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   private final String originalUrl;
   private final String driverProtocol;
   protected volatile HostListProvider hostListProvider;
-  protected List<HostSpec> hosts = new ArrayList<>();
+  protected List<HostSpec> allHosts = new ArrayList<>();
+  protected AtomicReference<AllowedAndBlockedHosts> allowedAndBlockedHosts = new AtomicReference<>();
   protected Connection currentConnection;
   protected HostSpec currentHostSpec;
   protected HostSpec initialConnectionHostSpec;
@@ -162,10 +165,20 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       this.currentHostSpec = this.initialConnectionHostSpec;
 
       if (this.currentHostSpec == null) {
-        if (this.getHosts().isEmpty()) {
+        if (this.getAllHosts().isEmpty()) {
           throw new RuntimeException(Messages.get("PluginServiceImpl.hostListEmpty"));
         }
-        this.currentHostSpec = this.getWriter(this.getHosts());
+
+        this.currentHostSpec = this.getWriter(this.getAllHosts());
+        if (!this.getHosts().contains(this.currentHostSpec)) {
+          throw new RuntimeException(
+              Messages.get("PluginServiceImpl.currentHostNotAllowed",
+                  new Object[] {
+                      currentHostSpec == null ? "<null>" : currentHostSpec.getHost(),
+                      Utils.logTopology(this.getHosts(), "")})
+          );
+        }
+
         if (this.currentHostSpec == null) {
           this.currentHostSpec = this.getHosts().get(0);
         }
@@ -185,6 +198,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public HostSpec getInitialConnectionHostSpec() {
     return this.initialConnectionHostSpec;
+  }
+
+  @Override
+  public void setAllowedAndBlockedHosts(AllowedAndBlockedHosts allowedAndBlockedHosts) {
+    this.allowedAndBlockedHosts.set(allowedAndBlockedHosts);
   }
 
   @Override
@@ -365,8 +383,34 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  public List<HostSpec> getAllHosts() {
+    return this.allHosts;
+  }
+
+  @Override
   public List<HostSpec> getHosts() {
-    return this.hosts;
+    AllowedAndBlockedHosts hostPermissions = this.allowedAndBlockedHosts.get();
+    if (hostPermissions == null) {
+      return this.allHosts;
+    }
+
+    List<HostSpec> hosts = this.allHosts;
+    Set<String> allowedHostIds = hostPermissions.getAllowedHostIds();
+    Set<String> blockedHostIds = hostPermissions.getBlockedHostIds();
+
+    if (!Utils.isNullOrEmpty(allowedHostIds)) {
+      hosts = hosts.stream()
+          .filter((hostSpec -> allowedHostIds.contains(hostSpec.getHostId())))
+          .collect(Collectors.toList());
+    }
+
+    if (!Utils.isNullOrEmpty(blockedHostIds)) {
+      hosts = hosts.stream()
+          .filter((hostSpec -> !blockedHostIds.contains(hostSpec.getHostId())))
+          .collect(Collectors.toList());
+    }
+
+    return hosts;
   }
 
   @Override
@@ -376,7 +420,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
       return;
     }
 
-    final List<HostSpec> hostsToChange = this.getHosts().stream()
+    final List<HostSpec> hostsToChange = this.getAllHosts().stream()
         .filter((host) -> hostAliases.contains(host.asAlias())
             || host.getAliases().stream().anyMatch(hostAliases::contains))
         .distinct()
@@ -427,18 +471,18 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   @Override
   public void refreshHostList() throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh();
-    if (!Objects.equals(updatedHostList, this.hosts)) {
+    if (!Objects.equals(updatedHostList, this.allHosts)) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
   @Override
   public void refreshHostList(final Connection connection) throws SQLException {
     final List<HostSpec> updatedHostList = this.getHostListProvider().refresh(connection);
-    if (!Objects.equals(updatedHostList, this.hosts)) {
+    if (!Objects.equals(updatedHostList, this.allHosts)) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
@@ -447,7 +491,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh();
     if (updatedHostList != null) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
@@ -456,7 +500,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     final List<HostSpec> updatedHostList = this.getHostListProvider().forceRefresh(connection);
     if (updatedHostList != null) {
       updateHostAvailability(updatedHostList);
-      setNodeList(this.hosts, updatedHostList);
+      setNodeList(this.allHosts, updatedHostList);
     }
   }
 
@@ -476,7 +520,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
           ((BlockingHostListProvider) hostListProvider).forceRefresh(shouldVerifyWriter, timeoutMs);
       if (updatedHostList != null) {
         updateHostAvailability(updatedHostList);
-        setNodeList(this.hosts, updatedHostList);
+        setNodeList(this.allHosts, updatedHostList);
         return true;
       }
     } catch (TimeoutException ex) {
@@ -520,7 +564,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
 
     if (!changes.isEmpty()) {
-      this.hosts = newHosts != null ? newHosts : new ArrayList<>();
+      this.allHosts = newHosts != null ? newHosts : new ArrayList<>();
       this.pluginManager.notifyNodeListChanged(changes);
     }
   }

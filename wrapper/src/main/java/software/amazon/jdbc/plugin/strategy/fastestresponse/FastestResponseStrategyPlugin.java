@@ -154,7 +154,7 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     final HostSpec fastestResponseHost = cachedFastestResponseHostByRole.get(role.name());
 
     if (fastestResponseHost != null) {
-      // Found a fastest host. Let find it in the the latest topology.
+      // Found a fastest host. Let find it in the latest topology.
       HostSpec foundHostSpec = this.pluginService.getHosts().stream()
           .filter(x -> x.equals(fastestResponseHost))
           .findAny()

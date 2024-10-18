@@ -202,6 +202,20 @@ public class RdsUtils {
     return dnsGroup != null && dnsGroup.startsWith("proxy-");
   }
 
+  public @Nullable String getRdsClusterId(final String host) {
+    if (StringUtils.isNullOrEmpty(host)) {
+      return null;
+    }
+
+    final Matcher matcher = cacheMatcher(host,
+        AURORA_DNS_PATTERN, AURORA_CHINA_DNS_PATTERN, AURORA_OLD_CHINA_DNS_PATTERN, AURORA_GOV_DNS_PATTERN);
+    if (getRegexGroup(matcher, DNS_GROUP) != null) {
+      return getRegexGroup(matcher, INSTANCE_GROUP);
+    }
+
+    return null;
+  }
+
   public @Nullable String getRdsInstanceId(final String host) {
     if (StringUtils.isNullOrEmpty(host)) {
       return null;

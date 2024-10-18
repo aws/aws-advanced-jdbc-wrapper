@@ -179,6 +179,8 @@ class FailoverConnectionPluginTest {
   @ValueSource(booleans = {true, false})
   void test_updateTopology_withForceUpdate(final boolean forceUpdate) throws SQLException {
 
+    when(mockPluginService.getAllHosts()).thenReturn(Collections.singletonList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build()));
     when(mockPluginService.getHosts()).thenReturn(Collections.singletonList(
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build()));
     when(mockConnection.isClosed()).thenReturn(false);
@@ -229,6 +231,7 @@ class FailoverConnectionPluginTest {
 
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
     when(mockHostSpec.getRawAvailability()).thenReturn(HostAvailability.AVAILABLE);
+    when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockReaderResult.isConnected()).thenReturn(true);
     when(mockReaderResult.getConnection()).thenReturn(mockConnection);
@@ -259,6 +262,7 @@ class FailoverConnectionPluginTest {
 
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
     when(mockHostSpec.getAvailability()).thenReturn(HostAvailability.AVAILABLE);
+    when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockReaderResult.getException()).thenReturn(new SQLException());
     when(mockReaderResult.getHost()).thenReturn(hostSpec);
@@ -282,6 +286,7 @@ class FailoverConnectionPluginTest {
     final List<HostSpec> hosts = Collections.singletonList(hostSpec);
 
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
+    when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockWriterResult.getException()).thenReturn(new SQLException());
 
@@ -304,6 +309,7 @@ class FailoverConnectionPluginTest {
     final List<HostSpec> hosts = Collections.singletonList(hostSpec);
 
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
+    when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
     when(mockWriterResult.isConnected()).thenReturn(false);
 
@@ -330,6 +336,7 @@ class FailoverConnectionPluginTest {
     final List<HostSpec> hosts = Collections.singletonList(hostSpec);
 
     when(mockHostSpec.getAliases()).thenReturn(new HashSet<>(Arrays.asList("alias1", "alias2")));
+    when(mockPluginService.getAllHosts()).thenReturn(hosts);
     when(mockPluginService.getHosts()).thenReturn(hosts);
 
     initializePlugin();

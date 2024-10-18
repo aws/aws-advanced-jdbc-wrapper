@@ -351,7 +351,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   }
 
   private HostSpec getWriter() {
-    for (final HostSpec host : this.pluginService.getHosts()) {
+    for (final HostSpec host : this.pluginService.getAllHosts()) {
       if (host.getRole() == HostRole.WRITER) {
         return host;
       }
@@ -380,12 +380,12 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   }
 
   private boolean hasNoReaders() {
-    if (this.pluginService.getHosts().isEmpty()) {
+    if (this.pluginService.getAllHosts().isEmpty()) {
       // Topology inconclusive/corrupted.
       return false;
     }
 
-    for (HostSpec hostSpec : this.pluginService.getHosts()) {
+    for (HostSpec hostSpec : this.pluginService.getAllHosts()) {
       if (hostSpec.getRole() == HostRole.WRITER) {
         continue;
       }
