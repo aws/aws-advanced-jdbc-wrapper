@@ -6,8 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [2.5.0] - 2024-10-18
 
 ### :magic_wand: Added
-- Allow driver failover when network exceptions occur in the connect pipeline for the failover 2 plugin ([PR #1133](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/1133) and [PR #1143](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/1143)).
 - Custom Endpoint Plugin. See [UsingTheCustomEndpointPlugin.md](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheCustomEndpointPlugin.md).
+- Allow driver failover when network exceptions occur in the connect pipeline for the failover 2 plugin ([PR #1133](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/1133) and [PR #1143](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/1143)).
 
 ### :bug: Fixed
 - Use the cluster URL as the default cluster ID ([PR #1131](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1131)).
