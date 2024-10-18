@@ -137,7 +137,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
 
     while (!this.stopped.get()) {
       TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-          "node response time thread", TelemetryTraceLevel.TOP_LEVEL);
+          "limitless router monitor thread", TelemetryTraceLevel.TOP_LEVEL);
       telemetryContext.setAttribute("url", hostSpec.getUrl());
       try {
         this.openConnection();

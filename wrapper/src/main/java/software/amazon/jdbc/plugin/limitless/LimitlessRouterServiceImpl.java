@@ -65,7 +65,21 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       );
 
   public LimitlessRouterServiceImpl(final @NonNull PluginService pluginService) {
-    this(pluginService, LimitlessRouterMonitor::new, new LimitlessQueryHelper(pluginService));
+    this(
+        pluginService,
+        (hostSpec,
+            routerCache,
+            routerCacheKey,
+            props,
+            intervalMs) ->
+            new LimitlessRouterMonitor(
+                pluginService,
+                hostSpec,
+                routerCache,
+                routerCacheKey,
+                props,
+                intervalMs),
+        new LimitlessQueryHelper(pluginService));
   }
 
   public LimitlessRouterServiceImpl(
@@ -127,7 +141,6 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           limitlessRouterMonitorKey,
           key -> this.limitlessRouterMonitorInitializer
               .createLimitlessRouterMonitor(
-                  pluginService,
                   hostSpec,
                   limitlessRouterCache,
                   this.pluginService.getHostListProvider().getClusterId(),

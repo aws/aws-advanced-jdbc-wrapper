@@ -27,7 +27,6 @@ import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 @FunctionalInterface
 public interface LimitlessRouterMonitorInitializer {
   LimitlessRouterMonitor createLimitlessRouterMonitor(
-      final PluginService pluginService,
       final HostSpec hostSpec,
       final SlidingExpirationCacheWithCleanupThread<String, List<HostSpec>> limitlessRouterCache,
       final String limitlessRouterCacheKey,
