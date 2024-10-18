@@ -3,16 +3,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.5.0] - 2024-10-18
+
 ### :magic_wand: Added
 - Custom Endpoint Plugin. See [UsingTheCustomEndpointPlugin.md](https://github.com/aws/aws-advanced-jdbc-wrapper/blob/main/docs/using-the-jdbc-driver/using-plugins/UsingTheCustomEndpointPlugin.md).
+- Allow driver failover when network exceptions occur in the connect pipeline for the failover 2 plugin ([PR #1133](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/1133) and [PR #1143](https://github.com/awslabs/aws-advanced-jdbc-wrapper/pull/1143)).
 
 ### :bug: Fixed
 - Use the cluster URL as the default cluster ID ([PR #1131](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1131)).
 - Fix logic in SlidingExpirationCache and SlidingExpirationCacheWithCleanupThread ([PR #1142](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1142)).
 - Limitless Connection Plugin to check dialect and attempt recovery in case an unsupported dialect is encountered ([PR #1148](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1148)).
+- Don't get Statement from closed ResultSet ([PR #1130](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1130)).
+- Add null checks to the limitless plugin ([PR #1152](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1152)).
+- Verify plugin presence based on actual plugin list ([PR #1141](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1141))
 
 ### :crab: Changed
 - Updated expected URL patterns for Limitless Databases ([PR #1147](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1147)).
+- Removed MaxPermSize JVM arg in gradle.properties ([PR #1132](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1132)).
 
 ## [2.4.0] - 2024-09-25
 
@@ -363,6 +370,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.5.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.4.0...2.5.0
 [2.4.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.9...2.4.0
 [2.3.9]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.8...2.3.9
 [2.3.8]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.7...2.3.8
