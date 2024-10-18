@@ -71,7 +71,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("connect");
-          add("forceConnect");
         }
       });
 
@@ -160,36 +159,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return connectInternal(hostSpec, props, connectFunc);
-  }
-
-  @Override
-  public Connection forceConnect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-    return connectInternal(hostSpec, props, forceConnectFunc);
-  }
-
-  /**
-   * Establishes a connection based on the passed in parameters. If the connection being made is to a custom endpoint
-   * URL, a monitor for that custom endpoint will be created if it does not already exist.
-   *
-   * @param hostSpec    The host information for the desired connection.
-   * @param props       The connection properties.
-   * @param connectFunc The connect pipeline function to call to establish the connection.
-   * @return The connection established by the {@code connectFunc}.
-   * @throws SQLException If an error occurs while attempting to establish a connection, or if we are connecting to a
-   *                      custom endpoint and we time out while waiting for custom endpoint info to be placed in the
-   *                      cache by the custom endpoint monitor.
-   */
-  protected Connection connectInternal(
-      HostSpec hostSpec,
-      Properties props,
-      JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
     if (!this.rdsUtils.isRdsCustomClusterDns(hostSpec.getHost())) {
       return connectFunc.call();
     }

@@ -119,7 +119,7 @@ public class CustomEndpointPluginTest {
     CustomEndpointPlugin spyPlugin = getSpyPlugin();
     when(mockMonitor.hasCustomEndpointInfo()).thenReturn(false);
 
-    assertThrows(SQLException.class, () -> spyPlugin.forceConnect("", host, props, true, mockConnectFunc));
+    assertThrows(SQLException.class, () -> spyPlugin.connect("", host, props, true, mockConnectFunc));
 
     verify(spyPlugin, times(1)).createMonitorIfAbsent(eq(props));
     verify(mockConnectFunc, never()).call();
