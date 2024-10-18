@@ -72,7 +72,7 @@ public class CustomEndpointInfo {
    * Constructs a CustomEndpointInfo object from a DBClusterEndpoint instance as returned by the RDS API.
    *
    * @param responseEndpointInfo The endpoint info returned by the RDS API.
-   * @return A CustomEndPointInfo object representing the information in the given DBClusterEndpoint.
+   * @return a CustomEndPointInfo object representing the information in the given DBClusterEndpoint.
    */
   public static CustomEndpointInfo fromDBClusterEndpoint(DBClusterEndpoint responseEndpointInfo) {
     final List<String> members;
@@ -101,7 +101,7 @@ public class CustomEndpointInfo {
    * "my-custom-endpoint.cluster-custom-XYZ.us-east-1.rds.amazonaws.com", the endpoint identifier is
    * "my-custom-endpoint".
    *
-   * @return The endpoint identifier for the custom endpoint.
+   * @return the endpoint identifier for the custom endpoint.
    */
   public String getEndpointIdentifier() {
     return endpointIdentifier;
@@ -110,7 +110,7 @@ public class CustomEndpointInfo {
   /**
    * Gets the cluster identifier for the cluster that the custom endpoint belongs to.
    *
-   * @return The cluster identifier for the cluster that the custom endpoint belongs to.
+   * @return the cluster identifier for the cluster that the custom endpoint belongs to.
    */
   public String getClusterIdentifier() {
     return clusterIdentifier;
@@ -119,7 +119,7 @@ public class CustomEndpointInfo {
   /**
    * Gets the URL for the custom endpoint.
    *
-   * @return The URL for the custom endpoint.
+   * @return the URL for the custom endpoint.
    */
   public String getUrl() {
     return url;
@@ -128,7 +128,7 @@ public class CustomEndpointInfo {
   /**
    * Gets the role type of the custom endpoint.
    *
-   * @return The role type of the custom endpoint.
+   * @return the role type of the custom endpoint.
    */
   public CustomEndpointRoleType getCustomEndpointType() {
     return roleType;
@@ -137,7 +137,7 @@ public class CustomEndpointInfo {
   /**
    * Gets the member list type of the custom endpoint.
    *
-   * @return The member list type of the custom endpoint.
+   * @return the member list type of the custom endpoint.
    */
   public MemberListType getMemberListType() {
     return this.memberListType;
@@ -147,7 +147,7 @@ public class CustomEndpointInfo {
    * Gets the static members of the custom endpoint. If the custom endpoint member list type is an exclusion list,
    * returns null.
    *
-   * @return The static members of the custom endpoint, or null if the custom endpoint member list type is an exclusion
+   * @return the static members of the custom endpoint, or null if the custom endpoint member list type is an exclusion
    *     list.
    */
   public Set<String> getStaticMembers() {
@@ -158,7 +158,7 @@ public class CustomEndpointInfo {
    * Gets the excluded members of the custom endpoint. If the custom endpoint member list type is a static list,
    * returns null.
    *
-   * @return The excluded members of the custom endpoint, or null if the custom endpoint member list type is a static
+   * @return the excluded members of the custom endpoint, or null if the custom endpoint member list type is a static
    *     list.
    */
   public Set<String> getExcludedMembers() {

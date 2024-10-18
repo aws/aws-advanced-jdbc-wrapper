@@ -87,7 +87,7 @@ public class CustomEndpointTest {
     }};
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  protected static final boolean reuseExistingEndpoint = false;
+  protected static final boolean reuseExistingEndpoints = false;
 
   protected String currentWriter;
 
@@ -98,7 +98,7 @@ public class CustomEndpointTest {
     String region = envInfo.getRegion();
 
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
-      if (reuseExistingEndpoint) {
+      if (reuseExistingEndpoints) {
         waitUntilEndpointsAvailable(client, clusterId);
         return;
       }
@@ -230,7 +230,7 @@ public class CustomEndpointTest {
 
   @AfterAll
   public static void cleanup() {
-    if (reuseExistingEndpoint) {
+    if (reuseExistingEndpoints) {
       return;
     }
 
