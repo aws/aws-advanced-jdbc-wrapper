@@ -78,6 +78,13 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       "customEndpointInfoRefreshRateMs", "30000",
       "Controls how frequently custom endpoint monitors fetch custom endpoint info.");
 
+  public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO = new AwsWrapperProperty(
+      "waitForCustomEndpointInfo", "true",
+      "Controls whether to wait for custom endpoint info to become available before connecting or executing a "
+          + "method. Waiting is only necessary if a connection to a given custom endpoint has not been opened or used "
+          + "recently. Note that disabling this may result in occasional connections to instances outside of the custom "
+          + "endpoint");
+
   public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS = new AwsWrapperProperty(
       "waitForCustomEndpointInfoTimeoutMs", "5000",
       "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be made "
@@ -101,6 +108,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   protected final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc;
 
   protected final TelemetryCounter waitForInfoCounter;
+  protected final boolean shouldWaitForInfo;
   protected final int waitOnCachedInfoDurationMs;
   protected final int idleMonitorExpirationMs;
   protected HostSpec customEndpointHostSpec;
@@ -139,6 +147,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
     this.props = props;
     this.rdsClientFunc = rdsClientFunc;
 
+    this.shouldWaitForInfo = WAIT_FOR_CUSTOM_ENDPOINT_INFO.getBoolean(this.props);
     this.waitOnCachedInfoDurationMs = WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS.getInteger(this.props);
     this.idleMonitorExpirationMs = CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS.getInteger(this.props);
 
@@ -186,8 +195,10 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
     CustomEndpointMonitor monitor = createMonitorIfAbsent(props);
 
-    // If needed, wait a short time for custom endpoint info to be discovered.
-    waitForCustomEndpointInfo(monitor);
+    if (this.shouldWaitForInfo) {
+      // If needed, wait a short time for custom endpoint info to be discovered.
+      waitForCustomEndpointInfo(monitor);
+    }
 
     return connectFunc.call();
   }
@@ -283,10 +294,12 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       return jdbcMethodFunc.call();
     }
 
-    // If needed, wait a short time for custom endpoint info to be discovered.
     try {
       CustomEndpointMonitor monitor = createMonitorIfAbsent(this.props);
-      waitForCustomEndpointInfo(monitor);
+      if (this.shouldWaitForInfo) {
+        // If needed, wait a short time for custom endpoint info to be discovered.
+        waitForCustomEndpointInfo(monitor);
+      }
     } catch (Exception e) {
       throw WrapperUtils.wrapExceptionIfNeeded(exceptionClass, e);
     }
