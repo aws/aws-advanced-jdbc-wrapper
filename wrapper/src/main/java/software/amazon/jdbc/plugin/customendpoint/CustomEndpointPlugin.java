@@ -82,8 +82,8 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       "waitForCustomEndpointInfo", "true",
       "Controls whether to wait for custom endpoint info to become available before connecting or executing a "
           + "method. Waiting is only necessary if a connection to a given custom endpoint has not been opened or used "
-          + "recently. Note that disabling this may result in occasional connections to instances outside of the custom "
-          + "endpoint");
+          + "recently. Note that disabling this may result in occasional connections to instances outside of the "
+          + "custom endpoint.");
 
   public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS = new AwsWrapperProperty(
       "waitForCustomEndpointInfoTimeoutMs", "5000",
