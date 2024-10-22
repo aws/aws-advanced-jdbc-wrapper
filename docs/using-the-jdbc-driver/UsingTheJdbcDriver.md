@@ -69,6 +69,57 @@ For `application.properties`:
 logging.level.software.amazon.jdbc=trace
 ```
 
+## Specifying Parameter Values
+There are multiple ways to configure parameters for the AWS JDBC Driver,
+depending on how the driver is instantiated.
+
+### Spring + HikariCP
+HikariCP passes parameters to the driver using the configuration key:
+`spring.datasource.hikari.data-source-properties`.
+
+**Examples**:
+
+application.yaml:
+```yaml
+spring:
+  datasource:
+    hikari:
+      data-source-properties:
+        wrapperPlugins: failover,efm2
+        wrapperDialect: aurora-pg
+```
+application.properties
+```
+spring.datasource.hikari.data-source-properties.wrapperPlugins=failover,efm2
+spring.datasource.hikari.data-source-properties.wrapperDialect
+```
+Environment Variable (SPRING_APPLICATION_JSON)
+```json
+{
+  "spring.datasource.hikari.data-source-properties.wrapperPlugins": "failover,efm2",
+  "spring.datasource.hikari.data-source-properties.wrapperDialect": "aurora-pg"
+}
+```
+
+### DriverManager
+When specifying a DataSource using DriverManager, parameters may be specified
+in the query section of the JDBC URL.
+
+```
+url=jdbc:aws-wrapper:postgresql://<host_name>?[paramOne=valueOne[&paramTwo=valueTwo...]]
+```
+
+For example:
+```
+url=jdbc:aws-wrapper:postgresql://db.example.com?database=example&tcpKeepAlive=true
+```
+
+> [!NOTE]  
+> When connecting to a MS SQL Server engine, standard URL parameter notation is
+> required. The driver will not parse parameters specified after semi-colons in
+> the traditional MSSQL URL format.
+
+
 ## AWS Advanced JDBC Driver Parameters
 These parameters are applicable to any instance of the AWS JDBC Driver.
 
