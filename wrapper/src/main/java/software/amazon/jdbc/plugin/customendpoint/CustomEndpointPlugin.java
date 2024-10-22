@@ -76,7 +76,7 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_INFO_REFRESH_RATE_MS = new AwsWrapperProperty(
       "customEndpointInfoRefreshRateMs", "30000",
-      "Controls how frequently custom endpoint monitors fetch custom endpoint info.");
+      "Controls how frequently custom endpoint monitors fetch custom endpoint info, in milliseconds.");
 
   public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO = new AwsWrapperProperty(
       "waitForCustomEndpointInfo", "true",
@@ -88,15 +88,15 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
   public static final AwsWrapperProperty WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS = new AwsWrapperProperty(
       "waitForCustomEndpointInfoTimeoutMs", "5000",
       "Controls the maximum amount of time that the plugin will wait for custom endpoint info to be made "
-          + "available by the custom endpoint monitor.");
+          + "available by the custom endpoint monitor, in milliseconds.");
 
   public static final AwsWrapperProperty CUSTOM_ENDPOINT_MONITOR_IDLE_EXPIRATION_MS = new AwsWrapperProperty(
       "customEndpointMonitorExpirationMs", String.valueOf(TimeUnit.MINUTES.toMillis(15)),
-      "Controls how long a monitor should run without use before expiring and being removed.");
+      "Controls how long a monitor should run without use before expiring and being removed, in milliseconds.");
 
   public static final AwsWrapperProperty REGION_PROPERTY = new AwsWrapperProperty(
       "customEndpointRegion", null,
-      "The region of the cluster's custom endpoints.");
+      "The region of the cluster's custom endpoints. If not specified, the region will be parsed from the URL.");
 
   static {
     PropertyDefinition.registerPluginProperties(CustomEndpointPlugin.class);
