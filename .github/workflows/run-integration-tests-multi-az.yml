@@ -7,8 +7,8 @@ on:
       - main
 
 jobs:
-  all-integration-tests-default:
-    name: 'Run Aurora integration tests with default engine version'
+  multiaz-integration-tests:
+    name: 'Run MultiAZ integration tests'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -69,6 +69,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: html-summary-report-default-${{ matrix.dbEngine }}
+          name: html-summary-report-${{ matrix.vresion }}-${{ matrix.dbEngine }}
           path: ./wrapper/build/report
           retention-days: 5
