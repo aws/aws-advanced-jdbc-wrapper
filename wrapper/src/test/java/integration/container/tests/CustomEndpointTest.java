@@ -104,9 +104,6 @@ public class CustomEndpointTest {
         return;
       }
 
-      // Delete pre-existing custom endpoints in case they weren't cleaned up in a previous run.
-      deleteEndpoints(client);
-
       List<TestInstanceInfo> instances = envInfo.getDatabaseInfo().getInstances();
       createEndpoint(client, clusterId, oneInstanceEndpointId, instances.subList(0, 1));
       createEndpoint(client, clusterId, twoInstanceEndpointId, instances.subList(0, 2));
