@@ -80,8 +80,8 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
 @Order(16)
 public class CustomEndpointTest {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointTest.class.getName());
-  protected static final String oneInstanceEndpointId = "test-endpoint-1" + UUID.randomUUID();
-  protected static final String twoInstanceEndpointId = "test-endpoint-2" + UUID.randomUUID();
+  protected static final String oneInstanceEndpointId = "test-endpoint-1-" + UUID.randomUUID();
+  protected static final String twoInstanceEndpointId = "test-endpoint-2-" + UUID.randomUUID();
   protected static final Map<String, DBClusterEndpoint> endpoints = new HashMap<String, DBClusterEndpoint>() {{
       put(oneInstanceEndpointId, null);
       put(twoInstanceEndpointId, null);
