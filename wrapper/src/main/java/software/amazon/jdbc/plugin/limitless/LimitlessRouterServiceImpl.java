@@ -24,14 +24,18 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
+import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
 import software.amazon.jdbc.util.Utils;
 
 public class LimitlessRouterServiceImpl implements LimitlessRouterService {
+  private static final Logger LOGGER =
+      Logger.getLogger(LimitlessRouterServiceImpl.class.getName());
   public static final AwsWrapperProperty MONITOR_DISPOSAL_TIME_MS =
       new AwsWrapperProperty(
           "limitlessTransactionRouterMonitorDisposalTimeMs",
@@ -143,12 +147,13 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
               .createLimitlessRouterMonitor(
                   hostSpec,
                   limitlessRouterCache,
-                  this.pluginService.getHostListProvider().getClusterId(),
+                  limitlessRouterMonitorKey,
                   props,
                   intervalMs),
           cacheExpirationNano);
-    } catch (UnsupportedOperationException e) {
-      throw e;
+    } catch (SQLException e) {
+      LOGGER.warning(Messages.get("LimitlessRouterServiceImpl.errorStartingMonitor", new Object[]{e}));
+      throw new RuntimeException(e);
     }
   }
 }
