@@ -694,7 +694,8 @@ public class RdsHostListProvider implements DynamicHostListProvider {
   }
 
   @Override
-  public String getClusterId() throws UnsupportedOperationException {
+  public String getClusterId() throws UnsupportedOperationException, SQLException {
+    init();
     return this.clusterId;
   }
 
