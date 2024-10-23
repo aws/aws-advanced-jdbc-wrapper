@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -69,7 +70,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
-@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
+@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
@@ -79,8 +80,8 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
 @Order(16)
 public class CustomEndpointTest {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointTest.class.getName());
-  protected static final String oneInstanceEndpointId = "test-endpoint-1";
-  protected static final String twoInstanceEndpointId = "test-endpoint-2";
+  protected static final String oneInstanceEndpointId = "test-endpoint-1-" + UUID.randomUUID();
+  protected static final String twoInstanceEndpointId = "test-endpoint-2-" + UUID.randomUUID();
   protected static final Map<String, DBClusterEndpoint> endpoints = new HashMap<String, DBClusterEndpoint>() {{
       put(oneInstanceEndpointId, null);
       put(twoInstanceEndpointId, null);
@@ -102,9 +103,6 @@ public class CustomEndpointTest {
         waitUntilEndpointsAvailable(client, clusterId);
         return;
       }
-
-      // Delete pre-existing custom endpoints in case they weren't cleaned up in a previous run.
-      deleteEndpoints(client);
 
       List<TestInstanceInfo> instances = envInfo.getDatabaseInfo().getInstances();
       createEndpoint(client, clusterId, oneInstanceEndpointId, instances.subList(0, 1));
