@@ -2,6 +2,9 @@ name: Run Aurora Postgres Performance Tests
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - test/perf
 
 jobs:
   aurora-postgres-performance-tests:

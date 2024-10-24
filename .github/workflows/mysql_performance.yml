@@ -2,6 +2,9 @@ name: Run Aurora Mysql Performance Tests
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - test/perf
 
 jobs:
   aurora-mysql-performance-tests:

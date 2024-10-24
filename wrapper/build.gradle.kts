@@ -504,7 +504,7 @@ tasks.register<Test>("test-aurora-pg-performance") {
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-no-instances-1", "true")
         systemProperty("test-no-instances-2", "true")
-        systemProperty("test-exclude-tags", "advanced,rw-splitting")
+        systemProperty("test-exclude-tags", "advanced")
     }
 }
 
@@ -546,7 +546,7 @@ tasks.register<Test>("test-aurora-mysql-performance") {
         systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-no-instances-1", "true")
         systemProperty("test-no-instances-2", "true")
-        systemProperty("test-exclude-tags", "advanced,rw-splitting")
+        systemProperty("test-exclude-tags", "advanced")
     }
 }
 

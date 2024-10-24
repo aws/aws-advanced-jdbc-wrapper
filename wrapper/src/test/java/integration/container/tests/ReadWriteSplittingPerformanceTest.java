@@ -219,7 +219,7 @@ public class ReadWriteSplittingPerformanceTest {
 
   protected Properties initReadWritePluginProps() {
     final Properties props = initNoPluginPropsWithTimeouts();
-    props.setProperty(PropertyDefinition.PLUGINS.name, "auroraHostList,readWriteSplitting,connectTime,executionTime");
+    props.setProperty(PropertyDefinition.PLUGINS.name, "readWriteSplitting,connectTime,executionTime");
     return props;
   }
 
