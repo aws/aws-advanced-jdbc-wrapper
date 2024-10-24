@@ -17,6 +17,7 @@
 package integration.container.tests;
 
 import com.zaxxer.hikari.HikariConfig;
+import integration.TestDatabaseInfo;
 import integration.TestEnvironmentFeatures;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
@@ -187,8 +188,11 @@ public class ReadWriteSplittingPerformanceTest {
         new HikariPooledConnectionProvider((hostSpec, props) -> new HikariConfig());
     ConnectionProviderManager.setConnectionProvider(connProvider);
     // Initialize a pool for each instance in the topology
-    for (TestInstanceInfo instance : TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()) {
-      try (final Connection conn = DriverManager.getConnection(instance.getHost(), propsWithPlugin)) {
+    final TestDatabaseInfo info = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
+    for (TestInstanceInfo instance : info.getInstances()) {
+      try (final Connection conn = DriverManager.getConnection(
+          ConnectionStringHelper.getUrl(instance.getHost(), instance.getPort(), info.getDefaultDbName()),
+          propsWithPlugin)) {
         // do nothing
       }
     }
