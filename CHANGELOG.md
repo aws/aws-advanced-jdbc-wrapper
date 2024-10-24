@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.5.1] - 2024-10-24
+### :bug: Fixed
+- `RdsHostListProvider#getClusterId` returning null `clusterId` causing NPE in Limitless Connection Plugin ([PR #1162](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1162)).
+
 ## [2.5.0] - 2024-10-18
 
 ### :magic_wand: Added
@@ -370,6 +374,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.5.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.0...2.5.1
 [2.5.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.4.0...2.5.0
 [2.4.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.9...2.4.0
 [2.3.9]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.3.8...2.3.9
