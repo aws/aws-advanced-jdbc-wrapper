@@ -38,6 +38,7 @@ import software.amazon.jdbc.HostListProvider;
 import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
+import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 
@@ -48,6 +49,8 @@ public class LimitlessRouterServiceImplTest {
   @Mock private PluginService mockPluginService;
   @Mock private HostListProvider mockHostListProvider;
   @Mock private LimitlessRouterMonitor mockLimitlessRouterMonitor;
+  @Mock private Connection mockConnection;
+  @Mock private JdbcCallable<Connection, SQLException> mockConnectFunc;
   private static final HostSpec hostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
       .host("some-instance").role(HostRole.WRITER).build();
   private static final int intervalMs = 1000;
@@ -58,6 +61,7 @@ public class LimitlessRouterServiceImplTest {
   public void init() throws SQLException {
     closeable = MockitoAnnotations.openMocks(this);
     props = new Properties();
+    when(mockConnectFunc.call()).thenReturn(mockConnection);
   }
 
   @AfterEach
@@ -92,7 +96,7 @@ public class LimitlessRouterServiceImplTest {
   }
 
   @Test
-  void testForceGetLimitlessRoutersWithConn() throws SQLException {
+  void testForceGetLimitlessRouters() throws SQLException {
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
     final List<HostSpec> expectedHostSpecList = Arrays.asList(
@@ -107,7 +111,7 @@ public class LimitlessRouterServiceImplTest {
     when(mockLimitlessQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt()))
         .thenReturn(expectedHostSpecList);
 
-    final Connection expectedConn = Mockito.mock(Connection.class);
+    final Connection expectedConn = mockConnection;
     final int expectedHostPort = 39;
 
     final LimitlessRouterServiceImpl limitlessRouterService = new LimitlessRouterServiceImpl(
@@ -116,7 +120,39 @@ public class LimitlessRouterServiceImplTest {
             mockLimitlessQueryHelper);
 
     final List<HostSpec> actualHostSpecList = limitlessRouterService
-        .forceGetLimitlessRoutersWithConn(expectedConn, expectedHostPort, props);
+        .forceGetLimitlessRouters(expectedConn, mockConnectFunc, expectedHostPort, props);
+
+    verify(mockLimitlessQueryHelper, times(1))
+        .queryForLimitlessRouters(expectedConn, expectedHostPort);
+    assertEquals(expectedHostSpecList, actualHostSpecList);
+  }
+
+  @Test
+  void testForceGetLimitlessRoutersNullConnection() throws SQLException {
+    when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
+    when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
+    final List<HostSpec> expectedHostSpecList = Arrays.asList(
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-1").role(HostRole.WRITER).weight(-100)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-2").role(HostRole.WRITER).weight(0)
+            .build(),
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("instance-3").role(HostRole.WRITER).weight(100)
+            .build()
+    );
+    final LimitlessQueryHelper mockLimitlessQueryHelper = Mockito.mock(LimitlessQueryHelper.class);
+    when(mockLimitlessQueryHelper.queryForLimitlessRouters(any(Connection.class), anyInt()))
+        .thenReturn(expectedHostSpecList);
+
+    final Connection expectedConn = mockConnection;
+    final int expectedHostPort = 39;
+
+    final LimitlessRouterServiceImpl limitlessRouterService = new LimitlessRouterServiceImpl(
+        mockPluginService,
+        (a, b, c, d, e) -> mockLimitlessRouterMonitor,
+        mockLimitlessQueryHelper);
+
+    final List<HostSpec> actualHostSpecList = limitlessRouterService
+        .forceGetLimitlessRouters(null, mockConnectFunc, expectedHostPort, props);
 
     verify(mockLimitlessQueryHelper, times(1))
         .queryForLimitlessRouters(expectedConn, expectedHostPort);

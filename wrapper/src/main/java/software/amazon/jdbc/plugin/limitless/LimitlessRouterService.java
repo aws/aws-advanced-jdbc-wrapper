@@ -22,13 +22,15 @@ import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
 
 public interface LimitlessRouterService {
 
   List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
 
-  List<HostSpec> forceGetLimitlessRoutersWithConn(
-      final Connection connection, final int hostPort, final Properties props)  throws SQLException;
+  List<HostSpec> forceGetLimitlessRouters(
+      final Connection connection, final JdbcCallable<Connection, SQLException> connectFunc, final int hostPort,
+      final Properties props)  throws SQLException;
 
   void startMonitoring(
       final @NonNull HostSpec hostSpec,

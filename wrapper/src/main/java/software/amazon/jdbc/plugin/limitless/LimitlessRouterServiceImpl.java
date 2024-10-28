@@ -28,6 +28,7 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
+import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
@@ -103,8 +104,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
   }
 
   @Override
-  public List<HostSpec> forceGetLimitlessRoutersWithConn(
-      final Connection connection, final int hostPort, final Properties props) throws SQLException {
+  public List<HostSpec> forceGetLimitlessRouters(
+      final Connection connection, final JdbcCallable<Connection, SQLException> connectFunc, final int hostPort,
+      final Properties props) throws SQLException {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
 
@@ -119,9 +121,10 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       if (!Utils.isNullOrEmpty(limitlessRouters)) {
         return limitlessRouters;
       }
+      final List<HostSpec> newLimitlessRouters = connection == null || connection.isClosed()
+          ? this.queryHelper.queryForLimitlessRouters(connectFunc.call(), hostPort)
+          : this.queryHelper.queryForLimitlessRouters(connection, hostPort);
 
-      final List<HostSpec> newLimitlessRouters =
-          this.queryHelper.queryForLimitlessRouters(connection, hostPort);
 
       limitlessRouterCache.put(
           this.pluginService.getHostListProvider().getClusterId(),
