@@ -60,9 +60,13 @@ public class RegionUtils {
    * Determines the AWS region from the given region string.
    *
    * @param regionString The connection properties for the connection being established.
-   * @return The AWS region of the given region string.
+   * @return The AWS region of the given region string, or null if the given string was null or empty.
    */
   public Region getRegionFromRegionString(String regionString) {
+    if (StringUtils.isNullOrEmpty(regionString)) {
+      return null;
+    }
+
     final Region region = Region.of(regionString);
     if (!Region.regions().contains(region)) {
       throw new RuntimeException(
