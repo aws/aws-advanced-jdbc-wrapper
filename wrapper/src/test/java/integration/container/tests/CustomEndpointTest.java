@@ -110,36 +110,6 @@ public class CustomEndpointTest {
     } catch (DbClusterEndpointNotFoundException e) {
       // Custom endpoint already does not exist - do nothing.
     }
-
-    waitUntilEndpointDeleted(client);
-  }
-
-  private static void waitUntilEndpointDeleted(RdsClient client) {
-    long deleteTimeoutNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
-    boolean deleted = false;
-
-    while (System.nanoTime() < deleteTimeoutNano) {
-      Filter customEndpointFilter =
-          Filter.builder().name("db-cluster-endpoint-type").values("custom").build();
-      DescribeDbClusterEndpointsResponse endpointsResponse = client.describeDBClusterEndpoints(
-          (builder) ->
-              builder.dbClusterEndpointIdentifier(endpointId).filters(customEndpointFilter));
-      deleted = endpointsResponse.dbClusterEndpoints().isEmpty();
-      if (deleted) {
-        break;
-      }
-
-      try {
-        TimeUnit.SECONDS.sleep(5);
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    if (!deleted) {
-      throw new RuntimeException(
-          "The test cleanup step timed out while attempting to delete the test custom endpoint: '" + endpointId + "'.");
-    }
   }
 
   private static void createEndpoint(RdsClient client, String clusterId, List<TestInstanceInfo> instances) {
