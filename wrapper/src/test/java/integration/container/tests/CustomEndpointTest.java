@@ -87,7 +87,7 @@ public class CustomEndpointTest {
   protected String currentWriter;
 
   @BeforeAll
-  public static void createEndpoint() {
+  public static void setupEndpoint() {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     String clusterId = envInfo.getAuroraClusterName();
     String region = envInfo.getRegion();
@@ -101,14 +101,6 @@ public class CustomEndpointTest {
       List<TestInstanceInfo> instances = envInfo.getDatabaseInfo().getInstances();
       createEndpoint(client, clusterId, instances.subList(0, 1));
       waitUntilEndpointAvailable(client);
-    }
-  }
-
-  private static void deleteEndpoint(RdsClient client) {
-    try {
-      client.deleteDBClusterEndpoint((builder) -> builder.dbClusterEndpointIdentifier(endpointId));
-    } catch (DbClusterEndpointNotFoundException e) {
-      // Custom endpoint already does not exist - do nothing.
     }
   }
 
@@ -217,6 +209,14 @@ public class CustomEndpointTest {
     String region = TestEnvironment.getCurrent().getInfo().getRegion();
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
       deleteEndpoint(client);
+    }
+  }
+
+  private static void deleteEndpoint(RdsClient client) {
+    try {
+      client.deleteDBClusterEndpoint((builder) -> builder.dbClusterEndpointIdentifier(endpointId));
+    } catch (DbClusterEndpointNotFoundException e) {
+      // Custom endpoint already does not exist - do nothing.
     }
   }
 
