@@ -33,7 +33,7 @@ dependencies {
     compileOnly("software.amazon.awssdk:auth:2.28.2") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.27.8") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.27.22")
-    compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
+    compileOnly("com.zaxxer:HikariCP:6.0.0") // Version 4.+ is compatible with Java 8
     compileOnly("software.amazon.awssdk:secretsmanager:2.28.11")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     compileOnly("mysql:mysql-connector-java:8.0.33")
@@ -60,7 +60,7 @@ dependencies {
     testImplementation("org.postgresql:postgresql:42.7.4")
     testImplementation("mysql:mysql-connector-java:8.0.33")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
-    testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
+    testImplementation("com.zaxxer:HikariCP:6.0.0") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.29.6")
