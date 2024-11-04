@@ -24,6 +24,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     runtimeOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.postgresql:postgresql:42.7.4")
-    implementation("software.amazon.awssdk:rds:2.28.12")
+    implementation("software.amazon.awssdk:rds:2.29.6")
     implementation(project(":aws-advanced-jdbc-wrapper"))
 }
