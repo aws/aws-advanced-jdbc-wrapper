@@ -29,7 +29,7 @@ plugins {
 dependencies {
     implementation("org.checkerframework:checker-qual:3.48.1")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
-    compileOnly("software.amazon.awssdk:rds:2.28.12")
+    compileOnly("software.amazon.awssdk:rds:2.29.6")
     compileOnly("software.amazon.awssdk:auth:2.28.2") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.27.8") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.27.22")
@@ -50,7 +50,7 @@ dependencies {
 
     testImplementation("org.junit.platform:junit-platform-commons:1.11.2")
     testImplementation("org.junit.platform:junit-platform-engine:1.11.0")
-    testImplementation("org.junit.platform:junit-platform-launcher:1.10.3")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.11.3")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.11.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.0")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
@@ -63,7 +63,7 @@ dependencies {
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
-    testImplementation("software.amazon.awssdk:rds:2.28.12")
+    testImplementation("software.amazon.awssdk:rds:2.29.6")
     testImplementation("software.amazon.awssdk:auth:2.28.2") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.27.8") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.28.2")

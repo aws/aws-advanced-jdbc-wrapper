@@ -25,10 +25,7 @@ import software.amazon.jdbc.HostSpec;
 
 public interface LimitlessRouterService {
 
-  List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException;
-
-  List<HostSpec> forceGetLimitlessRoutersWithConn(
-      final Connection connection, final int hostPort, final Properties props)  throws SQLException;
+  void establishConnection(final LimitlessConnectionContext context) throws SQLException;
 
   void startMonitoring(
       final @NonNull HostSpec hostSpec,
