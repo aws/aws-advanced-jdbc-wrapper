@@ -186,7 +186,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         }
       }
     } catch (InterruptedException e) {
-      LOGGER.info(
+      LOGGER.fine(
           Messages.get(
               "CustomEndpointMonitorImpl.interrupted",
               new Object[]{ this.customEndpointHostSpec.getHost() }));
