@@ -49,6 +49,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RegionUtils;
 import software.amazon.jdbc.util.StringUtils;
@@ -175,7 +176,12 @@ public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin 
 
     this.secretKey = Pair.of(secretId, region);
 
+    ConfigurationProfile profile = this.pluginService.getConfigurationProfile();
+    if (profile != null && profile.getAwsCredentialsProviderHandler() != null) {
+      AwsCredentialsManager.setCustomHandler(profile.getAwsCredentialsProviderHandler());
+    }
     this.secretsManagerClientFunc = secretsManagerClientFunc;
+
     this.getSecretValueRequestFunc = getSecretValueRequestFunc;
     this.fetchCredentialsCounter = this.pluginService.getTelemetryFactory()
         .createCounter(TELEMETRY_FETCH_CREDENTIALS_COUNTER);

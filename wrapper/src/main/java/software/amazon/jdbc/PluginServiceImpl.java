@@ -245,6 +245,12 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  @Nullable
+  public ConfigurationProfile getConfigurationProfile() {
+    return this.configurationProfile;
+  }
+
+  @Override
   public void setCurrentConnection(
       final @NonNull Connection connection, final @NonNull HostSpec hostSpec) throws SQLException {
 

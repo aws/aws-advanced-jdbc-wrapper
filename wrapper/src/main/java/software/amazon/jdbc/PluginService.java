@@ -27,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.hostavailability.HostAvailability;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -230,6 +231,8 @@ public interface PluginService extends ExceptionHandler {
   ConnectionProvider getConnectionProvider();
 
   String getDriverProtocol();
+
+  @Nullable ConfigurationProfile getConfigurationProfile();
 
   Properties getProperties();
 
