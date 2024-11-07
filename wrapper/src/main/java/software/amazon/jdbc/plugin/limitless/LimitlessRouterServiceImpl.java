@@ -194,6 +194,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
           } else {
             try {
               context.setConnection(context.getConnectFunc().call());
+              return;
             } catch (final SQLException e) {
               throw new SQLException(Messages.get("LimitlessRouterServiceImpl.noRoutersAvailable"));
             }
@@ -208,7 +209,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
             HostRole.WRITER, HighestWeightHostSelector.STRATEGY_HIGHEST_WEIGHT);
         LOGGER.finest(Messages.get(
             "LimitlessRouterServiceImpl.selectedHostForRetry",
-            new Object[] {selectedHostSpec.getHost()}));
+            new Object[] {selectedHostSpec != null ? selectedHostSpec.getHost() : "null"}));
         if (selectedHostSpec == null) {
           continue;
         }
@@ -289,8 +290,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
         limitlessRouterCache.put(
             this.pluginService.getHostListProvider().getClusterId(),
             newLimitlessRouters, LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(context.getProps()));
+      } else {
+        throw new SQLException(Messages.get("LimitlessRouterServiceImpl.fetchedEmptyRouterList"));
       }
-      throw new SQLException(Messages.get("LimitlessRouterServiceImpl.fetchedEmptyRouterList"));
     } finally {
       lock.unlock();
     }
