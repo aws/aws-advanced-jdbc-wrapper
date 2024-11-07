@@ -40,10 +40,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -80,139 +78,115 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingSQLExcep
 @Order(16)
 public class CustomEndpointTest {
   private static final Logger LOGGER = Logger.getLogger(CustomEndpointTest.class.getName());
-  protected static final String oneInstanceEndpointId = "test-endpoint-1-" + UUID.randomUUID();
-  protected static final String twoInstanceEndpointId = "test-endpoint-2-" + UUID.randomUUID();
-  protected static final Map<String, DBClusterEndpoint> endpoints = new HashMap<String, DBClusterEndpoint>() {{
-      put(oneInstanceEndpointId, null);
-      put(twoInstanceEndpointId, null);
-    }};
+  protected static final String endpointId = "test-endpoint-1-" + UUID.randomUUID();
+  protected static DBClusterEndpoint endpointInfo;
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  protected static final boolean reuseExistingEndpoints = false;
+  protected static final boolean reuseExistingEndpoint = false;
 
   protected String currentWriter;
 
   @BeforeAll
-  public static void createEndpoints() {
+  public static void setupEndpoint() {
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     String clusterId = envInfo.getAuroraClusterName();
     String region = envInfo.getRegion();
 
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
-      if (reuseExistingEndpoints) {
-        waitUntilEndpointsAvailable(client, clusterId);
+      if (reuseExistingEndpoint) {
+        waitUntilEndpointAvailable(client);
         return;
       }
 
       List<TestInstanceInfo> instances = envInfo.getDatabaseInfo().getInstances();
-      createEndpoint(client, clusterId, oneInstanceEndpointId, instances.subList(0, 1));
-      createEndpoint(client, clusterId, twoInstanceEndpointId, instances.subList(0, 2));
-      waitUntilEndpointsAvailable(client, clusterId);
+      createEndpoint(client, clusterId, instances.subList(0, 1));
+      waitUntilEndpointAvailable(client);
     }
   }
 
-  private static void deleteEndpoints(RdsClient client) {
-    for (String endpointId : endpoints.keySet()) {
-      try {
-        client.deleteDBClusterEndpoint((builder) -> builder.dbClusterEndpointIdentifier(endpointId));
-      } catch (DbClusterEndpointNotFoundException e) {
-        // Custom endpoint already does not exist - do nothing.
-      }
-    }
-
-    waitUntilEndpointsDeleted(client);
-  }
-
-  private static void waitUntilEndpointsDeleted(RdsClient client) {
-    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
-    long deleteTimeoutNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
-    boolean allEndpointsDeleted = false;
-
-    while (!allEndpointsDeleted && System.nanoTime() < deleteTimeoutNano) {
-      Filter customEndpointFilter =
-          Filter.builder().name("db-cluster-endpoint-type").values("custom").build();
-      DescribeDbClusterEndpointsResponse endpointsResponse = client.describeDBClusterEndpoints(
-          (builder) ->
-              builder.dbClusterIdentifier(clusterId).filters(customEndpointFilter));
-      List<String> responseIDs = endpointsResponse.dbClusterEndpoints().stream()
-          .map(DBClusterEndpoint::dbClusterEndpointIdentifier).collect(Collectors.toList());
-
-      allEndpointsDeleted = endpoints.keySet().stream().noneMatch(responseIDs::contains);
-    }
-
-    if (!allEndpointsDeleted) {
-      throw new RuntimeException(
-          "The test setup step timed out while attempting to delete pre-existing test custom endpoints.");
-    }
-  }
-
-  private static void createEndpoint(
-      RdsClient client, String clusterId, String endpointId, List<TestInstanceInfo> instances) {
+  private static void createEndpoint(RdsClient client, String clusterId, List<TestInstanceInfo> instances) {
     List<String> instanceIDs = instances.stream().map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
     client.createDBClusterEndpoint((builder) ->
-        builder.dbClusterEndpointIdentifier(endpointId)
+        builder.dbClusterEndpointIdentifier(CustomEndpointTest.endpointId)
             .dbClusterIdentifier(clusterId)
             .endpointType("ANY")
             .staticMembers(instanceIDs));
   }
 
-  public static void waitUntilEndpointsAvailable(RdsClient client, String clusterId) {
+  public static void waitUntilEndpointAvailable(RdsClient client) {
     long timeoutEndNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
-    boolean allEndpointsAvailable = false;
+    boolean available = false;
 
-    while (!allEndpointsAvailable && System.nanoTime() < timeoutEndNano) {
+    while (System.nanoTime() < timeoutEndNano) {
       Filter customEndpointFilter =
           Filter.builder().name("db-cluster-endpoint-type").values("custom").build();
       DescribeDbClusterEndpointsResponse endpointsResponse = client.describeDBClusterEndpoints(
           (builder) ->
-              builder.dbClusterIdentifier(clusterId).filters(customEndpointFilter));
+              builder.dbClusterEndpointIdentifier(endpointId).filters(customEndpointFilter));
       List<DBClusterEndpoint> responseEndpoints = endpointsResponse.dbClusterEndpoints();
-
-      int numAvailableEndpoints = 0;
-      for (int i = 0; i < responseEndpoints.size() && numAvailableEndpoints < endpoints.size(); i++) {
-        DBClusterEndpoint endpoint = responseEndpoints.get(i);
-        String endpointId = endpoint.dbClusterEndpointIdentifier();
-        if (endpoints.containsKey(endpointId)) {
-          endpoints.put(endpointId, endpoint);
-          if ("available".equals(endpoint.status())) {
-            numAvailableEndpoints++;
-          }
+      if (responseEndpoints.size() != 1) {
+        try {
+          // Endpoint needs more time to get created
+          TimeUnit.SECONDS.sleep(3);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
         }
       }
 
-      allEndpointsAvailable = numAvailableEndpoints == endpoints.size();
+      DBClusterEndpoint responseEndpoint = responseEndpoints.get(0);
+      endpointInfo = responseEndpoint;
+      available = "available".equals(responseEndpoint.status());
+      if (available) {
+        break;
+      }
+
+      try {
+        TimeUnit.SECONDS.sleep(3);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
 
-    if (!allEndpointsAvailable) {
+    if (!available) {
       throw new RuntimeException(
-          "The test setup step timed out while waiting for the new custom endpoints to become available.");
+          "The test setup step timed out while waiting for the custom endpoint to become available: '"
+              + endpointId + "'.");
     }
   }
 
-  public static void waitUntilEndpointHasCorrectState(RdsClient client, String endpointId, List<String> membersList) {
+  public static void waitUntilEndpointHasMembers(RdsClient client, String endpointId, List<String> membersList) {
     long start = System.nanoTime();
 
     // Convert to set for later comparison.
     Set<String> members = new HashSet<>(membersList);
     long timeoutEndNano = System.nanoTime() + TimeUnit.MINUTES.toNanos(20);
     boolean hasCorrectState = false;
-    while (!hasCorrectState && System.nanoTime() < timeoutEndNano) {
+    while (System.nanoTime() < timeoutEndNano) {
       DescribeDbClusterEndpointsResponse response = client.describeDBClusterEndpoints(
           (builder) ->
               builder.dbClusterEndpointIdentifier(endpointId));
       if (response.dbClusterEndpoints().size() != 1) {
         fail("Unexpected number of endpoints returned while waiting for custom endpoint to have the specified list of "
-            + "members. Expected 1, got " + response.dbClusterEndpoints().size());
+            + "members. Expected 1, got " + response.dbClusterEndpoints().size() + ".");
       }
 
       DBClusterEndpoint endpoint = response.dbClusterEndpoints().get(0);
       // Compare sets to ignore order when checking for members equality.
       Set<String> responseMembers = new HashSet<>(endpoint.staticMembers());
       hasCorrectState = responseMembers.equals(members) && "available".equals(endpoint.status());
+      if (hasCorrectState) {
+        break;
+      }
+
+      try {
+        TimeUnit.SECONDS.sleep(3);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     if (!hasCorrectState) {
-      fail("Timed out while waiting for the custom endpoint to stabilize");
+      fail("Timed out while waiting for the custom endpoint to stabilize: '" + endpointId + "'.");
     }
 
     LOGGER.fine("waitUntilEndpointHasCorrectState took "
@@ -228,13 +202,21 @@ public class CustomEndpointTest {
 
   @AfterAll
   public static void cleanup() {
-    if (reuseExistingEndpoints) {
+    if (reuseExistingEndpoint) {
       return;
     }
 
     String region = TestEnvironment.getCurrent().getInfo().getRegion();
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
-      deleteEndpoints(client);
+      deleteEndpoint(client);
+    }
+  }
+
+  private static void deleteEndpoint(RdsClient client) {
+    try {
+      client.deleteDBClusterEndpoint((builder) -> builder.dbClusterEndpointIdentifier(endpointId));
+    } catch (DbClusterEndpointNotFoundException e) {
+      // Custom endpoint already does not exist - do nothing.
     }
   }
 
@@ -248,17 +230,15 @@ public class CustomEndpointTest {
 
   @TestTemplate
   public void testCustomEndpointFailover() throws SQLException, InterruptedException {
-    // The single-instance endpoint will be used for this test.
-    final DBClusterEndpoint endpoint = endpoints.get(oneInstanceEndpointId);
     final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
     props.setProperty("failoverMode", "reader-or-writer");
 
     try (final Connection conn = DriverManager.getConnection(
-        ConnectionStringHelper.getWrapperUrl(endpoint.endpoint(), port, dbInfo.getDefaultDbName()),
+        ConnectionStringHelper.getWrapperUrl(endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
         props)) {
-      List<String> endpointMembers = endpoint.staticMembers();
+      List<String> endpointMembers = endpointInfo.staticMembers();
       String instanceId = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId));
 
@@ -278,8 +258,6 @@ public class CustomEndpointTest {
 
   @TestTemplate
   public void testCustomEndpointReadWriteSplitting_withCustomEndpointChanges() throws SQLException {
-    // The one-instance custom endpoint will be used for this test.
-    final DBClusterEndpoint testEndpoint = endpoints.get(oneInstanceEndpointId);
     TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
     final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
@@ -290,10 +268,10 @@ public class CustomEndpointTest {
 
     try (final Connection conn =
              DriverManager.getConnection(
-                 ConnectionStringHelper.getWrapperUrl(testEndpoint.endpoint(), port, dbInfo.getDefaultDbName()),
+                 ConnectionStringHelper.getWrapperUrl(endpointInfo.endpoint(), port, dbInfo.getDefaultDbName()),
                   props);
          final RdsClient client = RdsClient.builder().region(Region.of(envInfo.getRegion())).build()) {
-      List<String> endpointMembers = testEndpoint.staticMembers();
+      List<String> endpointMembers = endpointInfo.staticMembers();
       String instanceId1 = auroraUtil.queryInstanceId(conn);
       assertTrue(endpointMembers.contains(instanceId1));
 
@@ -322,10 +300,10 @@ public class CustomEndpointTest {
 
       client.modifyDBClusterEndpoint(
           builder ->
-              builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(instanceId1, newMember));
+              builder.dbClusterEndpointIdentifier(endpointId).staticMembers(instanceId1, newMember));
 
       try {
-        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Arrays.asList(instanceId1, newMember));
+        waitUntilEndpointHasMembers(client, endpointId, Arrays.asList(instanceId1, newMember));
 
         // We should now be able to switch to newMember.
         assertDoesNotThrow(() -> conn.setReadOnly(newReadOnlyValue));
@@ -337,8 +315,8 @@ public class CustomEndpointTest {
       } finally {
         client.modifyDBClusterEndpoint(
             builder ->
-                builder.dbClusterEndpointIdentifier(oneInstanceEndpointId).staticMembers(instanceId1));
-        waitUntilEndpointHasCorrectState(client, oneInstanceEndpointId, Collections.singletonList(instanceId1));
+                builder.dbClusterEndpointIdentifier(endpointId).staticMembers(instanceId1));
+        waitUntilEndpointHasMembers(client, endpointId, Collections.singletonList(instanceId1));
       }
 
       // We should not be able to switch again because newMember was removed from the custom endpoint.
