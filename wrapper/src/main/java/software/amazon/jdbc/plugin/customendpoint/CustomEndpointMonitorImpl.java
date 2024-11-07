@@ -37,7 +37,6 @@ import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.CacheMap;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -55,7 +54,6 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
   protected static final long CUSTOM_ENDPOINT_INFO_EXPIRATION_NANO = TimeUnit.MINUTES.toNanos(5);
 
   protected final AtomicBoolean stop = new AtomicBoolean(false);
-  protected final RdsUtils rdsUtils = new RdsUtils();
   protected final RdsClient rdsClient;
   protected final HostSpec customEndpointHostSpec;
   protected final String endpointIdentifier;
@@ -151,7 +149,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
           CustomEndpointInfo cachedEndpointInfo = customEndpointInfoCache.get(this.customEndpointHostSpec.getHost());
           if (cachedEndpointInfo != null && cachedEndpointInfo.equals(endpointInfo)) {
             long elapsedTime = System.nanoTime() - start;
-            long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
+            long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
             TimeUnit.NANOSECONDS.sleep(sleepDuration);
             continue;
           }
@@ -175,7 +173,7 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
           this.infoChangedCounter.inc();
 
           long elapsedTime = System.nanoTime() - start;
-          long sleepDuration = Math.min(0, this.refreshRateNano - elapsedTime);
+          long sleepDuration = Math.max(0, this.refreshRateNano - elapsedTime);
           TimeUnit.NANOSECONDS.sleep(sleepDuration);
         } catch (InterruptedException e) {
           throw e;
@@ -188,13 +186,18 @@ public class CustomEndpointMonitorImpl implements CustomEndpointMonitor {
         }
       }
     } catch (InterruptedException e) {
-      LOGGER.info(Messages.get("CustomEndpointMonitorImpl.interrupted", new Object[]{ this.customEndpointHostSpec }));
+      LOGGER.fine(
+          Messages.get(
+              "CustomEndpointMonitorImpl.interrupted",
+              new Object[]{ this.customEndpointHostSpec.getHost() }));
       Thread.currentThread().interrupt();
     } finally {
       customEndpointInfoCache.remove(this.customEndpointHostSpec.getHost());
       this.rdsClient.close();
       LOGGER.fine(
-          Messages.get("CustomEndpointMonitorImpl.stoppedMonitor", new Object[]{ this.customEndpointHostSpec }));
+          Messages.get(
+              "CustomEndpointMonitorImpl.stoppedMonitor",
+              new Object[]{ this.customEndpointHostSpec.getHost() }));
     }
   }
 
