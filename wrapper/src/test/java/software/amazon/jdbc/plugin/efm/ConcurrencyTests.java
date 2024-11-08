@@ -71,6 +71,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.dialect.UnknownDialect;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.PgTargetDriverDialect;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -640,6 +641,11 @@ public class ConcurrencyTests {
 
     @Override
     public String getDriverProtocol() {
+      return null;
+    }
+
+    @Override
+    public @Nullable ConfigurationProfile getConfigurationProfile() {
       return null;
     }
 
