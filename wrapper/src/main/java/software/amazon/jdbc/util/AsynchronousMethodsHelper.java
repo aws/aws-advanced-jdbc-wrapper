@@ -22,6 +22,7 @@ import java.util.List;
 public class AsynchronousMethodsHelper {
   public static final List<String> ASYNCHRONOUS_METHODS = Arrays.asList(
       "Statement.cancel",
-      "PreparedStatement.cancel"
+      "PreparedStatement.cancel",
+      "Connection.abort"
   );
 }
