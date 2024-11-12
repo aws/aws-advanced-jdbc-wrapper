@@ -52,7 +52,7 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-engine:1.11.0")
     testImplementation("org.junit.platform:junit-platform-launcher:1.11.3")
     testImplementation("org.junit.platform:junit-platform-suite-engine:1.11.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.3")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
@@ -66,7 +66,7 @@ dependencies {
     testImplementation("software.amazon.awssdk:rds:2.29.6")
     testImplementation("software.amazon.awssdk:auth:2.28.2") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.27.8") // Required for IAM (light implementation)
-    testImplementation("software.amazon.awssdk:ec2:2.28.2")
+    testImplementation("software.amazon.awssdk:ec2:2.29.9")
     testImplementation("software.amazon.awssdk:secretsmanager:2.28.11")
     testImplementation("software.amazon.awssdk:sts:2.27.22")
     testImplementation("org.testcontainers:testcontainers:1.20.1")
