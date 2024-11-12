@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -69,6 +70,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       Collections.unmodifiableSet(new HashSet<String>() {
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
+          add("Connection.abort");
+          add("Connection.close");
           add("initHostProvider");
           add("connect");
           add("forceConnect");
@@ -92,7 +95,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected FailoverMode failoverMode;
   private boolean telemetryFailoverAdditionalTopTraceSetting;
 
-  private boolean closedExplicitly = false;
+  private final AtomicBoolean closedExplicitly = new AtomicBoolean(false);
   protected boolean isClosed = false;
   protected String closedReason = null;
   private final RdsUtils rdsHelper;
@@ -210,7 +213,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final Object[] jdbcMethodArgs)
       throws E {
     if (!this.enableFailoverSetting || canDirectExecute(methodName)) {
-      return jdbcMethodFunc.call();
+      T result = jdbcMethodFunc.call();
+      if (METHOD_ABORT.equals(methodName) || METHOD_CLOSE.equals(methodName)) {
+        this.closedExplicitly.set(true);
+      }
+
+      return result;
     }
 
     if (this.isClosed && !allowedOnClosedConnection(methodName)) {
@@ -228,6 +236,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         updateTopology(false);
       }
       result = jdbcMethodFunc.call();
+      if (METHOD_ABORT.equals(methodName) || METHOD_CLOSE.equals(methodName)) {
+        this.closedExplicitly.set(true);
+      }
     } catch (final IllegalStateException e) {
       dealWithIllegalStateException(e, exceptionClass);
     } catch (final Exception e) {
@@ -372,7 +383,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   private void invalidInvocationOnClosedConnection() throws SQLException {
-    if (!this.closedExplicitly) {
+    if (!this.closedExplicitly.get()) {
       this.isClosed = false;
       this.closedReason = null;
       pickNewConnection();
@@ -736,7 +747,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected void pickNewConnection() throws SQLException {
-    if (this.isClosed && this.closedExplicitly) {
+    if (this.isClosed && this.closedExplicitly.get()) {
       LOGGER.fine(() -> Messages.get("Failover.transactionResolutionUnknownError"));
       return;
     }
@@ -753,6 +764,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected boolean shouldExceptionTriggerConnectionSwitch(final Throwable t) {
+    if (this.closedExplicitly.get()) {
+      return false;
+    }
 
     if (!isFailoverEnabled()) {
       LOGGER.fine(() -> Messages.get("Failover.failoverDisabled"));
