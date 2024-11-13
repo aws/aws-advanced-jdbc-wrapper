@@ -130,7 +130,7 @@ The development team is aware of these limitations and is working to improve the
 
 #### Amazon Aurora Global Databases
 
-This driver currently does not support failover with Amazon Aurora Global Databases. While it is possible to connect to global databases, failing over to a secondary cluster will result in errors and there may be additional unforeseen errors when working with global databases. Support for Amazon Aurora Global Databases is in the backlog, but we cannot comment on a timeline right now.
+This driver currently does not support `planned failover` or `switchover` of Amazon Aurora Global Databases. Failing over to a secondary cluster will result in errors and there may be additional unforeseen errors when working with global databases. Connecting to the primary cluster is fully supported. There is a limitation when connected to the secondary cluster; the [failover2 plugin](using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin) will not work on the secondary cluster, however the [failover plugin](using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin) will work. Full Support for Amazon Aurora Global Databases is in the backlog, but we cannot comment on a timeline right now.
 
 ## Examples
 
