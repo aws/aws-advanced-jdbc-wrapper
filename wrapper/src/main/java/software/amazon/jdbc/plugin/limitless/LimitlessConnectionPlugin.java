@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -35,6 +34,7 @@ import software.amazon.jdbc.dialect.AuroraLimitlessDialect;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.PropertyUtils;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
@@ -65,13 +65,13 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
   protected final Properties properties;
   private final Supplier<LimitlessRouterService> limitlessRouterServiceSupplier;
   private LimitlessRouterService limitlessRouterService;
-  private static final ReentrantLock lock = new ReentrantLock();
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
           add("connect");
         }
       });
+  private static final String INTERNAL_CONNECT_PROPERTY_NAME = "784dd5c2-a77b-4c9f-a0a9-b4ea37395e6c";
 
   static {
     PropertyDefinition.registerPluginProperties(LimitlessConnectionPlugin.class);
@@ -100,6 +100,23 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
   @Override
   public Connection connect(
+      final String driverProtocol,
+      final HostSpec hostSpec,
+      final Properties props,
+      final boolean isInitialConnection,
+      final JdbcCallable<Connection, SQLException> connectFunc)
+      throws SQLException {
+
+    if (props.containsKey(INTERNAL_CONNECT_PROPERTY_NAME)) {
+      return connectFunc.call();
+    }
+
+    final Properties copyProps = PropertyUtils.copyProperties(props);
+    copyProps.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
+    return connectInternal(driverProtocol, hostSpec, copyProps, isInitialConnection, connectFunc);
+  }
+
+  public Connection connectInternal(
       final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
