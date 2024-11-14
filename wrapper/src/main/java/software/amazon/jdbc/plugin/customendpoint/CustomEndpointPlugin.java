@@ -34,7 +34,6 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
-import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.RegionUtils;
@@ -146,11 +145,6 @@ public class CustomEndpointPlugin extends AbstractConnectionPlugin {
       final BiFunction<HostSpec, Region, RdsClient> rdsClientFunc) {
     this.pluginService = pluginService;
     this.props = props;
-
-    ConfigurationProfile profile = this.pluginService.getConfigurationProfile();
-    if (profile != null && profile.getAwsCredentialsProviderHandler() != null) {
-      AwsCredentialsManager.setCustomHandler(profile.getAwsCredentialsProviderHandler());
-    }
     this.rdsClientFunc = rdsClientFunc;
 
     this.shouldWaitForInfo = WAIT_FOR_CUSTOM_ENDPOINT_INFO.getBoolean(this.props);

@@ -36,7 +36,6 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.TokenInfo;
-import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.util.IamAuthUtils;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUtils;
@@ -99,11 +98,6 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     this.telemetryFactory = pluginService.getTelemetryFactory();
     this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size", () -> (long) tokenCache.size());
     this.fetchTokenCounter = telemetryFactory.createCounter("iam.fetchToken.count");
-
-    ConfigurationProfile profile = this.pluginService.getConfigurationProfile();
-    if (profile != null && profile.getAwsCredentialsProviderHandler() != null) {
-      AwsCredentialsManager.setCustomHandler(profile.getAwsCredentialsProviderHandler());
-    }
   }
 
   @Override
