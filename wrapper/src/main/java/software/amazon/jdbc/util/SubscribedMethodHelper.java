@@ -56,7 +56,6 @@ public class SubscribedMethodHelper {
       "Connection.connect",
       "Connection.isValid",
       "Connection.setAutoCommit",
-      "Connection.setReadOnly",
       "Statement.execute",
       "Statement.executeBatch",
       "Statement.executeLargeBatch",
