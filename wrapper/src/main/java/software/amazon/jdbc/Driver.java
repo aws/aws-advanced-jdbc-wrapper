@@ -31,6 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
@@ -125,6 +126,9 @@ public class Driver implements java.sql.Driver {
       configurationProfile = DriverConfigurationProfiles.getProfileConfiguration(profileName);
       if (configurationProfile != null) {
         PropertyUtils.addProperties(props, configurationProfile.getProperties());
+        if (configurationProfile.getAwsCredentialsProviderHandler() != null) {
+          AwsCredentialsManager.setCustomHandler(configurationProfile.getAwsCredentialsProviderHandler());
+        }
       } else {
         throw new SQLException(
             Messages.get(

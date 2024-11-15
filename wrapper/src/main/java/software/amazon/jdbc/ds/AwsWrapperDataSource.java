@@ -22,15 +22,11 @@ import static software.amazon.jdbc.util.ConnectionUrlParser.parsePropertiesFromU
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.Referenceable;
@@ -45,6 +41,7 @@ import software.amazon.jdbc.DriverConnectionProvider;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.TargetDriverHelper;
+import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
@@ -111,6 +108,9 @@ public class AwsWrapperDataSource implements DataSource, Referenceable, Serializ
       configurationProfile = DriverConfigurationProfiles.getProfileConfiguration(profileName);
       if (configurationProfile != null) {
         PropertyUtils.addProperties(props, configurationProfile.getProperties());
+        if (configurationProfile.getAwsCredentialsProviderHandler() != null) {
+          AwsCredentialsManager.setCustomHandler(configurationProfile.getAwsCredentialsProviderHandler());
+        }
       } else {
         throw new SQLException(
             Messages.get(
