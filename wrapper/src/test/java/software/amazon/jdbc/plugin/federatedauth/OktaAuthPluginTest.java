@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -42,6 +44,7 @@ import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.plugin.TokenInfo;
+import software.amazon.jdbc.plugin.iam.IamAuthConnectionPlugin;
 import software.amazon.jdbc.plugin.iam.IamTokenUtility;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -53,8 +56,10 @@ class OktaAuthPluginTest {
   private static final int DEFAULT_PORT = 1234;
   private static final String DRIVER_PROTOCOL = "jdbc:postgresql:";
 
-  private static final HostSpec HOST_SPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
-      .host("pg.testdb.us-east-2.rds.amazonaws.com").build();
+  private static final String HOST = "pg.testdb.us-east-2.rds.amazonaws.com";
+  private static final String IAM_HOST = "pg-123.testdb.us-east-2.rds.amazonaws.com";
+  private static final HostSpec HOST_SPEC =
+      new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host(HOST).build();
   private static final String DB_USER = "iamUser";
   private static final String TEST_TOKEN = "someTestToken";
   private static final TokenInfo TEST_TOKEN_INFO = new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000));
@@ -193,5 +198,23 @@ class OktaAuthPluginTest {
     assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
     assertEquals(expectedUser, OktaAuthPlugin.IDP_USERNAME.getString(props));
     assertEquals(expectedPassword, OktaAuthPlugin.IDP_PASSWORD.getString(props));
+  }
+
+  @Test
+  public void testUsingIamHost() throws SQLException {
+    IamAuthConnectionPlugin.IAM_HOST.set(props, IAM_HOST);
+    OktaAuthPlugin spyPlugin = Mockito.spy(
+        new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils));
+
+    spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
+
+    assertEquals(DB_USER, PropertyDefinition.USER.getString(props));
+    assertEquals(TEST_TOKEN, PropertyDefinition.PASSWORD.getString(props));
+    verify(mockIamTokenUtils, times(1)).generateAuthenticationToken(
+        mockAwsCredentialsProvider,
+        Region.US_EAST_2,
+        IAM_HOST,
+        DEFAULT_PORT,
+        DB_USER);
   }
 }
