@@ -208,7 +208,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
               new Object[] {tokenInfo.getToken()}));
       PropertyDefinition.PASSWORD.set(props, tokenInfo.getToken());
     } else {
-      updateAuthenticationToken(hostSpec, props, region, cacheKey);
+      updateAuthenticationToken(hostSpec, props, region, cacheKey, host);
     }
 
     PropertyDefinition.USER.set(props, DB_USER.getString(props));
@@ -216,7 +216,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
     try {
       return connectFunc.call();
     } catch (final SQLException exception) {
-      updateAuthenticationToken(hostSpec, props, region, cacheKey);
+      updateAuthenticationToken(hostSpec, props, region, cacheKey, host);
       return connectFunc.call();
     } catch (final Exception exception) {
       LOGGER.warning(
@@ -227,8 +227,12 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  private void updateAuthenticationToken(final HostSpec hostSpec, final Properties props, final Region region,
-      final String cacheKey)
+  private void updateAuthenticationToken(
+      final HostSpec hostSpec,
+      final Properties props,
+      final Region region,
+      final String cacheKey,
+      final String host)
       throws SQLException {
     final int tokenExpirationSec = IAM_TOKEN_EXPIRATION.getInteger(props);
     final Instant tokenExpiry = Instant.now().plus(tokenExpirationSec, ChronoUnit.SECONDS);
@@ -243,7 +247,7 @@ public class FederatedAuthPlugin extends AbstractConnectionPlugin {
         this.iamTokenUtility,
         this.pluginService,
         DB_USER.getString(props),
-        hostSpec.getHost(),
+        host,
         port,
         region,
         credentialsProvider);
