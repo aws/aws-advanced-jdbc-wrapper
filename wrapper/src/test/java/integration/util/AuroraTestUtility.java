@@ -116,6 +116,7 @@ public class AuroraTestUtility {
   private DatabaseEngineDeployment dbEngineDeployment;
   private String dbEngine = "aurora-postgresql";
   private String dbEngineVersion = "13.9";
+  private boolean isEngineLimitless = false;
   private String dbInstanceClass = "db.r5.large";
   private final String storageType = "io1";
   private final int allocatedStorage = 100;
@@ -234,6 +235,10 @@ public class AuroraTestUtility {
     this.dbEngine = engine;
     this.dbInstanceClass = instanceClass;
     this.dbEngineVersion = version;
+    if (this.dbEngineVersion.contains("limitless")) {
+      this.isEngineLimitless = true;
+    }
+
     this.numOfInstances = numOfInstances;
     this.instances = instances;
 
@@ -286,7 +291,7 @@ public class AuroraTestUtility {
 
       // The latest PG version is limitless, which is not compatible with dbInstanceClass (db.r5.large), so we will
       // leave the instance class unspecified in this scenario.
-      if (!dbEngineVersion.contains("limitless")) {
+      if (!this.isEngineLimitless) {
         requestBuilder = requestBuilder.dbInstanceClass(dbInstanceClass);
       }
 
@@ -358,7 +363,7 @@ public class AuroraTestUtility {
 
     // The latest PG version is limitless, which is not compatible with dbInstanceClass (db.r5.large), so we will
     // leave the instance class unspecified in this scenario.
-    if (!dbEngineVersion.contains("limitless")) {
+    if (!this.isEngineLimitless) {
       clusterBuilder = clusterBuilder.dbClusterInstanceClass(dbInstanceClass);
     }
 
@@ -421,7 +426,7 @@ public class AuroraTestUtility {
 
     // The latest PG version is limitless, which is not compatible with dbInstanceClass (db.r5.large), so we will
     // leave the instance class unspecified in this scenario.
-    if (!dbEngineVersion.contains("limitless")) {
+    if (!this.isEngineLimitless) {
       requestBuilder = requestBuilder.dbInstanceClass(dbInstanceClass);
     }
 
