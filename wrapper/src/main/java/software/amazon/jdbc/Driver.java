@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Function;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -42,6 +43,7 @@ import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.DriverInfo;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
+import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.telemetry.DefaultTelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
@@ -266,5 +268,13 @@ public class Driver implements java.sql.Driver {
 
   public static TransferSessionStateOnSwitchCallable getTransferSessionStateOnSwitchFunc() {
     return transferSessionStateOnSwitchCallable;
+  }
+
+  public static void setPrepareHostFunc(final Function<String, String> func) {
+    RdsUtils.setPrepareHostFunc(func);
+  }
+
+  public static void resetPrepareHostFunc() {
+    RdsUtils.resetPrepareHostFunc();
   }
 }

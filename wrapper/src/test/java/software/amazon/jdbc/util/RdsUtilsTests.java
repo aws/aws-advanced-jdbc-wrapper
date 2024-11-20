@@ -517,4 +517,45 @@ public class RdsUtilsTests {
     assertEquals("custom-test-name", target.getRdsClusterId(usIsoEastRegionCustomDomain));
     assertEquals("database-test-name", target.getRdsClusterId(usIsoEastRegionLimitlessDbShardGroup));
   }
+
+  @Test
+  public void testPrepareHostFunction() {
+
+    final String prefix = ".proxied";
+
+    assertFalse(target.isRdsDns(usEastRegionCluster + prefix));
+    assertFalse(target.isRdsClusterDns(usEastRegionCluster + prefix));
+    assertFalse(target.isWriterClusterDns(usEastRegionCluster + prefix));
+    assertFalse(target.isReaderClusterDns(usEastRegionClusterReadOnly + prefix));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionLimitlessDbShardGroup + prefix));
+    assertNull(target.getRdsClusterHostUrl(usEastRegionCluster + prefix));
+    assertEquals("?", target.getRdsInstanceHostPattern(usEastRegionCluster + prefix));
+    assertNull(target.getRdsRegion(usEastRegionCluster + prefix));
+
+    RdsUtils.setPrepareHostFunc((host) -> {
+      if (host.endsWith(prefix)) {
+        return host.substring(0, host.length() - prefix.length()); // removes prefix at the end of host
+      }
+      return host;
+    });
+
+    assertTrue(target.isRdsDns(usEastRegionCluster + prefix));
+    assertTrue(target.isRdsClusterDns(usEastRegionCluster + prefix));
+    assertTrue(target.isWriterClusterDns(usEastRegionCluster + prefix));
+    assertTrue(target.isReaderClusterDns(usEastRegionClusterReadOnly + prefix));
+    assertTrue(target.isLimitlessDbShardGroupDns(usEastRegionLimitlessDbShardGroup + prefix));
+    assertEquals(usEastRegionCluster, target.getRdsClusterHostUrl(usEastRegionCluster + prefix));
+    assertEquals("?.XYZ.us-east-2.rds.amazonaws.com", target.getRdsInstanceHostPattern(usEastRegionCluster + prefix));
+    assertEquals("us-east-2", target.getRdsRegion(usEastRegionCluster + prefix));
+
+    RdsUtils.resetPrepareHostFunc();
+    assertFalse(target.isRdsDns(usEastRegionCluster + prefix));
+    assertFalse(target.isRdsClusterDns(usEastRegionCluster + prefix));
+    assertFalse(target.isWriterClusterDns(usEastRegionCluster + prefix));
+    assertFalse(target.isReaderClusterDns(usEastRegionClusterReadOnly + prefix));
+    assertFalse(target.isLimitlessDbShardGroupDns(usEastRegionLimitlessDbShardGroup + prefix));
+    assertNull(target.getRdsClusterHostUrl(usEastRegionCluster + prefix));
+    assertEquals("?", target.getRdsInstanceHostPattern(usEastRegionCluster + prefix));
+    assertNull(target.getRdsRegion(usEastRegionCluster + prefix));
+  }
 }
