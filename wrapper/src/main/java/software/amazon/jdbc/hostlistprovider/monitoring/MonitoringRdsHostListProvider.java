@@ -109,7 +109,6 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   @Override
   protected void init() throws SQLException {
     super.init();
-    this.initMonitor();
   }
 
   protected ClusterTopologyMonitor initMonitor() {
