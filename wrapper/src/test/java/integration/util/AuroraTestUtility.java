@@ -1415,6 +1415,7 @@ public class AuroraTestUtility {
 
   public String getLatestVersion(String engine) {
     return getEngineVersions(engine).stream()
+        .filter(version -> !version.contains("limitless"))
         .sorted(Comparator.reverseOrder())
         .findFirst()
         .orElse(null);
