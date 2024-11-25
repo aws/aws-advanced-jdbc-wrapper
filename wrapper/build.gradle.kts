@@ -83,7 +83,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-api:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
-    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.43.0")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
     testImplementation("org.jsoup:jsoup:1.18.1")
 }
 
