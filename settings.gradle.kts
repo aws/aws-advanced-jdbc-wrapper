@@ -24,6 +24,7 @@ include(
     "hikari",
     "dbcp",
     "driverexample",
+    "reachability",
     "springhibernate",
     "springhibernateonedatasource",
     "springhibernatetwodatasource",
