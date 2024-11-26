@@ -17,10 +17,10 @@
 package software.amazon.jdbc.plugin.customendpoint;
 
 /**
- * Enum representing the possible roles of instances specified by a custom endpoint. Note that, currently, it is not
- * possible to create a WRITER custom endpoint.
+ * Enum representing the possible roles of instances specified by a custom endpoint.
  */
 public enum CustomEndpointRoleType {
   ANY, // Instances in the custom endpoint may be either a writer or a reader.
+  WRITER, // Instance in the custom endpoint is always the writer.
   READER // Instances in the custom endpoint are always readers.
 }
