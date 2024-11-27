@@ -149,7 +149,8 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
 
         limitlessRouterCache.put(
             this.limitlessRouterCacheKey,
-            newLimitlessRouters, LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props));
+            newLimitlessRouters,
+            TimeUnit.MILLISECONDS.toNanos(LimitlessRouterServiceImpl.MONITOR_DISPOSAL_TIME_MS.getLong(props)));
 
         RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(this.props, newLimitlessRouters);
         LOGGER.finest(Utils.logTopology(newLimitlessRouters, "[limitlessRouterMonitor] Topology:"));
