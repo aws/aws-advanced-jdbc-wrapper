@@ -370,9 +370,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
       this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
 
-      this.failoverMode = (this.failoverMode == null && this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
-          ? FailoverMode.READER_OR_WRITER
-          : FailoverMode.STRICT_WRITER;
+      if (this.failoverMode == null) {
+        this.failoverMode = this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
+            ? FailoverMode.READER_OR_WRITER
+            : FailoverMode.STRICT_WRITER;
+      }
 
       LOGGER.finer(
           () -> Messages.get(
