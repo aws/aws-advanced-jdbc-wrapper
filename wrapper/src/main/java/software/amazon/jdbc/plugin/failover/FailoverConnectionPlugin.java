@@ -371,13 +371,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
 
       if (this.failoverMode == null) {
-        if (this.rdsUrlType.isRdsCluster()) {
-          this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
-              ? FailoverMode.READER_OR_WRITER
-              : FailoverMode.STRICT_WRITER;
-        } else {
-          this.failoverMode = FailoverMode.STRICT_WRITER;
-        }
+        this.failoverMode = this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
+            ? FailoverMode.READER_OR_WRITER
+            : FailoverMode.STRICT_WRITER;
       }
 
       LOGGER.finer(
