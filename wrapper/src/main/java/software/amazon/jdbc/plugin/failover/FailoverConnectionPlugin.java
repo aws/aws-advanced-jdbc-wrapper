@@ -57,8 +57,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
 /**
- * This plugin provides cluster-aware failover features. The plugin switches connections upon detecting communication
- * related exceptions and/or cluster topology changes.
+ * This plugin provides cluster-aware failover features. The plugin switches connections upon
+ * detecting communication related exceptions and/or cluster topology changes.
  */
 public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
@@ -330,7 +330,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
     }
 
-    LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[] {currentHost}));
+    LOGGER.fine(() -> Messages.get("Failover.invalidNode", new Object[]{currentHost}));
   }
 
   private boolean isNodeStillValid(final String node, final Map<String, EnumSet<NodeChangeOptions>> changes) {
@@ -377,7 +377,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.finer(
           () -> Messages.get(
               "Failover.parameterValue",
-              new Object[] {"failoverMode", this.failoverMode}));
+              new Object[]{"failoverMode", this.failoverMode}));
     }
   }
 
@@ -440,9 +440,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Updating topology requires creating and executing a new statement. This may cause interruptions during certain
-   * workflows. For instance, the driver should not be updating topology while the connection is fetching a large
-   * streaming result set.
+   * Updating topology requires creating and executing a new statement.
+   * This may cause interruptions during certain workflows. For instance,
+   * the driver should not be updating topology while the connection is fetching a large streaming result set.
    *
    * @param methodName the method to check.
    * @return true if the driver should update topology before executing the method; false otherwise.
@@ -452,10 +452,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Connects this dynamic failover connection proxy to the host pointed out by the given host index.
+   * Connects this dynamic failover connection proxy to the host pointed out by the given host
+   * index.
    * <p></p>
-   * The method assumes that current connection is not setup. If it's not true, a session state transfer from the
-   * current connection to a new one may be necessary. This should be handled by callee.
+   * The method assumes that current connection is not setup. If it's not true, a session state
+   * transfer from the current connection to a new one may be necessary. This should be handled by callee.
    *
    * @param host The host.
    * @throws SQLException if an error occurs
@@ -467,7 +468,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.fine(
           () -> Messages.get(
               "Failover.establishedConnection",
-              new Object[] {host}));
+              new Object[]{host}));
     } catch (final SQLException e) {
       if (this.pluginService.getCurrentConnection() != null) {
         final String msg = "Connection to "
@@ -516,7 +517,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final Class<E> exceptionClass) throws E {
     Throwable exceptionToThrow = wrapperException;
     if (originalException != null) {
-      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[] {originalException.getMessage()}));
+      LOGGER.finer(() -> Messages.get("Failover.detectedException", new Object[]{originalException.getMessage()}));
       if (this.lastExceptionDealtWith != originalException
           && shouldExceptionTriggerConnectionSwitch(originalException)) {
         invalidateCurrentConnection();
@@ -561,7 +562,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   /**
-   * Initiates the failover procedure. This process tries to establish a new connection to an instance in the topology.
+   * Initiates the failover procedure. This process tries to establish a new connection to an
+   * instance in the topology.
    *
    * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
@@ -625,13 +627,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
 
-      this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
+      this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[]{}));
       updateTopology(true);
 
       LOGGER.info(
           () -> Messages.get(
               "Failover.establishedConnection",
-              new Object[] {this.pluginService.getCurrentHostSpec()}));
+              new Object[]{this.pluginService.getCurrentHostSpec()}));
 
       this.failoverReaderSuccessCounter.inc();
 
@@ -696,7 +698,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.fine(
           () -> Messages.get(
               "Failover.establishedConnection",
-              new Object[] {this.pluginService.getCurrentHostSpec()}));
+              new Object[]{this.pluginService.getCurrentHostSpec()}));
 
       this.pluginService.refreshHostList();
 
