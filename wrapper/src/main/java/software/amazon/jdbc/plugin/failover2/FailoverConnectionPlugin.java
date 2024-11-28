@@ -229,26 +229,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
     this.hostListProviderService = hostListProviderService;
-
     initHostProviderFunc.call();
-
-    this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
-    this.rdsUrlType = this.rdsHelper.identifyRdsType(initialUrl);
-
-    if (this.failoverMode == null) {
-      if (this.rdsUrlType.isRdsCluster()) {
-        this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
-            ? FailoverMode.READER_OR_WRITER
-            : FailoverMode.STRICT_WRITER;
-      } else {
-        this.failoverMode = FailoverMode.STRICT_WRITER;
-      }
-    }
-
-    LOGGER.finer(
-        () -> Messages.get(
-            "Failover.parameterValue",
-            new Object[]{"failoverMode", this.failoverMode}));
   }
 
   protected boolean isFailoverEnabled() {
@@ -632,6 +613,29 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         || methodName.equals(METHOD_ABORT));
   }
 
+  protected void initFailoverMode() {
+    if (this.rdsUrlType == null) {
+      this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
+      final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
+      this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
+
+      if (this.failoverMode == null) {
+        if (this.rdsUrlType.isRdsCluster()) {
+          this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
+              ? FailoverMode.READER_OR_WRITER
+              : FailoverMode.STRICT_WRITER;
+        } else {
+          this.failoverMode = FailoverMode.STRICT_WRITER;
+        }
+      }
+
+      LOGGER.finer(
+          () -> Messages.get(
+              "Failover.parameterValue",
+              new Object[]{"failoverMode", this.failoverMode}));
+    }
+  }
+
   @Override
   public Connection connect(
       final String driverProtocol,
@@ -640,10 +644,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
+
     // This call was initiated by this failover2 plugin and doesn't require any additional processing.
     if (props.containsKey(INTERNAL_CONNECT_PROPERTY_NAME)) {
       return connectFunc.call();
     }
+
+    this.initFailoverMode();
 
     Connection conn = null;
 
