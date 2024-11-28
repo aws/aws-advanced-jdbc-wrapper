@@ -43,7 +43,6 @@ dependencies {
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.29.9")
     testImplementation("software.amazon.awssdk:ec2:2.29.9")
-    testImplementation("software.amazon.awssdk:secretsmanager:2.29.9")
     testImplementation("software.amazon.awssdk:sts:2.29.9")
     testImplementation("org.testcontainers:testcontainers:1.20.1")
     testImplementation("org.testcontainers:mysql:1.20.1")
@@ -51,16 +50,13 @@ dependencies {
     testImplementation("org.testcontainers:mariadb:1.20.2")
     testImplementation("org.testcontainers:junit-jupiter:1.20.1")
     testImplementation("org.testcontainers:toxiproxy:1.20.2")
-    testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     testImplementation("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
-    testImplementation("io.opentelemetry:opentelemetry-api:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
     testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
-    testImplementation("org.jsoup:jsoup:1.18.1")
 }
 
 tasks.withType<Test> {
