@@ -104,7 +104,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Throwable lastExceptionDealtWith = null;
   private PluginManagerService pluginManagerService;
   private boolean isInTransaction = false;
-  private RdsUrlType rdsUrlType;
+  private RdsUrlType rdsUrlType = null;
   private HostListProviderService hostListProviderService;
   private final AuroraStaleDnsHelper staleDnsHelper;
 
@@ -293,24 +293,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.writerFailoverHandler = writerFailoverHandlerSupplier.get();
 
     initHostProviderFunc.call();
-
-    this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
-    this.rdsUrlType = this.rdsHelper.identifyRdsType(initialUrl);
-
-    if (this.failoverMode == null) {
-      if (this.rdsUrlType.isRdsCluster()) {
-        this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
-            ? FailoverMode.READER_OR_WRITER
-            : FailoverMode.STRICT_WRITER;
-      } else {
-        this.failoverMode = FailoverMode.STRICT_WRITER;
-      }
-    }
-
-    LOGGER.finer(
-        () -> Messages.get(
-            "Failover.parameterValue",
-            new Object[]{"failoverMode", this.failoverMode}));
   }
 
   @Override
@@ -380,6 +362,29 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     this.failoverReaderConnectTimeoutMsSetting = FAILOVER_READER_CONNECT_TIMEOUT_MS.getInteger(this.properties);
     this.telemetryFailoverAdditionalTopTraceSetting =
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
+  }
+
+  protected void initFailoverMode() {
+    if (this.rdsUrlType == null) {
+      this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
+      final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
+      this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
+
+      if (this.failoverMode == null) {
+        if (this.rdsUrlType.isRdsCluster()) {
+          this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
+              ? FailoverMode.READER_OR_WRITER
+              : FailoverMode.STRICT_WRITER;
+        } else {
+          this.failoverMode = FailoverMode.STRICT_WRITER;
+        }
+      }
+
+      LOGGER.finer(
+          () -> Messages.get(
+              "Failover.parameterValue",
+              new Object[]{"failoverMode", this.failoverMode}));
+    }
   }
 
   private void invalidInvocationOnClosedConnection() throws SQLException {
@@ -811,6 +816,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc, boolean isForceConnect)
       throws SQLException {
+    this.initFailoverMode();
     Connection conn = null;
     try {
       conn =
