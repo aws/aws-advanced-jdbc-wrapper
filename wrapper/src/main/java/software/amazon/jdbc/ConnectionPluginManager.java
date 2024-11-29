@@ -628,6 +628,10 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     return this.defaultConnProvider;
   }
 
+  public ConnectionProvider getEffectiveConnProvider() {
+    return this.effectiveConnProvider;
+  }
+
   private interface PluginPipeline<T, E extends Exception> {
 
     T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;

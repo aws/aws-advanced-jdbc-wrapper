@@ -62,7 +62,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
   private static final SqlMethodAnalyzer sqlMethodAnalyzer = new SqlMethodAnalyzer();
 
   private final @NonNull ConnectionProvider defaultConnProvider;
-  private final @Nullable ConnectionProvider effectiveConnProvider;
 
   private final ConnectionProviderManager connProviderManager;
   private final PluginService pluginService;
@@ -77,7 +76,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
         defaultConnProvider,
         effectiveConnProvider,
         pluginManagerService,
-        new ConnectionProviderManager(defaultConnProvider));
+        new ConnectionProviderManager(defaultConnProvider, effectiveConnProvider));
   }
 
   public DefaultConnectionPlugin(
@@ -99,7 +98,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
     this.pluginService = pluginService;
     this.pluginManagerService = pluginManagerService;
     this.defaultConnProvider = defaultConnProvider;
-    this.effectiveConnProvider = effectiveConnProvider;
     this.connProviderManager = connProviderManager;
   }
 
@@ -173,18 +171,7 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    ConnectionProvider connProvider = null;
-
-    if (this.effectiveConnProvider != null) {
-      if (this.effectiveConnProvider.acceptsUrl(driverProtocol, hostSpec, props)) {
-        connProvider = this.effectiveConnProvider;
-      }
-    }
-
-    if (connProvider == null) {
-      connProvider =
-          this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
-    }
+    ConnectionProvider connProvider = this.connProviderManager.getConnectionProvider(driverProtocol, hostSpec, props);
 
     // It's guaranteed that this plugin is always the last in plugin chain so connectFunc can be
     // ignored.
@@ -246,9 +233,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       return false;
     }
 
-    if (this.effectiveConnProvider != null) {
-      return this.effectiveConnProvider.acceptsStrategy(role, strategy);
-    }
     return this.connProviderManager.acceptsStrategy(role, strategy);
   }
 
@@ -272,10 +256,6 @@ public final class DefaultConnectionPlugin implements ConnectionPlugin {
       throw new SQLException(Messages.get("DefaultConnectionPlugin.noHostsAvailable"));
     }
 
-    if (this.effectiveConnProvider != null) {
-      return this.effectiveConnProvider.getHostSpecByStrategy(hosts,
-          role, strategy, this.pluginService.getProperties());
-    }
     return this.connProviderManager.getHostSpecByStrategy(hosts, role, strategy, this.pluginService.getProperties());
   }
 
