@@ -3,12 +3,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+## [2.5.3] - 2024-11-29
 ### :bug: Fixed
 - Custom endpoint monitor obeys refresh rate ([PR #1175](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1175)).
-- Abort interrupts running queries ([PR #1182](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1182))
+- Abort interrupts running queries ([PR #1182](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1182)).
 - Use the AwsCredentialsProviderHandler from the ConfigurationProfile when it is defined ([PR #1183](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1183)).
-- Use iamHost property in federated auth and okta plugins ([PR #1191](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1191))
-- Initialize failover2 topology monitors after dialect is updated ([PR #1196](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1196))
+- Use iamHost property in federated auth and okta plugins ([PR #1191](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1191)).
+- Initialize failover2 topology monitors after dialect is updated ([PR #1198](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1198)).
+- Use singleton for null telemetry objects in NullTelemetryFactory ([PR #1188](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1188)).
+- Avoid updating topology before setReadOnly() ([PR #1190](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1190)).
+- Various minor limitless fixes ([PR #1180](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1180)).
+- Use correct value for SlidingExpirationCache#put cache item expiration ([PR #1203](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1203)).
+- Failover mode is set to reader-or-writer for reader cluster URLs ([PR #1204](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1204)).
+- Add WRITER custom endpoint type ([PR #1202](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1202)).
 
 ## [2.5.2] - 2024-11-4
 ### :bug: Fixed
@@ -385,6 +392,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.5.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.2...2.5.3
 [2.5.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.1...2.5.2
 [2.5.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.0...2.5.1
 [2.5.0]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.4.0...2.5.0
