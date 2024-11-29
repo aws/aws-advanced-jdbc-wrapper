@@ -58,6 +58,7 @@ import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
+import software.amazon.jdbc.plugin.OpenedConnectionTracker;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
 import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
 import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
@@ -238,6 +239,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     MonitoringRdsHostListProvider.clearCache();
     CustomEndpointPlugin.closeMonitors();
     CustomEndpointMonitorImpl.clearCache();
+    OpenedConnectionTracker.clearCache();
   }
 
   private static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)
