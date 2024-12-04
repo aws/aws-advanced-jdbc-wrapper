@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -37,8 +36,7 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
-  private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
-  public static final AwsWrapperProperty WAIT_F0R_ROUTER_INFO = new AwsWrapperProperty(
+  public static final AwsWrapperProperty WAIT_FOR_ROUTER_INFO = new AwsWrapperProperty(
       "limitlessWaitForTransactionRouterInfo",
       "true",
       "If the cache of transaction router info is empty and a new connection is made, this property toggles whether "

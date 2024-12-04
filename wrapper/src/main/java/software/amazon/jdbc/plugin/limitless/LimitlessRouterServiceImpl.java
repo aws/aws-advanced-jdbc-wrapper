@@ -105,7 +105,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
 
     if (Utils.isNullOrEmpty(context.getLimitlessRouters())) {
       LOGGER.finest(Messages.get("LimitlessRouterServiceImpl.limitlessRouterCacheEmpty"));
-      final boolean waitForRouterInfo = LimitlessConnectionPlugin.WAIT_F0R_ROUTER_INFO.getBoolean(context.getProps());
+      final boolean waitForRouterInfo = LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.getBoolean(context.getProps());
       if (waitForRouterInfo) {
         synchronouslyGetLimitlessRoutersWithRetry(context);
       } else {

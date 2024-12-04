@@ -17,37 +17,22 @@
 package software.amazon.jdbc.plugin.limitless;
 
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLSyntaxErrorException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
-import software.amazon.jdbc.HostSpecBuilder;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.RoundRobinHostSelector;
-import software.amazon.jdbc.dialect.AuroraLimitlessDialect;
-import software.amazon.jdbc.dialect.Dialect;
-import software.amazon.jdbc.hostavailability.HostAvailability;
-import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.SlidingExpirationCacheWithCleanupThread;
-import software.amazon.jdbc.util.SynchronousExecutor;
 import software.amazon.jdbc.util.Utils;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
@@ -98,7 +83,7 @@ public class LimitlessRouterMonitor implements AutoCloseable, Runnable {
                   this.props.getProperty(p));
               this.props.remove(p);
             });
-    this.props.setProperty(LimitlessConnectionPlugin.WAIT_F0R_ROUTER_INFO.name, "false");
+    this.props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
 
     this.intervalMs = intervalMs;
     this.telemetryFactory = this.pluginService.getTelemetryFactory();
