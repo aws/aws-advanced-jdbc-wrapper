@@ -14,43 +14,25 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.plugin.iam;
+package software.amazon.awssdk.services.rds;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.rds.RdsUtilities;
+import software.amazon.awssdk.services.rds.DefaultRdsUtilities.DefaultBuilder;
 
-public class RegularRdsUtility implements IamTokenUtility {
+public class TestDefaultRdsUtilities {
 
-  private RdsUtilities utilities = null;
-
-  public RegularRdsUtility() {}
-
-  // For testing only
-  public RegularRdsUtility(final RdsUtilities utilities) {
-    this.utilities = utilities;
-  }
-
-  @Override
-  public String generateAuthenticationToken(
+  public static DefaultRdsUtilities getDefaultRdsUtilities(
       final @NonNull AwsCredentialsProvider credentialsProvider,
       final @NonNull Region region,
-      final @NonNull String hostname,
-      final int port,
-      final @NonNull String username) {
-
-    if (this.utilities == null) {
-      this.utilities = RdsUtilities.builder()
-          .credentialsProvider(credentialsProvider)
-          .region(region)
-          .build();
-    }
-    return this.utilities.generateAuthenticationToken((builder) ->
-        builder
-            .hostname(hostname)
-            .port(port)
-            .username(username)
-    );
+      Instant fixedInstant) {
+    final DefaultBuilder builder = (DefaultBuilder) new DefaultBuilder()
+        .credentialsProvider(credentialsProvider)
+        .region(region);
+    return new DefaultRdsUtilities(builder, Clock.fixed(fixedInstant, ZoneId.of("UTC")));
   }
 }

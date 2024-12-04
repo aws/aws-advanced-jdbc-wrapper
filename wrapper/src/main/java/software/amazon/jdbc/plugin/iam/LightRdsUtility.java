@@ -19,6 +19,7 @@ package software.amazon.jdbc.plugin.iam;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -31,7 +32,6 @@ import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.utils.CompletableFutureUtils;
 import software.amazon.awssdk.utils.StringUtils;
-import software.amazon.jdbc.util.Messages;
 
 public class LightRdsUtility implements IamTokenUtility {
 
@@ -39,6 +39,17 @@ public class LightRdsUtility implements IamTokenUtility {
 
   // The time the IAM token is good for. https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html
   private static final Duration EXPIRATION_DURATION = Duration.ofMinutes(15);
+
+  private final Clock clock;
+
+  public LightRdsUtility() {
+    this.clock = Clock.systemUTC();
+  }
+
+  // For testing only
+  public LightRdsUtility(final Instant fixedInstant) {
+    this.clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
+  }
 
   @Override
   public String generateAuthenticationToken(
@@ -52,7 +63,6 @@ public class LightRdsUtility implements IamTokenUtility {
     // method generateAuthenticationToken(GenerateAuthenticationTokenRequest request).
     // Update this code when the original method changes.
 
-    final Clock clock = Clock.systemUTC();
     final Aws4Signer signer = Aws4Signer.create();
 
     final SdkHttpFullRequest httpRequest = SdkHttpFullRequest.builder()
@@ -65,13 +75,13 @@ public class LightRdsUtility implements IamTokenUtility {
         .putRawQueryParameter("Action", "connect")
         .build();
 
-    final Instant expirationTime = Instant.now(clock).plus(EXPIRATION_DURATION);
+    final Instant expirationTime = Instant.now(this.clock).plus(EXPIRATION_DURATION);
 
     final AwsCredentials credentials = CredentialUtils.toCredentials(
         CompletableFutureUtils.joinLikeSync(credentialsProvider.resolveIdentity()));
 
     final Aws4PresignerParams presignRequest = Aws4PresignerParams.builder()
-        .signingClockOverride(clock)
+        .signingClockOverride(this.clock)
         .expirationTime(expirationTime)
         .awsCredentials(credentials)
         .signingName("rds-db")
