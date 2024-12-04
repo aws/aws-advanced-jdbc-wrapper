@@ -33,6 +33,6 @@ public class TestDefaultRdsUtilities {
     final DefaultBuilder builder = (DefaultBuilder) new DefaultBuilder()
         .credentialsProvider(credentialsProvider)
         .region(region);
-    return new DefaultRdsUtilities(builder, Clock.fixed(fixedInstant, ZoneId.systemDefault()));
+    return new DefaultRdsUtilities(builder, Clock.fixed(fixedInstant, ZoneId.of("UTC")));
   }
 }

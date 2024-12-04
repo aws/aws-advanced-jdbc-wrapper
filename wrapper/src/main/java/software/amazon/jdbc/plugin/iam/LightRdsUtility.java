@@ -43,12 +43,12 @@ public class LightRdsUtility implements IamTokenUtility {
   private final Clock clock;
 
   public LightRdsUtility() {
-    this.clock = Clock.systemDefaultZone();
+    this.clock = Clock.systemUTC();
   }
 
   // For testing only
   public LightRdsUtility(final Instant fixedInstant) {
-    this.clock = Clock.fixed(fixedInstant, ZoneId.systemDefault());
+    this.clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
   }
 
   @Override
