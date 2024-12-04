@@ -199,7 +199,20 @@ public class OpenedConnectionTracker {
 
   public void pruneNullConnections() {
     openedConnections.forEach((key, queue) -> {
-      queue.removeIf(connectionWeakReference -> Objects.equals(connectionWeakReference.get(), null));
+      queue.removeIf(connectionWeakReference -> {
+        final Connection conn = connectionWeakReference.get();
+        if (conn == null) {
+          return true;
+        }
+        if (conn.getClass().getSimpleName().equals("HikariProxyConnection")) {
+          try {
+            return conn.isClosed();
+          } catch (SQLException ex) {
+            return false;
+          }
+        }
+        return false;
+      });
     });
   }
 
