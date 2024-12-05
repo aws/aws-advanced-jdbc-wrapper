@@ -100,7 +100,7 @@ public class LimitlessRouterServiceImplTest {
 
   @Test
   void testEstablishConnection_GivenGetEmptyRouterListAndNoWaitForRouterInfo_ThenCallConnectFunc() throws SQLException {
-    props.setProperty(LimitlessConnectionPlugin.WAIT_F0R_ROUTER_INFO.name, "false");
+    props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
         props,
