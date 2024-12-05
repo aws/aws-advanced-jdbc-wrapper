@@ -639,6 +639,11 @@ public class ConcurrencyTests {
     }
 
     @Override
+    public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
+      return false;
+    }
+
+    @Override
     public String getDriverProtocol() {
       return null;
     }

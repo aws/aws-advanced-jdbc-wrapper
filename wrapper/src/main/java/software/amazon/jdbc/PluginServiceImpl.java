@@ -80,6 +80,7 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   protected Dialect dialect;
   protected TargetDriverDialect targetDriverDialect;
   protected @Nullable final ConfigurationProfile configurationProfile;
+  protected final ConnectionProviderManager connectionProviderManager;
 
   protected final SessionStateService sessionStateService;
 
@@ -140,6 +141,9 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     this.exceptionManager = exceptionManager;
     this.dialectProvider = dialectProvider != null ? dialectProvider : new DialectManager(this);
     this.targetDriverDialect = targetDriverDialect;
+    this.connectionProviderManager = new ConnectionProviderManager(
+        this.pluginManager.getDefaultConnProvider(),
+        this.pluginManager.getEffectiveConnProvider());
 
     this.sessionStateService = sessionStateService != null
         ? sessionStateService
@@ -235,8 +239,15 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
   }
 
   @Override
+  @Deprecated
   public ConnectionProvider getConnectionProvider() {
     return this.pluginManager.defaultConnProvider;
+  }
+
+  public boolean isPooledConnectionProvider(HostSpec host, Properties props) {
+    final ConnectionProvider connectionProvider =
+        this.connectionProviderManager.getConnectionProvider(this.driverProtocol, host, props);
+    return (connectionProvider instanceof PooledConnectionProvider);
   }
 
   @Override

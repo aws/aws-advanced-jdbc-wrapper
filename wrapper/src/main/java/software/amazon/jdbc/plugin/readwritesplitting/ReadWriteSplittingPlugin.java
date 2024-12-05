@@ -65,7 +65,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
   private final PluginService pluginService;
   private final Properties properties;
   private final String readerSelectorStrategy;
-  private final ConnectionProviderManager connProviderManager;
   private volatile boolean inReadWriteSplit = false;
   private HostListProviderService hostListProviderService;
   private Connection writerConnection;
@@ -88,7 +87,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     this.pluginService = pluginService;
     this.properties = properties;
     this.readerSelectorStrategy = READER_HOST_SELECTOR_STRATEGY.getString(properties);
-    this.connProviderManager = new ConnectionProviderManager(pluginService.getConnectionProvider());
   }
 
   /**
@@ -271,11 +269,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
 
   private void getNewWriterConnection(final HostSpec writerHostSpec) throws SQLException {
     final Connection conn = this.pluginService.connect(writerHostSpec, this.properties);
-    this.isWriterConnFromInternalPool = this.connProviderManager.getConnectionProvider(
-        this.pluginService.getDriverProtocol(),
-        writerHostSpec,
-        this.properties)
-        instanceof PooledConnectionProvider;
+    this.isWriterConnFromInternalPool = this.pluginService.isPooledConnectionProvider(writerHostSpec, this.properties);
     setWriterConnection(conn, writerHostSpec);
     switchCurrentConnectionTo(this.writerConnection, writerHostSpec);
   }
@@ -502,11 +496,7 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
       HostSpec hostSpec = this.pluginService.getHostSpecByStrategy(HostRole.READER, this.readerSelectorStrategy);
       try {
         conn = this.pluginService.connect(hostSpec, this.properties);
-        this.isReaderConnFromInternalPool = this.connProviderManager.getConnectionProvider(
-            this.pluginService.getDriverProtocol(),
-            hostSpec,
-            this.properties)
-            instanceof PooledConnectionProvider;
+        this.isReaderConnFromInternalPool = this.pluginService.isPooledConnectionProvider(hostSpec, this.properties);
         readerHost = hostSpec;
         break;
       } catch (final SQLException e) {
