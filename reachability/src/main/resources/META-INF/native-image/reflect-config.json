@@ -1,0 +1,10 @@
+[
+  {
+    "name": "org.postgresql.ds.PGSimpleDataSource",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "reachability.software.amazon.jdbc.SimpleJndiContextFactory",
+    "allPublicConstructors": true
+  }
+]
