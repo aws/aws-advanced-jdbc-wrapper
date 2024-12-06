@@ -1,0 +1,243 @@
+[
+  {
+    "name": "software.amazon.jdbc.plugin.DriverMetaDataConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.DataCacheConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.AuroraInitialConnectionStrategyPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.AuroraConnectionTrackerPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.staledns.AuroraStaleDnsPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.failover.FailoverConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.failover2.FailoverConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.efm.HostMonitoringConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.efm2.HostMonitoringConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.limitless.LimitlessConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.LogQueryConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.ConnectTimeConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.ExecutionTimeConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.dev.DeveloperConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.customendpoint.CustomEndpointPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.iam.IamAuthConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.federatedauth.FederatedAuthPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "software.amazon.jdbc.plugin.federatedauth.OktaAuthPluginFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.CallableStatement"
+    },
+    "name": "software.amazon.jdbc.wrapper.CallableStatementWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.PreparedStatement"
+    },
+    "name": "software.amazon.jdbc.wrapper.PreparedStatementWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.Statement"
+    },
+    "name": "software.amazon.jdbc.wrapper.StatementWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.ResultSet"
+    },
+    "name": "software.amazon.jdbc.wrapper.ResultSetWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.Array"
+    },
+    "name": "software.amazon.jdbc.wrapper.ArrayWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.Blob"
+    },
+    "name": "software.amazon.jdbc.wrapper.BlobWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.NClob"
+    },
+    "name": "software.amazon.jdbc.wrapper.NClobWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.Clob"
+    },
+    "name": "software.amazon.jdbc.wrapper.ClobWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.Ref"
+    },
+    "name": "software.amazon.jdbc.wrapper.RefWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.Struct"
+    },
+    "name": "software.amazon.jdbc.wrapper.StructWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.Savepoint"
+    },
+    "name": "software.amazon.jdbc.wrapper.SavepointWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.DatabaseMetaData"
+    },
+    "name": "software.amazon.jdbc.wrapper.DatabaseMetaDataWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.ParameterMetaData"
+    },
+    "name": "software.amazon.jdbc.wrapper.ParameterMetaDataWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.ResultSetMetaData"
+    },
+    "name": "software.amazon.jdbc.wrapper.ResultSetMetaDataWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.SQLData"
+    },
+    "name": "software.amazon.jdbc.wrapper.SQLDataWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.SQLInput"
+    },
+    "name": "software.amazon.jdbc.wrapper.SQLInputWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.SQLOutput"
+    },
+    "name": "software.amazon.jdbc.wrapper.SQLOutputWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.SQLType"
+    },
+    "name": "software.amazon.jdbc.wrapper.SQLTypeWrapper",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "software.amazon.jdbc.ds.AwsWrapperDataSource"
+    },
+    "name": "software.amazon.jdbc.ds.AwsWrapperDataSourceFactory",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "java.sql.SQLClientInfoException",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "java.sql.SQLType"
+    },
+    "name": "java.lang.RuntimeException",
+    "allPublicConstructors": true
+  },
+  {
+    "name": "java.sql.SQLException",
+    "allPublicConstructors": true
+  },
+  {
+    "condition": {
+      "typeReachable": "software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPluginFactory"
+    },
+    "name": "software.amazon.jdbc.plugin.AwsSecretsManagerConnectionPlugin$Secret",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true
+  }
+]

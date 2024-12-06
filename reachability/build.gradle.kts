@@ -48,3 +48,21 @@ graalvmNative {
         }
     }
 }
+
+tasks.register<Exec>("buildNativeImage") {
+    dependsOn("build")
+
+    doLast {
+        val nativeImageCommand = listOf(
+            "native-image",
+            "--test-runner",
+            "--no-fallback",
+            "-cp", sourceSets["main"].runtimeClasspath.asPath,
+            "software.amazon.jdbc.ReachabilityTest" // Replace with your test class or entry point
+        )
+
+        exec {
+            commandLine(nativeImageCommand)
+        }
+    }
+}
