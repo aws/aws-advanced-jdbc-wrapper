@@ -5,7 +5,9 @@ on:
   push:
     branches:
       - main
-
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
 jobs:
   all-integration-tests-default:
     name: 'Run Aurora integration tests with default engine version'
@@ -27,8 +29,7 @@ jobs:
       - name: 'Configure AWS credentials'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
       - name: 'Set up temp AWS credentials'
         run: |
