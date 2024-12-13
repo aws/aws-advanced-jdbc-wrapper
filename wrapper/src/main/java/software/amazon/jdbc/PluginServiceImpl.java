@@ -535,7 +535,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
         return true;
       }
     } catch (TimeoutException ex) {
-      // do nothing
+      // do nothing.
+      LOGGER.finest(Messages.get("PluginServiceImpl.forceRefreshTimeout", new Object[]{timeoutMs}));
     }
     return false;
   }
