@@ -111,13 +111,14 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
     final Properties copyProps = PropertyUtils.copyProperties(props);
     copyProps.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
-    return connectInternal(driverProtocol, hostSpec, copyProps, isInitialConnection, connectFunc);
+    return connectInternal(driverProtocol, hostSpec, props, copyProps, isInitialConnection, connectFunc);
   }
 
   public Connection connectInternal(
       final String driverProtocol,
       final HostSpec hostSpec,
-      final Properties props,
+      final Properties origProps,
+      final Properties copyProps,
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
@@ -143,7 +144,8 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
     final LimitlessConnectionContext context = new LimitlessConnectionContext(
         hostSpec,
-        props,
+        copyProps,
+        origProps,
         conn,
         connectFunc,
         null);
