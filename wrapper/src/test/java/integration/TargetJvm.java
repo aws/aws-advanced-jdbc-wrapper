@@ -19,5 +19,6 @@ package integration;
 public enum TargetJvm {
   OPENJDK8,
   OPENJDK11,
-  GRAALVM
+  GRAALVM,
+  GRAALVM_NATIVE
 }

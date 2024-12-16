@@ -24,6 +24,7 @@ import eu.rekawek.toxiproxy.ToxiproxyClient;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
+import integration.TargetJvm;
 import integration.TestDatabaseInfo;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
@@ -784,6 +785,11 @@ public class TestEnvironment implements AutoCloseable {
                       "src/test/resources/hibernate_files/collect_test_results.sh"),
                   "app/collect_test_results.sh");
 
+    } else if (env.info.getRequest().getTargetJvm() == TargetJvm.GRAALVM_NATIVE) {
+      env.testContainer = containerHelper.createCompilingTestContainer(
+          "aws/rds-test-container",
+          getContainerBaseImageName(env.info.getRequest()),
+          builder -> builder);
     } else {
       env.testContainer = containerHelper.createTestContainer(
           "aws/rds-test-container",
@@ -883,6 +889,8 @@ public class TestEnvironment implements AutoCloseable {
         return "amazoncorretto:11.0.19-alpine3.17";
       case GRAALVM:
         return "ghcr.io/graalvm/jdk:22.2.0";
+      case GRAALVM_NATIVE:
+        return "container-registry.oracle.com/graalvm/native-image:23";
       default:
         throw new NotImplementedException(request.getTargetJvm().toString());
     }

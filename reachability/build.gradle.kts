@@ -9,6 +9,7 @@ version = "2.5.3"
 
 repositories {
     mavenCentral()
+    gradlePluginPortal()
 }
 
 application {
@@ -26,14 +27,35 @@ dependencies {
     implementation("com.zaxxer:HikariCP:4.0.3")
     implementation("software.amazon.awssdk:sts:2.27.22")
     implementation("org.jsoup:jsoup:1.18.1")
+
+    testImplementation(files("../wrapper/build/classes/java/test")) // Important!!!
+    testImplementation(files("../wrapper/build/resources/test")) // Important!!!
+
+    testImplementation("org.graalvm.buildtools:junit-platform-native:0.10.3")
+    testImplementation("org.junit.platform:junit-platform-commons:1.11.2")
+    testImplementation("org.junit.platform:junit-platform-engine:1.11.0")
+    testImplementation("org.junit.platform:junit-platform-launcher:1.11.3")
+    testImplementation("org.junit.platform:junit-platform-suite-engine:1.11.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
 tasks.test {
     useJUnitPlatform()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
 graalvmNative {
     metadataRepository {
         enabled.set(true)
+    }
+    binaries.all {
+        resources.autodetect()
     }
 }

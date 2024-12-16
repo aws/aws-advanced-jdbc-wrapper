@@ -636,3 +636,31 @@ tasks.register<Test>("debug-autoscaling-only") {
         systemProperty("test-no-graalvm", "true")
     }
 }
+
+// GraalVM Native
+
+tasks.register<Test>("test-graalvm-native-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-graalvm-native-only", "true")
+    }
+}
+
+tasks.register<Test>("debug-graalvm-native-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
+    doFirst {
+        systemProperty("test-no-docker", "true")
+        systemProperty("test-no-multi-az", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-graalvm-native-only", "true")
+    }
+}

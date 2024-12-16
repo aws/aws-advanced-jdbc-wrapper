@@ -14,10 +14,18 @@
  * limitations under the License.
  */
 
-package reachability.software.amazon.jdbc;
+package integration.container.condition;
 
-public class Main {
-  public static void main(String[] args) {
-    throw new RuntimeException("Run test suite of this module instead.");
-  }
+import integration.TargetJvm;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@Target({ElementType.TYPE, ElementType.METHOD})
+@ExtendWith(EnableOnTargetJvmCondition.class)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface EnableOnTargetJvm {
+  TargetJvm[] value() default {};
 }

@@ -16,8 +16,15 @@
 
 package reachability.software.amazon.jdbc;
 
-public class Main {
-  public static void main(String[] args) {
-    throw new RuntimeException("Run test suite of this module instead.");
+import java.util.logging.Logger;
+import org.junit.jupiter.api.Test;
+
+public class DummyTest {
+
+  private static final Logger LOGGER = Logger.getLogger(DummyTest.class.getName());
+
+  @Test
+  public void test_1() {
+    LOGGER.info("Here");
   }
 }
