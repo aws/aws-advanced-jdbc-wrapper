@@ -628,7 +628,6 @@ public class AuroraFailoverTest {
         TimeUnit.MILLISECONDS.sleep(500);
 
         // Failure occurs on Connection invocation
-        LOGGER.info("asdf Querying connection...");
         auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
         // Assert that we are connected to the new writer after failover happens.
