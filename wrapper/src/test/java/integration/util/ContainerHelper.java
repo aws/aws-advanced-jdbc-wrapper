@@ -298,20 +298,27 @@ public class ContainerHelper {
             "../.git",
             "/app/.git",
             BindMode.READ_WRITE)
-        .withCopyFileToContainer(MountableFile.forHostPath("../aws-advanced-jdbc-wrapper-bundle"), "app/aws-advanced-jdbc-wrapper-bundle")
+        .withCopyFileToContainer(MountableFile.forHostPath("../aws-advanced-jdbc-wrapper-bundle"),
+            "app/aws-advanced-jdbc-wrapper-bundle")
         .withCopyFileToContainer(MountableFile.forHostPath("../benchmarks"), "app/benchmarks")
         .withCopyFileToContainer(MountableFile.forHostPath("../config"), "app/config")
         .withCopyFileToContainer(MountableFile.forHostPath("../buildSrc/src"), "app/buildSrc/src")
-        .withCopyFileToContainer(MountableFile.forHostPath("../buildSrc/build.gradle.kts"), "app/buildSrc/build.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../buildSrc/build.gradle.kts"),
+            "app/buildSrc/build.gradle.kts")
         .withCopyFileToContainer(MountableFile.forHostPath("../gradle"), "app/gradle")
         .withCopyFileToContainer(MountableFile.forHostPath("../reachability"), "app/reachability")
         .withCopyFileToContainer(MountableFile.forHostPath("../src"), "app/src")
         .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/src"), "app/wrapper/src")
-        .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/build.gradle.kts"), "app/wrapper/build.gradle.kts")
-        .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/gradle.properties"), "app/wrapper/gradle.properties")
-        .withCopyFileToContainer(MountableFile.forHostPath("../build.gradle.kts"), "app/build.gradle.kts")
-        .withCopyFileToContainer(MountableFile.forHostPath("../settings.gradle.kts"), "app/settings.gradle.kts")
-        .withCopyFileToContainer(MountableFile.forHostPath("../gradle.properties"), "app/gradle.properties");
+        .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/build.gradle.kts"),
+            "app/wrapper/build.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/gradle.properties"),
+            "app/wrapper/gradle.properties")
+        .withCopyFileToContainer(MountableFile.forHostPath("../build.gradle.kts"),
+            "app/build.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../settings.gradle.kts"),
+            "app/settings.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../gradle.properties"),
+            "app/gradle.properties");
   }
 
   protected Long execInContainer(
