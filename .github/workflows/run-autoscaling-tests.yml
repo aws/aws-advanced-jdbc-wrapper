@@ -20,7 +20,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: 11
       - name: 'Configure AWS credentials'
         uses: aws-actions/configure-aws-credentials@v4
         with:
