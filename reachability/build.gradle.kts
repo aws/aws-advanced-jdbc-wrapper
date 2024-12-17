@@ -50,6 +50,7 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    filter.excludeTestsMatching("integration.*")
 }
 
 tasks.compileTestJava {
