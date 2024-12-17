@@ -117,6 +117,28 @@ public class ContainerHelper {
     assertEquals(0, exitCode, "Some tests failed.");
   }
 
+  public void runReachabilityTest(GenericContainer<?> container)
+      throws IOException, InterruptedException {
+    System.out.println("==== Container console feed ==== >>>>");
+    Consumer<OutputFrame> consumer = new ConsoleConsumer(true);
+    execInContainer(container, consumer, "printenv", "TEST_ENV_DESCRIPTION");
+    execInContainer(container, consumer, "java", "-version");
+
+    // compile everything
+    Long exitCode = execInContainer(container, consumer, "./gradlew", "jar");
+    assertEquals(0, exitCode, "Native compilation failed.");
+
+    // native compile
+    exitCode = execInContainer(container, consumer, "./gradlew", ":reachability:nativeCompile");
+    assertEquals(0, exitCode, "Native compilation failed.");
+
+    // run tests
+    exitCode = execInContainer(container, consumer, "./reachability/build/native/nativeCompile/reachability");
+
+    System.out.println("==== Container console feed ==== <<<<");
+    assertEquals(0, exitCode, "Some tests failed.");
+  }
+
   public void debugTest(GenericContainer<?> container, String task)
       throws IOException, InterruptedException {
     debugTest(container, task, null, null);

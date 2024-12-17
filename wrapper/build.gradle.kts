@@ -659,7 +659,8 @@ tasks.register<Test>("test-graalvm-native-only") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
-        systemProperty("test-no-docker", "true")
+        //systemProperty("test-no-docker", "true")
+        systemProperty("test-no-aurora", "true")
         systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-pg-engine", "true")
         systemProperty("test-no-mariadb-engine", "true")
@@ -672,7 +673,8 @@ tasks.register<Test>("debug-graalvm-native-only") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.debugTests")
     doFirst {
-        systemProperty("test-no-docker", "true")
+        //systemProperty("test-no-docker", "true")
+        systemProperty("test-no-aurora", "true")
         systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-pg-engine", "true")
         systemProperty("test-no-mariadb-engine", "true")

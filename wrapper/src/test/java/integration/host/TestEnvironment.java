@@ -960,6 +960,9 @@ public class TestEnvironment implements AutoCloseable {
           buildHibernateCommands(false));
       containerHelper.runCmd(this.testContainer, "./collect_test_results.sh");
       assertEquals(0, exitCode, "Hibernate ORM tests failed");
+    } else if (this.info.getRequest().getTargetJvm() == TargetJvm.GRAALVM_NATIVE) {
+      TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
+      containerHelper.runReachabilityTest(this.testContainer);
     } else {
       TestEnvironmentConfiguration config = new TestEnvironmentConfiguration();
       containerHelper.runTest(this.testContainer, taskName, config.includeTags, config.excludeTags);
