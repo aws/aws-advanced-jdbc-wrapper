@@ -302,7 +302,7 @@ public class ClusterAwareWriterFailoverHandler implements WriterFailoverHandler 
     private boolean isCurrentHostWriter(final List<HostSpec> latestTopology) {
       final HostSpec latestWriter = getWriter(latestTopology);
       final Set<String> latestWriterAllAliases = latestWriter.asAliases();
-      final Set<String> currentAliases = this.originalWriterHost.getAliases();
+      final Set<String> currentAliases = this.originalWriterHost.asAliases();
 
       return (currentAliases != null)
           && (latestWriterAllAliases.stream().anyMatch(currentAliases::contains));

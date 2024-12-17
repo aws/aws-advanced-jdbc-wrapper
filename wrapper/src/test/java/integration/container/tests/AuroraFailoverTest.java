@@ -589,7 +589,7 @@ public class AuroraFailoverTest {
 
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_writerFailover_originalWriterReElectedAsNewWriter() throws SQLException, InterruptedException {
+  public void test_writerFailover_writerReelected() throws SQLException, InterruptedException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
