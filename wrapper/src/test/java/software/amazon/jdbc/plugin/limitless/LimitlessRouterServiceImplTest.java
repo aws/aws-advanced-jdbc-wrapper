@@ -47,6 +47,7 @@ import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.RoundRobinHostSelector;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
+import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.wrapper.HighestWeightHostSelector;
 
 public class LimitlessRouterServiceImplTest {
@@ -70,6 +71,7 @@ public class LimitlessRouterServiceImplTest {
     props = new Properties();
     when(mockConnectFuncLambda.call()).thenReturn(mockConnection);
     when(mockPluginService.getHostListProvider()).thenReturn(mockHostListProvider);
+    when(mockPluginService.getProperties()).thenReturn(props);
     when(mockHostListProvider.getClusterId()).thenReturn(CLUSTER_ID);
   }
 
@@ -85,6 +87,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -103,6 +106,7 @@ public class LimitlessRouterServiceImplTest {
     props.setProperty(LimitlessConnectionPlugin.WAIT_FOR_ROUTER_INFO.name, "false");
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -132,6 +136,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         routerList.get(1),
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -163,6 +168,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         routerList.get(1),
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -199,6 +205,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -234,6 +241,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -267,6 +275,7 @@ public class LimitlessRouterServiceImplTest {
     final HostSpec selectedRouter = routerList.get(2);
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         routerList.get(1),
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -311,6 +320,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -350,6 +360,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -392,6 +403,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         hostSpec,
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,
@@ -429,6 +441,7 @@ public class LimitlessRouterServiceImplTest {
 
     final LimitlessConnectionContext inputContext = new LimitlessConnectionContext(
         routerList.get(0),
+        PropertyUtils.copyProperties(props),
         props,
         null,
         mockConnectFuncLambda,

@@ -131,7 +131,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       return;
     }
 
-    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(context.getProps(), context.getLimitlessRouters());
+    RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(
+        context.getOrigProps(),
+        context.getLimitlessRouters());
     HostSpec selectedHostSpec;
     try {
       selectedHostSpec = this.pluginService.getHostSpecByStrategy(
@@ -165,7 +167,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     }
   }
 
-  protected List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) throws SQLException {
+  protected List<HostSpec> getLimitlessRouters(final String clusterId, final Properties props) {
     final long cacheExpirationNano = TimeUnit.MILLISECONDS.toNanos(
         MONITOR_DISPOSAL_TIME_MS.getLong(props));
     return limitlessRouterCache.get(clusterId, cacheExpirationNano);

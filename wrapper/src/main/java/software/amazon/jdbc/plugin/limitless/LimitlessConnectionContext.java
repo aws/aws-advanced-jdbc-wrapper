@@ -27,6 +27,7 @@ import software.amazon.jdbc.JdbcCallable;
 public class LimitlessConnectionContext {
   private HostSpec hostSpec;
   private Properties props;
+  private Properties origProps;
   private Connection connection;
   private JdbcCallable<Connection, SQLException> connectFunc;
   private List<HostSpec> limitlessRouters;
@@ -34,12 +35,14 @@ public class LimitlessConnectionContext {
   public LimitlessConnectionContext(
       final HostSpec hostSpec,
       final Properties props,
+      final Properties origProps,
       final Connection connection,
       final JdbcCallable<Connection, SQLException> connectFunc,
       final List<HostSpec> limitlessRouters
   ) {
     this.hostSpec = hostSpec;
     this.props = props;
+    this.origProps = origProps;
     this.connection = connection;
     this.connectFunc = connectFunc;
     this.limitlessRouters = limitlessRouters;
@@ -51,6 +54,10 @@ public class LimitlessConnectionContext {
 
   public Properties getProps() {
     return this.props;
+  }
+
+  public Properties getOrigProps() {
+    return this.origProps;
   }
 
   public Connection getConnection() {
