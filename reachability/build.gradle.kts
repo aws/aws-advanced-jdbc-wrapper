@@ -29,7 +29,6 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
 
     testImplementation(files("../wrapper/build/classes/java/test")) // Important!!!
-    testImplementation(files("../wrapper/build/resources/test")) // Important!!!
 
     testImplementation("org.graalvm.buildtools:junit-platform-native:0.10.3")
     testImplementation("org.junit.platform:junit-platform-commons:1.11.2")
@@ -51,6 +50,10 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.compileTestJava {
+    dependsOn(":aws-advanced-jdbc-wrapper:compileTestJava")
 }
 
 java {
