@@ -39,6 +39,14 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.3")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    testImplementation("org.postgresql:postgresql:42.7.3")
+    testImplementation("mysql:mysql-connector-java:8.0.33")
+    testImplementation("org.mariadb.jdbc:mariadb-java-client:3.1.0")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")
+    testImplementation("software.amazon.awssdk:secretsmanager:2.28.11")
+    testImplementation("com.zaxxer:HikariCP:4.0.3")
+    testImplementation("software.amazon.awssdk:sts:2.27.22")
+    testImplementation("org.jsoup:jsoup:1.18.1")
 }
 
 tasks.test {
