@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.mysql.cj.conf.PropertyKey;
 import integration.DatabaseEngine;
@@ -34,8 +35,6 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
-import integration.container.condition.EnableOnDatabaseEngine;
-import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestDriver;
 import integration.container.condition.EnableOnTestFeature;
@@ -45,23 +44,21 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.dialect.DialectCodes;
-import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
@@ -75,7 +72,6 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
-@EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 @Order(14)
 public class AuroraFailoverTest {
@@ -100,6 +96,7 @@ public class AuroraFailoverTest {
    * writer. Driver failover occurs when executing a method against the connection
    */
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   public void test_failFromWriterToNewWriter_failOnConnectionInvocation()
       throws SQLException, InterruptedException {
 
@@ -136,6 +133,7 @@ public class AuroraFailoverTest {
    * connection (eg a Statement object created by the connection).
    */
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   public void test_failFromWriterToNewWriter_failOnConnectionBoundObjectInvocation()
       throws SQLException, InterruptedException {
 
@@ -206,6 +204,7 @@ public class AuroraFailoverTest {
 
   /** Writer fails within a transaction. Open transaction with setAutoCommit(false) */
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   public void test_writerFailWithinTransaction_setAutoCommitFalse()
       throws SQLException, InterruptedException {
 
@@ -265,6 +264,7 @@ public class AuroraFailoverTest {
 
   /** Writer fails within a transaction. Open transaction with "START TRANSACTION". */
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   public void test_writerFailWithinTransaction_startTransaction()
       throws SQLException, InterruptedException {
 
@@ -326,6 +326,7 @@ public class AuroraFailoverTest {
   }
 
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void testServerFailoverWithIdleConnections() throws SQLException, InterruptedException {
     final List<Connection> idleConnections = new ArrayList<>();
@@ -407,6 +408,7 @@ public class AuroraFailoverTest {
   }
 
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   public void test_DataSourceWriterConnection_BasicFailover()
       throws SQLException, InterruptedException {
 
@@ -474,6 +476,7 @@ public class AuroraFailoverTest {
   }
 
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   @EnableOnTestDriver(TestDriver.MYSQL)
   public void test_takeOverConnectionProperties() throws SQLException, InterruptedException {
     final Properties props = initDefaultProps();
@@ -520,6 +523,7 @@ public class AuroraFailoverTest {
    * writer. Autocommit is set to false and the keepSessionStateOnFailover property is set to true.
    */
   @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
   public void test_failFromWriterWhereKeepSessionStateOnFailoverIsTrue()
       throws SQLException, InterruptedException {
 
@@ -580,6 +584,60 @@ public class AuroraFailoverTest {
 
       // Assert autocommit is still false after failover.
       assertFalse(conn.getAutoCommit());
+    }
+  }
+
+  @TestTemplate
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_writerFailover_originalWriterReElectedAsNewWriter() throws SQLException, InterruptedException {
+    final String initialWriterId = this.currentWriter;
+    TestInstanceInfo initialWriterInstanceInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
+
+    final Properties props = initDefaultProxiedProps();
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "2000");
+
+    try (final Connection conn =
+             DriverManager.getConnection(
+                 ConnectionStringHelper.getWrapperUrl(
+                     initialWriterInstanceInfo.getHost(),
+                     initialWriterInstanceInfo.getPort(),
+                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                 props)) {
+
+      ExecutorService executor = Executors.newFixedThreadPool(1, r -> {
+        final Thread thread = new Thread(r);
+        thread.setDaemon(true);
+        return thread;
+      });
+
+      try {
+        // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
+        // simulate this by temporarily disabling connectivity to the writer.
+        executor.submit(() -> {
+          try {
+            ProxyHelper.disableConnectivity(initialWriterId);
+            TimeUnit.SECONDS.sleep(5);
+            ProxyHelper.enableConnectivity(initialWriterId);
+          } catch (InterruptedException e) {
+            fail("The disable connectivity thread was unexpectedly interrupted.");
+          }
+        });
+
+        // Leave some time for the other thread to start up
+        TimeUnit.MILLISECONDS.sleep(500);
+
+        // Failure occurs on Connection invocation
+        LOGGER.info("asdf Querying connection...");
+        auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+
+        // Assert that we are connected to the new writer after failover happens.
+        final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+        assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+        assertEquals(currentConnectionId, initialWriterId);
+      } finally {
+        executor.shutdownNow();
+      }
     }
   }
 

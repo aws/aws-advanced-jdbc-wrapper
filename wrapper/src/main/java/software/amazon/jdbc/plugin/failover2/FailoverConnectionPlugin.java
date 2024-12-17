@@ -470,7 +470,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         // "Unable to establish SQL connection to writer node"
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(Messages.get("Failover.unableToRefreshHostList"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
+        throw new FailoverFailedSQLException(Messages.get("Failover.unableToRefreshHostList"));
       }
 
       final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
@@ -485,18 +485,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       if (writerCandidate == null) {
         this.failoverWriterFailedCounter.inc();
-        LOGGER.severe(Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost")));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
+        String message = Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
+        LOGGER.severe(message);
+        throw new FailoverFailedSQLException(message);
       }
 
       List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!allowedHosts.contains(writerCandidate)) {
         this.failoverWriterFailedCounter.inc();
+        String topologyString = Utils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
-            new Object[] {writerCandidate.getHost(), Utils.logTopology(allowedHosts, "")}));
+            new Object[] {writerCandidate.getHost(), topologyString}));
         throw new FailoverFailedSQLException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerCandidate.getHost(), Utils.logTopology(allowedHosts, "")}));
+                new Object[] {writerCandidate.getHost(), topologyString}));
       }
 
       try {
@@ -505,7 +507,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(
             Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost(), ex}));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
+        throw new FailoverFailedSQLException(Messages.get("Failover.exceptionConnectingToWriter"));
       }
 
       HostRole role = this.pluginService.getHostRole(writerCandidateConn);
@@ -517,7 +519,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
+        throw new FailoverFailedSQLException(Messages.get("Failover.unexpectedReaderRole"));
       }
 
       this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);

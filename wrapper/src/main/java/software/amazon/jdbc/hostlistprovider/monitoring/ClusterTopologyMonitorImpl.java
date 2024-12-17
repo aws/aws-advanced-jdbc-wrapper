@@ -441,7 +441,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   }
 
   protected List<HostSpec> openAnyConnectionAndUpdateTopology() {
-    boolean wasWriterVerified = false;
+    boolean writerVerifiedByThisThread = false;
     if (this.monitoringConnection.get() == null) {
 
       Connection conn;
@@ -462,7 +462,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
         try {
           if (!StringUtils.isNullOrEmpty(this.getWriterNodeId(this.monitoringConnection.get()))) {
             this.isVerifiedWriterConnection = true;
-            wasWriterVerified = true;
+            writerVerifiedByThisThread = true;
 
             if (rdsHelper.isRdsInstance(this.initialHostSpec.getHost())) {
               this.writerHostSpec.set(this.initialHostSpec);
@@ -493,7 +493,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     }
 
     final List<HostSpec> hosts = this.fetchTopologyAndUpdateCache(this.monitoringConnection.get());
-    if (wasWriterVerified) {
+    if (writerVerifiedByThisThread) {
       // We verify the writer on initial connection and on failover, but we only want to ignore new topology
       // requests after failover. To accomplish this, the first time we verify the writer we set the ignore end
       // time to 0. Any future writer verifications will set it to a positive value.
