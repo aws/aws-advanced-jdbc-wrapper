@@ -171,7 +171,7 @@ public class AuroraFailoverTest {
    * Current reader dies, no other reader instance, failover to writer.
    */
   @TestTemplate
-  @EnableOnNumOfInstances(max = 2)
+  @EnableOnNumOfInstances(min = 2, max = 2)
   public void test_failFromReaderToWriter() throws SQLException {
     // Connect to the only available reader instance
     final TestInstanceInfo instanceInfo =
