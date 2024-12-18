@@ -16,6 +16,8 @@
 
 package software.amazon.jdbc.plugin.failover2;
 
+import static software.amazon.jdbc.plugin.failover.FailoverMode.STRICT_READER;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -26,6 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostListProviderService;
 import software.amazon.jdbc.HostRole;
@@ -342,85 +345,104 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
-
-      // It's expected that this method synchronously returns when topology is stabilized,
-      // i.e. when cluster control plane has already chosen a new writer.
       if (!this.pluginService.forceRefreshHostList(false, 0)) {
         // "Unable to establish SQL connection to reader instance"
         this.failoverReaderFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToConnectToReader"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
+        LOGGER.severe(Messages.get("Failover.unableToRefreshHostList", new Object[]{"[failoverReader]"}));
+        throw new FailoverFailedSQLException(
+            Messages.get("Failover.unableToRefreshHostList", new Object[]{"[failoverReader]"}));
       }
 
       final Properties copyProp = PropertyUtils.copyProperties(this.properties);
       copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
-
+      // The host roles in this host list may or may not be accurate, depending on whether the new topology has become
+      // available or not yet.
       final List<HostSpec> hosts = this.pluginService.getHosts();
-      Connection readerCandidateConn = null;
+      Connection candidateConn = null;
       HostSpec readerCandidate = null;
-      final Set<HostSpec> remainingHosts = new HashSet<>(hosts);
-
-      while (!remainingHosts.isEmpty()
-          && readerCandidateConn == null
-          && System.nanoTime() < failoverEndTimeNano) {
-        try {
-          readerCandidate =
-              this.pluginService.getHostSpecByStrategy(
-                  new ArrayList<>(remainingHosts),
-                  HostRole.READER,
-                  this.failoverReaderHostSelectorStrategySetting);
-        } catch (UnsupportedOperationException | SQLException ex) {
-          // can't use selected strategy to get a reader host
-          LOGGER.finest("Error: " + ex.getMessage());
-          break;
+      HostSpec verifiedWriter = null;
+      final HostSpec originalWriter = hosts.stream()
+          .filter(hostSpec -> HostRole.WRITER.equals(hostSpec.getRole()))
+          .findFirst()
+          .orElse(null);
+      final Set<HostSpec> originalReaders = hosts.stream()
+          .filter(hostSpec -> HostRole.READER.equals(hostSpec.getRole()))
+          .collect(Collectors.toSet());
+      while (candidateConn == null && System.nanoTime() < failoverEndTimeNano) {
+        final Set<HostSpec> remainingHosts = new HashSet<>(originalReaders);
+        if (FailoverMode.STRICT_READER.equals(this.failoverMode) && verifiedWriter != null) {
+          remainingHosts.remove(verifiedWriter);
         }
 
-        if (readerCandidate == null) {
-          break;
-        }
-
-        try {
-          readerCandidateConn = this.pluginService.connect(readerCandidate, copyProp);
-          if (this.pluginService.getHostRole(readerCandidateConn) != HostRole.READER) {
-            readerCandidateConn.close();
-            readerCandidateConn = null;
-            remainingHosts.remove(readerCandidate);
-            readerCandidate = null;
+        while (!remainingHosts.isEmpty()
+            && candidateConn == null
+            && System.nanoTime() < failoverEndTimeNano) {
+          try {
+            readerCandidate =
+                this.pluginService.getHostSpecByStrategy(
+                    new ArrayList<>(remainingHosts),
+                    HostRole.READER,
+                    this.failoverReaderHostSelectorStrategySetting);
+          } catch (UnsupportedOperationException | SQLException ex) {
+            // can't use selected strategy to get a reader host
+            LOGGER.finest("Error: " + ex.getMessage());
+            break;
           }
-        } catch (SQLException ex) {
-          remainingHosts.remove(readerCandidate);
-          readerCandidateConn = null;
-          readerCandidate = null;
-        }
-      }
 
-      if (readerCandidate == null
-          && readerCandidateConn == null
-          && this.failoverMode == FailoverMode.READER_OR_WRITER) {
-        // As a last resort, let's try to connect to a writer
-        try {
-          readerCandidate = this.pluginService.getHostSpecByStrategy(HostRole.WRITER,
-                  this.failoverReaderHostSelectorStrategySetting);
-          if (readerCandidate != null) {
-            try {
-              readerCandidateConn = this.pluginService.connect(readerCandidate, copyProp);
-            } catch (SQLException ex) {
+          if (readerCandidate == null) {
+            break;
+          }
+
+          try {
+            candidateConn = this.pluginService.connect(readerCandidate, copyProp);
+            // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
+            if (this.failoverMode == STRICT_READER
+                && this.pluginService.getHostRole(candidateConn) == HostRole.WRITER) {
+              verifiedWriter = readerCandidate;
+              candidateConn.close();
+              candidateConn = null;
+              remainingHosts.remove(readerCandidate);
               readerCandidate = null;
             }
+          } catch (SQLException ex) {
+            remainingHosts.remove(readerCandidate);
+            candidateConn = null;
+            readerCandidate = null;
           }
-        } catch (UnsupportedOperationException ex) {
-          // can't use selected strategy to get a reader host
+        }
+
+        if (originalWriter != null
+            && readerCandidate == null
+            && candidateConn == null
+            && System.nanoTime() < failoverEndTimeNano) {
+          // Try the original writer. The role may be inaccurate, so we will try connecting to it even if failover mode
+          // is set to STRICT_READER.
+          readerCandidate = originalWriter;
+          try {
+            candidateConn = this.pluginService.connect(readerCandidate, copyProp);
+            if (this.failoverMode == STRICT_READER
+                && this.pluginService.getHostRole(candidateConn) == HostRole.WRITER) {
+              verifiedWriter = readerCandidate;
+              candidateConn.close();
+              candidateConn = null;
+              remainingHosts.remove(readerCandidate);
+              readerCandidate = null;
+            }
+          } catch (SQLException ex) {
+            readerCandidate = null;
+            candidateConn = null;
+          }
         }
       }
 
-      if (readerCandidateConn == null) {
+      if (candidateConn == null) {
         // "Unable to establish SQL connection to reader instance"
         this.failoverReaderFailedCounter.inc();
         LOGGER.severe(Messages.get("Failover.unableToConnectToReader"));
         throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
       }
 
-      this.pluginService.setCurrentConnection(readerCandidateConn, readerCandidate);
+      this.pluginService.setCurrentConnection(candidateConn, readerCandidate);
 
       LOGGER.info(
           () -> Messages.get(
@@ -466,8 +488,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (!this.pluginService.forceRefreshHostList(true, this.failoverTimeoutMsSetting)) {
         // "Unable to establish SQL connection to writer node"
         this.failoverWriterFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToRefreshHostList"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToRefreshHostList"));
+        LOGGER.severe(Messages.get("Failover.unableToRefreshHostList", new Object[]{"[failoverWriter]"}));
+        throw new FailoverFailedSQLException(
+            Messages.get("Failover.unableToRefreshHostList", new Object[]{"[failoverWriter]"}));
       }
 
       final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
@@ -503,8 +526,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       } catch (SQLException ex) {
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(
-            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost(), ex}));
-        throw new FailoverFailedSQLException(Messages.get("Failover.exceptionConnectingToWriter"));
+            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
+        throw new FailoverFailedSQLException(Messages.get("Failover.exceptionConnectingToWriter"), ex);
       }
 
       HostRole role = this.pluginService.getHostRole(writerCandidateConn);
