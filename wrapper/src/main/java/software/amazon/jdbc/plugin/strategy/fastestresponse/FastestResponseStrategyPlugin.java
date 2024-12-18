@@ -51,6 +51,8 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<String>() {
         {
+          add("connect");
+          add("forceConnect");
           add("notifyNodeListChanged");
           add("acceptsStrategy");
           add("getHostSpecByStrategy");
