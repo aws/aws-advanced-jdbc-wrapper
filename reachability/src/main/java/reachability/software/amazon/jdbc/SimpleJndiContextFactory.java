@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-package integration;
+package reachability.software.amazon.jdbc;
 
-public enum TargetJvm {
-  OPENJDK8,
-  OPENJDK11,
-  GRAALVM,
-  GRAALVM_NATIVE
+import java.util.Hashtable;
+import javax.naming.Context;
+import javax.naming.NamingException;
+import javax.naming.spi.InitialContextFactory;
+
+public class SimpleJndiContextFactory implements InitialContextFactory {
+  public Context getInitialContext(Hashtable<?, ?> environment) throws NamingException {
+    return new SimpleJndiContext();
+  }
 }

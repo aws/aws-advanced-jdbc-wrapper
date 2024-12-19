@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
-package integration;
+package reachability.software.amazon.jdbc;
 
-public enum TargetJvm {
-  OPENJDK8,
-  OPENJDK11,
-  GRAALVM,
-  GRAALVM_NATIVE
+import java.util.logging.Logger;
+import org.junit.jupiter.api.Test;
+
+public class DummyTest {
+
+  private static final Logger LOGGER = Logger.getLogger(DummyTest.class.getName());
+
+  @Test
+  public void test_1() {
+    LOGGER.info("Here");
+  }
 }

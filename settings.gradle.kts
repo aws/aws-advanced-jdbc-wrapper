@@ -24,6 +24,7 @@ include(
     "hikari",
     "dbcp",
     "driverexample",
+    "reachability",
     "springhibernate",
     "springhibernateonedatasource",
     "springhibernatetwodatasource",
@@ -48,6 +49,7 @@ project(":springboothikariexample").projectDir = file("examples/SpringBootHikari
 project(":springtxfailover").projectDir = file("examples/SpringTxFailoverExample")
 project(":vertxexample").projectDir = file("examples/VertxExample")
 project(":readwritesample").projectDir = file("examples/ReadWriteSplittingSample")
+project(":reachability").projectDir = file("reachability")
 
 pluginManagement {
     plugins {

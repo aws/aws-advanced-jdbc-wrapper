@@ -117,6 +117,28 @@ public class ContainerHelper {
     assertEquals(0, exitCode, "Some tests failed.");
   }
 
+  public void runReachabilityTest(GenericContainer<?> container)
+      throws IOException, InterruptedException {
+    System.out.println("==== Container console feed ==== >>>>");
+    Consumer<OutputFrame> consumer = new ConsoleConsumer(true);
+    execInContainer(container, consumer, "printenv", "TEST_ENV_DESCRIPTION");
+    execInContainer(container, consumer, "java", "-version");
+
+    // compile everything
+    Long exitCode = execInContainer(container, consumer, "./gradlew", "jar");
+    assertEquals(0, exitCode, "Native compilation failed.");
+
+    // native compile
+    exitCode = execInContainer(container, consumer, "./gradlew", ":reachability:nativeCompile");
+    assertEquals(0, exitCode, "Native compilation failed.");
+
+    // run tests
+    exitCode = execInContainer(container, consumer, "./reachability/build/native/nativeCompile/reachability");
+
+    System.out.println("==== Container console feed ==== <<<<");
+    assertEquals(0, exitCode, "Some tests failed.");
+  }
+
   public void debugTest(GenericContainer<?> container, String task)
       throws IOException, InterruptedException {
     debugTest(container, task, null, null);
@@ -261,6 +283,64 @@ public class ContainerHelper {
         .withCopyFileToContainer(
             MountableFile.forHostPath("./src/test/resources/junit-platform.properties"),
             "app/test/resources/junit-platform.properties");
+  }
+
+  public GenericContainer<?> createCompilingTestContainer(
+      String dockerImageName,
+      String testContainerImageName,
+      Function<DockerfileBuilder, DockerfileBuilder> appendExtraCommandsToBuilder) {
+    class FixedExposedPortContainer<T extends GenericContainer<T>> extends GenericContainer<T> {
+
+      public FixedExposedPortContainer(ImageFromDockerfile withDockerfileFromBuilder) {
+        super(withDockerfileFromBuilder);
+      }
+
+      public T withFixedExposedPort(int hostPort, int containerPort) {
+        super.addFixedExposedPort(hostPort, containerPort, InternetProtocol.TCP);
+
+        return self();
+      }
+    }
+
+    return new FixedExposedPortContainer<>(
+        new ImageFromDockerfile(dockerImageName, true)
+            .withDockerfileFromBuilder(
+                builder -> appendExtraCommandsToBuilder.apply(
+                    builder
+                        .from(testContainerImageName)
+                        .run("mkdir", "app")
+                        .workDir("/app")
+                        .run("microdnf install findutils")
+                        .entryPoint("/bin/sh -c \"while true; do sleep 30; done;\"")
+                        .expose(5005) // Exposing ports for debugger to be attached
+                ).build()))
+        .withFixedExposedPort(5005, 5005) // Mapping container port to host
+        .withCopyFileToContainer(MountableFile.forHostPath("../gradlew"), "app/gradlew")
+        .withFileSystemBind(
+            "../.git",
+            "/app/.git",
+            BindMode.READ_WRITE)
+        .withCopyFileToContainer(MountableFile.forHostPath("../aws-advanced-jdbc-wrapper-bundle"),
+            "app/aws-advanced-jdbc-wrapper-bundle")
+        .withCopyFileToContainer(MountableFile.forHostPath("../benchmarks"), "app/benchmarks")
+        .withCopyFileToContainer(MountableFile.forHostPath("../config"), "app/config")
+        .withCopyFileToContainer(MountableFile.forHostPath("../buildSrc/src"), "app/buildSrc/src")
+        .withCopyFileToContainer(MountableFile.forHostPath("../buildSrc/build.gradle.kts"),
+            "app/buildSrc/build.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../gradle"), "app/gradle")
+        .withCopyFileToContainer(MountableFile.forHostPath("../reachability"), "app/reachability")
+        .withCopyFileToContainer(MountableFile.forHostPath("../src"), "app/src")
+        .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/src"), "app/wrapper/src")
+        .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/build.gradle.kts"),
+            "app/wrapper/build.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../wrapper/gradle.properties"),
+            "app/wrapper/gradle.properties")
+        .withCopyFileToContainer(MountableFile.forHostPath("../build.gradle.kts"),
+            "app/build.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../settings.gradle.kts"),
+            "app/settings.gradle.kts")
+        .withCopyFileToContainer(MountableFile.forHostPath("../gradle.properties"),
+            "app/gradle.properties");
   }
 
   protected Long execInContainer(
