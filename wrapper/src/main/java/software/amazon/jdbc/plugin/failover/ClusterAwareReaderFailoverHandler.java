@@ -152,23 +152,13 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
             }
 
             // need to ensure that new connection is a connection to a reader node
-
-            pluginService.forceRefreshHostList(result.getConnection());
-            topology = pluginService.getAllHosts();
-            for (final HostSpec node : topology) {
-              if (node.getUrl().equals(result.getHost().getUrl())) {
-                // found new connection host in the latest topology
-                if (node.getRole() == HostRole.READER) {
-                  return result;
-                }
+            try {
+              if (HostRole.READER.equals(this.pluginService.getHostRole(result.getConnection()))) {
+                return result;
               }
+            } catch (SQLException e) {
+              LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[]{e}));
             }
-
-            // New node is not found in the latest topology. There are few possible reasons for that.
-            // - Node is not yet presented in the topology due to failover process in progress
-            // - Node is in the topology but its role isn't a
-            //   READER (that is not acceptable option due to this.strictReader setting)
-            // Need to continue this loop and to make another try to connect to a reader.
 
             try {
               result.getConnection().close();
@@ -244,8 +234,9 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
     final List<HostSpec> hostsByPriority = new ArrayList<>(activeReaders);
     final int numOfReaders = activeReaders.size() + downHostList.size();
-    if (writerHost != null
-        && (!this.enableFailoverStrictReader || numOfReaders == 0)) {
+    // Since the writer instance may change during failover, the original writer is likely now a reader. We will include
+    // it and then verify the role once connected if using "strict-reader".
+    if (writerHost != null || numOfReaders == 0) {
       hostsByPriority.add(writerHost);
     }
     hostsByPriority.addAll(downHostList);

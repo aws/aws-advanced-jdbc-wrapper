@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.mockitoSession;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -384,17 +383,18 @@ class ClusterAwareReaderFailoverHandlerTest {
                     DEFAULT_READER_CONNECT_TIMEOUT,
                     true);
 
-    // We expect only reader nodes to be chosen.
-    List<HostSpec> expectedReaderHost = Collections.singletonList(reader);
+    // The writer is included because the original writer has likely become a reader.
+    List<HostSpec> expectedHostsByPriority = Arrays.asList(reader, writer);
 
     List<HostSpec> hostsByPriority = target.getHostsByPriority(hosts);
-    assertEquals(expectedReaderHost, hostsByPriority);
+    assertEquals(expectedHostsByPriority, hostsByPriority);
 
-    // Should pick the reader even if unavailable.
+    // Should pick the reader even if unavailable. The unavailable reader will be lower priority than the writer.
     reader.setAvailability(HostAvailability.NOT_AVAILABLE);
+    expectedHostsByPriority = Arrays.asList(writer, reader);
 
     hostsByPriority = target.getHostsByPriority(hosts);
-    assertEquals(expectedReaderHost, hostsByPriority);
+    assertEquals(expectedHostsByPriority, hostsByPriority);
 
     // Writer node will only be picked if it is the only node in topology;
     List<HostSpec> expectedWriterHost = Collections.singletonList(writer);

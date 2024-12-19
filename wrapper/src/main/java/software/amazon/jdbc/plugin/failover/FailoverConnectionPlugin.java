@@ -44,6 +44,7 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -289,10 +290,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
+    initHostProviderFunc.call();
+    initFailoverMode(initialUrl);
+
     this.readerFailoverHandler = readerFailoverHandlerSupplier.get();
     this.writerFailoverHandler = writerFailoverHandlerSupplier.get();
-
-    initHostProviderFunc.call();
   }
 
   @Override
@@ -364,12 +366,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
   }
 
-  protected void initFailoverMode() {
+  protected void initFailoverMode(final String initialUrl) {
     if (this.rdsUrlType == null) {
       this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
-      final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
-      this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
-
+      this.rdsUrlType = this.rdsHelper.identifyRdsType(ConnectionUrlParser.parseHost(initialUrl));
       if (this.failoverMode == null) {
         this.failoverMode = this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
             ? FailoverMode.READER_OR_WRITER
@@ -812,7 +812,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc, boolean isForceConnect)
       throws SQLException {
-    this.initFailoverMode();
     Connection conn = null;
     try {
       conn =

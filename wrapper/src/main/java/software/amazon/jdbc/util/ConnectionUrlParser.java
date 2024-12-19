@@ -87,6 +87,27 @@ public class ConnectionUrlParser {
     return getHostSpec(hostPortPair, role, hostSpecBuilderSupplier.get());
   }
 
+  public static @Nullable String parseHost(final String connString) {
+    final Matcher matcher = CONNECTION_STRING_PATTERN.matcher(connString);
+    if (!matcher.matches()) {
+      return null;
+    }
+
+    final String hosts = matcher.group("hosts") == null ? null : matcher.group("hosts").trim();
+    if (hosts == null) {
+      return null;
+    }
+
+    final String[] hostArray = hosts.split(HOSTS_SEPARATOR);
+    if (hostArray.length == 0) {
+      return null;
+    }
+
+    final String url = hostArray[0];
+    final String[] hostPortPair = url.split(HOST_PORT_SEPARATOR, 2);
+    return hostPortPair.length == 0 ? null : hostPortPair[0];
+  }
+
   private static HostSpec getHostSpec(final String[] hostPortPair, final HostRole hostRole,
       final HostSpecBuilder hostSpecBuilder) {
     String hostId = rdsUtils.getRdsInstanceId(hostPortPair[0]);
