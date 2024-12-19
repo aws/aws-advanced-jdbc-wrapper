@@ -201,6 +201,8 @@ public class Main {
     Properties props = new Properties();
     props.setProperty("user", clusterDetails.username);
     props.setProperty("password", clusterDetails.password);
+    props.setProperty("connectTimeout", "30000");
+    props.setProperty("socketTimeout", "30000");
     return props;
   }
 }
