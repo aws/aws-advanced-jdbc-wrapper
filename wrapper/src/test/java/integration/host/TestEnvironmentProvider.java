@@ -138,14 +138,14 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
               if (jvm != TargetJvm.GRAALVM_NATIVE && config.testGraalVmNativeOnly) {
                 continue;
               }
-//               if (jvm == TargetJvm.GRAALVM_NATIVE && deployment != DatabaseEngineDeployment.AURORA) {
-//                 // Run GraalVm Native for Aurora cluster only
-//                 continue;
-//               }
-//               if (jvm == TargetJvm.GRAALVM_NATIVE && numOfInstances != 2) {
-//                 // Run GraalVm Native for Aurora cluster 2-instance configuration only
-//                 continue;
-//               }
+              if (jvm == TargetJvm.GRAALVM_NATIVE && deployment != DatabaseEngineDeployment.AURORA) {
+                // Run GraalVm Native for Aurora cluster only
+                continue;
+              }
+              if (jvm == TargetJvm.GRAALVM_NATIVE && numOfInstances != 2) {
+                // Run GraalVm Native for Aurora cluster 2-instance configuration only
+                continue;
+              }
 
               resultContextList.add(
                   getEnvironment(
