@@ -411,27 +411,33 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           }
         }
 
-        if (originalWriter != null
-            && readerCandidate == null
-            && candidateConn == null
-            && System.nanoTime() < failoverEndTimeNano) {
-          // Try the original writer. The role may be inaccurate, so we will try connecting to it even if failover mode
-          // is set to STRICT_READER.
-          readerCandidate = originalWriter;
-          try {
-            candidateConn = this.pluginService.connect(readerCandidate, copyProp);
-            if (this.failoverMode == STRICT_READER
-                && this.pluginService.getHostRole(candidateConn) == HostRole.WRITER) {
-              verifiedWriter = readerCandidate;
-              candidateConn.close();
-              candidateConn = null;
-              remainingHosts.remove(readerCandidate);
-              readerCandidate = null;
-            }
-          } catch (SQLException ex) {
-            readerCandidate = null;
+        if (readerCandidate != null
+            || candidateConn != null
+            || originalWriter == null
+            || System.nanoTime() > failoverEndTimeNano) {
+          continue;
+        }
+
+        if (STRICT_READER.equals(this.failoverMode) && originalWriter.equals(verifiedWriter)) {
+          continue;
+        }
+
+        // Try the original writer. The role may be inaccurate, so we will try connecting to it even if failover mode
+        // is set to STRICT_READER.
+        readerCandidate = originalWriter;
+        try {
+          candidateConn = this.pluginService.connect(readerCandidate, copyProp);
+          if (this.failoverMode == STRICT_READER
+              && this.pluginService.getHostRole(candidateConn) == HostRole.WRITER) {
+            verifiedWriter = readerCandidate;
+            candidateConn.close();
             candidateConn = null;
+            remainingHosts.remove(readerCandidate);
+            readerCandidate = null;
           }
+        } catch (SQLException ex) {
+          readerCandidate = null;
+          candidateConn = null;
         }
       }
 
