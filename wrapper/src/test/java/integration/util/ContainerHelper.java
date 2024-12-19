@@ -133,7 +133,7 @@ public class ContainerHelper {
     assertEquals(0, exitCode, "Native compilation failed.");
 
     // run tests
-    exitCode = execInContainer(container, consumer, "./reachability/build/native/nativeCompile/reachability");
+    exitCode = execInContainer(container, consumer, "./gradlew", ":reachability:nativeRun");
 
     System.out.println("==== Container console feed ==== <<<<");
     assertEquals(0, exitCode, "Some tests failed.");

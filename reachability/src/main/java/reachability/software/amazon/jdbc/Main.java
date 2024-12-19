@@ -29,9 +29,6 @@ import java.util.Set;
 import java.util.logging.Logger;
 import javax.naming.Context;
 import javax.naming.InitialContext;
-import integration.DriverHelper;
-import integration.container.TestDriver;
-import integration.container.TestEnvironment;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
@@ -42,40 +39,26 @@ public class Main {
 
   public static void main(String[] args) throws SQLException {
 
-    if (!TestEnvironment.isAvailable()) {
-      throw new RuntimeException("This tests should be run inside a test container.");
+    if (!software.amazon.jdbc.Driver.isRegistered()) {
+      software.amazon.jdbc.Driver.register();
     }
 
-    for (TestDriver testDriver : TestEnvironment.getCurrent().getAllowedTestDrivers()) {
-      registerDrivers(testDriver);
+    final ClusterDetails clusterDetails = new ClusterDetails();
+    LOGGER.info(clusterDetails.toString());
 
-      simpleWorkflows();
-      simpleDataSourceWorkflow();
-      jndiLookup();
-      driverProfileWorkflow();
-      logQueryWorkflow();
-      internalPools();
-      iamWorkflow();
-      secretsManagerWorkflow();
-      customEndpoints();
-    }
+    simpleWorkflows(clusterDetails);
+    simpleDataSourceWorkflow(clusterDetails);
+    jndiLookup(clusterDetails);
+    driverProfileWorkflow(clusterDetails);
+    logQueryWorkflow(clusterDetails);
+    internalPools(clusterDetails);
+    iamWorkflow(clusterDetails);
+    secretsManagerWorkflow(clusterDetails);
+    customEndpoints(clusterDetails);
   }
 
-  private static void registerDrivers(final TestDriver testDriver) throws SQLException {
-    DriverHelper.unregisterAllDrivers();
-    DriverHelper.registerDriver(testDriver);
-    TestEnvironment.getCurrent().setCurrentDriver(testDriver);
-    LOGGER.finest("Registered " + testDriver + " driver.");
-  }
-
-  public static void simpleWorkflows() {
-    Properties props = getDefaultProperties();
-    final String endpoint = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getHost();
+  public static void simpleWorkflows(final ClusterDetails clusterDetails) {
+    Properties props = getDefaultProperties(clusterDetails);
     final Set<String> simpleWorkflowPlugins = Set.of(
         "executionTime",
         "logQuery",
@@ -97,13 +80,13 @@ public class Main {
     for (String plugin : simpleWorkflowPlugins) {
       props.setProperty("wrapperPlugins", plugin);
       LOGGER.finest("Testing simple workflow with " + plugin);
-      simpleDriverWorkflow(props, endpoint);
+      simpleDriverWorkflow(props, clusterDetails.endpoint, clusterDetails.databaseName);
     }
   }
 
-  public static void simpleDataSourceWorkflow() {
-    Properties props = getDefaultProperties();
-    AwsWrapperDataSource ds = getDataSource(props);
+  public static void simpleDataSourceWorkflow(final ClusterDetails clusterDetails) {
+    Properties props = getDefaultProperties(clusterDetails);
+    AwsWrapperDataSource ds = getDataSource(props, clusterDetails);
     try (Connection conn = ds.getConnection();
         Statement stmt = conn.createStatement();
         ResultSet rs = stmt.executeQuery("SELECT 1")) {
@@ -114,9 +97,9 @@ public class Main {
     }
   }
 
-  public static void jndiLookup() {
+  public static void jndiLookup(final ClusterDetails clusterDetails) {
     try {
-      AwsWrapperDataSource ds = getDataSource(getDefaultProperties());
+      AwsWrapperDataSource ds = getDataSource(getDefaultProperties(clusterDetails), clusterDetails);
       final Hashtable<String, Object> env = new Hashtable<>();
       env.put(Context.INITIAL_CONTEXT_FACTORY, SimpleJndiContextFactory.class.getName());
       final InitialContext context = new InitialContext(env);
@@ -128,114 +111,78 @@ public class Main {
     }
   }
 
-  public static void driverProfileWorkflow() {
-    Properties props = getDefaultProperties();
+  public static void driverProfileWorkflow(final ClusterDetails clusterDetails) {
+    Properties props = getDefaultProperties(clusterDetails);
     props.setProperty("wrapperProfileName", "D0");
     LOGGER.finest("Starting driver profile workflow...");
-    final String endpoint = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getHost();
 
-    simpleDriverWorkflow(props, endpoint);
+    simpleDriverWorkflow(props, clusterDetails.endpoint, clusterDetails.databaseName);
   }
 
-  public static void logQueryWorkflow() {
-    Properties props = getDefaultProperties();
+  public static void logQueryWorkflow(final ClusterDetails clusterDetails) {
+    Properties props = getDefaultProperties(clusterDetails);
     props.setProperty("wrapperPlugins", "logQuery");
     props.setProperty("enhancedLogQueryEnabled", "true");
-    final String endpoint = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getHost();
 
     LOGGER.finest("Starting log query workflow...");
-    simpleDriverWorkflow(props, endpoint);
+    simpleDriverWorkflow(props, clusterDetails.endpoint, clusterDetails.databaseName);
   }
 
-  public static void internalPools() {
-    Properties props = getDefaultProperties();
+  public static void internalPools(final ClusterDetails clusterDetails) {
+    Properties props = getDefaultProperties(clusterDetails);
     props.setProperty("wrapperPlugins", "readWriteSplitting");
     HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider((hostSpec, poolProps) -> new HikariConfig());
     ConnectionProviderManager.setConnectionProvider(provider);
 
-    final String endpoint = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getHost();
-
     LOGGER.finest("Starting internal pools workflow...");
-    simpleDriverWorkflow(props, endpoint);
+    simpleDriverWorkflow(props, clusterDetails.endpoint, clusterDetails.databaseName);
   }
 
-  public static void iamWorkflow() {
+  public static void iamWorkflow(final ClusterDetails clusterDetails) {
     Properties props = new Properties();
     props.setProperty("wrapperPlugins", "iam");
-    props.setProperty("user", TestEnvironment.getCurrent().getInfo().getIamUsername());
-    final String endpoint = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getHost();
+    props.setProperty("user", clusterDetails.iamUser);
 
     LOGGER.finest("Starting iam workflow....");
-    simpleDriverWorkflow(props, endpoint);
+    simpleDriverWorkflow(props, clusterDetails.endpoint, clusterDetails.databaseName);
   }
 
-  public static void secretsManagerWorkflow() {
+  public static void secretsManagerWorkflow(final ClusterDetails clusterDetails) {
     Properties props = new Properties();
     props.setProperty("wrapperPlugins", "awsSecretsManager");
     props.setProperty("secretsManagerSecretId", "secrets-manager-id");
-    props.setProperty("secretsManagerRegion", TestEnvironment.getCurrent().getInfo().getRegion());
-    final String endpoint = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getInstances()
-        .get(0)
-        .getHost();
+    props.setProperty("secretsManagerRegion", clusterDetails.region);
 
     LOGGER.finest("Starting secrets manager workflow...");
-    simpleDriverWorkflow(props, endpoint);
+    simpleDriverWorkflow(props, clusterDetails.endpoint, clusterDetails.databaseName);
   }
 
-  public static void customEndpoints() {
-    Properties props = getDefaultProperties();
+  public static void customEndpoints(final ClusterDetails clusterDetails) {
+    Properties props = getDefaultProperties(clusterDetails);
     props.setProperty("wrapperPlugins", "customEndpoint");
-    final String fakeCustomEndpoint = TestEnvironment.getCurrent()
-        .getInfo()
-        .getDatabaseInfo()
-        .getClusterEndpoint()
-        .replace(".cluster-", ".cluster-custom-");
+    final String fakeCustomEndpoint = clusterDetails.endpoint.replace(".cluster-", ".cluster-custom-");
 
     LOGGER.finest("Starting custom endpoints workflow...");
-    simpleDriverWorkflow(props, fakeCustomEndpoint);
+    simpleDriverWorkflow(props, fakeCustomEndpoint, clusterDetails.databaseName);
   }
 
-  private static AwsWrapperDataSource getDataSource(Properties props) {
+  private static AwsWrapperDataSource getDataSource(Properties props, final ClusterDetails clusterDetails) {
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
-    ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
-    ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerName(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint());
-    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    ds.setTargetDataSourceClassName("org.postgresql.ds.PGSimpleDataSource");
+    ds.setJdbcProtocol("jdbc:postgresql://");
+    ds.setServerName(clusterDetails.endpoint);
+    ds.setDatabase(clusterDetails.databaseName);
     ds.setTargetDataSourceProperties(props);
     return ds;
   }
 
-  private static void simpleDriverWorkflow(Properties props, String endpoint) {
+  private static void simpleDriverWorkflow(Properties props, String endpoint, String databaseName) {
     String url =
-        DriverHelper.getWrapperDriverProtocol()
+        "jdbc:aws-wrapper:postgresql://"
             + endpoint
             + "/"
-            + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
-            + DriverHelper.getDriverRequiredParameters();
+            + databaseName;
 
     try (Connection conn = DriverManager.getConnection(url, props);
         PreparedStatement stmt = conn.prepareStatement("SELECT ?")) {
@@ -250,11 +197,10 @@ public class Main {
     }
   }
 
-  private static Properties getDefaultProperties() {
+  private static Properties getDefaultProperties(final ClusterDetails clusterDetails) {
     Properties props = new Properties();
-    props.setProperty("user", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    props.setProperty("password", TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
-    //props.setProperty("defaultRowFetchSize", "10");
+    props.setProperty("user", clusterDetails.username);
+    props.setProperty("password", clusterDetails.password);
     return props;
   }
 }

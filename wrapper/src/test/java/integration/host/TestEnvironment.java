@@ -802,6 +802,16 @@ public class TestEnvironment implements AutoCloseable {
         .withEnv("TEST_ENV_INFO_JSON", getEnvironmentInfoAsString(env))
         .withEnv("TEST_ENV_DESCRIPTION", env.info.getRequest().getDisplayName());
 
+    if (env.info.getRequest().getTargetJvm() == TargetJvm.GRAALVM_NATIVE) {
+      env.testContainer
+          .withEnv("CLUSTER_ENDPOINT", env.info.getDatabaseInfo().getClusterEndpoint())
+          .withEnv("CLUSTER_REGION", env.info.getRegion())
+          .withEnv("IAM_USER", env.info.getIamUsername())
+          .withEnv("CLUSTER_USERNAME", env.info.getDatabaseInfo().getUsername())
+          .withEnv("CLUSTER_PASSWORD", env.info.getDatabaseInfo().getPassword())
+          .withEnv("CLUSTER_DATABASE_NAME", env.info.getDatabaseInfo().getDefaultDbName());
+    }
+
     if (env.info
         .getRequest()
         .getFeatures()
