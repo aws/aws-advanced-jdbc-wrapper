@@ -130,10 +130,22 @@ public class TestEnvironmentProvider implements TestTemplateInvocationContextPro
                 // Run hibernate tests with OPENJDK11 only.
                 continue;
               }
-              if (jvm == TargetJvm.GRAALVM && config.noGraalVm) {
+              if ((jvm == TargetJvm.GRAALVM || jvm == TargetJvm.GRAALVM_NATIVE)
+                  && config.noGraalVm
+                  && !config.testGraalVmNativeOnly) {
                 continue;
               }
-
+              if (jvm != TargetJvm.GRAALVM_NATIVE && config.testGraalVmNativeOnly) {
+                continue;
+              }
+              if (jvm == TargetJvm.GRAALVM_NATIVE && deployment != DatabaseEngineDeployment.AURORA) {
+                // Run GraalVm Native for Aurora cluster only
+                continue;
+              }
+              if (jvm == TargetJvm.GRAALVM_NATIVE && numOfInstances != 2) {
+                // Run GraalVm Native for Aurora cluster 2-instance configuration only
+                continue;
+              }
 
               resultContextList.add(
                   getEnvironment(

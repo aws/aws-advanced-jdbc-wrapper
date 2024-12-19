@@ -14,11 +14,18 @@
  * limitations under the License.
  */
 
-package integration;
+package integration.container.condition;
 
-public enum TargetJvm {
-  OPENJDK8,
-  OPENJDK11,
-  GRAALVM,
-  GRAALVM_NATIVE
+import integration.TargetJvm;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@Target({ElementType.TYPE, ElementType.METHOD})
+@ExtendWith(EnableOnTargetJvmCondition.class)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface EnableOnTargetJvm {
+  TargetJvm[] value() default {};
 }

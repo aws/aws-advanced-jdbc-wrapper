@@ -56,6 +56,8 @@ public class TestEnvironmentConfiguration {
       Boolean.parseBoolean(System.getProperty("test-no-openjdk11", "false"));
   public boolean testHibernateOnly =
       Boolean.parseBoolean(System.getProperty("test-hibernate-only", "false"));
+  public boolean testGraalVmNativeOnly =
+      Boolean.parseBoolean(System.getProperty("test-graalvm-native-only", "false"));
   public boolean testAutoscalingOnly =
       Boolean.parseBoolean(System.getProperty("test-autoscaling-only", "false"));
 

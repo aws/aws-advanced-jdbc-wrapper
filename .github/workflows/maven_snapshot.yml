@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
-          java-version: 8
+          java-version: 11
       - name: 'Build Driver'
         run: |
           ./gradlew --no-parallel --no-daemon -x test build

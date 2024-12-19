@@ -64,6 +64,11 @@ public class TestEnvironment {
     return env;
   }
 
+  public static boolean isAvailable() {
+    String infoJson = System.getenv("TEST_ENV_INFO_JSON");
+    return !StringUtils.isNullOrEmpty(infoJson);
+  }
+
   private static TestEnvironment create() {
     TestEnvironment environment = new TestEnvironment();
 

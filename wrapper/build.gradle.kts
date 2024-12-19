@@ -368,15 +368,23 @@ tasks.register<Test>("test-all-pg-aurora") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
+        // TODO: temporary
         systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-mysql-driver", "true")
-        systemProperty("test-no-mysql-engine", "true")
-        systemProperty("test-no-mariadb-driver", "true")
-        systemProperty("test-no-mariadb-engine", "true")
         systemProperty("test-no-multi-az", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
+        systemProperty("test-no-mysql-engine", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-graalvm-native-only", "true")
+
+//        systemProperty("test-no-docker", "true")
+//        systemProperty("test-no-performance", "true")
+//        systemProperty("test-no-mysql-driver", "true")
+//        systemProperty("test-no-mysql-engine", "true")
+//        systemProperty("test-no-mariadb-driver", "true")
+//        systemProperty("test-no-mariadb-engine", "true")
+//        systemProperty("test-no-multi-az", "true")
+//        systemProperty("test-no-graalvm", "true")
+//        systemProperty("test-no-openjdk8", "true")
     }
 }
 
@@ -400,14 +408,22 @@ tasks.register<Test>("test-all-mysql-aurora") {
     group = "verification"
     filter.includeTestsMatching("integration.host.TestRunner.runTests")
     doFirst {
+        // TODO: temporary
         systemProperty("test-no-docker", "true")
-        systemProperty("test-no-performance", "true")
-        systemProperty("test-no-pg-driver", "true")
+        systemProperty("test-no-multi-az", "true")
         systemProperty("test-no-pg-engine", "true")
         systemProperty("test-no-mariadb-engine", "true")
-        systemProperty("test-no-graalvm", "true")
-        systemProperty("test-no-openjdk8", "true")
-        systemProperty("test-no-multi-az", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-graalvm-native-only", "true")
+
+//        systemProperty("test-no-docker", "true")
+//        systemProperty("test-no-performance", "true")
+//        systemProperty("test-no-pg-driver", "true")
+//        systemProperty("test-no-pg-engine", "true")
+//        systemProperty("test-no-mariadb-engine", "true")
+//        systemProperty("test-no-graalvm", "true")
+//        systemProperty("test-no-openjdk8", "true")
+//        systemProperty("test-no-multi-az", "true")
     }
 }
 
@@ -634,5 +650,35 @@ tasks.register<Test>("debug-autoscaling-only") {
         systemProperty("test-no-docker", "true")
         systemProperty("test-no-performance", "true")
         systemProperty("test-no-graalvm", "true")
+    }
+}
+
+// GraalVM Native
+
+tasks.register<Test>("test-graalvm-native-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.runTests")
+    doFirst {
+        //systemProperty("test-no-docker", "true")
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-graalvm-native-only", "true")
+    }
+}
+
+tasks.register<Test>("debug-graalvm-native-only") {
+    group = "verification"
+    filter.includeTestsMatching("integration.host.TestRunner.debugTests")
+    doFirst {
+        //systemProperty("test-no-docker", "true")
+        systemProperty("test-no-aurora", "true")
+        systemProperty("test-no-multi-az", "true")
+        systemProperty("test-no-pg-engine", "true")
+        systemProperty("test-no-mariadb-engine", "true")
+        systemProperty("test-no-performance", "true")
+        systemProperty("test-graalvm-native-only", "true")
     }
 }
