@@ -384,6 +384,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     boolean isOriginalWriterStillWriter = false;
 
     do {
+      // First, try all original readers
       final Set<HostSpec> remainingReaders = new HashSet<>(readerCandidates);
       while (!remainingReaders.isEmpty() && System.nanoTime() < failoverEndTimeNano) {
         HostSpec readerCandidate;
@@ -414,12 +415,19 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           }
 
           // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
-          if (this.pluginService.getHostRole(candidateConn) == HostRole.WRITER) {
+          HostRole role = this.pluginService.getHostRole(candidateConn);
+          if (role == HostRole.READER) {
+            return new ReaderFailoverResult(candidateConn, readerCandidate);
+          } else if (role == HostRole.WRITER) {
             // The reader candidate is actually a writer, which is not valid when failoverMode is STRICT_READER.
             // We will remove it from the list of reader candidates and remaining readers to avoid retrying it.
             readerCandidates.remove(readerCandidate);
             remainingReaders.remove(readerCandidate);
             candidateConn.close();
+          } else {
+            LOGGER.fine(
+                Messages.get("Failover.strictReaderUnknownHostRole", new Object[]{readerCandidate.getUrl()}));
+            readerCandidates.remove(readerCandidate);
           }
         } catch (SQLException ex) {
           remainingReaders.remove(readerCandidate);
@@ -450,14 +458,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         HostRole role = this.pluginService.getHostRole(candidateConn);
         if (role == HostRole.READER) {
           return new ReaderFailoverResult(candidateConn, originalWriter);
+        } else if (role == HostRole.WRITER) {
+          isOriginalWriterStillWriter = true;
+        } else {
+          LOGGER.fine(Messages.get("Failover.strictReaderUnknownHostRole", new Object[]{originalWriter.getUrl()}));
         }
 
         // We are in STRICT_READER mode and the connection is not a reader, so it is not valid.
-
-        if (role == HostRole.WRITER) {
-          isOriginalWriterStillWriter = true;
-        }
-
         candidateConn.close();
       } catch (SQLException ex) {
         LOGGER.fine(Messages.get("Failover.failedReaderConnection", new Object[]{originalWriter.getUrl()}));
