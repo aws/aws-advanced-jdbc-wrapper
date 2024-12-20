@@ -110,41 +110,6 @@ class ConnectionUrlParserTest {
     assertEquals(expected, props.getProperty("param"));
   }
 
-  @ParameterizedTest
-  @MethodSource("getTestParseHostArgs")
-  void testParseHost(final String connString, final String expected) {
-    assertEquals(expected, ConnectionUrlParser.parseHost(connString));
-  }
-
-  private static Stream<Arguments> getTestParseHostArgs() {
-    return Stream.of(
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-XYZ.us-east-2.rds.amazonaws.com",
-          "mydb.cluster-XYZ.us-east-2.rds.amazonaws.com"),
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-XYZ.us-east-2.rds.amazonaws.com:5432",
-          "mydb.cluster-XYZ.us-east-2.rds.amazonaws.com"),
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-XYZ.us-east-2.rds.amazonaws.com:5432?connectTimeout=30000",
-        "mydb.cluster-XYZ.us-east-2.rds.amazonaws.com"),
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-XYZ.us-east-2.rds.amazonaws.com/test",
-        "mydb.cluster-XYZ.us-east-2.rds.amazonaws.com"),
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/test",
-        "mydb.cluster-XYZ.us-east-2.rds.amazonaws.com"),
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-XYZ.us-east-2.rds.amazonaws.com:5432?connectTimeout=30000/test",
-        "mydb.cluster-XYZ.us-east-2.rds.amazonaws.com"),
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-ro-XYZ.us-east-2.rds.amazonaws.com:5432?connectTimeout=30000/test",
-          "mydb.cluster-ro-XYZ.us-east-2.rds.amazonaws.com"),
-      Arguments.of(
-          "jdbc:postgresql://mydb.cluster-XYZ.rds.cn-northwest-1.amazonaws.com.cn:5432/test",
-          "mydb.cluster-XYZ.rds.cn-northwest-1.amazonaws.com.cn")
-    );
-  }
-
   private static Stream<Arguments> testGetHostsFromConnectionUrlArguments() {
     return Stream.of(
         Arguments.of("protocol//", new ArrayList<HostSpec>()),

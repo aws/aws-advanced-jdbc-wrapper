@@ -43,7 +43,6 @@ import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
-import software.amazon.jdbc.util.ConnectionUrlParser;
 import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -107,6 +106,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private RdsUrlType rdsUrlType = null;
   private HostListProviderService hostListProviderService;
   private final AuroraStaleDnsHelper staleDnsHelper;
+  private Supplier<WriterFailoverHandler> writerFailoverHandlerSupplier;
+  private Supplier<ReaderFailoverHandler> readerFailoverHandlerSupplier;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -257,7 +258,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
     initHostProvider(
-        initialUrl,
         hostListProviderService,
         initHostProviderFunc,
         () ->
@@ -278,22 +278,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   void initHostProvider(
-      final String initialUrl,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc,
-      final Supplier<ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
-      final Supplier<ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
+      final Supplier<ReaderFailoverHandler> readerFailoverHandlerSupplier,
+      final Supplier<WriterFailoverHandler> writerFailoverHandlerSupplier)
       throws SQLException {
+    this.readerFailoverHandlerSupplier = readerFailoverHandlerSupplier;
+    this.writerFailoverHandlerSupplier = writerFailoverHandlerSupplier;
+
     this.hostListProviderService = hostListProviderService;
     if (!this.enableFailoverSetting) {
       return;
     }
 
     initHostProviderFunc.call();
-    initFailoverMode(initialUrl);
-
-    this.readerFailoverHandler = readerFailoverHandlerSupplier.get();
-    this.writerFailoverHandler = writerFailoverHandlerSupplier.get();
   }
 
   @Override
@@ -337,11 +335,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return true;
   }
 
-  // For testing purposes
-  void setRdsUrlType(final RdsUrlType rdsUrlType) {
-    this.rdsUrlType = rdsUrlType;
-  }
-
   public boolean isFailoverEnabled() {
     return this.enableFailoverSetting
         && !RdsUrlType.RDS_PROXY.equals(this.rdsUrlType)
@@ -360,10 +353,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         TELEMETRY_FAILOVER_ADDITIONAL_TOP_TRACE.getBoolean(this.properties);
   }
 
-  protected void initFailoverMode(final String initialUrl) {
+  protected void initFailoverMode() {
     if (this.rdsUrlType == null) {
       this.failoverMode = FailoverMode.fromValue(FAILOVER_MODE.getString(this.properties));
-      this.rdsUrlType = this.rdsHelper.identifyRdsType(ConnectionUrlParser.parseHost(initialUrl));
+      final HostSpec initialHostSpec = this.hostListProviderService.getInitialConnectionHostSpec();
+      this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
+
       if (this.failoverMode == null) {
         this.failoverMode = this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
             ? FailoverMode.READER_OR_WRITER
@@ -803,6 +798,21 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc, boolean isForceConnect)
       throws SQLException {
+    this.initFailoverMode();
+    if (this.readerFailoverHandler == null) {
+      if (this.readerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
+      }
+      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.get();
+    }
+
+    if (this.writerFailoverHandler == null) {
+      if (this.writerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullWriterFailoverHandlerSupplier"));
+      }
+      this.writerFailoverHandler = this.writerFailoverHandlerSupplier.get();
+    }
+
     Connection conn = null;
     try {
       conn =
@@ -841,5 +851,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
     return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc, true);
+  }
+
+  // The below methods are for testing purposes
+  void setRdsUrlType(final RdsUrlType rdsUrlType) {
+    this.rdsUrlType = rdsUrlType;
+  }
+
+  void setWriterFailoverHandler(final WriterFailoverHandler writerFailoverHandler) {
+    this.writerFailoverHandler = writerFailoverHandler;
+  }
+
+  void setReaderFailoverHandler(final ReaderFailoverHandler readerFailoverHandler) {
+    this.readerFailoverHandler = readerFailoverHandler;
   }
 }
