@@ -236,6 +236,10 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     }
 
     final long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
+
+    // Note that we are checking reference equality instead of value equality here. We will break out of the loop if
+    // there is a new entry in the topology map, even if the value of the hosts in latestHosts is the same as
+    // currentHosts.
     while (currentHosts == (latestHosts = this.topologyMap.get(this.clusterId))
         && System.nanoTime() < end) {
       try {

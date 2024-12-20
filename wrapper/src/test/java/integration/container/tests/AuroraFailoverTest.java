@@ -640,6 +640,110 @@ public class AuroraFailoverTest {
     }
   }
 
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
+  public void test_readerFailover_readerOrWriter() throws SQLException, InterruptedException {
+    final String initialWriterId = this.currentWriter;
+    TestInstanceInfo initialWriterInstanceInfo =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+
+    final Properties props = initDefaultProps();
+    props.setProperty("failoverMode", "reader-or-writer");
+
+    try (final Connection conn =
+             DriverManager.getConnection(
+                 ConnectionStringHelper.getWrapperUrl(
+                     initialWriterInstanceInfo.getHost(),
+                     initialWriterInstanceInfo.getPort(),
+                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                 props)) {
+
+      // Crash Instance1 and nominate a new writer
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+
+      // Failure occurs on Connection invocation
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+    }
+  }
+
+  @TestTemplate
+  @EnableOnNumOfInstances(min = 2)
+  public void test_readerFailover_strictReader() throws SQLException, InterruptedException {
+    final String initialWriterId = this.currentWriter;
+    TestInstanceInfo initialWriterInstanceInfo =
+        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+
+    final Properties props = initDefaultProps();
+    props.setProperty("failoverMode", "strict-reader");
+
+    try (final Connection conn =
+             DriverManager.getConnection(
+                 ConnectionStringHelper.getWrapperUrl(
+                     initialWriterInstanceInfo.getHost(),
+                     initialWriterInstanceInfo.getPort(),
+                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                 props)) {
+
+      // Crash Instance1 and nominate a new writer
+      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+
+      // Failure occurs on Connection invocation
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+
+      String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertFalse(auroraUtil.isDBInstanceWriter(currentConnectionId));
+    }
+  }
+
+  @TestTemplate
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_readerFailover_writerReelected() throws SQLException, InterruptedException {
+    final String initialWriterId = this.currentWriter;
+    TestInstanceInfo initialWriterInstanceInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
+
+    final Properties props = initDefaultProxiedProps();
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "2000");
+    props.setProperty("failoverMode", "reader-or-writer");
+
+    try (final Connection conn =
+             DriverManager.getConnection(
+                 ConnectionStringHelper.getWrapperUrl(
+                     initialWriterInstanceInfo.getHost(),
+                     initialWriterInstanceInfo.getPort(),
+                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                 props)) {
+
+      ExecutorService executor = Executors.newFixedThreadPool(1, r -> {
+        final Thread thread = new Thread(r);
+        thread.setDaemon(true);
+        return thread;
+      });
+
+      try {
+        // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
+        // simulate this by temporarily disabling connectivity to the writer.
+        executor.submit(() -> {
+          try {
+            ProxyHelper.disableConnectivity(initialWriterId);
+            TimeUnit.SECONDS.sleep(5);
+            ProxyHelper.enableConnectivity(initialWriterId);
+          } catch (InterruptedException e) {
+            fail("The disable connectivity thread was unexpectedly interrupted.");
+          }
+        });
+
+        // Leave some time for the other thread to start up
+        TimeUnit.MILLISECONDS.sleep(500);
+
+        // Failure occurs on Connection invocation
+        auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      } finally {
+        executor.shutdownNow();
+      }
+    }
+  }
+
   // Helper methods below
 
   protected String getFailoverPlugin() {

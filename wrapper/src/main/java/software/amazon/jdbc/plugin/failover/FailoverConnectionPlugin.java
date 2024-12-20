@@ -36,7 +36,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
-import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -107,6 +106,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private RdsUrlType rdsUrlType = null;
   private HostListProviderService hostListProviderService;
   private final AuroraStaleDnsHelper staleDnsHelper;
+  private Supplier<WriterFailoverHandler> writerFailoverHandlerSupplier;
+  private Supplier<ReaderFailoverHandler> readerFailoverHandlerSupplier;
 
   public static final AwsWrapperProperty FAILOVER_CLUSTER_TOPOLOGY_REFRESH_RATE_MS =
       new AwsWrapperProperty(
@@ -257,7 +258,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
     initHostProvider(
-        initialUrl,
         hostListProviderService,
         initHostProviderFunc,
         () ->
@@ -278,26 +278,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   void initHostProvider(
-      final String initialUrl,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc,
-      final Supplier<ClusterAwareReaderFailoverHandler> readerFailoverHandlerSupplier,
-      final Supplier<ClusterAwareWriterFailoverHandler> writerFailoverHandlerSupplier)
+      final Supplier<ReaderFailoverHandler> readerFailoverHandlerSupplier,
+      final Supplier<WriterFailoverHandler> writerFailoverHandlerSupplier)
       throws SQLException {
+    this.readerFailoverHandlerSupplier = readerFailoverHandlerSupplier;
+    this.writerFailoverHandlerSupplier = writerFailoverHandlerSupplier;
+
     this.hostListProviderService = hostListProviderService;
     if (!this.enableFailoverSetting) {
       return;
     }
 
-    this.readerFailoverHandler = readerFailoverHandlerSupplier.get();
-    this.writerFailoverHandler = writerFailoverHandlerSupplier.get();
-
     initHostProviderFunc.call();
-  }
-
-  @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
-    return OldConnectionSuggestedAction.NO_OPINION;
   }
 
   @Override
@@ -339,11 +333,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return !options.contains(NodeChangeOptions.NODE_DELETED) && !options.contains(NodeChangeOptions.WENT_DOWN);
     }
     return true;
-  }
-
-  // For testing purposes
-  void setRdsUrlType(final RdsUrlType rdsUrlType) {
-    this.rdsUrlType = rdsUrlType;
   }
 
   public boolean isFailoverEnabled() {
@@ -494,7 +483,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return hostSpec.getRole() == HostRole.WRITER;
   }
 
-  private void processFailoverFailure(final String message) throws SQLException {
+  private void throwFailoverFailedException(final String message) throws SQLException {
     LOGGER.severe(message);
     throw new FailoverFailedSQLException(message);
   }
@@ -578,7 +567,65 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } else {
       failoverReader(failedHost);
     }
+  }
 
+  protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
+    this.failoverReaderTriggeredCounter.inc();
+
+    try {
+      LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
+
+      HostSpec failedHost = null;
+      final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
+      if (failedHostSpec != null && failedHostSpec.getRawAvailability() == HostAvailability.AVAILABLE) {
+        failedHost = failedHostSpec;
+      }
+
+      final ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
+      if (result != null) {
+        final SQLException exception = result.getException();
+        if (exception != null) {
+          throw exception;
+        }
+      }
+
+      if (result == null || !result.isConnected()) {
+        throwFailoverFailedException(Messages.get("Failover.unableToConnectToReader"));
+        return;
+      }
+
+      this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
+
+      this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
+      updateTopology(true);
+
+      LOGGER.info(
+          () -> Messages.get(
+              "Failover.establishedConnection",
+              new Object[] {this.pluginService.getCurrentHostSpec()}));
+      throwFailoverSuccessException();
+    } catch (FailoverSuccessSQLException ex) {
+      this.failoverReaderSuccessCounter.inc();
+      telemetryContext.setSuccess(true);
+      telemetryContext.setException(ex);
+      throw ex;
+    } catch (Exception ex) {
+      telemetryContext.setSuccess(false);
+      telemetryContext.setException(ex);
+      this.failoverReaderFailedCounter.inc();
+      throw ex;
+    } finally {
+      telemetryContext.closeContext();
+      if (this.telemetryFailoverAdditionalTopTraceSetting) {
+        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+      }
+    }
+  }
+
+  protected void throwFailoverSuccessException() throws SQLException {
     if (isInTransaction || this.pluginService.isInTransaction()) {
       if (this.pluginManagerService != null) {
         this.pluginManagerService.setInTransaction(false);
@@ -596,67 +643,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
-    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-        TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
-    this.failoverReaderTriggeredCounter.inc();
-
-    try {
-      LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
-
-      HostSpec failedHost = null;
-      final Set<String> oldAliases = this.pluginService.getCurrentHostSpec().getAliases();
-      if (failedHostSpec != null && failedHostSpec.getRawAvailability() == HostAvailability.AVAILABLE) {
-        failedHost = failedHostSpec;
-      }
-      final ReaderFailoverResult result =
-          readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
-
-      if (result != null) {
-        final SQLException exception = result.getException();
-        if (exception != null) {
-          throw exception;
-        }
-      }
-
-      if (result == null || !result.isConnected()) {
-        // "Unable to establish SQL connection to reader instance"
-        processFailoverFailure(Messages.get("Failover.unableToConnectToReader"));
-        this.failoverReaderFailedCounter.inc();
-        return;
-      }
-
-      this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
-
-      this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[]{}));
-      updateTopology(true);
-
-      LOGGER.info(
-          () -> Messages.get(
-              "Failover.establishedConnection",
-              new Object[]{this.pluginService.getCurrentHostSpec()}));
-
-      this.failoverReaderSuccessCounter.inc();
-
-    } catch (FailoverSuccessSQLException ex) {
-      telemetryContext.setSuccess(true);
-      telemetryContext.setException(ex);
-      this.failoverReaderSuccessCounter.inc();
-      throw ex;
-    } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
-      this.failoverReaderFailedCounter.inc();
-      throw ex;
-    } finally {
-      telemetryContext.closeContext();
-      if (this.telemetryFailoverAdditionalTopTraceSetting) {
-        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
-      }
-    }
-  }
-
   protected void failoverWriter() throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
@@ -665,8 +651,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
-      final WriterFailoverResult failoverResult =
-          this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
+      final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {
@@ -675,23 +660,25 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       if (failoverResult == null || !failoverResult.isConnected()) {
-        // "Unable to establish SQL connection to writer node"
-        processFailoverFailure(Messages.get("Failover.unableToConnectToWriter"));
-        this.failoverWriterFailedCounter.inc();
+        throwFailoverFailedException(Messages.get("Failover.unableToConnectToWriter"));
         return;
       }
 
-      // successfully re-connected to a writer node
-      final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
+      List<HostSpec> hosts = failoverResult.getTopology();
+      final HostSpec writerHostSpec = getWriter(hosts);
+      if (writerHostSpec == null) {
+        throwFailoverFailedException(
+            Messages.get(
+                "Failover.noWriterHostAfterReconnecting",
+                new Object[]{Utils.logTopology(hosts, "")}));
+        return;
+      }
+
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!allowedHosts.contains(writerHostSpec)) {
-        this.failoverWriterFailedCounter.inc();
-        processFailoverFailure(
+        throwFailoverFailedException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {
-                    writerHostSpec == null ? "<null>" : writerHostSpec.getHost(),
-                    Utils.logTopology(allowedHosts, "")
-                }));
+                new Object[] {writerHostSpec.getHost(), Utils.logTopology(allowedHosts, "")}));
         return;
       }
 
@@ -703,8 +690,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               new Object[]{this.pluginService.getCurrentHostSpec()}));
 
       this.pluginService.refreshHostList();
-
-      this.failoverWriterSuccessCounter.inc();
+      throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
       telemetryContext.setSuccess(true);
       telemetryContext.setException(ex);
@@ -813,6 +799,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc, boolean isForceConnect)
       throws SQLException {
     this.initFailoverMode();
+    if (this.readerFailoverHandler == null) {
+      if (this.readerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullReaderFailoverHandlerSupplier"));
+      }
+      this.readerFailoverHandler = this.readerFailoverHandlerSupplier.get();
+    }
+
+    if (this.writerFailoverHandler == null) {
+      if (this.writerFailoverHandlerSupplier == null) {
+        throw new SQLException(Messages.get("Failover.nullWriterFailoverHandlerSupplier"));
+      }
+      this.writerFailoverHandler = this.writerFailoverHandlerSupplier.get();
+    }
+
     Connection conn = null;
     try {
       conn =
@@ -851,5 +851,18 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> forceConnectFunc)
       throws SQLException {
     return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc, true);
+  }
+
+  // The below methods are for testing purposes
+  void setRdsUrlType(final RdsUrlType rdsUrlType) {
+    this.rdsUrlType = rdsUrlType;
+  }
+
+  void setWriterFailoverHandler(final WriterFailoverHandler writerFailoverHandler) {
+    this.writerFailoverHandler = writerFailoverHandler;
+  }
+
+  void setReaderFailoverHandler(final ReaderFailoverHandler readerFailoverHandler) {
+    this.readerFailoverHandler = readerFailoverHandler;
   }
 }
