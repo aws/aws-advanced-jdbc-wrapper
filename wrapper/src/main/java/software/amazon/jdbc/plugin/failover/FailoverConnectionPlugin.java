@@ -36,7 +36,6 @@ import software.amazon.jdbc.HostRole;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.NodeChangeOptions;
-import software.amazon.jdbc.OldConnectionSuggestedAction;
 import software.amazon.jdbc.PluginManagerService;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.PropertyDefinition;
@@ -298,11 +297,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public OldConnectionSuggestedAction notifyConnectionChanged(final EnumSet<NodeChangeOptions> changes) {
-    return OldConnectionSuggestedAction.NO_OPINION;
-  }
-
-  @Override
   public void notifyNodeListChanged(final Map<String, EnumSet<NodeChangeOptions>> changes) {
 
     if (!this.enableFailoverSetting) {
@@ -494,7 +488,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     return hostSpec.getRole() == HostRole.WRITER;
   }
 
-  private void processFailoverFailure(final String message) throws SQLException {
+  private void throwFailoverFailedException(final String message) throws SQLException {
     LOGGER.severe(message);
     throw new FailoverFailedSQLException(message);
   }
@@ -594,9 +588,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (failedHostSpec != null && failedHostSpec.getRawAvailability() == HostAvailability.AVAILABLE) {
         failedHost = failedHostSpec;
       }
-      final ReaderFailoverResult result =
-          readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
 
+      final ReaderFailoverResult result = readerFailoverHandler.failover(this.pluginService.getHosts(), failedHost);
       if (result != null) {
         final SQLException exception = result.getException();
         if (exception != null) {
@@ -605,9 +598,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       if (result == null || !result.isConnected()) {
-        // "Unable to establish SQL connection to reader instance"
-        processFailoverFailure(Messages.get("Failover.unableToConnectToReader"));
-        this.failoverReaderFailedCounter.inc();
+        throwFailoverFailedException(Messages.get("Failover.unableToConnectToReader"));
         return;
       }
 
@@ -620,13 +611,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           () -> Messages.get(
               "Failover.establishedConnection",
               new Object[] {this.pluginService.getCurrentHostSpec()}));
-
+      throwFailoverSuccessException();
+    } catch (FailoverSuccessSQLException ex) {
       this.failoverReaderSuccessCounter.inc();
       telemetryContext.setSuccess(true);
-      SQLException failoverSuccessException = getFailoverSuccessException();
-      telemetryContext.setException(failoverSuccessException);
-      throw failoverSuccessException;
-    } catch (FailoverSuccessSQLException ex) {
+      telemetryContext.setException(ex);
       throw ex;
     } catch (Exception ex) {
       telemetryContext.setSuccess(false);
@@ -641,7 +630,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  protected SQLException getFailoverSuccessException() {
+  protected void throwFailoverSuccessException() throws SQLException {
     if (isInTransaction || this.pluginService.isInTransaction()) {
       if (this.pluginManagerService != null) {
         this.pluginManagerService.setInTransaction(false);
@@ -650,12 +639,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       // restarting transaction."
       final String errorMessage = Messages.get("Failover.transactionResolutionUnknownError");
       LOGGER.info(errorMessage);
-      return new TransactionStateUnknownSQLException();
+      throw new TransactionStateUnknownSQLException();
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
       // session state if required. "
       LOGGER.severe(() -> Messages.get("Failover.connectionChangedError"));
-      return new FailoverSuccessSQLException();
+      throw new FailoverSuccessSQLException();
     }
   }
 
@@ -667,8 +656,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
-      final WriterFailoverResult failoverResult =
-          this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
+      final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
       if (failoverResult != null) {
         final SQLException exception = failoverResult.getException();
         if (exception != null) {
@@ -677,23 +665,25 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       if (failoverResult == null || !failoverResult.isConnected()) {
-        // "Unable to establish SQL connection to writer node"
-        processFailoverFailure(Messages.get("Failover.unableToConnectToWriter"));
-        this.failoverWriterFailedCounter.inc();
+        throwFailoverFailedException(Messages.get("Failover.unableToConnectToWriter"));
         return;
       }
 
-      // successfully re-connected to a writer node
-      final HostSpec writerHostSpec = getWriter(failoverResult.getTopology());
+      List<HostSpec> hosts = failoverResult.getTopology();
+      final HostSpec writerHostSpec = getWriter(hosts);
+      if (writerHostSpec == null) {
+        throwFailoverFailedException(
+            Messages.get(
+                "Failover.noWriterHostAfterReconnecting",
+                new Object[]{Utils.logTopology(hosts, "")}));
+        return;
+      }
+
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
       if (!allowedHosts.contains(writerHostSpec)) {
-        this.failoverWriterFailedCounter.inc();
-        processFailoverFailure(
+        throwFailoverFailedException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {
-                    writerHostSpec == null ? "<null>" : writerHostSpec.getHost(),
-                    Utils.logTopology(allowedHosts, "")
-                }));
+                new Object[] {writerHostSpec.getHost(), Utils.logTopology(allowedHosts, "")}));
         return;
       }
 
@@ -705,8 +695,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
               new Object[]{this.pluginService.getCurrentHostSpec()}));
 
       this.pluginService.refreshHostList();
-
-      this.failoverWriterSuccessCounter.inc();
+      throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
       telemetryContext.setSuccess(true);
       telemetryContext.setException(ex);

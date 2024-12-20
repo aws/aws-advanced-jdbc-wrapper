@@ -334,7 +334,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throw new FailoverFailedSQLException(Messages.get("Failover.failoverReaderUnableToRefreshHostList"));
       }
 
-      try  {
+      try {
         ReaderFailoverResult result = getReaderFailoverConnection(failoverEndNano);
         this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
       } catch (TimeoutException e) {
@@ -345,12 +345,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       LOGGER.info(
           () -> Messages.get(
               "Failover.establishedConnection",
-              new Object[]{this.pluginService.getCurrentHostSpec()}));
+              new Object[] {this.pluginService.getCurrentHostSpec()}));
+      throwFailoverSuccessException();
+    } catch (FailoverSuccessSQLException ex) {
       this.failoverReaderSuccessCounter.inc();
       telemetryContext.setSuccess(true);
-      SQLException failoverSuccessException = getFailoverSuccessException();
-      telemetryContext.setException(failoverSuccessException);
-      throw failoverSuccessException;
+      telemetryContext.setException(ex);
+      throw ex;
     } catch (Exception ex) {
       telemetryContext.setSuccess(false);
       telemetryContext.setException(ex);
@@ -394,19 +395,15 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
                   this.failoverReaderHostSelectorStrategySetting);
         } catch (UnsupportedOperationException | SQLException ex) {
           LOGGER.finest(
-              Messages.get(
-                  "Failover.errorSelectingReaderHost",
-                  new Object[]{
-                      ex.getMessage(),
-                      Utils.logTopology(new ArrayList<>(remainingReaders), "")
-                  }));
+              Utils.logTopology(
+                  new ArrayList<>(remainingReaders),
+                  Messages.get("Failover.errorSelectingReaderHost", new Object[]{ex.getMessage()})));
           break;
         }
 
         if (readerCandidate == null) {
           LOGGER.finest(
-              Messages.get("Failover.readerCandidateNull",
-                  new Object[]{Utils.logTopology(new ArrayList<>(remainingReaders), "")}));
+              Utils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
           break;
         }
 
@@ -470,7 +467,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     throw new TimeoutException(Messages.get("Failover.failoverReaderTimeout"));
   }
 
-  protected SQLException getFailoverSuccessException() {
+  protected void throwFailoverSuccessException() throws SQLException {
     if (isInTransaction || this.pluginService.isInTransaction()) {
       if (this.pluginManagerService != null) {
         this.pluginManagerService.setInTransaction(false);
@@ -479,12 +476,12 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       // restarting transaction."
       final String errorMessage = Messages.get("Failover.transactionResolutionUnknownError");
       LOGGER.info(errorMessage);
-      return new TransactionStateUnknownSQLException();
+      throw new TransactionStateUnknownSQLException();
     } else {
       // "The active SQL connection has changed due to a connection failure. Please re-configure
       // session state if required. "
       LOGGER.severe(() -> Messages.get("Failover.connectionChangedError"));
-      return new FailoverSuccessSQLException();
+      throw new FailoverSuccessSQLException();
     }
   }
 
@@ -552,7 +549,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           // do nothing
         }
         this.failoverWriterFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
+        LOGGER.severe(
+            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
         throw new FailoverFailedSQLException(Messages.get("Failover.unexpectedReaderRole"));
       }
 
@@ -562,13 +560,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           () -> Messages.get(
               "Failover.establishedConnection",
               new Object[]{this.pluginService.getCurrentHostSpec()}));
-
+      throwFailoverSuccessException();
+    } catch (FailoverSuccessSQLException ex) {
       this.failoverWriterSuccessCounter.inc();
       telemetryContext.setSuccess(true);
-      SQLException failoverSuccessException = getFailoverSuccessException();
-      telemetryContext.setException(failoverSuccessException);
-      throw failoverSuccessException;
-    } catch (FailoverSuccessSQLException ex) {
+      telemetryContext.setException(ex);
       throw ex;
     } catch (Exception ex) {
       telemetryContext.setSuccess(false);
