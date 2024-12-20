@@ -578,22 +578,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } else {
       failoverReader(failedHost);
     }
-
-    if (isInTransaction || this.pluginService.isInTransaction()) {
-      if (this.pluginManagerService != null) {
-        this.pluginManagerService.setInTransaction(false);
-      }
-      // "Transaction resolution unknown. Please re-configure session state if required and try
-      // restarting transaction."
-      final String errorMessage = Messages.get("Failover.transactionResolutionUnknownError");
-      LOGGER.info(errorMessage);
-      throw new TransactionStateUnknownSQLException();
-    } else {
-      // "The active SQL connection has changed due to a connection failure. Please re-configure
-      // session state if required. "
-      LOGGER.severe(() -> Messages.get("Failover.connectionChangedError"));
-      throw new FailoverSuccessSQLException();
-    }
   }
 
   protected void failoverReader(final HostSpec failedHostSpec) throws SQLException {
@@ -629,20 +613,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       this.pluginService.setCurrentConnection(result.getConnection(), result.getHost());
 
-      this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[]{}));
+      this.pluginService.getCurrentHostSpec().removeAlias(oldAliases.toArray(new String[] {}));
       updateTopology(true);
 
       LOGGER.info(
           () -> Messages.get(
               "Failover.establishedConnection",
-              new Object[]{this.pluginService.getCurrentHostSpec()}));
+              new Object[] {this.pluginService.getCurrentHostSpec()}));
 
       this.failoverReaderSuccessCounter.inc();
-
-    } catch (FailoverSuccessSQLException ex) {
       telemetryContext.setSuccess(true);
-      telemetryContext.setException(ex);
-      this.failoverReaderSuccessCounter.inc();
+      SQLException failoverSuccessException = getFailoverSuccessException();
+      telemetryContext.setException(failoverSuccessException);
+      throw failoverSuccessException;
+    } catch (FailoverSuccessSQLException ex) {
       throw ex;
     } catch (Exception ex) {
       telemetryContext.setSuccess(false);
@@ -654,6 +638,24 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       if (this.telemetryFailoverAdditionalTopTraceSetting) {
         telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
       }
+    }
+  }
+
+  protected SQLException getFailoverSuccessException() {
+    if (isInTransaction || this.pluginService.isInTransaction()) {
+      if (this.pluginManagerService != null) {
+        this.pluginManagerService.setInTransaction(false);
+      }
+      // "Transaction resolution unknown. Please re-configure session state if required and try
+      // restarting transaction."
+      final String errorMessage = Messages.get("Failover.transactionResolutionUnknownError");
+      LOGGER.info(errorMessage);
+      return new TransactionStateUnknownSQLException();
+    } else {
+      // "The active SQL connection has changed due to a connection failure. Please re-configure
+      // session state if required. "
+      LOGGER.severe(() -> Messages.get("Failover.connectionChangedError"));
+      return new FailoverSuccessSQLException();
     }
   }
 
