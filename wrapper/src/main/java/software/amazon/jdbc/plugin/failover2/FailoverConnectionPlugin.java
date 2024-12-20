@@ -410,24 +410,24 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
         try {
           Connection candidateConn = this.pluginService.connect(readerCandidate, copyProp);
-          if (this.failoverMode != STRICT_READER) {
-            return new ReaderFailoverResult(candidateConn, readerCandidate);
-          }
-
           // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
           HostRole role = this.pluginService.getHostRole(candidateConn);
-          if (role == HostRole.READER) {
-            return new ReaderFailoverResult(candidateConn, readerCandidate);
-          } else if (role == HostRole.WRITER) {
+          if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
+            HostSpec updatedHostSpec = new HostSpec(readerCandidate, role);
+            return new ReaderFailoverResult(candidateConn, updatedHostSpec);
+          }
+
+          // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is not valid.
+          remainingReaders.remove(readerCandidate);
+          candidateConn.close();
+
+          if (role == HostRole.WRITER) {
             // The reader candidate is actually a writer, which is not valid when failoverMode is STRICT_READER.
-            // We will remove it from the list of reader candidates and remaining readers to avoid retrying it.
+            // We will remove it from the list of reader candidates to avoid retrying it in future iterations.
             readerCandidates.remove(readerCandidate);
-            remainingReaders.remove(readerCandidate);
-            candidateConn.close();
           } else {
             LOGGER.fine(
                 Messages.get("Failover.strictReaderUnknownHostRole", new Object[]{readerCandidate.getUrl()}));
-            readerCandidates.remove(readerCandidate);
           }
         } catch (SQLException ex) {
           remainingReaders.remove(readerCandidate);
@@ -450,22 +450,20 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       // Try the original writer, which may have been demoted to a reader.
       try {
         Connection candidateConn = this.pluginService.connect(originalWriter, copyProp);
-        if (this.failoverMode != STRICT_READER) {
-          return new ReaderFailoverResult(candidateConn, originalWriter);
+        HostRole role = this.pluginService.getHostRole(candidateConn);
+        if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
+          HostSpec updatedHostSpec = new HostSpec(originalWriter, role);
+          return new ReaderFailoverResult(candidateConn, updatedHostSpec);
         }
 
-        // We are in STRICT_READER mode, so we need to verify the host's role.
-        HostRole role = this.pluginService.getHostRole(candidateConn);
-        if (role == HostRole.READER) {
-          return new ReaderFailoverResult(candidateConn, originalWriter);
-        } else if (role == HostRole.WRITER) {
+        // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is not valid.
+        candidateConn.close();
+
+        if (role == HostRole.WRITER) {
           isOriginalWriterStillWriter = true;
         } else {
           LOGGER.fine(Messages.get("Failover.strictReaderUnknownHostRole", new Object[]{originalWriter.getUrl()}));
         }
-
-        // We are in STRICT_READER mode and the connection is not a reader, so it is not valid.
-        candidateConn.close();
       } catch (SQLException ex) {
         LOGGER.fine(Messages.get("Failover.failedReaderConnection", new Object[]{originalWriter.getUrl()}));
       }
