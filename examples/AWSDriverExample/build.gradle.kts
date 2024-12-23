@@ -17,7 +17,7 @@
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     implementation("org.postgresql:postgresql:42.7.4")
-    implementation("com.mysql:mysql-connector-j:8.3.0")
+    implementation("com.mysql:mysql-connector-j:9.1.0")
     implementation("software.amazon.awssdk:rds:2.29.34")
     implementation("software.amazon.awssdk:secretsmanager:2.29.34")
     implementation("software.amazon.awssdk:sts:2.29.34")
