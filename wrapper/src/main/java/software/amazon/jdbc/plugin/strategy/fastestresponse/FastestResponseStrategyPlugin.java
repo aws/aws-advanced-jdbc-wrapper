@@ -196,6 +196,10 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
     this.hostResponseTimeService.setHosts(this.hosts);
   }
 
+  public static void clearCache() {
+    cachedFastestResponseHostByRole.clear();
+  }
+
   private static class ResponseTimeTuple {
     public HostSpec hostSpec;
     public int responseTime;

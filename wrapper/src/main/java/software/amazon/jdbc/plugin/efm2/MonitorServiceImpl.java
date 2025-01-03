@@ -94,7 +94,7 @@ public class MonitorServiceImpl implements MonitorService {
     this.monitorInitializer = monitorInitializer;
   }
 
-  public static void clearCache() {
+  public static void closeAllMonitors() {
     monitors.getEntries().values().forEach(monitor -> {
       try {
         monitor.close();

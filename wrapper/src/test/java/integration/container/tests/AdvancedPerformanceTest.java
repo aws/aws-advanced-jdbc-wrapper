@@ -688,7 +688,7 @@ public class AdvancedPerformanceTest {
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();
     MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
+    MonitorServiceImpl.closeAllMonitors();
   }
 
   private static Stream<Arguments> generateParams() {

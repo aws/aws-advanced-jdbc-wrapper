@@ -26,14 +26,15 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.hostavailability.HostAvailability;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SlidingExpirationCache;
 
 public class LeastConnectionsHostSelector implements HostSelector {
   public static final String STRATEGY_LEAST_CONNECTIONS = "leastConnections";
-  private final SlidingExpirationCache<HikariPooledConnectionProvider.PoolKey, HikariDataSource> databasePools;
+  private final SlidingExpirationCache<Pair, AutoCloseable> databasePools;
 
   public LeastConnectionsHostSelector(
-      SlidingExpirationCache<HikariPooledConnectionProvider.PoolKey, HikariDataSource> databasePools) {
+      SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
     this.databasePools = databasePools;
   }
 
@@ -58,15 +59,18 @@ public class LeastConnectionsHostSelector implements HostSelector {
 
   private int getNumConnections(
       final HostSpec hostSpec,
-      final SlidingExpirationCache<HikariPooledConnectionProvider.PoolKey, HikariDataSource> databasePools) {
+      final SlidingExpirationCache<Pair, AutoCloseable> databasePools) {
     int numConnections = 0;
     final String url = hostSpec.getUrl();
-    for (final Map.Entry<HikariPooledConnectionProvider.PoolKey, HikariDataSource> entry :
+    for (final Map.Entry<Pair, AutoCloseable> entry :
         databasePools.getEntries().entrySet()) {
-      if (!url.equals(entry.getKey().getUrl())) {
+      if (!url.equals(entry.getKey().getValue1())) {
         continue;
       }
-      numConnections += entry.getValue().getHikariPoolMXBean().getActiveConnections();
+      if (!(entry.getValue() instanceof HikariDataSource)) {
+        continue;
+      }
+      numConnections += ((HikariDataSource) entry.getValue()).getHikariPoolMXBean().getActiveConnections();
     }
     return numConnections;
   }

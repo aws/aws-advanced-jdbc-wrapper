@@ -251,8 +251,7 @@ public class RoundRobinHostSelector implements HostSelector {
     }
   }
 
-  // For testing purposes only
-  public void clearCache() {
+  public static void clearCache() {
     roundRobinCache.clear();
   }
 

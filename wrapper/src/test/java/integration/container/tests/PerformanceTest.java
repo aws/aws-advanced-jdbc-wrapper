@@ -146,7 +146,7 @@ public class PerformanceTest {
 
     OpenedConnectionTracker.clearCache();
     MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
+    MonitorServiceImpl.closeAllMonitors();
     AuroraHostListProvider.clearAll();
     MonitoringRdsHostListProvider.clearCache();
 
@@ -228,7 +228,7 @@ public class PerformanceTest {
 
     OpenedConnectionTracker.clearCache();
     MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
+    MonitorServiceImpl.closeAllMonitors();
     AuroraHostListProvider.clearAll();
     MonitoringRdsHostListProvider.clearCache();
 
@@ -316,7 +316,7 @@ public class PerformanceTest {
 
     OpenedConnectionTracker.clearCache();
     MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
+    MonitorServiceImpl.closeAllMonitors();
     AuroraHostListProvider.clearAll();
     MonitoringRdsHostListProvider.clearCache();
 

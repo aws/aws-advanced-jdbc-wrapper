@@ -326,4 +326,9 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       throw new RuntimeException(e);
     }
   }
+
+  public static void clearCache() {
+    forceGetLimitlessRoutersLockMap.clear();
+    limitlessRouterCache.clear();
+  }
 }

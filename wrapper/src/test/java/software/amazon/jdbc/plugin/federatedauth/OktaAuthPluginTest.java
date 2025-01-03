@@ -112,7 +112,7 @@ class OktaAuthPluginTest {
         new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    OktaAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
+    OktaAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 
@@ -129,7 +129,7 @@ class OktaAuthPluginTest {
     final String someExpiredToken = "someExpiredToken";
     final TokenInfo expiredTokenInfo = new TokenInfo(
         someExpiredToken, Instant.now().minusMillis(300000));
-    OktaAuthPlugin.tokenCache.put(key, expiredTokenInfo);
+    OktaAuthCacheHolder.tokenCache.put(key, expiredTokenInfo);
 
     spyPlugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
     verify(mockIamTokenUtils).generateAuthenticationToken(mockAwsCredentialsProvider,
@@ -168,7 +168,7 @@ class OktaAuthPluginTest {
     props.setProperty(OktaAuthPlugin.IAM_REGION.name, expectedRegion.toString());
 
     final String key = "us-west-2:pg.testdb.us-west-2.rds.amazonaws.com:" + expectedPort + ":iamUser";
-    OktaAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
+    OktaAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
     OktaAuthPlugin plugin =
         new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
@@ -190,7 +190,7 @@ class OktaAuthPluginTest {
         new OktaAuthPlugin(mockPluginService, mockCredentialsProviderFactory, mockRdsUtils, mockIamTokenUtils);
 
     final String key = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:" + DEFAULT_PORT + ":iamUser";
-    OktaAuthPlugin.tokenCache.put(key, TEST_TOKEN_INFO);
+    OktaAuthCacheHolder.tokenCache.put(key, TEST_TOKEN_INFO);
 
     plugin.connect(DRIVER_PROTOCOL, HOST_SPEC, props, true, mockLambda);
 

@@ -109,4 +109,15 @@ public class HostResponseTimeServiceImpl implements HostResponseTimeService {
           }
         });
   }
+
+  public static void closeAllMonitors() {
+    monitoringNodes.getEntries().values().forEach(monitor -> {
+      try {
+        monitor.close();
+      } catch (Exception ex) {
+        // ignore
+      }
+    });
+    monitoringNodes.clear();
+  }
 }
