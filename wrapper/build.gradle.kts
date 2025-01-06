@@ -29,12 +29,12 @@ plugins {
 dependencies {
     implementation("org.checkerframework:checker-qual:3.48.1")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
-    compileOnly("software.amazon.awssdk:rds:2.29.29")
-    compileOnly("software.amazon.awssdk:auth:2.29.29") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:http-client-spi:2.29.29") // Required for IAM (light implementation)
-    compileOnly("software.amazon.awssdk:sts:2.29.29")
+    compileOnly("software.amazon.awssdk:rds:2.29.34")
+    compileOnly("software.amazon.awssdk:auth:2.29.34") // Required for IAM (light implementation)
+    compileOnly("software.amazon.awssdk:http-client-spi:2.29.34") // Required for IAM (light implementation)
+    compileOnly("software.amazon.awssdk:sts:2.29.34")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
-    compileOnly("software.amazon.awssdk:secretsmanager:2.29.29")
+    compileOnly("software.amazon.awssdk:secretsmanager:2.29.34")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:2.17.1")
     compileOnly("com.mysql:mysql-connector-j:8.3.0")
     compileOnly("org.postgresql:postgresql:42.7.4")
