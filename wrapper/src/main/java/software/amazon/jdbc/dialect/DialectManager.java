@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.PluginService;
 import software.amazon.jdbc.util.CacheMap;
@@ -39,8 +40,6 @@ import software.amazon.jdbc.util.Utils;
 public class DialectManager implements DialectProvider {
 
   private static final Logger LOGGER = Logger.getLogger(DialectManager.class.getName());
-
-  protected static Dialect customDialect;
 
   public static final AwsWrapperProperty DIALECT = new AwsWrapperProperty(
       "wrapperDialect", "",
@@ -88,12 +87,24 @@ public class DialectManager implements DialectProvider {
     this.pluginService = pluginService;
   }
 
+  /**
+   * Sets a custom dialect handler.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void setCustomDialect(final @NonNull Dialect dialect) {
-    customDialect = dialect;
+    Driver.setCustomDialect(dialect);
   }
 
+  /**
+   * Resets a custom dialect handler.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void resetCustomDialect() {
-    customDialect = null;
+    Driver.resetCustomDialect();
   }
 
   public static void resetEndpointCache() {
@@ -110,6 +121,7 @@ public class DialectManager implements DialectProvider {
     this.canUpdate = false;
     this.dialect = null;
 
+    final Dialect customDialect = Driver.getCustomDialect();
     if (customDialect != null) {
       this.dialectCode = DialectCodes.CUSTOM;
       this.dialect = customDialect;

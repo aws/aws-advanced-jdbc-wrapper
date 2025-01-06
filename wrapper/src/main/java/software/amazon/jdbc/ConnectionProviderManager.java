@@ -20,19 +20,14 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicReference;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.cleanup.CanReleaseResources;
 
 public class ConnectionProviderManager {
 
-  private static AtomicReference<ConnectionProvider> customConnectionProvider = new AtomicReference<>(null);
-
   private final ConnectionProvider defaultProvider;
   private final @Nullable ConnectionProvider effectiveConnProvider;
-
-  private static ConnectionInitFunc connectionInitFunc = null;
 
   /**
    * {@link ConnectionProviderManager} constructor.
@@ -57,9 +52,11 @@ public class ConnectionProviderManager {
    * {@link ConnectionProvider#acceptsUrl} for more info.
    *
    * @param connProvider the {@link ConnectionProvider} to use to establish new connections
+   * @deprecated Use software.amazon.jdbc.Driver instead
    */
+  @Deprecated
   public static void setConnectionProvider(ConnectionProvider connProvider) {
-    customConnectionProvider.set(connProvider);
+    Driver.setCustomConnectionProvider(connProvider);
   }
 
   /**
@@ -78,9 +75,9 @@ public class ConnectionProviderManager {
   public ConnectionProvider getConnectionProvider(
       String driverProtocol, HostSpec host, Properties props) {
 
-    final ConnectionProvider tmpCustomConnectionProvider = customConnectionProvider.get();
-    if (tmpCustomConnectionProvider != null && tmpCustomConnectionProvider.acceptsUrl(driverProtocol, host, props)) {
-      return tmpCustomConnectionProvider;
+    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    if (customConnectionProvider != null && customConnectionProvider.acceptsUrl(driverProtocol, host, props)) {
+      return customConnectionProvider;
     }
 
     if (this.effectiveConnProvider != null && this.effectiveConnProvider.acceptsUrl(driverProtocol, host, props)) {
@@ -110,8 +107,8 @@ public class ConnectionProviderManager {
    *     return false
    */
   public boolean acceptsStrategy(HostRole role, String strategy) {
-    final ConnectionProvider tmpCustomConnectionProvider = customConnectionProvider.get();
-    if (tmpCustomConnectionProvider != null && tmpCustomConnectionProvider.acceptsStrategy(role, strategy)) {
+    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    if (customConnectionProvider != null && customConnectionProvider.acceptsStrategy(role, strategy)) {
       return true;
     }
 
@@ -143,10 +140,10 @@ public class ConnectionProviderManager {
   public HostSpec getHostSpecByStrategy(List<HostSpec> hosts, HostRole role, String strategy, Properties props)
       throws SQLException, UnsupportedOperationException {
     HostSpec host = null;
-    final ConnectionProvider tmpCustomConnectionProvider = customConnectionProvider.get();
+    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
     try {
-      if (tmpCustomConnectionProvider != null && tmpCustomConnectionProvider.acceptsStrategy(role, strategy)) {
-        host = tmpCustomConnectionProvider.getHostSpecByStrategy(hosts, role, strategy, props);
+      if (customConnectionProvider != null && customConnectionProvider.acceptsStrategy(role, strategy)) {
+        host = customConnectionProvider.getHostSpecByStrategy(hosts, role, strategy, props);
       }
     } catch (UnsupportedOperationException e) {
       // The custom provider does not support the provided strategy, ignore it and try with the other providers.
@@ -170,27 +167,43 @@ public class ConnectionProviderManager {
    * Clears the non-default {@link ConnectionProvider} if it has been set. The default
    * ConnectionProvider will be used if the non-default ConnectionProvider has not been set or has
    * been cleared.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
    */
+  @Deprecated
   public static void resetProvider() {
-    customConnectionProvider.set(null);
+    Driver.resetCustomConnectionProvider();
   }
 
   /**
    * Releases any resources held by the available {@link ConnectionProvider} instances.
    */
   public static void releaseResources() {
-    final ConnectionProvider tmpCustomConnectionProvider = customConnectionProvider.get();
-    if (tmpCustomConnectionProvider instanceof CanReleaseResources) {
-      ((CanReleaseResources) tmpCustomConnectionProvider).releaseResources();
+    final ConnectionProvider customConnectionProvider = Driver.getCustomConnectionProvider();
+    if (customConnectionProvider instanceof CanReleaseResources) {
+      ((CanReleaseResources) customConnectionProvider).releaseResources();
     }
   }
 
+  /**
+   * Sets a custom connection initialization function. It'll be used
+   * for every brand-new database connection.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void setConnectionInitFunc(final @NonNull ConnectionInitFunc func) {
-    connectionInitFunc = func;
+    Driver.setConnectionInitFunc(func);
   }
 
+  /**
+   * Resets a custom connection initialization function.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void resetConnectionInitFunc() {
-    connectionInitFunc = null;
+    Driver.resetConnectionInitFunc();
   }
 
   public void initConnection(
@@ -199,12 +212,12 @@ public class ConnectionProviderManager {
       final @NonNull HostSpec hostSpec,
       final @NonNull Properties props) throws SQLException {
 
-    final ConnectionInitFunc copy = connectionInitFunc;
-    if (copy == null) {
+    final ConnectionInitFunc connectionInitFunc = Driver.getConnectionInitFunc();
+    if (connectionInitFunc == null) {
       return;
     }
 
-    copy.initConnection(connection, protocol, hostSpec, props);
+    connectionInitFunc.initConnection(connection, protocol, hostSpec, props);
   }
 
   public interface ConnectionInitFunc {

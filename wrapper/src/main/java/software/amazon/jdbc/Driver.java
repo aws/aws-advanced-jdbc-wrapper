@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
@@ -32,6 +33,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.ConnectionProviderManager.ConnectionInitFunc;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
@@ -48,6 +50,8 @@ import software.amazon.jdbc.plugin.iam.IamAuthCacheHolder;
 import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
 import software.amazon.jdbc.plugin.strategy.fastestresponse.HostResponseTimeServiceImpl;
+import software.amazon.jdbc.dialect.Dialect;
+import software.amazon.jdbc.exceptions.ExceptionHandler;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
@@ -73,8 +77,25 @@ public class Driver implements java.sql.Driver {
   private static final Logger LOGGER = Logger.getLogger("software.amazon.jdbc.Driver");
   private static @Nullable Driver registeredDriver;
 
-  private static ResetSessionStateOnCloseCallable resetSessionStateOnCloseCallable = null;
-  private static TransferSessionStateOnSwitchCallable transferSessionStateOnSwitchCallable = null;
+  private static final AtomicReference<ResetSessionStateOnCloseCallable> resetSessionStateOnCloseCallable =
+      new AtomicReference<>(null);
+  private static final AtomicReference<TransferSessionStateOnSwitchCallable> transferSessionStateOnSwitchCallable =
+      new AtomicReference<>(null);
+
+  private static final AtomicReference<ExceptionHandler> customExceptionHandler =
+      new AtomicReference<>(null);
+
+  private static final AtomicReference<Dialect> customDialect =
+      new AtomicReference<>(null);
+
+  private static final AtomicReference<TargetDriverDialect> customTargetDriverDialect =
+      new AtomicReference<>(null);
+
+  private static final AtomicReference<ConnectionProvider> customConnectionProvider =
+      new AtomicReference<>(null);
+
+  private static final AtomicReference<ConnectionInitFunc> connectionInitFunc =
+      new AtomicReference<>(null);
 
   static {
     try {
@@ -262,27 +283,27 @@ public class Driver implements java.sql.Driver {
   }
 
   public static void setResetSessionStateOnCloseFunc(final @NonNull ResetSessionStateOnCloseCallable func) {
-    resetSessionStateOnCloseCallable = func;
+    resetSessionStateOnCloseCallable.set(func);
   }
 
   public static void resetResetSessionStateOnCloseFunc() {
-    resetSessionStateOnCloseCallable = null;
+    resetSessionStateOnCloseCallable.set(null);
   }
 
   public static ResetSessionStateOnCloseCallable getResetSessionStateOnCloseFunc() {
-    return resetSessionStateOnCloseCallable;
+    return resetSessionStateOnCloseCallable.get();
   }
 
   public static void setTransferSessionStateOnSwitchFunc(final @NonNull TransferSessionStateOnSwitchCallable func) {
-    transferSessionStateOnSwitchCallable = func;
+    transferSessionStateOnSwitchCallable.set(func);
   }
 
   public static void resetTransferSessionStateOnSwitchFunc() {
-    transferSessionStateOnSwitchCallable = null;
+    transferSessionStateOnSwitchCallable.set(null);
   }
 
   public static TransferSessionStateOnSwitchCallable getTransferSessionStateOnSwitchFunc() {
-    return transferSessionStateOnSwitchCallable;
+    return transferSessionStateOnSwitchCallable.get();
   }
 
   public static void setPrepareHostFunc(final Function<String, String> func) {
@@ -291,6 +312,79 @@ public class Driver implements java.sql.Driver {
 
   public static void resetPrepareHostFunc() {
     RdsUtils.resetPrepareHostFunc();
+  }
+
+  public static void setCustomExceptionHandler(final ExceptionHandler exceptionHandler) {
+    customExceptionHandler.set(exceptionHandler);
+  }
+
+  public static ExceptionHandler getCustomExceptionHandler() {
+    return customExceptionHandler.get();
+  }
+
+  public static void resetCustomExceptionHandler() {
+    customExceptionHandler.set(null);
+  }
+
+  public static void setCustomDialect(final @NonNull Dialect dialect) {
+    customDialect.set(dialect);
+  }
+
+  public static Dialect getCustomDialect() {
+    return customDialect.get();
+  }
+
+  public static void resetCustomDialect() {
+    customDialect.set(null);
+  }
+
+  public static void setCustomTargetDriverDialect(final @NonNull TargetDriverDialect targetDriverDialect) {
+    customTargetDriverDialect.set(targetDriverDialect);
+  }
+
+  public static TargetDriverDialect getCustomTargetDriverDialect() {
+    return customTargetDriverDialect.get();
+  }
+
+  public static void resetCustomTargetDriverDialect() {
+    customTargetDriverDialect.set(null);
+  }
+
+  /**
+   * Setter that can optionally be called to request a non-default {@link ConnectionProvider}. The
+   * requested ConnectionProvider will be used to establish future connections unless it does not
+   * support a requested URL, in which case the default ConnectionProvider will be used. See
+   * {@link ConnectionProvider#acceptsUrl} for more info.
+   *
+   * @param connProvider the {@link ConnectionProvider} to use to establish new connections
+   */
+  public static void setCustomConnectionProvider(ConnectionProvider connProvider) {
+    customConnectionProvider.set(connProvider);
+  }
+
+  public static ConnectionProvider getCustomConnectionProvider() {
+    return customConnectionProvider.get();
+  }
+
+  /**
+   * Clears the non-default {@link ConnectionProvider} if it has been set. The default
+   * ConnectionProvider will be used if the non-default ConnectionProvider has not been set or has
+   * been cleared.
+   */
+  public static void resetCustomConnectionProvider() {
+    customConnectionProvider.set(null);
+  }
+
+  public static void setConnectionInitFunc(final @NonNull ConnectionInitFunc func) {
+    connectionInitFunc.set(func);
+  }
+
+  public static ConnectionInitFunc getConnectionInitFunc() {
+    return connectionInitFunc.get();
+  }
+
+  public static void resetConnectionInitFunc() {
+    connectionInitFunc.set(null);
   }
 
   public static void clearCaches() {

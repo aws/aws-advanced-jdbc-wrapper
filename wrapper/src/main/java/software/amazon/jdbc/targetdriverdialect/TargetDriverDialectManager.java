@@ -34,8 +34,6 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
 
   private static final Logger LOGGER = Logger.getLogger(TargetDriverDialectManager.class.getName());
 
-  protected static TargetDriverDialect customDialect;
-
   public static final AwsWrapperProperty TARGET_DRIVER_DIALECT = new AwsWrapperProperty(
       "wrapperTargetDriverDialect", "",
       "A unique identifier for the target driver dialect.");
@@ -72,12 +70,24 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
     PropertyDefinition.registerPluginProperties(TargetDriverDialectManager.class);
   }
 
+  /**
+   * Sets a custom target driver dialect handler.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void setCustomDialect(final @NonNull TargetDriverDialect targetDriverDialect) {
-    customDialect = targetDriverDialect;
+    software.amazon.jdbc.Driver.setCustomTargetDriverDialect(targetDriverDialect);
   }
 
+  /**
+   * Resets a custom target driver dialect.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void resetCustomDialect() {
-    customDialect = null;
+    software.amazon.jdbc.Driver.resetCustomTargetDriverDialect();
   }
 
   @Override
@@ -100,6 +110,7 @@ public class TargetDriverDialectManager implements TargetDriverDialectProvider {
       final @NonNull Properties props,
       Function<TargetDriverDialect, Boolean> checkFunc) throws SQLException {
 
+    final TargetDriverDialect customDialect = software.amazon.jdbc.Driver.getCustomTargetDriverDialect();
     if (customDialect != null) {
       if (checkFunc.apply(customDialect)) {
         this.logDialect("custom", customDialect);
