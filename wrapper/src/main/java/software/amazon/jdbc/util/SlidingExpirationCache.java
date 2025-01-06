@@ -139,6 +139,7 @@ public class SlidingExpirationCache<K, V> {
     cache.computeIfPresent(key, (k, cacheItem) -> {
       if (cacheItem.shouldCleanup()) {
         itemList.add(cacheItem.item);
+        // Removes the item from the cache map.
         return null;
       }
 
