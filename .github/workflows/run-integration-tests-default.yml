@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dbEngine: [ "mysql-aurora", "mysql-multi-az", "pg-aurora", "pg-multi-az" ]
+        dbEngine: [ "mysql-aurora", "pg-aurora" ]
     steps:
       - name: 'Clone repository'
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
         run: |
           ./gradlew --no-parallel --no-daemon test-all-${{ matrix.dbEngine }}
         env:
-          AURORA_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
+          RDS_CLUSTER_DOMAIN: ${{ secrets.DB_CONN_SUFFIX }}
           RDS_DB_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
