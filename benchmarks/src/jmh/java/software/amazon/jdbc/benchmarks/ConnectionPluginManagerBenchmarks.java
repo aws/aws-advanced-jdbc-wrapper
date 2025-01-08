@@ -196,7 +196,8 @@ public class ConnectionPluginManagerBenchmarks {
         "driverProtocol",
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
         propertiesWithPlugins,
-        true);
+        true,
+        null);
   }
 
   @Benchmark
@@ -205,7 +206,8 @@ public class ConnectionPluginManagerBenchmarks {
         "driverProtocol",
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("host").build(),
         propertiesWithoutPlugins,
-        true);
+        true,
+        null);
   }
 
   @Benchmark

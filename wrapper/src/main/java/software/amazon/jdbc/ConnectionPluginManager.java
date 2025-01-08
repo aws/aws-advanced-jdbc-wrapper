@@ -213,7 +213,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final String methodName,
       final PluginPipeline<T, E> pluginPipeline,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final boolean useForceConnectPipeline)
+      final boolean useForceConnectPipeline,
+      final @Nullable ConnectionPlugin pluginToSkip)
       throws E {
 
     if (pluginPipeline == null) {
@@ -226,7 +227,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
     // noinspection unchecked
     PluginChainJdbcCallable<T, E> pluginChainFunc =
-        useForceConnectPipeline ? this.pluginForceConnectChainFuncMap.get(methodName) : this.pluginChainFuncMap.get(methodName);
+        useForceConnectPipeline
+            ? this.pluginForceConnectChainFuncMap.get(methodName)
+            : this.pluginChainFuncMap.get(methodName);
 
     if (pluginChainFunc == null) {
       pluginChainFunc = this.makePluginChainFunc(methodName, useForceConnectPipeline);
@@ -241,7 +244,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       throw new RuntimeException("Error processing this JDBC call.");
     }
 
-    return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc);
+    return pluginChainFunc.call(pluginPipeline, jdbcMethodFunc, pluginToSkip);
   }
 
 
@@ -274,14 +277,23 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
       if (isSubscribed) {
         if (pluginChainFunc == null) {
-          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
+          // This case is for DefaultConnectionPlugin that always terminates the list of plugins.
+          // Default plugin couldn't be skipped.
+          pluginChainFunc = (pipelineFunc, jdbcFunc, pluginToSkip) ->
               executeWithTelemetry(() -> pipelineFunc.call(plugin, jdbcFunc), pluginName);
         } else {
           final PluginChainJdbcCallable<T, E> finalPluginChainFunc = pluginChainFunc;
-          pluginChainFunc = (pipelineFunc, jdbcFunc) ->
-              executeWithTelemetry(() -> pipelineFunc.call(
-                  plugin, () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc)),
+          pluginChainFunc = (pipelineFunc, jdbcFunc, pluginToSkip) -> {
+            if (pluginToSkip == plugin) {
+              return finalPluginChainFunc.call(pipelineFunc, jdbcFunc, pluginToSkip);
+            } else {
+              return executeWithTelemetry(
+                  () -> pipelineFunc.call(
+                      plugin,
+                      () -> finalPluginChainFunc.call(pipelineFunc, jdbcFunc, pluginToSkip)),
                   pluginName);
+            }
+          };
         }
       }
     }
@@ -349,7 +361,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
             plugin.execute(
                 resultType, exceptionClass, methodInvokeOn, methodName, func, jdbcMethodArgs),
         jdbcMethodFunc,
-        false);
+        false,
+        null);
   }
 
   /**
@@ -378,7 +391,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
-      final boolean isInitialConnection)
+      final boolean isInitialConnection,
+      final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
 
     TelemetryContext context = telemetryFactory.openTelemetryContext("connect", TelemetryTraceLevel.NESTED);
@@ -390,7 +404,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
-          false);
+          false,
+          pluginToSkip);
     } catch (final SQLException | RuntimeException e) {
       throw e;
     } catch (final Exception e) {
@@ -415,6 +430,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
    *                            already established a physical connection in the past
+   * @param pluginToSkip        the plugin that needs to be skipped while executing this pipeline
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
    *                      host
@@ -423,7 +439,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final String driverProtocol,
       final HostSpec hostSpec,
       final Properties props,
-      final boolean isInitialConnection)
+      final boolean isInitialConnection,
+      final @Nullable ConnectionPlugin pluginToSkip)
       throws SQLException {
 
     try {
@@ -434,7 +451,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
-          true);
+          true,
+          pluginToSkip);
     } catch (SQLException | RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -549,7 +567,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
-          false);
+          false,
+          null);
     } finally {
       context.closeContext();
     }
@@ -653,6 +672,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   private interface PluginChainJdbcCallable<T, E extends Exception> {
 
-    T call(final @NonNull PluginPipeline<T, E> pipelineFunc, final @NonNull JdbcCallable<T, E> jdbcMethodFunc) throws E;
+    T call(
+        final @NonNull PluginPipeline<T, E> pipelineFunc,
+        final @NonNull JdbcCallable<T, E> jdbcMethodFunc,
+        final @Nullable ConnectionPlugin pluginToSkip) throws E;
   }
 }

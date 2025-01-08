@@ -236,7 +236,7 @@ public class ConnectionPluginManagerTests {
 
     final Connection conn = target.connect("any",
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
-        true);
+        true, null);
 
     assertEquals(expectedConnection, conn);
     assertEquals(4, calls.size());
@@ -244,6 +244,36 @@ public class ConnectionPluginManagerTests {
     assertEquals("TestPluginThree:before connect", calls.get(1));
     assertEquals("TestPluginThree:connection", calls.get(2));
     assertEquals("TestPluginOne:after connect", calls.get(3));
+  }
+
+  @Test
+  public void testConnectWithSkipPlugin() throws Exception {
+
+    final Connection expectedConnection = mock(Connection.class);
+
+    final ArrayList<String> calls = new ArrayList<>();
+
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    final ConnectionPlugin pluginOne = new TestPluginOne(calls);
+    testPlugins.add(pluginOne);
+    final ConnectionPlugin pluginTwo = new TestPluginTwo(calls);
+    testPlugins.add(pluginTwo);
+    final ConnectionPlugin pluginThree = new TestPluginThree(calls, expectedConnection);
+    testPlugins.add(pluginThree);
+
+    final Properties testProperties = new Properties();
+    final ConnectionPluginManager target =
+        new ConnectionPluginManager(mockConnectionProvider,
+            null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
+
+    final Connection conn = target.connect("any",
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
+        true, pluginOne);
+
+    assertEquals(expectedConnection, conn);
+    assertEquals(2, calls.size());
+    assertEquals("TestPluginThree:before connect", calls.get(0));
+    assertEquals("TestPluginThree:connection", calls.get(1));
   }
 
   @Test
@@ -269,7 +299,8 @@ public class ConnectionPluginManagerTests {
 
     final Connection conn = target.forceConnect("any",
         new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
-        true);
+        true,
+        null);
 
     // Expecting only TestPluginThree to participate in forceConnect().
     assertEquals(expectedConnection, conn);
@@ -297,7 +328,7 @@ public class ConnectionPluginManagerTests {
     assertThrows(
         SQLException.class,
         () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true));
+            testProperties, true, null));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -323,7 +354,7 @@ public class ConnectionPluginManagerTests {
     assertThrows(
         SQLException.class,
         () -> target.connect("any", new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-            testProperties, true));
+            testProperties, true, null));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -354,7 +385,7 @@ public class ConnectionPluginManagerTests {
             IllegalArgumentException.class,
             () -> target.connect("any",
                 new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-                testProperties, true));
+                testProperties, true, null));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -382,7 +413,7 @@ public class ConnectionPluginManagerTests {
             IllegalArgumentException.class,
             () -> target.connect("any",
                 new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(),
-                testProperties, true));
+                testProperties, true, null));
 
     assertEquals(5, calls.size());
     assertEquals("TestPluginOne:before connect", calls.get(0));
@@ -490,7 +521,8 @@ public class ConnectionPluginManagerTests {
         "any",
         testHostSpec,
         testProperties,
-        true);
+        true,
+        null);
 
     assertEquals(mockConnection, result);
 
@@ -508,7 +540,8 @@ public class ConnectionPluginManagerTests {
         "any",
         testHostSpec,
         testProperties,
-        true);
+        true,
+        null);
 
     assertEquals(mockConnection, result);
 

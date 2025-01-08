@@ -159,7 +159,11 @@ public class ConnectionWrapper implements Connection, CanReleaseResources {
     if (this.pluginService.getCurrentConnection() == null) {
       final Connection conn =
           this.pluginManager.connect(
-              this.targetDriverProtocol, this.pluginService.getInitialConnectionHostSpec(), props, true);
+              this.targetDriverProtocol,
+              this.pluginService.getInitialConnectionHostSpec(),
+              props,
+              true,
+              null);
 
       if (conn == null) {
         throw new SQLException(Messages.get("ConnectionWrapper.connectionNotOpen"), SqlState.UNKNOWN_STATE.getState());

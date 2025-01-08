@@ -593,14 +593,35 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
   @Override
   public Connection connect(final HostSpec hostSpec, final Properties props) throws SQLException {
-    return this.pluginManager.connect(
-        this.driverProtocol, hostSpec, props, this.currentConnection == null);
+    return this.connect(hostSpec, props, null);
   }
 
   @Override
-  public Connection forceConnect(final HostSpec hostSpec, final Properties props) throws SQLException {
+  public Connection connect(
+      final HostSpec hostSpec,
+      final Properties props,
+      final @Nullable ConnectionPlugin pluginToSkip)
+      throws SQLException {
+    return this.pluginManager.connect(
+        this.driverProtocol, hostSpec, props, this.currentConnection == null, pluginToSkip);
+  }
+
+  @Override
+  public Connection forceConnect(
+      final HostSpec hostSpec,
+      final Properties props)
+      throws SQLException {
+    return this.forceConnect(hostSpec, props, null);
+  }
+
+  @Override
+  public Connection forceConnect(
+      final HostSpec hostSpec,
+      final Properties props,
+      final @Nullable ConnectionPlugin pluginToSkip)
+      throws SQLException {
     return this.pluginManager.forceConnect(
-        this.driverProtocol, hostSpec, props, this.currentConnection == null);
+        this.driverProtocol, hostSpec, props, this.currentConnection == null, pluginToSkip);
   }
 
   private void updateHostAvailability(final List<HostSpec> hosts) {

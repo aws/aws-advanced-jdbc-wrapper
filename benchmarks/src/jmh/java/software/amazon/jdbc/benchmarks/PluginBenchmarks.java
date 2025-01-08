@@ -115,7 +115,7 @@ public class PluginBenchmarks {
   @Setup(Level.Iteration)
   public void setUpIteration() throws Exception {
     closeable = MockitoAnnotations.openMocks(this);
-    when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean()))
+    when(mockConnectionPluginManager.connect(any(), any(), any(Properties.class), anyBoolean(), any()))
         .thenReturn(mockConnection);
     when(mockConnectionPluginManager.execute(
         any(), any(), any(), eq("Connection.createStatement"), any(), any()))

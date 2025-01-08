@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;
@@ -54,7 +55,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
  * This connection plugin will always be the last plugin in the connection plugin chain, and will
  * invoke the JDBC method passed down the chain.
  */
-public final class DefaultConnectionPlugin implements ConnectionPlugin {
+public final class DefaultConnectionPlugin implements ConnectionPlugin, AuthenticationConnectionPlugin {
 
   private static final Logger LOGGER =  Logger.getLogger(DefaultConnectionPlugin.class.getName());
   private static final Set<String> subscribedMethods = Collections.unmodifiableSet(new HashSet<>(
