@@ -21,9 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -245,6 +247,38 @@ public class ConnectionPluginManagerTests {
   }
 
   @Test
+  public void testForceConnect() throws Exception {
+
+    final Connection expectedConnection = mock(Connection.class);
+    final ArrayList<String> calls = new ArrayList<>();
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+
+    // TestPluginOne is not an AuthenticationConnectionPlugin.
+    testPlugins.add(new TestPluginOne(calls));
+
+    // TestPluginTwo is an AuthenticationConnectionPlugin, but it's not subscribed to "forceConnect" method.
+    testPlugins.add(new TestPluginTwo(calls));
+
+    // TestPluginThree is an AuthenticationConnectionPlugin, and it's subscribed to "forceConnect" method.
+    testPlugins.add(new TestPluginThree(calls, expectedConnection));
+
+    final Properties testProperties = new Properties();
+    final ConnectionPluginManager target =
+        new ConnectionPluginManager(mockConnectionProvider,
+            null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory);
+
+    final Connection conn = target.forceConnect("any",
+        new HostSpecBuilder(new SimpleHostAvailabilityStrategy()).host("anyHost").build(), testProperties,
+        true);
+
+    // Expecting only TestPluginThree to participate in forceConnect().
+    assertEquals(expectedConnection, conn);
+    assertEquals(2, calls.size());
+    assertEquals("TestPluginThree:before forceConnect", calls.get(0));
+    assertEquals("TestPluginThree:forced connection", calls.get(1));
+  }
+
+  @Test
   public void testConnectWithSQLExceptionBefore() {
 
     final ArrayList<String> calls = new ArrayList<>();
@@ -391,7 +425,8 @@ public class ConnectionPluginManagerTests {
     assertEquals("resulTestValue", result);
 
     // The method has been called just once to generate a final lambda and cache it.
-    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
+    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"), eq(false));
+    verify(target, never()).makePluginChainFunc(eq("testJdbcCall_A"), eq(true));
 
     assertEquals(7, calls.size());
     assertEquals("TestPluginOne:before", calls.get(0));
@@ -419,7 +454,8 @@ public class ConnectionPluginManagerTests {
     assertEquals("anotherResulTestValue", result);
 
     // No additional calls to this method occurred. It's still been called once.
-    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
+    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"), eq(false));
+    verify(target, never()).makePluginChainFunc(eq("testJdbcCall_A"), eq(true));
 
     assertEquals(7, calls.size());
     assertEquals("TestPluginOne:before", calls.get(0));
@@ -429,6 +465,60 @@ public class ConnectionPluginManagerTests {
     assertEquals("TestPluginThree:after", calls.get(4));
     assertEquals("TestPluginTwo:after", calls.get(5));
     assertEquals("TestPluginOne:after", calls.get(6));
+  }
+
+  @Test
+  public void testForceConnectCachedJdbcCallForceConnect() throws Exception {
+
+    final ArrayList<String> calls = new ArrayList<>();
+    final Connection mockConnection = mock(Connection.class);
+    final ArrayList<ConnectionPlugin> testPlugins = new ArrayList<>();
+    testPlugins.add(new TestPluginOne(calls));
+    testPlugins.add(new TestPluginTwo(calls));
+    testPlugins.add(new TestPluginThree(calls, mockConnection));
+
+    final HostSpec testHostSpec = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
+        .host("test-instance").build();
+
+    final Properties testProperties = new Properties();
+
+    final ConnectionPluginManager target = Mockito.spy(
+        new ConnectionPluginManager(mockConnectionProvider,
+            null, testProperties, testPlugins, mockConnectionWrapper, mockTelemetryFactory));
+
+    Object result = target.forceConnect(
+        "any",
+        testHostSpec,
+        testProperties,
+        true);
+
+    assertEquals(mockConnection, result);
+
+    // The method has been called just once to generate a final lambda and cache it.
+    verify(target, times(1)).makePluginChainFunc(eq("forceConnect"), eq(true));
+    verify(target, never()).makePluginChainFunc(eq("forceConnect"), eq(false));
+
+    assertEquals(2, calls.size());
+    assertEquals("TestPluginThree:before forceConnect", calls.get(0));
+    assertEquals("TestPluginThree:forced connection", calls.get(1));
+
+    calls.clear();
+
+    result = target.forceConnect(
+        "any",
+        testHostSpec,
+        testProperties,
+        true);
+
+    assertEquals(mockConnection, result);
+
+    // No additional calls to this method occurred. It's still been called once.
+    verify(target, times(1)).makePluginChainFunc(eq("forceConnect"), eq(true));
+    verify(target, never()).makePluginChainFunc(eq("forceConnect"), eq(false));
+
+    assertEquals(2, calls.size());
+    assertEquals("TestPluginThree:before forceConnect", calls.get(0));
+    assertEquals("TestPluginThree:forced connection", calls.get(1));
   }
 
   @Test

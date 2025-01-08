@@ -14,19 +14,9 @@
  * limitations under the License.
  */
 
-package software.amazon.jdbc.mock;
+package software.amazon.jdbc;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import software.amazon.jdbc.AuthenticationConnectionPlugin;
-
-public class TestPluginTwo extends TestPluginOne implements AuthenticationConnectionPlugin {
-
-  public TestPluginTwo(ArrayList<String> calls) {
-    super();
-    this.calls = calls;
-
-    this.subscribedMethods = new HashSet<>(Arrays.asList("testJdbcCall_A", "testJdbcCall_B"));
-  }
-}
+/**
+ * A marker interface that enables plugins to participate in forceConnect pipeline.
+ */
+public interface AuthenticationConnectionPlugin { }

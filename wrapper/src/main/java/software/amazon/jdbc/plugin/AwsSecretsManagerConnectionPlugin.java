@@ -40,6 +40,8 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
+import software.amazon.awssdk.utils.Pair;
+import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -55,7 +57,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin {
+public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin implements
+    AuthenticationConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
   private static final String TELEMETRY_UPDATE_SECRETS = "fetch credentials";
   private static final String TELEMETRY_FETCH_CREDENTIALS_COUNTER = "secretsManager.fetchCredentials.count";

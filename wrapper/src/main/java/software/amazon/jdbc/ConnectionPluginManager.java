@@ -115,6 +115,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
+  @SuppressWarnings("rawtypes")
+  protected final Map<String, PluginChainJdbcCallable> pluginForceConnectChainFuncMap = new HashMap<>();
+
   public ConnectionPluginManager(
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
@@ -209,7 +212,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   protected <T, E extends Exception> T executeWithSubscribedPlugins(
       final String methodName,
       final PluginPipeline<T, E> pluginPipeline,
-      final JdbcCallable<T, E> jdbcMethodFunc)
+      final JdbcCallable<T, E> jdbcMethodFunc,
+      final boolean useForceConnectPipeline)
       throws E {
 
     if (pluginPipeline == null) {
@@ -221,11 +225,16 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     }
 
     // noinspection unchecked
-    PluginChainJdbcCallable<T, E> pluginChainFunc = this.pluginChainFuncMap.get(methodName);
+    PluginChainJdbcCallable<T, E> pluginChainFunc =
+        useForceConnectPipeline ? this.pluginForceConnectChainFuncMap.get(methodName) : this.pluginChainFuncMap.get(methodName);
 
     if (pluginChainFunc == null) {
-      pluginChainFunc = this.makePluginChainFunc(methodName);
-      this.pluginChainFuncMap.put(methodName, pluginChainFunc);
+      pluginChainFunc = this.makePluginChainFunc(methodName, useForceConnectPipeline);
+      if (useForceConnectPipeline) {
+        this.pluginForceConnectChainFuncMap.put(methodName, pluginChainFunc);
+      } else {
+        this.pluginChainFuncMap.put(methodName, pluginChainFunc);
+      }
     }
 
     if (pluginChainFunc == null) {
@@ -250,7 +259,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   @Nullable
   protected <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
-      final @NonNull String methodName) {
+      final @NonNull String methodName,
+      final boolean useForceConnectPipeline) {
 
     PluginChainJdbcCallable<T, E> pluginChainFunc = null;
 
@@ -259,8 +269,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
       final String pluginName = pluginNameByClass.getOrDefault(plugin.getClass(), plugin.getClass().getSimpleName());
       final boolean isSubscribed =
-          pluginSubscribedMethods.contains(ALL_METHODS)
-              || pluginSubscribedMethods.contains(methodName);
+          (!useForceConnectPipeline || (plugin instanceof AuthenticationConnectionPlugin))
+          && (pluginSubscribedMethods.contains(ALL_METHODS) || pluginSubscribedMethods.contains(methodName));
 
       if (isSubscribed) {
         if (pluginChainFunc == null) {
@@ -338,7 +348,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
         (plugin, func) ->
             plugin.execute(
                 resultType, exceptionClass, methodInvokeOn, methodName, func, jdbcMethodArgs),
-        jdbcMethodFunc);
+        jdbcMethodFunc,
+        false);
   }
 
   /**
@@ -378,7 +389,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
               plugin.connect(driverProtocol, hostSpec, props, isInitialConnection, func),
           () -> {
             throw new SQLException("Shouldn't be called.");
-          });
+          },
+          false);
     } catch (final SQLException | RuntimeException e) {
       throw e;
     } catch (final Exception e) {
@@ -421,7 +433,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
               plugin.forceConnect(driverProtocol, hostSpec, props, isInitialConnection, func),
           () -> {
             throw new SQLException("Shouldn't be called.");
-          });
+          },
+          true);
     } catch (SQLException | RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -535,7 +548,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
               },
           () -> {
             throw new SQLException("Shouldn't be called.");
-          });
+          },
+          false);
     } finally {
       context.closeContext();
     }
