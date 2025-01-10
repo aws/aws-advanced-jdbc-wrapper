@@ -459,7 +459,8 @@ public class LimitlessRouterServiceImplTest {
 
     assertThrows(SQLException.class, () -> limitlessRouterService.establishConnection(inputContext));
 
-    verify(mockPluginService, times(LimitlessConnectionPlugin.MAX_RETRIES.getInteger(props))).connect(any(), any(), any());
+    verify(mockPluginService, times(LimitlessConnectionPlugin.MAX_RETRIES.getInteger(props)))
+        .connect(any(), any(), any());
     verify(mockPluginService, times(LimitlessConnectionPlugin.MAX_RETRIES.getInteger(props)))
         .getHostSpecByStrategy(any(), any(), any());
   }
