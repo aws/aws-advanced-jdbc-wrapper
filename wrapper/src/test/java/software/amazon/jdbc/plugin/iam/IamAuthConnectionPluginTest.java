@@ -136,7 +136,7 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testPostgresConnectValidTokenInCache() throws SQLException {
-    IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
+    IamAuthCacheHolder.tokenCache.put(PG_CACHE_KEY,
         new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
@@ -148,7 +148,7 @@ class IamAuthConnectionPluginTest {
   public void testMySqlConnectValidTokenInCache() throws SQLException {
     props.setProperty(PropertyDefinition.USER.name, "mysqlUser");
     props.setProperty(PropertyDefinition.PASSWORD.name, "mysqlPassword");
-    IamAuthConnectionPlugin.tokenCache.put(MYSQL_CACHE_KEY,
+    IamAuthCacheHolder.tokenCache.put(MYSQL_CACHE_KEY,
         new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_MYSQL_PORT);
@@ -163,7 +163,7 @@ class IamAuthConnectionPluginTest {
 
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + PG_HOST_SPEC_WITH_PORT.getPort() + ":postgresqlUser";
-    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
         new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
@@ -178,7 +178,7 @@ class IamAuthConnectionPluginTest {
 
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + DEFAULT_PG_PORT + ":postgresqlUser";
-    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
         new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC);
@@ -186,7 +186,7 @@ class IamAuthConnectionPluginTest {
 
   @Test
   public void testConnectExpiredTokenInCache() throws SQLException {
-    IamAuthConnectionPlugin.tokenCache.put(PG_CACHE_KEY,
+    IamAuthCacheHolder.tokenCache.put(PG_CACHE_KEY,
         new TokenInfo(TEST_TOKEN, Instant.now().minusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
@@ -204,7 +204,7 @@ class IamAuthConnectionPluginTest {
   @Test
   public void testConnectWithSpecifiedPort() throws SQLException {
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:1234:" + "postgresqlUser";
-    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
         new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
@@ -216,7 +216,7 @@ class IamAuthConnectionPluginTest {
     props.setProperty(IamAuthConnectionPlugin.IAM_DEFAULT_PORT.name, iamDefaultPort);
     final String cacheKeyWithNewPort = "us-east-2:pg.testdb.us-east-2.rds.amazonaws.com:"
         + iamDefaultPort + ":postgresqlUser";
-    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewPort,
+    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewPort,
         new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     testTokenSetInProps(PG_DRIVER_PROTOCOL, PG_HOST_SPEC_WITH_PORT);
@@ -227,7 +227,7 @@ class IamAuthConnectionPluginTest {
     final String cacheKeyWithNewRegion =
         "us-west-1:pg.testdb.us-west-1.rds.amazonaws.com:" + DEFAULT_PG_PORT + ":" + "postgresqlUser";
     props.setProperty(IamAuthConnectionPlugin.IAM_REGION.name, "us-west-1");
-    IamAuthConnectionPlugin.tokenCache.put(cacheKeyWithNewRegion,
+    IamAuthCacheHolder.tokenCache.put(cacheKeyWithNewRegion,
         new TokenInfo(TEST_TOKEN, Instant.now().plusMillis(300000)));
 
     when(mockDialect.getDefaultPort()).thenReturn(DEFAULT_PG_PORT);
@@ -294,6 +294,6 @@ class IamAuthConnectionPluginTest {
     verify(mockLambda, times(1)).call();
 
     assertEquals(GENERATED_TOKEN, PropertyDefinition.PASSWORD.getString(props));
-    assertEquals(GENERATED_TOKEN, IamAuthConnectionPlugin.tokenCache.get(PG_CACHE_KEY).getToken());
+    assertEquals(GENERATED_TOKEN, IamAuthCacheHolder.tokenCache.get(PG_CACHE_KEY).getToken());
   }
 }

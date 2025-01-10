@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 public class SlidingExpirationCache<K, V> {
@@ -30,7 +31,7 @@ public class SlidingExpirationCache<K, V> {
   protected final Map<K, CacheItem> cache = new ConcurrentHashMap<>();
   protected long cleanupIntervalNanos = TimeUnit.MINUTES.toNanos(10);
   protected final AtomicLong cleanupTimeNanos = new AtomicLong(System.nanoTime() + cleanupIntervalNanos);
-  protected final ShouldDisposeFunc<V> shouldDisposeFunc;
+  protected final AtomicReference<ShouldDisposeFunc<V>> shouldDisposeFunc = new AtomicReference<>(null);
   protected final ItemDisposalFunc<V> itemDisposalFunc;
 
   /**
@@ -38,7 +39,7 @@ public class SlidingExpirationCache<K, V> {
    * as not-expired and renews its expiration time.
    */
   public SlidingExpirationCache() {
-    this.shouldDisposeFunc = null;
+    this.shouldDisposeFunc.set(null);
     this.itemDisposalFunc = null;
   }
 
@@ -56,7 +57,7 @@ public class SlidingExpirationCache<K, V> {
   public SlidingExpirationCache(
       final ShouldDisposeFunc<V> shouldDisposeFunc,
       final ItemDisposalFunc<V> itemDisposalFunc) {
-    this.shouldDisposeFunc = shouldDisposeFunc;
+    this.shouldDisposeFunc.set(shouldDisposeFunc);
     this.itemDisposalFunc = itemDisposalFunc;
   }
 
@@ -64,9 +65,13 @@ public class SlidingExpirationCache<K, V> {
       final ShouldDisposeFunc<V> shouldDisposeFunc,
       final ItemDisposalFunc<V> itemDisposalFunc,
       final long cleanupIntervalNanos) {
-    this.shouldDisposeFunc = shouldDisposeFunc;
+    this.shouldDisposeFunc.set(shouldDisposeFunc);
     this.itemDisposalFunc = itemDisposalFunc;
     this.cleanupIntervalNanos = cleanupIntervalNanos;
+  }
+
+  public void setShouldDisposeFunc(final ShouldDisposeFunc<V> shouldDisposeFunc) {
+    this.shouldDisposeFunc.set(shouldDisposeFunc);
   }
 
   /**
@@ -257,8 +262,9 @@ public class SlidingExpirationCache<K, V> {
      *     false.
      */
     boolean shouldCleanup() {
-      if (shouldDisposeFunc != null) {
-        return System.nanoTime() > expirationTimeNano && shouldDisposeFunc.shouldDispose(this.item);
+      final ShouldDisposeFunc<V> tempShouldDisposeFunc = shouldDisposeFunc.get();
+      if (tempShouldDisposeFunc != null) {
+        return System.nanoTime() > expirationTimeNano && tempShouldDisposeFunc.shouldDispose(this.item);
       }
       return System.nanoTime() > expirationTimeNano;
     }

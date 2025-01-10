@@ -754,4 +754,8 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
     }
     return null;
   }
+
+  public static void clearCache() {
+    hostAvailabilityExpiringCache.clear();
+  }
 }

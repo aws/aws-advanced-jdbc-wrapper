@@ -45,11 +45,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import software.amazon.jdbc.HikariPooledConnectionProvider.PoolKey;
 import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.hostavailability.SimpleHostAvailabilityStrategy;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.SlidingExpirationCache;
 
 class HikariPooledConnectionProviderTest {
@@ -129,8 +129,8 @@ class HikariPooledConnectionProviderTest {
   void testConnectWithDefaultMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
     final Set<String> expectedUrls = new HashSet<>(Collections.singletonList("url"));
-    final Set<PoolKey> expectedKeys = new HashSet<>(
-        Collections.singletonList(new PoolKey("url", user1)));
+    final Set<Pair> expectedKeys = new HashSet<>(
+        Collections.singletonList(Pair.create("url", user1)));
 
     provider = spy(new HikariPooledConnectionProvider((hostSpec, properties) -> mockConfig));
 
@@ -146,7 +146,7 @@ class HikariPooledConnectionProviderTest {
       assertEquals(1, provider.getHostCount());
       final Set<String> hosts = provider.getHosts();
       assertEquals(expectedUrls, hosts);
-      final Set<PoolKey> keys = provider.getKeys();
+      final Set<Pair> keys = provider.getKeys();
       assertEquals(expectedKeys, keys);
     }
   }
@@ -154,8 +154,8 @@ class HikariPooledConnectionProviderTest {
   @Test
   void testConnectWithCustomMapping() throws SQLException {
     when(mockHostSpec.getUrl()).thenReturn("url");
-    final Set<PoolKey> expectedKeys = new HashSet<>(
-        Collections.singletonList(new PoolKey("url", "url+someUniqueKey")));
+    final Set<Pair> expectedKeys = new HashSet<>(
+        Collections.singletonList(Pair.create("url", "url+someUniqueKey")));
 
     provider = spy(new HikariPooledConnectionProvider(
         (hostSpec, properties) -> mockConfig,
@@ -169,7 +169,7 @@ class HikariPooledConnectionProviderTest {
     try (Connection conn = provider.connect(protocol, mockDialect, mockTargetDriverDialect, mockHostSpec, props)) {
       assertEquals(mockConnection, conn);
       assertEquals(1, provider.getHostCount());
-      final Set<PoolKey> keys = provider.getKeys();
+      final Set<Pair> keys = provider.getKeys();
       assertEquals(expectedKeys, keys);
     }
   }
@@ -208,13 +208,13 @@ class HikariPooledConnectionProviderTest {
     assertEquals(readerUrl1Connection, selectedHost.getHost());
   }
 
-  private SlidingExpirationCache<PoolKey, HikariDataSource> getTestPoolMap() {
-    SlidingExpirationCache<PoolKey, HikariDataSource> map = new SlidingExpirationCache<>();
-    map.computeIfAbsent(new PoolKey(readerHost2Connection.getUrl(), user1),
+  private SlidingExpirationCache<Pair, AutoCloseable> getTestPoolMap() {
+    SlidingExpirationCache<Pair, AutoCloseable> map = new SlidingExpirationCache<>();
+    map.computeIfAbsent(Pair.create(readerHost2Connection.getUrl(), user1),
         (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
-    map.computeIfAbsent(new PoolKey(readerHost2Connection.getUrl(), user2),
+    map.computeIfAbsent(Pair.create(readerHost2Connection.getUrl(), user2),
         (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
-    map.computeIfAbsent(new PoolKey(readerHost1Connection.getUrl(), user1),
+    map.computeIfAbsent(Pair.create(readerHost1Connection.getUrl(), user1),
         (key) -> dsWith1Connection, TimeUnit.MINUTES.toNanos(10));
     return map;
   }

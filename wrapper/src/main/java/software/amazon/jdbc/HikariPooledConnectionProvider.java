@@ -39,6 +39,7 @@ import software.amazon.jdbc.dialect.Dialect;
 import software.amazon.jdbc.targetdriverdialect.ConnectInfo;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
@@ -61,16 +62,21 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
       });
 
   protected static final RdsUtils rdsUtils = new RdsUtils();
-  protected static SlidingExpirationCache<PoolKey, HikariDataSource> databasePools =
-      new SlidingExpirationCache<>(
-          (hikariDataSource) -> hikariDataSource.getHikariPoolMXBean().getActiveConnections() == 0,
-          HikariDataSource::close
-      );
   protected static long poolExpirationCheckNanos = TimeUnit.MINUTES.toNanos(30);
   protected final HikariPoolConfigurator poolConfigurator;
   protected final HikariPoolMapping poolMapping;
   protected final AcceptsUrlFunc acceptsUrlFunc;
   protected final LeastConnectionsHostSelector leastConnectionsHostSelector;
+
+  static {
+    HikariPoolsHolder.databasePools.setShouldDisposeFunc(
+        (hikariDataSource) -> {
+          if (hikariDataSource instanceof HikariDataSource) {
+            return ((HikariDataSource) hikariDataSource).getHikariPoolMXBean().getActiveConnections() == 0;
+          }
+          return true;
+        });
+  }
 
   /**
    * {@link HikariPooledConnectionProvider} constructor. This class can be passed to
@@ -114,7 +120,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     this.poolConfigurator = hikariPoolConfigurator;
     this.poolMapping = mapping;
     this.acceptsUrlFunc = null;
-    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
   }
 
   /**
@@ -151,8 +157,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     this.poolMapping = mapping;
     this.acceptsUrlFunc = null;
     poolExpirationCheckNanos = poolExpirationNanos;
-    databasePools.setCleanupIntervalNanos(poolCleanupNanos);
-    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
+    HikariPoolsHolder.databasePools.setCleanupIntervalNanos(poolCleanupNanos);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
   }
 
   /**
@@ -193,8 +199,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     this.poolMapping = mapping;
     this.acceptsUrlFunc = acceptsUrlFunc;
     poolExpirationCheckNanos = poolExpirationNanos;
-    databasePools.setCleanupIntervalNanos(poolCleanupNanos);
-    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(databasePools);
+    HikariPoolsHolder.databasePools.setCleanupIntervalNanos(poolCleanupNanos);
+    this.leastConnectionsHostSelector = new LeastConnectionsHostSelector(HikariPoolsHolder.databasePools);
   }
 
 
@@ -272,8 +278,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     final HostSpec finalHostSpec = connectionHostSpec;
     dialect.prepareConnectProperties(copy, protocol, finalHostSpec);
 
-    final HikariDataSource ds = databasePools.computeIfAbsent(
-        new PoolKey(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
+    final HikariDataSource ds = (HikariDataSource) HikariPoolsHolder.databasePools.computeIfAbsent(
+        Pair.create(hostSpec.getUrl(), getPoolKey(finalHostSpec, copy)),
         (lambdaPoolKey) -> createHikariDataSource(protocol, finalHostSpec, copy, targetDriverDialect),
         poolExpirationCheckNanos
     );
@@ -297,22 +303,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
 
   @Override
   public void releaseResources() {
-    databasePools.getEntries().forEach((poolKey, pool) -> {
-      if (!pool.isClosed()) {
-        pool.close();
-      }
-    });
-    databasePools.clear();
-  }
-
-  // For testing purposes
-  public static void clearCache() {
-    databasePools.getEntries().forEach((poolKey, pool) -> {
-      if (!pool.isClosed()) {
-        pool.close();
-      }
-    });
-    databasePools.clear();
+    HikariPoolsHolder.closeAllPools();
   }
 
   /**
@@ -378,7 +369,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    * @return the number of active connection pools
    */
   public int getHostCount() {
-    return databasePools.size();
+    return HikariPoolsHolder.databasePools.size();
   }
 
   /**
@@ -388,8 +379,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    */
   public Set<String> getHosts() {
     return Collections.unmodifiableSet(
-        databasePools.getEntries().keySet().stream()
-            .map(poolKey -> poolKey.url)
+        HikariPoolsHolder.databasePools.getEntries().keySet().stream()
+            .map(poolKey -> (String) poolKey.getValue1())
             .collect(Collectors.toSet()));
   }
 
@@ -398,8 +389,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
    *
    * @return a set containing every key associated with an active connection pool
    */
-  public Set<PoolKey> getKeys() {
-    return databasePools.getEntries().keySet();
+  public Set<Pair> getKeys() {
+    return HikariPoolsHolder.databasePools.getEntries().keySet();
   }
 
   @Override
@@ -413,7 +404,7 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
   public void logConnections() {
     LOGGER.finest(() -> {
       final StringBuilder builder = new StringBuilder();
-      databasePools.getEntries().forEach((key, dataSource) -> {
+      HikariPoolsHolder.databasePools.getEntries().forEach((key, dataSource) -> {
         builder.append("\t[ ");
         builder.append(key).append(":");
         builder.append("\n\t {");
@@ -436,51 +427,8 @@ public class HikariPooledConnectionProvider implements PooledConnectionProvider,
     return new HikariDataSource(config);
   }
 
-  public static class PoolKey {
-    private final @NonNull String url;
-    private final @NonNull String extraKey;
-
-    public PoolKey(final @NonNull String url, final @NonNull String extraKey) {
-      this.url = url;
-      this.extraKey = extraKey;
-    }
-
-    public String getUrl() {
-      return this.url;
-    }
-
-    @Override
-    public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((url == null) ? 0 : url.hashCode()) + ((extraKey == null) ? 0 : extraKey.hashCode());
-      return result;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-      if (this == obj) {
-        return true;
-      }
-      if (obj == null) {
-        return false;
-      }
-      if (getClass() != obj.getClass()) {
-        return false;
-      }
-      final PoolKey other = (PoolKey) obj;
-      return this.url.equals(other.url) && this.extraKey.equals(other.extraKey);
-    }
-
-    @Override
-    public String toString() {
-      return "PoolKey [url=" + url + ", extraKey=" + extraKey + "]";
-    }
-
-  }
-
   // For testing purposes only
-  void setDatabasePools(SlidingExpirationCache<PoolKey, HikariDataSource> connectionPools) {
-    databasePools = connectionPools;
+  void setDatabasePools(SlidingExpirationCache<Pair, AutoCloseable> connectionPools) {
+    HikariPoolsHolder.databasePools = connectionPools;
   }
 }

@@ -33,6 +33,21 @@ import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.jdbc.authentication.AwsCredentialsManager;
+import software.amazon.jdbc.dialect.DialectManager;
+import software.amazon.jdbc.hostlistprovider.RdsHostListProvider;
+import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
+import software.amazon.jdbc.plugin.AwsSecretsManagerCacheHolder;
+import software.amazon.jdbc.plugin.DataCacheConnectionPlugin;
+import software.amazon.jdbc.plugin.OpenedConnectionTracker;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
+import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
+import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
+import software.amazon.jdbc.plugin.federatedauth.FederatedAuthCacheHolder;
+import software.amazon.jdbc.plugin.federatedauth.OktaAuthCacheHolder;
+import software.amazon.jdbc.plugin.iam.IamAuthCacheHolder;
+import software.amazon.jdbc.plugin.limitless.LimitlessRouterServiceImpl;
+import software.amazon.jdbc.plugin.strategy.fastestresponse.FastestResponseStrategyPlugin;
+import software.amazon.jdbc.plugin.strategy.fastestresponse.HostResponseTimeServiceImpl;
 import software.amazon.jdbc.profile.ConfigurationProfile;
 import software.amazon.jdbc.profile.DriverConfigurationProfiles;
 import software.amazon.jdbc.states.ResetSessionStateOnCloseCallable;
@@ -276,5 +291,33 @@ public class Driver implements java.sql.Driver {
 
   public static void resetPrepareHostFunc() {
     RdsUtils.resetPrepareHostFunc();
+  }
+
+  public static void clearCaches() {
+    RdsUtils.clearCache();
+    RdsHostListProvider.clearAll();
+    PluginServiceImpl.clearCache();
+    DialectManager.resetEndpointCache();
+    MonitoringRdsHostListProvider.clearCache();
+    CustomEndpointMonitorImpl.clearCache();
+    OpenedConnectionTracker.clearCache();
+    AwsSecretsManagerCacheHolder.clearCache();
+    DataCacheConnectionPlugin.clearCache();
+    FederatedAuthCacheHolder.clearCache();
+    OktaAuthCacheHolder.clearCache();
+    IamAuthCacheHolder.clearCache();
+    LimitlessRouterServiceImpl.clearCache();
+    RoundRobinHostSelector.clearCache();
+    FastestResponseStrategyPlugin.clearCache();
+  }
+
+  public static void releaseResources() {
+    software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.closeAllMonitors();
+    MonitorThreadContainer.releaseInstance();
+    ConnectionProviderManager.releaseResources();
+    CustomEndpointPlugin.closeMonitors();
+    HikariPoolsHolder.closeAllPools();
+    HostResponseTimeServiceImpl.closeAllMonitors();
+    clearCaches();
   }
 }

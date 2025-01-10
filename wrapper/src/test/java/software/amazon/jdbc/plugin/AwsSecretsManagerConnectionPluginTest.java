@@ -52,7 +52,6 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerException;
-import software.amazon.awssdk.utils.Pair;
 import software.amazon.jdbc.ConnectionPluginManager;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.HostSpecBuilder;
@@ -71,6 +70,7 @@ import software.amazon.jdbc.profile.ConfigurationProfileBuilder;
 import software.amazon.jdbc.states.SessionStateService;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
+import software.amazon.jdbc.util.Pair;
 import software.amazon.jdbc.util.telemetry.GaugeCallable;
 import software.amazon.jdbc.util.telemetry.TelemetryContext;
 import software.amazon.jdbc.util.telemetry.TelemetryCounter;
@@ -92,7 +92,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   private static final String TEST_SQL_ERROR = "SQL exception error message";
   private static final String UNHANDLED_ERROR_CODE = "HY000";
   private static final int TEST_PORT = 5432;
-  private static final Pair<String, Region> SECRET_CACHE_KEY = Pair.of(TEST_SECRET_ID, Region.of(TEST_REGION));
+  private static final Pair<String, String> SECRET_CACHE_KEY = Pair.create(TEST_SECRET_ID, TEST_REGION);
   private static final AwsSecretsManagerConnectionPlugin.Secret TEST_SECRET =
       new AwsSecretsManagerConnectionPlugin.Secret("testUser", "testPassword");
   private static final HostSpec TEST_HOSTSPEC = new HostSpecBuilder(new SimpleHostAvailabilityStrategy())
@@ -155,7 +155,7 @@ public class AwsSecretsManagerConnectionPluginTest {
   @AfterEach
   void cleanUp() throws Exception {
     closeable.close();
-    AwsSecretsManagerConnectionPlugin.secretsCache.clear();
+    AwsSecretsManagerCacheHolder.clearCache();
     TEST_PROPS.clear();
   }
 
@@ -165,11 +165,11 @@ public class AwsSecretsManagerConnectionPluginTest {
   @Test
   public void testConnectWithCachedSecrets() throws SQLException {
     // Add initial cached secret to be used for a connection.
-    AwsSecretsManagerConnectionPlugin.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
+    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(this.mockSecretsManagerClient, never()).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -187,7 +187,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     this.plugin.connect(TEST_PG_PROTOCOL, TEST_HOSTSPEC, TEST_PROPS, true, this.connectFunc);
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -210,7 +210,7 @@ public class AwsSecretsManagerConnectionPluginTest {
    */
   @Test
   public void testFailedInitialConnectionWithUnhandledError() throws SQLException {
-    AwsSecretsManagerConnectionPlugin.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
+    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
     final SQLException failedFirstConnectionGenericException = new SQLException(TEST_SQL_ERROR, UNHANDLED_ERROR_CODE);
     doThrow(failedFirstConnectionGenericException).when(connectFunc).call();
 
@@ -257,7 +257,7 @@ public class AwsSecretsManagerConnectionPluginTest {
 
     // Fail the initial connection attempt with cached secret.
     // Second attempt should be successful.
-    AwsSecretsManagerConnectionPlugin.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
+    AwsSecretsManagerCacheHolder.secretsCache.put(SECRET_CACHE_KEY, TEST_SECRET);
     final SQLException failedFirstConnectionAccessException = new SQLException(TEST_SQL_ERROR,
         accessError);
     doThrow(failedFirstConnectionAccessException).when(connectFunc).call();
@@ -275,7 +275,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(connectFunc, times(2)).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
@@ -305,7 +305,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         readSecretsFailedException.getMessage(),
         Messages.get(
             "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-    assertEquals(0, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(0, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();
   }
@@ -332,7 +332,7 @@ public class AwsSecretsManagerConnectionPluginTest {
         getSecretsFailedException.getMessage(),
         Messages.get(
             "AwsSecretsManagerConnectionPlugin.failedToFetchDbCredentials"));
-    assertEquals(0, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(0, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(this.mockSecretsManagerClient).getSecretValue(this.mockGetValueRequest);
     verify(this.connectFunc, never()).call();
   }
@@ -374,7 +374,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -415,7 +415,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -456,7 +456,7 @@ public class AwsSecretsManagerConnectionPluginTest {
             true,
             this.connectFunc));
 
-    assertEquals(1, AwsSecretsManagerConnectionPlugin.secretsCache.size());
+    assertEquals(1, AwsSecretsManagerCacheHolder.secretsCache.size());
     verify(connectFunc).call();
     assertEquals(TEST_USERNAME, TEST_PROPS.get(PropertyDefinition.USER.name));
     assertEquals(TEST_PASSWORD, TEST_PROPS.get(PropertyDefinition.PASSWORD.name));
@@ -476,8 +476,8 @@ public class AwsSecretsManagerConnectionPluginTest {
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
 
-    final Pair<String, Region> secret = this.plugin.secretKey;
-    assertEquals(expectedRegionParsedFromARN, secret.right());
+    final Pair<String, String> secret = this.plugin.secretKey;
+    assertEquals(expectedRegionParsedFromARN, Region.of(secret.getValue2()));
   }
 
   @ParameterizedTest
@@ -496,10 +496,10 @@ public class AwsSecretsManagerConnectionPluginTest {
         (host, r) -> mockSecretsManagerClient,
         (id) -> mockGetValueRequest));
 
-    final Pair<String, Region> secret = this.plugin.secretKey;
+    final Pair<String, String> secret = this.plugin.secretKey;
     // The region specified in `secretsManagerRegion` should override the region parsed from ARN.
-    assertNotEquals(regionParsedFromARN, secret.right());
-    assertEquals(expectedRegion, secret.right());
+    assertNotEquals(regionParsedFromARN, Region.of(secret.getValue2()));
+    assertEquals(expectedRegion, Region.of(secret.getValue2()));
   }
 
   private static Stream<Arguments> provideExceptionCodeForDifferentDrivers() {
