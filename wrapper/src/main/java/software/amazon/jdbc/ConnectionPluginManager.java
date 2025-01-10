@@ -278,7 +278,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       if (isSubscribed) {
         if (pluginChainFunc == null) {
           // This case is for DefaultConnectionPlugin that always terminates the list of plugins.
-          // Default plugin couldn't be skipped.
+          // Default plugin can't be skipped.
           pluginChainFunc = (pipelineFunc, jdbcFunc, pluginToSkip) ->
               executeWithTelemetry(() -> pipelineFunc.call(plugin, jdbcFunc), pluginName);
         } else {

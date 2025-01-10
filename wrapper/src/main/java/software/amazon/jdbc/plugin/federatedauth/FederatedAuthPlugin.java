@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -47,7 +48,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
-public class FederatedAuthPlugin extends AbstractConnectionPlugin {
+public class FederatedAuthPlugin extends AbstractConnectionPlugin implements AuthenticationConnectionPlugin {
 
   private final CredentialsProviderFactory credentialsProviderFactory;
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60 - 30;
