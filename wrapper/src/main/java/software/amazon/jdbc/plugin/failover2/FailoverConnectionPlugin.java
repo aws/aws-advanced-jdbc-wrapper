@@ -70,8 +70,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   private static final String TELEMETRY_WRITER_FAILOVER = "failover to writer node";
   private static final String TELEMETRY_READER_FAILOVER = "failover to replica";
 
-  private static final String INTERNAL_CONNECT_PROPERTY_NAME = "76c06979-49c4-4c86-9600-a63605b83f50";
-
   public static final AwsWrapperProperty FAILOVER_TIMEOUT_MS =
       new AwsWrapperProperty(
           "failoverTimeoutMs",
@@ -369,8 +367,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   protected ReaderFailoverResult getReaderFailoverConnection(long failoverEndTimeNano) throws TimeoutException {
-    final Properties copyProp = PropertyUtils.copyProperties(this.properties);
-    copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
 
     // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
     final List<HostSpec> hosts = this.pluginService.getHosts();
@@ -409,7 +405,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         }
 
         try {
-          Connection candidateConn = this.pluginService.connect(readerCandidate, copyProp);
+          Connection candidateConn = this.pluginService.connect(readerCandidate, this.properties, this);
           // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
           HostRole role = this.pluginService.getHostRole(candidateConn);
           if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
@@ -449,7 +445,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
       // Try the original writer, which may have been demoted to a reader.
       try {
-        Connection candidateConn = this.pluginService.connect(originalWriter, copyProp);
+        Connection candidateConn = this.pluginService.connect(originalWriter, this.properties, this);
         HostRole role = this.pluginService.getHostRole(candidateConn);
         if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
           HostSpec updatedHostSpec = new HostSpec(originalWriter, role);
@@ -510,8 +506,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
-      final Properties copyProp = PropertyUtils.copyProperties(this.properties);
-      copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
 
       Connection writerCandidateConn;
       final HostSpec writerCandidate = updatedHosts.stream()
@@ -538,7 +532,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       try {
-        writerCandidateConn = this.pluginService.connect(writerCandidate, copyProp);
+        writerCandidateConn = this.pluginService.connect(writerCandidate, this.properties, this);
       } catch (SQLException ex) {
         this.failoverWriterFailedCounter.inc();
         LOGGER.severe(
@@ -678,11 +672,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-
-    // This call was initiated by this failover2 plugin and doesn't require any additional processing.
-    if (props.containsKey(INTERNAL_CONNECT_PROPERTY_NAME)) {
-      return connectFunc.call();
-    }
 
     this.initFailoverMode();
 

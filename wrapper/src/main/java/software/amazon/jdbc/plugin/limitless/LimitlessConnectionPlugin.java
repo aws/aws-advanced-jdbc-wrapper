@@ -108,17 +108,6 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc);
-  }
-
-  public Connection connectInternal(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-
     Connection conn = null;
 
     final Dialect dialect = this.pluginService.getDialect();
@@ -134,8 +123,8 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
     initLimitlessRouterMonitorService();
     if (isInitialConnection) {
-      this.limitlessRouterService
-          .startMonitoring(hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
+      this.limitlessRouterService.startMonitoring(
+          hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
     final LimitlessConnectionContext context = new LimitlessConnectionContext(

@@ -213,7 +213,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final String methodName,
       final PluginPipeline<T, E> pluginPipeline,
       final JdbcCallable<T, E> jdbcMethodFunc,
-      final boolean useForceConnectPipeline,
       final @Nullable ConnectionPlugin pluginToSkip)
       throws E {
 
@@ -227,13 +226,13 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
     // noinspection unchecked
     PluginChainJdbcCallable<T, E> pluginChainFunc =
-        useForceConnectPipeline
+        FORCE_CONNECT_METHOD.equals(methodName)
             ? this.pluginForceConnectChainFuncMap.get(methodName)
             : this.pluginChainFuncMap.get(methodName);
 
     if (pluginChainFunc == null) {
-      pluginChainFunc = this.makePluginChainFunc(methodName, useForceConnectPipeline);
-      if (useForceConnectPipeline) {
+      pluginChainFunc = this.makePluginChainFunc(methodName);
+      if (FORCE_CONNECT_METHOD.equals(methodName)) {
         this.pluginForceConnectChainFuncMap.put(methodName, pluginChainFunc);
       } else {
         this.pluginChainFuncMap.put(methodName, pluginChainFunc);
@@ -262,8 +261,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
 
   @Nullable
   protected <T, E extends Exception> PluginChainJdbcCallable<T, E> makePluginChainFunc(
-      final @NonNull String methodName,
-      final boolean useForceConnectPipeline) {
+      final @NonNull String methodName) {
 
     PluginChainJdbcCallable<T, E> pluginChainFunc = null;
 
@@ -272,7 +270,9 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
       final String pluginName = pluginNameByClass.getOrDefault(plugin.getClass(), plugin.getClass().getSimpleName());
       final boolean isSubscribed =
-          (!useForceConnectPipeline || (plugin instanceof AuthenticationConnectionPlugin))
+          (!FORCE_CONNECT_METHOD.equals(methodName)
+              || (plugin instanceof AuthenticationConnectionPlugin)
+              || (plugin instanceof DefaultConnectionPlugin))
           && (pluginSubscribedMethods.contains(ALL_METHODS) || pluginSubscribedMethods.contains(methodName));
 
       if (isSubscribed) {
@@ -361,7 +361,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
             plugin.execute(
                 resultType, exceptionClass, methodInvokeOn, methodName, func, jdbcMethodArgs),
         jdbcMethodFunc,
-        false,
         null);
   }
 
@@ -383,6 +382,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
    * @param isInitialConnection a boolean indicating whether the current {@link Connection} is
    *                            establishing an initial physical connection to the database or has
    *                            already established a physical connection in the past
+   * @param pluginToSkip        the plugin that needs to be skipped while executing this pipeline
    * @return a {@link Connection} to the requested host
    * @throws SQLException if there was an error establishing a {@link Connection} to the requested
    *                      host
@@ -404,7 +404,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
-          false,
           pluginToSkip);
     } catch (final SQLException | RuntimeException e) {
       throw e;
@@ -451,7 +450,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
-          true,
           pluginToSkip);
     } catch (SQLException | RuntimeException e) {
       throw e;
@@ -567,7 +565,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
           () -> {
             throw new SQLException("Shouldn't be called.");
           },
-          false,
           null);
     } finally {
       context.closeContext();
@@ -670,7 +667,7 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;
   }
 
-  private interface PluginChainJdbcCallable<T, E extends Exception> {
+  interface PluginChainJdbcCallable<T, E extends Exception> {
 
     T call(
         final @NonNull PluginPipeline<T, E> pipelineFunc,

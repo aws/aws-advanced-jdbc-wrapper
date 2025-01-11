@@ -56,8 +56,8 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryTraceLevel;
 
-public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin implements
-    AuthenticationConnectionPlugin {
+public class AwsSecretsManagerConnectionPlugin extends AbstractConnectionPlugin
+    implements AuthenticationConnectionPlugin {
   private static final Logger LOGGER = Logger.getLogger(AwsSecretsManagerConnectionPlugin.class.getName());
   private static final String TELEMETRY_UPDATE_SECRETS = "fetch credentials";
   private static final String TELEMETRY_FETCH_CREDENTIALS_COUNTER = "secretsManager.fetchCredentials.count";

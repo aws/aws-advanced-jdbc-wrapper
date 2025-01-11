@@ -456,8 +456,7 @@ public class ConnectionPluginManagerTests {
     assertEquals("resulTestValue", result);
 
     // The method has been called just once to generate a final lambda and cache it.
-    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"), eq(false));
-    verify(target, never()).makePluginChainFunc(eq("testJdbcCall_A"), eq(true));
+    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
 
     assertEquals(7, calls.size());
     assertEquals("TestPluginOne:before", calls.get(0));
@@ -485,8 +484,7 @@ public class ConnectionPluginManagerTests {
     assertEquals("anotherResulTestValue", result);
 
     // No additional calls to this method occurred. It's still been called once.
-    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"), eq(false));
-    verify(target, never()).makePluginChainFunc(eq("testJdbcCall_A"), eq(true));
+    verify(target, times(1)).makePluginChainFunc(eq("testJdbcCall_A"));
 
     assertEquals(7, calls.size());
     assertEquals("TestPluginOne:before", calls.get(0));
@@ -527,8 +525,7 @@ public class ConnectionPluginManagerTests {
     assertEquals(mockConnection, result);
 
     // The method has been called just once to generate a final lambda and cache it.
-    verify(target, times(1)).makePluginChainFunc(eq("forceConnect"), eq(true));
-    verify(target, never()).makePluginChainFunc(eq("forceConnect"), eq(false));
+    verify(target, times(1)).makePluginChainFunc(eq("forceConnect"));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginThree:before forceConnect", calls.get(0));
@@ -546,8 +543,7 @@ public class ConnectionPluginManagerTests {
     assertEquals(mockConnection, result);
 
     // No additional calls to this method occurred. It's still been called once.
-    verify(target, times(1)).makePluginChainFunc(eq("forceConnect"), eq(true));
-    verify(target, never()).makePluginChainFunc(eq("forceConnect"), eq(false));
+    verify(target, times(1)).makePluginChainFunc(eq("forceConnect"));
 
     assertEquals(2, calls.size());
     assertEquals("TestPluginThree:before forceConnect", calls.get(0));

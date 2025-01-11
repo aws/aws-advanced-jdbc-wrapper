@@ -108,16 +108,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    return this.connectInternal(hostSpec, props, isInitialConnection, connectFunc);
-  }
-
-  private Connection connectInternal(
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-
     final RdsUrlType type = this.rdsUtils.identifyRdsType(hostSpec.getHost());
 
     if (!type.isRdsCluster()) {

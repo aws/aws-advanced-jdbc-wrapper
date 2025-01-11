@@ -137,11 +137,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
               new Object[] { this.readerSelectorStrategy }));
     }
 
-    return connectInternal(isInitialConnection, connectFunc);
-  }
-
-  private Connection connectInternal(boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
     final Connection currentConnection = connectFunc.call();
     if (!isInitialConnection || this.hostListProviderService.isStaticHostListProvider()) {
       return currentConnection;
@@ -162,17 +157,6 @@ public class ReadWriteSplittingPlugin extends AbstractConnectionPlugin
     final HostSpec updatedRoleHostSpec = new HostSpec(currentHost, currentRole);
     this.hostListProviderService.setInitialConnectionHostSpec(updatedRoleHostSpec);
     return currentConnection;
-  }
-
-  @Override
-  public Connection forceConnect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final @NonNull JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-    return connectInternal(isInitialConnection, forceConnectFunc);
   }
 
   @Override

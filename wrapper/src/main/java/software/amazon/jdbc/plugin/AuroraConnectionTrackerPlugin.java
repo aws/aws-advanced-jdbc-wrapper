@@ -50,7 +50,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
         {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("connect");
-          add("forceConnect");
           add("notifyNodeListChanged");
         }
       });
@@ -83,12 +82,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
   @Override
   public Connection connect(final String driverProtocol, final HostSpec hostSpec, final Properties props,
       final boolean isInitialConnection, final JdbcCallable<Connection, SQLException> connectFunc) throws SQLException {
-    return connectInternal(hostSpec, connectFunc);
-  }
-
-  public Connection connectInternal(
-      final HostSpec hostSpec, final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
 
     final Connection conn = connectFunc.call();
 
@@ -102,12 +95,6 @@ public class AuroraConnectionTrackerPlugin extends AbstractConnectionPlugin impl
     }
 
     return conn;
-  }
-
-  @Override
-  public Connection forceConnect(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> forceConnectFunc) throws SQLException {
-    return connectInternal(hostSpec, forceConnectFunc);
   }
 
   @Override
