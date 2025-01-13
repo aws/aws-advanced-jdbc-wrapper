@@ -662,12 +662,12 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     return this.effectiveConnProvider;
   }
 
-  private interface PluginPipeline<T, E extends Exception> {
+  protected interface PluginPipeline<T, E extends Exception> {
 
     T call(final @NonNull ConnectionPlugin plugin, final @Nullable JdbcCallable<T, E> jdbcMethodFunc) throws E;
   }
 
-  interface PluginChainJdbcCallable<T, E extends Exception> {
+  protected interface PluginChainJdbcCallable<T, E extends Exception> {
 
     T call(
         final @NonNull PluginPipeline<T, E> pipelineFunc,
