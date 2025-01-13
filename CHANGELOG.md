@@ -3,6 +3,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/#semantic-versioning-200).
 
+### :bug: Fixed
+- Avoid encoding MariaDB connection properties ([PR #1237](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1237)).
+
+## [2.5.4] - 2024-12-23
+### :bug: Fixed
+- Avoid setting ignoreNewTopologyRequestsEndTimeNano on initial connection ([PR #1221](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1221)).
+- Limitless Connection Plugin set round-robin weights properly to original properties, not a copy ([PR #1223](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1223)).
+
+### :crab: Changed
+- Update dependencies to address [CVE-2024-47535](https://www.cve.org/CVERecord?id=CVE-2024-47535) ([Issue #1229](https://github.com/aws/aws-advanced-jdbc-wrapper/issues/1229)).
+
 ## [2.5.3] - 2024-11-29
 ### :magic_wand: Added
 - Add WRITER custom endpoint type ([PR #1202](https://github.com/aws/aws-advanced-jdbc-wrapper/pull/1202)).
@@ -396,6 +407,7 @@ The Amazon Web Services (AWS) Advanced JDBC Driver allows an application to take
 - The [AWS IAM Authentication Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheIamAuthenticationPlugin.md)
 - The [AWS Secrets Manager Connection Plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAwsSecretsManagerPlugin.md)
 
+[2.5.4]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.3...2.5.4
 [2.5.3]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.2...2.5.3
 [2.5.2]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.1...2.5.2
 [2.5.1]: https://github.com/awslabs/aws-advanced-jdbc-wrapper/compare/2.5.0...2.5.1

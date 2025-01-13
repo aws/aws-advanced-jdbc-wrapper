@@ -14,15 +14,26 @@
  * limitations under the License.
  */
 
-plugins {
-    id("org.springframework.boot") version "2.7.0"
-    id("io.spring.dependency-management") version "1.1.6"
-}
+package software.amazon.jdbc.plugin.failover2;
 
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.postgresql:postgresql:42.7.4")
-    implementation("software.amazon.awssdk:rds:2.29.34")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
+import java.sql.Connection;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.HostSpec;
+
+public class ReaderFailoverResult {
+  private final Connection connection;
+  private final HostSpec hostSpec;
+
+  public ReaderFailoverResult(@NonNull Connection connection, @NonNull HostSpec hostSpec) {
+    this.connection = connection;
+    this.hostSpec = hostSpec;
+  }
+
+  public @NonNull Connection getConnection() {
+    return connection;
+  }
+
+  public @NonNull HostSpec getHostSpec() {
+    return hostSpec;
+  }
 }

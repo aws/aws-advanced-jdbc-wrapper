@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-plugins {
-    id("org.springframework.boot") version "2.7.0"
-    id("io.spring.dependency-management") version "1.1.6"
-}
+package software.amazon.jdbc.plugin.federatedauth;
 
-dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.postgresql:postgresql:42.7.4")
-    implementation("software.amazon.awssdk:rds:2.29.34")
-    implementation(project(":aws-advanced-jdbc-wrapper"))
+import java.util.concurrent.ConcurrentHashMap;
+import software.amazon.jdbc.plugin.TokenInfo;
+
+/* The main plugin code FederatedAuthPlugin depends on AWS SDK. In order to avoid unnecessary dependencies,
+ the plugin cache has been extracted into this FederatedAuthCacheHolder class. This cache holder class doesn't depend
+ on AWS SDK and can be safely cleared if needed.
+ */
+public class FederatedAuthCacheHolder {
+  static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
+
+  public static void clearCache() {
+    tokenCache.clear();
+  }
 }

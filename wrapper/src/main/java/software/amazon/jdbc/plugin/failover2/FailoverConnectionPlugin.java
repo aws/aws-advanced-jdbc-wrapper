@@ -16,14 +16,18 @@
 
 package software.amazon.jdbc.plugin.failover2;
 
+import static software.amazon.jdbc.plugin.failover.FailoverMode.STRICT_READER;
+
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.jdbc.AwsWrapperProperty;
@@ -124,7 +128,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
   protected boolean isInTransaction = false;
   protected RdsUrlType rdsUrlType;
   protected HostListProviderService hostListProviderService;
-  protected long failoverStartTimeNano = 0;
   protected final AuroraStaleDnsHelper staleDnsHelper;
   protected final TelemetryCounter failoverWriterTriggeredCounter;
   protected final TelemetryCounter failoverWriterSuccessCounter;
@@ -218,13 +221,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
     initHostProvider(
-        initialUrl,
         hostListProviderService,
         initHostProviderFunc);
   }
 
   void initHostProvider(
-      final String initialUrl,
       final HostListProviderService hostListProviderService,
       final JdbcCallable<Void, SQLException> initHostProviderFunc)
       throws SQLException {
@@ -305,17 +306,173 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
    * Initiates the failover procedure. This process tries to establish a new connection to an
    * instance in the topology.
    *
-   * @param failedHost The host with network errors.
    * @throws SQLException if an error occurs
    */
-  protected void failover(final HostSpec failedHost) throws SQLException {
-
+  protected void failover() throws SQLException {
     if (this.failoverMode == FailoverMode.STRICT_WRITER) {
       failoverWriter();
     } else {
       failoverReader();
     }
+  }
 
+  protected void failoverReader() throws SQLException {
+    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
+    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
+        TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
+    this.failoverReaderTriggeredCounter.inc();
+
+    final long failoverStartNano = System.nanoTime();
+    final long failoverEndNano = failoverStartNano + TimeUnit.MILLISECONDS.toNanos(this.failoverTimeoutMsSetting);
+
+    try {
+      LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
+      // When we pass a timeout of 0, we inform the plugin service that it should update its topology without waiting
+      // for it to get updated, since we do not need updated topology to establish a reader connection.
+      if (!this.pluginService.forceRefreshHostList(false, 0)) {
+        LOGGER.severe(Messages.get("Failover.failoverReaderUnableToRefreshHostList"));
+        throw new FailoverFailedSQLException(Messages.get("Failover.failoverReaderUnableToRefreshHostList"));
+      }
+
+      try {
+        ReaderFailoverResult result = getReaderFailoverConnection(failoverEndNano);
+        this.pluginService.setCurrentConnection(result.getConnection(), result.getHostSpec());
+      } catch (TimeoutException e) {
+        LOGGER.severe(Messages.get("Failover.unableToConnectToReader"));
+        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
+      }
+
+      LOGGER.info(
+          () -> Messages.get(
+              "Failover.establishedConnection",
+              new Object[] {this.pluginService.getCurrentHostSpec()}));
+      throwFailoverSuccessException();
+    } catch (FailoverSuccessSQLException ex) {
+      this.failoverReaderSuccessCounter.inc();
+      telemetryContext.setSuccess(true);
+      telemetryContext.setException(ex);
+      throw ex;
+    } catch (Exception ex) {
+      telemetryContext.setSuccess(false);
+      telemetryContext.setException(ex);
+      this.failoverReaderFailedCounter.inc();
+      throw ex;
+    } finally {
+      LOGGER.finest(() -> Messages.get(
+              "Failover.readerFailoverElapsed",
+              new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)}));
+      telemetryContext.closeContext();
+      if (this.telemetryFailoverAdditionalTopTraceSetting) {
+        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
+      }
+    }
+  }
+
+  protected ReaderFailoverResult getReaderFailoverConnection(long failoverEndTimeNano) throws TimeoutException {
+    final Properties copyProp = PropertyUtils.copyProperties(this.properties);
+    copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
+
+    // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
+    final List<HostSpec> hosts = this.pluginService.getHosts();
+    final Set<HostSpec> readerCandidates = hosts.stream()
+        .filter(hostSpec -> HostRole.READER.equals(hostSpec.getRole()))
+        .collect(Collectors.toSet());
+    final HostSpec originalWriter = hosts.stream()
+        .filter(hostSpec -> HostRole.WRITER.equals(hostSpec.getRole()))
+        .findFirst()
+        .orElse(null);
+    boolean isOriginalWriterStillWriter = false;
+
+    do {
+      // First, try all original readers
+      final Set<HostSpec> remainingReaders = new HashSet<>(readerCandidates);
+      while (!remainingReaders.isEmpty() && System.nanoTime() < failoverEndTimeNano) {
+        HostSpec readerCandidate;
+        try {
+          readerCandidate =
+              this.pluginService.getHostSpecByStrategy(
+                  new ArrayList<>(remainingReaders),
+                  HostRole.READER,
+                  this.failoverReaderHostSelectorStrategySetting);
+        } catch (UnsupportedOperationException | SQLException ex) {
+          LOGGER.finest(
+              Utils.logTopology(
+                  new ArrayList<>(remainingReaders),
+                  Messages.get("Failover.errorSelectingReaderHost", new Object[]{ex.getMessage()})));
+          break;
+        }
+
+        if (readerCandidate == null) {
+          LOGGER.finest(
+              Utils.logTopology(new ArrayList<>(remainingReaders), Messages.get("Failover.readerCandidateNull")));
+          break;
+        }
+
+        try {
+          Connection candidateConn = this.pluginService.connect(readerCandidate, copyProp);
+          // Since the roles in the host list might not be accurate, we execute a query to check the instance's role.
+          HostRole role = this.pluginService.getHostRole(candidateConn);
+          if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
+            HostSpec updatedHostSpec = new HostSpec(readerCandidate, role);
+            return new ReaderFailoverResult(candidateConn, updatedHostSpec);
+          }
+
+          // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is not valid.
+          remainingReaders.remove(readerCandidate);
+          candidateConn.close();
+
+          if (role == HostRole.WRITER) {
+            // The reader candidate is actually a writer, which is not valid when failoverMode is STRICT_READER.
+            // We will remove it from the list of reader candidates to avoid retrying it in future iterations.
+            readerCandidates.remove(readerCandidate);
+          } else {
+            LOGGER.fine(
+                Messages.get("Failover.strictReaderUnknownHostRole", new Object[]{readerCandidate.getUrl()}));
+          }
+        } catch (SQLException ex) {
+          remainingReaders.remove(readerCandidate);
+        }
+      }
+
+      // We were not able to connect to any of the original readers. We will try connecting to the original writer,
+      // which may have been demoted to a reader.
+
+      if (originalWriter == null || System.nanoTime() > failoverEndTimeNano) {
+        // No writer was found in the original topology, or we have timed out.
+        continue;
+      }
+
+      if (this.failoverMode == STRICT_READER && isOriginalWriterStillWriter) {
+        // The original writer has been verified, so it is not valid when in STRICT_READER mode.
+        continue;
+      }
+
+      // Try the original writer, which may have been demoted to a reader.
+      try {
+        Connection candidateConn = this.pluginService.connect(originalWriter, copyProp);
+        HostRole role = this.pluginService.getHostRole(candidateConn);
+        if (role == HostRole.READER || this.failoverMode != STRICT_READER) {
+          HostSpec updatedHostSpec = new HostSpec(originalWriter, role);
+          return new ReaderFailoverResult(candidateConn, updatedHostSpec);
+        }
+
+        // The role is WRITER or UNKNOWN, and we are in STRICT_READER mode, so the connection is not valid.
+        candidateConn.close();
+
+        if (role == HostRole.WRITER) {
+          isOriginalWriterStillWriter = true;
+        } else {
+          LOGGER.fine(Messages.get("Failover.strictReaderUnknownHostRole", new Object[]{originalWriter.getUrl()}));
+        }
+      } catch (SQLException ex) {
+        LOGGER.fine(Messages.get("Failover.failedReaderConnection", new Object[]{originalWriter.getUrl()}));
+      }
+    } while (System.nanoTime() < failoverEndTimeNano); // All hosts failed. Keep trying until we hit the timeout.
+
+    throw new TimeoutException(Messages.get("Failover.failoverReaderTimeout"));
+  }
+
+  protected void throwFailoverSuccessException() throws SQLException {
     if (isInTransaction || this.pluginService.isInTransaction()) {
       if (this.pluginManagerService != null) {
         this.pluginManagerService.setInTransaction(false);
@@ -333,133 +490,13 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
   }
 
-  protected void failoverReader() throws SQLException {
-    TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
-    TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
-        TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
-    this.failoverReaderTriggeredCounter.inc();
-
-    this.failoverStartTimeNano = System.nanoTime();
-    final long failoverEndTimeNano = this.failoverStartTimeNano
-        + TimeUnit.MILLISECONDS.toNanos(this.failoverTimeoutMsSetting);
-
-    try {
-      LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
-
-      // It's expected that this method synchronously returns when topology is stabilized,
-      // i.e. when cluster control plane has already chosen a new writer.
-      if (!this.pluginService.forceRefreshHostList(false, 0)) {
-        // "Unable to establish SQL connection to reader instance"
-        this.failoverReaderFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToConnectToReader"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
-      }
-
-      final Properties copyProp = PropertyUtils.copyProperties(this.properties);
-      copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
-
-      final List<HostSpec> hosts = this.pluginService.getHosts();
-      Connection readerCandidateConn = null;
-      HostSpec readerCandidate = null;
-      final Set<HostSpec> remainingHosts = new HashSet<>(hosts);
-
-      while (!remainingHosts.isEmpty()
-          && readerCandidateConn == null
-          && System.nanoTime() < failoverEndTimeNano) {
-        try {
-          readerCandidate =
-              this.pluginService.getHostSpecByStrategy(
-                  remainingHosts.stream().collect(Collectors.toList()),
-                  HostRole.READER,
-                  this.failoverReaderHostSelectorStrategySetting);
-        } catch (UnsupportedOperationException | SQLException ex) {
-          // can't use selected strategy to get a reader host
-          LOGGER.finest("Error: " + ex.getMessage());
-          break;
-        }
-
-        if (readerCandidate == null) {
-          break;
-        }
-
-        try {
-          readerCandidateConn = this.pluginService.connect(readerCandidate, copyProp);
-          if (this.pluginService.getHostRole(readerCandidateConn) != HostRole.READER) {
-            readerCandidateConn.close();
-            readerCandidateConn = null;
-            remainingHosts.remove(readerCandidate);
-            readerCandidate = null;
-          }
-        } catch (SQLException ex) {
-          remainingHosts.remove(readerCandidate);
-          readerCandidateConn = null;
-          readerCandidate = null;
-        }
-      }
-
-      if (readerCandidate == null
-          && readerCandidateConn == null
-          && this.failoverMode == FailoverMode.READER_OR_WRITER) {
-        // As a last resort, let's try to connect to a writer
-        try {
-          readerCandidate = this.pluginService.getHostSpecByStrategy(HostRole.WRITER,
-                  this.failoverReaderHostSelectorStrategySetting);
-          if (readerCandidate != null) {
-            try {
-              readerCandidateConn = this.pluginService.connect(readerCandidate, copyProp);
-            } catch (SQLException ex) {
-              readerCandidate = null;
-            }
-          }
-        } catch (UnsupportedOperationException ex) {
-          // can't use selected strategy to get a reader host
-        }
-      }
-
-      if (readerCandidateConn == null) {
-        // "Unable to establish SQL connection to reader instance"
-        this.failoverReaderFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToConnectToReader"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToReader"));
-      }
-
-      this.pluginService.setCurrentConnection(readerCandidateConn, readerCandidate);
-
-      LOGGER.info(
-          () -> Messages.get(
-              "Failover.establishedConnection",
-              new Object[]{this.pluginService.getCurrentHostSpec()}));
-
-      this.failoverReaderSuccessCounter.inc();
-
-    } catch (FailoverSuccessSQLException ex) {
-      telemetryContext.setSuccess(true);
-      telemetryContext.setException(ex);
-      this.failoverReaderSuccessCounter.inc();
-      throw ex;
-    } catch (Exception ex) {
-      telemetryContext.setSuccess(false);
-      telemetryContext.setException(ex);
-      this.failoverReaderFailedCounter.inc();
-      throw ex;
-    } finally {
-      LOGGER.finest(() -> Messages.get(
-              "Failover.readerFailoverElapsed",
-              new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - this.failoverStartTimeNano)}));
-      telemetryContext.closeContext();
-      if (this.telemetryFailoverAdditionalTopTraceSetting) {
-        telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
-      }
-    }
-  }
-
   protected void failoverWriter() throws SQLException {
     TelemetryFactory telemetryFactory = this.pluginService.getTelemetryFactory();
     TelemetryContext telemetryContext = telemetryFactory.openTelemetryContext(
         TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
     this.failoverWriterTriggeredCounter.inc();
 
-    this.failoverStartTimeNano = System.nanoTime();
+    long failoverStartTimeNano = System.nanoTime();
 
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
@@ -467,56 +504,59 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       // It's expected that this method synchronously returns when topology is stabilized,
       // i.e. when cluster control plane has already chosen a new writer.
       if (!this.pluginService.forceRefreshHostList(true, this.failoverTimeoutMsSetting)) {
-        // "Unable to establish SQL connection to writer node"
         this.failoverWriterFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToConnectToWriter"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
+        LOGGER.severe(Messages.get("Failover.unableToRefreshHostList"));
+        throw new FailoverFailedSQLException(Messages.get("Failover.unableToRefreshHostList"));
       }
 
       final List<HostSpec> updatedHosts = this.pluginService.getAllHosts();
       final Properties copyProp = PropertyUtils.copyProperties(this.properties);
       copyProp.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
 
-      Connection writerCandidateConn = null;
+      Connection writerCandidateConn;
       final HostSpec writerCandidate = updatedHosts.stream()
           .filter(x -> x.getRole() == HostRole.WRITER)
           .findFirst()
           .orElse(null);
 
-      List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (writerCandidate != null && !allowedHosts.contains(writerCandidate)) {
+      if (writerCandidate == null) {
         this.failoverWriterFailedCounter.inc();
+        String message = Utils.logTopology(updatedHosts, Messages.get("Failover.noWriterHost"));
+        LOGGER.severe(message);
+        throw new FailoverFailedSQLException(message);
+      }
+
+      List<HostSpec> allowedHosts = this.pluginService.getHosts();
+      if (!allowedHosts.contains(writerCandidate)) {
+        this.failoverWriterFailedCounter.inc();
+        String topologyString = Utils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
-            new Object[] {writerCandidate.getHost(), Utils.logTopology(allowedHosts, "")}));
+            new Object[] {writerCandidate.getHost(), topologyString}));
         throw new FailoverFailedSQLException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerCandidate.getHost(), Utils.logTopology(allowedHosts, "")}));
+                new Object[] {writerCandidate.getHost(), topologyString}));
       }
 
-      if (writerCandidate != null) {
-        try {
-          writerCandidateConn = this.pluginService.connect(writerCandidate, copyProp);
-        } catch (SQLException ex) {
-          // do nothing
-        }
-      }
-
-      if (writerCandidateConn == null) {
-        // "Unable to establish SQL connection to writer node"
+      try {
+        writerCandidateConn = this.pluginService.connect(writerCandidate, copyProp);
+      } catch (SQLException ex) {
         this.failoverWriterFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToConnectToWriter"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
+        LOGGER.severe(
+            Messages.get("Failover.exceptionConnectingToWriter", new Object[]{writerCandidate.getHost()}));
+        throw new FailoverFailedSQLException(Messages.get("Failover.exceptionConnectingToWriter"), ex);
       }
 
-      if (this.pluginService.getHostRole(writerCandidateConn) != HostRole.WRITER) {
+      HostRole role = this.pluginService.getHostRole(writerCandidateConn);
+      if (role != HostRole.WRITER) {
         try {
           writerCandidateConn.close();
         } catch (SQLException ex) {
           // do nothing
         }
         this.failoverWriterFailedCounter.inc();
-        LOGGER.severe(Messages.get("Failover.unableToConnectToWriter"));
-        throw new FailoverFailedSQLException(Messages.get("Failover.unableToConnectToWriter"));
+        LOGGER.severe(
+            Messages.get("Failover.unexpectedReaderRole", new Object[]{writerCandidate.getHost(), role}));
+        throw new FailoverFailedSQLException(Messages.get("Failover.unexpectedReaderRole"));
       }
 
       this.pluginService.setCurrentConnection(writerCandidateConn, writerCandidate);
@@ -525,13 +565,11 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           () -> Messages.get(
               "Failover.establishedConnection",
               new Object[]{this.pluginService.getCurrentHostSpec()}));
-
-      this.failoverWriterSuccessCounter.inc();
-
+      throwFailoverSuccessException();
     } catch (FailoverSuccessSQLException ex) {
+      this.failoverWriterSuccessCounter.inc();
       telemetryContext.setSuccess(true);
       telemetryContext.setException(ex);
-      this.failoverWriterSuccessCounter.inc();
       throw ex;
     } catch (Exception ex) {
       telemetryContext.setSuccess(false);
@@ -541,7 +579,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } finally {
       LOGGER.finest(() -> Messages.get(
           "Failover.writerFailoverElapsed",
-          new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - this.failoverStartTimeNano)}));
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
       telemetryContext.closeContext();
       if (this.telemetryFailoverAdditionalTopTraceSetting) {
         telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
@@ -579,7 +617,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       return;
     }
 
-    this.failover(this.pluginService.getCurrentHostSpec());
+    this.failover();
   }
 
   protected boolean shouldExceptionTriggerConnectionSwitch(final Throwable t) {
@@ -620,13 +658,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.rdsUrlType = this.rdsHelper.identifyRdsType(initialHostSpec.getHost());
 
       if (this.failoverMode == null) {
-        if (this.rdsUrlType.isRdsCluster()) {
-          this.failoverMode = (this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER)
-              ? FailoverMode.READER_OR_WRITER
-              : FailoverMode.STRICT_WRITER;
-        } else {
-          this.failoverMode = FailoverMode.STRICT_WRITER;
-        }
+        this.failoverMode = this.rdsUrlType == RdsUrlType.RDS_READER_CLUSTER
+            ? FailoverMode.READER_OR_WRITER
+            : FailoverMode.STRICT_WRITER;
       }
 
       LOGGER.finer(
@@ -678,7 +712,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         this.pluginService.setAvailability(hostSpec.asAliases(), HostAvailability.NOT_AVAILABLE);
 
         try {
-          this.failover(hostSpec);
+          this.failover();
         } catch (FailoverSuccessSQLException failoverSuccessException) {
           conn = this.pluginService.getCurrentConnection();
         }
@@ -686,7 +720,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     } else {
       try {
         this.pluginService.refreshHostList();
-        this.failover(hostSpec);
+        this.failover();
       } catch (FailoverSuccessSQLException failoverSuccessException) {
         conn = this.pluginService.getCurrentConnection();
       }

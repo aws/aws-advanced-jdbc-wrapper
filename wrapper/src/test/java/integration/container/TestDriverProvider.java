@@ -55,7 +55,8 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
 import software.amazon.jdbc.ConnectionProviderManager;
-import software.amazon.jdbc.HikariPooledConnectionProvider;
+import software.amazon.jdbc.Driver;
+import software.amazon.jdbc.HikariPoolsHolder;
 import software.amazon.jdbc.dialect.DialectManager;
 import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
 import software.amazon.jdbc.plugin.OpenedConnectionTracker;
@@ -224,22 +225,10 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
   }
 
   private static void clearCaches() {
-    RdsUtils.clearCache();
-    TestAuroraHostListProvider.clearCache();
-    TestPluginServiceImpl.clearHostAvailabilityCache();
-    DialectManager.resetEndpointCache();
+    Driver.releaseResources();
     TargetDriverDialectManager.resetCustomDialect();
-    MonitorThreadContainer.releaseInstance();
-    MonitorServiceImpl.clearCache();
-    ConnectionProviderManager.releaseResources();
     ConnectionProviderManager.resetProvider();
     ConnectionProviderManager.resetConnectionInitFunc();
-    software.amazon.jdbc.plugin.efm2.MonitorServiceImpl.clearCache();
-    HikariPooledConnectionProvider.clearCache();
-    MonitoringRdsHostListProvider.clearCache();
-    CustomEndpointPlugin.closeMonitors();
-    CustomEndpointMonitorImpl.clearCache();
-    OpenedConnectionTracker.clearCache();
   }
 
   private static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)

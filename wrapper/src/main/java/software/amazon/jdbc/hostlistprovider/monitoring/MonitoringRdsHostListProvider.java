@@ -93,6 +93,12 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
   }
 
   public static void clearCache() {
+    topologyCache.clear();
+    primaryClusterIdCache.clear();
+    suggestedPrimaryClusterIdCache.clear();
+  }
+
+  public static void closeAllMonitors() {
     monitors.getEntries().values().forEach(monitor -> {
       try {
         monitor.close();
@@ -101,9 +107,7 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
       }
     });
     monitors.clear();
-    topologyCache.clear();
-    primaryClusterIdCache.clear();
-    suggestedPrimaryClusterIdCache.clear();
+    clearCache();
   }
 
   @Override

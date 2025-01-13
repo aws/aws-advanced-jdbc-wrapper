@@ -34,7 +34,7 @@ public class ReadWriteSplittingMySQLExample {
 
   // User configures connection properties here
   public static final String MYSQL_CONNECTION_STRING =
-      "jdbc:aws-wrapper:mysql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:5432/readWriteSplittingExample";
+      "jdbc:aws-wrapper:mysql://test-db.cluster-XYZ.us-east-2.rds.amazonaws.com:3306/readWriteSplittingExample";
   private static final String USERNAME = "username";
   private static final String PASSWORD = "password";
 

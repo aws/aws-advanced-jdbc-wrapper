@@ -55,7 +55,6 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
           add("forceConnect");
         }
       });
-  static final ConcurrentHashMap<String, TokenInfo> tokenCache = new ConcurrentHashMap<>();
   private static final int DEFAULT_TOKEN_EXPIRATION_SEC = 15 * 60 - 30;
 
   public static final AwsWrapperProperty IAM_HOST = new AwsWrapperProperty(
@@ -96,7 +95,8 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
     this.iamTokenUtility = utility;
     this.pluginService = pluginService;
     this.telemetryFactory = pluginService.getTelemetryFactory();
-    this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size", () -> (long) tokenCache.size());
+    this.cacheSizeGauge = telemetryFactory.createGauge("iam.tokenCache.size",
+        () -> (long) IamAuthCacheHolder.tokenCache.size());
     this.fetchTokenCounter = telemetryFactory.createCounter("iam.fetchToken.count");
   }
 
@@ -142,7 +142,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
         host,
         port,
         region);
-    final TokenInfo tokenInfo = tokenCache.get(cacheKey);
+    final TokenInfo tokenInfo = IamAuthCacheHolder.tokenCache.get(cacheKey);
     final boolean isCachedToken = tokenInfo != null && !tokenInfo.isExpired();
 
     if (isCachedToken) {
@@ -167,7 +167,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
       PropertyDefinition.PASSWORD.set(props, token);
-      tokenCache.put(
+      IamAuthCacheHolder.tokenCache.put(
           cacheKey,
           new TokenInfo(token, tokenExpiry));
     }
@@ -203,7 +203,7 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
               "AuthenticationToken.generatedNewToken",
               new Object[] {token}));
       PropertyDefinition.PASSWORD.set(props, token);
-      tokenCache.put(
+      IamAuthCacheHolder.tokenCache.put(
           cacheKey,
           new TokenInfo(token, tokenExpiry));
 
@@ -230,6 +230,6 @@ public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
   }
 
   public static void clearCache() {
-    tokenCache.clear();
+    IamAuthCacheHolder.clearCache();
   }
 }

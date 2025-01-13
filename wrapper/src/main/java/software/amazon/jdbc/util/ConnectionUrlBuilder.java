@@ -16,9 +16,6 @@
 
 package software.amazon.jdbc.util;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Enumeration;
 import java.util.Properties;
@@ -95,16 +92,10 @@ public class ConnectionUrlBuilder {
           queryBuilder.append("&");
         }
         final String propertyValue = copy.getProperty(propertyName);
-        try {
-          queryBuilder
-              .append(propertyName)
-              .append("=")
-              .append(URLEncoder.encode(propertyValue, StandardCharsets.UTF_8.toString()));
-        } catch (final UnsupportedEncodingException e) {
-          throw new SQLException(
-              Messages.get("ConnectionUrlBuilder.failureEncodingConnectionUrl"),
-              e);
-        }
+        queryBuilder
+            .append(propertyName)
+            .append("=")
+            .append(propertyValue);
       }
     }
 

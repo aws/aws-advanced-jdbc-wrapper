@@ -16,18 +16,29 @@
 
 package software.amazon.jdbc.exceptions;
 
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.dialect.Dialect;
 
 public class ExceptionManager {
 
-  protected static ExceptionHandler customHandler;
-
+  /**
+   * Sets a custom exception handler.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void setCustomHandler(final ExceptionHandler exceptionHandler) {
-    customHandler = exceptionHandler;
+    Driver.setCustomExceptionHandler(exceptionHandler);
   }
 
+  /**
+   * Resets a custom exception handler.
+   *
+   * @deprecated Use software.amazon.jdbc.Driver instead
+   */
+  @Deprecated
   public static void resetCustomHandler() {
-    customHandler = null;
+    Driver.resetCustomExceptionHandler();
   }
 
   public boolean isLoginException(final Dialect dialect, final Throwable throwable) {
@@ -51,6 +62,7 @@ public class ExceptionManager {
   }
 
   private ExceptionHandler getHandler(final Dialect dialect) {
+    final ExceptionHandler customHandler = Driver.getCustomExceptionHandler();
     return customHandler != null ? customHandler : dialect.getExceptionHandler();
   }
 }

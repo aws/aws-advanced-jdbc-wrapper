@@ -423,6 +423,7 @@ public class RdsUtils {
 
   public static void clearCache() {
     cachedPatterns.clear();
+    cachedDnsPatterns.clear();
   }
 
   public static void setPrepareHostFunc(final Function<String, String> func) {
