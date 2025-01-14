@@ -613,7 +613,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
 
   protected void pickNewConnection() throws SQLException {
     if (this.isClosed && this.closedExplicitly) {
-      LOGGER.fine(() -> Messages.get("Failover.transactionResolutionUnknownError"));
+      LOGGER.fine(() -> Messages.get("Failover.connectionClosedExplicitly"));
       return;
     }
 
