@@ -30,7 +30,7 @@ dependencies {
     implementation("org.checkerframework:checker-qual:3.48.1")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     compileOnly("software.amazon.awssdk:rds:2.29.34")
-    compileOnly("software.amazon.awssdk:auth:2.29.34") // Required for IAM (light implementation)
+    compileOnly("software.amazon.awssdk:auth:2.29.50") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:http-client-spi:2.29.34") // Required for IAM (light implementation)
     compileOnly("software.amazon.awssdk:sts:2.29.34")
     compileOnly("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
@@ -64,7 +64,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
     testImplementation("org.mockito:mockito-inline:4.11.0") // 4.11.0 is the last version compatible with Java 8
     testImplementation("software.amazon.awssdk:rds:2.29.34")
-    testImplementation("software.amazon.awssdk:auth:2.29.34") // Required for IAM (light implementation)
+    testImplementation("software.amazon.awssdk:auth:2.29.50") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:http-client-spi:2.29.34") // Required for IAM (light implementation)
     testImplementation("software.amazon.awssdk:ec2:2.29.34")
     testImplementation("software.amazon.awssdk:secretsmanager:2.29.34")
@@ -72,7 +72,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.20.1")
     testImplementation("org.testcontainers:mysql:1.20.1")
     testImplementation("org.testcontainers:postgresql:1.20.3")
-    testImplementation("org.testcontainers:mariadb:1.20.2")
+    testImplementation("org.testcontainers:mariadb:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.1")
     testImplementation("org.testcontainers:toxiproxy:1.20.4")
     testImplementation("eu.rekawek.toxiproxy:toxiproxy-java:2.1.7")
@@ -83,7 +83,7 @@ dependencies {
     testImplementation("io.opentelemetry:opentelemetry-api:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk:1.42.1")
     testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")
-    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.44.1")
+    testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.46.0")
     testImplementation("org.jsoup:jsoup:1.18.1")
 }
 
