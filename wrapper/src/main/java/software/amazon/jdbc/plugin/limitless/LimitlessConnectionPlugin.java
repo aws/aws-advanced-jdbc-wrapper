@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
@@ -36,6 +37,9 @@ import software.amazon.jdbc.util.Messages;
 import software.amazon.jdbc.util.PropertyUtils;
 
 public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
+
+  private static final Logger LOGGER = Logger.getLogger(LimitlessConnectionPlugin.class.getName());
+
   public static final AwsWrapperProperty WAIT_FOR_ROUTER_INFO = new AwsWrapperProperty(
       "limitlessWaitForTransactionRouterInfo",
       "true",
@@ -69,7 +73,6 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
           add("connect");
         }
       });
-  private static final String INTERNAL_CONNECT_PROPERTY_NAME = "784dd5c2-a77b-4c9f-a0a9-b4ea37395e6c";
 
   static {
     PropertyDefinition.registerPluginProperties(LimitlessConnectionPlugin.class);
@@ -105,24 +108,6 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
 
-    if (props.containsKey(INTERNAL_CONNECT_PROPERTY_NAME)) {
-      return connectFunc.call();
-    }
-
-    final Properties copyProps = PropertyUtils.copyProperties(props);
-    copyProps.setProperty(INTERNAL_CONNECT_PROPERTY_NAME, "true");
-    return connectInternal(driverProtocol, hostSpec, props, copyProps, isInitialConnection, connectFunc);
-  }
-
-  public Connection connectInternal(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties origProps,
-      final Properties copyProps,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-
     Connection conn = null;
 
     final Dialect dialect = this.pluginService.getDialect();
@@ -138,17 +123,17 @@ public class LimitlessConnectionPlugin extends AbstractConnectionPlugin {
 
     initLimitlessRouterMonitorService();
     if (isInitialConnection) {
-      this.limitlessRouterService
-          .startMonitoring(hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
+      this.limitlessRouterService.startMonitoring(
+          hostSpec, properties, INTERVAL_MILLIS.getInteger(properties));
     }
 
     final LimitlessConnectionContext context = new LimitlessConnectionContext(
         hostSpec,
-        copyProps,
-        origProps,
+        props,
         conn,
         connectFunc,
-        null);
+        null,
+        this);
     this.limitlessRouterService.establishConnection(context);
 
     if (context.getConnection() != null) {

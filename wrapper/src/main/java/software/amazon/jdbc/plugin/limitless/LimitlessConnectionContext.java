@@ -21,31 +21,33 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 
 public class LimitlessConnectionContext {
   private HostSpec hostSpec;
   private Properties props;
-  private Properties origProps;
   private Connection connection;
   private JdbcCallable<Connection, SQLException> connectFunc;
   private List<HostSpec> limitlessRouters;
 
+  private ConnectionPlugin plugin;
+
   public LimitlessConnectionContext(
       final HostSpec hostSpec,
       final Properties props,
-      final Properties origProps,
       final Connection connection,
       final JdbcCallable<Connection, SQLException> connectFunc,
-      final List<HostSpec> limitlessRouters
+      final List<HostSpec> limitlessRouters,
+      final ConnectionPlugin plugin
   ) {
     this.hostSpec = hostSpec;
     this.props = props;
-    this.origProps = origProps;
     this.connection = connection;
     this.connectFunc = connectFunc;
     this.limitlessRouters = limitlessRouters;
+    this.plugin = plugin;
   }
 
   public HostSpec getHostSpec() {
@@ -54,10 +56,6 @@ public class LimitlessConnectionContext {
 
   public Properties getProps() {
     return this.props;
-  }
-
-  public Properties getOrigProps() {
-    return this.origProps;
   }
 
   public Connection getConnection() {
@@ -78,5 +76,9 @@ public class LimitlessConnectionContext {
 
   public void setLimitlessRouters(final @NonNull List<HostSpec> limitlessRouters) {
     this.limitlessRouters = limitlessRouters;
+  }
+
+  public ConnectionPlugin getPlugin() {
+    return this.plugin;
   }
 }

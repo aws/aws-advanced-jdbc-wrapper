@@ -121,22 +121,6 @@ public class FastestResponseStrategyPlugin extends AbstractConnectionPlugin {
   }
 
   @Override
-  public Connection forceConnect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-
-    Connection conn = forceConnectFunc.call();
-    if (isInitialConnection) {
-      this.hostResponseTimeService.setHosts(this.pluginService.getHosts());
-    }
-    return conn;
-  }
-
-  @Override
   public boolean acceptsStrategy(HostRole role, String strategy) {
     return FASTEST_RESPONSE_STRATEGY_NAME.equalsIgnoreCase(strategy);
   }

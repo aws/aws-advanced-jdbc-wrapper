@@ -557,12 +557,24 @@ public class ConcurrencyTests {
     }
 
     @Override
-    public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
+    public Connection connect(HostSpec hostSpec, Properties props, @Nullable ConnectionPlugin pluginToSkip)
+        throws SQLException {
       return new TestConnection();
     }
 
     @Override
+    public Connection connect(HostSpec hostSpec, Properties props) throws SQLException {
+      return this.connect(hostSpec, props, null);
+    }
+
+    @Override
     public Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException {
+      return this.forceConnect(hostSpec, props, null);
+    }
+
+    @Override
+    public Connection forceConnect(HostSpec hostSpec, Properties props, @Nullable ConnectionPlugin pluginToSkip)
+        throws SQLException {
       return new TestConnection();
     }
 

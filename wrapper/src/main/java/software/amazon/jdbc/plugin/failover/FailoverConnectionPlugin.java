@@ -73,7 +73,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           add("Connection.close");
           add("initHostProvider");
           add("connect");
-          add("forceConnect");
           add("notifyConnectionChanged");
           add("notifyNodeListChanged");
         }
@@ -792,12 +791,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       final boolean isInitialConnection,
       final JdbcCallable<Connection, SQLException> connectFunc)
       throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, connectFunc, false);
-  }
 
-  private Connection connectInternal(String driverProtocol, HostSpec hostSpec, Properties props,
-      boolean isInitialConnection, JdbcCallable<Connection, SQLException> connectFunc, boolean isForceConnect)
-      throws SQLException {
     this.initFailoverMode();
     if (this.readerFailoverHandler == null) {
       if (this.readerFailoverHandlerSupplier == null) {
@@ -819,7 +813,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
           this.staleDnsHelper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
               driverProtocol, hostSpec, props, connectFunc);
     } catch (final SQLException e) {
-      if (!this.enableConnectFailover || isForceConnect || !shouldExceptionTriggerConnectionSwitch(e)) {
+      if (!this.enableConnectFailover || !shouldExceptionTriggerConnectionSwitch(e)) {
         throw e;
       }
 
@@ -840,17 +834,6 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
     }
 
     return conn;
-  }
-
-  @Override
-  public Connection forceConnect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-    return connectInternal(driverProtocol, hostSpec, props, isInitialConnection, forceConnectFunc, true);
   }
 
   // The below methods are for testing purposes

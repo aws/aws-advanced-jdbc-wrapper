@@ -57,7 +57,6 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
           addAll(SubscribedMethodHelper.NETWORK_BOUND_METHODS);
           add("initHostProvider");
           add("connect");
-          add("forceConnect");
           add("notifyNodeListChanged");
         }
       });
@@ -86,18 +85,6 @@ public class AuroraStaleDnsPlugin extends AbstractConnectionPlugin {
       throws SQLException {
     return this.helper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
         driverProtocol, hostSpec, props, connectFunc);
-  }
-
-  @Override
-  public Connection forceConnect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-    return this.helper.getVerifiedConnection(isInitialConnection, this.hostListProviderService,
-        driverProtocol, hostSpec, props, forceConnectFunc);
   }
 
   @Override

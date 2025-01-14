@@ -46,7 +46,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
         {
           add("initHostProvider");
           add("connect");
-          add("forceConnect");
         }
       });
 
@@ -103,28 +102,6 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
   @Override
   public Connection connect(
       final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> connectFunc)
-      throws SQLException {
-
-    return this.connectInternal(hostSpec, props, isInitialConnection, connectFunc);
-  }
-
-  @Override
-  public Connection forceConnect(
-      final String driverProtocol,
-      final HostSpec hostSpec,
-      final Properties props,
-      final boolean isInitialConnection,
-      final JdbcCallable<Connection, SQLException> forceConnectFunc)
-      throws SQLException {
-
-    return this.connectInternal(hostSpec, props, isInitialConnection, forceConnectFunc);
-  }
-
-  private Connection connectInternal(
       final HostSpec hostSpec,
       final Properties props,
       final boolean isInitialConnection,
@@ -203,7 +180,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           return writerCandidateConn;
         }
 
-        writerCandidateConn = this.pluginService.connect(writerCandidate, props);
+        writerCandidateConn = this.pluginService.connect(writerCandidate, props, this);
 
         if (this.pluginService.getHostRole(writerCandidateConn) != HostRole.WRITER) {
           // If the new connection resolves to a reader instance, this means the topology is outdated.
@@ -287,7 +264,7 @@ public class AuroraInitialConnectionStrategyPlugin extends AbstractConnectionPlu
           return readerCandidateConn;
         }
 
-        readerCandidateConn = this.pluginService.connect(readerCandidate, props);
+        readerCandidateConn = this.pluginService.connect(readerCandidate, props, this);
 
         if (this.pluginService.getHostRole(readerCandidateConn) != HostRole.READER) {
           // If the new connection resolves to a writer instance, this means the topology is outdated.
