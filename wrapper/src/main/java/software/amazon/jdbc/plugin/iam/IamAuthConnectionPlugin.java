@@ -24,11 +24,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.AwsWrapperProperty;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
@@ -46,7 +44,7 @@ import software.amazon.jdbc.util.telemetry.TelemetryCounter;
 import software.amazon.jdbc.util.telemetry.TelemetryFactory;
 import software.amazon.jdbc.util.telemetry.TelemetryGauge;
 
-public class IamAuthConnectionPlugin extends AbstractConnectionPlugin implements AuthenticationConnectionPlugin {
+public class IamAuthConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Logger LOGGER = Logger.getLogger(IamAuthConnectionPlugin.class.getName());
   private static final Set<String> subscribedMethods =

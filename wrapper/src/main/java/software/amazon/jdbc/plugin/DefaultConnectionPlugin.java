@@ -31,7 +31,6 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.ConnectionPlugin;
 import software.amazon.jdbc.ConnectionProvider;
 import software.amazon.jdbc.ConnectionProviderManager;

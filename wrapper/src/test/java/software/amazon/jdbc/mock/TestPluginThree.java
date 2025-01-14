@@ -22,11 +22,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Properties;
-import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 
-public class TestPluginThree extends TestPluginOne implements AuthenticationConnectionPlugin {
+public class TestPluginThree extends TestPluginOne {
 
   private Connection connection;
 

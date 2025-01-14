@@ -19,9 +19,8 @@ package software.amazon.jdbc.mock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import software.amazon.jdbc.AuthenticationConnectionPlugin;
 
-public class TestPluginTwo extends TestPluginOne implements AuthenticationConnectionPlugin {
+public class TestPluginTwo extends TestPluginOne {
 
   public TestPluginTwo(ArrayList<String> calls) {
     super();

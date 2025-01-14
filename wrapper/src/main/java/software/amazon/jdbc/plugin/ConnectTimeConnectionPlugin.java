@@ -24,13 +24,11 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
-import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.Messages;
 
-public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin
-    implements AuthenticationConnectionPlugin {
+public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
 
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Arrays.asList("connect", "forceConnect")));

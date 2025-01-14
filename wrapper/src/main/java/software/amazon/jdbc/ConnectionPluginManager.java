@@ -115,9 +115,6 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
   @SuppressWarnings("rawtypes")
   protected final Map<String, PluginChainJdbcCallable> pluginChainFuncMap = new HashMap<>();
 
-  @SuppressWarnings("rawtypes")
-  protected final Map<String, PluginChainJdbcCallable> pluginForceConnectChainFuncMap = new HashMap<>();
-
   public ConnectionPluginManager(
       final @NonNull ConnectionProvider defaultConnProvider,
       final @Nullable ConnectionProvider effectiveConnProvider,
@@ -225,18 +222,11 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
     }
 
     // noinspection unchecked
-    PluginChainJdbcCallable<T, E> pluginChainFunc =
-        FORCE_CONNECT_METHOD.equals(methodName)
-            ? this.pluginForceConnectChainFuncMap.get(methodName)
-            : this.pluginChainFuncMap.get(methodName);
+    PluginChainJdbcCallable<T, E> pluginChainFunc = this.pluginChainFuncMap.get(methodName);
 
     if (pluginChainFunc == null) {
       pluginChainFunc = this.makePluginChainFunc(methodName);
-      if (FORCE_CONNECT_METHOD.equals(methodName)) {
-        this.pluginForceConnectChainFuncMap.put(methodName, pluginChainFunc);
-      } else {
-        this.pluginChainFuncMap.put(methodName, pluginChainFunc);
-      }
+      this.pluginChainFuncMap.put(methodName, pluginChainFunc);
     }
 
     if (pluginChainFunc == null) {
@@ -269,11 +259,8 @@ public class ConnectionPluginManager implements CanReleaseResources, Wrapper {
       final ConnectionPlugin plugin = this.plugins.get(i);
       final Set<String> pluginSubscribedMethods = plugin.getSubscribedMethods();
       final String pluginName = pluginNameByClass.getOrDefault(plugin.getClass(), plugin.getClass().getSimpleName());
-      final boolean isSubscribed =
-          (!FORCE_CONNECT_METHOD.equals(methodName)
-              || (plugin instanceof AuthenticationConnectionPlugin)
-              || (plugin instanceof DefaultConnectionPlugin))
-          && (pluginSubscribedMethods.contains(ALL_METHODS) || pluginSubscribedMethods.contains(methodName));
+      final boolean isSubscribed = pluginSubscribedMethods.contains(ALL_METHODS)
+          || pluginSubscribedMethods.contains(methodName);
 
       if (isSubscribed) {
         if (pluginChainFunc == null) {

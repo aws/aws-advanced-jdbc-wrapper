@@ -24,15 +24,13 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import software.amazon.jdbc.AuthenticationConnectionPlugin;
 import software.amazon.jdbc.HostSpec;
 import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.plugin.AbstractConnectionPlugin;
 import software.amazon.jdbc.util.StringUtils;
 import software.amazon.jdbc.util.WrapperUtils;
 
-public class DeveloperConnectionPlugin extends AbstractConnectionPlugin
-    implements AuthenticationConnectionPlugin, ExceptionSimulator {
+public class DeveloperConnectionPlugin extends AbstractConnectionPlugin implements ExceptionSimulator {
 
   private static final Logger LOGGER =
       Logger.getLogger(DeveloperConnectionPlugin.class.getName());

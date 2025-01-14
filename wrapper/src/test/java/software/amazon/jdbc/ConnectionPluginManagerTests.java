@@ -304,9 +304,11 @@ public class ConnectionPluginManagerTests {
 
     // Expecting only TestPluginThree to participate in forceConnect().
     assertEquals(expectedConnection, conn);
-    assertEquals(2, calls.size());
-    assertEquals("TestPluginThree:before forceConnect", calls.get(0));
-    assertEquals("TestPluginThree:forced connection", calls.get(1));
+    assertEquals(4, calls.size());
+    assertEquals("TestPluginOne:before forceConnect", calls.get(0));
+    assertEquals("TestPluginThree:before forceConnect", calls.get(1));
+    assertEquals("TestPluginThree:forced connection", calls.get(2));
+    assertEquals("TestPluginOne:after forceConnect", calls.get(3));
   }
 
   @Test
@@ -527,9 +529,11 @@ public class ConnectionPluginManagerTests {
     // The method has been called just once to generate a final lambda and cache it.
     verify(target, times(1)).makePluginChainFunc(eq("forceConnect"));
 
-    assertEquals(2, calls.size());
-    assertEquals("TestPluginThree:before forceConnect", calls.get(0));
-    assertEquals("TestPluginThree:forced connection", calls.get(1));
+    assertEquals(4, calls.size());
+    assertEquals("TestPluginOne:before forceConnect", calls.get(0));
+    assertEquals("TestPluginThree:before forceConnect", calls.get(1));
+    assertEquals("TestPluginThree:forced connection", calls.get(2));
+    assertEquals("TestPluginOne:after forceConnect", calls.get(3));
 
     calls.clear();
 
@@ -545,9 +549,11 @@ public class ConnectionPluginManagerTests {
     // No additional calls to this method occurred. It's still been called once.
     verify(target, times(1)).makePluginChainFunc(eq("forceConnect"));
 
-    assertEquals(2, calls.size());
-    assertEquals("TestPluginThree:before forceConnect", calls.get(0));
-    assertEquals("TestPluginThree:forced connection", calls.get(1));
+    assertEquals(4, calls.size());
+    assertEquals("TestPluginOne:before forceConnect", calls.get(0));
+    assertEquals("TestPluginThree:before forceConnect", calls.get(1));
+    assertEquals("TestPluginThree:forced connection", calls.get(2));
+    assertEquals("TestPluginOne:after forceConnect", calls.get(3));
   }
 
   @Test
