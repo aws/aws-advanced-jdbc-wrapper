@@ -16,12 +16,14 @@ The AWS Advanced JDBC Driver is a wrapper that requires an underlying driver, an
 Dialect codes specify what kind of database any connections will be made to.
 
 | Dialect Code Reference       | Value                        | Database                                                                                                                                           |
-| ---------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AURORA_MYSQL`               | `aurora-mysql`               | Aurora MySQL                                                                                                                                       |
+| ---------------------------- | ---------------------------- |----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `AURORA_MYSQL`               | `aurora-mysql`               | [Aurora MySQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_GettingStartedAurora.html)                                        |
+| `GLOBAL_AURORA_MYSQL`               | `global-aurora-mysql`               | [Aurora Global Database MySQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-getting-started.html)           |
 | `RDS_MULTI_AZ_MYSQL_CLUSTER` | `rds-multi-az-mysql-cluster` | [Amazon RDS MySQL Multi-AZ DB Cluster Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html)      |
 | `RDS_MYSQL`                  | `rds-mysql`                  | Amazon RDS MySQL                                                                                                                                   |
 | `MYSQL`                      | `mysql`                      | MySQL                                                                                                                                              |
-| `AURORA_PG`                  | `aurora-pg`                  | Aurora PostgreSQL                                                                                                                                  |
+| `AURORA_PG`                  | `aurora-pg`                  | [Aurora PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_GettingStartedAurora.html)                                                                                                                              |
+| `GLOBAL_AURORA_PG`                  | `global-aurora-pg`                  | [Aurora Global Database PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-getting-started.html)      |
 | `RDS_MULTI_AZ_PG_CLUSTER`    | `rds-multi-az-pg-cluster`    | [Amazon RDS PostgreSQL Multi-AZ DB Cluster Deployments](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html) |
 | `RDS_PG`                     | `rds-pg`                     | Amazon RDS PostgreSQL                                                                                                                              |
 | `PG`                         | `pg`                         | PostgreSQL                                                                                                                                         |
