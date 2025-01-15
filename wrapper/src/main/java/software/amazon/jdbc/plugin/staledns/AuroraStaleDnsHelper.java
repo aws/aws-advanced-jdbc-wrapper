@@ -21,6 +21,7 @@ import java.net.UnknownHostException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -135,12 +136,13 @@ public class AuroraStaleDnsHelper {
           new Object[]{this.writerHostSpec}));
       staleDNSDetectedCounter.inc();
 
-      if (!this.pluginService.getHosts().contains(this.writerHostSpec)) {
+      final List<HostSpec> allowedHosts = this.pluginService.getHosts();
+      if (!Utils.containsHost(allowedHosts, this.writerHostSpec.getHost())) {
         throw new SQLException(
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {
                     this.writerHostSpec == null ? "<null>" : this.writerHostSpec.getHost(),
-                    Utils.logTopology(this.pluginService.getHosts(), "")})
+                    Utils.logTopology(allowedHosts, "")})
         );
       }
 

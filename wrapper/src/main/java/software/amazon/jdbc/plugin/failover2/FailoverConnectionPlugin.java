@@ -47,7 +47,6 @@ import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.plugin.staledns.AuroraStaleDnsHelper;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialect;
 import software.amazon.jdbc.util.Messages;
-import software.amazon.jdbc.util.PropertyUtils;
 import software.amazon.jdbc.util.RdsUrlType;
 import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.SqlState;
@@ -520,8 +519,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         throw new FailoverFailedSQLException(message);
       }
 
-      List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!allowedHosts.contains(writerCandidate)) {
+      final List<HostSpec> allowedHosts = this.pluginService.getHosts();
+      if (!Utils.containsHost(allowedHosts, writerCandidate.getHost())) {
         this.failoverWriterFailedCounter.inc();
         String topologyString = Utils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",

@@ -26,6 +26,16 @@ public class Utils {
     return c == null || c.isEmpty();
   }
 
+  public static boolean containsHost(final List<HostSpec> hosts, String host) {
+    for (final HostSpec hostSpec : hosts) {
+      if (hostSpec.getHost().equals(host)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   public static String logTopology(final @Nullable List<HostSpec> hosts) {
     return logTopology(hosts, null);
   }

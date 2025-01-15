@@ -30,7 +30,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.pool.HikariPool;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
@@ -57,7 +56,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.MethodOrderer;
@@ -651,7 +649,7 @@ public class ReadWriteSplittingTests {
 
         auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
-        assertThrows(SQLException.class, () -> auroraUtil.queryInstanceId(conn));
+        assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
         nextWriterId = auroraUtil.queryInstanceId(conn);
         LOGGER.finest("nextWriterId: " + nextWriterId);
         assertNotEquals(initialWriterId, nextWriterId);
