@@ -52,6 +52,10 @@ With the `failover` plugin, the downtime during certain DB cluster operations, s
 
 Visit [this page](./docs/using-the-jdbc-driver/SupportForRDSMultiAzDBCluster.md) for more details.
 
+### Using the AWS JDBC Driver with Amazon Aurora Global Databases
+
+This driver supports in-region `failover` and between-regions `planned failover` and `switchover` of [Amazon Aurora Global Databases](https://aws.amazon.com/ru/rds/aurora/global-database/). A [Global Writer Endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database-connecting.html) is also recognized and can be handled to minimize potential stale DNS issues. Please check [failover plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md), [failover2 plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) and [Aurora Initial Connection Strategy plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheAuroraInitialConnectionStrategyPlugin.md) for more information.
+
 ### Plain Amazon RDS databases
 
 The AWS JDBC Driver also works with RDS provided databases that are not Aurora.
@@ -158,10 +162,6 @@ When the RDS service update is released, the following service versions will pro
 - Supported RDS PostgreSQL Versions: `rds_tools v1.7 (17.1, 16.5, 15.9, 14.14, 13.17, 12.21)` and above.
 - Supported Aurora PostgreSQL Versions: Engine Release `17.5, 16.9, 15.13, 14.18, 13.21` and above.
 - Supported Aurora MySQL Versions: Engine Release `3.07` and above.
-
-#### Amazon Aurora Global Databases
-
-This driver currently does not support `planned failover` or `switchover` of Amazon Aurora Global Databases. Failing over to a secondary cluster will result in errors and there may be additional unforeseen errors when working with global databases. Connecting to the primary cluster is fully supported. There is a limitation when connected to the secondary cluster; the [failover2 plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailover2Plugin.md) will not work on the secondary cluster, however the [failover plugin](./docs/using-the-jdbc-driver/using-plugins/UsingTheFailoverPlugin.md) will work. When working with Global Databases and accepting the driver's limited support, ensure you explicitly provide a list of plugins. This is crucial because the `failover2` plugin, which is enabled by default, does not support Global Databases as previously mentioned. By specifying `failover` plugin along with your desired plugins, you can ensure (still limited) functionality with Global Databases. Full Support for Amazon Aurora Global Databases is in the backlog, but we cannot comment on a timeline right now.
 
 ## Examples
 

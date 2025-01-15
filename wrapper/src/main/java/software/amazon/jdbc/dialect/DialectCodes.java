@@ -17,12 +17,14 @@
 package software.amazon.jdbc.dialect;
 
 public class DialectCodes {
+  public static final String GLOBAL_AURORA_MYSQL = "global-aurora-mysql";
   public static final String AURORA_MYSQL = "aurora-mysql";
   public static final String RDS_MYSQL = "rds-mysql";
   public static final String MYSQL = "mysql";
   // https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html
   public static final String RDS_MULTI_AZ_MYSQL_CLUSTER = "rds-multi-az-mysql-cluster";
 
+  public static final String GLOBAL_AURORA_PG = "global-aurora-pg";
   public static final String AURORA_PG = "aurora-pg";
   public static final String RDS_PG = "rds-pg";
   // https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/multi-az-db-clusters-concepts.html
