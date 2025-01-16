@@ -132,7 +132,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     }
 
     RoundRobinHostSelector.setRoundRobinHostWeightPairsProperty(
-        context.getOrigProps(),
+        context.getProps(),
         context.getLimitlessRouters());
     HostSpec selectedHostSpec;
     try {
@@ -154,7 +154,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
     }
 
     try {
-      context.setConnection(pluginService.connect(selectedHostSpec, context.getProps()));
+      context.setConnection(this.pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
     } catch (SQLException e) {
       if (selectedHostSpec != null) {
         LOGGER.fine(Messages.get(
@@ -224,7 +224,7 @@ public class LimitlessRouterServiceImpl implements LimitlessRouterService {
       }
 
       try {
-        context.setConnection(pluginService.connect(selectedHostSpec, context.getProps()));
+        context.setConnection(pluginService.connect(selectedHostSpec, context.getProps(), context.getPlugin()));
         if (context.getConnection() != null) {
           return;
         }

@@ -23,7 +23,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 import software.amazon.jdbc.PropertyDefinition;
-import software.amazon.jdbc.plugin.federatedauth.FederatedAuthPlugin;
 import software.amazon.jdbc.plugin.federatedauth.OktaAuthPlugin;
 
 public class OktaAuthPluginExample {

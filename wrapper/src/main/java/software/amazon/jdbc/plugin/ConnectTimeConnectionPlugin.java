@@ -29,6 +29,7 @@ import software.amazon.jdbc.JdbcCallable;
 import software.amazon.jdbc.util.Messages;
 
 public class ConnectTimeConnectionPlugin extends AbstractConnectionPlugin {
+
   private static final Set<String> subscribedMethods =
       Collections.unmodifiableSet(new HashSet<>(Arrays.asList("connect", "forceConnect")));
   private static long connectTime = 0L;

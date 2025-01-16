@@ -178,6 +178,9 @@ public interface PluginService extends ExceptionHandler {
    */
   boolean forceRefreshHostList(final boolean shouldVerifyWriter, final long timeoutMs) throws SQLException;
 
+  Connection connect(HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip)
+      throws SQLException;
+
   /**
    * Establishes a connection to the given host using the given properties. If a non-default
    * {@link ConnectionProvider} has been set with
@@ -214,6 +217,9 @@ public interface PluginService extends ExceptionHandler {
    *                      host
    */
   Connection forceConnect(HostSpec hostSpec, Properties props) throws SQLException;
+
+  Connection forceConnect(
+      HostSpec hostSpec, Properties props, final @Nullable ConnectionPlugin pluginToSkip) throws SQLException;
 
   Dialect getDialect();
 
