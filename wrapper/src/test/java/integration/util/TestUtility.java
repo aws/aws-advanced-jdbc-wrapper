@@ -104,9 +104,9 @@ import software.amazon.jdbc.util.StringUtils;
  * Creates and destroys AWS RDS Clusters and Instances. To use this functionality the following environment variables
  * must be defined: - AWS_ACCESS_KEY_ID - AWS_SECRET_ACCESS_KEY
  */
-public class AuroraTestUtility {
+public class TestUtility {
 
-  private static final Logger LOGGER = Logger.getLogger(AuroraTestUtility.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(TestUtility.class.getName());
 
   // Default values
   private String dbUsername = "my_test_username";
@@ -117,9 +117,6 @@ public class AuroraTestUtility {
   private String dbEngine = "aurora-postgresql";
   private String dbEngineVersion = "13.9";
   private String dbInstanceClass = "db.r5.large";
-  private final String storageType = "io1";
-  private final int allocatedStorage = 100;
-  private final int iops = 1000;
   private final Region dbRegion;
   private final String dbSecGroup = "default";
   private int numOfInstances = 5;
@@ -129,20 +126,18 @@ public class AuroraTestUtility {
   private Ec2Client ec2Client;
   private static final Random rand = new Random();
 
-  private String rdsEndpoint;
+  private final String rdsEndpoint;
 
-  private AwsCredentialsProvider credentialsProvider;
+  private final AwsCredentialsProvider credentialsProvider;
 
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
 
-  public AuroraTestUtility(String region, String endpoint) throws URISyntaxException {
+  public TestUtility(String region, String endpoint) throws URISyntaxException {
     this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
   }
 
-  public AuroraTestUtility(
-      String region, String rdsEndpoint, String awsAccessKeyId, String awsSecretAccessKey, String awsSessionToken)
-      throws URISyntaxException {
-
+  public TestUtility(
+      String region, String rdsEndpoint, String awsAccessKeyId, String awsSecretAccessKey, String awsSessionToken) {
     this(
         getRegionInternal(region),
         rdsEndpoint,
@@ -161,8 +156,7 @@ public class AuroraTestUtility {
    *                            Availability Zones, and Local Zones</a>
    * @param credentialsProvider Specific AWS credential provider
    */
-  public AuroraTestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider)
-      throws URISyntaxException {
+  public TestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
     this.dbRegion = region;
     this.rdsEndpoint = rdsEndpoint;
     this.credentialsProvider = credentialsProvider;
@@ -347,10 +341,10 @@ public class AuroraTestUtility {
             .tags(testRunnerTag);
 
     clusterBuilder =
-        clusterBuilder.allocatedStorage(allocatedStorage)
+        clusterBuilder.allocatedStorage(100)
             .dbClusterInstanceClass(dbInstanceClass)
-            .storageType(storageType)
-            .iops(iops);
+            .storageType("io1")
+            .iops(1000);
 
     rdsClient.createDBCluster(clusterBuilder.build());
 
@@ -740,6 +734,11 @@ public class AuroraTestUtility {
         this.initClient();
       }
     }
+
+    if (dbClustersResult == null) {
+      fail("Unable to get DB cluster info for cluster with ID " + clusterId);
+    }
+
     final List<DBCluster> dbClusterList = dbClustersResult.dbClusters();
     return dbClusterList.get(0);
   }
@@ -758,6 +757,11 @@ public class AuroraTestUtility {
         this.initClient();
       }
     }
+
+    if (dbInstanceResult == null) {
+      fail("Unable to get DB instance info for instance with ID " + instanceId);
+    }
+
     final List<DBInstance> dbClusterList = dbInstanceResult.dbInstances();
     return dbClusterList.get(0);
   }
@@ -961,11 +965,11 @@ public class AuroraTestUtility {
       });
     }
 
-    try {
-      latch.await(timeoutSec, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+    boolean timedOut = !latch.await(timeoutSec, TimeUnit.SECONDS);
+    if (timedOut) {
+      LOGGER.warning("Timed out while waiting for instances to come up.");
     }
+
     stop.set(true);
     executorService.shutdownNow();
 
@@ -977,7 +981,7 @@ public class AuroraTestUtility {
   // Attempt to run a query after the instance is down.
   // This should initiate the driver failover, first query after a failover
   // should always throw with the expected error message.
-  public void assertFirstQueryThrows(Connection connection, Class expectedSQLExceptionClass) {
+  public void assertFirstQueryThrows(Connection connection, Class<? extends SQLException> expectedSQLExceptionClass) {
     assertThrows(
         expectedSQLExceptionClass,
         () -> {
@@ -1068,22 +1072,6 @@ public class AuroraTestUtility {
       makeSureInstancesUp(instances, TimeUnit.MINUTES.toSeconds(5));
     }
     LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
-  }
-
-  private boolean hasWriterChanged(String initialWriterId, long timeoutNanos)
-      throws InterruptedException {
-    final long waitUntil = System.nanoTime() + timeoutNanos;
-
-    String currentWriterId = getDBClusterWriterInstanceId();
-    while (initialWriterId.equals(currentWriterId)) {
-      if (waitUntil < System.nanoTime()) {
-        return false;
-      }
-      TimeUnit.MILLISECONDS.sleep(3000);
-      // Calling the RDS API to get writer Id.
-      currentWriterId = getDBClusterWriterInstanceId();
-    }
-    return true;
   }
 
   public void failoverClusterToTarget(String clusterId, @Nullable String targetInstanceId)
@@ -1189,7 +1177,7 @@ public class AuroraTestUtility {
       long startTimeNano = System.nanoTime();
       while (hostIpAddress == null
           && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-        Thread.sleep(5000);
+        TimeUnit.SECONDS.sleep(5);
         hostIpAddress = this.hostToIP(hostToCheck, false);
       }
       if (hostIpAddress == null) {
@@ -1207,7 +1195,7 @@ public class AuroraTestUtility {
     long startTimeNano = System.nanoTime();
     while (!expectedHostIpAddress.equals(hostIpAddress)
         && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-      Thread.sleep(5000);
+      TimeUnit.SECONDS.sleep(5);
       hostIpAddress = this.hostToIP(hostToCheck, false);
       LOGGER.finest(String.format("%s resolves to %s", hostToCheck, hostIpAddress));
     }
@@ -1233,7 +1221,7 @@ public class AuroraTestUtility {
       long startTimeNano = System.nanoTime();
       while (hostIpAddress == null
           && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-        Thread.sleep(5000);
+        TimeUnit.SECONDS.sleep(5);
         hostIpAddress = this.hostToIP(hostToCheck, false);
       }
       if (hostIpAddress == null) {
@@ -1252,7 +1240,7 @@ public class AuroraTestUtility {
     long startTimeNano = System.nanoTime();
     while (expectedHostIpAddress.equals(hostIpAddress)
         && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTimeNano) < timeoutSec) {
-      Thread.sleep(5000);
+      TimeUnit.SECONDS.sleep(5);
       hostIpAddress = this.hostToIP(hostToCheck, false);
       LOGGER.finest(String.format("%s resolves to %s", hostToCheck, hostIpAddress));
     }
@@ -1429,17 +1417,17 @@ public class AuroraTestUtility {
     throw new RuntimeException("Failed to find default version");
   }
 
-  public static AuroraTestUtility getUtility() {
+  public static TestUtility getUtility() {
     return getUtility(null);
   }
 
-  public static AuroraTestUtility getUtility(TestEnvironmentInfo info) {
+  public static TestUtility getUtility(TestEnvironmentInfo info) {
     if (info == null) {
       info = TestEnvironment.getCurrent().getInfo();
     }
 
     try {
-      return new AuroraTestUtility(info.getRegion(), info.getRdsEndpoint());
+      return new TestUtility(info.getRegion(), info.getRdsEndpoint());
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }

@@ -34,7 +34,7 @@ import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.AuroraTestUtility;
+import integration.util.TestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -81,7 +81,7 @@ public class CustomEndpointTest {
   protected static final String endpointId = "test-endpoint-1-" + UUID.randomUUID();
   protected static DBClusterEndpoint endpointInfo;
 
-  protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+  protected static final TestUtility auroraUtil = TestUtility.getUtility();
   protected static final boolean reuseExistingEndpoint = false;
 
   protected String currentWriter;

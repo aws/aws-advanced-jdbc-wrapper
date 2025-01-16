@@ -16,7 +16,7 @@
 
 package integration.container.tests;
 
-import static integration.util.AuroraTestUtility.executeWithTimeout;
+import static integration.util.TestUtility.executeWithTimeout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -45,7 +45,7 @@ import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.AuroraTestUtility;
+import integration.util.TestUtility;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
@@ -175,7 +175,7 @@ public class HikariTests {
   @EnableOnNumOfInstances(min = 3)
   public void testFailoverLostConnection() throws SQLException {
 
-    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestUtility auroraUtil = TestUtility.getUtility();
     final Properties customProps = new Properties();
     PLUGINS.set(customProps, "failover");
     FAILOVER_TIMEOUT_MS.set(customProps, Integer.toString(1));
@@ -218,7 +218,7 @@ public class HikariTests {
   @EnableOnNumOfInstances(min = 3)
   public void testEFMFailover() throws SQLException {
 
-    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestUtility auroraUtil = TestUtility.getUtility();
     ProxyHelper.disableAllConnectivity();
 
     final List<TestInstanceInfo> instances = TestEnvironment.getCurrent()
@@ -270,7 +270,7 @@ public class HikariTests {
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
-    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestUtility auroraUtil = TestUtility.getUtility();
     final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo reader = instances.get(1);
@@ -312,7 +312,7 @@ public class HikariTests {
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverReaderFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
-    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestUtility auroraUtil = TestUtility.getUtility();
     final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
@@ -362,7 +362,7 @@ public class HikariTests {
   @EnableOnNumOfInstances(max = 1)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation_singleInstance()
       throws SQLException, InterruptedException {
-    final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
+    final TestUtility auroraUtil = TestUtility.getUtility();
     final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
