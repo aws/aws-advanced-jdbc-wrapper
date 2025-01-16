@@ -774,6 +774,7 @@ public class ReadWriteSplittingTests {
     final String initialWriterId;
     final String nextWriterId;
     final Connection initialWriterConn1;
+    final Connection initialWriterConn2;
     final Connection newWriterConn;
 
     try {

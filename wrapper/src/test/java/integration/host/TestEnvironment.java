@@ -427,7 +427,7 @@ public class TestEnvironment implements AutoCloseable {
 
       try {
         String engine = getDbEngine(env.info.getRequest());
-        String engineVersion = getDbEngineVersion(env);
+        String engineVersion = getDbEngineVersion(engine, env);
         if (StringUtils.isNullOrEmpty(engineVersion)) {
           throw new RuntimeException("Failed to get engine version.");
         }
@@ -552,49 +552,23 @@ public class TestEnvironment implements AutoCloseable {
     }
   }
 
-  private static String getDbEngineVersion(TestEnvironment env) {
-    switch (env.info.getRequest().getDatabaseEngineDeployment()) {
-      case AURORA:
-        return getAuroraDbEngineVersion(env);
-      case RDS:
-      case RDS_MULTI_AZ_CLUSTER:
-        return getRdsEngineVersion(env.info.getRequest());
-      default:
-        throw new NotImplementedException(env.info.getRequest().getDatabaseEngineDeployment().toString());
-    }
-  }
-
-  private static String getAuroraDbEngineVersion(TestEnvironment env) {
-    String engineName;
+  private static String getDbEngineVersion(String engineName, TestEnvironment env) {
     String systemPropertyVersion;
     TestEnvironmentRequest request = env.info.getRequest();
     switch (request.getDatabaseEngine()) {
       case MYSQL:
-        engineName = "aurora-mysql";
-        systemPropertyVersion = config.auroraMySqlDbEngineVersion;
+        systemPropertyVersion = config.mysqlVersion;
         break;
       case PG:
-        engineName = "aurora-postgresql";
-        systemPropertyVersion = config.auroraPgDbEngineVersion;
+        systemPropertyVersion = config.pgVersion;
         break;
       default:
         throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
-    return findAuroraDbEngineVersion(env, engineName, systemPropertyVersion);
+    return findEngineVersion(env, engineName, systemPropertyVersion);
   }
 
-  private static String getRdsEngineVersion(TestEnvironmentRequest request) {
-    switch (request.getDatabaseEngine()) {
-      case MYSQL:
-        return "8.0.33";
-      case PG:
-        return "15.4";
-      default:
-        throw new NotImplementedException(request.getDatabaseEngine().toString());
-    }
-  }
-
-  private static String findAuroraDbEngineVersion(
+  private static String findEngineVersion(
       TestEnvironment env,
       String engineName,
       String systemPropertyVersion) {
