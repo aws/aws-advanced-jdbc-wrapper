@@ -412,6 +412,7 @@ public class Driver implements java.sql.Driver {
     CustomEndpointPlugin.closeMonitors();
     HikariPoolsHolder.closeAllPools();
     HostResponseTimeServiceImpl.closeAllMonitors();
+    MonitoringRdsHostListProvider.closeAllMonitors();
     clearCaches();
   }
 }

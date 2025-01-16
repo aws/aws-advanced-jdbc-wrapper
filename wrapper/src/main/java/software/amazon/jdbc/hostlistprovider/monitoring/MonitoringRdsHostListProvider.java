@@ -85,17 +85,8 @@ public class MonitoringRdsHostListProvider extends RdsHostListProvider
         CLUSTER_TOPOLOGY_HIGH_REFRESH_RATE_MS.getLong(this.properties));
   }
 
-  /**
-   * Clear topology cache for the current cluster.
-   */
-  public void clear() {
-    topologyCache.remove(this.clusterId);
-  }
-
   public static void clearCache() {
-    topologyCache.clear();
-    primaryClusterIdCache.clear();
-    suggestedPrimaryClusterIdCache.clear();
+    clearAll();
   }
 
   public static void closeAllMonitors() {

@@ -265,6 +265,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   @Override
   public void close() throws Exception {
     this.stop.set(true);
+    this.nodeThreadsStop.set(true);
 
     // It breaks a waiting/sleeping cycles in monitoring thread
     synchronized (this.requestToUpdateTopology) {
@@ -276,6 +277,8 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
       this.monitorExecutor.shutdownNow();
     }
+
+    this.nodeThreads.clear();
   }
 
   @Override
