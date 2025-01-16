@@ -27,6 +27,7 @@ import integration.TestDatabaseInfo;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
+import integration.container.ProxyHelper;
 import integration.container.TestEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -987,6 +988,53 @@ public class AuroraTestUtility {
               connection);
           LOGGER.finest(() -> "Instance ID: " + instanceId);
         });
+  }
+
+  public void assertFirstQueryThrows(Statement stmt, Class expectedSQLExceptionClass) {
+    assertThrows(
+        expectedSQLExceptionClass,
+        () -> {
+          String instanceId = executeInstanceIdQuery(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+              stmt);
+          LOGGER.finest(() -> "Instance ID: " + instanceId);
+        });
+  }
+
+  public void crashInstance(ExecutorService executor, String instanceId) {
+    DatabaseEngineDeployment deployment =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+    if (DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment)) {
+      // Old multi-AZ writers take 10-20min to go up after server failover, so we will simulate failover.
+      simulateTemporaryFailure(executor, instanceId);
+    } else {
+      // Aurora clusters become fully available fairly quickly after server failover, so we test with actual failover.
+      try {
+        failoverClusterAndWaitUntilWriterChanged();
+      } catch (InterruptedException e) {
+        fail("Interrupted while waiting for server failover to complete", e);
+      }
+    }
+  }
+
+  public void simulateTemporaryFailure(ExecutorService executor, String instanceName) {
+    executor.submit(() -> {
+      try {
+        ProxyHelper.disableConnectivity(instanceName);
+        TimeUnit.SECONDS.sleep(5);
+        ProxyHelper.enableConnectivity(instanceName);
+      } catch (InterruptedException e) {
+        fail("The disable connectivity thread was unexpectedly interrupted.");
+      }
+    });
+
+    // Leave some time for the thread to start up
+    try {
+      TimeUnit.MILLISECONDS.sleep(500);
+    } catch (InterruptedException e) {
+      fail("Interrupted while waiting for the temporary instance failure thread to start up.");
+    }
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {

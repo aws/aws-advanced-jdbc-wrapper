@@ -18,10 +18,9 @@ package integration.container.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.mysql.cj.conf.PropertyKey;
 import integration.DatabaseEngine;
@@ -35,6 +34,7 @@ import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
 import integration.container.TestEnvironment;
 import integration.container.condition.DisableOnTestFeature;
+import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestDriver;
 import integration.container.condition.EnableOnTestFeature;
@@ -50,8 +50,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -61,7 +61,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.PropertyDefinition;
 import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
-import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
 import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.util.SqlState;
@@ -78,93 +77,87 @@ import software.amazon.jdbc.util.SqlState;
 public class AuroraFailoverTest {
 
   private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());
+  protected static final int IS_VALID_TIMEOUT = 5;
+  protected static final int IDLE_CONNECTIONS_NUM = 5;
 
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
-  protected static final int IS_VALID_TIMEOUT = 5;
 
+  protected ExecutorService executor;
   protected String currentWriter;
-  private static final int IDLE_CONNECTIONS_NUM = 5;
 
   @BeforeEach
   public void setUpEach() {
     this.currentWriter =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0)
-            .getInstanceId();
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0).getInstanceId();
+    this.executor = Executors.newFixedThreadPool(1, r -> {
+      final Thread thread = new Thread(r);
+      thread.setDaemon(true);
+      return thread;
+    });
+  }
+
+  @AfterEach
+  public void tearDownEach() {
+    this.executor.shutdownNow();
   }
 
   /**
-   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new
-   * writer. Driver failover occurs when executing a method against the connection
+   * Current writer dies, driver failover occurs when executing a method against the connection
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_failFromWriterToNewWriter_failOnConnectionInvocation()
-      throws SQLException, InterruptedException {
-
+  public void test_writerFailover_failOnConnectionInvocation() throws SQLException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
 
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
                 initialWriterInstanceInfo.getHost(),
                 initialWriterInstanceInfo.getPort(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props)) {
+      auroraUtil.crashInstance(executor, initialWriterId);
 
-      // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
-
-      // Failure occurs on Connection invocation
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
-      // Assert that we are connected to the new writer after failover happens.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-      assertNotEquals(currentConnectionId, initialWriterId);
     }
   }
 
   /**
-   * Current writer dies, a reader instance is nominated to be a new writer, failover to the new
-   * writer. Driver failover occurs when executing a method against an object bound to the
+   * Current writer dies, driver failover occurs when executing a method against an object bound to the
    * connection (eg a Statement object created by the connection).
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_failFromWriterToNewWriter_failOnConnectionBoundObjectInvocation()
-      throws SQLException, InterruptedException {
+  public void test_writerFailover_failOnConnectionBoundObjectInvocation() throws SQLException {
 
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
 
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
                 initialWriterInstanceInfo.getHost(),
                 initialWriterInstanceInfo.getPort(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props)) {
-
       final Statement stmt = conn.createStatement();
-
-      // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.crashInstance(executor, initialWriterId);
 
       // Failure occurs on Statement invocation
-      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
+      auroraUtil.assertFirstQueryThrows(stmt, FailoverSuccessSQLException.class);
 
-      // Assert that the driver is connected to the new writer after failover happens.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-
-      assertNotEquals(initialWriterId, currentConnectionId);
     }
   }
 
@@ -188,7 +181,6 @@ public class AuroraFailoverTest {
                 TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props)) {
 
-      // Crash the reader instance
       ProxyHelper.disableConnectivity(instanceId);
 
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
@@ -206,33 +198,32 @@ public class AuroraFailoverTest {
   /** Writer fails within a transaction. Open transaction with setAutoCommit(false) */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_writerFailWithinTransaction_setAutoCommitFalse()
-      throws SQLException, InterruptedException {
+  public void test_writerFailWithinTransaction_setAutoCommitFalse() throws SQLException {
 
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
 
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
                 initialWriterInstanceInfo.getHost(),
                 initialWriterInstanceInfo.getPort(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props)) {
 
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_2");
       testStmt1.executeUpdate(
           "CREATE TABLE test3_2 (id int not null primary key, test3_2_field varchar(255) not null)");
-      conn.setAutoCommit(false); // open a new transaction
+      conn.setAutoCommit(false); // Open a new transaction
 
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.crashInstance(executor, initialWriterId);
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -243,16 +234,13 @@ public class AuroraFailoverTest {
       assertEquals(
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
-      // Attempt to query the instance id.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      // Assert that we are connected to the new writer after failover happens.
+      // Assert that we are connected to the writer after failover happens.
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
       final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
-      assertNotEquals(initialWriterId, nextClusterWriterId);
 
       // testStmt2 can NOT be used anymore since it's invalid
-
       final Statement testStmt3 = conn.createStatement();
       final ResultSet rs = testStmt3.executeQuery("SELECT count(*) from test3_2");
       rs.next();
@@ -271,28 +259,28 @@ public class AuroraFailoverTest {
 
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
 
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
                 initialWriterInstanceInfo.getHost(),
                 initialWriterInstanceInfo.getPort(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props)) {
 
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_3");
       testStmt1.executeUpdate(
           "CREATE TABLE test3_3 (id int not null primary key, test3_3_field varchar(255) not null)");
-      testStmt1.executeUpdate("START TRANSACTION"); // open a new transaction
+      testStmt1.executeUpdate("START TRANSACTION"); // Open a new transaction
 
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.crashInstance(executor, initialWriterId);
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -303,16 +291,13 @@ public class AuroraFailoverTest {
       assertEquals(
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
-      // Attempt to query the instance id.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      // Assert that we are connected to the new writer after failover happens.
+      // Assert that we are connected to the writer after failover happens.
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
       final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
-      assertNotEquals(initialWriterId, nextClusterWriterId);
 
       // testStmt2 can NOT be used anymore since it's invalid
-
       final Statement testStmt3 = conn.createStatement();
       final ResultSet rs = testStmt3.executeQuery("SELECT count(*) from test3_3");
       rs.next();
@@ -331,10 +316,10 @@ public class AuroraFailoverTest {
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void testServerFailoverWithIdleConnections() throws SQLException, InterruptedException {
     final List<Connection> idleConnections = new ArrayList<>();
-    final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint();
-    final int clusterEndpointPort = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort();
+    final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint();
+    final int clusterEndpointPort = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort();
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover");
 
     for (int i = 0; i < IDLE_CONNECTIONS_NUM; i++) {
@@ -343,7 +328,7 @@ public class AuroraFailoverTest {
           ConnectionStringHelper.getWrapperUrl(
               clusterEndpoint,
               clusterEndpointPort,
-              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
           props));
     }
 
@@ -352,7 +337,7 @@ public class AuroraFailoverTest {
         ConnectionStringHelper.getWrapperUrl(
             clusterEndpoint,
             clusterEndpointPort,
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
         props)) {
 
       final String instanceId = auroraUtil.queryInstanceId(
@@ -366,12 +351,10 @@ public class AuroraFailoverTest {
         assertFalse(idleConnection.isClosed());
       }
 
-      // Crash current writer and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.crashInstance(executor, instanceId);
 
-      // Assert failover has occurred.
       assertThrows(
-          FailoverSQLException.class,
+          FailoverSuccessSQLException.class,
           () -> auroraUtil.queryInstanceId(
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
@@ -385,7 +368,7 @@ public class AuroraFailoverTest {
         ConnectionStringHelper.getWrapperUrl(
             clusterEndpoint,
             clusterEndpointPort,
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
         props)) {
 
       final String instanceId = auroraUtil.queryInstanceId(
@@ -410,32 +393,27 @@ public class AuroraFailoverTest {
 
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_DataSourceWriterConnection_BasicFailover()
-      throws SQLException, InterruptedException {
+  public void test_DataSourceWriterConnection_BasicFailover() throws SQLException {
 
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0);
-    TestInstanceInfo nominatedWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
-    final String nominatedWriterId = nominatedWriterInstanceInfo.getInstanceId();
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
+    TestInstanceInfo newWriterInstanceInfo =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(1);
+    final String newWriterId = newWriterInstanceInfo.getInstanceId();
 
     try (final Connection conn =
         createDataSourceConnectionWithFailoverUsingInstanceId(
-            initialWriterInstanceInfo.getHost())) {
+            initialWriterInstanceInfo.getHost(), initialWriterInstanceInfo.getPort())) {
 
-      // Trigger failover
-      auroraUtil.failoverClusterToATargetAndWaitUntilWriterChanged(
-          initialWriterInstanceInfo.getInstanceId(), nominatedWriterId);
+      auroraUtil.crashInstance(executor, initialWriterInstanceInfo.getInstanceId());
 
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
-      // Execute Query again to get the current connection id;
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
       LOGGER.fine("currentConnectionId: " + currentConnectionId);
 
-      // Assert that we are connected to the new writer after failover happens.
       List<String> instanceIDs = null;
-      for (TestInstanceInfo instanceInfo : TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()) {
+      for (TestInstanceInfo instanceInfo : TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances()) {
         if (instanceInfo == initialWriterInstanceInfo
             && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
                 == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
@@ -449,9 +427,9 @@ public class AuroraFailoverTest {
               TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
               ConnectionStringHelper.getUrl(
                   instanceInfo.getHost(), instanceInfo.getPort(),
-                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
-              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+                  TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
+              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername(),
+              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
           if (!instanceIDs.isEmpty()) {
             break;
           }
@@ -460,16 +438,16 @@ public class AuroraFailoverTest {
         }
       }
 
-      assertTrue(instanceIDs.size() > 0);
+      assertNotNull(instanceIDs);
+      assertFalse(instanceIDs.isEmpty());
       final String nextWriterId = instanceIDs.get(0);
 
       LOGGER.fine("currentConnectionObject: " + conn.unwrap(Connection.class));
       LOGGER.fine("initialWriterInstanceInfo endpoint: " + initialWriterInstanceInfo.getHost());
       LOGGER.fine("currentConnectionId: " + currentConnectionId);
       LOGGER.fine("nextWriterId: " + nextWriterId);
-      LOGGER.fine("nominatedWriterId: " + nominatedWriterId);
+      LOGGER.fine("newWriterId: " + newWriterId);
 
-      assertNotEquals(initialWriterInstanceInfo.getInstanceId(), currentConnectionId);
       assertEquals(nextWriterId, currentConnectionId);
 
       assertTrue(conn.isValid(IS_VALID_TIMEOUT));
@@ -479,8 +457,8 @@ public class AuroraFailoverTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   @EnableOnTestDriver(TestDriver.MYSQL)
-  public void test_takeOverConnectionProperties() throws SQLException, InterruptedException {
-    final Properties props = initDefaultProps();
+  public void test_takeOverConnectionProperties() throws SQLException {
+    final Properties props = initDefaultProxiedProps();
     props.setProperty(PropertyKey.allowMultiQueries.getKeyName(), "false");
 
     // Establish the topology cache so that we can later assert that testConnection does not inherit
@@ -488,9 +466,9 @@ public class AuroraFailoverTest {
     final Connection establishCacheConnection =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint(),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort(),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props);
     establishCacheConnection.close();
 
@@ -499,17 +477,16 @@ public class AuroraFailoverTest {
     try (final Connection conn =
         DriverManager.getConnection(
             ConnectionStringHelper.getWrapperUrl(
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpointPort(),
-                TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint(),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort(),
+                TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
             props)) {
 
       // Verify that connection accepts multi-statement sql
       final Statement testStmt1 = conn.createStatement();
       testStmt1.executeQuery("select 1; select 2; select 3;");
 
-      // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.crashInstance(executor, this.currentWriter);
 
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
@@ -525,21 +502,20 @@ public class AuroraFailoverTest {
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_failFromWriterWhereKeepSessionStateOnFailoverIsTrue()
-      throws SQLException, InterruptedException {
+  public void test_failFromWriterWhereKeepSessionStateOnFailoverIsTrue() throws SQLException {
 
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
 
     try (final Connection conn =
              DriverManager.getConnection(
                  ConnectionStringHelper.getWrapperUrl(
                      initialWriterInstanceInfo.getHost(),
                      initialWriterInstanceInfo.getPort(),
-                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
                  props)) {
       conn.setAutoCommit(false);
 
@@ -547,13 +523,13 @@ public class AuroraFailoverTest {
       testStmt1.executeUpdate("DROP TABLE IF EXISTS test3_3");
       testStmt1.executeUpdate(
           "CREATE TABLE test3_3 (id int not null primary key, test3_3_field varchar(255) not null)");
-      conn.setAutoCommit(false); // open a new transaction
+      conn.setAutoCommit(false); // Open a new transaction
       conn.commit();
 
       final Statement testStmt2 = conn.createStatement();
       testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (1, 'test field string 1')");
 
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.crashInstance(executor, initialWriterId);
 
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
@@ -564,16 +540,13 @@ public class AuroraFailoverTest {
       assertEquals(
           SqlState.CONNECTION_FAILURE_DURING_TRANSACTION.getState(), exception.getSQLState());
 
-      // Attempt to query the instance id.
       final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-      // Assert that we are connected to the new writer after failover happens.
+      // Assert that we are connected to the writer after failover happens.
       assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
       final String nextClusterWriterId = auroraUtil.getDBClusterWriterInstanceId();
       assertEquals(currentConnectionId, nextClusterWriterId);
-      assertNotEquals(initialWriterId, nextClusterWriterId);
 
       // testStmt2 can NOT be used anymore since it's invalid
-
       final Statement testStmt3 = conn.createStatement();
       final ResultSet rs = testStmt3.executeQuery("SELECT count(*) from test3_3");
       rs.next();
@@ -590,65 +563,43 @@ public class AuroraFailoverTest {
 
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_writerFailover_writerReelected() throws SQLException, InterruptedException {
+  // Multi-AZ tests already simulate this in other tests instead of sending server failover requests.
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
+  public void test_writerFailover_writerReelected() throws SQLException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
-
     final Properties props = initDefaultProxiedProps();
-    PropertyDefinition.SOCKET_TIMEOUT.set(props, "2000");
 
     try (final Connection conn =
              DriverManager.getConnection(
                  ConnectionStringHelper.getWrapperUrl(
                      initialWriterInstanceInfo.getHost(),
                      initialWriterInstanceInfo.getPort(),
-                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
                  props)) {
+      // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
+      // simulate this by temporarily disabling connectivity to the writer.
+      auroraUtil.simulateTemporaryFailure(executor, initialWriterId);
 
-      ExecutorService executor = Executors.newFixedThreadPool(1, r -> {
-        final Thread thread = new Thread(r);
-        thread.setDaemon(true);
-        return thread;
-      });
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
-      try {
-        // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
-        // simulate this by temporarily disabling connectivity to the writer.
-        executor.submit(() -> {
-          try {
-            ProxyHelper.disableConnectivity(initialWriterId);
-            TimeUnit.SECONDS.sleep(5);
-            ProxyHelper.enableConnectivity(initialWriterId);
-          } catch (InterruptedException e) {
-            fail("The disable connectivity thread was unexpectedly interrupted.");
-          }
-        });
-
-        // Leave some time for the other thread to start up
-        TimeUnit.MILLISECONDS.sleep(500);
-
-        // Failure occurs on Connection invocation
-        auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
-
-        // Assert that we are connected to the new writer after failover happens.
-        final String currentConnectionId = auroraUtil.queryInstanceId(conn);
-        assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
-        assertEquals(currentConnectionId, initialWriterId);
-      } finally {
-        executor.shutdownNow();
-      }
+      // Assert that we are connected to the writer after failover happens.
+      final String currentConnectionId = auroraUtil.queryInstanceId(conn);
+      assertTrue(auroraUtil.isDBInstanceWriter(currentConnectionId));
+      assertEquals(currentConnectionId, initialWriterId);
     }
   }
 
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_readerFailover_readerOrWriter() throws SQLException, InterruptedException {
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_readerFailover_readerOrWriter() throws SQLException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
     props.setProperty("failoverMode", "reader-or-writer");
 
     try (final Connection conn =
@@ -656,25 +607,23 @@ public class AuroraFailoverTest {
                  ConnectionStringHelper.getWrapperUrl(
                      initialWriterInstanceInfo.getHost(),
                      initialWriterInstanceInfo.getPort(),
-                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
                  props)) {
+      ProxyHelper.disableConnectivity(initialWriterId);
 
-      // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
-
-      // Failure occurs on Connection invocation
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
     }
   }
 
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
-  public void test_readerFailover_strictReader() throws SQLException, InterruptedException {
+  @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
+  public void test_readerFailover_strictReader() throws SQLException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(initialWriterId);
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
-    final Properties props = initDefaultProps();
+    final Properties props = initDefaultProxiedProps();
     props.setProperty("failoverMode", "strict-reader");
 
     try (final Connection conn =
@@ -682,13 +631,10 @@ public class AuroraFailoverTest {
                  ConnectionStringHelper.getWrapperUrl(
                      initialWriterInstanceInfo.getHost(),
                      initialWriterInstanceInfo.getPort(),
-                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
                  props)) {
+      auroraUtil.crashInstance(executor, initialWriterId);
 
-      // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
-
-      // Failure occurs on Connection invocation
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
       String currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -698,13 +644,12 @@ public class AuroraFailoverTest {
 
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
-  public void test_readerFailover_writerReelected() throws SQLException, InterruptedException {
+  public void test_readerFailover_writerReelected() throws SQLException {
     final String initialWriterId = this.currentWriter;
     TestInstanceInfo initialWriterInstanceInfo =
         TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstance(initialWriterId);
 
     final Properties props = initDefaultProxiedProps();
-    PropertyDefinition.SOCKET_TIMEOUT.set(props, "2000");
     props.setProperty("failoverMode", "reader-or-writer");
 
     try (final Connection conn =
@@ -712,36 +657,18 @@ public class AuroraFailoverTest {
                  ConnectionStringHelper.getWrapperUrl(
                      initialWriterInstanceInfo.getHost(),
                      initialWriterInstanceInfo.getPort(),
-                     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()),
+                     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
                  props)) {
+      // Bring down all instances except for the writer.
+      ProxyHelper.disableAllConnectivity();
+      ProxyHelper.enableConnectivity(initialWriterId);
 
-      ExecutorService executor = Executors.newFixedThreadPool(1, r -> {
-        final Thread thread = new Thread(r);
-        thread.setDaemon(true);
-        return thread;
-      });
+      // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
+      // simulate this by temporarily disabling connectivity to the writer.
+      auroraUtil.simulateTemporaryFailure(executor, initialWriterId);
 
-      try {
-        // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
-        // simulate this by temporarily disabling connectivity to the writer.
-        executor.submit(() -> {
-          try {
-            ProxyHelper.disableConnectivity(initialWriterId);
-            TimeUnit.SECONDS.sleep(5);
-            ProxyHelper.enableConnectivity(initialWriterId);
-          } catch (InterruptedException e) {
-            fail("The disable connectivity thread was unexpectedly interrupted.");
-          }
-        });
-
-        // Leave some time for the other thread to start up
-        TimeUnit.MILLISECONDS.sleep(500);
-
-        // Failure occurs on Connection invocation
-        auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
-      } finally {
-        executor.shutdownNow();
-      }
+      // Failure occurs on Connection invocation
+      auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
     }
   }
 
@@ -751,19 +678,13 @@ public class AuroraFailoverTest {
     return "failover";
   }
 
-  protected Properties initDefaultProps() {
-    final Properties props = ConnectionStringHelper.getDefaultProperties();
-    props.setProperty(PropertyDefinition.PLUGINS.name, this.getFailoverPlugin());
-    PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
-    PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
-    return props;
-  }
-
   protected Properties initDefaultProxiedProps() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(PropertyDefinition.PLUGINS.name, this.getFailoverPlugin());
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
-    PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
+    // Some tests temporarily disable connectivity for 5 seconds. The socket timeout needs to be less than this to
+    // trigger driver failover.
+    PropertyDefinition.SOCKET_TIMEOUT.set(props, "2000");
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(
         props,
         "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
@@ -772,37 +693,34 @@ public class AuroraFailoverTest {
   }
 
   protected Connection createDataSourceConnectionWithFailoverUsingInstanceId(
-      String instanceEndpoint) throws SQLException {
+      String instanceEndpoint, int instancePort) throws SQLException {
 
     AwsWrapperDataSource ds = new AwsWrapperDataSource();
 
     // Configure the property names for the underlying driver-specific data source:
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
     ds.setServerName(instanceEndpoint);
-    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    ds.setServerPort(Integer.toString(instancePort));
+    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
 
     // Specify the driver-specific data source:
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     // Configure the driver-specific data source:
-    Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
+    Properties targetDataSourceProps = initDefaultProxiedProps();
     targetDataSourceProps.setProperty("wrapperPlugins", this.getFailoverPlugin());
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
         && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
             == DatabaseEngine.MYSQL) {
-      // Connecting to Mysql database with MariaDb driver requires a configuration parameter
-      // "permitMysqlScheme"
+      // Connecting to Mysql database with MariaDb driver requires a configuration parameter: "permitMysqlScheme"
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
-
-    PropertyDefinition.CONNECT_TIMEOUT.set(targetDataSourceProps, "10000");
-    PropertyDefinition.SOCKET_TIMEOUT.set(targetDataSourceProps, "10000");
 
     ds.setTargetDataSourceProperties(targetDataSourceProps);
 
     return ds.getConnection(
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername(),
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
   }
 }
