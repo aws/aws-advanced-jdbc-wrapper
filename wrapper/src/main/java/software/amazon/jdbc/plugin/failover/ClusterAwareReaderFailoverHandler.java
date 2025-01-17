@@ -56,8 +56,8 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       Logger.getLogger(ClusterAwareReaderFailoverHandler.class.getName());
   protected static final int DEFAULT_FAILOVER_TIMEOUT = 60000; // 60 sec
   protected static final int DEFAULT_READER_CONNECT_TIMEOUT = 30000; // 30 sec
-  public static final ReaderFailoverResult FAILED_READER_FAILOVER_RESULT = new ReaderFailoverResult(null,
-      null, false);
+  public static final ReaderFailoverResult FAILED_READER_FAILOVER_RESULT =
+      new ReaderFailoverResult(null, null, false);
   protected Properties initialConnectionProps;
   protected int maxFailoverTimeoutMs;
   protected int timeoutMs;
@@ -142,29 +142,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       final ExecutorService executor) {
     final Future<ReaderFailoverResult> future = executor.submit(() -> {
       ReaderFailoverResult result;
-      List<HostSpec> topology = hosts;
       try {
         while (true) {
-          result = failoverInternal(topology, currentHost);
+          result = failoverInternal(hosts, currentHost);
           if (result != null && result.isConnected()) {
-            if (!this.enableFailoverStrictReader) {
-              return result; // connection to any node works for us
-            }
-
-            // need to ensure that new connection is a connection to a reader node
-            try {
-              if (HostRole.READER.equals(this.pluginService.getHostRole(result.getConnection()))) {
-                return result;
-              }
-            } catch (SQLException e) {
-              LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[]{e}));
-            }
-
-            try {
-              result.getConnection().close();
-            } catch (final SQLException ex) {
-              // ignore
-            }
+            return result;
           }
 
           TimeUnit.SECONDS.sleep(1);
@@ -403,11 +385,43 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
 
         final Connection conn = pluginService.forceConnect(this.newHost, copy);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
+
+        if (enableFailoverStrictReader) {
+          // need to ensure that new connection is a connection to a reader node
+          try {
+            HostRole role = pluginService.getHostRole(conn);
+            if (!HostRole.READER.equals(role)) {
+              LOGGER.fine(
+                  Messages.get(
+                      "ClusterAwareReaderFailoverHandler.readerRequired",
+                      new Object[]{ this.newHost.getUrl(), role }));
+
+              try {
+                conn.close();
+              } catch (final SQLException innerException) {
+                // ignore
+              }
+
+              return FAILED_READER_FAILOVER_RESULT;
+            }
+          } catch (SQLException e) {
+            LOGGER.fine(Messages.get("ClusterAwareReaderFailoverHandler.errorGettingHostRole", new Object[]{e}));
+
+            try {
+              conn.close();
+            } catch (final SQLException innerException) {
+              // ignore
+            }
+
+            return FAILED_READER_FAILOVER_RESULT;
+          }
+        }
+
         LOGGER.fine(
             () -> Messages.get(
                 "ClusterAwareReaderFailoverHandler.successfulReaderConnection",
                 new Object[] {this.newHost.getUrl()}));
-        LOGGER.fine("New reader connection object: " + conn);
+        LOGGER.fine("New reader failover connection object: " + conn);
         return new ReaderFailoverResult(conn, this.newHost, true);
       } catch (final SQLException e) {
         pluginService.setAvailability(newHost.asAliases(), HostAvailability.NOT_AVAILABLE);
