@@ -75,6 +75,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeSecurityGroupsResponse;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
+import software.amazon.awssdk.services.ec2.model.IpPermission;
+import software.amazon.awssdk.services.ec2.model.IpRange;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.RdsClientBuilder;
 import software.amazon.awssdk.services.rds.model.CreateDbClusterRequest;
@@ -480,7 +482,7 @@ public class TestUtility {
   public String getPublicIPAddress() throws UnknownHostException {
     String ip;
     try {
-      URL ipChecker = new URL("http://checkip.amazonaws.com");
+      URL ipChecker = new URL("https://checkip.amazonaws.com");
       BufferedReader reader = new BufferedReader(new InputStreamReader(ipChecker.openStream()));
       ip = reader.readLine();
     } catch (Exception e) {
@@ -502,18 +504,18 @@ public class TestUtility {
     }
 
     try {
+      IpRange ipRange = IpRange.builder()
+          .cidrIp(ipAddress + "/32")
+          .description("Test run at " + Instant.now())
+          .build();
+      IpPermission ipPermission = IpPermission.builder()
+          .ipRanges(ipRange)
+          .ipProtocol("-1") // All protocols
+          .fromPort(0) // For all ports
+          .toPort(65535)
+          .build();
       ec2Client.authorizeSecurityGroupIngress(
-          (builder) ->
-              builder
-                  .groupName(dbSecGroup)
-                  .ipPermissions((permissionBuilder) ->
-                      permissionBuilder.ipRanges((ipRangeBuilder) ->
-                          ipRangeBuilder
-                              .cidrIp(ipAddress + "/32")
-                              .description("Test run at " + Instant.now()))
-                          .ipProtocol("-1") // All protocols
-                          .fromPort(0) // For all ports
-                          .toPort(65535)));
+          (builder) -> builder.groupName(dbSecGroup).ipPermissions(ipPermission));
     } catch (Ec2Exception exception) {
       if (!DUPLICATE_IP_ERROR_CODE.equalsIgnoreCase(exception.awsErrorDetails().errorCode())) {
         throw exception;
@@ -938,7 +940,7 @@ public class TestUtility {
               host,
               instanceInfo.getPort(),
               dbName);
-          try (final Connection conn = DriverManager.getConnection(url, props)) {
+          try (final Connection ignored = DriverManager.getConnection(url, props)) {
             LOGGER.finest("Host " + instanceInfo.getHost() + " is up.");
             if (instanceInfo.getHost().contains(".proxied")) {
               LOGGER.finest(
@@ -965,10 +967,15 @@ public class TestUtility {
       });
     }
 
-    boolean timedOut = !latch.await(timeoutSec, TimeUnit.SECONDS);
-    if (timedOut) {
-      LOGGER.warning("Timed out while waiting for instances to come up.");
+    try {
+      boolean timedOut = !latch.await(timeoutSec, TimeUnit.SECONDS);
+      if (timedOut) {
+        LOGGER.warning("Timed out while waiting for instances to come up.");
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
     }
+
 
     stop.set(true);
     executorService.shutdownNow();
@@ -1402,8 +1409,7 @@ public class TestUtility {
   public String getLatestVersion(String engine) {
     return getEngineVersions(engine).stream()
         .filter(version -> !version.contains("limitless"))
-        .sorted(Comparator.reverseOrder())
-        .findFirst()
+        .max(Comparator.naturalOrder())
         .orElse(null);
   }
 
@@ -1438,8 +1444,6 @@ public class TestUtility {
     Future<T> future = executorService.submit(callable);
     try {
       return future.get(timeoutMs, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException interruptedException) {
-      throw interruptedException;
     } catch (ExecutionException executionException) {
       if (executionException.getCause() != null) {
         throw executionException.getCause();
@@ -1455,11 +1459,9 @@ public class TestUtility {
 
   public static void executeWithTimeout(final Runnable runnable, long timeoutMs) throws Throwable {
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    Future future = executorService.submit(runnable);
+    Future<?> future = executorService.submit(runnable);
     try {
       future.get(timeoutMs, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException interruptedException) {
-      throw interruptedException;
     } catch (ExecutionException executionException) {
       if (executionException.getCause() != null) {
         throw executionException.getCause();
