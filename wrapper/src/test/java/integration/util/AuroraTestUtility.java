@@ -905,18 +905,19 @@ public class AuroraTestUtility {
     return dbCluster.dbClusterMembers();
   }
 
-  public boolean makeSureInstancesUp(List<String> instances) throws InterruptedException {
-    return makeSureInstancesUp(instances, true, TimeUnit.MINUTES.toSeconds(5));
+  public void makeSureInstancesUp(long timeoutSec) {
+    List<TestInstanceInfo> instances = new ArrayList<>();
+    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    instances.addAll(envInfo.getDatabaseInfo().getInstances());
+    instances.addAll(envInfo.getProxyDatabaseInfo().getInstances());
+    makeSureInstancesUp(instances, timeoutSec);
   }
 
-  public boolean makeSureInstancesUp(List<String> instances, long timeoutSec) throws InterruptedException {
-    return makeSureInstancesUp(instances, true, timeoutSec);
-  }
-
-  public boolean makeSureInstancesUp(List<String> instances, boolean finalCheck, long timeoutSec)
-      throws InterruptedException {
+  public void makeSureInstancesUp(List<TestInstanceInfo> instances, long timeoutSec) {
     final ConcurrentHashMap<String, Boolean> remainingInstances = new ConcurrentHashMap<>();
-    instances.forEach((k) -> remainingInstances.put(k, true));
+    final String dbName = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName();
+
+    instances.forEach((i) -> remainingInstances.put(i.getHost(), true));
 
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     DriverHelper.setConnectTimeout(props, 30, TimeUnit.SECONDS);
@@ -925,26 +926,28 @@ public class AuroraTestUtility {
     final CountDownLatch latch = new CountDownLatch(instances.size());
     final AtomicBoolean stop = new AtomicBoolean(false);
 
-    for (final String id : instances) {
+    for (final TestInstanceInfo instanceInfo : instances) {
+      String host = instanceInfo.getHost();
       executorService.submit(() -> {
         while (!stop.get()) {
-          TestInstanceInfo instanceInfo =
-              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstance(id);
           String url = ConnectionStringHelper.getUrl(
-              instanceInfo.getHost(),
+              host,
               instanceInfo.getPort(),
-              TestEnvironment.getCurrent()
-                  .getInfo()
-                  .getDatabaseInfo()
-                  .getDefaultDbName());
+              dbName);
           try (final Connection conn = DriverManager.getConnection(url, props)) {
-            LOGGER.finest("Instance " + id + " is up.");
-            remainingInstances.remove(id);
+            LOGGER.finest("Host " + instanceInfo.getHost() + " is up.");
+            if (instanceInfo.getHost().contains(".proxied")) {
+              LOGGER.finest(
+                  "Proxied host " + instanceInfo.getHost() + " resolves to IP address "
+                      + this.hostToIP(host, false));
+            }
+
+            remainingInstances.remove(instanceInfo.getHost());
             latch.countDown();
             break;
           } catch (final SQLException ex) {
             // Continue waiting until instance is up.
-            LOGGER.log(Level.FINEST, "Exception while trying to connect to instance " + id, ex);
+            LOGGER.log(Level.FINEST, "Exception while trying to connect to host " + instanceInfo.getHost(), ex);
           } catch (final Exception ex) {
             LOGGER.log(Level.SEVERE, "Exception:", ex);
             break;
@@ -958,22 +961,17 @@ public class AuroraTestUtility {
       });
     }
 
-    latch.await(timeoutSec, TimeUnit.SECONDS);
+    try {
+      latch.await(timeoutSec, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
     stop.set(true);
     executorService.shutdownNow();
 
-    if (finalCheck) {
-      assertTrue(
-          remainingInstances.isEmpty(),
-          "The following instances are still down: \n"
-              + String.join("\n", remainingInstances.keySet()));
-    } else {
-      if (!remainingInstances.isEmpty()) {
-        LOGGER.finest("The following instances are still down: \n"
-            + String.join("\n", remainingInstances.keySet()));
-      }
+    if (!remainingInstances.isEmpty()) {
+      fail("The following instances are still down: \n" + String.join("\n", remainingInstances.keySet()));
     }
-    return remainingInstances.isEmpty();
   }
 
   // Attempt to run a query after the instance is down.
@@ -1063,11 +1061,11 @@ public class AuroraTestUtility {
       LOGGER.finest("Cluster endpoint resolves to (after wait): " + newClusterEndpointIp);
 
       // wait until all instances except initial writer instance to be available
-      makeSureInstancesUp(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
+      List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
           .stream()
-          .map(TestInstanceInfo::getInstanceId)
-          .filter(x -> !x.equalsIgnoreCase(initialWriterId))
-          .collect(Collectors.toList()));
+          .filter(x -> !x.getInstanceId().equalsIgnoreCase(initialWriterId))
+          .collect(Collectors.toList());
+      makeSureInstancesUp(instances, TimeUnit.MINUTES.toSeconds(5));
     }
     LOGGER.finest(String.format("finished failover from %s to target: %s", initialWriterId, targetWriterId));
   }

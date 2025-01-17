@@ -683,7 +683,7 @@ public class AdvancedPerformanceTest {
     TestEnvironment.getCurrent().getInfo().getDatabaseInfo().moveInstanceFirst(currentWriter);
     TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().moveInstanceFirst(currentWriter);
 
-    auroraUtil.makeSureInstancesUp(latestTopology);
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(5));
 
     TestAuroraHostListProvider.clearCache();
     TestPluginServiceImpl.clearHostAvailabilityCache();

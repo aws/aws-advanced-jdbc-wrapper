@@ -581,7 +581,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     }
     try {
       final List<HostSpec> hosts = this.queryForTopology(connection);
-      if (hosts != null) {
+      if (!Utils.isNullOrEmpty(hosts)) {
         this.updateTopologyCache(hosts);
       }
       return hosts;
@@ -616,7 +616,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     return null;
   }
 
-  protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
+  protected @Nullable List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -647,7 +647,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     return null; // intentionally null
   }
 
-  protected List<HostSpec> processQueryResults(
+  protected @Nullable List<HostSpec> processQueryResults(
       final ResultSet resultSet,
       final String suggestedWriterNodeId) throws SQLException {
 
@@ -656,8 +656,14 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     // Data is result set is ordered by last updated time so the latest records go last.
     // When adding hosts to a map, the newer records replace the older ones.
     while (resultSet.next()) {
-      final HostSpec host = createHost(resultSet, suggestedWriterNodeId);
-      hostMap.put(host.getHost(), host);
+      try {
+        final HostSpec host = createHost(resultSet, suggestedWriterNodeId);
+        hostMap.put(host.getHost(), host);
+      } catch (Exception e) {
+        LOGGER.fine(
+            Messages.get("ClusterTopologyMonitorImpl.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+        return null;
+      }
     }
 
     final List<HostSpec> hosts = new ArrayList<>();
@@ -866,6 +872,9 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
       List<HostSpec> hosts;
       try {
         hosts = this.monitor.queryForTopology(connection);
+        if (hosts == null) {
+          return;
+        }
       } catch (SQLException ex) {
         return;
       }
