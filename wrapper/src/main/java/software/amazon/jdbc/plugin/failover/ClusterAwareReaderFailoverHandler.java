@@ -164,19 +164,23 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   private ReaderFailoverResult getInternalFailoverResult(
       final ExecutorService executor,
       final Future<ReaderFailoverResult> future) throws SQLException {
-    final ReaderFailoverResult defaultResult = new ReaderFailoverResult(
-        null, null, false);
     try {
       final ReaderFailoverResult result = future.get(this.maxFailoverTimeoutMs, TimeUnit.MILLISECONDS);
-      return result == null ? defaultResult : result;
+      if (result == null) {
+        LOGGER.warning(
+            Messages.get("ClusterAwareReaderFailoverHandler.timeout", new Object[] {this.maxFailoverTimeoutMs}));
+        return FAILED_READER_FAILOVER_RESULT;
+      }
+
+      return result;
     } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new SQLException(Messages.get("ClusterAwareReaderFailoverHandler.interruptedThread"), "70100", e);
     } catch (final ExecutionException e) {
-      return defaultResult;
+      return FAILED_READER_FAILOVER_RESULT;
     } catch (final TimeoutException e) {
       future.cancel(true);
-      return defaultResult;
+      return FAILED_READER_FAILOVER_RESULT;
     } finally {
       if (!executor.isTerminated()) {
         executor.shutdownNow(); // terminate all remaining tasks
