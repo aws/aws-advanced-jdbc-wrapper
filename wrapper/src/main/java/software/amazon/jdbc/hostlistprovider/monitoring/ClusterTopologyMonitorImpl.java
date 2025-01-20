@@ -653,6 +653,17 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
 
     final HashMap<String, HostSpec> hostMap = new HashMap<>();
 
+    int expectedColumnCount = 4;
+    int actualColumnCount = resultSet.getMetaData().getColumnCount();
+    if (actualColumnCount < expectedColumnCount) {
+      // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
+      LOGGER.fine(
+          Messages.get(
+              "ClusterTopologyMonitorImpl.unexpectedTopologyQueryColumnCount",
+              new Object[]{expectedColumnCount, actualColumnCount}));
+      return null;
+    }
+
     // Data is result set is ordered by last updated time so the latest records go last.
     // When adding hosts to a map, the newer records replace the older ones.
     while (resultSet.next()) {
