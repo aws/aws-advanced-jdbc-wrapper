@@ -105,7 +105,7 @@ import software.amazon.jdbc.util.RdsUtils;
 import software.amazon.jdbc.util.StringUtils;
 
 /**
- * Creates and destroys AWS RDS Clusters and Instances. To use this functionality the following environment variables
+ * Provides useful functions for RDS integration testing. To use this functionality the following environment variables
  * must be defined: - AWS_ACCESS_KEY_ID - AWS_SECRET_ACCESS_KEY
  */
 public class TestUtility {
@@ -134,13 +134,14 @@ public class TestUtility {
   }
 
   /**
-   * Initializes an AmazonRDS & AmazonEC2 client.
+   * Creates a TestUtility instance. As part of the creation, an RdsClient and Ec2Client are initialized.
    *
-   * @param region              define AWS Regions, refer to
+   * @param region              The AWS region for the cluster(s) the tests will be running against, refer to
    *                            <a
-   *                            href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html">Regions,
-   *                            Availability Zones, and Local Zones</a>
-   * @param credentialsProvider Specific AWS credential provider
+   *                            href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts
+   *                            .RegionsAndAvailabilityZones.html">
+   *                            Regions, Availability Zones, and Local Zones</a>
+   * @param credentialsProvider The AWS credential provider to use to initialize the RdsClient and Ec2Client.
    */
   public TestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
     final RdsClientBuilder rdsClientBuilder = RdsClient.builder()
@@ -185,10 +186,14 @@ public class TestUtility {
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
+   * Performs the following:
+   * - creates an RDS cluster based on the passed in details
+   * - waits until it is available
+   * - adds the current IP address as an inbound rule to the security group so that the cluster can be accessed
+   * - creates a database with the given name within the cluster
    *
-   * @param username      Master username for access to database
-   * @param password      Master password for access to database
+   * @param username      the master username for access to the database
+   * @param password      the master password for access to the database
    * @param dbName        Database name
    * @param identifier    Database cluster identifier
    * @param engine        Database engine to use, refer to
