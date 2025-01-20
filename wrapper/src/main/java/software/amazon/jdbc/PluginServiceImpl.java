@@ -175,11 +175,11 @@ public class PluginServiceImpl implements PluginService, CanReleaseResources,
 
         this.currentHostSpec = this.getWriter(this.getAllHosts());
         final List<HostSpec> allowedHosts = this.getHosts();
-        if (!Utils.containsHost(allowedHosts, this.currentHostSpec.getHost())) {
+        if (!Utils.containsHost(allowedHosts, this.currentHostSpec.getUrl())) {
           throw new RuntimeException(
               Messages.get("PluginServiceImpl.currentHostNotAllowed",
                   new Object[] {
-                      currentHostSpec == null ? "<null>" : currentHostSpec.getHost(),
+                      currentHostSpec == null ? "<null>" : currentHostSpec.getUrl(),
                       Utils.logTopology(allowedHosts, "")})
           );
         }
