@@ -64,7 +64,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @MakeSureFirstInstanceWriter
 @Order(17)
 public class AutoscalingTests {
-  protected static final TestUtility auroraUtil = TestUtility.getUtility();
+  protected static final TestUtility testUtil = TestUtility.getUtility();
 
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
@@ -129,16 +129,16 @@ public class AutoscalingTests {
 
       final Connection newInstanceConn;
       final String instanceClass =
-          auroraUtil.getDbInstanceClass(ContainerEnvironment.getCurrent().getInfo().getRequest());
+          testUtil.getDbInstanceClass(ContainerEnvironment.getCurrent().getInfo().getRequest());
       final TestInstanceInfo newInstance =
-          auroraUtil.createInstance(instanceClass, "auto-scaling-instance", instances);
+          testUtil.createInstance(instanceClass, "auto-scaling-instance", instances);
       try {
         newInstanceConn =
             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
         connections.add(newInstanceConn);
         Thread.sleep(topologyRefreshRateMs);
         newInstanceConn.setReadOnly(true);
-        final String readerId = auroraUtil.queryInstanceId(newInstanceConn);
+        final String readerId = testUtil.queryInstanceId(newInstanceConn);
 
         assertEquals(newInstance.getInstanceId(), readerId);
         // Verify that there is a pool for the new instance
@@ -146,23 +146,23 @@ public class AutoscalingTests {
             .anyMatch((url) -> url.equals(newInstance.getUrl())));
         newInstanceConn.setReadOnly(false);
       } finally {
-        auroraUtil.deleteInstance(newInstance, instances);
+        testUtil.deleteInstance(newInstance, instances);
       }
 
       final long deletionCheckTimeout = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
       while (System.nanoTime() < deletionCheckTimeout
-          && auroraUtil.getAuroraInstanceIds().size() != originalClusterSize) {
+          && testUtil.getAuroraInstanceIds().size() != originalClusterSize) {
         TimeUnit.SECONDS.sleep(5);
       }
 
-      if (auroraUtil.getAuroraInstanceIds().size() != originalClusterSize) {
+      if (testUtil.getAuroraInstanceIds().size() != originalClusterSize) {
         fail("The deleted instance is still in the cluster topology");
       }
 
       newInstanceConn.setReadOnly(true);
       // Connection pool cache should have hit the cleanup threshold and removed the pool for the
       // deleted instance.
-      String instanceId = auroraUtil.queryInstanceId(newInstanceConn);
+      String instanceId = testUtil.queryInstanceId(newInstanceConn);
       assertNotEquals(instances.get(0).getInstanceId(), instanceId);
       assertNotEquals(newInstance.getInstanceId(), instanceId);
       assertFalse(provider.getHosts().stream()
@@ -204,25 +204,25 @@ public class AutoscalingTests {
 
       final Connection newInstanceConn;
       final String instanceClass =
-          auroraUtil.getDbInstanceClass(ContainerEnvironment.getCurrent().getInfo().getRequest());
+          testUtil.getDbInstanceClass(ContainerEnvironment.getCurrent().getInfo().getRequest());
       final TestInstanceInfo newInstance =
-          auroraUtil.createInstance(instanceClass, "auto-scaling-instance", instances);
+          testUtil.createInstance(instanceClass, "auto-scaling-instance", instances);
       try {
         newInstanceConn =
             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(newInstance), props);
         connections.add(newInstanceConn);
         newInstanceConn.setReadOnly(true);
-        final String readerId = auroraUtil.queryInstanceId(newInstanceConn);
+        final String readerId = testUtil.queryInstanceId(newInstanceConn);
         assertEquals(newInstance.getInstanceId(), readerId);
         // Verify that there is a pool for the new instance
         assertTrue(provider.getHosts().stream()
             .anyMatch((url) -> url.equals(newInstance.getUrl())));
       } finally {
-        auroraUtil.deleteInstance(newInstance, instances);
+        testUtil.deleteInstance(newInstance, instances);
       }
 
-      auroraUtil.assertFirstQueryThrows(newInstanceConn, FailoverSuccessSQLException.class);
-      String newReaderId = auroraUtil.queryInstanceId(newInstanceConn);
+      testUtil.assertFirstQueryThrows(newInstanceConn, FailoverSuccessSQLException.class);
+      String newReaderId = testUtil.queryInstanceId(newInstanceConn);
       assertNotEquals(newInstance.getInstanceId(), newReaderId);
     } finally {
       for (Connection connection : connections) {

@@ -118,7 +118,7 @@ public class TestUtility {
   private final RdsClient rdsClient;
   private final Ec2Client ec2Client;
 
-  public TestUtility(String region, String endpoint) throws URISyntaxException {
+  public TestUtility(String region, String endpoint) {
     this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
   }
 
@@ -160,6 +160,18 @@ public class TestUtility {
         .region(region)
         .credentialsProvider(credentialsProvider)
         .build();
+  }
+
+  public static TestUtility getUtility() {
+    return getUtility(null);
+  }
+
+  public static TestUtility getUtility(@Nullable TestEnvironmentInfo info) {
+    if (info == null) {
+      info = ContainerEnvironment.getCurrent().getInfo();
+    }
+
+    return new TestUtility(info.getRegion(), info.getRdsEndpoint());
   }
 
   protected static Region getRegionInternal(String rdsRegion) {
@@ -1415,22 +1427,6 @@ public class TestUtility {
       return versions.dbEngineVersions().get(0).engineVersion();
     }
     throw new RuntimeException("Failed to find default version");
-  }
-
-  public static TestUtility getUtility() {
-    return getUtility(null);
-  }
-
-  public static TestUtility getUtility(TestEnvironmentInfo info) {
-    if (info == null) {
-      info = ContainerEnvironment.getCurrent().getInfo();
-    }
-
-    try {
-      return new TestUtility(info.getRegion(), info.getRdsEndpoint());
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   public static <T> T executeWithTimeout(final Callable<T> callable, long timeoutMs) throws Throwable {

@@ -87,6 +87,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 public class HikariTests {
 
   private static final Logger LOGGER = Logger.getLogger(HikariTests.class.getName());
+  protected static final TestUtility testUtil = TestUtility.getUtility();
 
   @TestTemplate
   public void testOpenConnectionWithUrl() throws SQLException {
@@ -174,8 +175,6 @@ public class HikariTests {
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testFailoverLostConnection() throws SQLException {
-
-    final TestUtility auroraUtil = TestUtility.getUtility();
     final Properties customProps = new Properties();
     PLUGINS.set(customProps, "failover");
     FAILOVER_TIMEOUT_MS.set(customProps, Integer.toString(1));
@@ -193,7 +192,7 @@ public class HikariTests {
             // (since we rely on small socket timeout and small failover timeout). However,
             // if it takes more time, we'd like to exit by timeout rather than waiting indefinitely.
             executeWithTimeout(
-                () -> auroraUtil.queryInstanceId(conn),
+                () -> testUtil.queryInstanceId(conn),
                 TimeUnit.MINUTES.toMillis(1)
             )
         );
@@ -217,8 +216,6 @@ public class HikariTests {
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testEFMFailover() throws SQLException {
-
-    final TestUtility auroraUtil = TestUtility.getUtility();
     ProxyHelper.disableAllConnectivity();
 
     final List<TestInstanceInfo> instances = ContainerEnvironment.getCurrent()
@@ -237,18 +234,18 @@ public class HikariTests {
       // Get a valid connection, then make it fail over to a different instance
       try (Connection conn = dataSource.getConnection()) {
         assertTrue(conn.isValid(5));
-        String currentConnectionId = auroraUtil.queryInstanceId(conn);
+        String currentConnectionId = testUtil.queryInstanceId(conn);
         assertTrue(currentConnectionId.equalsIgnoreCase(writerIdentifier));
         LOGGER.fine("Connected to instance: " + currentConnectionId);
 
         ProxyHelper.enableConnectivity(readerIdentifier);
         ProxyHelper.disableConnectivity(writerIdentifier);
 
-        assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
+        assertThrows(FailoverSuccessSQLException.class, () -> testUtil.queryInstanceId(conn));
 
         // Check the connection is valid after connecting to a different instance
         assertTrue(conn.isValid(5));
-        currentConnectionId = auroraUtil.queryInstanceId(conn);
+        currentConnectionId = testUtil.queryInstanceId(conn);
         LOGGER.fine("Connected to instance: " + currentConnectionId);
         assertTrue(currentConnectionId.equalsIgnoreCase(readerIdentifier));
 
@@ -270,7 +267,6 @@ public class HikariTests {
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
-    final TestUtility auroraUtil = TestUtility.getUtility();
     final TestProxyDatabaseInfo proxyInfo = ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo reader = instances.get(1);
@@ -284,7 +280,7 @@ public class HikariTests {
 
       // Open connection and then return it to the pool
       Connection conn = ds.getConnection();
-      assertEquals(readerId, auroraUtil.queryInstanceId(conn));
+      assertEquals(readerId, testUtil.queryInstanceId(conn));
       conn.close();
 
       ProxyHelper.disableConnectivity(reader.getInstanceId());
@@ -296,7 +292,7 @@ public class HikariTests {
       // Driver will fail over internally and return a connection to another node.
       conn = ds.getConnection();
       // Assert that we connected to a different node.
-      assertNotEquals(readerId, auroraUtil.queryInstanceId(conn));
+      assertNotEquals(readerId, testUtil.queryInstanceId(conn));
     } finally {
       ConnectionProviderManager.releaseResources();
     }
@@ -312,7 +308,6 @@ public class HikariTests {
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverReaderFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
-    final TestUtility auroraUtil = TestUtility.getUtility();
     final TestProxyDatabaseInfo proxyInfo = ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
@@ -345,7 +340,7 @@ public class HikariTests {
       // Driver will fail over internally and return a connection to another node.
       try (Connection conn = ds.getConnection()) {
         // Assert that we connected to a different node.
-        assertNotEquals(writerId, auroraUtil.queryInstanceId(conn));
+        assertNotEquals(writerId, testUtil.queryInstanceId(conn));
       }
     } finally {
       ConnectionProviderManager.releaseResources();
@@ -362,7 +357,6 @@ public class HikariTests {
   @EnableOnNumOfInstances(max = 1)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation_singleInstance()
       throws SQLException, InterruptedException {
-    final TestUtility auroraUtil = TestUtility.getUtility();
     final TestProxyDatabaseInfo proxyInfo = ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
@@ -377,7 +371,7 @@ public class HikariTests {
 
       // Open connection and then return it to the pool
       Connection conn = ds.getConnection();
-      assertEquals(writerId, auroraUtil.queryInstanceId(conn));
+      assertEquals(writerId, testUtil.queryInstanceId(conn));
       conn.close();
 
       ProxyHelper.disableAllConnectivity();
