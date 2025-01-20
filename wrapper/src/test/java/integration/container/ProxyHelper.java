@@ -27,14 +27,14 @@ public class ProxyHelper {
 
   /** Stops all traffic to and from server. */
   public static void disableAllConnectivity() {
-    for (Proxy proxy : TestEnvironment.getCurrent().getProxies()) {
+    for (Proxy proxy : ContainerEnvironment.getCurrent().getProxies()) {
       disableConnectivity(proxy);
     }
   }
 
   /** Stops all traffic to and from server. */
   public static void disableConnectivity(String instanceName) {
-    Proxy proxy = TestEnvironment.getCurrent().getProxy(instanceName);
+    Proxy proxy = ContainerEnvironment.getCurrent().getProxy(instanceName);
     if (proxy == null) {
       throw new RuntimeException("Proxy for instance " + instanceName + " not found.");
     }
@@ -65,14 +65,14 @@ public class ProxyHelper {
 
   /** Allow traffic to and from server. */
   public static void enableAllConnectivity() {
-    for (Proxy proxy : TestEnvironment.getCurrent().getProxies()) {
+    for (Proxy proxy : ContainerEnvironment.getCurrent().getProxies()) {
       enableConnectivity(proxy);
     }
   }
 
   /** Allow traffic to and from server. */
   public static void enableConnectivity(String instanceName) {
-    Proxy proxy = TestEnvironment.getCurrent().getProxy(instanceName);
+    Proxy proxy = ContainerEnvironment.getCurrent().getProxy(instanceName);
     if (proxy == null) {
       throw new RuntimeException("Proxy for instance " + instanceName + " not found.");
     }

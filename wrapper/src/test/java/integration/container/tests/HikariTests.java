@@ -39,7 +39,7 @@ import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
@@ -93,8 +93,8 @@ public class HikariTests {
     try (final HikariDataSource dataSource = new HikariDataSource()) {
       final String url = ConnectionStringHelper.getWrapperUrl();
       dataSource.setJdbcUrl(url);
-      dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-      dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      dataSource.setUsername(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      dataSource.setPassword(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
       dataSource.addDataSourceProperty(PLUGINS.name, "");
 
       final Connection conn = dataSource.getConnection();
@@ -119,20 +119,20 @@ public class HikariTests {
       dataSource.setDataSourceClassName(AwsWrapperDataSource.class.getName());
 
       // Configure the connection pool:
-      dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-      dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+      dataSource.setUsername(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+      dataSource.setPassword(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
       // Configure AwsWrapperDataSource:
       dataSource.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
       dataSource.addDataSourceProperty("serverName",
-          TestEnvironment.getCurrent()
+          ContainerEnvironment.getCurrent()
               .getInfo()
               .getDatabaseInfo()
               .getInstances()
               .get(0)
               .getHost());
       dataSource.addDataSourceProperty(PropertyDefinition.DATABASE.name,
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+          ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
       // Specify the driver-specific DataSource for AwsWrapperDataSource:
       dataSource.addDataSourceProperty("targetDataSourceClassName",
@@ -142,8 +142,8 @@ public class HikariTests {
       final Properties targetDataSourceProps = new Properties();
       targetDataSourceProps.setProperty(PLUGINS.name, "");
 
-      if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
-          && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
+      if (ContainerEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+          && ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
           == DatabaseEngine.MYSQL) {
         // Connecting to Mysql database with MariaDb driver requires a configuration parameter
         // "permitMysqlScheme"
@@ -221,7 +221,7 @@ public class HikariTests {
     final TestUtility auroraUtil = TestUtility.getUtility();
     ProxyHelper.disableAllConnectivity();
 
-    final List<TestInstanceInfo> instances = TestEnvironment.getCurrent()
+    final List<TestInstanceInfo> instances = ContainerEnvironment.getCurrent()
         .getInfo()
         .getProxyDatabaseInfo()
         .getInstances();
@@ -271,7 +271,7 @@ public class HikariTests {
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
     final TestUtility auroraUtil = TestUtility.getUtility();
-    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final TestProxyDatabaseInfo proxyInfo = ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo reader = instances.get(1);
     final String readerId = reader.getInstanceId();
@@ -313,7 +313,7 @@ public class HikariTests {
   public void testInternalPools_driverReaderFailoverOnGetConnectionInvocation()
       throws SQLException, InterruptedException {
     final TestUtility auroraUtil = TestUtility.getUtility();
-    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final TestProxyDatabaseInfo proxyInfo = ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
     final String writerId = writer.getInstanceId();
@@ -363,7 +363,7 @@ public class HikariTests {
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation_singleInstance()
       throws SQLException, InterruptedException {
     final TestUtility auroraUtil = TestUtility.getUtility();
-    final TestProxyDatabaseInfo proxyInfo = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+    final TestProxyDatabaseInfo proxyInfo = ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     final List<TestInstanceInfo> instances = proxyInfo.getInstances();
     final TestInstanceInfo writer = instances.get(0);
     final String writerId = writer.getInstanceId();
@@ -413,8 +413,8 @@ public class HikariTests {
         "?." + proxyInfo.getInstanceEndpointSuffix());
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_ID.name, "HikariTestsCluster");
 
-    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
-        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+    if (ContainerEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");
     }
 
@@ -474,7 +474,7 @@ public class HikariTests {
   private HikariConfig getConfig(final Properties customProps) {
     final HikariConfig config = new HikariConfig();
     final TestProxyDatabaseInfo proxyDatabaseInfo =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
+        ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo();
     config.setUsername(proxyDatabaseInfo.getUsername());
     config.setPassword(proxyDatabaseInfo.getPassword());
 
@@ -495,16 +495,16 @@ public class HikariTests {
         DriverHelper.getDataSourceClassname());
     config.addDataSourceProperty("jdbcProtocol", DriverHelper.getDriverProtocol());
     config.addDataSourceProperty("serverName",
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
             .getHost());
     config.addDataSourceProperty("database",
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
     config.addDataSourceProperty("serverPort",
-        Integer.toString(TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+        Integer.toString(ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
             .getClusterEndpointPort()));
 
     final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultProperties();
@@ -513,7 +513,7 @@ public class HikariTests {
     targetDataSourceProps.setProperty(
         "clusterInstanceHostPattern",
         "?."
-            + TestEnvironment.getCurrent()
+            + ContainerEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstanceEndpointSuffix());
@@ -527,8 +527,8 @@ public class HikariTests {
     targetDataSourceProps.setProperty(
         HostMonitoringConnectionPlugin.FAILURE_DETECTION_COUNT.name, "1");
 
-    if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
-        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
+    if (ContainerEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine() == DatabaseEngine.MYSQL) {
       // Connecting to Mysql database with MariaDb driver requires a configuration parameter
       // "permitMysqlScheme"
       targetDataSourceProps.setProperty("permitMysqlScheme", "1");

@@ -37,7 +37,7 @@ import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.aurora.TestPluginServiceImpl;
 import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
@@ -95,16 +95,16 @@ public class ReadWriteSplittingTests {
   protected static Properties getProxiedPropsWithFailover() {
     final Properties props = getPropsWithFailover();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
-            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
+        "?." + ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
+            + ":" + ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
     return props;
   }
 
   protected static Properties getProxiedProps() {
     final Properties props = getProps();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
-        "?." + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
-            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
+        "?." + ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointSuffix()
+            + ":" + ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
     return props;
   }
 
@@ -183,7 +183,7 @@ public class ReadWriteSplittingTests {
   // Assumes the writer is stored as the first instance and all other instances are readers.
   protected String getWrapperReaderInstanceUrl() {
     TestInstanceInfo readerInstance =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(1);
     return ConnectionStringHelper.getWrapperUrl(readerInstance);
   }
 
@@ -310,7 +310,7 @@ public class ReadWriteSplittingTests {
 
       // Kill all reader instances
       final List<String> instanceIDs =
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().stream()
+          ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().stream()
               .map(TestInstanceInfo::getInstanceId).collect(Collectors.toList());
       for (int i = 1; i < instanceIDs.size(); i++) {
         ProxyHelper.disableConnectivity(instanceIDs.get(i));
@@ -423,10 +423,10 @@ public class ReadWriteSplittingTests {
 
       // Kill all reader instances
       final int numOfInstances =
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
+          ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
       for (int i = 1; i < numOfInstances; i++) {
         ProxyHelper.disableConnectivity(
-            TestEnvironment.getCurrent()
+            ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
@@ -482,7 +482,7 @@ public class ReadWriteSplittingTests {
       assertNotEquals(writerConnectionId, readerConnectionId);
 
       String otherReaderId = "";
-      final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+      final List<TestInstanceInfo> instances = ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
 
       for (int i = 1; i < instances.size(); i++) {
         if (!instances.get(i).getInstanceId().equals(readerConnectionId)) {
@@ -538,7 +538,7 @@ public class ReadWriteSplittingTests {
       LOGGER.finest("readerConnectionId=" + readerConnectionId);
       assertNotEquals(writerConnectionId, readerConnectionId);
 
-      final List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
+      final List<TestInstanceInfo> instances = ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo()
           .getInstances();
 
       // Kill all instances except the writer
@@ -825,7 +825,7 @@ public class ReadWriteSplittingTests {
           privilegedUserProps); Statement stmt = conn.createStatement()) {
         stmt.execute("DROP USER IF EXISTS " + limitedUserName);
         auroraUtil.createUser(conn, limitedUserName, limitedUserPassword);
-        TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
+        TestEnvironmentInfo info = ContainerEnvironment.getCurrent().getInfo();
         DatabaseEngine engine = info.getRequest().getDatabaseEngine();
         if (DatabaseEngine.MYSQL.equals(engine)) {
           String db = info.getDatabaseInfo().getDefaultDbName();
@@ -868,7 +868,7 @@ public class ReadWriteSplittingTests {
     ReadWriteSplittingPlugin.READER_HOST_SELECTOR_STRATEGY.set(props, "leastConnections");
 
     final List<TestInstanceInfo> instances =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(instances.size()));
     ConnectionProviderManager.setConnectionProvider(provider);
@@ -917,7 +917,7 @@ public class ReadWriteSplittingTests {
     }
 
     final List<TestInstanceInfo> instances =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances();
     // We will be testing all instances excluding the writer and overloaded reader. Each instance
     // should be tested numOverloadedReaderConnections times to increase the pool connection count
     // until it equals the connection count of the overloaded reader.

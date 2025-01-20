@@ -45,27 +45,27 @@ import java.util.logging.Logger;
 import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.util.StringUtils;
 
-public class TestEnvironment {
+public class ContainerEnvironment {
 
-  private static final Logger LOGGER = Logger.getLogger(TestEnvironment.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(ContainerEnvironment.class.getName());
 
-  private static TestEnvironment env;
+  private static ContainerEnvironment env;
 
   private TestEnvironmentInfo info;
   private HashMap<String, Proxy> proxies;
   private TestDriver currentDriver;
 
-  private TestEnvironment() {}
+  private ContainerEnvironment() {}
 
-  public static synchronized TestEnvironment getCurrent() {
+  public static synchronized ContainerEnvironment getCurrent() {
     if (env == null) {
       env = create();
     }
     return env;
   }
 
-  private static TestEnvironment create() {
-    TestEnvironment environment = new TestEnvironment();
+  private static ContainerEnvironment create() {
+    ContainerEnvironment environment = new ContainerEnvironment();
 
     String infoJson = System.getenv("TEST_ENV_INFO_JSON");
 
@@ -154,7 +154,7 @@ public class TestEnvironment {
     return environment;
   }
 
-  private static void initProxies(TestEnvironment environment) {
+  private static void initProxies(ContainerEnvironment environment) {
     environment.proxies = new HashMap<>();
 
     int proxyControlPort = environment.info.getProxyDatabaseInfo().getControlPort();

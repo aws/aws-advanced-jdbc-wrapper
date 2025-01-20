@@ -24,7 +24,7 @@ import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
@@ -63,10 +63,10 @@ public class AuroraConnectivityTests {
     final Properties props = new Properties();
     props.setProperty(
         PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     props.setProperty(
         PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     props.setProperty(PropertyDefinition.CONNECT_TIMEOUT.name, "10000");
     props.setProperty(PropertyDefinition.SOCKET_TIMEOUT.name, "10000");
     props.setProperty(PropertyDefinition.PLUGINS.name, "efm");

@@ -26,7 +26,7 @@ import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.DisableOnTestDriver;
 import integration.container.condition.DisableOnTestFeature;
 import integration.util.SimpleJndiContextFactory;
@@ -65,15 +65,15 @@ public class DataSourceTests {
       throws SQLException, NamingException, IllegalAccessException {
     final AwsWrapperDataSource ds = new AwsWrapperDataSource();
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
-    ds.setServerName(TestEnvironment.getCurrent()
+    ds.setServerName(ContainerEnvironment.getCurrent()
         .getInfo()
         .getDatabaseInfo()
         .getInstances()
         .get(0)
         .getHost());
-    ds.setDatabase(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
-    ds.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    ds.setDatabase(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+    ds.setUser(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+    ds.setPassword(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
 
     final Properties targetDataSourceProps = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
@@ -105,13 +105,13 @@ public class DataSourceTests {
 
     try (final Connection conn =
         dsFromJndiLookup.getConnection(
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
+            ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+            ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
 
       assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
       assertEquals(
           conn.getCatalog(),
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+          ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
       assertTrue(conn.isValid(10));
     }
@@ -125,8 +125,8 @@ public class DataSourceTests {
     ds.setTargetDataSourceClassName(DriverHelper.getDataSourceClassname());
     ds.setJdbcProtocol(DriverHelper.getDriverProtocol());
     ds.setJdbcUrl(ConnectionStringHelper.getUrl());
-    ds.setUser(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    ds.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    ds.setUser(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+    ds.setPassword(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
     final Properties targetDataSourceProps = new Properties();
     targetDataSourceProps.setProperty(PropertyDefinition.PLUGINS.name, "");
@@ -158,14 +158,14 @@ public class DataSourceTests {
 
     try (final Connection conn =
         dsFromJndiLookup.getConnection(
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
+            ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+            ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword())) {
 
       assertTrue(conn instanceof ConnectionWrapper);
       assertTrue(conn.isWrapperFor(DriverHelper.getConnectionClass()));
       assertEquals(
           conn.getCatalog(),
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+          ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
 
       assertTrue(conn.isValid(10));
     }

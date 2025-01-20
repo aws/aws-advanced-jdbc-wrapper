@@ -29,24 +29,24 @@ public class ConnectionStringHelper {
 
   public static String getUrl() {
     return getUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent().getCurrentDriver(),
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getInstances()
             .get(0)
             .getHost(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getInstances()
             .get(0)
             .getPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
   public static String getUrl(String host, int port, String databaseName) {
-    return getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
+    return getUrl(ContainerEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
   }
 
   public static String getUrl(
@@ -54,7 +54,7 @@ public class ConnectionStringHelper {
       String host,
       int port,
       String databaseName) {
-    final DatabaseEngine databaseEngine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    final DatabaseEngine databaseEngine = ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     final String requiredParameters = DriverHelper.getDriverRequiredParameters(databaseEngine, testDriver);
     final String url = DriverHelper.getDriverProtocol(databaseEngine, testDriver)
         + host
@@ -67,7 +67,7 @@ public class ConnectionStringHelper {
   }
 
   public static String getUrlWithPlugins(String host, int port, String databaseName, String wrapperPlugins) {
-    final String url = getUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
+    final String url = getUrl(ContainerEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
     return url
         + (url.contains("?") ? "&" : "?")
         + "wrapperPlugins="
@@ -94,125 +94,125 @@ public class ConnectionStringHelper {
    */
   public static String getWrapperUrl() {
     return getWrapperUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent().getCurrentDriver(),
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getInstances()
             .get(0)
             .getHost(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getInstances()
             .get(0)
             .getPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
   public static String getWrapperUrl(TestInstanceInfo instance) {
     return getWrapperUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
+        ContainerEnvironment.getCurrent().getCurrentDriver(),
         instance.getHost(),
         instance.getPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
   public static String getWrapperUrl(String host, int port, String databaseName) {
-    return getWrapperUrl(TestEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
+    return getWrapperUrl(ContainerEnvironment.getCurrent().getCurrentDriver(), host, port, databaseName);
   }
 
   public static String getWrapperUrl(
       TestDriver testDriver, String host, int port, String databaseName) {
     return DriverHelper.getWrapperDriverProtocol(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver)
         + host
         + ":"
         + port
         + "/"
         + databaseName
         + DriverHelper.getDriverRequiredParameters(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
   }
 
   public static String getWrapperReaderClusterUrl() {
     return ConnectionStringHelper.getWrapperUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent().getCurrentDriver(),
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getClusterReadOnlyEndpoint(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getClusterReadOnlyEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
   public static String getProxyWrapperUrl() {
     return getWrapperUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent().getCurrentDriver(),
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
             .getHost(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
             .getPort(),
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
   }
 
   public static String getProxyUrl() {
     return getUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent().getCurrentDriver(),
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
             .getHost(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
             .getInstances()
             .get(0)
             .getPort(),
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
   }
 
   public static String getWrapperClusterEndpointUrl() {
-    if (StringUtils.isNullOrEmpty(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())) {
+    if (StringUtils.isNullOrEmpty(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getClusterEndpoint())) {
       throw new RuntimeException("Cluster Endpoint is not available in this test environment.");
     }
     return getWrapperUrl(
-        TestEnvironment.getCurrent().getCurrentDriver(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent().getCurrentDriver(),
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getClusterEndpoint(),
-        TestEnvironment.getCurrent()
+        ContainerEnvironment.getCurrent()
             .getInfo()
             .getDatabaseInfo()
             .getClusterEndpointPort(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
   }
 
   public static Properties getDefaultProperties() {
     final Properties props = new Properties();
     props.setProperty(
         PropertyDefinition.USER.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
     props.setProperty(
         PropertyDefinition.PASSWORD.name,
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
     final Set<TestEnvironmentFeatures> features =
-        TestEnvironment.getCurrent().getInfo().getRequest().getFeatures();
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getFeatures();
     props.setProperty(PropertyDefinition.ENABLE_TELEMETRY.name, "true");
     props.setProperty(PropertyDefinition.TELEMETRY_SUBMIT_TOPLEVEL.name, "true");
     props.setProperty(

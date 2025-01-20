@@ -18,7 +18,7 @@ package integration.container.condition;
 
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
@@ -35,7 +35,7 @@ class EnableOnNumOfInstancesCondition implements ExecutionCondition {
   public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
 
     final int actualNumOfInstances =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
 
     boolean enabled =
         findAnnotation(context.getElement(), EnableOnNumOfInstances.class)

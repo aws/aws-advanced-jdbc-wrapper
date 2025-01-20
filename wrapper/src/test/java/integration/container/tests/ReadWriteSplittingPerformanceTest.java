@@ -17,11 +17,10 @@
 package integration.container.tests;
 
 import com.zaxxer.hikari.HikariConfig;
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import java.io.File;
@@ -125,8 +124,8 @@ public class ReadWriteSplittingPerformanceTest {
             "./build/reports/tests/"
                 + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_"
                 + "SwitchReaderWriterConnection.xlsx",
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-            TestEnvironment.getCurrent().getCurrentDriver())
+            ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            ContainerEnvironment.getCurrent().getCurrentDriver())
     );
 
     setReadOnlyPerfDataList.clear();
@@ -165,8 +164,8 @@ public class ReadWriteSplittingPerformanceTest {
             "./build/reports/tests/"
                 + "DbEngine_%s_Driver_%s_ReadWriteSplittingPerformanceResults_"
                 + "InternalConnectionPools_SwitchReaderWriterConnection.xlsx",
-            TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-            TestEnvironment.getCurrent().getCurrentDriver())
+            ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+            ContainerEnvironment.getCurrent().getCurrentDriver())
     );
   }
 

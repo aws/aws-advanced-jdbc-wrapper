@@ -30,7 +30,7 @@ import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
 import integration.container.TestDriver;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnTestFeature;
 import java.sql.Connection;
@@ -77,19 +77,19 @@ public class BasicConnectivityTests {
     String url =
         ConnectionStringHelper.getUrlWithPlugins(
             testDriver,
-            TestEnvironment.getCurrent()
+            ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
                 .getHost(),
-            TestEnvironment.getCurrent()
+            ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
                 .getPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(), "");
+            ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -116,19 +116,19 @@ public class BasicConnectivityTests {
     String url =
         ConnectionStringHelper.getWrapperUrl(
             testDriver,
-            TestEnvironment.getCurrent()
+            ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
                 .getHost(),
-            TestEnvironment.getCurrent()
+            ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
                 .getPort(),
-            TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
+            ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -154,14 +154,14 @@ public class BasicConnectivityTests {
     DriverHelper.setSocketTimeout(testDriver, props, 10, TimeUnit.SECONDS);
 
     TestInstanceInfo instanceInfo =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
+        ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
 
     String url =
         ConnectionStringHelper.getUrlWithPlugins(
             testDriver,
             instanceInfo.getHost(),
             instanceInfo.getPort(),
-            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), "");
+            ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName(), "");
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -186,20 +186,20 @@ public class BasicConnectivityTests {
   @ExtendWith(TestDriverProvider.class)
   @EnableOnTestFeature(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)
   public void test_ProxiedWrapperConnection() throws SQLException {
-    LOGGER.info(TestEnvironment.getCurrent().getCurrentDriver().toString());
+    LOGGER.info(ContainerEnvironment.getCurrent().getCurrentDriver().toString());
 
     final Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     PropertyDefinition.CONNECT_TIMEOUT.set(props, "10000");
     PropertyDefinition.SOCKET_TIMEOUT.set(props, "10000");
 
     TestInstanceInfo instanceInfo =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
+        ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
 
     String url =
         ConnectionStringHelper.getWrapperUrl(
             instanceInfo.getHost(),
             instanceInfo.getPort(),
-            TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
+            ContainerEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName());
     LOGGER.finest("Connecting to " + url);
 
     final Connection conn = DriverManager.getConnection(url, props);
@@ -225,14 +225,14 @@ public class BasicConnectivityTests {
   public void testSuccessOpenConnectionNoPort() throws SQLException {
     String url =
         DriverHelper.getWrapperDriverProtocol()
-            + TestEnvironment.getCurrent()
+            + ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getDatabaseInfo()
                 .getInstances()
                 .get(0)
                 .getHost()
             + "/"
-            + TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
+            + ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName()
             + DriverHelper.getDriverRequiredParameters();
 
     LOGGER.finest("Connecting to " + url);
@@ -250,7 +250,7 @@ public class BasicConnectivityTests {
   public void testFailedConnection(TestDriver testDriver, String url) throws SQLException {
     DriverHelper.unregisterAllDrivers();
     DriverHelper.registerDriver(testDriver);
-    TestEnvironment.getCurrent().setCurrentDriver(testDriver);
+    ContainerEnvironment.getCurrent().setCurrentDriver(testDriver);
 
     LOGGER.finest("Connecting to " + url);
 
@@ -269,12 +269,12 @@ public class BasicConnectivityTests {
       TestDriver testDriver, String url, String username, String password) throws SQLException {
     DriverHelper.unregisterAllDrivers();
     DriverHelper.registerDriver(testDriver);
-    TestEnvironment.getCurrent().setCurrentDriver(testDriver);
+    ContainerEnvironment.getCurrent().setCurrentDriver(testDriver);
 
-    if (TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
+    if (ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine()
             == DatabaseEngine.MARIADB
-        && TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
-        && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
+        && ContainerEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
+        && ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
             == DatabaseEngineDeployment.DOCKER
         && StringUtils.isNullOrEmpty(username)) {
       // MariaDb driver uses "root" username if no username is provided. Since MariaDb database in
@@ -310,7 +310,7 @@ public class BasicConnectivityTests {
 
   private static Stream<Arguments> testConnectionParameters() {
     ArrayList<Arguments> results = new ArrayList<>();
-    for (TestDriver testDriver : TestEnvironment.getCurrent().getAllowedTestDrivers()) {
+    for (TestDriver testDriver : ContainerEnvironment.getCurrent().getAllowedTestDrivers()) {
 
       // missing connection prefix
       results.add(
@@ -318,20 +318,20 @@ public class BasicConnectivityTests {
               testDriver,
               buildConnectionString(
                   "",
-                  TestEnvironment.getCurrent()
+                  ContainerEnvironment.getCurrent()
                       .getInfo()
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
                       .getHost(),
                   String.valueOf(
-                      TestEnvironment.getCurrent()
+                      ContainerEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
                           .get(0)
                           .getPort()),
-                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
+                  ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
                   DriverHelper.getDriverRequiredParameters(testDriver))));
 
       // incorrect database name
@@ -340,14 +340,14 @@ public class BasicConnectivityTests {
               testDriver,
               buildConnectionString(
                   DriverHelper.getWrapperDriverProtocol(testDriver),
-                  TestEnvironment.getCurrent()
+                  ContainerEnvironment.getCurrent()
                       .getInfo()
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
                       .getHost(),
                   String.valueOf(
-                      TestEnvironment.getCurrent()
+                      ContainerEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
@@ -361,7 +361,7 @@ public class BasicConnectivityTests {
 
   private static Stream<Arguments> testPropertiesParameters() {
     ArrayList<Arguments> results = new ArrayList<>();
-    for (TestDriver testDriver : TestEnvironment.getCurrent().getAllowedTestDrivers()) {
+    for (TestDriver testDriver : ContainerEnvironment.getCurrent().getAllowedTestDrivers()) {
 
       // missing username
       results.add(
@@ -369,23 +369,23 @@ public class BasicConnectivityTests {
               testDriver,
               buildConnectionString(
                   DriverHelper.getWrapperDriverProtocol(testDriver),
-                  TestEnvironment.getCurrent()
+                  ContainerEnvironment.getCurrent()
                       .getInfo()
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
                       .getHost(),
                   String.valueOf(
-                      TestEnvironment.getCurrent()
+                      ContainerEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
                           .get(0)
                           .getPort()),
-                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
+                  ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
                   DriverHelper.getDriverRequiredParameters(testDriver)),
               "",
-              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword()));
+              ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword()));
 
       // missing password
       results.add(
@@ -393,22 +393,22 @@ public class BasicConnectivityTests {
               testDriver,
               buildConnectionString(
                   DriverHelper.getWrapperDriverProtocol(testDriver),
-                  TestEnvironment.getCurrent()
+                  ContainerEnvironment.getCurrent()
                       .getInfo()
                       .getDatabaseInfo()
                       .getInstances()
                       .get(0)
                       .getHost(),
                   String.valueOf(
-                      TestEnvironment.getCurrent()
+                      ContainerEnvironment.getCurrent()
                           .getInfo()
                           .getDatabaseInfo()
                           .getInstances()
                           .get(0)
                           .getPort()),
-                  TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
+                  ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName(),
                   DriverHelper.getDriverRequiredParameters(testDriver)),
-              TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+              ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
               ""));
     }
     return results.stream();

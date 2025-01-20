@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import java.util.Properties;
 import java.util.Random;
@@ -58,8 +58,8 @@ public class SpringTests {
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
     dataSource.setDriverClassName("software.amazon.jdbc.Driver");
     dataSource.setUrl(ConnectionStringHelper.getWrapperUrl());
-    dataSource.setUsername(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
-    dataSource.setPassword(TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+    dataSource.setUsername(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername());
+    dataSource.setPassword(ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
 
     Properties props = ConnectionStringHelper.getDefaultPropertiesWithNoPlugins();
     props.setProperty(PropertyDefinition.LOGGER_LEVEL.name, "ALL");

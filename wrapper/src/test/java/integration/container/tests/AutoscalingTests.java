@@ -29,7 +29,7 @@ import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
@@ -107,7 +107,7 @@ public class AutoscalingTests {
     AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
         Long.toString(topologyRefreshRateMs));
 
-    final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
+    final TestEnvironmentInfo testInfo = ContainerEnvironment.getCurrent().getInfo();
     final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
     final int originalClusterSize = instances.size();
     final long poolExpirationNanos = TimeUnit.MINUTES.toNanos(3);
@@ -185,7 +185,7 @@ public class AutoscalingTests {
     AuroraHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.set(props,
         Long.toString(topologyRefreshRateMs));
 
-    final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
+    final TestEnvironmentInfo testInfo = ContainerEnvironment.getCurrent().getInfo();
     final List<TestInstanceInfo> instances = testInfo.getDatabaseInfo().getInstances();
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(instances.size() * 5));

@@ -71,7 +71,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       ExtensionContext context) {
 
     ArrayList<TestTemplateInvocationContext> resultContextList = new ArrayList<>();
-    for (TestDriver testDriver : TestEnvironment.getCurrent().getAllowedTestDrivers()) {
+    for (TestDriver testDriver : ContainerEnvironment.getCurrent().getAllowedTestDrivers()) {
       TestTemplateInvocationContext testTemplateInvocationContext =
           getEnvironment(context, testDriver);
       resultContextList.add(testTemplateInvocationContext);
@@ -89,7 +89,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
             invocationIndex,
             context.getDisplayName(),
             testDriver,
-            TestEnvironment.getCurrent().getInfo().getRequest().getDisplayName());
+            ContainerEnvironment.getCurrent().getInfo().getRequest().getDisplayName());
       }
 
       @Override
@@ -101,7 +101,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
             new BeforeEachCallback() {
               @Override
               public void beforeEach(ExtensionContext context) throws Exception {
-                boolean tracesEnabled = TestEnvironment.getCurrent()
+                boolean tracesEnabled = ContainerEnvironment.getCurrent()
                     .getInfo()
                     .getRequest()
                     .getFeatures()
@@ -116,11 +116,11 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                   Segment segment = AWSXRay.beginSegment("test: setup");
                   segment.putAnnotation("engine",
-                      TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
+                      ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine().toString());
                   segment.putAnnotation("deployment",
-                      TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment().toString());
+                      ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment().toString());
                   segment.putAnnotation("targetJVM",
-                      TestEnvironment.getCurrent().getInfo().getRequest().getTargetJvm().toString());
+                      ContainerEnvironment.getCurrent().getInfo().getRequest().getTargetJvm().toString());
                   if (testName != null) {
                     segment.putAnnotation("testName", testName);
                   }
@@ -129,7 +129,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
                 registerDrivers(testDriver);
 
-                if (TestEnvironment.getCurrent().getInfo().getRequest().getFeatures()
+                if (ContainerEnvironment.getCurrent().getInfo().getRequest().getFeatures()
                     .contains(TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED)) {
                   // Enable all proxies
                   ProxyHelper.enableAllConnectivity();
@@ -140,7 +140,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                         || isAnnotated(context.getTestClass(), MakeSureFirstInstanceWriter.class);
 
                 final DatabaseEngineDeployment deployment =
-                    TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+                    ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
                 if (deployment == DatabaseEngineDeployment.AURORA
                     || deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
 
@@ -168,11 +168,11 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
                   }
                   if (!success) {
                     fail("Cluster "
-                        + TestEnvironment.getCurrent().getInfo().getAuroraClusterName()
+                        + ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName()
                         + " is not healthy.");
                   }
                   LOGGER.finest("Cluster "
-                      + TestEnvironment.getCurrent().getInfo().getAuroraClusterName()
+                      + ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName()
                       + " is healthy.");
                 }
 
@@ -188,7 +188,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
               @Override
               public void afterEach(ExtensionContext context) throws Exception {
 
-                Set<TestEnvironmentFeatures> features = TestEnvironment.getCurrent()
+                Set<TestEnvironmentFeatures> features = ContainerEnvironment.getCurrent()
                     .getInfo()
                     .getRequest()
                     .getFeatures();
@@ -209,7 +209,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
   private static void registerDrivers(final TestDriver testDriver) throws SQLException {
     DriverHelper.unregisterAllDrivers();
     DriverHelper.registerDriver(testDriver);
-    TestEnvironment.getCurrent().setCurrentDriver(testDriver);
+    ContainerEnvironment.getCurrent().setCurrentDriver(testDriver);
     LOGGER.finest("Registered " + testDriver + " driver.");
   }
 
@@ -223,7 +223,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
   private static void checkClusterHealth(final boolean makeSureFirstInstanceWriter)
       throws InterruptedException, SQLException {
 
-    final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
+    final TestEnvironmentInfo testInfo = ContainerEnvironment.getCurrent().getInfo();
     final TestEnvironmentRequest testRequest = testInfo.getRequest();
 
     final TestUtility auroraUtil = TestUtility.getUtility(testInfo);
@@ -294,7 +294,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
   public static void rebootCluster() throws InterruptedException {
 
-    final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
+    final TestEnvironmentInfo testInfo = ContainerEnvironment.getCurrent().getInfo();
     final TestUtility auroraUtil = TestUtility.getUtility(testInfo);
 
     List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()
@@ -317,7 +317,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
 
   public static void rebootAllClusterInstances() throws InterruptedException {
 
-    final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
+    final TestEnvironmentInfo testInfo = ContainerEnvironment.getCurrent().getInfo();
     final TestUtility auroraUtil = TestUtility.getUtility(testInfo);
 
     List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()

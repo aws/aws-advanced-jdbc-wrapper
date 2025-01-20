@@ -29,7 +29,7 @@ import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.DisableOnTestFeature;
 import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
@@ -88,7 +88,7 @@ public class CustomEndpointTest {
 
   @BeforeAll
   public static void setupEndpoint() {
-    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    TestEnvironmentInfo envInfo = ContainerEnvironment.getCurrent().getInfo();
     String clusterId = envInfo.getAuroraClusterName();
     String region = envInfo.getRegion();
 
@@ -196,7 +196,7 @@ public class CustomEndpointTest {
   @BeforeEach
   public void identifyWriter() {
     this.currentWriter =
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0)
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().get(0)
             .getInstanceId();
   }
 
@@ -206,7 +206,7 @@ public class CustomEndpointTest {
       return;
     }
 
-    String region = TestEnvironment.getCurrent().getInfo().getRegion();
+    String region = ContainerEnvironment.getCurrent().getInfo().getRegion();
     try (RdsClient client = RdsClient.builder().region(Region.of(region)).build()) {
       deleteEndpoint(client);
     }
@@ -230,7 +230,7 @@ public class CustomEndpointTest {
 
   @TestTemplate
   public void testCustomEndpointFailover() throws SQLException, InterruptedException {
-    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
+    final TestDatabaseInfo dbInfo = ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();
     props.setProperty("failoverMode", "reader-or-writer");
@@ -258,7 +258,7 @@ public class CustomEndpointTest {
 
   @TestTemplate
   public void testCustomEndpointReadWriteSplitting_withCustomEndpointChanges() throws SQLException {
-    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    TestEnvironmentInfo envInfo = ContainerEnvironment.getCurrent().getInfo();
     final TestDatabaseInfo dbInfo = envInfo.getDatabaseInfo();
     final int port = dbInfo.getClusterEndpointPort();
     final Properties props = initDefaultProps();

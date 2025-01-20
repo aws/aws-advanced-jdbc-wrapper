@@ -17,7 +17,7 @@
 package integration.container.condition;
 
 import integration.container.TestDriver;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
@@ -36,7 +36,7 @@ public class EnableBasedOnEnvironmentFeatureExtension implements ExecutionCondit
 
   @Override
   public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
-    if (!TestEnvironment.getCurrent().isTestDriverAllowed(this.testDriver)) {
+    if (!ContainerEnvironment.getCurrent().isTestDriverAllowed(this.testDriver)) {
       return ConditionEvaluationResult.disabled("Disabled by test environment features.");
     }
     return ConditionEvaluationResult.enabled("Test enabled");

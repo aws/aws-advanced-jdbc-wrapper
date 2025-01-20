@@ -30,7 +30,7 @@ import integration.TestEnvironmentFeatures;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
 import integration.container.TestDriverProvider;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import integration.container.condition.EnableOnTestFeature;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -172,9 +172,9 @@ public class PerformanceTest {
           String.format(
               "./build/reports/tests/EnhancedMonitoringOnly_"
                 + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver(),
-              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              ContainerEnvironment.getCurrent().getCurrentDriver(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
               efmPlugin),
           enhancedFailureMonitoringPerfDataList);
       enhancedFailureMonitoringPerfDataList.clear();
@@ -254,9 +254,9 @@ public class PerformanceTest {
           String.format(
               "./build/reports/tests/FailoverWithEnhancedMonitoring_"
               + "Db_%s_Driver_%s_Instances_%d_Plugin_%s.xlsx",
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver(),
-              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              ContainerEnvironment.getCurrent().getCurrentDriver(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
               plugins.replace(",", "_")),
           failoverWithEfmPerfDataList);
       failoverWithEfmPerfDataList.clear();
@@ -290,7 +290,7 @@ public class PerformanceTest {
     props.setProperty(
         "clusterInstanceHostPattern",
         "?."
-            + TestEnvironment.getCurrent()
+            + ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getProxyDatabaseInfo()
                 .getInstanceEndpointSuffix());
@@ -341,9 +341,9 @@ public class PerformanceTest {
           String.format(
               "./build/reports/tests/FailoverWithSocketTimeout_"
               + "Db_%s_Driver_%s_Instances_%d_Plugins_%s.xlsx",
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getCurrentDriver(),
-              TestEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              ContainerEnvironment.getCurrent().getCurrentDriver(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getNumOfInstances(),
               plugins.replace(",", "_")),
           failoverWithSocketTimeoutPerfDataList);
       failoverWithSocketTimeoutPerfDataList.clear();
@@ -363,7 +363,7 @@ public class PerformanceTest {
     props.setProperty(
         "clusterInstanceHostPattern",
         "?."
-            + TestEnvironment.getCurrent()
+            + ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getProxyDatabaseInfo()
                 .getInstanceEndpointSuffix());
@@ -409,7 +409,7 @@ public class PerformanceTest {
                   Thread.sleep(sleepDelayMillis);
                   // Kill network
                   ProxyHelper.disableConnectivity(
-                      TestEnvironment.getCurrent()
+                      ContainerEnvironment.getCurrent()
                           .getInfo()
                           .getProxyDatabaseInfo()
                           .getInstances()
@@ -447,7 +447,7 @@ public class PerformanceTest {
       } finally {
         thread.interrupt(); // Ensure thread has stopped running
         ProxyHelper.enableConnectivity(
-            TestEnvironment.getCurrent()
+            ContainerEnvironment.getCurrent()
                 .getInfo()
                 .getProxyDatabaseInfo()
                 .getInstances()
@@ -480,7 +480,7 @@ public class PerformanceTest {
     if (conn == null) {
       fail(
           "Can't connect to "
-              + TestEnvironment.getCurrent()
+              + ContainerEnvironment.getCurrent()
                   .getInfo()
                   .getProxyDatabaseInfo()
                   .getInstances()
@@ -497,7 +497,7 @@ public class PerformanceTest {
 
   private String getQuerySql(final int seconds) {
     final DatabaseEngine databaseEngine =
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     switch (databaseEngine) {
       case PG:
         return String.format("SELECT pg_sleep(%d)", seconds);

@@ -19,7 +19,7 @@ package integration.container.condition;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import integration.TestEnvironmentFeatures;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import java.util.Arrays;
 import java.util.Set;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
@@ -34,7 +34,7 @@ class DisableOnTestFeatureCondition implements ExecutionCondition {
   public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
 
     Set<TestEnvironmentFeatures> features =
-        TestEnvironment.getCurrent().getInfo().getRequest().getFeatures();
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getFeatures();
 
     boolean disabled =
         findAnnotation(context.getElement(), DisableOnTestFeature.class)

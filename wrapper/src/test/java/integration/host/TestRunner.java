@@ -26,7 +26,7 @@ public class TestRunner {
   @TestTemplate
   public void runTests(TestEnvironmentRequest testEnvironmentRequest) throws Exception {
 
-    try (final TestEnvironment env = TestEnvironment.build(testEnvironmentRequest)) {
+    try (final HostEnvironment env = HostEnvironment.build(testEnvironmentRequest)) {
       env.runTests("in-container");
     }
   }
@@ -34,7 +34,7 @@ public class TestRunner {
   @TestTemplate
   public void debugTests(TestEnvironmentRequest testEnvironmentRequest) throws Exception {
 
-    try (final TestEnvironment env = TestEnvironment.build(testEnvironmentRequest)) {
+    try (final HostEnvironment env = HostEnvironment.build(testEnvironmentRequest)) {
       env.debugTests("in-container");
     }
   }

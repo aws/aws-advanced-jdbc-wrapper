@@ -27,7 +27,7 @@ import integration.TestDatabaseInfo;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
@@ -401,7 +401,7 @@ public class TestUtility {
    */
   public TestInstanceInfo createInstance(String instanceClass, String instanceId) throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
-    final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
+    final TestEnvironmentInfo info = ContainerEnvironment.getCurrent().getInfo();
 
     rdsClient.createDBInstance(
         CreateDbInstanceRequest.builder()
@@ -797,11 +797,11 @@ public class TestUtility {
 
   public List<String> getAuroraInstanceIds() throws SQLException {
     return getAuroraInstanceIds(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
         ConnectionStringHelper.getUrl(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
-        TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getUsername(),
+        ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getPassword());
   }
 
   // The first instance in topology should be a writer!
@@ -893,7 +893,7 @@ public class TestUtility {
 
   public Boolean isDBInstanceWriter(String instanceId) {
     return isDBInstanceWriter(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(), instanceId);
+        ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName(), instanceId);
   }
 
   public Boolean isDBInstanceWriter(String clusterId, String instanceId) {
@@ -919,7 +919,7 @@ public class TestUtility {
 
   public void makeSureInstancesUp(long timeoutSec) {
     List<TestInstanceInfo> instances = new ArrayList<>();
-    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    TestEnvironmentInfo envInfo = ContainerEnvironment.getCurrent().getInfo();
     instances.addAll(envInfo.getDatabaseInfo().getInstances());
     instances.addAll(envInfo.getProxyDatabaseInfo().getInstances());
     makeSureInstancesUp(instances, timeoutSec);
@@ -927,7 +927,7 @@ public class TestUtility {
 
   public void makeSureInstancesUp(List<TestInstanceInfo> instances, long timeoutSec) {
     final ConcurrentHashMap<String, Boolean> remainingInstances = new ConcurrentHashMap<>();
-    final String dbName = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName();
+    final String dbName = ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getDefaultDbName();
 
     instances.forEach((i) -> remainingInstances.put(i.getHost(), true));
 
@@ -999,15 +999,15 @@ public class TestUtility {
         expectedSQLExceptionClass,
         () -> {
           String instanceId = queryInstanceId(
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
               connection);
           LOGGER.finest(() -> "Instance ID: " + instanceId);
         });
   }
 
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
-    String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
+    String clusterId = ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName();
     failoverClusterToATargetAndWaitUntilWriterChanged(
         clusterId,
         getDBClusterWriterInstanceId(clusterId),
@@ -1017,7 +1017,7 @@ public class TestUtility {
   public void failoverClusterToATargetAndWaitUntilWriterChanged(
       String initialWriterId, String targetWriterId) throws InterruptedException {
     failoverClusterToATargetAndWaitUntilWriterChanged(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName(),
+        ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName(),
         initialWriterId,
         targetWriterId);
   }
@@ -1027,13 +1027,13 @@ public class TestUtility {
       throws InterruptedException {
 
     DatabaseEngineDeployment deployment =
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
     if (deployment == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
       LOGGER.finest(String.format("failover from: %s", initialWriterId));
     } else {
       LOGGER.finest(String.format("failover from %s to target: %s", initialWriterId, targetWriterId));
     }
-    final TestDatabaseInfo dbInfo = TestEnvironment.getCurrent().getInfo().getDatabaseInfo();
+    final TestDatabaseInfo dbInfo = ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo();
     final String clusterEndpoint = dbInfo.getClusterEndpoint();
 
     failoverClusterToTarget(
@@ -1078,7 +1078,7 @@ public class TestUtility {
       LOGGER.finest("Cluster endpoint resolves to (after wait): " + newClusterEndpointIp);
 
       // wait until all instances except initial writer instance to be available
-      List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
+      List<TestInstanceInfo> instances = ContainerEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
           .stream()
           .filter(x -> !x.getInstanceId().equalsIgnoreCase(initialWriterId))
           .collect(Collectors.toList());
@@ -1283,7 +1283,7 @@ public class TestUtility {
 
   public String getDBClusterWriterInstanceId() {
     return getDBClusterWriterInstanceId(
-        TestEnvironment.getCurrent().getInfo().getAuroraClusterName());
+        ContainerEnvironment.getCurrent().getInfo().getAuroraClusterName());
   }
 
   public String getDBClusterWriterInstanceId(String clusterId) {
@@ -1327,8 +1327,8 @@ public class TestUtility {
 
   public String queryInstanceId(Connection connection) throws SQLException {
     return queryInstanceId(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
         connection);
   }
 
@@ -1352,7 +1352,7 @@ public class TestUtility {
   }
 
   public void createUser(Connection conn, String username, String password) throws SQLException {
-    DatabaseEngine engine = TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
+    DatabaseEngine engine = ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine();
     String dropUserSql = getCreateUserSql(engine, username, password);
     try (Statement stmt = conn.createStatement()) {
       stmt.execute(dropUserSql);
@@ -1435,7 +1435,7 @@ public class TestUtility {
 
   public static TestUtility getUtility(TestEnvironmentInfo info) {
     if (info == null) {
-      info = TestEnvironment.getCurrent().getInfo();
+      info = ContainerEnvironment.getCurrent().getInfo();
     }
 
     try {

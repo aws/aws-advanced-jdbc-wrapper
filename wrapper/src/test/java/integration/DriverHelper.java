@@ -18,7 +18,7 @@ package integration;
 
 import com.mysql.cj.conf.PropertyKey;
 import integration.container.TestDriver;
-import integration.container.TestEnvironment;
+import integration.container.ContainerEnvironment;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -38,8 +38,8 @@ public class DriverHelper {
 
   public static String getDriverProtocol() {
     return getDriverProtocol(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-        TestEnvironment.getCurrent().getCurrentDriver());
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        ContainerEnvironment.getCurrent().getCurrentDriver());
   }
 
   public static String getDriverProtocol(DatabaseEngine databaseEngine) {
@@ -75,13 +75,13 @@ public class DriverHelper {
 
   public static String getWrapperDriverProtocol() {
     return getWrapperDriverProtocol(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-        TestEnvironment.getCurrent().getCurrentDriver());
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        ContainerEnvironment.getCurrent().getCurrentDriver());
   }
 
   public static String getWrapperDriverProtocol(TestDriver testDriver) {
     return getWrapperDriverProtocol(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
   }
 
   public static String getWrapperDriverProtocol(
@@ -117,7 +117,7 @@ public class DriverHelper {
   }
 
   public static String getDriverClassname() {
-    return getDriverClassname(TestEnvironment.getCurrent().getCurrentDriver());
+    return getDriverClassname(ContainerEnvironment.getCurrent().getCurrentDriver());
   }
 
   public static String getDriverClassname(TestDriver testDriver) {
@@ -134,7 +134,7 @@ public class DriverHelper {
   }
 
   public static String getDataSourceClassname() {
-    return getDataSourceClassname(TestEnvironment.getCurrent().getCurrentDriver());
+    return getDataSourceClassname(ContainerEnvironment.getCurrent().getCurrentDriver());
   }
 
   public static String getDataSourceClassname(TestDriver testDriver) {
@@ -151,7 +151,7 @@ public class DriverHelper {
   }
 
   public static Class<?> getConnectionClass() {
-    return getConnectionClass(TestEnvironment.getCurrent().getCurrentDriver());
+    return getConnectionClass(ContainerEnvironment.getCurrent().getCurrentDriver());
   }
 
   public static Class<?> getConnectionClass(TestDriver testDriver) {
@@ -169,13 +169,13 @@ public class DriverHelper {
 
   public static String getDriverRequiredParameters() {
     return getDriverRequiredParameters(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-        TestEnvironment.getCurrent().getCurrentDriver());
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+        ContainerEnvironment.getCurrent().getCurrentDriver());
   }
 
   public static String getDriverRequiredParameters(TestDriver testDriver) {
     return getDriverRequiredParameters(
-        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
+        ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(), testDriver);
   }
 
   public static String getDriverRequiredParameters(
@@ -187,7 +187,7 @@ public class DriverHelper {
   }
 
   public static String getHostnameSql() {
-    return getHostnameSql(TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine());
+    return getHostnameSql(ContainerEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine());
   }
 
   public static String getHostnameSql(DatabaseEngine databaseEngine) {
@@ -204,7 +204,7 @@ public class DriverHelper {
 
   // This method should be used on connections with a target driver ONLY!
   public static void setConnectTimeout(Properties props, long timeout, TimeUnit timeUnit) {
-    setConnectTimeout(TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
+    setConnectTimeout(ContainerEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
   // This method should be used on connections with a target driver ONLY!
@@ -229,7 +229,7 @@ public class DriverHelper {
 
   // This method should be used on connections with a target driver ONLY!
   public static void setSocketTimeout(Properties props, long timeout, TimeUnit timeUnit) {
-    setSocketTimeout(TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
+    setSocketTimeout(ContainerEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
   // This method should be used on connections with a target driver ONLY!
@@ -254,7 +254,7 @@ public class DriverHelper {
 
   // This method should be used on connections with a target driver ONLY!
   public static void setTcpKeepAlive(Properties props, boolean enabled) {
-    setTcpKeepAlive(TestEnvironment.getCurrent().getCurrentDriver(), props, enabled);
+    setTcpKeepAlive(ContainerEnvironment.getCurrent().getCurrentDriver(), props, enabled);
   }
 
   // This method should be used on connections with a target driver ONLY!
@@ -278,7 +278,7 @@ public class DriverHelper {
   public static void setMonitoringConnectTimeout(
       Properties props, long timeout, TimeUnit timeUnit) {
     setMonitoringConnectTimeout(
-        TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
+        ContainerEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
   // This method should be used on connections with a target driver ONLY!
@@ -306,7 +306,7 @@ public class DriverHelper {
   // This method should be used on connections with a target driver ONLY!
   public static void setMonitoringSocketTimeout(Properties props, long timeout, TimeUnit timeUnit) {
     setMonitoringSocketTimeout(
-        TestEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
+        ContainerEnvironment.getCurrent().getCurrentDriver(), props, timeout, timeUnit);
   }
 
   // This method should be used on connections with a target driver ONLY!
