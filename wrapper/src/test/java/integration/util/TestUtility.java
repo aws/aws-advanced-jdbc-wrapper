@@ -25,6 +25,7 @@ import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestDatabaseInfo;
 import integration.TestEnvironmentInfo;
+import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.ContainerEnvironment;
@@ -64,6 +65,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -109,30 +111,12 @@ import software.amazon.jdbc.util.StringUtils;
 public class TestUtility {
 
   private static final Logger LOGGER = Logger.getLogger(TestUtility.class.getName());
-
-  // Default values
-//   private String dbUsername = "my_test_username";
-//   private String dbPassword = "my_test_password";
-//   private String dbName = "test";
-//   private String dbIdentifier = "test-identifier";
-//   private DatabaseEngineDeployment dbEngineDeployment;
-//   private String dbEngine = "aurora-postgresql";
-//   private String dbEngineVersion = "13.9";
-//   private String dbInstanceClass = "db.r5.large";
-//   private final Region dbRegion;
-//   private final String dbSecGroup = "default";
-//   private int numOfInstances = 5;
-//   private ArrayList<TestInstanceInfo> instances = new ArrayList<>();
-
-  private RdsClient rdsClient;
-  private Ec2Client ec2Client;
+  private static final String DEFAULT_SECURITY_GROUP = "default";
+  private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
   private static final Random rand = new Random();
 
-//   private final String rdsEndpoint;
-
-//   private final AwsCredentialsProvider credentialsProvider;
-
-  private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
+  private final RdsClient rdsClient;
+  private final Ec2Client ec2Client;
 
   public TestUtility(String region, String endpoint) throws URISyntaxException {
     this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
@@ -291,7 +275,7 @@ public class TestUtility {
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
-      deleteCluster();
+      deleteCluster(identifier, DatabaseEngineDeployment.AURORA);
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
@@ -368,7 +352,7 @@ public class TestUtility {
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
-      deleteCluster();
+      deleteCluster(identifier, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER);
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
@@ -399,7 +383,8 @@ public class TestUtility {
    * @return the instance info of the new instance
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
-  public TestInstanceInfo createInstance(String instanceClass, String instanceId) throws InterruptedException {
+  public TestInstanceInfo createInstance(String instanceClass, String instanceId, List<TestInstanceInfo> instances)
+      throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     final TestEnvironmentInfo info = ContainerEnvironment.getCurrent().getInfo();
 
@@ -447,7 +432,7 @@ public class TestUtility {
         instance.dbInstanceIdentifier(),
         instance.endpoint().address(),
         instance.endpoint().port());
-    this.instances.add(instanceInfo);
+    instances.add(instanceInfo);
     return instanceInfo;
   }
 
@@ -457,13 +442,14 @@ public class TestUtility {
    * @param instanceToDelete the info for the instance to delete
    * @throws InterruptedException if the instance has not been deleted within 5 minutes
    */
-  public void deleteInstance(TestInstanceInfo instanceToDelete) throws InterruptedException {
+  public void deleteInstance(TestInstanceInfo instanceToDelete, List<TestInstanceInfo> instances)
+      throws InterruptedException {
     rdsClient.deleteDBInstance(
         DeleteDbInstanceRequest.builder()
             .dbInstanceIdentifier(instanceToDelete.getInstanceId())
             .skipFinalSnapshot(true)
             .build());
-    this.instances.remove(instanceToDelete);
+    instances.remove(instanceToDelete);
 
     final RdsWaiter waiter = rdsClient.waiter();
     WaiterResponse<DescribeDbInstancesResponse> waiterResponse = waiter.waitUntilDBInstanceDeleted(
@@ -521,7 +507,7 @@ public class TestUtility {
           .toPort(65535)
           .build();
       ec2Client.authorizeSecurityGroupIngress(
-          (builder) -> builder.groupName(dbSecGroup).ipPermissions(ipPermission));
+          (builder) -> builder.groupName(DEFAULT_SECURITY_GROUP).ipPermissions(ipPermission));
     } catch (Ec2Exception exception) {
       if (!DUPLICATE_IP_ERROR_CODE.equalsIgnoreCase(exception.awsErrorDetails().errorCode())) {
         throw exception;
@@ -534,7 +520,7 @@ public class TestUtility {
         ec2Client.describeSecurityGroups(
             (builder) ->
                 builder
-                    .groupNames(dbSecGroup)
+                    .groupNames(DEFAULT_SECURITY_GROUP)
                     .filters(
                         software.amazon.awssdk.services.ec2.model.Filter.builder()
                             .name("ip-permission.cidr")
@@ -555,7 +541,7 @@ public class TestUtility {
       ec2Client.revokeSecurityGroupIngress(
           (builder) ->
               builder
-                  .groupName(dbSecGroup)
+                  .groupName(DEFAULT_SECURITY_GROUP)
                   .cidrIp(ipAddress + "/32")
                   .ipProtocol("-1") // All protocols
                   .fromPort(0) // For all ports
@@ -566,47 +552,39 @@ public class TestUtility {
   }
 
   /**
-   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
+   * Deletes the specified cluster. Removes IP from EC2 whitelist.
    *
    * @param identifier database identifier to delete
    */
-  public void deleteCluster(String identifier) {
-    dbIdentifier = identifier;
-    deleteCluster();
-  }
-
-  /**
-   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
-   *
-   */
-  public void deleteCluster() {
-
-    switch (this.dbEngineDeployment) {
+  public void deleteCluster(String identifier, DatabaseEngineDeployment deployment) {
+    switch (deployment) {
       case AURORA:
-        this.deleteAuroraCluster();
+        this.deleteAuroraCluster(identifier);
         break;
       case RDS_MULTI_AZ_CLUSTER:
-        this.deleteMultiAzCluster();
+        this.deleteMultiAzCluster(identifier);
         break;
       default:
-        throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
+        throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
   /**
    * Destroys all instances and clusters. Removes IP from EC2 whitelist.
    */
-  public void deleteAuroraCluster() {
+  public void deleteAuroraCluster(String identifier) {
+    List<DBClusterMember> members = getDBCluster(identifier).dbClusterMembers();
+
     // Tear down instances
-    for (int i = 1; i <= numOfInstances; i++) {
+    for (DBClusterMember member : members) {
       try {
         rdsClient.deleteDBInstance(
             DeleteDbInstanceRequest.builder()
-                .dbInstanceIdentifier(dbIdentifier + "-" + i)
+                .dbInstanceIdentifier(member.dbInstanceIdentifier())
                 .skipFinalSnapshot(true)
                 .build());
       } catch (Exception ex) {
-        LOGGER.finest("Error deleting instance " + dbIdentifier + "-" + i + ". " + ex.getMessage());
+        LOGGER.finest("Error deleting instance '" + member.dbInstanceIdentifier() + "': " + ex.getMessage());
         // Ignore this error and continue with other instances
       }
     }
@@ -616,7 +594,7 @@ public class TestUtility {
     while (--remainingAttempts > 0) {
       try {
         DeleteDbClusterResponse response = rdsClient.deleteDBCluster(
-            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
+            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(identifier)));
         if (response.sdkHttpResponse().isSuccessful()) {
           break;
         }
@@ -625,7 +603,7 @@ public class TestUtility {
       } catch (DbClusterNotFoundException ex) {
         // ignore
       } catch (Exception ex) {
-        LOGGER.warning("Error deleting db cluster " + dbIdentifier + ": " + ex);
+        LOGGER.warning("Error deleting db cluster " + identifier + ": " + ex);
       }
     }
   }
@@ -633,14 +611,14 @@ public class TestUtility {
   /**
    * Destroys all instances and clusters.
    */
-  public void deleteMultiAzCluster() {
+  public void deleteMultiAzCluster(String identifier) {
     // deleteDBinstance requests are not necessary to delete a multi-az cluster.
     // Tear down cluster
     int remainingAttempts = 5;
     while (--remainingAttempts > 0) {
       try {
         DeleteDbClusterResponse response = rdsClient.deleteDBCluster(
-            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(dbIdentifier)));
+            (builder -> builder.skipFinalSnapshot(true).dbClusterIdentifier(identifier)));
         if (response.sdkHttpResponse().isSuccessful()) {
           break;
         }
@@ -649,7 +627,7 @@ public class TestUtility {
       } catch (DbClusterNotFoundException ex) {
         // ignore
       } catch (Exception ex) {
-        LOGGER.warning("Error deleting db cluster " + dbIdentifier + ": " + ex);
+        LOGGER.warning("Error deleting db cluster " + identifier + ": " + ex);
       }
     }
   }
@@ -686,6 +664,18 @@ public class TestUtility {
         return DatabaseEngine.MYSQL;
       default:
         throw new UnsupportedOperationException(cluster.engine());
+    }
+  }
+
+  public String getDbInstanceClass(TestEnvironmentRequest request) {
+    switch (request.getDatabaseEngineDeployment()) {
+      case AURORA:
+        return "db.r5.large";
+      case RDS:
+      case RDS_MULTI_AZ_CLUSTER:
+        return "db.m5d.large";
+      default:
+        throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
   }
 
@@ -739,7 +729,6 @@ public class TestUtility {
         if (remainingTries == 0) {
           throw sdkClientException;
         }
-        this.initClient();
       }
     }
 
@@ -762,7 +751,6 @@ public class TestUtility {
         if (remainingTries == 0) {
           throw sdkClientException;
         }
-        this.initClient();
       }
     }
 

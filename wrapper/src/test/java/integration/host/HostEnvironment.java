@@ -174,8 +174,7 @@ public class HostEnvironment implements AutoCloseable {
     return env;
   }
 
-  private static HostEnvironment createAuroraOrMultiAzEnvironment(TestEnvironmentRequest request)
-      throws URISyntaxException {
+  private static HostEnvironment createAuroraOrMultiAzEnvironment(TestEnvironmentRequest request) {
 
     EnvPreCreateInfo preCreateInfo =
         TestEnvironmentProvider.preCreateInfos.get(request.getEnvPreCreateIndex());
@@ -325,7 +324,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createDbCluster(HostEnvironment env) throws URISyntaxException {
+  private static void createDbCluster(HostEnvironment env) {
 
     switch (env.info.getRequest().getDatabaseInstances()) {
       case SINGLE_INSTANCE:
@@ -351,7 +350,7 @@ public class HostEnvironment implements AutoCloseable {
     }
   }
 
-  private static void createDbCluster(HostEnvironment env, int numOfInstances) throws URISyntaxException {
+  private static void createDbCluster(HostEnvironment env, int numOfInstances) {
 
     env.info.setRegion(
         !StringUtils.isNullOrEmpty(config.rdsDbRegion)
@@ -431,7 +430,7 @@ public class HostEnvironment implements AutoCloseable {
         if (StringUtils.isNullOrEmpty(engineVersion)) {
           throw new RuntimeException("Failed to get engine version.");
         }
-        String instanceClass = getDbInstanceClass(env.info.getRequest());
+        String instanceClass = env.auroraUtil.getDbInstanceClass(env.info.getRequest());
 
         LOGGER.finer(
             "Using " + engine + " " + engineVersion);
@@ -459,7 +458,7 @@ public class HostEnvironment implements AutoCloseable {
 
         // remove cluster and instances
         LOGGER.finer("Deleting cluster " + env.auroraClusterName);
-        env.auroraUtil.deleteCluster(env.auroraClusterName);
+        env.auroraUtil.deleteCluster(env.auroraClusterName, env.info.getRequest().getDatabaseEngineDeployment());
         LOGGER.finer("Deleted cluster " + env.auroraClusterName);
 
         throw new RuntimeException(e);
@@ -610,18 +609,6 @@ public class HostEnvironment implements AutoCloseable {
         return env.auroraUtil.getLatestVersion(engineName);
       default:
         return systemPropertyVersion;
-    }
-  }
-
-  private static String getDbInstanceClass(TestEnvironmentRequest request) {
-    switch (request.getDatabaseEngineDeployment()) {
-      case AURORA:
-        return "db.r5.large";
-      case RDS:
-      case RDS_MULTI_AZ_CLUSTER:
-        return "db.m5d.large";
-      default:
-        throw new NotImplementedException(request.getDatabaseEngine().toString());
     }
   }
 
@@ -1006,16 +993,14 @@ public class HostEnvironment implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if (this.databaseContainers != null) {
-      for (GenericContainer<?> container : this.databaseContainers) {
-        try {
-          container.stop();
-        } catch (Exception ex) {
-          // ignore
-        }
+    for (GenericContainer<?> container : this.databaseContainers) {
+      try {
+        container.stop();
+      } catch (Exception ex) {
+        // ignore
       }
-      this.databaseContainers.clear();
     }
+    this.databaseContainers.clear();
 
     if (this.telemetryXRayContainer != null) {
       this.telemetryXRayContainer.stop();
@@ -1062,7 +1047,7 @@ public class HostEnvironment implements AutoCloseable {
 
     if (!this.reuseAuroraDbCluster) {
       LOGGER.finest("Deleting cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
-      auroraUtil.deleteCluster(this.auroraClusterName);
+      auroraUtil.deleteCluster(this.auroraClusterName, this.info.getRequest().getDatabaseEngineDeployment());
       LOGGER.finest("Deleted cluster " + this.auroraClusterName + ".cluster-" + this.auroraClusterDomain);
     }
   }
