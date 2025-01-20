@@ -111,26 +111,26 @@ public class TestUtility {
   private static final Logger LOGGER = Logger.getLogger(TestUtility.class.getName());
 
   // Default values
-  private String dbUsername = "my_test_username";
-  private String dbPassword = "my_test_password";
-  private String dbName = "test";
-  private String dbIdentifier = "test-identifier";
-  private DatabaseEngineDeployment dbEngineDeployment;
-  private String dbEngine = "aurora-postgresql";
-  private String dbEngineVersion = "13.9";
-  private String dbInstanceClass = "db.r5.large";
-  private final Region dbRegion;
-  private final String dbSecGroup = "default";
-  private int numOfInstances = 5;
-  private ArrayList<TestInstanceInfo> instances = new ArrayList<>();
+//   private String dbUsername = "my_test_username";
+//   private String dbPassword = "my_test_password";
+//   private String dbName = "test";
+//   private String dbIdentifier = "test-identifier";
+//   private DatabaseEngineDeployment dbEngineDeployment;
+//   private String dbEngine = "aurora-postgresql";
+//   private String dbEngineVersion = "13.9";
+//   private String dbInstanceClass = "db.r5.large";
+//   private final Region dbRegion;
+//   private final String dbSecGroup = "default";
+//   private int numOfInstances = 5;
+//   private ArrayList<TestInstanceInfo> instances = new ArrayList<>();
 
   private RdsClient rdsClient;
   private Ec2Client ec2Client;
   private static final Random rand = new Random();
 
-  private final String rdsEndpoint;
+//   private final String rdsEndpoint;
 
-  private final AwsCredentialsProvider credentialsProvider;
+//   private final AwsCredentialsProvider credentialsProvider;
 
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
 
@@ -159,15 +159,8 @@ public class TestUtility {
    * @param credentialsProvider Specific AWS credential provider
    */
   public TestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
-    this.dbRegion = region;
-    this.rdsEndpoint = rdsEndpoint;
-    this.credentialsProvider = credentialsProvider;
-    initClient();
-  }
-
-  protected void initClient() {
     final RdsClientBuilder rdsClientBuilder = RdsClient.builder()
-        .region(dbRegion)
+        .region(region)
         .credentialsProvider(credentialsProvider);
 
     if (!StringUtils.isNullOrEmpty(rdsEndpoint)) {
@@ -180,7 +173,7 @@ public class TestUtility {
 
     rdsClient = rdsClientBuilder.build();
     ec2Client = Ec2Client.builder()
-        .region(dbRegion)
+        .region(region)
         .credentialsProvider(credentialsProvider)
         .build();
   }
@@ -216,30 +209,23 @@ public class TestUtility {
       String dbName,
       String identifier,
       DatabaseEngineDeployment deployment,
+      String region,
       String engine,
       String instanceClass,
       String version,
-      int numOfInstances,
+      int numInstances,
       ArrayList<TestInstanceInfo> instances)
       throws InterruptedException {
-    this.dbUsername = username;
-    this.dbPassword = password;
-    this.dbName = dbName;
-    this.dbIdentifier = identifier;
-    this.dbEngineDeployment = deployment;
-    this.dbEngine = engine;
-    this.dbInstanceClass = instanceClass;
-    this.dbEngineVersion = version;
-    this.numOfInstances = numOfInstances;
-    this.instances = instances;
 
-    switch (this.dbEngineDeployment) {
+    switch (deployment) {
       case AURORA:
-        return createAuroraCluster();
+        return createAuroraCluster(
+            username, password, dbName, identifier, region, engine, instanceClass, version, numInstances, instances);
       case RDS_MULTI_AZ_CLUSTER:
-        return createMultiAzCluster();
+        return createMultiAzCluster(
+            username, password, dbName, identifier, region, engine, instanceClass, version, instances);
       default:
-        throw new UnsupportedOperationException(this.dbEngineDeployment.toString());
+        throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
@@ -249,20 +235,31 @@ public class TestUtility {
    * @return An endpoint for one of the instances
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createAuroraCluster() throws InterruptedException {
+  public String createAuroraCluster(
+      String username,
+      String password,
+      String dbName,
+      String identifier,
+      String region,
+      String engine,
+      String instanceClass,
+      String version,
+      int numInstances,
+      ArrayList<TestInstanceInfo> instances)
+      throws InterruptedException {
     // Create Cluster
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
 
     final CreateDbClusterRequest dbClusterRequest =
         CreateDbClusterRequest.builder()
-            .dbClusterIdentifier(dbIdentifier)
+            .dbClusterIdentifier(identifier)
             .databaseName(dbName)
-            .masterUsername(dbUsername)
-            .masterUserPassword(dbPassword)
-            .sourceRegion(dbRegion.id())
+            .masterUsername(username)
+            .masterUserPassword(password)
+            .sourceRegion(region)
             .enableIAMDatabaseAuthentication(true)
-            .engine(dbEngine)
-            .engineVersion(dbEngineVersion)
+            .engine(engine)
+            .engineVersion(version)
             .storageEncrypted(true)
             .tags(testRunnerTag)
             .build();
@@ -270,15 +267,15 @@ public class TestUtility {
     rdsClient.createDBCluster(dbClusterRequest);
 
     // Create Instances
-    for (int i = 1; i <= numOfInstances; i++) {
-      final String instanceName = dbIdentifier + "-" + i;
+    for (int i = 1; i <= numInstances; i++) {
+      final String instanceName = identifier + "-" + i;
       rdsClient.createDBInstance(
           CreateDbInstanceRequest.builder()
-              .dbClusterIdentifier(dbIdentifier)
+              .dbClusterIdentifier(identifier)
               .dbInstanceIdentifier(instanceName)
-              .dbInstanceClass(dbInstanceClass)
-              .engine(dbEngine)
-              .engineVersion(dbEngineVersion)
+              .dbInstanceClass(instanceClass)
+              .engine(engine)
+              .engineVersion(version)
               .publiclyAccessible(true)
               .tags(testRunnerTag)
               .build());
@@ -290,7 +287,7 @@ public class TestUtility {
         waiter.waitUntilDBInstanceAvailable(
             (requestBuilder) ->
                 requestBuilder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()),
+                    Filter.builder().name("db-cluster-id").values(identifier).build()),
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
@@ -303,12 +300,12 @@ public class TestUtility {
         rdsClient.describeDBInstances(
             (builder) ->
                 builder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()));
+                    Filter.builder().name("db-cluster-id").values(identifier).build()));
     final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
     final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
 
     for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      this.instances.add(
+      instances.add(
           new TestInstanceInfo(
               instance.dbInstanceIdentifier(),
               instance.endpoint().address(),
@@ -324,19 +321,28 @@ public class TestUtility {
    * @return An endpoint for one of the instances
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createMultiAzCluster() throws InterruptedException {
+  public String createMultiAzCluster(String username,
+      String password,
+      String dbName,
+      String identifier,
+      String region,
+      String engine,
+      String instanceClass,
+      String version,
+      ArrayList<TestInstanceInfo> instances)
+      throws InterruptedException {
     // Create Cluster
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
-            .dbClusterIdentifier(dbIdentifier)
+            .dbClusterIdentifier(identifier)
             .publiclyAccessible(true)
             .databaseName(dbName)
-            .masterUsername(dbUsername)
-            .masterUserPassword(dbPassword)
-            .sourceRegion(dbRegion.id())
-            .engine(dbEngine)
-            .engineVersion(dbEngineVersion)
+            .masterUsername(username)
+            .masterUserPassword(password)
+            .sourceRegion(region)
+            .engine(engine)
+            .engineVersion(version)
             .enablePerformanceInsights(false)
             .backupRetentionPeriod(1)
             .storageEncrypted(true)
@@ -344,7 +350,7 @@ public class TestUtility {
 
     clusterBuilder =
         clusterBuilder.allocatedStorage(100)
-            .dbClusterInstanceClass(dbInstanceClass)
+            .dbClusterInstanceClass(instanceClass)
             .storageType("io1")
             .iops(1000);
 
@@ -358,7 +364,7 @@ public class TestUtility {
         waiter.waitUntilDBInstanceAvailable(
             (requestBuilder) ->
                 requestBuilder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()),
+                    Filter.builder().name("db-cluster-id").values(identifier).build()),
             (configurationBuilder) -> configurationBuilder.waitTimeout(Duration.ofMinutes(30)));
 
     if (waiterResponse.matched().exception().isPresent()) {
@@ -371,12 +377,12 @@ public class TestUtility {
         rdsClient.describeDBInstances(
             (builder) ->
                 builder.filters(
-                    Filter.builder().name("db-cluster-id").values(dbIdentifier).build()));
+                    Filter.builder().name("db-cluster-id").values(identifier).build()));
     final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
     final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
 
     for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      this.instances.add(
+      instances.add(
           new TestInstanceInfo(
               instance.dbInstanceIdentifier(),
               instance.endpoint().address(),
@@ -393,7 +399,7 @@ public class TestUtility {
    * @return the instance info of the new instance
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
-  public TestInstanceInfo createInstance(String instanceId) throws InterruptedException {
+  public TestInstanceInfo createInstance(String instanceClass, String instanceId) throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     final TestEnvironmentInfo info = TestEnvironment.getCurrent().getInfo();
 
@@ -401,7 +407,7 @@ public class TestUtility {
         CreateDbInstanceRequest.builder()
             .dbClusterIdentifier(info.getAuroraClusterName())
             .dbInstanceIdentifier(instanceId)
-            .dbInstanceClass(dbInstanceClass)
+            .dbInstanceClass(instanceClass)
             .engine(info.getDatabaseEngine())
             .engineVersion(info.getDatabaseEngineVersion())
             .publiclyAccessible(true)

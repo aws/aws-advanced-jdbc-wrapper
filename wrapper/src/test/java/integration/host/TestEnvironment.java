@@ -443,6 +443,7 @@ public class TestEnvironment implements AutoCloseable {
                 env.info.getDatabaseInfo().getDefaultDbName(),
                 env.auroraClusterName,
                 env.info.getRequest().getDatabaseEngineDeployment(),
+                env.info.getRegion(),
                 engine,
                 instanceClass,
                 engineVersion,
