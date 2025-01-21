@@ -657,7 +657,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     int actualColumnCount = resultSet.getMetaData().getColumnCount();
     if (actualColumnCount < expectedColumnCount) {
       // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-      LOGGER.fine(
+      LOGGER.finest(
           Messages.get(
               "ClusterTopologyMonitorImpl.unexpectedTopologyQueryColumnCount",
               new Object[]{expectedColumnCount, actualColumnCount}));
@@ -671,7 +671,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
         final HostSpec host = createHost(resultSet, suggestedWriterNodeId);
         hostMap.put(host.getHost(), host);
       } catch (Exception e) {
-        LOGGER.fine(
+        LOGGER.finest(
             Messages.get("ClusterTopologyMonitorImpl.errorProcessingQueryResults", new Object[]{e.getMessage()}));
         return null;
       }

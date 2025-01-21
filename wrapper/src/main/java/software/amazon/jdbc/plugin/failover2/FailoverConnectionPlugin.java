@@ -520,14 +520,14 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsHost(allowedHosts, writerCandidate.getHost())) {
+      if (!Utils.containsHost(allowedHosts, writerCandidate.getUrl())) {
         this.failoverWriterFailedCounter.inc();
         String topologyString = Utils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
-            new Object[] {writerCandidate.getHost(), topologyString}));
+            new Object[] {writerCandidate.getUrl(), topologyString}));
         throw new FailoverFailedSQLException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerCandidate.getHost(), topologyString}));
+                new Object[] {writerCandidate.getUrl(), topologyString}));
       }
 
       try {

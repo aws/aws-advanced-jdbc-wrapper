@@ -61,7 +61,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   protected Properties initialConnectionProps;
   protected int maxFailoverTimeoutMs;
   protected int timeoutMs;
-  protected boolean enableFailoverStrictReader;
+  protected boolean isStrictReaderRequired;
   protected final PluginService pluginService;
 
   /**
@@ -89,19 +89,19 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
    * @param maxFailoverTimeoutMs       Maximum allowed time for the entire reader failover process.
    * @param timeoutMs                  Maximum allowed time in milliseconds for each reader connection attempt during
    *                                   the reader failover process.
-   * @param enableFailoverStrictReader When true, it disables adding a writer to a list of nodes to connect
+   * @param isStrictReaderRequired When true, it disables adding a writer to a list of nodes to connect
    */
   public ClusterAwareReaderFailoverHandler(
       final PluginService pluginService,
       final Properties initialConnectionProps,
       final int maxFailoverTimeoutMs,
       final int timeoutMs,
-      final boolean enableFailoverStrictReader) {
+      final boolean isStrictReaderRequired) {
     this.pluginService = pluginService;
     this.initialConnectionProps = initialConnectionProps;
     this.maxFailoverTimeoutMs = maxFailoverTimeoutMs;
     this.timeoutMs = timeoutMs;
-    this.enableFailoverStrictReader = enableFailoverStrictReader;
+    this.isStrictReaderRequired = isStrictReaderRequired;
   }
 
   /**
@@ -322,9 +322,9 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
       final int i) throws SQLException {
     ReaderFailoverResult result;
     final int numTasks = i + 1 < hosts.size() ? 2 : 1;
-    completionService.submit(new ConnectionAttemptTask(hosts.get(i)));
+    completionService.submit(new ConnectionAttemptTask(hosts.get(i), this.isStrictReaderRequired));
     if (numTasks == 2) {
-      completionService.submit(new ConnectionAttemptTask(hosts.get(i + 1)));
+      completionService.submit(new ConnectionAttemptTask(hosts.get(i + 1), this.isStrictReaderRequired));
     }
     for (int taskNum = 0; taskNum < numTasks; taskNum++) {
       result = getNextResult(completionService);
@@ -368,9 +368,11 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
   private class ConnectionAttemptTask implements Callable<ReaderFailoverResult> {
 
     private final HostSpec newHost;
+    private final boolean isStrictReaderRequired;
 
-    private ConnectionAttemptTask(final HostSpec newHost) {
+    private ConnectionAttemptTask(final HostSpec newHost, final boolean isStrictReaderRequired) {
       this.newHost = newHost;
+      this.isStrictReaderRequired = isStrictReaderRequired;
     }
 
     /**
@@ -390,7 +392,7 @@ public class ClusterAwareReaderFailoverHandler implements ReaderFailoverHandler 
         final Connection conn = pluginService.forceConnect(this.newHost, copy);
         pluginService.setAvailability(this.newHost.asAliases(), HostAvailability.AVAILABLE);
 
-        if (enableFailoverStrictReader) {
+        if (this.isStrictReaderRequired) {
           // need to ensure that new connection is a connection to a reader node
           try {
             HostRole role = pluginService.getHostRole(conn);

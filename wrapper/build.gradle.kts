@@ -41,7 +41,7 @@ dependencies {
     compileOnly("org.mariadb.jdbc:mariadb-java-client:3.4.1")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
     compileOnly("org.osgi:org.osgi.core:6.0.0")
-    compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.18.1")
+    compileOnly("com.amazonaws:aws-xray-recorder-sdk-core:2.18.2")
     compileOnly("io.opentelemetry:opentelemetry-api:1.42.1")
     compileOnly("io.opentelemetry:opentelemetry-sdk:1.42.1")
     compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.43.0")

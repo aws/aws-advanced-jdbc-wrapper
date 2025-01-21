@@ -26,9 +26,9 @@ public class Utils {
     return c == null || c.isEmpty();
   }
 
-  public static boolean containsHost(final List<HostSpec> hosts, String host) {
+  public static boolean containsHost(final List<HostSpec> hosts, String url) {
     for (final HostSpec hostSpec : hosts) {
-      if (hostSpec.getHost().equals(host)) {
+      if (hostSpec.getUrl().equals(url)) {
         return true;
       }
     }
