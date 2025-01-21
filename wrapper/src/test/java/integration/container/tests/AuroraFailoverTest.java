@@ -63,6 +63,7 @@ import software.amazon.jdbc.ds.AwsWrapperDataSource;
 import software.amazon.jdbc.hostlistprovider.AuroraHostListProvider;
 import software.amazon.jdbc.plugin.failover.FailoverSQLException;
 import software.amazon.jdbc.plugin.failover.FailoverSuccessSQLException;
+import software.amazon.jdbc.plugin.failover.TransactionStateUnknownSQLException;
 import software.amazon.jdbc.util.SqlState;
 
 @TestMethodOrder(MethodOrderer.MethodName.class)
@@ -236,7 +237,7 @@ public class AuroraFailoverTest {
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
           assertThrows(
-              SQLException.class,
+              TransactionStateUnknownSQLException.class,
               () ->
                   testStmt2.executeUpdate("INSERT INTO test3_2 VALUES (2, 'test field string 2')"));
       assertEquals(
@@ -296,7 +297,7 @@ public class AuroraFailoverTest {
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
           assertThrows(
-              SQLException.class,
+              TransactionStateUnknownSQLException.class,
               () ->
                   testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (2, 'test field string 2')"));
       assertEquals(
@@ -557,7 +558,7 @@ public class AuroraFailoverTest {
       // If there is an active transaction, roll it back and return an error with SQLState 08007.
       final SQLException exception =
           assertThrows(
-              SQLException.class,
+              TransactionStateUnknownSQLException.class,
               () ->
                   testStmt2.executeUpdate("INSERT INTO test3_3 VALUES (2, 'test field string 2')"));
       assertEquals(

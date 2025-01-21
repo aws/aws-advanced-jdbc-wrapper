@@ -36,7 +36,7 @@ dependencies {
 
     testImplementation("org.apache.commons:commons-dbcp2:2.12.0")
     testImplementation("org.postgresql:postgresql:42.7.4")
-    testImplementation("com.mysql:mysql-connector-j:8.3.0")
+    testImplementation("com.mysql:mysql-connector-j:9.1.0")
     testImplementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
     testImplementation("com.zaxxer:HikariCP:4.0.3") // Version 4.+ is compatible with Java 8
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc:2.7.13") // 2.7.13 is the last version compatible with Java 8
@@ -44,12 +44,13 @@ dependencies {
     testImplementation("software.amazon.awssdk:ec2:2.29.34")
     testImplementation("software.amazon.awssdk:rds:2.29.34")
     testImplementation("software.amazon.awssdk:sts:2.29.34")
-    testImplementation("org.testcontainers:testcontainers:1.20.1")
-    testImplementation("org.testcontainers:mysql:1.20.1")
-    testImplementation("org.testcontainers:postgresql:1.20.3")
-    testImplementation("org.testcontainers:mariadb:1.20.2")
-    testImplementation("org.testcontainers:junit-jupiter:1.20.1")
-    testImplementation("org.testcontainers:toxiproxy:1.20.2")
+    // Note: all org.testcontainers dependencies should have the same version
+    testImplementation("org.testcontainers:testcontainers:1.20.4")
+    testImplementation("org.testcontainers:mysql:1.20.4")
+    testImplementation("org.testcontainers:postgresql:1.20.4")
+    testImplementation("org.testcontainers:mariadb:1.20.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation("org.testcontainers:toxiproxy:1.20.4")
     testImplementation("org.apache.poi:poi-ooxml:5.3.0")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.1")

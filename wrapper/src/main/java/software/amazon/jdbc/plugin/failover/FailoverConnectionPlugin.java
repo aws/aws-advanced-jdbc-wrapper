@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -574,6 +575,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         TELEMETRY_READER_FAILOVER, TelemetryTraceLevel.NESTED);
     this.failoverReaderTriggeredCounter.inc();
 
+    final long failoverStartNano = System.nanoTime();
+
     try {
       LOGGER.fine(() -> Messages.get("Failover.startReaderFailover"));
 
@@ -617,6 +620,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.failoverReaderFailedCounter.inc();
       throw ex;
     } finally {
+      LOGGER.finest(() -> Messages.get(
+          "Failover.readerFailoverElapsed",
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartNano)}));
       telemetryContext.closeContext();
       if (this.telemetryFailoverAdditionalTopTraceSetting) {
         telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);
@@ -648,6 +654,8 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
         TELEMETRY_WRITER_FAILOVER, TelemetryTraceLevel.NESTED);
     this.failoverWriterTriggeredCounter.inc();
 
+    long failoverStartTimeNano = System.nanoTime();
+
     try {
       LOGGER.info(() -> Messages.get("Failover.startWriterFailover"));
       final WriterFailoverResult failoverResult = this.writerFailoverHandler.failover(this.pluginService.getAllHosts());
@@ -674,10 +682,10 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!allowedHosts.contains(writerHostSpec)) {
+      if (!Utils.containsHost(allowedHosts, writerHostSpec.getUrl())) {
         throwFailoverFailedException(
             Messages.get("Failover.newWriterNotAllowed",
-                new Object[] {writerHostSpec.getHost(), Utils.logTopology(allowedHosts, "")}));
+                new Object[] {writerHostSpec.getUrl(), Utils.logTopology(allowedHosts, "")}));
         return;
       }
 
@@ -701,6 +709,9 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       this.failoverWriterFailedCounter.inc();
       throw ex;
     } finally {
+      LOGGER.finest(() -> Messages.get(
+          "Failover.writerFailoverElapsed",
+          new Object[]{TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - failoverStartTimeNano)}));
       telemetryContext.closeContext();
       if (this.telemetryFailoverAdditionalTopTraceSetting) {
         telemetryFactory.postCopy(telemetryContext, TelemetryTraceLevel.FORCE_TOP_LEVEL);

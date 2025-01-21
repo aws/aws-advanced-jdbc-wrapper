@@ -265,6 +265,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
   @Override
   public void close() throws Exception {
     this.stop.set(true);
+    this.nodeThreadsStop.set(true);
 
     // It breaks a waiting/sleeping cycles in monitoring thread
     synchronized (this.requestToUpdateTopology) {
@@ -276,6 +277,8 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     if (!this.monitorExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
       this.monitorExecutor.shutdownNow();
     }
+
+    this.nodeThreads.clear();
   }
 
   @Override
@@ -578,7 +581,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     }
     try {
       final List<HostSpec> hosts = this.queryForTopology(connection);
-      if (hosts != null) {
+      if (!Utils.isNullOrEmpty(hosts)) {
         this.updateTopologyCache(hosts);
       }
       return hosts;
@@ -613,7 +616,7 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     return null;
   }
 
-  protected List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
+  protected @Nullable List<HostSpec> queryForTopology(final Connection conn) throws SQLException {
     int networkTimeout = -1;
     try {
       networkTimeout = conn.getNetworkTimeout();
@@ -644,17 +647,34 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
     return null; // intentionally null
   }
 
-  protected List<HostSpec> processQueryResults(
+  protected @Nullable List<HostSpec> processQueryResults(
       final ResultSet resultSet,
       final String suggestedWriterNodeId) throws SQLException {
 
     final HashMap<String, HostSpec> hostMap = new HashMap<>();
 
+    int expectedColumnCount = 4;
+    int actualColumnCount = resultSet.getMetaData().getColumnCount();
+    if (actualColumnCount < expectedColumnCount) {
+      // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
+      LOGGER.finest(
+          Messages.get(
+              "ClusterTopologyMonitorImpl.unexpectedTopologyQueryColumnCount",
+              new Object[]{expectedColumnCount, actualColumnCount}));
+      return null;
+    }
+
     // Data is result set is ordered by last updated time so the latest records go last.
     // When adding hosts to a map, the newer records replace the older ones.
     while (resultSet.next()) {
-      final HostSpec host = createHost(resultSet, suggestedWriterNodeId);
-      hostMap.put(host.getHost(), host);
+      try {
+        final HostSpec host = createHost(resultSet, suggestedWriterNodeId);
+        hostMap.put(host.getHost(), host);
+      } catch (Exception e) {
+        LOGGER.finest(
+            Messages.get("ClusterTopologyMonitorImpl.errorProcessingQueryResults", new Object[]{e.getMessage()}));
+        return null;
+      }
     }
 
     final List<HostSpec> hosts = new ArrayList<>();
@@ -863,6 +883,9 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
       List<HostSpec> hosts;
       try {
         hosts = this.monitor.queryForTopology(connection);
+        if (hosts == null) {
+          return;
+        }
       } catch (SQLException ex) {
         return;
       }

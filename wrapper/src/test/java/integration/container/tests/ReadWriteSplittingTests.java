@@ -30,7 +30,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.pool.HikariPool;
 import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
-import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
@@ -57,7 +56,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.MethodOrderer;
@@ -651,7 +649,7 @@ public class ReadWriteSplittingTests {
 
         auroraUtil.failoverClusterAndWaitUntilWriterChanged();
 
-        assertThrows(SQLException.class, () -> auroraUtil.queryInstanceId(conn));
+        assertThrows(FailoverSuccessSQLException.class, () -> auroraUtil.queryInstanceId(conn));
         nextWriterId = auroraUtil.queryInstanceId(conn);
         LOGGER.finest("nextWriterId: " + nextWriterId);
         assertNotEquals(initialWriterId, nextWriterId);
@@ -781,26 +779,19 @@ public class ReadWriteSplittingTests {
         assertNotSame(initialWriterConn1, newWriterConn);
       }
 
-      // Make ure all instances up after failover.
+      // Make sure all instances up after failover.
       // Old writer in RDS MultiAz clusters may be unavailable for quite long time.
-      List<String> instanceIDs =
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances()
-              .stream().map(TestInstanceInfo::getInstanceId)
-              .collect(Collectors.toList());
-      boolean allInstancesUp = auroraUtil.makeSureInstancesUp(
-          instanceIDs, false, TimeUnit.MINUTES.toSeconds(15));
+      auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(15));
 
-      if (allInstancesUp) {
-        // It makes sense to run the following step when initial writer is up.
-        try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
-          // This should be a new connection to the initial writer instance (now a reader).
-          final String writerConnectionId = auroraUtil.queryInstanceId(conn);
-          assertEquals(initialWriterId, writerConnectionId);
-          initialWriterConn2 = conn.unwrap(Connection.class);
-          // The initial connection should have been evicted from the pool when failover occurred, so
-          // this should be a new connection even though it is connected to the same instance.
-          assertNotSame(initialWriterConn1, initialWriterConn2);
-        }
+      // It makes sense to run the following step when initial writer is up.
+      try (final Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
+        // This should be a new connection to the initial writer instance (now a reader).
+        final String writerConnectionId = auroraUtil.queryInstanceId(conn);
+        assertEquals(initialWriterId, writerConnectionId);
+        initialWriterConn2 = conn.unwrap(Connection.class);
+        // The initial connection should have been evicted from the pool when failover occurred, so
+        // this should be a new connection even though it is connected to the same instance.
+        assertNotSame(initialWriterConn1, initialWriterConn2);
       }
     } finally {
       ConnectionProviderManager.releaseResources();

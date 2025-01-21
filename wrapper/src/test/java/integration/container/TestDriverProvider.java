@@ -31,8 +31,6 @@ import integration.TestEnvironmentFeatures;
 import integration.TestEnvironmentInfo;
 import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
-import integration.container.aurora.TestAuroraHostListProvider;
-import integration.container.aurora.TestPluginServiceImpl;
 import integration.container.condition.EnableBasedOnEnvironmentFeatureExtension;
 import integration.container.condition.EnableBasedOnTestDriverExtension;
 import integration.container.condition.MakeSureFirstInstanceWriter;
@@ -56,16 +54,7 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.AnnotationUtils;
 import software.amazon.jdbc.ConnectionProviderManager;
 import software.amazon.jdbc.Driver;
-import software.amazon.jdbc.HikariPoolsHolder;
-import software.amazon.jdbc.dialect.DialectManager;
-import software.amazon.jdbc.hostlistprovider.monitoring.MonitoringRdsHostListProvider;
-import software.amazon.jdbc.plugin.OpenedConnectionTracker;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointMonitorImpl;
-import software.amazon.jdbc.plugin.customendpoint.CustomEndpointPlugin;
-import software.amazon.jdbc.plugin.efm.MonitorThreadContainer;
-import software.amazon.jdbc.plugin.efm2.MonitorServiceImpl;
 import software.amazon.jdbc.targetdriverdialect.TargetDriverDialectManager;
-import software.amazon.jdbc.util.RdsUtils;
 
 public class TestDriverProvider implements TestTemplateInvocationContextProvider {
   private static final Logger LOGGER = Logger.getLogger(TestDriverProvider.class.getName());
@@ -240,21 +229,11 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility(testInfo);
     auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
-    List<String> instanceIDs =
-        testInfo.getDatabaseInfo().getInstances()
-            .stream().map(TestInstanceInfo::getInstanceId)
-            .collect(Collectors.toList());
-
-    boolean allInstancesUp = auroraUtil.makeSureInstancesUp(
-        instanceIDs, false, TimeUnit.MINUTES.toSeconds(3));
-
-    if (!allInstancesUp) {
-      throw new RuntimeException("Not all instances are available");
-    }
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(3));
 
     if (makeSureFirstInstanceWriter) {
 
-      instanceIDs = new ArrayList<>();
+      List<String> instanceIDs = new ArrayList<>();
 
       // Need to ensure that cluster details through API matches topology fetched through SQL
       // Wait up to 10min
@@ -333,7 +312,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     auroraUtil.rebootCluster(testInfo.getAuroraClusterName());
     auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName(), "rebooting");
     auroraUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
-    auroraUtil.makeSureInstancesUp(instanceIDs, true, TimeUnit.MINUTES.toSeconds(10));
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(10));
   }
 
   public static void rebootAllClusterInstances() throws InterruptedException {
@@ -357,6 +336,6 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
       auroraUtil.waitUntilInstanceHasRightState(instanceId);
     }
 
-    auroraUtil.makeSureInstancesUp(instanceIDs, true, TimeUnit.MINUTES.toSeconds(10));
+    auroraUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(10));
   }
 }
