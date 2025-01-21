@@ -37,7 +37,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @EnableOnNumOfInstances(min = 2)
 @MakeSureFirstInstanceWriter
 @Order(15)
-public class AuroraFailover2Test extends AuroraFailoverTest {
+public class Failover2Test extends FailoverTest {
 
   @Override
   protected String getFailoverPlugin() {

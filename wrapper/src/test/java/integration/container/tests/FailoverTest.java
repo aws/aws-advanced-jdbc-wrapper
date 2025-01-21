@@ -74,9 +74,9 @@ import software.amazon.jdbc.util.SqlState;
     TestEnvironmentFeatures.RUN_AUTOSCALING_TESTS_ONLY})
 @MakeSureFirstInstanceWriter
 @Order(14)
-public class AuroraFailoverTest {
+public class FailoverTest {
 
-  private static final Logger LOGGER = Logger.getLogger(AuroraFailoverTest.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(FailoverTest.class.getName());
   protected static final int IS_VALID_TIMEOUT = 5;
   protected static final int IDLE_CONNECTIONS_NUM = 5;
 
@@ -666,8 +666,6 @@ public class AuroraFailoverTest {
       // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
       // simulate this by temporarily disabling connectivity to the writer.
       auroraUtil.simulateTemporaryFailure(executor, initialWriterId);
-
-      // Failure occurs on Connection invocation
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
     }
   }
