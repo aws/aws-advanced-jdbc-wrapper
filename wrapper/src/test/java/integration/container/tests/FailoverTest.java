@@ -659,10 +659,6 @@ public class FailoverTest {
                      initialWriterInstanceInfo.getPort(),
                      TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
                  props)) {
-      // Bring down all instances except for the writer.
-      ProxyHelper.disableAllConnectivity();
-      ProxyHelper.enableConnectivity(initialWriterId);
-
       // Failover usually changes the writer instance, but we want to test re-election of the same writer, so we will
       // simulate this by temporarily disabling connectivity to the writer.
       auroraUtil.simulateTemporaryFailure(executor, initialWriterId);
