@@ -137,7 +137,7 @@ public class AuroraStaleDnsHelper {
       staleDNSDetectedCounter.inc();
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsHost(allowedHosts, this.writerHostSpec.getUrl())) {
+      if (!Utils.containsUrl(allowedHosts, this.writerHostSpec.getUrl())) {
         throw new SQLException(
             Messages.get("AuroraStaleDnsHelper.currentWriterNotAllowed",
                 new Object[] {

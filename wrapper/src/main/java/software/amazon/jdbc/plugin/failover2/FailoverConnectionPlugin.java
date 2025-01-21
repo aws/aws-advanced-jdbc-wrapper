@@ -520,7 +520,7 @@ public class FailoverConnectionPlugin extends AbstractConnectionPlugin {
       }
 
       final List<HostSpec> allowedHosts = this.pluginService.getHosts();
-      if (!Utils.containsHost(allowedHosts, writerCandidate.getUrl())) {
+      if (!Utils.containsUrl(allowedHosts, writerCandidate.getUrl())) {
         this.failoverWriterFailedCounter.inc();
         String topologyString = Utils.logTopology(allowedHosts, "");
         LOGGER.severe(Messages.get("Failover.newWriterNotAllowed",
