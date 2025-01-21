@@ -1214,15 +1214,27 @@ public class AuroraTestUtility {
   }
 
   public String hostToIP(String hostname, boolean fail) {
-    try {
-      final InetAddress inet = InetAddress.getByName(hostname);
-      return inet.getHostAddress();
-    } catch (UnknownHostException e) {
-      if (fail) {
-        fail("The IP address of host " + hostname + " could not be determined");
+    int remainingTries = 5;
+    while (remainingTries-- > 0) {
+      try {
+        final InetAddress inet = InetAddress.getByName(hostname);
+        return inet.getHostAddress();
+      } catch (UnknownHostException e) {
+        // do nothing
       }
-      return null;
+
+      try {
+        TimeUnit.SECONDS.sleep(1);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
+
+    if (remainingTries == 0 && fail) {
+      fail("The IP address of host " + hostname + " could not be determined");
+    }
+
+    return null;
   }
 
   public boolean waitDnsEqual(
