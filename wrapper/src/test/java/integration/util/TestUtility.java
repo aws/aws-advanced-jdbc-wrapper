@@ -111,8 +111,10 @@ import software.amazon.jdbc.util.StringUtils;
 public class TestUtility {
 
   private static final Logger LOGGER = Logger.getLogger(TestUtility.class.getName());
-  private static final String DEFAULT_SECURITY_GROUP = "default";
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
+  private static final String DEFAULT_SECURITY_GROUP = "default";
+  private static final String DEFAULT_STORAGE_TYPE = "io1";
+  private static final int DEFAULT_IOPS = 1000;
   private static final int MULTI_AZ_SIZE = 3;
   private static final Random rand = new Random();
 
@@ -364,8 +366,8 @@ public class TestUtility {
     clusterBuilder =
         clusterBuilder.allocatedStorage(100)
             .dbClusterInstanceClass(instanceClass)
-            .storageType("io1")
-            .iops(1000);
+            .storageType(DEFAULT_STORAGE_TYPE)
+            .iops(DEFAULT_IOPS);
 
     rdsClient.createDBCluster(clusterBuilder.build());
 
@@ -388,8 +390,9 @@ public class TestUtility {
   /**
    * Creates an RDS instance under the current cluster and waits until it is up.
    *
+   * @param instanceClass the desired instance class of the new instance
    * @param instanceId the desired instance ID of the new instance
-   * @return the instance info of the new instance
+   * @return the instance info for the new instance
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
   public TestInstanceInfo createInstance(String instanceClass, String instanceId)
@@ -479,10 +482,10 @@ public class TestUtility {
   }
 
   /**
-   * Gets public IP.
+   * Gets the public IP address for the current machine.
    *
-   * @return public IP of user
-   * @throws UnknownHostException when checkip host isn't available
+   * @return the public IP address for the current machine
+   * @throws UnknownHostException when checkip.amazonaws.com isn't available
    */
   public String getPublicIPAddress() throws UnknownHostException {
     String ip;
@@ -497,7 +500,9 @@ public class TestUtility {
   }
 
   /**
-   * Authorizes IP to EC2 Security groups for RDS access.
+   * Adds the given IP address to the default security group for RDS access.
+   *
+   * @param ipAddress the IP address to add to the default security group
    */
   public void ec2AuthorizeIP(String ipAddress) {
     if (StringUtils.isNullOrEmpty(ipAddress)) {
@@ -544,7 +549,9 @@ public class TestUtility {
   }
 
   /**
-   * De-authorizes IP from EC2 Security groups.
+   * Removes the given IP address from the default security group.
+   *
+   * @param ipAddress the IP address to remove from the default security group.
    */
   public void ec2DeauthorizesIP(String ipAddress) {
     if (StringUtils.isNullOrEmpty(ipAddress)) {
@@ -565,9 +572,10 @@ public class TestUtility {
   }
 
   /**
-   * Deletes the specified cluster. Removes IP from EC2 whitelist.
+   * Deletes the specified cluster and removes the current IP address from the default security group.
    *
-   * @param identifier database identifier to delete
+   * @param identifier the cluster identifier for the cluster to delete
+   * @param deployment the engine deployment for the cluster to delete
    */
   public void deleteCluster(String identifier, DatabaseEngineDeployment deployment) {
     switch (deployment) {
@@ -583,7 +591,9 @@ public class TestUtility {
   }
 
   /**
-   * Destroys all instances and clusters. Removes IP from EC2 whitelist.
+   * Deletes the specified Aurora cluster and removes the current IP address from the default security group.
+   *
+   * @param identifier the cluster identifier for the cluster to delete
    */
   public void deleteAuroraCluster(String identifier) {
     List<DBClusterMember> members = getDBCluster(identifier).dbClusterMembers();
@@ -622,7 +632,9 @@ public class TestUtility {
   }
 
   /**
-   * Destroys all instances and clusters.
+   * Deletes the specified multi-az cluster and removes the current IP address from the default security group.
+   *
+   * @param identifier the cluster identifier for the cluster to delete
    */
   public void deleteMultiAzCluster(String identifier) {
     // deleteDBinstance requests are not necessary to delete a multi-az cluster.
