@@ -27,7 +27,9 @@ import integration.DatabaseEngine;
 import integration.DatabaseEngineDeployment;
 import integration.DriverHelper;
 import integration.TestEnvironmentFeatures;
+import integration.TestEnvironmentInfo;
 import integration.TestInstanceInfo;
+import integration.TestProxyDatabaseInfo;
 import integration.container.ConnectionStringHelper;
 import integration.container.ProxyHelper;
 import integration.container.TestDriver;
@@ -102,7 +104,7 @@ public class FailoverTest {
   }
 
   /**
-   * Current writer dies, driver failover occurs when executing a method against the connection
+   * Current writer dies, driver failover occurs when executing a method against the connection.
    */
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
@@ -317,7 +319,8 @@ public class FailoverTest {
   public void testServerFailoverWithIdleConnections() throws SQLException, InterruptedException {
     final List<Connection> idleConnections = new ArrayList<>();
     final String clusterEndpoint = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpoint();
-    final int clusterEndpointPort = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort();
+    final int clusterEndpointPort =
+        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getClusterEndpointPort();
 
     final Properties props = initDefaultProxiedProps();
     props.setProperty(PropertyDefinition.PLUGINS.name, "auroraConnectionTracker,failover");
@@ -394,11 +397,12 @@ public class FailoverTest {
   @TestTemplate
   @EnableOnNumOfInstances(min = 2)
   public void test_DataSourceWriterConnection_BasicFailover() throws SQLException {
+    TestEnvironmentInfo envInfo = TestEnvironment.getCurrent().getInfo();
+    TestProxyDatabaseInfo proxyInfo = envInfo.getProxyDatabaseInfo();
+    List<TestInstanceInfo> instances = proxyInfo.getInstances();
 
-    TestInstanceInfo initialWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(0);
-    TestInstanceInfo newWriterInstanceInfo =
-        TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances().get(1);
+    TestInstanceInfo initialWriterInstanceInfo = instances.get(0);
+    TestInstanceInfo newWriterInstanceInfo = instances.get(1);
     final String newWriterId = newWriterInstanceInfo.getInstanceId();
 
     try (final Connection conn =
@@ -413,23 +417,21 @@ public class FailoverTest {
       LOGGER.fine("currentConnectionId: " + currentConnectionId);
 
       List<String> instanceIDs = null;
-      for (TestInstanceInfo instanceInfo : TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances()) {
+      for (TestInstanceInfo instanceInfo : instances) {
         if (instanceInfo == initialWriterInstanceInfo
-            && TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment()
-                == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
+            && envInfo.getRequest().getDatabaseEngineDeployment() == DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER) {
           // Old writer node for RDS MultiAz clusters (usually) isn't available for a long time after failover.
           // Let's skip this node and fetch topology from another node.
           continue;
         }
         try {
           instanceIDs = auroraUtil.getAuroraInstanceIds(
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
-              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+              envInfo.getRequest().getDatabaseEngine(),
+              envInfo.getRequest().getDatabaseEngineDeployment(),
               ConnectionStringHelper.getUrl(
-                  instanceInfo.getHost(), instanceInfo.getPort(),
-                  TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getDefaultDbName()),
-              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getUsername(),
-              TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getPassword());
+                  instanceInfo.getHost(), instanceInfo.getPort(), proxyInfo.getDefaultDbName()),
+              proxyInfo.getUsername(),
+              proxyInfo.getPassword());
           if (!instanceIDs.isEmpty()) {
             break;
           }
