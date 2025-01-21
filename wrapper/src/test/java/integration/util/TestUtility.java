@@ -113,6 +113,7 @@ public class TestUtility {
   private static final Logger LOGGER = Logger.getLogger(TestUtility.class.getName());
   private static final String DEFAULT_SECURITY_GROUP = "default";
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
+  private static final int MULTI_AZ_SIZE = 3;
   private static final Random rand = new Random();
 
   private final RdsClient rdsClient;
@@ -194,17 +195,19 @@ public class TestUtility {
    *
    * @param username      the master username for access to the database
    * @param password      the master password for access to the database
-   * @param dbName        Database name
-   * @param identifier    Database cluster identifier
-   * @param engine        Database engine to use, refer to
-   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html">...</a>
-   * @param instanceClass instance class, refer to
-   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html">...</a>
+   * @param dbName        the database to create within the cluster
+   * @param identifier    the cluster identifier
+   * @param deployment    the engine deployment to use
+   * @param region        the region that the cluster should be created in
+   * @param engine        the engine to use, refer to
+   *                      <a href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/rds/model/CreateDbClusterRequest.Builder.html#engine(java.lang.String)">CreateDbClusterRequest.engine</a>
+   * @param instanceClass the instance class, refer to
+   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
    * @param version       the database engine's version
-   * @return An endpoint for one of the instances
+   * @param numInstances  the number of instances to create for the cluster
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createCluster(
+  public void createCluster(
       String username,
       String password,
       String dbName,
@@ -214,29 +217,48 @@ public class TestUtility {
       String engine,
       String instanceClass,
       String version,
-      int numInstances,
-      ArrayList<TestInstanceInfo> instances)
+      int numInstances)
       throws InterruptedException {
 
     switch (deployment) {
       case AURORA:
-        return createAuroraCluster(
-            username, password, dbName, identifier, region, engine, instanceClass, version, numInstances, instances);
+        createAuroraCluster(
+            username, password, dbName, identifier, region, engine, instanceClass, version, numInstances);
       case RDS_MULTI_AZ_CLUSTER:
-        return createMultiAzCluster(
-            username, password, dbName, identifier, region, engine, instanceClass, version, instances);
+        if (numInstances != MULTI_AZ_SIZE) {
+          throw new RuntimeException(
+              "A multi-az cluster with " + numInstances + " instances was requested, but multi-az clusters must have "
+                  + MULTI_AZ_SIZE + " instances.");
+        }
+
+        createMultiAzCluster(
+            username, password, dbName, identifier, region, engine, instanceClass, version);
       default:
         throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
+   * Performs the following:
+   * - creates an RDS Aurora cluster based on the passed in details
+   * - waits until it is available
+   * - adds the current IP address as an inbound rule to the security group so that the cluster can be accessed
+   * - creates a database with the given name within the cluster
    *
-   * @return An endpoint for one of the instances
+   * @param username      the master username for access to the database
+   * @param password      the master password for access to the database
+   * @param dbName        the database to create within the cluster
+   * @param identifier    the cluster identifier
+   * @param region        the region that the cluster should be created in
+   * @param engine        the engine to use, refer to
+   *                      <a href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/rds/model/CreateDbClusterRequest.Builder.html#engine(java.lang.String)">CreateDbClusterRequest.engine</a>
+   * @param instanceClass the instance class, refer to
+   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
+   * @param version       the database engine's version
+   * @param numInstances  the number of instances to create for the cluster
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createAuroraCluster(
+  public void createAuroraCluster(
       String username,
       String password,
       String dbName,
@@ -245,12 +267,9 @@ public class TestUtility {
       String engine,
       String instanceClass,
       String version,
-      int numInstances,
-      ArrayList<TestInstanceInfo> instances)
+      int numInstances)
       throws InterruptedException {
-    // Create Cluster
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
-
     final CreateDbClusterRequest dbClusterRequest =
         CreateDbClusterRequest.builder()
             .dbClusterIdentifier(identifier)
@@ -296,43 +315,36 @@ public class TestUtility {
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
-
-    final DescribeDbInstancesResponse dbInstancesResult =
-        rdsClient.describeDBInstances(
-            (builder) ->
-                builder.filters(
-                    Filter.builder().name("db-cluster-id").values(identifier).build()));
-    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
-    final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
-
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      instances.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
-    }
-
-    return clusterDomainPrefix;
   }
 
   /**
-   * Creates RDS Cluster/Instances and waits until they are up, and proper IP whitelisting for databases.
+   * Performs the following:
+   * - creates an RDS multi-az cluster based on the passed in details
+   * - waits until it is available
+   * - adds the current IP address as an inbound rule to the security group so that the cluster can be accessed
+   * - creates a database with the given name within the cluster
    *
-   * @return An endpoint for one of the instances
+   * @param username      the master username for access to the database
+   * @param password      the master password for access to the database
+   * @param dbName        the database to create within the cluster
+   * @param identifier    the cluster identifier
+   * @param region        the region that the cluster should be created in
+   * @param engine        the engine to use, refer to
+   *                      <a href="https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/rds/model/CreateDbClusterRequest.Builder.html#engine(java.lang.String)">CreateDbClusterRequest.engine</a>
+   * @param instanceClass the instance class, refer to
+   *                      <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.Support.html">Supported instance classes</a>
+   * @param version       the database engine's version
    * @throws InterruptedException when clusters have not started after 30 minutes
    */
-  public String createMultiAzCluster(String username,
+  public void createMultiAzCluster(String username,
       String password,
       String dbName,
       String identifier,
       String region,
       String engine,
       String instanceClass,
-      String version,
-      ArrayList<TestInstanceInfo> instances)
+      String version)
       throws InterruptedException {
-    // Create Cluster
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     CreateDbClusterRequest.Builder clusterBuilder =
         CreateDbClusterRequest.builder()
@@ -357,9 +369,7 @@ public class TestUtility {
 
     rdsClient.createDBCluster(clusterBuilder.build());
 
-    // For multi-AZ deployments, the cluster instances are created automatically.
-
-    // Wait for all instances to be up
+    // For multi-AZ deployments, the cluster instances are created automatically. Wait for all instances to be up.
     final RdsWaiter waiter = rdsClient.waiter();
     WaiterResponse<DescribeDbInstancesResponse> waiterResponse =
         waiter.waitUntilDBInstanceAvailable(
@@ -373,24 +383,6 @@ public class TestUtility {
       throw new InterruptedException(
           "Unable to start AWS RDS Cluster & Instances after waiting for 30 minutes");
     }
-
-    final DescribeDbInstancesResponse dbInstancesResult =
-        rdsClient.describeDBInstances(
-            (builder) ->
-                builder.filters(
-                    Filter.builder().name("db-cluster-id").values(identifier).build()));
-    final String endpoint = dbInstancesResult.dbInstances().get(0).endpoint().address();
-    final String clusterDomainPrefix = endpoint.substring(endpoint.indexOf('.') + 1);
-
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      instances.add(
-          new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
-    }
-
-    return clusterDomainPrefix;
   }
 
   /**
@@ -400,7 +392,7 @@ public class TestUtility {
    * @return the instance info of the new instance
    * @throws InterruptedException if the new instance is not available within 5 minutes
    */
-  public TestInstanceInfo createInstance(String instanceClass, String instanceId, List<TestInstanceInfo> instances)
+  public TestInstanceInfo createInstance(String instanceClass, String instanceId)
       throws InterruptedException {
     final Tag testRunnerTag = Tag.builder().key("env").value("test-runner").build();
     final TestEnvironmentInfo info = ContainerEnvironment.getCurrent().getInfo();
@@ -445,12 +437,18 @@ public class TestUtility {
     }
 
     DBInstance instance = dbInstancesResult.dbInstances().get(0);
-    TestInstanceInfo instanceInfo = new TestInstanceInfo(
+    return new TestInstanceInfo(
         instance.dbInstanceIdentifier(),
         instance.endpoint().address(),
         instance.endpoint().port());
-    instances.add(instanceInfo);
-    return instanceInfo;
+  }
+
+  public List<DBInstance> getDBInstances(String clusterId) {
+    final DescribeDbInstancesResponse dbInstancesResult =
+        rdsClient.describeDBInstances(
+            (builder) ->
+                builder.filters(Filter.builder().name("db-cluster-id").values(clusterId).build()));
+    return dbInstancesResult.dbInstances();
   }
 
   /**
@@ -459,15 +457,13 @@ public class TestUtility {
    * @param instanceToDelete the info for the instance to delete
    * @throws InterruptedException if the instance has not been deleted within 5 minutes
    */
-  public void deleteInstance(TestInstanceInfo instanceToDelete, List<TestInstanceInfo> instances)
+  public void deleteInstance(TestInstanceInfo instanceToDelete)
       throws InterruptedException {
     rdsClient.deleteDBInstance(
         DeleteDbInstanceRequest.builder()
             .dbInstanceIdentifier(instanceToDelete.getInstanceId())
             .skipFinalSnapshot(true)
             .build());
-    instances.remove(instanceToDelete);
-
     final RdsWaiter waiter = rdsClient.waiter();
     WaiterResponse<DescribeDbInstancesResponse> waiterResponse = waiter.waitUntilDBInstanceDeleted(
         (requestBuilder) -> requestBuilder.filters(
@@ -696,21 +692,18 @@ public class TestUtility {
     }
   }
 
-  public List<TestInstanceInfo> getClusterInstanceIds(final String clusterId) {
-    final DescribeDbInstancesResponse dbInstancesResult =
-        rdsClient.describeDBInstances(
-            (builder) ->
-                builder.filters(Filter.builder().name("db-cluster-id").values(clusterId).build()));
-
-    List<TestInstanceInfo> result = new ArrayList<>();
-    for (DBInstance instance : dbInstancesResult.dbInstances()) {
-      result.add(
+  public List<TestInstanceInfo> generateTestInstancesInfo(final String clusterId) {
+    List<DBInstance> dbInstances = getDBInstances(clusterId);
+    List<TestInstanceInfo> instancesInfo = new ArrayList<>();
+    for (DBInstance dbInstance : dbInstances) {
+      instancesInfo.add(
           new TestInstanceInfo(
-              instance.dbInstanceIdentifier(),
-              instance.endpoint().address(),
-              instance.endpoint().port()));
+              dbInstance.dbInstanceIdentifier(),
+              dbInstance.endpoint().address(),
+              dbInstance.endpoint().port()));
     }
-    return result;
+
+    return instancesInfo;
   }
 
   public void waitUntilClusterHasRightState(String clusterId) throws InterruptedException {

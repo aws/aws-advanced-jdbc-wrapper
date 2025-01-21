@@ -131,7 +131,8 @@ public class AutoscalingTests {
       final String instanceClass =
           testUtil.getDbInstanceClass(ContainerEnvironment.getCurrent().getInfo().getRequest());
       final TestInstanceInfo newInstance =
-          testUtil.createInstance(instanceClass, "auto-scaling-instance", instances);
+          testUtil.createInstance(instanceClass, "auto-scaling-instance");
+      instances.add(newInstance);
       try {
         newInstanceConn =
             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props);
@@ -146,7 +147,8 @@ public class AutoscalingTests {
             .anyMatch((url) -> url.equals(newInstance.getUrl())));
         newInstanceConn.setReadOnly(false);
       } finally {
-        testUtil.deleteInstance(newInstance, instances);
+        testUtil.deleteInstance(newInstance);
+        instances.remove(newInstance);
       }
 
       final long deletionCheckTimeout = System.nanoTime() + TimeUnit.MINUTES.toNanos(5);
@@ -206,7 +208,8 @@ public class AutoscalingTests {
       final String instanceClass =
           testUtil.getDbInstanceClass(ContainerEnvironment.getCurrent().getInfo().getRequest());
       final TestInstanceInfo newInstance =
-          testUtil.createInstance(instanceClass, "auto-scaling-instance", instances);
+          testUtil.createInstance(instanceClass, "auto-scaling-instance");
+      instances.add(newInstance);
       try {
         newInstanceConn =
             DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(newInstance), props);
@@ -218,7 +221,8 @@ public class AutoscalingTests {
         assertTrue(provider.getHosts().stream()
             .anyMatch((url) -> url.equals(newInstance.getUrl())));
       } finally {
-        testUtil.deleteInstance(newInstance, instances);
+        testUtil.deleteInstance(newInstance);
+        instances.remove(newInstance);
       }
 
       testUtil.assertFirstQueryThrows(newInstanceConn, FailoverSuccessSQLException.class);

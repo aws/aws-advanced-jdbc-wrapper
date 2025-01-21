@@ -32,8 +32,8 @@ import integration.TestInstanceInfo;
 import integration.TestProxyDatabaseInfo;
 import integration.TestTelemetryInfo;
 import integration.host.TestEnvironmentProvider.EnvPreCreateInfo;
-import integration.util.TestUtility;
 import integration.util.ContainerHelper;
+import integration.util.TestUtility;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
@@ -55,6 +55,7 @@ import org.testcontainers.containers.ToxiproxyContainer;
 import org.testcontainers.shaded.org.apache.commons.lang3.NotImplementedException;
 import org.testcontainers.utility.MountableFile;
 import software.amazon.awssdk.services.rds.model.DBCluster;
+import software.amazon.awssdk.services.rds.model.DBInstance;
 import software.amazon.jdbc.util.StringUtils;
 
 public class HostEnvironment implements AutoCloseable {
@@ -370,9 +371,6 @@ public class HostEnvironment implements AutoCloseable {
             env.awsAccessKeyId,
             env.awsSecretAccessKey,
             env.awsSessionToken);
-
-    ArrayList<TestInstanceInfo> instances = new ArrayList<>();
-
     if (env.reuseAuroraDbCluster) {
       if (StringUtils.isNullOrEmpty(env.auroraClusterDomain)) {
         throw new RuntimeException("Environment variable RDS_CLUSTER_DOMAIN is required.");
@@ -402,8 +400,6 @@ public class HostEnvironment implements AutoCloseable {
 
       env.info.setDatabaseEngine(clusterInfo.engine());
       env.info.setDatabaseEngineVersion(clusterInfo.engineVersion());
-      instances.addAll(env.testUtil.getClusterInstanceIds(env.auroraClusterName));
-
     } else {
       if (StringUtils.isNullOrEmpty(env.auroraClusterName)) {
         int remainingTries = 5;
@@ -435,19 +431,25 @@ public class HostEnvironment implements AutoCloseable {
         LOGGER.finer(
             "Using " + engine + " " + engineVersion);
 
-        env.auroraClusterDomain =
-            env.testUtil.createCluster(
-                env.info.getDatabaseInfo().getUsername(),
-                env.info.getDatabaseInfo().getPassword(),
-                env.info.getDatabaseInfo().getDefaultDbName(),
-                env.auroraClusterName,
-                env.info.getRequest().getDatabaseEngineDeployment(),
-                env.info.getRegion(),
-                engine,
-                instanceClass,
-                engineVersion,
-                numOfInstances,
-                instances);
+        env.testUtil.createCluster(
+            env.info.getDatabaseInfo().getUsername(),
+            env.info.getDatabaseInfo().getPassword(),
+            env.info.getDatabaseInfo().getDefaultDbName(),
+            env.auroraClusterName,
+            env.info.getRequest().getDatabaseEngineDeployment(),
+            env.info.getRegion(),
+            engine,
+            instanceClass,
+            engineVersion,
+            numOfInstances);
+
+        List<DBInstance> dbInstances = env.testUtil.getDBInstances(env.auroraClusterName);
+        if (dbInstances.isEmpty()) {
+          throw new RuntimeException("Failed to get instance information for cluster " + env.auroraClusterName);
+        }
+
+        final String instanceEndpoint = dbInstances.get(0).endpoint().address();
+        env.auroraClusterDomain = instanceEndpoint.substring(instanceEndpoint.indexOf("."));
         env.info.setDatabaseEngine(engine);
         env.info.setDatabaseEngineVersion(engineVersion);
         LOGGER.finer(
@@ -478,6 +480,7 @@ public class HostEnvironment implements AutoCloseable {
             env.auroraClusterName + ".cluster-ro-" + env.auroraClusterDomain, port);
     env.info.getDatabaseInfo().setInstanceEndpointSuffix(env.auroraClusterDomain, port);
 
+    List<TestInstanceInfo> instances = env.testUtil.generateTestInstancesInfo(env.auroraClusterName);
     env.info.getDatabaseInfo().getInstances().clear();
     env.info.getDatabaseInfo().getInstances().addAll(instances);
 
