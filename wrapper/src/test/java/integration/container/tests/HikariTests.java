@@ -19,6 +19,7 @@ package integration.container.tests;
 import static integration.util.AuroraTestUtility.executeWithTimeout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -62,6 +63,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import software.amazon.jdbc.AcceptsUrlFunc;
 import software.amazon.jdbc.ConnectionProviderManager;
+import software.amazon.jdbc.Driver;
 import software.amazon.jdbc.HikariPoolConfigurator;
 import software.amazon.jdbc.HikariPooledConnectionProvider;
 import software.amazon.jdbc.PropertyDefinition;
@@ -78,6 +80,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 @TestMethodOrder(MethodOrderer.MethodName.class)
 @ExtendWith(TestDriverProvider.class)
 @EnableOnTestFeature(TestEnvironmentFeatures.HIKARI)
+@EnableOnDatabaseEngineDeployment({DatabaseEngineDeployment.AURORA, DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER})
 @DisableOnTestFeature({
     TestEnvironmentFeatures.PERFORMANCE,
     TestEnvironmentFeatures.RUN_HIBERNATE_TESTS_ONLY,
@@ -100,7 +103,7 @@ public class HikariTests {
 
       final Connection conn = dataSource.getConnection();
 
-      assertTrue(conn instanceof HikariProxyConnection);
+      assertInstanceOf(HikariProxyConnection.class, conn);
       final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
 
       assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
@@ -155,7 +158,7 @@ public class HikariTests {
 
       final Connection conn = dataSource.getConnection();
 
-      assertTrue(conn instanceof HikariProxyConnection);
+      assertInstanceOf(HikariProxyConnection.class, conn);
       final HikariProxyConnection hikariConn = (HikariProxyConnection) conn;
 
       assertTrue(hikariConn.isWrapperFor(ConnectionWrapper.class));
@@ -171,7 +174,6 @@ public class HikariTests {
    * After getting successful connections from the pool, the cluster becomes unavailable.
    */
   @TestTemplate
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testFailoverLostConnection() throws SQLException {
@@ -212,7 +214,6 @@ public class HikariTests {
    * connection fails over to another instance through the Enhanced Failure Monitor.
    */
   @TestTemplate
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 3)
   public void testEFMFailover() throws SQLException {
@@ -250,7 +251,7 @@ public class HikariTests {
         assertTrue(currentConnectionId.equalsIgnoreCase(readerIdentifier));
 
         // Try to get a new connection to the failed instance, which times out
-        assertThrows(SQLTransientConnectionException.class, () -> dataSource.getConnection());
+        assertThrows(SQLTransientConnectionException.class, dataSource::getConnection);
       }
     } finally {
       ProxyHelper.enableAllConnectivity();
@@ -262,7 +263,6 @@ public class HikariTests {
    * getConnection is called.
    */
   @TestTemplate
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation()
@@ -303,7 +303,6 @@ public class HikariTests {
    * getConnection is called.
    */
   @TestTemplate
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(min = 2)
   public void testInternalPools_driverReaderFailoverOnGetConnectionInvocation()
@@ -352,7 +351,6 @@ public class HikariTests {
    * getConnection is called. Since the cluster only has one instance and the instance stays down, failover fails.
    */
   @TestTemplate
-  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED})
   @EnableOnNumOfInstances(max = 1)
   public void testInternalPools_driverWriterFailoverOnGetConnectionInvocation_singleInstance()
@@ -404,7 +402,8 @@ public class HikariTests {
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_TOPOLOGY_REFRESH_RATE_MS.name,
         String.valueOf(TimeUnit.MINUTES.toMillis(5)));
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.name,
-        "?." + proxyInfo.getInstanceEndpointSuffix());
+        "?." + proxyInfo.getInstanceEndpointSuffix()
+            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
     targetDataSourceProps.setProperty(RdsHostListProvider.CLUSTER_ID.name, "HikariTestsCluster");
 
     if (TestEnvironment.getCurrent().getCurrentDriver() == TestDriver.MARIADB
@@ -450,7 +449,7 @@ public class HikariTests {
             acceptsUrlFunc,
             TimeUnit.MINUTES.toNanos(30),
             TimeUnit.MINUTES.toNanos(10));
-    ConnectionProviderManager.setConnectionProvider(provider);
+    Driver.setCustomConnectionProvider(provider);
   }
 
   private HikariDataSource createHikariDataSource(final Properties customProps) {
@@ -510,7 +509,8 @@ public class HikariTests {
             + TestEnvironment.getCurrent()
             .getInfo()
             .getProxyDatabaseInfo()
-            .getInstanceEndpointSuffix());
+            .getInstanceEndpointSuffix()
+            + ":" + TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstanceEndpointPort());
 
     targetDataSourceProps.setProperty(
         FailoverConnectionPlugin.FAILOVER_MODE.name, "reader-or-writer");

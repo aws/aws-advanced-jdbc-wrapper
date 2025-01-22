@@ -87,10 +87,10 @@ public class TestEnvironmentConfiguration {
 
   // Expected values: "latest", "default", or engine version, for example, "15.4"
   // If left as empty, will use default version
-  public String auroraMySqlDbEngineVersion =
-      System.getenv("AURORA_MYSQL_DB_ENGINE_VERSION");
-  public String auroraPgDbEngineVersion =
-      System.getenv("AURORA_PG_ENGINE_VERSION");
+  public String mysqlVersion =
+      System.getenv("MYSQL_VERSION");
+  public String pgVersion =
+      System.getenv("PG_VERSION");
 
   public String dbName = System.getenv("DB_DATABASE_NAME");
   public String dbUsername = System.getenv("DB_USERNAME");

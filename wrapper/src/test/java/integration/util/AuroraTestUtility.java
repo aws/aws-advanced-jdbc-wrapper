@@ -28,6 +28,7 @@ import integration.TestEnvironmentInfo;
 import integration.TestEnvironmentRequest;
 import integration.TestInstanceInfo;
 import integration.container.ConnectionStringHelper;
+import integration.container.ProxyHelper;
 import integration.container.TestEnvironment;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -1015,6 +1016,53 @@ public class AuroraTestUtility {
         });
   }
 
+  public void assertFirstQueryThrows(Statement stmt, Class expectedSQLExceptionClass) {
+    assertThrows(
+        expectedSQLExceptionClass,
+        () -> {
+          String instanceId = executeInstanceIdQuery(
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngine(),
+              TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment(),
+              stmt);
+          LOGGER.finest(() -> "Instance ID: " + instanceId);
+        });
+  }
+
+  public void crashInstance(ExecutorService executor, String instanceId) {
+    DatabaseEngineDeployment deployment =
+        TestEnvironment.getCurrent().getInfo().getRequest().getDatabaseEngineDeployment();
+    if (DatabaseEngineDeployment.RDS_MULTI_AZ_CLUSTER.equals(deployment)) {
+      // Old multi-AZ writers take 10-20min to go up after server failover, so we will simulate failover.
+      simulateTemporaryFailure(executor, instanceId);
+    } else {
+      // Aurora clusters become fully available fairly quickly after server failover, so we test with actual failover.
+      try {
+        failoverClusterAndWaitUntilWriterChanged();
+      } catch (InterruptedException e) {
+        fail("Interrupted while waiting for server failover to complete", e);
+      }
+    }
+  }
+
+  public void simulateTemporaryFailure(ExecutorService executor, String instanceName) {
+    executor.submit(() -> {
+      try {
+        ProxyHelper.disableConnectivity(instanceName);
+        TimeUnit.SECONDS.sleep(5);
+        ProxyHelper.enableConnectivity(instanceName);
+      } catch (InterruptedException e) {
+        fail("The disable connectivity thread was unexpectedly interrupted.");
+      }
+    });
+
+    // Leave some time for the thread to start up
+    try {
+      TimeUnit.MILLISECONDS.sleep(500);
+    } catch (InterruptedException e) {
+      fail("Interrupted while waiting for the temporary instance failure thread to start up.");
+    }
+  }
+
   public void failoverClusterAndWaitUntilWriterChanged() throws InterruptedException {
     String clusterId = TestEnvironment.getCurrent().getInfo().getAuroraClusterName();
     failoverClusterToATargetAndWaitUntilWriterChanged(
@@ -1176,15 +1224,27 @@ public class AuroraTestUtility {
   }
 
   public String hostToIP(String hostname, boolean fail) {
-    try {
-      final InetAddress inet = InetAddress.getByName(hostname);
-      return inet.getHostAddress();
-    } catch (UnknownHostException e) {
-      if (fail) {
-        fail("The IP address of host " + hostname + " could not be determined");
+    int remainingTries = 5;
+    while (remainingTries-- > 0) {
+      try {
+        final InetAddress inet = InetAddress.getByName(hostname);
+        return inet.getHostAddress();
+      } catch (UnknownHostException e) {
+        // do nothing
       }
-      return null;
+
+      try {
+        TimeUnit.SECONDS.sleep(1);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
+
+    if (remainingTries == 0 && fail) {
+      fail("The IP address of host " + hostname + " could not be determined");
+    }
+
+    return null;
   }
 
   public boolean waitDnsEqual(
