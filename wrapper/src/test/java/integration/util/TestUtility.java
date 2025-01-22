@@ -992,7 +992,6 @@ public class TestUtility {
       throw new RuntimeException(e);
     }
 
-
     stop.set(true);
     executorService.shutdownNow();
 
@@ -1203,6 +1202,7 @@ public class TestUtility {
         TimeUnit.SECONDS.sleep(5);
         hostIpAddress = this.hostToIP(hostToCheck, false);
       }
+
       if (hostIpAddress == null) {
         fail("Can't get IP address for " + hostToCheck);
       }
