@@ -52,8 +52,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.TEMP_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TEMP_AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ env.TEMP_AWS_SESSION_TOKEN }}
-          AURORA_MYSQL_DB_ENGINE_VERSION: "default"
-          AURORA_PG_ENGINE_VERSION: "default"
+          MYSQL_VERSION: "default"
+          PG_VERSION: "default"
       - name: Mask data
         run: |
           ./gradlew --no-parallel --no-daemon maskJunitHtmlReport

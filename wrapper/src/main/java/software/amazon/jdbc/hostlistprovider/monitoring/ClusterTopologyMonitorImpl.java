@@ -653,14 +653,9 @@ public class ClusterTopologyMonitorImpl implements ClusterTopologyMonitor {
 
     final HashMap<String, HostSpec> hostMap = new HashMap<>();
 
-    int expectedColumnCount = 4;
-    int actualColumnCount = resultSet.getMetaData().getColumnCount();
-    if (actualColumnCount < expectedColumnCount) {
+    if (resultSet.getMetaData().getColumnCount() == 0) {
       // We expect at least 4 columns. Note that the server may return 0 columns if failover has occurred.
-      LOGGER.finest(
-          Messages.get(
-              "ClusterTopologyMonitorImpl.unexpectedTopologyQueryColumnCount",
-              new Object[]{expectedColumnCount, actualColumnCount}));
+      LOGGER.finest(Messages.get("ClusterTopologyMonitorImpl.unexpectedTopologyQueryColumnCount"));
       return null;
     }
 

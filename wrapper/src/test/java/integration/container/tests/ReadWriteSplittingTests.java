@@ -55,9 +55,13 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -92,6 +96,23 @@ public class ReadWriteSplittingTests {
   protected static final AuroraTestUtility auroraUtil = AuroraTestUtility.getUtility();
   private static final Logger LOGGER = Logger.getLogger(ReadWriteSplittingTests.class.getName());
 
+  protected ExecutorService executor;
+
+  @BeforeEach
+  public void setUpEach() {
+    this.executor = Executors.newFixedThreadPool(1, r -> {
+      final Thread thread = new Thread(r);
+      thread.setDaemon(true);
+      return thread;
+    });
+  }
+
+  @AfterEach
+  public void tearDownEach() {
+    this.executor.shutdownNow();
+  }
+
+
   protected static Properties getProxiedPropsWithFailover() {
     final Properties props = getPropsWithFailover();
     AuroraHostListProvider.CLUSTER_INSTANCE_HOST_PATTERN.set(props,
@@ -111,7 +132,7 @@ public class ReadWriteSplittingTests {
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();
     props.setProperty(
-        PropertyDefinition.SOCKET_TIMEOUT.name, String.valueOf(TimeUnit.SECONDS.toMillis(10)));
+        PropertyDefinition.SOCKET_TIMEOUT.name, String.valueOf(TimeUnit.SECONDS.toMillis(3)));
     props.setProperty(
         PropertyDefinition.CONNECT_TIMEOUT.name, String.valueOf(TimeUnit.SECONDS.toMillis(10)));
     return props;
@@ -414,24 +435,16 @@ public class ReadWriteSplittingTests {
   @TestTemplate
   @EnableOnNumOfInstances(min = 3)
   @EnableOnTestFeature({TestEnvironmentFeatures.NETWORK_OUTAGES_ENABLED, TestEnvironmentFeatures.FAILOVER_SUPPORTED})
-  public void test_failoverToNewWriter_setReadOnlyTrueFalse()
-      throws SQLException, InterruptedException {
+  public void test_writerFailover_setReadOnlyTrueFalse() throws SQLException {
     try (final Connection conn =
              DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), getProxiedPropsWithFailover())) {
 
       final String originalWriterId = auroraUtil.queryInstanceId(conn);
 
       // Kill all reader instances
-      final int numOfInstances =
-          TestEnvironment.getCurrent().getInfo().getDatabaseInfo().getInstances().size();
-      for (int i = 1; i < numOfInstances; i++) {
-        ProxyHelper.disableConnectivity(
-            TestEnvironment.getCurrent()
-                .getInfo()
-                .getDatabaseInfo()
-                .getInstances()
-                .get(i)
-                .getInstanceId());
+      List<TestInstanceInfo> instances = TestEnvironment.getCurrent().getInfo().getProxyDatabaseInfo().getInstances();
+      for (int i = 1; i < instances.size(); i++) {
+        ProxyHelper.disableConnectivity(instances.get(i).getInstanceId());
       }
 
       // Force internal reader connection to the writer instance
@@ -442,16 +455,13 @@ public class ReadWriteSplittingTests {
 
       ProxyHelper.enableAllConnectivity();
 
-      // Crash Instance1 and nominate a new writer
-      auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+      auroraUtil.crashInstance(executor, originalWriterId);
 
-      // Failure occurs on Connection invocation
       auroraUtil.assertFirstQueryThrows(conn, FailoverSuccessSQLException.class);
 
-      // Assert that we are connected to the new writer after failover happens.
+      // Assert that we are connected to the writer after failover happens.
       String newWriterId = auroraUtil.queryInstanceId(conn);
       assertTrue(auroraUtil.isDBInstanceWriter(newWriterId));
-      assertNotEquals(newWriterId, originalWriterId);
 
       conn.setReadOnly(true);
       currentConnectionId = auroraUtil.queryInstanceId(conn);
@@ -490,7 +500,8 @@ public class ReadWriteSplittingTests {
           break;
         }
       }
-      if (otherReaderId.equals("")) {
+
+      if (otherReaderId.isEmpty()) {
         fail("could not acquire new reader ID");
       }
 
@@ -676,6 +687,11 @@ public class ReadWriteSplittingTests {
   }
 
   @TestTemplate
+  // This test is not run on multi-AZ because multi-AZ clusters take too long to stabilize. Toxiproxy is not a valid
+  // alternative for this test because the proxied cluster and writer endpoint URLs resolve to different IP addresses.
+  // This causes AuroraStaleDnsHelper to replace the cluster URL with the writer URL which causes this test to fail
+  // because it results in a non-empty database pool.
+  @EnableOnDatabaseEngineDeployment(DatabaseEngineDeployment.AURORA)
   @EnableOnTestFeature({ TestEnvironmentFeatures.FAILOVER_SUPPORTED, TestEnvironmentFeatures.HIKARI })
   public void test_pooledConnectionFailoverWithClusterURL() throws SQLException, InterruptedException {
     Properties props = getPropsWithFailover();
@@ -747,9 +763,8 @@ public class ReadWriteSplittingTests {
 
   @TestTemplate
   @EnableOnTestFeature(TestEnvironmentFeatures.FAILOVER_SUPPORTED)
-  public void test_pooledConnection_failoverInTransaction()
-      throws SQLException, InterruptedException {
-    Properties props = getPropsWithFailover();
+  public void test_pooledConnection_failoverInTransaction() throws SQLException {
+    Properties props = getProxiedPropsWithFailover();
 
     final HikariPooledConnectionProvider provider =
         new HikariPooledConnectionProvider(getHikariConfig(1));
@@ -763,19 +778,18 @@ public class ReadWriteSplittingTests {
     final Connection newWriterConn;
 
     try {
-      try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getWrapperUrl(), props)) {
+      try (Connection conn = DriverManager.getConnection(ConnectionStringHelper.getProxyWrapperUrl(), props)) {
         initialWriterConn1 = conn.unwrap(Connection.class);
         conn.setAutoCommit(false);
         initialWriterId = auroraUtil.queryInstanceId(conn);
         LOGGER.finest("initialWriterId: " + initialWriterId + ", " + initialWriterConn1);
-        auroraUtil.failoverClusterAndWaitUntilWriterChanged();
+        auroraUtil.crashInstance(executor, initialWriterId);
         assertThrows(TransactionStateUnknownSQLException.class,
             () -> auroraUtil.queryInstanceId(conn));
         conn.setAutoCommit(true);
         nextWriterId = auroraUtil.queryInstanceId(conn);
         newWriterConn = conn.unwrap(Connection.class);
         LOGGER.finest("nextWriterId: " + nextWriterId + ", " + newWriterConn);
-        assertNotEquals(initialWriterId, nextWriterId);
         assertNotSame(initialWriterConn1, newWriterConn);
       }
 
