@@ -449,7 +449,7 @@ public class TestEnvironment implements AutoCloseable {
         }
 
         final String instanceEndpoint = dbInstances.get(0).endpoint().address();
-        env.auroraClusterDomain = instanceEndpoint.substring(instanceEndpoint.indexOf("."));
+        env.auroraClusterDomain = instanceEndpoint.substring(instanceEndpoint.indexOf(".") + 1);
         env.info.setDatabaseEngine(engine);
         env.info.setDatabaseEngineVersion(engineVersion);
         LOGGER.finer(
