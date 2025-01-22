@@ -826,6 +826,10 @@ public class ReadWriteSplittingTests {
     String limitedUserNewDb = "limited_user_db";
     limitedUserProps.setProperty(PropertyDefinition.USER.name, limitedUserName);
     limitedUserProps.setProperty(PropertyDefinition.PASSWORD.name, limitedUserPassword);
+    // This property is required when using limited_user with the mariadb driver against multi-az mysql version 8.4,
+    // or you will get the error "RSA public key is not available client side". The mariadb driver may not fully support
+    // all aspects of mysql 8.4's SSL mechanisms, which is why this property is only required for newer mysql versions.
+    limitedUserProps.setProperty("allowPublicKeyRetrieval", "true");
 
     Properties wrongUserRightPasswordProps = getProps();
     wrongUserRightPasswordProps.setProperty(PropertyDefinition.USER.name, "bogus_user");
