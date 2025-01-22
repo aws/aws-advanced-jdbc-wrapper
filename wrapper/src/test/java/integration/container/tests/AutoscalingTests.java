@@ -34,7 +34,7 @@ import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.TestUtility;
+import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -64,7 +64,7 @@ import software.amazon.jdbc.plugin.readwritesplitting.ReadWriteSplittingPlugin;
 @MakeSureFirstInstanceWriter
 @Order(17)
 public class AutoscalingTests {
-  protected static final TestUtility testUtil = TestUtility.getUtility();
+  protected static final AuroraTestUtility testUtil = AuroraTestUtility.getUtility();
 
   protected static Properties getDefaultPropsNoPlugins() {
     final Properties props = ConnectionStringHelper.getDefaultProperties();

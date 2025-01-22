@@ -16,7 +16,7 @@
 
 package integration.container.tests;
 
-import static integration.util.TestUtility.executeWithTimeout;
+import static integration.util.AuroraTestUtility.executeWithTimeout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -45,7 +45,7 @@ import integration.container.condition.EnableOnDatabaseEngineDeployment;
 import integration.container.condition.EnableOnNumOfInstances;
 import integration.container.condition.EnableOnTestFeature;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.TestUtility;
+import integration.util.AuroraTestUtility;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
@@ -87,7 +87,7 @@ import software.amazon.jdbc.wrapper.ConnectionWrapper;
 public class HikariTests {
 
   private static final Logger LOGGER = Logger.getLogger(HikariTests.class.getName());
-  protected static final TestUtility testUtil = TestUtility.getUtility();
+  protected static final AuroraTestUtility testUtil = AuroraTestUtility.getUtility();
 
   @TestTemplate
   public void testOpenConnectionWithUrl() throws SQLException {

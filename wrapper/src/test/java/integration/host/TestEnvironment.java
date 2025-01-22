@@ -33,7 +33,7 @@ import integration.TestProxyDatabaseInfo;
 import integration.TestTelemetryInfo;
 import integration.host.TestEnvironmentProvider.EnvPreCreateInfo;
 import integration.util.ContainerHelper;
-import integration.util.TestUtility;
+import integration.util.AuroraTestUtility;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
@@ -105,7 +105,7 @@ public class TestEnvironment implements AutoCloseable {
 
   private final Network network = Network.newNetwork();
 
-  private TestUtility testUtil;
+  private AuroraTestUtility testUtil;
 
   private TestEnvironment(TestEnvironmentRequest request) {
     this.info.setRequest(request);
@@ -365,7 +365,7 @@ public class TestEnvironment implements AutoCloseable {
     env.info.setRdsEndpoint(env.rdsEndpoint);
 
     env.testUtil =
-        new TestUtility(
+        new AuroraTestUtility(
             env.info.getRegion(),
             env.rdsEndpoint,
             env.awsAccessKeyId,

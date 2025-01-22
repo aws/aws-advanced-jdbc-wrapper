@@ -34,7 +34,7 @@ import integration.TestInstanceInfo;
 import integration.container.condition.EnableBasedOnEnvironmentFeatureExtension;
 import integration.container.condition.EnableBasedOnTestDriverExtension;
 import integration.container.condition.MakeSureFirstInstanceWriter;
-import integration.util.TestUtility;
+import integration.util.AuroraTestUtility;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -226,7 +226,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
     final TestEnvironmentRequest testRequest = testInfo.getRequest();
 
-    final TestUtility testUtil = TestUtility.getUtility(testInfo);
+    final AuroraTestUtility testUtil = AuroraTestUtility.getUtility(testInfo);
     testUtil.waitUntilClusterHasRightState(testInfo.getAuroraClusterName());
 
     testUtil.makeSureInstancesUp(TimeUnit.MINUTES.toSeconds(3));
@@ -295,7 +295,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
   public static void rebootCluster() throws InterruptedException {
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
-    final TestUtility testUtil = TestUtility.getUtility(testInfo);
+    final AuroraTestUtility testUtil = AuroraTestUtility.getUtility(testInfo);
 
     List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()
         .map(TestInstanceInfo::getInstanceId)
@@ -318,7 +318,7 @@ public class TestDriverProvider implements TestTemplateInvocationContextProvider
   public static void rebootAllClusterInstances() throws InterruptedException {
 
     final TestEnvironmentInfo testInfo = TestEnvironment.getCurrent().getInfo();
-    final TestUtility testUtil = TestUtility.getUtility(testInfo);
+    final AuroraTestUtility testUtil = AuroraTestUtility.getUtility(testInfo);
 
     List<String> instanceIDs = testInfo.getDatabaseInfo().getInstances().stream()
         .map(TestInstanceInfo::getInstanceId)

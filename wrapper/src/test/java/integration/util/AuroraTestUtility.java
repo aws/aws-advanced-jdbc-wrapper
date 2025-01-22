@@ -108,9 +108,9 @@ import software.amazon.jdbc.util.StringUtils;
  * Provides useful functions for RDS integration testing. To use this functionality the following environment variables
  * must be defined: - AWS_ACCESS_KEY_ID - AWS_SECRET_ACCESS_KEY
  */
-public class TestUtility {
+public class AuroraTestUtility {
 
-  private static final Logger LOGGER = Logger.getLogger(TestUtility.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(AuroraTestUtility.class.getName());
   private static final String DUPLICATE_IP_ERROR_CODE = "InvalidPermission.Duplicate";
   private static final String DEFAULT_SECURITY_GROUP = "default";
   private static final String DEFAULT_STORAGE_TYPE = "io1";
@@ -121,11 +121,11 @@ public class TestUtility {
   private final RdsClient rdsClient;
   private final Ec2Client ec2Client;
 
-  public TestUtility(String region, String endpoint) {
+  public AuroraTestUtility(String region, String endpoint) {
     this(getRegionInternal(region), endpoint, DefaultCredentialsProvider.create());
   }
 
-  public TestUtility(
+  public AuroraTestUtility(
       String region, String rdsEndpoint, String awsAccessKeyId, String awsSecretAccessKey, String awsSessionToken) {
     this(
         getRegionInternal(region),
@@ -146,7 +146,7 @@ public class TestUtility {
    *                            Regions, Availability Zones, and Local Zones</a>
    * @param credentialsProvider The AWS credential provider to use to initialize the RdsClient and Ec2Client.
    */
-  public TestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
+  public AuroraTestUtility(Region region, String rdsEndpoint, AwsCredentialsProvider credentialsProvider) {
     final RdsClientBuilder rdsClientBuilder = RdsClient.builder()
         .region(region)
         .credentialsProvider(credentialsProvider);
@@ -166,16 +166,16 @@ public class TestUtility {
         .build();
   }
 
-  public static TestUtility getUtility() {
+  public static AuroraTestUtility getUtility() {
     return getUtility(null);
   }
 
-  public static TestUtility getUtility(@Nullable TestEnvironmentInfo info) {
+  public static AuroraTestUtility getUtility(@Nullable TestEnvironmentInfo info) {
     if (info == null) {
       info = TestEnvironment.getCurrent().getInfo();
     }
 
-    return new TestUtility(info.getRegion(), info.getRdsEndpoint());
+    return new AuroraTestUtility(info.getRegion(), info.getRdsEndpoint());
   }
 
   protected static Region getRegionInternal(String rdsRegion) {

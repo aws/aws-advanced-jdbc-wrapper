@@ -32,7 +32,7 @@ import integration.container.TestEnvironment;
 import integration.container.aurora.TestAuroraHostListProvider;
 import integration.container.aurora.TestPluginServiceImpl;
 import integration.container.condition.EnableOnTestFeature;
-import integration.util.TestUtility;
+import integration.util.AuroraTestUtility;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -99,7 +99,7 @@ public class AdvancedPerformanceTest {
 
   private static final ConcurrentLinkedQueue<PerfStat> perfDataList = new ConcurrentLinkedQueue<>();
 
-  protected static final TestUtility testUtil = TestUtility.getUtility();
+  protected static final AuroraTestUtility testUtil = AuroraTestUtility.getUtility();
 
   private static void doWritePerfDataToFile(
       String fileName, ConcurrentLinkedQueue<PerfStat> dataList) throws IOException {
