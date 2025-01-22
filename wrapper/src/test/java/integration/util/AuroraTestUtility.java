@@ -190,11 +190,9 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Performs the following:
-   * - creates an RDS cluster based on the passed in details
-   * - waits until it is available
-   * - adds the current IP address as an inbound rule to the security group so that the cluster can be accessed
-   * - creates a database with the given name within the cluster
+   * Creates an RDS cluster based on the passed in details. After the cluster is created, this method will wait
+   * until it is available, adds the current IP address to the default security group, and create a database with the
+   * given name within the cluster.
    *
    * @param username      the master username for access to the database
    * @param password      the master password for access to the database
@@ -227,6 +225,7 @@ public class AuroraTestUtility {
       case AURORA:
         createAuroraCluster(
             username, password, dbName, identifier, region, engine, instanceClass, version, numInstances);
+        break;
       case RDS_MULTI_AZ_CLUSTER:
         if (numInstances != MULTI_AZ_SIZE) {
           throw new RuntimeException(
@@ -236,17 +235,16 @@ public class AuroraTestUtility {
 
         createMultiAzCluster(
             username, password, dbName, identifier, region, engine, instanceClass, version);
+        break;
       default:
         throw new UnsupportedOperationException(deployment.toString());
     }
   }
 
   /**
-   * Performs the following:
-   * - creates an RDS Aurora cluster based on the passed in details
-   * - waits until it is available
-   * - adds the current IP address as an inbound rule to the security group so that the cluster can be accessed
-   * - creates a database with the given name within the cluster
+   * Creates an RDS Aurora cluster based on the passed in details. After the cluster is created, this method will wait
+   * until it is available, adds the current IP address to the default security group, and create a database with the
+   * given name within the cluster.
    *
    * @param username      the master username for access to the database
    * @param password      the master password for access to the database
@@ -321,11 +319,9 @@ public class AuroraTestUtility {
   }
 
   /**
-   * Performs the following:
-   * - creates an RDS multi-az cluster based on the passed in details
-   * - waits until it is available
-   * - adds the current IP address as an inbound rule to the security group so that the cluster can be accessed
-   * - creates a database with the given name within the cluster
+   * Creates an RDS multi-az cluster based on the passed in details. After the cluster is created, this method will wait
+   * until it is available, adds the current IP address to the default security group, and create a database with the
+   * given name within the cluster.
    *
    * @param username      the master username for access to the database
    * @param password      the master password for access to the database
